@@ -14,6 +14,10 @@ import pytest
 import tempfile
 import os
 import sqlite3
+from pathlib import Path
+
+# Project root - works on both local and CI environments
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 
 # ============================================================================
 # E2E TESTS: python_api (verification.json > e2e_tests > python_api)
@@ -47,7 +51,7 @@ class TestPythonApiE2E:
         c = Civic("san-rafael")
 
         # Core assertions
-        assert c.jurisdiction == "san-rafael"
+        assert c.jurisdiction == "city-san-rafael"
         assert c._state is not None, "StateManager should be initialized"
         assert c.db_path == "data/civic_state.db", "Default db_path should be set"
 
@@ -63,7 +67,7 @@ class TestPythonApiE2E:
             db_path = os.path.join(tmpdir, "test.db")
             c = Civic("san-rafael", db_path=db_path)
 
-            assert c.jurisdiction == "san-rafael"
+            assert c.jurisdiction == "city-san-rafael"
             assert c.db_path == db_path
             assert c._state is not None
 
@@ -135,7 +139,7 @@ class TestPythonApiE2E:
 
         assert isinstance(context, RegulatoryStack)
         assert context.topic == "housing"
-        assert context.jurisdiction == "san-rafael"
+        assert context.jurisdiction == "city-san-rafael"
         # Should have context structure (may be empty lists)
         assert isinstance(context.federal, list)
         assert isinstance(context.state, list)
@@ -188,7 +192,7 @@ class TestPythonApiE2E:
 
         assert isinstance(community, Community)
         assert community.topic == "bike lanes"
-        assert community.jurisdiction == "san-rafael"
+        assert community.jurisdiction == "city-san-rafael"
 
     # -------------------------------------------------------------------------
     # action_start_something: "start_something() creates initiative"
@@ -224,7 +228,7 @@ class TestPythonApiE2E:
             assert initiative.id.startswith("init_")
             assert initiative.topic == "traffic safety"
             assert initiative.title == "Protected bike lane on 4th Street"
-            assert initiative.jurisdiction == "san-rafael"
+            assert initiative.jurisdiction == "city-san-rafael"
 
             # Verify persistence
             state = StateManager(db_path)
@@ -2024,7 +2028,7 @@ class TestEdgeCasesEmptyResults:
 
         assert isinstance(context, RegulatoryStack)
         assert context.topic == "underwater_basket_weaving"
-        assert context.jurisdiction == "san-rafael"
+        assert context.jurisdiction == "city-san-rafael"
         # Lists should exist (may contain "note" placeholders)
         assert isinstance(context.federal, list)
         assert isinstance(context.state, list)
@@ -2112,7 +2116,7 @@ class TestEdgeCasesEmptyResults:
 
             assert isinstance(community, Community)
             assert community.topic == "underwater_basket_weaving_regulations"
-            assert community.jurisdiction == "san-rafael"
+            assert community.jurisdiction == "city-san-rafael"
             assert community.follower_count == 0
             assert isinstance(community.recent_voices, list)
             assert isinstance(community.active_initiatives, list)
@@ -2155,7 +2159,7 @@ class TestEdgeCasesInvalidInput:
             # Should not raise on instantiation
             c = Civic("fake-city-xyz", db_path=db_path)
 
-            assert c.jurisdiction == "fake-city-xyz"
+            assert c.jurisdiction == "city-fake-city-xyz"
 
             # Query methods should still work (return empty/placeholder)
             meetings = c.whats_next()
@@ -3613,7 +3617,7 @@ class TestSecuritySqlInjection:
         Verify CivicInputValidator detects and blocks SQL injection patterns.
         """
         import sys
-        sys.path.insert(0, '/Users/nicolaslounsbury/projects/civic/src')
+        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
         from civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
@@ -3645,7 +3649,7 @@ class TestSecuritySqlInjection:
         Verify CivicInputValidator doesn't block legitimate text with SQL keywords.
         """
         import sys
-        sys.path.insert(0, '/Users/nicolaslounsbury/projects/civic/src')
+        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
         from civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
@@ -3850,7 +3854,7 @@ class TestSecuritySqlInjection:
         """
         import re
 
-        manager_path = '/Users/nicolaslounsbury/projects/civic/packages/civic/src/civic/_internal/state/manager.py'
+        manager_path = str(PROJECT_ROOT / 'packages/civic/src/civic/_internal/state/manager.py')
 
         with open(manager_path, 'r') as f:
             source_code = f.read()
@@ -3916,7 +3920,7 @@ class TestSecurityXssPrevention:
         Verify CivicInputValidator blocks script tag XSS patterns.
         """
         import sys
-        sys.path.insert(0, '/Users/nicolaslounsbury/projects/civic/src')
+        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
         from civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
@@ -3944,7 +3948,7 @@ class TestSecurityXssPrevention:
         Verify CivicInputValidator blocks event handler XSS patterns.
         """
         import sys
-        sys.path.insert(0, '/Users/nicolaslounsbury/projects/civic/src')
+        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
         from civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
@@ -3973,7 +3977,7 @@ class TestSecurityXssPrevention:
         Verify CivicInputValidator blocks javascript: URL XSS patterns.
         """
         import sys
-        sys.path.insert(0, '/Users/nicolaslounsbury/projects/civic/src')
+        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
         from civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
@@ -4000,7 +4004,7 @@ class TestSecurityXssPrevention:
         Verify CivicInputValidator blocks data: URL XSS patterns.
         """
         import sys
-        sys.path.insert(0, '/Users/nicolaslounsbury/projects/civic/src')
+        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
         from civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
@@ -4027,7 +4031,7 @@ class TestSecurityXssPrevention:
         Verify _sanitize_text properly escapes HTML special characters.
         """
         import sys
-        sys.path.insert(0, '/Users/nicolaslounsbury/projects/civic/src')
+        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
         from civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
@@ -4053,7 +4057,7 @@ class TestSecurityXssPrevention:
         Verify _sanitize_text removes null bytes and control characters.
         """
         import sys
-        sys.path.insert(0, '/Users/nicolaslounsbury/projects/civic/src')
+        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
         from civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
@@ -4082,7 +4086,7 @@ class TestSecurityXssPrevention:
         Verify CivicInputValidator blocks template injection patterns.
         """
         import sys
-        sys.path.insert(0, '/Users/nicolaslounsbury/projects/civic/src')
+        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
         from civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
@@ -4227,7 +4231,7 @@ class TestSecurityXssPrevention:
         Other potentially dangerous tags are HTML-escaped during sanitization.
         """
         import sys
-        sys.path.insert(0, '/Users/nicolaslounsbury/projects/civic/src')
+        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
         from civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
@@ -4269,7 +4273,7 @@ class TestSecurityXssPrevention:
         Verify CivicInputValidator blocks encoded/obfuscated XSS attempts.
         """
         import sys
-        sys.path.insert(0, '/Users/nicolaslounsbury/projects/civic/src')
+        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
         from civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
@@ -4299,7 +4303,7 @@ class TestSecurityXssPrevention:
         Verify CivicInputValidator blocks SVG-based XSS vectors.
         """
         import sys
-        sys.path.insert(0, '/Users/nicolaslounsbury/projects/civic/src')
+        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
         from civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
@@ -4327,7 +4331,7 @@ class TestSecurityXssPrevention:
         Verify CivicInputValidator blocks HTML comments (can hide payloads).
         """
         import sys
-        sys.path.insert(0, '/Users/nicolaslounsbury/projects/civic/src')
+        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
         from civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
@@ -4354,7 +4358,7 @@ class TestSecurityXssPrevention:
         Verify CivicInputValidator doesn't block legitimate uses of < and >.
         """
         import sys
-        sys.path.insert(0, '/Users/nicolaslounsbury/projects/civic/src')
+        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
         from civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
@@ -4442,7 +4446,7 @@ class TestSecurityXssPrevention:
         the backend sanitization aligns with this approach.
         """
         import sys
-        sys.path.insert(0, '/Users/nicolaslounsbury/projects/civic/src')
+        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
         from civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
@@ -4473,7 +4477,7 @@ class TestSecurityXssPrevention:
         import re
 
         # Read the input validator source
-        validator_path = '/Users/nicolaslounsbury/projects/civic/src/civic_input_validator.py'
+        validator_path = str(PROJECT_ROOT / 'src/civic_input_validator.py')
         with open(validator_path, 'r') as f:
             source_code = f.read()
 
@@ -4498,7 +4502,7 @@ class TestSecurityXssPrevention:
         """
         import re
 
-        validator_path = '/Users/nicolaslounsbury/projects/civic/src/civic_input_validator.py'
+        validator_path = str(PROJECT_ROOT / 'src/civic_input_validator.py')
         with open(validator_path, 'r') as f:
             source_code = f.read()
 
@@ -4581,8 +4585,8 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            '/Users/nicolaslounsbury/projects/civic/packages/civic/src/civic',
-            '/Users/nicolaslounsbury/projects/civic/src'
+            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'src')
         ]
 
         for source_dir in source_dirs:
@@ -4630,8 +4634,8 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            '/Users/nicolaslounsbury/projects/civic/packages/civic/src/civic',
-            '/Users/nicolaslounsbury/projects/civic/src'
+            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'src')
         ]
 
         for source_dir in source_dirs:
@@ -4696,8 +4700,8 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            '/Users/nicolaslounsbury/projects/civic/packages/civic/src/civic',
-            '/Users/nicolaslounsbury/projects/civic/src'
+            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'src')
         ]
 
         for source_dir in source_dirs:
@@ -4747,8 +4751,8 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            '/Users/nicolaslounsbury/projects/civic/packages/civic/src/civic',
-            '/Users/nicolaslounsbury/projects/civic/src'
+            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'src')
         ]
 
         for source_dir in source_dirs:
@@ -4800,8 +4804,8 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            '/Users/nicolaslounsbury/projects/civic/packages/civic/src/civic',
-            '/Users/nicolaslounsbury/projects/civic/src'
+            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'src')
         ]
 
         for source_dir in source_dirs:
@@ -4985,8 +4989,8 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            '/Users/nicolaslounsbury/projects/civic/packages/civic/src/civic',
-            '/Users/nicolaslounsbury/projects/civic/src'
+            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'src')
         ]
 
         for source_dir in source_dirs:
@@ -5031,7 +5035,7 @@ class TestSecurityNoSecretsInLogs:
         # These patterns are more difficult to detect with regex alone
         # For now, verify the codebase doesn't have obvious violations
 
-        source_path = '/Users/nicolaslounsbury/projects/civic/packages/civic/src/civic'
+        source_path = str(PROJECT_ROOT / 'packages/civic/src/civic')
 
         if not os.path.exists(source_path):
             return  # Skip if source not found
@@ -5079,8 +5083,8 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            '/Users/nicolaslounsbury/projects/civic/packages/civic/src/civic',
-            '/Users/nicolaslounsbury/projects/civic/src'
+            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'src')
         ]
 
         for source_dir in source_dirs:
@@ -5125,7 +5129,7 @@ class TestSecurityNoSecretsInLogs:
         conn_regex = re.compile('|'.join(conn_log_patterns), re.IGNORECASE)
 
         violations = []
-        source_path = '/Users/nicolaslounsbury/projects/civic'
+        source_path = str(PROJECT_ROOT)
 
         for root, dirs, files in os.walk(source_path):
             # Skip non-source directories
@@ -5187,7 +5191,7 @@ class TestSecurityNoSecretsInLogs:
         )
 
         violations = []
-        source_path = '/Users/nicolaslounsbury/projects/civic'
+        source_path = str(PROJECT_ROOT)
 
         for root, dirs, files in os.walk(source_path):
             dirs[:] = [d for d in dirs if d not in [
@@ -5243,7 +5247,7 @@ class TestSecurityNoSecretsInLogs:
         """
         import os
 
-        state_manager_path = '/Users/nicolaslounsbury/projects/civic/packages/civic/src/civic/_internal/state/manager.py'
+        state_manager_path = str(PROJECT_ROOT / 'packages/civic/src/civic/_internal/state/manager.py')
 
         if not os.path.exists(state_manager_path):
             pytest.skip("StateManager not found at expected path")
@@ -5281,7 +5285,7 @@ class TestSecurityNoSecretsInLogs:
         import os
         import re
 
-        api_server_path = '/Users/nicolaslounsbury/projects/civic/src/civic_api_integrated.py'
+        api_server_path = str(PROJECT_ROOT / 'src/civic_api_integrated.py')
 
         if not os.path.exists(api_server_path):
             pytest.skip("API server not found at expected path")
@@ -5326,7 +5330,7 @@ class TestSecurityNoSecretsInLogs:
         """
         import os
 
-        validator_path = '/Users/nicolaslounsbury/projects/civic/src/civic_input_validator.py'
+        validator_path = str(PROJECT_ROOT / 'src/civic_input_validator.py')
 
         if not os.path.exists(validator_path):
             pytest.skip("Input validator not found")
@@ -5371,7 +5375,7 @@ class TestSecurityNoSecretsInLogs:
         debug_regex = re.compile('|'.join(debug_patterns), re.IGNORECASE)
 
         violations = []
-        source_path = '/Users/nicolaslounsbury/projects/civic'
+        source_path = str(PROJECT_ROOT)
 
         for root, dirs, files in os.walk(source_path):
             dirs[:] = [d for d in dirs if d not in [
@@ -5421,8 +5425,8 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            '/Users/nicolaslounsbury/projects/civic/packages/civic/src/civic',
-            '/Users/nicolaslounsbury/projects/civic/src'
+            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'src')
         ]
 
         for source_dir in source_dirs:
@@ -5494,8 +5498,8 @@ class TestSecurityErrorMessagesSafe:
 
         violations = []
         source_dirs = [
-            '/Users/nicolaslounsbury/projects/civic/packages/civic/src/civic',
-            '/Users/nicolaslounsbury/projects/civic/src'
+            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'src')
         ]
 
         for source_dir in source_dirs:
@@ -5540,8 +5544,8 @@ class TestSecurityErrorMessagesSafe:
 
         violations = []
         api_files = [
-            '/Users/nicolaslounsbury/projects/civic/src/civic_api_integrated.py',
-            '/Users/nicolaslounsbury/projects/civic/src/civic_api.py',
+            str(PROJECT_ROOT / 'src/civic_api_integrated.py'),
+            str(PROJECT_ROOT / 'src/civic_api.py'),
         ]
 
         for filepath in api_files:
@@ -5581,8 +5585,8 @@ class TestSecurityErrorMessagesSafe:
         violations = []
         # Focus on API files that send responses to clients
         api_files = [
-            '/Users/nicolaslounsbury/projects/civic/src/civic_api_integrated.py',
-            '/Users/nicolaslounsbury/projects/civic/src/civic_api.py',
+            str(PROJECT_ROOT / 'src/civic_api_integrated.py'),
+            str(PROJECT_ROOT / 'src/civic_api.py'),
         ]
 
         for filepath in api_files:
@@ -5819,8 +5823,8 @@ class TestSecurityErrorMessagesSafe:
 
         violations = []
         api_files = [
-            '/Users/nicolaslounsbury/projects/civic/src/civic_api_integrated.py',
-            '/Users/nicolaslounsbury/projects/civic/src/civic_api.py',
+            str(PROJECT_ROOT / 'src/civic_api_integrated.py'),
+            str(PROJECT_ROOT / 'src/civic_api.py'),
         ]
 
         for filepath in api_files:
@@ -5861,7 +5865,7 @@ class TestSecurityErrorMessagesSafe:
         ve_regex = re.compile('|'.join(value_error_patterns), re.IGNORECASE)
 
         violations = []
-        source_dir = '/Users/nicolaslounsbury/projects/civic/packages/civic/src/civic'
+        source_dir = str(PROJECT_ROOT / 'packages/civic/src/civic')
 
         if not os.path.exists(source_dir):
             pytest.skip("Source directory not found")
@@ -5891,7 +5895,7 @@ class TestSecurityErrorMessagesSafe:
         import re
 
         # Check ImportError messages in civic package
-        source_dir = '/Users/nicolaslounsbury/projects/civic/packages/civic/src/civic'
+        source_dir = str(PROJECT_ROOT / 'packages/civic/src/civic')
 
         if not os.path.exists(source_dir):
             pytest.skip("Source directory not found")
@@ -5953,8 +5957,8 @@ class TestSecurityErrorMessagesSafe:
 
         violations = []
         source_dirs = [
-            '/Users/nicolaslounsbury/projects/civic/packages/civic/src/civic',
-            '/Users/nicolaslounsbury/projects/civic/src'
+            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'src')
         ]
 
         for source_dir in source_dirs:
@@ -6000,7 +6004,7 @@ class TestSecurityErrorMessagesSafe:
             pass
 
         # Static check: verify MCP module doesn't expose paths in errors
-        mcp_path = '/Users/nicolaslounsbury/projects/civic/packages/civic/src/civic/mcp.py'
+        mcp_path = str(PROJECT_ROOT / 'packages/civic/src/civic/mcp.py')
 
         if os.path.exists(mcp_path):
             with open(mcp_path, 'r') as f:
@@ -6137,8 +6141,8 @@ class TestSecurityErrorMessagesSafe:
 
         violations = []
         source_dirs = [
-            '/Users/nicolaslounsbury/projects/civic/packages/civic/src/civic',
-            '/Users/nicolaslounsbury/projects/civic/src'
+            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'src')
         ]
 
         for source_dir in source_dirs:
@@ -6234,7 +6238,7 @@ class TestCodeAuditArchitecture:
         """
         import os
 
-        civic_src = '/Users/nicolaslounsbury/projects/civic/packages/civic/src/civic'
+        civic_src = str(PROJECT_ROOT / 'packages/civic/src/civic')
 
         # Core modules
         assert os.path.exists(f"{civic_src}/civic.py"), "Missing civic.py (main entry point)"
@@ -6292,7 +6296,7 @@ class TestCodeAuditArchitecture:
         """
         import os
 
-        civic_src = '/Users/nicolaslounsbury/projects/civic/packages/civic/src/civic'
+        civic_src = str(PROJECT_ROOT / 'packages/civic/src/civic')
 
         # Layer 1: Intelligence - internal data modules
         assert os.path.isdir(f"{civic_src}/_internal"), "Missing _internal/ (intelligence layer)"
@@ -6369,7 +6373,7 @@ class TestCodeAuditTestCoverage:
         import os
 
         # Search all test files
-        test_dir = '/Users/nicolaslounsbury/projects/civic/packages/civic/tests'
+        test_dir = str(PROJECT_ROOT / 'packages/civic/tests')
         all_test_content = ""
 
         for filename in os.listdir(test_dir):
@@ -6392,7 +6396,7 @@ class TestCodeAuditTestCoverage:
         """
         MCP tools should have test coverage.
         """
-        test_file = '/Users/nicolaslounsbury/projects/civic/packages/civic/tests/test_mcp.py'
+        test_file = str(PROJECT_ROOT / 'packages/civic/tests/test_mcp.py')
 
         with open(test_file, 'r') as f:
             test_content = f.read()
@@ -6414,7 +6418,7 @@ class TestCodeAuditTestCoverage:
         """
         Each action module should have dedicated tests.
         """
-        test_file = '/Users/nicolaslounsbury/projects/civic/packages/civic/tests/test_actions.py'
+        test_file = str(PROJECT_ROOT / 'packages/civic/tests/test_actions.py')
 
         with open(test_file, 'r') as f:
             test_content = f.read()
@@ -6429,7 +6433,7 @@ class TestCodeAuditTestCoverage:
         """
         Edge cases should be tested per verification.json.
         """
-        test_file = '/Users/nicolaslounsbury/projects/civic/packages/civic/tests/test_e2e_verification.py'
+        test_file = str(PROJECT_ROOT / 'packages/civic/tests/test_e2e_verification.py')
 
         with open(test_file, 'r') as f:
             test_content = f.read()
@@ -6443,7 +6447,7 @@ class TestCodeAuditTestCoverage:
         """
         Security tests should exist per verification.json.
         """
-        test_file = '/Users/nicolaslounsbury/projects/civic/packages/civic/tests/test_e2e_verification.py'
+        test_file = str(PROJECT_ROOT / 'packages/civic/tests/test_e2e_verification.py')
 
         with open(test_file, 'r') as f:
             test_content = f.read()
@@ -6462,7 +6466,7 @@ class TestCodeAuditTestCoverage:
 
         result = subprocess.run(
             ['pytest', '--collect-only', '-q',
-             '/Users/nicolaslounsbury/projects/civic/packages/civic/tests/'],
+             str(PROJECT_ROOT / 'packages/civic/tests/')],
             capture_output=True,
             text=True
         )
@@ -6497,7 +6501,7 @@ class TestCodeAuditDependencies:
         """
         import tomllib
 
-        with open('/Users/nicolaslounsbury/projects/civic/packages/civic/pyproject.toml', 'rb') as f:
+        with open(str(PROJECT_ROOT / 'packages/civic/pyproject.toml'), 'rb') as f:
             config = tomllib.load(f)
 
         dependencies = config['project'].get('dependencies', [])
@@ -6517,7 +6521,7 @@ class TestCodeAuditDependencies:
         """
         import tomllib
 
-        with open('/Users/nicolaslounsbury/projects/civic/packages/civic/pyproject.toml', 'rb') as f:
+        with open(str(PROJECT_ROOT / 'packages/civic/pyproject.toml'), 'rb') as f:
             config = tomllib.load(f)
 
         optional = config['project'].get('optional-dependencies', {})
@@ -6537,7 +6541,7 @@ class TestCodeAuditDependencies:
         """
         import tomllib
 
-        with open('/Users/nicolaslounsbury/projects/civic/packages/civic/pyproject.toml', 'rb') as f:
+        with open(str(PROJECT_ROOT / 'packages/civic/pyproject.toml'), 'rb') as f:
             config = tomllib.load(f)
 
         all_deps = []
@@ -6564,7 +6568,7 @@ class TestCodeAuditDependencies:
         """
         import tomllib
 
-        with open('/Users/nicolaslounsbury/projects/civic/packages/civic/pyproject.toml', 'rb') as f:
+        with open(str(PROJECT_ROOT / 'packages/civic/pyproject.toml'), 'rb') as f:
             config = tomllib.load(f)
 
         requires_python = config['project'].get('requires-python', '')
@@ -6588,11 +6592,11 @@ class TestCodeAuditDocumentation:
         import os
 
         critical_docs = [
-            '/Users/nicolaslounsbury/projects/civic/docs/critical/FINAL_PACKAGE_ARCHITECTURE.md',
-            '/Users/nicolaslounsbury/projects/civic/docs/critical/MCP_INTEGRATION_STRATEGY.md',
-            '/Users/nicolaslounsbury/projects/civic/docs/critical/FOCAL_POINT_DECISION_AWARENESS.md',
-            '/Users/nicolaslounsbury/projects/civic/docs/critical/FOUNDATION_FUNDING_THESIS.md',
-            '/Users/nicolaslounsbury/projects/civic/docs/critical/PILOT_ROADMAP.md',
+            str(PROJECT_ROOT / 'docs/critical/FINAL_PACKAGE_ARCHITECTURE.md'),
+            str(PROJECT_ROOT / 'docs/critical/MCP_INTEGRATION_STRATEGY.md'),
+            str(PROJECT_ROOT / 'docs/critical/FOCAL_POINT_DECISION_AWARENESS.md'),
+            str(PROJECT_ROOT / 'docs/critical/FOUNDATION_FUNDING_THESIS.md'),
+            str(PROJECT_ROOT / 'docs/critical/PILOT_ROADMAP.md'),
         ]
 
         for doc in critical_docs:
@@ -6604,7 +6608,7 @@ class TestCodeAuditDocumentation:
         """
         import os
 
-        tutorial_path = '/Users/nicolaslounsbury/projects/civic/docs/VERIFICATION_TUTORIAL.md'
+        tutorial_path = str(PROJECT_ROOT / 'docs/VERIFICATION_TUTORIAL.md')
 
         assert os.path.exists(tutorial_path), "Missing VERIFICATION_TUTORIAL.md"
 
@@ -6625,7 +6629,7 @@ class TestCodeAuditDocumentation:
         """
         import os
 
-        claude_md_path = '/Users/nicolaslounsbury/projects/civic/CLAUDE.md'
+        claude_md_path = str(PROJECT_ROOT / 'CLAUDE.md')
 
         assert os.path.exists(claude_md_path), "Missing CLAUDE.md"
 
@@ -6645,8 +6649,8 @@ class TestCodeAuditDocumentation:
         import json
 
         phase_files = [
-            '/Users/nicolaslounsbury/projects/civic/phase.json',
-            '/Users/nicolaslounsbury/projects/civic/verification.json',
+            str(PROJECT_ROOT / 'phase.json'),
+            str(PROJECT_ROOT / 'verification.json'),
         ]
 
         for filepath in phase_files:
@@ -6665,7 +6669,7 @@ class TestCodeAuditDocumentation:
         """
         import os
 
-        readme_path = '/Users/nicolaslounsbury/projects/civic/packages/civic/README.md'
+        readme_path = str(PROJECT_ROOT / 'packages/civic/README.md')
 
         assert os.path.exists(readme_path), "Missing packages/civic/README.md"
 
