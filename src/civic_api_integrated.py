@@ -79,14 +79,23 @@ except ImportError as e:
     logger.warning("module_unavailable", extra={"module_name": "issue_handler", "error": str(e)})
 
 # Research service for cache-first factual retrieval (Session 66)
-try:
-    from research_service import ResearchService
-    research_service = ResearchService()
-    RESEARCH_SERVICE_AVAILABLE = True
-    logger.debug("module_loaded", extra={"module_name": "research_service"})
-except ImportError as e:
-    RESEARCH_SERVICE_AVAILABLE = False
-    logger.warning("module_unavailable", extra={"module_name": "research_service", "error": str(e)})
+# Uses lazy initialization to avoid requiring API keys at import time
+_research_service = None
+_research_service_checked = False
+
+def get_research_service():
+    """Lazily initialize and return the research service, or None if unavailable."""
+    global _research_service, _research_service_checked
+    if not _research_service_checked:
+        _research_service_checked = True
+        try:
+            from research_service import ResearchService
+            _research_service = ResearchService()
+            logger.debug("module_loaded", extra={"module_name": "research_service"})
+        except Exception as e:
+            _research_service = None
+            logger.warning("module_unavailable", extra={"module_name": "research_service", "error": str(e)})
+    return _research_service
 
 # OpenAI integration for conversation API
 try:
@@ -4952,8 +4961,8 @@ Key Topics (choose up to 3 from):
         }
         """
         try:
-            # Check if research service is available
-            if not RESEARCH_SERVICE_AVAILABLE:
+            # Check if research service is available (lazy initialization)
+            if get_research_service() is None:
                 self.send_json({'error': 'Research service not available'}, 503)
                 return
 
@@ -4984,14 +4993,15 @@ Key Topics (choose up to 3 from):
                 return
 
             # Query research service
-            result = research_service.query(question, search_scope=search_scope)
+            svc = get_research_service()
+            result = svc.query(question, search_scope=search_scope)
 
             # Add provider info for debugging
             response = {
                 'answer': result['answer'],
                 'sources': result['sources'],
                 'confidence': result['confidence'],
-                'provider': research_service.provider.name
+                'provider': svc.provider.name
             }
 
             self.send_json(response)
