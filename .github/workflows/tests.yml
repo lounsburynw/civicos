@@ -70,6 +70,7 @@ jobs:
           # Install CPU-only PyTorch first (saves ~2GB by skipping CUDA drivers)
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install -e packages/civic[all]
+          pip install -e packages/civic-extraction
           pip install pytest-split
 
       - name: Run test group ${{ matrix.group }}
