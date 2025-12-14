@@ -1,0 +1,388 @@
+{
+  "id": "861cfda6-3cf0-4f75-b9e6-7f0bd3a4a8a4",
+  "jurisdiction": {
+    "id": "city-berkeley",
+    "name": "Berkeley",
+    "type": "city",
+    "website": "https://berkeleyca.gov",
+    "meeting_calendar_url": "https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104"
+  },
+  "opportunities": [
+    {
+      "id": "fbfcf5ad-2eac-4411-817d-dfc9c654fe00",
+      "title": "City Council Meeting",
+      "original_title": "City Council Meeting",
+      "description": "Regular meeting to discuss city governance and community issues.",
+      "when": "2025-09-29T16:30:00-07:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Decisions made can affect local policies, budgets, and community projects.",
+      "source_url": "https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104",
+      "location": "Redwood Room, 2180 Milvia Street, 6th Floor, Berkeley, CA 94704 & Virtual",
+      "meeting_type": "city_council",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-berkeley",
+        "name": "Berkeley",
+        "type": "city",
+        "website": "https://berkeleyca.gov",
+        "meeting_calendar_url": "https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104"
+      },
+      "contact_info": {
+        "email": "council@cityofberkeley.info",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T01:18:45.308483+00:00",
+      "scraped_from": "https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104",
+      "action_type": "action",
+      "when_human": "Mon Sep 29, 2025 \u2022 4:30 PM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": "America/Los_Angeles",
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "council@cityofberkeley.info",
+          "description": "Send written comment",
+          "deadline": null,
+          "duration_minutes": null
+        },
+        {
+          "type": "attend",
+          "location": "Redwood Room, 2180 Milvia Street, 6th Floor, Berkeley, CA 94704 & Virtual",
+          "when": "2025-09-29T16:30:00-07:00",
+          "description": "Attend meeting for public comment",
+          "duration_minutes": null,
+          "virtual_option": "available"
+        }
+      ],
+      "agenda_available": false,
+      "agenda_url": null,
+      "related_events": [],
+      "related_projects": [],
+      "agenda_expansion": {
+        "available": false,
+        "source_url": null,
+        "parsed": false,
+        "actionable_items": []
+      }
+    },
+    {
+      "id": "1d38b093-45e4-49b4-9f8b-cf2d55cc0a34",
+      "title": "Police Accountability Board Meeting",
+      "original_title": "Police Accountability Board Meeting",
+      "description": "Special meeting to discuss police accountability and review complaints.",
+      "when": "2025-09-29T18:30:00-07:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Ensures police accountability and transparency, impacting community trust and safety.",
+      "source_url": "https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104",
+      "location": "1900 Addison Street, Floor 3, Berkeley, CA 94704 & Virtual",
+      "meeting_type": "board",
+      "project_type": "community",
+      "engagement_tier": "civic_action",
+      "jurisdiction": {
+        "id": "city-berkeley",
+        "name": "Berkeley",
+        "type": "city",
+        "website": "https://berkeleyca.gov",
+        "meeting_calendar_url": "https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104"
+      },
+      "contact_info": {
+        "email": "council@cityofberkeley.info",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T01:18:45.308653+00:00",
+      "scraped_from": "https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104",
+      "action_type": "action",
+      "when_human": "Mon Sep 29, 2025 \u2022 6:30 PM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": "America/Los_Angeles",
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "council@cityofberkeley.info",
+          "description": "Send written comment",
+          "deadline": null,
+          "duration_minutes": null
+        },
+        {
+          "type": "attend",
+          "location": "1900 Addison Street, Floor 3, Berkeley, CA 94704 & Virtual",
+          "when": "2025-09-29T18:30:00-07:00",
+          "description": "Attend meeting for public comment",
+          "duration_minutes": null,
+          "virtual_option": "available"
+        }
+      ],
+      "agenda_available": false,
+      "agenda_url": null,
+      "related_events": [],
+      "related_projects": [],
+      "agenda_expansion": {
+        "available": false,
+        "source_url": null,
+        "parsed": false,
+        "actionable_items": []
+      }
+    },
+    {
+      "id": "38fd677c-4a9c-49d3-b168-e4bedcb37871",
+      "title": "City Council Meeting",
+      "original_title": "City Council Meeting",
+      "description": "Regular meeting to discuss city governance and community issues.",
+      "when": "2025-09-30T16:00:00-07:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Decisions made can affect local policies, budgets, and community projects.",
+      "source_url": "https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104",
+      "location": "School District Board Room, 1231 Addison St. Berkeley, CA 94702 & Virtual",
+      "meeting_type": "city_council",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-berkeley",
+        "name": "Berkeley",
+        "type": "city",
+        "website": "https://berkeleyca.gov",
+        "meeting_calendar_url": "https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104"
+      },
+      "contact_info": {
+        "email": "council@cityofberkeley.info",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T01:18:45.308736+00:00",
+      "scraped_from": "https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104",
+      "action_type": "action",
+      "when_human": "Tue Sep 30, 2025 \u2022 4:00 PM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": "America/Los_Angeles",
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "council@cityofberkeley.info",
+          "description": "Send written comment",
+          "deadline": null,
+          "duration_minutes": null
+        },
+        {
+          "type": "attend",
+          "location": "School District Board Room, 1231 Addison St. Berkeley, CA 94702 & Virtual",
+          "when": "2025-09-30T16:00:00-07:00",
+          "description": "Attend meeting for public comment",
+          "duration_minutes": null,
+          "virtual_option": "available"
+        }
+      ],
+      "agenda_available": false,
+      "agenda_url": null,
+      "related_events": [],
+      "related_projects": [],
+      "agenda_expansion": {
+        "available": false,
+        "source_url": null,
+        "parsed": false,
+        "actionable_items": []
+      }
+    },
+    {
+      "id": "951c0fee-80a8-4cd9-a6be-f21aeef922c9",
+      "title": "2x2 Committee Meeting",
+      "original_title": "2x2 Committee Meeting",
+      "description": "Meeting to discuss collaboration between city and school district.",
+      "when": "2025-10-02T14:30:00-07:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Facilitates cooperation on issues affecting both city governance and education.",
+      "source_url": "https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104",
+      "location": "Virtual and 1231 Addison Street (Board Room), Berkeley, CA 94702",
+      "meeting_type": "committee",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-berkeley",
+        "name": "Berkeley",
+        "type": "city",
+        "website": "https://berkeleyca.gov",
+        "meeting_calendar_url": "https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104"
+      },
+      "contact_info": {
+        "email": "council@cityofberkeley.info",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T01:18:45.308828+00:00",
+      "scraped_from": "https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104",
+      "action_type": "action",
+      "when_human": "Thu Oct 2, 2025 \u2022 2:30 PM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": "America/Los_Angeles",
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "council@cityofberkeley.info",
+          "description": "Send written comment",
+          "deadline": null,
+          "duration_minutes": null
+        },
+        {
+          "type": "attend",
+          "location": "Virtual and 1231 Addison Street (Board Room), Berkeley, CA 94702",
+          "when": "2025-10-02T14:30:00-07:00",
+          "description": "Attend meeting for public comment",
+          "duration_minutes": null,
+          "virtual_option": "available"
+        }
+      ],
+      "agenda_available": false,
+      "agenda_url": null,
+      "related_events": [],
+      "related_projects": [],
+      "agenda_expansion": {
+        "available": false,
+        "source_url": null,
+        "parsed": false,
+        "actionable_items": []
+      }
+    },
+    {
+      "id": "0deb874f-f686-44ca-9d50-9957f4e671ef",
+      "title": "Landmarks Preservation Commission Meeting",
+      "original_title": "Landmarks Preservation Commission Meeting",
+      "description": "Meeting to discuss preservation of historical landmarks in Berkeley.",
+      "when": "2025-10-06T18:30:00-07:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Decisions can affect the conservation of Berkeley's historical sites and cultural heritage.",
+      "source_url": "https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104",
+      "location": "North Berkeley Senior Center, 1901 Hearst Avenue, Berkeley, CA 94709",
+      "meeting_type": "commission",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-berkeley",
+        "name": "Berkeley",
+        "type": "city",
+        "website": "https://berkeleyca.gov",
+        "meeting_calendar_url": "https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104"
+      },
+      "contact_info": {
+        "email": "council@cityofberkeley.info",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T01:18:45.308905+00:00",
+      "scraped_from": "https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104",
+      "action_type": "action",
+      "when_human": "Mon Oct 6, 2025 \u2022 6:30 PM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": "America/Los_Angeles",
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "council@cityofberkeley.info",
+          "description": "Send written comment",
+          "deadline": null,
+          "duration_minutes": null
+        },
+        {
+          "type": "attend",
+          "location": "North Berkeley Senior Center, 1901 Hearst Avenue, Berkeley, CA 94709",
+          "when": "2025-10-06T18:30:00-07:00",
+          "description": "Attend meeting for public comment",
+          "duration_minutes": null
+        }
+      ],
+      "agenda_available": false,
+      "agenda_url": null,
+      "related_events": [],
+      "related_projects": [],
+      "agenda_expansion": {
+        "available": false,
+        "source_url": null,
+        "parsed": false,
+        "actionable_items": []
+      }
+    }
+  ],
+  "generation_metadata": {
+    "scrape_urls": [
+      "https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104"
+    ],
+    "ai_model_used": "gpt-5-mini",
+    "wiki_files_loaded": [],
+    "generation_cost": 0.0,
+    "processing_time": 0.0,
+    "unparseable_urls": null
+  },
+  "html_content": "Subject: City Council Meeting \n\n# \u2709\ufe0f City Council Meeting\n*Your quick guide to what's on the City Council Meeting agenda \u2014 September 29, 2025*\n\n## \ud83d\udde3\ufe0f How to Participate\n- **Meeting:** [Monday, September 29 at 4:30 PM](https://calendar.google.com/calendar/render?action=TEMPLATE&text=City%20Council%20Meeting&dates=20250929T233000Z/20250930T013000Z&location=Redwood%20Room%2C%202180%20Milvia%20Street%2C%206th%20Floor%2C%20Berkeley%2C%20CA%2094704%20%26%20Virtual&details=Regular%20meeting%20to%20discuss%20city%20governance%20and%20community%20issues.) \ud83d\udcc5\n- **Where:** Redwood Room, 2180 Milvia Street, 6th Floor, Berkeley, CA 94704 & Virtual\n- **Watch Online:** Not specified.\n- **Call In:** Not specified.\n- **Email Comments:** council@cityofberkeley.info \u2014 **deadline:** Not specified.\n- **Attend & Speak:** Check meeting agenda for public comment rules\n- **Full Agenda:** [View original meeting agenda](https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104)\n\n## \ud83d\udea8 What's on the Agenda\n### City Council Meeting\n- **Change:** Regular meeting to discuss city governance and community issues.\n- **Impact:** Decisions made can affect local policies, budgets, and community projects. Cost not specified.\n- **Action:** Attend in person or virtually via Zoom. Public comments can be made by raising hand in Zoom or submitting a speaker card in person.\n\n## \u2705 Bottom Line\nFound 6 civic meeting opportunities in Berkeley's calendar.\n\n\u26a1 *Independent and nonpartisan summary. Facts only; no spin.*",
+  "text_content": "Subject: City Council Meeting\n\n# \u2709\ufe0f City Council Meeting\n*Your quick guide to what's on the City Council Meeting agenda \u2014 September 29, 2025*\n\n## \ud83d\udde3\ufe0f How to Participate\n- **Meeting:** [Monday, September 29 at 4:30 PM](https://calendar.google.com/calendar/render?action=TEMPLATE&text=City%20Council%20Meeting&dates=20250929T233000Z/20250930T013000Z&location=Redwood%20Room%2C%202180%20Milvia%20Street%2C%206th%20Floor%2C%20Berkeley%2C%20CA%2094704%20%26%20Virtual&details=Regular%20meeting%20to%20discuss%20city%20governance%20and%20community%20issues.) \ud83d\udcc5\n- **Where:** Redwood Room, 2180 Milvia Street, 6th Floor, Berkeley, CA 94704 & Virtual\n- **Watch Online:** Not specified.\n- **Call In:** Not specified.\n- **Email Comments:** council@cityofberkeley.info \u2014 **deadline:** Not specified.\n- **Attend & Speak:** Check meeting agenda for public comment rules\n- **Full Agenda:** [View original meeting agenda](https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104)\n\n## \ud83d\udea8 What's on the Agenda\n### City Council Meeting\n- **Change:** Regular meeting to discuss city governance and community issues.\n- **Impact:** Decisions made can affect local policies, budgets, and community projects. Cost not specified.\n- **Action:** Attend in person or virtually via Zoom. Public comments can be made by raising hand in Zoom or submitting a speaker card in person.\n\n## \u2705 Bottom Line\nFound 6 civic meeting opportunities in Berkeley's calendar.\n\n\u26a1 *Independent and nonpartisan summary. Facts only; no spin.*",
+  "subject_line": "City Council Meeting",
+  "send_date": "2025-09-29T01:18:45.309250+00:00",
+  "recipients": [],
+  "analytics": {
+    "sent_count": 0,
+    "open_rate": 0.0,
+    "click_rate": 0.0,
+    "action_conversion_rate": 0.0
+  },
+  "created_at": "2025-09-29T01:18:45.309252+00:00"
+}

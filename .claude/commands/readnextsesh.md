@@ -1,0 +1,1 @@
+Read the contents of `docs/next_session_prompt.md` and follow the instructions explicitly laid out for you.

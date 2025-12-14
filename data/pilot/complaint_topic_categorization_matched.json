@@ -1,0 +1,12 @@
+{
+  "period": "March-October 2024",
+  "total_complaints": 237,
+  "by_topic": {
+    "infrastructure": 81,
+    "traffic_safety": 111,
+    "other": 27,
+    "environment": 11,
+    "camping_homelessness": 7
+  },
+  "note": "Temporally matched to testimony period"
+}

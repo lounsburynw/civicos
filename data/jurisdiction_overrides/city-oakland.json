@@ -1,0 +1,29 @@
+{
+  "jurisdiction_id": "city-oakland",
+  "jurisdiction_name": "Oakland, CA",
+  "last_updated": "2025-10-07T16:03:00.000000",
+  "federal_programs": {
+    "cdbg": {
+      "program_name": "Community Development Block Grant",
+      "fy2025_allocation": 7395202,
+      "allocation_source": "HUD FY2025 CDBG Allocations",
+      "allocation_url": "https://www.hudexchange.info/GRANTEES/ALLOCATIONS-AWARDS/?na=32180&start=1610",
+      "application_process": {
+        "status": "FY2024/25 Annual Action Plan approved",
+        "public_hearing_date": "2025-05-20",
+        "public_comment_period": "May 5, 2025 - June 4, 2025",
+        "note": "Final allocations based on Annual Action Plan and public input process"
+      },
+      "compliance_requirements": [
+        "24 CFR Part 570 (federal CDBG regulations)",
+        "HUD guidelines",
+        "City of Oakland Consolidated Plan priorities",
+        "Funds must principally benefit low- and moderate-income persons"
+      ],
+      "key_contacts": {
+        "department": "Housing and Community Development",
+        "planning_contact": "Check city website for current HCD Director"
+      }
+    }
+  }
+}

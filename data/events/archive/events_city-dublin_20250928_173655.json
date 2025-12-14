@@ -1,0 +1,889 @@
+{
+  "id": "d32860fd-912e-464f-b713-6d41f8aee307",
+  "jurisdiction": {
+    "id": "city-dublin",
+    "name": "Dublin",
+    "type": "city",
+    "website": "https://www.dublin.ca.gov",
+    "meeting_calendar_url": "https://www.dublin.ca.gov/Calendar.aspx"
+  },
+  "generation_metadata": {
+    "scrape_urls": [
+      "https://www.dublin.ca.gov/Calendar.aspx"
+    ],
+    "ai_model_used": "gpt-5-mini",
+    "wiki_files_loaded": [],
+    "generation_cost": 0.0,
+    "processing_time": 0.0,
+    "unparseable_urls": null
+  },
+  "html_content": "Subject: City Council Meeting\n\n# \u2709\ufe0f City Council Meeting\n*Your quick guide to what's on the City Council Meeting agenda \u2014 September 20, 2025*\n\n## \ud83d\udde3\ufe0f How to Participate\n- **Meeting:** [Saturday, September 20 at 9:00 AM](https://calendar.google.com/calendar/render?action=TEMPLATE&text=City%20Council%20Meeting&dates=20250920T160000Z/20250920T180000Z&location=Register%20below%20for%20creek%20locations%3ADublin%20Creek%20from%20Outback%20Steakhouse%20to%20TeslaCreek%20Channel%20at%20Dublin%20Boulevard%20and%20I-680Tassajara%20Creek%20at%20Emerald%20Glen%20Park&details=Opportunity%20to%20influence%20local%20government%20decisions) \ud83d\udcc5\n- **Where:** Register below for creek locations: Dublin Creek from Outback Steakhouse to Tesla Creek Channel at Dublin Boulevard and I-680 Tassajara Creek at Emerald Glen Park\n- **Watch Online:** Not specified.\n- **Call In:** Not specified.\n- **Email Comments:** Not specified. \u2014 **deadline:** Not specified.\n- **Attend & Speak:** Check meeting agenda for public comment rules\n- **Full Agenda:** [View original meeting agenda](https://www.dublin.ca.gov/Calendar.aspx)\n\n## \ud83d\udea8 What's on the Agenda\n### Dublin Creek Cleanup Day\n- **Change:** Not specified.\n- **Impact:** Direct community involvement and environmental improvement\n- **Action:** Participants should wear long pants and sturdy closed-toed shoes\n\n## \u2705 Bottom Line\nFound 15 civic engagement opportunities in Dublin's calendar. Participate in the Dublin Creek Cleanup Day for a chance to contribute to environmental improvement.\n\n\u26a1 *Independent and nonpartisan summary. Facts only; no spin.*",
+  "text_content": "Subject: City Council Meeting\n\n# \u2709\ufe0f City Council Meeting\n*Your quick guide to what's on the City Council Meeting agenda \u2014 September 20, 2025*\n\n## \ud83d\udde3\ufe0f How to Participate\n- **Meeting:** [Saturday, September 20 at 9:00 AM](https://calendar.google.com/calendar/render?action=TEMPLATE&text=City%20Council%20Meeting&dates=20250920T160000Z/20250920T180000Z&location=Register%20below%20for%20creek%20locations%3ADublin%20Creek%20from%20Outback%20Steakhouse%20to%20TeslaCreek%20Channel%20at%20Dublin%20Boulevard%20and%20I-680Tassajara%20Creek%20at%20Emerald%20Glen%20Park&details=Opportunity%20to%20influence%20local%20government%20decisions) \ud83d\udcc5\n- **Where:** Register below for creek locations: Dublin Creek from Outback Steakhouse to Tesla Creek Channel at Dublin Boulevard and I-680 Tassajara Creek at Emerald Glen Park\n- **Watch Online:** Not specified.\n- **Call In:** Not specified.\n- **Email Comments:** Not specified. \u2014 **deadline:** Not specified.\n- **Attend & Speak:** Check meeting agenda for public comment rules\n- **Full Agenda:** [View original meeting agenda](https://www.dublin.ca.gov/Calendar.aspx)\n\n## \ud83d\udea8 What's on the Agenda\n### Dublin Creek Cleanup Day\n- **Change:** Not specified.\n- **Impact:** Direct community involvement and environmental improvement\n- **Action:** Participants should wear long pants and sturdy closed-toed shoes\n\n## \u2705 Bottom Line\nFound 15 civic engagement opportunities in Dublin's calendar. Participate in the Dublin Creek Cleanup Day for a chance to contribute to environmental improvement.\n\n\u26a1 *Independent and nonpartisan summary. Facts only; no spin.*",
+  "subject_line": "City Council Meeting",
+  "send_date": "2025-09-29T00:36:55.115262+00:00",
+  "recipients": [],
+  "analytics": {
+    "sent_count": 0,
+    "open_rate": 0.0,
+    "click_rate": 0.0,
+    "action_conversion_rate": 0.0
+  },
+  "created_at": "2025-09-29T00:36:55.115270+00:00",
+  "events": [
+    {
+      "id": "76d83b72-0951-4308-baea-5d448e826ef3",
+      "title": "Dublin Creek Cleanup Day",
+      "original_title": "Dublin Creek Cleanup Day",
+      "description": null,
+      "when": "2025-09-20T09:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Direct community involvement and environmental improvement",
+      "source_url": "https://www.dublin.ca.gov/Calendar.aspx",
+      "location": "Register below for creek locations:Dublin Creek from Outback Steakhouse to TeslaCreek Channel at Dublin Boulevard and I-680Tassajara Creek at Emerald Glen Park",
+      "meeting_type": "community_meeting",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-dublin",
+        "name": "Dublin",
+        "type": "city",
+        "website": "https://www.dublin.ca.gov",
+        "meeting_calendar_url": "https://www.dublin.ca.gov/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "citycouncil@dublin.ca.gov",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:36:55.112438+00:00",
+      "scraped_from": "https://www.dublin.ca.gov/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Sat Sep 20, 2025 \u2022 9:00 AM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "citycouncil@dublin.ca.gov",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Register below for creek locations:Dublin Creek from Outback Steakhouse to TeslaCreek Channel at Dublin Boulevard and I-680Tassajara Creek at Emerald Glen Park",
+          "when": "2025-09-20T09:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "ac6cfd1e-c472-4b30-92ef-d3d64aa5250b",
+      "title": "Heritage and Cultural Arts Commission Regular Meeting",
+      "original_title": "Heritage and Cultural Arts Commission Regular Meeting",
+      "description": null,
+      "when": "2025-09-11T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.dublin.ca.gov/Calendar.aspx",
+      "location": "Dublin Civic Center, 100 Civic Plaza",
+      "meeting_type": "commission",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-dublin",
+        "name": "Dublin",
+        "type": "city",
+        "website": "https://www.dublin.ca.gov",
+        "meeting_calendar_url": "https://www.dublin.ca.gov/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "citycouncil@dublin.ca.gov",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:36:55.112709+00:00",
+      "scraped_from": "https://www.dublin.ca.gov/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Thu Sep 11, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "citycouncil@dublin.ca.gov",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Dublin Civic Center, 100 Civic Plaza",
+          "when": "2025-09-11T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "a925755a-a35e-4ed6-8047-39572a65e4ca",
+      "title": "City Council Meeting",
+      "original_title": "City Council Meeting",
+      "description": null,
+      "when": "2025-09-02T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.dublin.ca.gov/Calendar.aspx",
+      "location": "Peter W. Snyder Council ChamberDublin Civic Center, 100 Civic Plaza",
+      "meeting_type": "city_council",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-dublin",
+        "name": "Dublin",
+        "type": "city",
+        "website": "https://www.dublin.ca.gov",
+        "meeting_calendar_url": "https://www.dublin.ca.gov/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "citycouncil@dublin.ca.gov",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:36:55.112885+00:00",
+      "scraped_from": "https://www.dublin.ca.gov/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Tue Sep 2, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "citycouncil@dublin.ca.gov",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Peter W. Snyder Council ChamberDublin Civic Center, 100 Civic Plaza",
+          "when": "2025-09-02T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "0d9d781c-0da4-4dbc-ae51-de5cd611fdf4",
+      "title": "City Council Meeting Regular Meeting",
+      "original_title": "City Council Meeting Regular Meeting",
+      "description": null,
+      "when": "2025-09-16T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.dublin.ca.gov/Calendar.aspx",
+      "location": "Peter W. Snyder Council ChamberDublin Civic Center, 100 Civic Plaza",
+      "meeting_type": "city_council",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-dublin",
+        "name": "Dublin",
+        "type": "city",
+        "website": "https://www.dublin.ca.gov",
+        "meeting_calendar_url": "https://www.dublin.ca.gov/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "citycouncil@dublin.ca.gov",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:36:55.113094+00:00",
+      "scraped_from": "https://www.dublin.ca.gov/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Tue Sep 16, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "citycouncil@dublin.ca.gov",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Peter W. Snyder Council ChamberDublin Civic Center, 100 Civic Plaza",
+          "when": "2025-09-16T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "8f7fd5eb-d5a8-4321-9d6b-fd2cd7bdec4e",
+      "title": "Parks and Community Services Commission Regular Meeting",
+      "original_title": "Parks and Community Services Commission Regular Meeting",
+      "description": null,
+      "when": "2025-09-15T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Direct community involvement and environmental improvement",
+      "source_url": "https://www.dublin.ca.gov/Calendar.aspx",
+      "location": "Dublin Civic Center, 100 Civic Plaza",
+      "meeting_type": "commission",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-dublin",
+        "name": "Dublin",
+        "type": "city",
+        "website": "https://www.dublin.ca.gov",
+        "meeting_calendar_url": "https://www.dublin.ca.gov/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "citycouncil@dublin.ca.gov",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:36:55.113230+00:00",
+      "scraped_from": "https://www.dublin.ca.gov/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Mon Sep 15, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "citycouncil@dublin.ca.gov",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Dublin Civic Center, 100 Civic Plaza",
+          "when": "2025-09-15T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "6718c6bc-3424-4f3f-aa4d-fbc77c09b893",
+      "title": "Planning Commission Meeting",
+      "original_title": "Planning Commission Meeting",
+      "description": null,
+      "when": "2025-09-09T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.dublin.ca.gov/Calendar.aspx",
+      "location": "Dublin Civic Center, 100 Civic Plaza",
+      "meeting_type": "planning_commission",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-dublin",
+        "name": "Dublin",
+        "type": "city",
+        "website": "https://www.dublin.ca.gov",
+        "meeting_calendar_url": "https://www.dublin.ca.gov/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "citycouncil@dublin.ca.gov",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:36:55.113352+00:00",
+      "scraped_from": "https://www.dublin.ca.gov/Calendar.aspx",
+      "action_type": "planning_action",
+      "when_human": "Tue Sep 9, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "citycouncil@dublin.ca.gov",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Dublin Civic Center, 100 Civic Plaza",
+          "when": "2025-09-09T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "edbb9ed3-62d6-4fe2-b6b6-d9315ff21490",
+      "title": "Youth Advisory Committee Regular Meeting",
+      "original_title": "Youth Advisory Committee Regular Meeting",
+      "description": null,
+      "when": "2025-09-10T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.dublin.ca.gov/Calendar.aspx",
+      "location": "Dublin Senior Center, 7600 Amador Valley Blvd.",
+      "meeting_type": "committee",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-dublin",
+        "name": "Dublin",
+        "type": "city",
+        "website": "https://www.dublin.ca.gov",
+        "meeting_calendar_url": "https://www.dublin.ca.gov/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "citycouncil@dublin.ca.gov",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:36:55.113472+00:00",
+      "scraped_from": "https://www.dublin.ca.gov/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Wed Sep 10, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "citycouncil@dublin.ca.gov",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Dublin Senior Center, 7600 Amador Valley Blvd.",
+          "when": "2025-09-10T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "e5d96550-9471-4e6f-b1bc-3c4cc75b6235",
+      "title": "Heritage and Cultural Arts Commission Regular Meeting",
+      "original_title": "Heritage and Cultural Arts Commission Regular Meeting",
+      "description": null,
+      "when": "2025-10-09T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.dublin.ca.gov/Calendar.aspx",
+      "location": "Dublin Civic Center, 100 Civic Plaza",
+      "meeting_type": "commission",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-dublin",
+        "name": "Dublin",
+        "type": "city",
+        "website": "https://www.dublin.ca.gov",
+        "meeting_calendar_url": "https://www.dublin.ca.gov/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "citycouncil@dublin.ca.gov",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:36:55.113646+00:00",
+      "scraped_from": "https://www.dublin.ca.gov/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Thu Oct 9, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "citycouncil@dublin.ca.gov",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Dublin Civic Center, 100 Civic Plaza",
+          "when": "2025-10-09T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "c34a0c1f-5795-46f5-a2d5-376fb78d94ed",
+      "title": "City Council Meeting",
+      "original_title": "City Council Meeting",
+      "description": null,
+      "when": "2025-10-07T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.dublin.ca.gov/Calendar.aspx",
+      "location": "Dublin Civic Center, 100 Civic Plaza",
+      "meeting_type": "city_council",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-dublin",
+        "name": "Dublin",
+        "type": "city",
+        "website": "https://www.dublin.ca.gov",
+        "meeting_calendar_url": "https://www.dublin.ca.gov/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "citycouncil@dublin.ca.gov",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:36:55.113775+00:00",
+      "scraped_from": "https://www.dublin.ca.gov/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Tue Oct 7, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "citycouncil@dublin.ca.gov",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Dublin Civic Center, 100 Civic Plaza",
+          "when": "2025-10-07T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "08dd6071-3f29-447b-8210-b8453b15e9e1",
+      "title": "City Council Meeting",
+      "original_title": "City Council Meeting",
+      "description": null,
+      "when": "2025-10-21T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.dublin.ca.gov/Calendar.aspx",
+      "location": "Dublin Civic Center, 100 Civic Plaza",
+      "meeting_type": "city_council",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-dublin",
+        "name": "Dublin",
+        "type": "city",
+        "website": "https://www.dublin.ca.gov",
+        "meeting_calendar_url": "https://www.dublin.ca.gov/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "citycouncil@dublin.ca.gov",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:36:55.113887+00:00",
+      "scraped_from": "https://www.dublin.ca.gov/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Tue Oct 21, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "citycouncil@dublin.ca.gov",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Dublin Civic Center, 100 Civic Plaza",
+          "when": "2025-10-21T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "45fc1c76-92d5-4435-93dc-67fece7b8a74",
+      "title": "Parks and Community Services Commission Regular Meeting",
+      "original_title": "Parks and Community Services Commission Regular Meeting",
+      "description": null,
+      "when": "2025-10-20T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Direct community involvement and environmental improvement",
+      "source_url": "https://www.dublin.ca.gov/Calendar.aspx",
+      "location": "Dublin Civic Center, 100 Civic Plaza",
+      "meeting_type": "commission",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-dublin",
+        "name": "Dublin",
+        "type": "city",
+        "website": "https://www.dublin.ca.gov",
+        "meeting_calendar_url": "https://www.dublin.ca.gov/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "citycouncil@dublin.ca.gov",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:36:55.113999+00:00",
+      "scraped_from": "https://www.dublin.ca.gov/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Mon Oct 20, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "citycouncil@dublin.ca.gov",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Dublin Civic Center, 100 Civic Plaza",
+          "when": "2025-10-20T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "617d1de1-f20c-46cc-95df-ee117e63a668",
+      "title": "Planning Commission Meeting",
+      "original_title": "Planning Commission Meeting",
+      "description": null,
+      "when": "2025-10-14T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.dublin.ca.gov/Calendar.aspx",
+      "location": "Dublin Civic Center, 100 Civic Plaza",
+      "meeting_type": "planning_commission",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-dublin",
+        "name": "Dublin",
+        "type": "city",
+        "website": "https://www.dublin.ca.gov",
+        "meeting_calendar_url": "https://www.dublin.ca.gov/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "citycouncil@dublin.ca.gov",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:36:55.114108+00:00",
+      "scraped_from": "https://www.dublin.ca.gov/Calendar.aspx",
+      "action_type": "planning_action",
+      "when_human": "Tue Oct 14, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "citycouncil@dublin.ca.gov",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Dublin Civic Center, 100 Civic Plaza",
+          "when": "2025-10-14T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "3c2671dd-5a9b-4e23-98d0-4acf42ee36df",
+      "title": "Planning Commission Meeting",
+      "original_title": "Planning Commission Meeting",
+      "description": null,
+      "when": "2025-10-28T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.dublin.ca.gov/Calendar.aspx",
+      "location": "Dublin Civic Center, 100 Civic Plaza",
+      "meeting_type": "planning_commission",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-dublin",
+        "name": "Dublin",
+        "type": "city",
+        "website": "https://www.dublin.ca.gov",
+        "meeting_calendar_url": "https://www.dublin.ca.gov/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "citycouncil@dublin.ca.gov",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:36:55.114210+00:00",
+      "scraped_from": "https://www.dublin.ca.gov/Calendar.aspx",
+      "action_type": "planning_action",
+      "when_human": "Tue Oct 28, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "citycouncil@dublin.ca.gov",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Dublin Civic Center, 100 Civic Plaza",
+          "when": "2025-10-28T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "829dd5b3-0bf6-4ffb-8779-f18eab323e66",
+      "title": "Drug Take-Back, Document Shredding, and E-Waste Collection Event",
+      "original_title": "Drug Take-Back, Document Shredding, and E-Waste Collection Event",
+      "description": null,
+      "when": "2025-10-18T10:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Community engagement and civic participation",
+      "source_url": "https://www.dublin.ca.gov/Calendar.aspx",
+      "location": "Dublin Civic Center, 100 Civic Plaza",
+      "meeting_type": "community_meeting",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-dublin",
+        "name": "Dublin",
+        "type": "city",
+        "website": "https://www.dublin.ca.gov",
+        "meeting_calendar_url": "https://www.dublin.ca.gov/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "citycouncil@dublin.ca.gov",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:36:55.114318+00:00",
+      "scraped_from": "https://www.dublin.ca.gov/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Sat Oct 18, 2025 \u2022 10:00 AM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "citycouncil@dublin.ca.gov",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Dublin Civic Center, 100 Civic Plaza",
+          "when": "2025-10-18T10:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "4eadab96-4936-4ace-939b-d0c715819d2a",
+      "title": "Youth Advisory Committee Regular Meeting",
+      "original_title": "Youth Advisory Committee Regular Meeting",
+      "description": null,
+      "when": "2025-10-08T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.dublin.ca.gov/Calendar.aspx",
+      "location": "Dublin Senior Center, 7600 Amador Valley Blvd.",
+      "meeting_type": "committee",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-dublin",
+        "name": "Dublin",
+        "type": "city",
+        "website": "https://www.dublin.ca.gov",
+        "meeting_calendar_url": "https://www.dublin.ca.gov/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "citycouncil@dublin.ca.gov",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:36:55.114427+00:00",
+      "scraped_from": "https://www.dublin.ca.gov/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Wed Oct 8, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "citycouncil@dublin.ca.gov",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Dublin Senior Center, 7600 Amador Valley Blvd.",
+          "when": "2025-10-08T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    }
+  ]
+}

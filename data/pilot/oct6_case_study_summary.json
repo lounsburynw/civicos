@@ -1,0 +1,38 @@
+{
+  "meeting_date": "2024-10-06",
+  "agenda_item": "7.b",
+  "topic": "Wildfire Prevention Authority Update",
+  "complaint_stats": {
+    "fire_specific": 9,
+    "total_complaints": 48,
+    "unique_filers": 22,
+    "date_range": {
+      "start": "2025-09-06T00:00:00+00:00",
+      "end": "2025-10-06T23:59:59+00:00"
+    }
+  },
+  "testimony_stats": {
+    "speakers": 3,
+    "speakers_list": [
+      {
+        "name": "Belle Cole",
+        "role": "Dominican Black Canyon Firewise Committee Chair",
+        "utterances": 11
+      },
+      {
+        "name": "Sherna Deamer / Sharon Demer",
+        "role": "Neighborhood resident - fire concerns",
+        "utterances": 21
+      },
+      {
+        "name": "Salama (speaking for San Rafael Age-Friendly)",
+        "role": "Age-Friendly Committee - senior fire safety",
+        "utterances": 3
+      }
+    ]
+  },
+  "participation_gap": {
+    "filers_who_did_not_testify": 19,
+    "gap_percentage": 86.36363636363636
+  }
+}

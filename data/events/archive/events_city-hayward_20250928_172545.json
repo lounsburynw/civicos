@@ -1,0 +1,262 @@
+{
+  "id": "94d9374d-8d71-408c-81ae-1f781bf657ad",
+  "jurisdiction": {
+    "id": "city-hayward",
+    "name": "Hayward",
+    "type": "city",
+    "website": "https://www.hayward-ca.gov",
+    "meeting_calendar_url": "https://hayward.legistar.com/Calendar.aspx"
+  },
+  "generation_metadata": {
+    "scrape_urls": [
+      "https://hayward.legistar.com/Calendar.aspx"
+    ],
+    "ai_model_used": "gpt-5-mini",
+    "wiki_files_loaded": [],
+    "generation_cost": 0.0,
+    "processing_time": 0.0,
+    "unparseable_urls": null
+  },
+  "html_content": "Subject: City Council Meeting\n\n# \u2709\ufe0f City Council Meeting\n*Your quick guide to what's on the City Council agenda \u2014 September 27, 2025*\n\n## \ud83d\udde3\ufe0f How to Participate\n- **Meeting:** [Saturday, September 27 at 09:00 AM](https://calendar.google.com/calendar/render?action=TEMPLATE&text=City%20Council%20Meeting&dates=20250927T160000Z/20250927T180000Z&location=Chabot%20College%0D%0AEvent%20Center%2F722A&details=Civic%20engagement%20opportunity%20in%20City%20Hayward) \ud83d\udcc5\n- **Where:** Chabot College  \nEvent Center/722A\n- **Watch Online:** Not specified.\n- **Call In:** Not specified.\n- **Email Comments:** Not specified. \u2014 **deadline:** Not specified.\n- **Attend & Speak:** Check meeting agenda for public comment rules\n- **Full Agenda:** [View original meeting agenda](https://hayward.legistar.com/Calendar.aspx)\n\n## \ud83d\udea8 What's on the Agenda\n### City Council\n- **Change:** Final\n- **Impact:** Civic engagement opportunity in City Hayward. Cost not specified.\n- **Action:** Attend meeting, submit public comment, or contact representatives\n\n## \u2705 Bottom Line\nFound 5 civic engagement opportunities via legistar_api data.\n\n\u26a1 *Independent and nonpartisan summary. Facts only; no spin.*",
+  "text_content": "Subject: City Council Meeting\n\n# \u2709\ufe0f City Council Meeting\n*Your quick guide to what's on the City Council agenda \u2014 September 27, 2025*\n\n## \ud83d\udde3\ufe0f How to Participate\n- **Meeting:** [Saturday, September 27 at 09:00 AM](https://calendar.google.com/calendar/render?action=TEMPLATE&text=City%20Council%20Meeting&dates=20250927T160000Z/20250927T180000Z&location=Chabot%20College%0D%0AEvent%20Center%2F722A&details=Civic%20engagement%20opportunity%20in%20City%20Hayward) \ud83d\udcc5\n- **Where:** Chabot College\nEvent Center/722A\n- **Watch Online:** Not specified.\n- **Call In:** Not specified.\n- **Email Comments:** Not specified. \u2014 **deadline:** Not specified.\n- **Attend & Speak:** Check meeting agenda for public comment rules\n- **Full Agenda:** [View original meeting agenda](https://hayward.legistar.com/Calendar.aspx)\n\n## \ud83d\udea8 What's on the Agenda\n### City Council\n- **Change:** Final\n- **Impact:** Civic engagement opportunity in City Hayward. Cost not specified.\n- **Action:** Attend meeting, submit public comment, or contact representatives\n\n## \u2705 Bottom Line\nFound 5 civic engagement opportunities via legistar_api data.\n\n\u26a1 *Independent and nonpartisan summary. Facts only; no spin.*",
+  "subject_line": "City Council Meeting",
+  "send_date": "2025-09-29T00:25:45.879949+00:00",
+  "recipients": [],
+  "analytics": {
+    "sent_count": 0,
+    "open_rate": 0.0,
+    "click_rate": 0.0,
+    "action_conversion_rate": 0.0
+  },
+  "created_at": "2025-09-29T00:25:45.879951+00:00",
+  "events": [
+    {
+      "id": "b451c756-6623-4f40-8325-a34666bf2c91",
+      "title": "City Council",
+      "original_title": "City Council",
+      "description": "final",
+      "when": "2025-09-27T09:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Civic engagement opportunity in City Hayward",
+      "source_url": "https://hayward.legistar.com/Calendar.aspx",
+      "location": "Chabot College Event Center/722A",
+      "meeting_type": "city_council",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-hayward",
+        "name": "Hayward",
+        "type": "city",
+        "website": "https://www.hayward-ca.gov",
+        "meeting_calendar_url": "https://hayward.legistar.com/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "clerk@hayward-ca.gov",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:25:45.879118+00:00",
+      "scraped_from": "https://hayward.legistar.com/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Sat Sep 27, 2025 \u2022 9:00 AM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "clerk@hayward-ca.gov",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Chabot College Event Center/722A",
+          "when": "2025-09-27T09:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "d9499d78-1788-4694-909a-efcd7166cb64",
+      "title": "Planning Commission",
+      "original_title": "Planning Commission",
+      "description": "final",
+      "when": "2025-09-25T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Civic engagement opportunity in City Hayward",
+      "source_url": "https://hayward.legistar.com/Calendar.aspx",
+      "location": "Chabot College Event Center/722A",
+      "meeting_type": "city_council",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-hayward",
+        "name": "Hayward",
+        "type": "city",
+        "website": "https://www.hayward-ca.gov",
+        "meeting_calendar_url": "https://hayward.legistar.com/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "clerk@hayward-ca.gov",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:25:45.879316+00:00",
+      "scraped_from": "https://hayward.legistar.com/Calendar.aspx",
+      "action_type": "planning_action",
+      "when_human": "Thu Sep 25, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "clerk@hayward-ca.gov",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Chabot College Event Center/722A",
+          "when": "2025-09-25T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "764c0836-4e32-4f89-9dcc-d2af5a231156",
+      "title": "Council Public Safety Committee",
+      "original_title": "Council Public Safety Committee",
+      "description": "final",
+      "when": "2025-09-24T17:30:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Civic engagement opportunity in City Hayward",
+      "source_url": "https://hayward.legistar.com/Calendar.aspx",
+      "location": "Chabot College Event Center/722A",
+      "meeting_type": "city_council",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-hayward",
+        "name": "Hayward",
+        "type": "city",
+        "website": "https://www.hayward-ca.gov",
+        "meeting_calendar_url": "https://hayward.legistar.com/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "clerk@hayward-ca.gov",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:25:45.879398+00:00",
+      "scraped_from": "https://hayward.legistar.com/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Wed Sep 24, 2025 \u2022 5:30 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "clerk@hayward-ca.gov",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Chabot College Event Center/722A",
+          "when": "2025-09-24T17:30:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "21ff350f-407c-4521-a305-0679481d0ad8",
+      "title": "City Council",
+      "original_title": "City Council",
+      "description": "final",
+      "when": "2025-09-23T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Civic engagement opportunity in City Hayward",
+      "source_url": "https://hayward.legistar.com/Calendar.aspx",
+      "location": "Chabot College Event Center/722A",
+      "meeting_type": "city_council",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-hayward",
+        "name": "Hayward",
+        "type": "city",
+        "website": "https://www.hayward-ca.gov",
+        "meeting_calendar_url": "https://hayward.legistar.com/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "clerk@hayward-ca.gov",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:25:45.879468+00:00",
+      "scraped_from": "https://hayward.legistar.com/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Tue Sep 23, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "clerk@hayward-ca.gov",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Chabot College Event Center/722A",
+          "when": "2025-09-23T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "jurisdiction": "federal",
+  "topic": "transportation",
+  "last_updated": "2025-10-07T16:01:43.718814",
+  "data_sources": [
+    "Perplexity Sonar Pro API",
+    "Federal agency websites (cited by Perplexity)"
+  ],
+  "programs": {
+    "federal_transit_administration_fta_formula_grants": {
+      "program_name": "Federal Transit Administration (FTA) Formula Grants",
+      "administering_agency": "U.S. Department of Transportation (DOT), Federal Transit Administration (FTA)",
+      "description": "The Urbanized Area Formula Grants program provides federal funding to local and regional government authorities for public transit capital investments, operating assistance, and transportation planning in urbanized areas (population 50,000+). Local governments play a central role as designated recipients or subrecipients, responsible for planning, implementing, and reporting on transit projects that address community mobility needs[4][2].",
+      "eligible_activities": [
+        "Public transit capital investments (e.g., purchase and overhaul of buses, trains, and related equipment)[4].",
+        "Planning, engineering, and design of transit projects and technical transportation studies[4].",
+        "Construction and rehabilitation of transit facilities (e.g., maintenance facilities, passenger stations)[4].",
+        "Implementation of complete streets and active transportation projects that improve access to transit (e.g., sidewalks, bike lanes, ADA improvements)[4].",
+        "Mobility management and coordination programs (including non-emergency medical transportation and paratransit services)[4].",
+        "Workforce development and training activities for transit employees[4].",
+        "Crime prevention and security enhancements for transit systems[4]."
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Public hearings and comment periods: Local governments must hold public hearings or provide opportunities for public comment on major transit plans, service changes, and capital projects[4].",
+        "Community needs assessment: Transit agencies must conduct assessments to identify and prioritize community mobility needs, often as part of the transportation planning process[2][4].",
+        "Resident advisory committees: Many local governments establish citizen advisory boards or councils to provide ongoing input on transit planning and equity issues[4].",
+        "Annual planning/reporting with public input: The annual and long-range transportation plans (e.g., Transportation Improvement Program, TIP) require documented public participation, including outreach to underserved and minority populations[2][4]."
+      ],
+      "leverage_point": "Participating in public hearings and comment periods on proposed transit projects, service changes, and funding allocations. Engaging with resident advisory committees or attending meetings of local transit boards or metropolitan planning organizations (MPOs).",
+      "official_url": "https://www.transit.dot.gov/funding/grants/urbanized-area-formula-grants-5307",
+      "keywords": [
+        "public transit",
+        "federal funding",
+        "transit infrastructure",
+        "mobility",
+        "transportation planning"
+      ]
+    },
+    "transportation_alternatives_program_tap": {
+      "program_name": "Transportation Alternatives Program (TAP)",
+      "administering_agency": "U.S. Department of Transportation (DOT), specifically the Federal Highway Administration (FHWA)",
+      "description": "Provides federal funding for community-based projects that expand travel choices and enhance the transportation experience by improving the cultural, historic, aesthetic and environmental aspects of our transportation infrastructure. TAP funds support pedestrian and bicycle infrastructure, Safe Routes to School projects, recreational trails, and complete streets initiatives.",
+      "eligible_activities": [
+        "Construction of pedestrian and bicycle facilities (sidewalks, bike lanes, multi-use paths)[4][5][7].",
+        "Safe Routes to School projects (infrastructure and non-infrastructure to improve safety and encourage walking/biking to school)[1][4][7].",
+        "Conversion of abandoned railroad corridors to trails (rail-trails)[4][7].",
+        "Community improvement activities (historic preservation, vegetation management, streetscaping)[1][4].",
+        "Access to public transportation enhancements (improving connections to transit stops, ADA accessibility)[4][7].",
+        "Complete streets planning and implementation (designing streets for all users, including pedestrians, cyclists, and transit riders)[2][4].",
+        "Projects that address transportation equity (targeting underserved or high-need communities, improving access for non-drivers)[2][7]."
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Public hearings or comment periods: Required as part of the project selection and planning process, often during the development of local Transportation Improvement Programs (TIPs) and Statewide TIPs (STIPs)[3][8].",
+        "Community needs assessment: Many states and MPOs require applicants to demonstrate community support and conduct needs assessments, often through surveys, workshops, or public meetings[3][8].",
+        "Resident advisory committees or councils: Some local governments establish advisory committees to review proposals and provide input on project priorities[3].",
+        "Annual planning or reporting with public input: The annual planning process for TIPs/STIPs and periodic program evaluations require opportunities for public comment and engagement[3][8]."
+      ],
+      "leverage_point": "Participate in public meetings and hearings held by local governments, MPOs, or state DOTs during project selection and planning. Submit comments during open comment periods for TIPs, STIPs, or specific TAP project proposals.",
+      "official_url": "https://www.fhwa.dot.gov/environment/transportation_alternatives/",
+      "keywords": [
+        "pedestrian infrastructure",
+        "bicycle infrastructure",
+        "complete streets",
+        "safe routes to school",
+        "transportation equity"
+      ]
+    }
+  }
+}

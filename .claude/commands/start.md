@@ -1,0 +1,168 @@
+# Start Civic Session
+
+You are a coding agent working on Civic, an AI-enabled platform for local self-organization. Follow this protocol exactly.
+
+## Step 1: Environment & Status Check
+
+Run these commands in parallel to establish context quickly:
+
+```bash
+./init.sh
+```
+
+```bash
+tail -20 claude-progress.txt
+```
+
+```bash
+git log --oneline -5
+```
+
+## Step 2: Identify Next Work Item
+
+```bash
+python3 -c "
+import json
+
+with open('phase.json') as f:
+    phase = json.load(f)
+
+current_phase = phase['current_phase']
+checklist_file = phase['active_checklist']
+
+print('='*50)
+print(f'PHASE: {current_phase.upper()}')
+print(f'Checklist: {checklist_file}')
+print('='*50)
+
+with open(checklist_file) as f:
+    checklist = json.load(f)
+
+status_pending = {
+    'implementation': 'not_implemented',
+    'hardening': 'not_verified',
+    'integration': 'not_tested',
+    'pilot': 'not_ready'
+}.get(current_phase, 'not_verified')
+
+best = None
+best_priority = 999
+
+# Use category_order if defined, otherwise iterate as-is
+category_order = checklist.get('category_order', [k for k in checklist.keys()])
+skip_keys = ['version', 'phase', 'derived_from', 'last_updated', 'target', 'location', 'summary', 'category_order']
+
+for category in category_order:
+    if category in skip_keys or category not in checklist:
+        continue
+    items = checklist[category]
+    if not isinstance(items, dict):
+        continue
+    for subcategory, subitems in items.items():
+        if not isinstance(subitems, dict) or subcategory in ['description', 'target']:
+            continue
+        for item, info in subitems.items():
+            if isinstance(info, dict) and info.get('status') == status_pending:
+                priority = info.get('priority', 99)
+                if priority < best_priority:
+                    best_priority = priority
+                    best = {'item': item, 'category': category, 'subcategory': subcategory, 'priority': priority, 'info': info}
+
+if best:
+    print(f'NEXT ITEM: {best[\"item\"]}')
+    print(f'Area: {best[\"category\"]} > {best[\"subcategory\"]}')
+    print(f'Priority: {best[\"priority\"]}')
+    if 'test' in best['info']:
+        print(f'Test: {best[\"info\"][\"test\"]}')
+    if 'manual_step' in best['info']:
+        print(f'Manual step: {best[\"info\"][\"manual_step\"]}')
+else:
+    print('All items complete for this phase!')
+"
+```
+
+## Step 3: Load Context with Subagent (Recommended)
+
+Use the Task tool with `subagent_type="Explore"` to investigate the work area. This saves main conversation context by having the agent read files in its own context window.
+
+**Spawn an Explore agent with this prompt** (customize based on Step 2 output):
+
+```
+Explore the Civic codebase to understand the current state for: [ITEM NAME from Step 2]
+
+Phase: [CURRENT PHASE]
+Area: [CATEGORY > SUBCATEGORY]
+
+Investigate:
+1. Find relevant source files in packages/civic/src/civic/ and related areas
+2. Check existing tests in packages/civic/tests/
+3. Look at docs/critical/ for architectural context if relevant
+4. Identify patterns and dependencies
+
+Return a focused summary:
+- Key files with line numbers
+- Current implementation state
+- Patterns to follow
+- Suggested approach
+- Any blockers or considerations
+
+Be thorough but concise.
+```
+
+**Alternative**: For complex items, use `/analyze-item` which spawns 3 parallel agents for comprehensive analysis.
+
+## Step 4: Work Rules
+
+1. **ONE ITEM** per session - do not work on multiple items
+2. **Read before edit** - understand existing code before modifying
+3. **Test strategically** (see Testing section below)
+4. **Commit on success** - `git commit -m "Session N: description"`
+
+### Testing Strategy
+
+Use tiered testing to save time:
+
+| Tier | When | Command |
+|------|------|---------|
+| **Smoke** | Session start (automatic via `init.sh`) | `pytest test_civic.py -q` (~30s) |
+| **Targeted** | During development | `pytest {item's test_file} -q` (1-5m) |
+| **Full** | Before commit only | `pytest packages/civic/tests/ -q` (~14m) |
+
+**Find the targeted test**: Check the `test_file` field in the item's checklist entry (if specified).
+
+**Example workflow**:
+```bash
+# Working on 'hybrid_queries' item
+pytest packages/civic/tests/test_integration_rag_san_rafael.py -q  # targeted
+# ... make changes, iterate ...
+pytest packages/civic/tests/ -q  # full suite before commit
+```
+
+### Phase-Specific Rules
+
+| Phase | Status Field | Complete When |
+|-------|--------------|---------------|
+| hardening | not_verified → verified | Automated test passes |
+| integration | not_tested → passing | Real data test passes |
+| pilot | not_ready → ready | Artifact/check complete |
+
+## Step 5: Session End Protocol
+
+Before ending:
+
+1. Update checklist status if item complete
+2. Append summary to `claude-progress.txt`
+3. Commit: `git commit -m "Session N: brief_description Description of changes"`
+
+## Available Commands
+
+| Command | Purpose | Uses Subagents |
+|---------|---------|----------------|
+| `/start` | Begin session, find next item | No |
+| `/load_context` | Load context for current work area | Yes (Explore) |
+| `/analyze-item` | Deep analysis of specific item | Yes (3 parallel) |
+| `/test [mode]` | Run tests (smoke/targeted/full/profile) | No |
+| `/commit` | Commit changes | No |
+| `/nextsesh` | Prepare handoff notes | No |
+
+Now proceed: Run Steps 1-2, then use Step 3 to load context efficiently.

@@ -1,0 +1,20 @@
+{
+  "jurisdiction_id": "city-san-rafael",
+  "jurisdiction_name": "San Rafael",
+  "date_range": {
+    "start": "2024-11-01",
+    "end": "2025-11-30"
+  },
+  "analysis_timestamp": "2025-11-13T00:25:10.254651",
+  "meetings_analyzed": 33,
+  "meetings_with_high_stakes_decisions": 0,
+  "total_high_stakes_decisions": 0,
+  "min_budget_threshold": 100000,
+  "min_stakes_score": 6,
+  "decisions": [],
+  "summary": {
+    "total_budget_amount": 0.0,
+    "decision_types_breakdown": {},
+    "by_meeting_type": {}
+  }
+}

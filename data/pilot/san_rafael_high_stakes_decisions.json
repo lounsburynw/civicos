@@ -1,0 +1,222 @@
+{
+  "jurisdiction_id": "city-san-rafael",
+  "jurisdiction_name": "San Rafael",
+  "date_range": {
+    "start": "2024-11-01",
+    "end": "2025-11-30"
+  },
+  "analysis_timestamp": "2025-11-13T08:51:21.396065",
+  "meetings_analyzed": 33,
+  "meetings_with_high_stakes_decisions": 3,
+  "total_high_stakes_decisions": 5,
+  "min_budget_threshold": 100000,
+  "min_stakes_score": 6,
+  "decisions": [
+    {
+      "item_ref": "4b",
+      "title": "Final Adoption of Ordinance 2047: Fire Hazard Severity Zone Maps",
+      "description": "The City Council gave final approval to Ordinance 2047, which officially designates Fire Hazard Severity Zones within the city's Local Responsibility Areas. This action formalizes maps that classify areas based on wildfire risk, which can influence building codes, insurance requirements, and vegetation management policies for affected properties. The decision was passed as part of the consent calendar.",
+      "meeting_date": "2025-06-02T18:00:00",
+      "meeting_type": "city_council",
+      "is_high_stakes": true,
+      "stakes_score": 8,
+      "decision_type": "environmental",
+      "budget_amount": null,
+      "budget_description": null,
+      "affected_population_estimate": null,
+      "geographic_scope": "citywide",
+      "project_size_units": null,
+      "project_location": null,
+      "project_types": [
+        "environment",
+        "public_safety"
+      ],
+      "keywords_for_matching": [
+        "fire",
+        "wildfire",
+        "hazard",
+        "zone",
+        "maps",
+        "vegetation",
+        "safety",
+        "ordinance"
+      ],
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "value": "Lindsay.lara@cityofsanrafael.org"
+        }
+      ],
+      "agenda_url": "https://storage.googleapis.com/proudcity/sanrafaelca/2025/05/4.a-Minutes-2025-05-19.pdf",
+      "staff_report_url": null
+    },
+    {
+      "item_ref": "4c",
+      "title": "Final Adoption of Ordinances 2048 & 2049: Purchasing and Public Works Contracts Policy Updates",
+      "description": "The City Council adopted two ordinances amending the San Rafael Municipal Code related to city spending. Ordinance 2048 updates the city's general \"Purchasing Policy,\" and Ordinance 2049 updates the \"Public Works Contract Policy.\" These changes affect the rules and procedures for how the city procures goods, services, and construction contracts, impacting all future municipal projects.",
+      "meeting_date": "2025-06-02T18:00:00",
+      "meeting_type": "city_council",
+      "is_high_stakes": true,
+      "stakes_score": 6,
+      "decision_type": "policy",
+      "budget_amount": null,
+      "budget_description": null,
+      "affected_population_estimate": null,
+      "geographic_scope": "citywide",
+      "project_size_units": null,
+      "project_location": null,
+      "project_types": [
+        "governance",
+        "budget"
+      ],
+      "keywords_for_matching": [
+        "purchasing",
+        "contracts",
+        "bidding",
+        "public works",
+        "policy",
+        "spending",
+        "ordinance"
+      ],
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "value": "Lindsay.lara@cityofsanrafael.org"
+        }
+      ],
+      "agenda_url": "https://storage.googleapis.com/proudcity/sanrafaelca/2025/05/4.a-Minutes-2025-05-19.pdf",
+      "staff_report_url": null
+    },
+    {
+      "item_ref": "6a",
+      "title": "Preliminary Citywide Proposed Budget for Fiscal Year 2025-26",
+      "description": "City staff, including the Finance Director and Assistant Public Works Director, presented the preliminary citywide budget and Capital Improvement Program (CIP) for the upcoming fiscal year. The City Council reviewed the proposal, which outlines all planned municipal spending, service levels, and infrastructure projects for FY 2025-26. The council voted to accept the report, a key step in the annual budget approval process.",
+      "meeting_date": "2025-06-02T18:00:00",
+      "meeting_type": "city_council",
+      "is_high_stakes": true,
+      "stakes_score": 10,
+      "decision_type": "budget",
+      "budget_amount": null,
+      "budget_description": "Preliminary Citywide Proposed Budget and Proposed Capital Improvement Program for Fiscal Year 2025-26",
+      "affected_population_estimate": null,
+      "geographic_scope": "citywide",
+      "project_size_units": null,
+      "project_location": null,
+      "project_types": [
+        "budget",
+        "governance"
+      ],
+      "keywords_for_matching": [
+        "budget",
+        "city budget",
+        "spending",
+        "taxes",
+        "fees",
+        "capital improvement",
+        "CIP",
+        "funding",
+        "services"
+      ],
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "value": "Lindsay.lara@cityofsanrafael.org"
+        }
+      ],
+      "agenda_url": "https://storage.googleapis.com/proudcity/sanrafaelca/2025/05/4.a-Minutes-2025-05-19.pdf",
+      "staff_report_url": null
+    },
+    {
+      "item_ref": "SM 1.a",
+      "title": "Certification of Election Results and Passage of Measure P (Library Parcel Tax)",
+      "description": "The City Council is adopting a resolution to formally certify the results of the November 5, 2024, municipal election. This action legally confirms the election of city officials and validates the passage of Measure P, a new special parcel tax. Measure P will fund the construction of a new main library and community center at Albert Park by levying a tax estimated to generate $6,370,000 annually for 30 years.",
+      "meeting_date": "2024-12-16T18:00:00",
+      "meeting_type": "city_council",
+      "is_high_stakes": true,
+      "stakes_score": 10,
+      "decision_type": "tax",
+      "budget_amount": 6370000,
+      "budget_description": "Estimated annual revenue from a new special parcel tax (Measure P) to fund the planning and construction of a new Albert Park main library and community center.",
+      "affected_population_estimate": 60000,
+      "geographic_scope": "citywide",
+      "project_size_units": null,
+      "project_location": "Albert Park, near 1st Street and B Street",
+      "project_types": [
+        "budget",
+        "education",
+        "development"
+      ],
+      "keywords_for_matching": [
+        "library",
+        "tax",
+        "parcel tax",
+        "measure p",
+        "albert park",
+        "community center",
+        "construction",
+        "bonds",
+        "carnegie library"
+      ],
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "value": "Lindsay.lara@cityofsanrafael.org"
+        }
+      ],
+      "agenda_url": "https://storage.googleapis.com/proudcity/sanrafaelca/2024/12/SM-1.a-November-5-2024-General-Municipal-Election-Results.pdf",
+      "staff_report_url": null
+    },
+    {
+      "item_ref": "2.a",
+      "title": "Anticipated Litigation: Larry Reback Personal Injury Claim",
+      "description": "The City Council will meet in closed session with legal counsel to discuss a personal injury claim filed by Larry Reback. The claimant alleges he tripped and fell due to an unsafe tree well on a city sidewalk, resulting in multiple fractures. The claim is an 'Unlimited Civil Case' seeking damages over $25,000, representing a significant potential financial liability for the city.",
+      "meeting_date": "2024-11-18T18:00:00",
+      "meeting_type": "city_council",
+      "is_high_stakes": true,
+      "stakes_score": 6,
+      "decision_type": "budget",
+      "budget_amount": null,
+      "budget_description": "Potential settlement or litigation costs for a personal injury claim seeking damages in excess of $25,000. Unlimited civil cases can result in payouts significantly exceeding $100,000.",
+      "affected_population_estimate": null,
+      "geographic_scope": "specific_location",
+      "project_size_units": null,
+      "project_location": "Sidewalk in front of or around 1323 4th Street, San Rafael",
+      "project_types": [
+        "budget",
+        "public_safety"
+      ],
+      "keywords_for_matching": [
+        "sidewalk",
+        "trip",
+        "fall",
+        "hazard",
+        "tree well",
+        "injury",
+        "claim",
+        "lawsuit",
+        "pedestrian safety",
+        "4th street"
+      ],
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "value": "Lindsay.lara@cityofsanrafael.org"
+        }
+      ],
+      "agenda_url": "https://storage.googleapis.com/proudcity/sanrafaelca/2024/11/2.a-Closed-Session.pdf",
+      "staff_report_url": null
+    }
+  ],
+  "summary": {
+    "total_budget_amount": 6370000.0,
+    "decision_types_breakdown": {
+      "environmental": 1,
+      "policy": 1,
+      "budget": 2,
+      "tax": 1
+    },
+    "by_meeting_type": {
+      "city_council": 5
+    }
+  }
+}

@@ -1,0 +1,1299 @@
+{
+  "video_id": "PPGHwBeYHiw",
+  "meeting_url": "https://www.youtube.com/watch?v=PPGHwBeYHiw",
+  "speakers_count": 10,
+  "utterances_count": 214,
+  "utterances": [
+    {
+      "speaker": "A",
+      "text": "Testing, 1, 2.",
+      "start": 148770,
+      "end": 149810
+    },
+    {
+      "speaker": "B",
+      "text": "That's.",
+      "start": 153950,
+      "end": 168750
+    },
+    {
+      "speaker": "C",
+      "text": "Recording in progress.",
+      "start": 377950,
+      "end": 379150
+    },
+    {
+      "speaker": "D",
+      "text": "Madam City Clerk. Are we ready? We're ready. All right. Welcome everyone. Today is Monday, March 18th. It's a regular meeting of the San Rafael City Council. I'll request the City Clerk to call the roll. Councilmember Bushy.",
+      "start": 651180,
+      "end": 667240
+    },
+    {
+      "speaker": "B",
+      "text": "Present.",
+      "start": 667560,
+      "end": 667960
+    },
+    {
+      "speaker": "D",
+      "text": "Vice Mayor Hill.",
+      "start": 668520,
+      "end": 669520
+    },
+    {
+      "speaker": "E",
+      "text": "Present.",
+      "start": 669520,
+      "end": 669880
+    },
+    {
+      "speaker": "D",
+      "text": "Councilmember Kurtz.",
+      "start": 670280,
+      "end": 671320
+    },
+    {
+      "speaker": "B",
+      "text": "Present.",
+      "start": 671320,
+      "end": 671640
+    },
+    {
+      "speaker": "D",
+      "text": "Councilmember Yanen Scolati.",
+      "start": 672200,
+      "end": 673600
+    },
+    {
+      "speaker": "F",
+      "text": "Present.",
+      "start": 673600,
+      "end": 673880
+    },
+    {
+      "speaker": "D",
+      "text": "Mayor Kate. Present. All five of us are here this evening.",
+      "start": 673960,
+      "end": 677240
+    },
+    {
+      "speaker": "B",
+      "text": "Welcome.",
+      "start": 677560,
+      "end": 678040
+    },
+    {
+      "speaker": "D",
+      "text": "Whether you're here in the chambers or watching virtually, we are glad you're here. We have a short agenda, but it's small and mighty. So really appreciate the input we've already received and look forward to more conversation tonight. As part of my opening remarks, we like to include a land acknowledgement in addition to the statement. The city collaborates with the tribe over our shared issues. We thank the original caretakers of this land. San Rafael is traditionally home to the Coast Miwok people, many of whom today are tribal citizens of the Federated Indians of Great Rancheria. We honor their continuing involvement in stewardship practices that benefit us all. Before we get started, also, I want to thank the staff who make the city run so beautifully every single day. And it feels different now that the sun is out. I don't know, I mean, before, like at dpw, we were feeling, oh, but now DPW is dealing with weed. So we get it, so be patient. But thank you for the folks that are both out on our streets and in City hall and all our facilities helping make the city go so beautifully. So with that, we will get right to our agenda and I'll invite the City Clerk to share how people can participate this evening. Thank you, Mayor Kate.",
+      "start": 678040,
+      "end": 750150
+    },
+    {
+      "speaker": "C",
+      "text": "Tonight's meeting is being recorded and streamed.",
+      "start": 750150,
+      "end": 752110
+    },
+    {
+      "speaker": "D",
+      "text": "Live to YouTube for members of the public wishing to provide public comment displayed on the podium. And the projector is a timer to.",
+      "start": 752110,
+      "end": 758910
+    },
+    {
+      "speaker": "C",
+      "text": "Help you stay within your two minute time frame.",
+      "start": 758910,
+      "end": 760870
+    },
+    {
+      "speaker": "D",
+      "text": "You're invited, though not required, to introduce yourself and say what part of Centerfell you live in, or if you're from outside of Centerfell. We do offer closed captioning for this.",
+      "start": 760950,
+      "end": 769390
+    },
+    {
+      "speaker": "C",
+      "text": "Evening'S meeting on Zoom and you can.",
+      "start": 769390,
+      "end": 771350
+    },
+    {
+      "speaker": "D",
+      "text": "Select the live transcript button to enable that feature. If you're experiencing any technical difficulties, you can email me at city.clethityofcenterfell.org thank you. Thank you very much. We'll start with our council member and city manager reports. But first we'll start with the city manager. I'll turn it to you. Good evening, Mayor, council members and the community.",
+      "start": 771350,
+      "end": 791920
+    },
+    {
+      "speaker": "B",
+      "text": "I just have a few announcements tonight. This Wednesday the 20th is the next.",
+      "start": 791920,
+      "end": 796440
+    },
+    {
+      "speaker": "D",
+      "text": "Police Advisory and Accountability Committee meeting. I think this is the first fourth.",
+      "start": 796440,
+      "end": 801120
+    },
+    {
+      "speaker": "B",
+      "text": "Convening of that meeting looking at Assistant City Manager Angela.",
+      "start": 801120,
+      "end": 804360
+    },
+    {
+      "speaker": "D",
+      "text": "You can participate by providing public comment in person or watch the meeting via Zoom. You can send written or email comments to the email, which is Pack PA City of San Rafael.org up to 4 o' clock of the meeting day.",
+      "start": 805160,
+      "end": 819400
+    },
+    {
+      "speaker": "C",
+      "text": "Also, just an announcement about Smart.",
+      "start": 820520,
+      "end": 822840
+    },
+    {
+      "speaker": "D",
+      "text": "Starting April 1st, there's a pilot going on for youth ages 18 and under and over 65.",
+      "start": 822840,
+      "end": 831020
+    },
+    {
+      "speaker": "G",
+      "text": "Folks will enjoy Fair Re Fair free rides on Smart.",
+      "start": 831020,
+      "end": 835340
+    },
+    {
+      "speaker": "D",
+      "text": "That's a pilot that will be effective until June 30th, 2025 to try to incentivize more folks to ride the train in those age groups. We're going to hear in a few more minutes about a San Rafael famous explorer, Louise A. Boyd. But I wanted just to mention that.",
+      "start": 836700,
+      "end": 853780
+    },
+    {
+      "speaker": "G",
+      "text": "There is exhibit at the Boyd Gatehouse.",
+      "start": 853780,
+      "end": 856100
+    },
+    {
+      "speaker": "D",
+      "text": "This weekend that open that's called Petals and Ice. The exhibit hours are 10 to 2 Wednesday through Friday and Saturday from 11 to 3. And her story is quite remarkable.",
+      "start": 856100,
+      "end": 867030
+    },
+    {
+      "speaker": "C",
+      "text": "So we're going to hear more about.",
+      "start": 867030,
+      "end": 868030
+    },
+    {
+      "speaker": "D",
+      "text": "That in a few moments. Thank you so much. And I will turn to my colleagues. I'll start with the vice mayor. Vice Mayor Hill thank you, Mary Kate.",
+      "start": 868030,
+      "end": 877070
+    },
+    {
+      "speaker": "E",
+      "text": "I have two meetings to report out this evening. One was on Friday, March 8, the Economic Development Department subcommittee meeting. We were able to review the GO program overview and materials. And the short short of that is that the city is here to help businesses, both those that are here and those that we would like to have in our city. So thank you Director Hinkle, for ensuring that we have a plan in place to invite everybody to stay and come. Also at the meeting we talked about the progress of the economic development strategic plan for the 2024 activities as well as the Storefront activation pilot program. Upcoming meetings or upcoming events rather for the Business Improvement District include the Art Walk every Friday, every second Friday I should say. Next one coming up is April 12th. Community should definitely come and and partake. Also, the downtown clean and green day on Earth Day is April 22nd in May. Madness not to be missed is on May 11th. Also last Friday, joined by Council Member Kurtz, I visited the Glenwood Elementary School as a guest reader. I got to read to four classrooms, second graders and third graders. I can say that I am inspired by our next generation of leaders. Also there was Captain Leon and that's my report.",
+      "start": 877070,
+      "end": 959990
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you Council Member Kurtz.",
+      "start": 960630,
+      "end": 962470
+    },
+    {
+      "speaker": "B",
+      "text": "Sure.",
+      "start": 964070,
+      "end": 964470
+    },
+    {
+      "speaker": "G",
+      "text": "So in addition to reading at Glenwood, which was really fun, I had 5th graders which are bursting to get out of elementary and move on. I also was able to visit San Pedro School and see the new mural and to read in a couple of their classes, which was fun. I also attended the Marin center for Independent Living open house for caregivers. This is really focused on thanking caregivers as well as recruiting new caregivers because there's a very high need in our community.",
+      "start": 964710,
+      "end": 993650
+    },
+    {
+      "speaker": "B",
+      "text": "That's it.",
+      "start": 994210,
+      "end": 994850
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you, Council Member Bushy.",
+      "start": 995890,
+      "end": 997810
+    },
+    {
+      "speaker": "B",
+      "text": "I attended the board meeting of the Central Marine Sanitation Agency where we approved the expansion of our lab staff to add one additional staffer. The lab duties are expanding at our wastewater treatment plant in response to public health requests, so we are staffing up for that. We also prove some routine maintenance matters which are all important to keep those processes working. Today I attended not one but two meetings associated with the Point San Pedro Road Coalition. The first, along with Mayor Cade, was these Point San Pedro Road Coalition's Roadway Committee where we discussed the long going and multi chaptered process of trying to control speeding on Point San Pedro Road. There were references to a particular classic rock song about not being able to drive a certain speed limit. That notwithstanding, it was in fact a very productive meeting thanks to our Department of Public Works who had an innovative idea that has not been previously tried on with my neighbors. So we shall see how that unfolds. And then after that I met with the UNLOCK loan oversight on the committee. We are making great progress. The good news is that all of the residential development should be completed by June of this year. You know, depending on how you count. It's either been 20 or 25 years since we started talking about that. So this is a big culmination of getting that part of the development done on the sort of not so good part. Some of the improvements, particularly the, the playground, have not been completed and the developer responsible for that has not been responsive. So we may, we're investigating other ways to persuade them to step up and complete that. The best thing I did last week though was my second favorite thing in the year. The first of course is the lighted boat parade when we get to ride on the boat. But the public service award decision making meeting was last week very ably convened by our city clerk and a very good decision was made which will be made public at a later date that completes my report.",
+      "start": 999890,
+      "end": 1140600
+    },
+    {
+      "speaker": "D",
+      "text": "We like that cliffhanger. Thank you Council Member Bushy. Councilmember Micah.",
+      "start": 1140760,
+      "end": 1144920
+    },
+    {
+      "speaker": "F",
+      "text": "Yes, thank you, Mayor. I attended the East San Rafael working group and we actually had a great report from Rick Storek from the Canal Arts and he updated all the participants around the visual public art in the canal area, prospects and some other ideas. And it was always great to see everybody, including the San Rafael Chamber of Commerce CEO and president then Current Australia also attended the BPAC meeting at the Bicycle and Pedestrian Advisory Committee and with Public Works did a great job presenting and answering questions. We were discussing getting feedback about the new transit center. Also there was a little bit of revision around the Vision Zero City and it's something that is just a preview because it's going to come to our council very soon. And I was just coming back that day from visiting my son in Boulder where there was like a lot of bike and pedestrian paths and transit. So it was actually like the perfect subway into the meeting. And then I will finish by saying that last week I had the pleasure to visit Bayavista School on Wednesday and then I was reading to three classes, fourth graders in Spanish. So it was really great to be able to do that. And then on Thursday I visited San Pedro and I read to a 4 5th class and then an academy in Spanish for newcomers. So I got to practice my Spanish both days and it was so fun to hang out with the kids. So I guess that was the highlight of my week.",
+      "start": 1145640,
+      "end": 1240220
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you. Thank you. Busy times. As you all know, I've been part of the Mayoral Fellowship through the Mayor Institute on City Design through the Harvard School of Design, and we have the virtual meetings. So we had one, we had two since we last met. And they continue to bring in experts and academics and to look at planning issues through an equity lens. So we'll probably have a roll up. Maybe the final presentation is a slide deck that we'll be presenting in April. So maybe I'll talk to the city manager and present it here because we've been talking about the fellowship and being one of only eight mayors in the U.S. it's kind of cool to show what we've been working on with the highlight. I would say I did a lot of great things, but I'll have to say this one is the highlight. So we have employee of the Quarter, and that is an employee who's recognized by their peers, by other employees, and it's always an honor to recognize them. And so the, you know, the employee of the quarter for Q3, because it always has to lag, was a gentleman named Buna Sum. And he has been a custodian here in the city of san Rafael for 25 years. And his peers recognize that he had been nominated by quite a few nominees. He works at The Terra Linda Community center and pool, the Falkirk Cultural center, and various San Rafael facilities. He is known for being flexible, reliable, and a positive influence, which impresses his colleagues and also community members and customers. And community members often specifically request him at their events. He was very surprised when he received the star. So congratulations to Buna and for all the great work that you do every single day in our city. In addition, I'm your representative on the Transportation authority of Marin. Safe routes to school. We're still talking about crossing guards in the algorithm. We're refining it because there's always more demand and not enough resources. So that will be coming to the TAM board, if not this month, then next month. Very confident that the decisions that the ad hoc committee and it's gone to the executive committee, really reflect what the community wants, which is to have crossing guards where there's people crossing. I know that sounds straightforward, but we want to make sure that lines up with the data we're receiving. In addition, we have. I went to the giving Marin Independent Journal awards, and that's where they recognize and give out awards to fantastic nonprofits in our community. And one of them went to the director of Slide Ranch, who happens to be sitting next to me. Micah is also in her day job, the director of Slyde Ranch. So it was really fun. And council member Kurtz was there with me as well. We applauded very loudly. The economic development subcommittee, Vice mayor Hill talked about two fantastic weekend events. One was in the canal with Boses, the canal and Flock Safety. Flock Safety are the providers for the license plate reader cameras, and they have a community event program. And we were the first one that they had this community event. And there was a room full of kids doing an art project. And there were awards that were given at the end of it. But I have to say they started out with four or five tables, and the folks are. The staff had to keep bringing in tables. By the time the thing ended, there was not a place to walk in there. There was so much enthusiasm by the community. And we really appreciate that Flock Safety understands the importance of community and community engagement in our community. It was such a great event, and it wouldn't have happened if VOSIS hadn't been our community partner in it. And then another fantastic weekend event, the 90th birthday party that we held at B Street. Just so you know, it used to be 85 and up, but there were so many people that we had to go to 90. And even then it was capped at, I think, 150 people. A big Shout out to the age friendly community group who helped put it on, as well as the Golden Heirs. It was very well attended. I said a few words. There was some bingo playing, some food eating. And I can just say that if that is what 90 looks like in San Rafael, sign me up this. These folks were engaged and it was a fantastic party. So as always, lots going on. Thank you to my colleagues for what you do between our council meetings and our work on the dais. Before we go to the consent agenda, I'll take any comments from the public on either the city manager and or the council member reports. Now would be your time. Not seeing anyone. I'll close the public comment and go to the consent agenda.",
+      "start": 1240300,
+      "end": 1519220
+    },
+    {
+      "speaker": "B",
+      "text": "Oh.",
+      "start": 1520260,
+      "end": 1520740
+    },
+    {
+      "speaker": "D",
+      "text": "So, okay, so this is comment on specifically the reports that you just heard. Oh, no, no worries, no worries. The open time will be at the end of the meeting. Thank you. And I got your card. I got you. Okay. Consent agenda. Any items like to be held on the consent agenda? Not seeing any. Are there any members of the public that would like to comment on the consent agenda? This is items 4A through D. Oh, hi, Amy. Welcome. And if you could just tell us what item you're commenting on so we can follow along. Yeah, it doesn't sound like that's on.",
+      "start": 1522660,
+      "end": 1563740
+    },
+    {
+      "speaker": "B",
+      "text": "There you go.",
+      "start": 1578630,
+      "end": 1579110
+    },
+    {
+      "speaker": "D",
+      "text": "Yes. So there we go. So which item, which item are you commenting on first?",
+      "start": 1581430,
+      "end": 1588590
+    },
+    {
+      "speaker": "H",
+      "text": "Let me identify myself. My name is Amy Le Cofer. I am here on behalf of San Rafael Heritage to comment on the Louise Boyd item.",
+      "start": 1588590,
+      "end": 1596980
+    },
+    {
+      "speaker": "D",
+      "text": "Okay. That will be the next item. So you can comment now, of course, or you can wait till we get to that agenda. I thought it was.",
+      "start": 1597300,
+      "end": 1602780
+    },
+    {
+      "speaker": "H",
+      "text": "Any items on the consent calendar?",
+      "start": 1602780,
+      "end": 1604620
+    },
+    {
+      "speaker": "D",
+      "text": "No. So that's not consent. I'm actually going to read the proclamation, so.",
+      "start": 1604620,
+      "end": 1608500
+    },
+    {
+      "speaker": "H",
+      "text": "So I'll sit down.",
+      "start": 1608740,
+      "end": 1609540
+    },
+    {
+      "speaker": "D",
+      "text": "Okay. And then I'll call you back up. Okay. Not seen any public comment on the consent agenda. I request a motion, please.",
+      "start": 1609540,
+      "end": 1616420
+    },
+    {
+      "speaker": "F",
+      "text": "I'll make a motion to approve the consent agenda.",
+      "start": 1616580,
+      "end": 1619530
+    },
+    {
+      "speaker": "D",
+      "text": "Second moved and seconded. Roll call, please. Councilmember Bushy?",
+      "start": 1620160,
+      "end": 1623440
+    },
+    {
+      "speaker": "B",
+      "text": "Aye.",
+      "start": 1623440,
+      "end": 1623840
+    },
+    {
+      "speaker": "D",
+      "text": "Vice Mayor Hill.",
+      "start": 1623920,
+      "end": 1624800
+    },
+    {
+      "speaker": "E",
+      "text": "Aye.",
+      "start": 1624800,
+      "end": 1625200
+    },
+    {
+      "speaker": "D",
+      "text": "Council member Kurtz.",
+      "start": 1625360,
+      "end": 1626360
+    },
+    {
+      "speaker": "B",
+      "text": "Aye.",
+      "start": 1626360,
+      "end": 1626720
+    },
+    {
+      "speaker": "D",
+      "text": "Council member Yadams Galadi.",
+      "start": 1626960,
+      "end": 1628520
+    },
+    {
+      "speaker": "B",
+      "text": "Aye.",
+      "start": 1628520,
+      "end": 1628840
+    },
+    {
+      "speaker": "D",
+      "text": "Mayor Kate. Aye. That motion carries.5,0. Now, we have a special presentation of Louise Boyd and I'm thrilled that Ms. Leover would like to make public comment. So we take public comment prior to the presentation. So come on up.",
+      "start": 1628840,
+      "end": 1641520
+    },
+    {
+      "speaker": "H",
+      "text": "So I am here on behalf of San Rafael Heritage, the city's only historic preservation organization. And I'm speaking on behalf of Leslie Simon Simons, their president. The mayor will read all about Louise Boyd you in just a second. But I wanted to. I just wanted to add something that isn't really spelled out in the proclamation, nor is it in the Wikipedia article about Louise Boyd. And I was very interested about this. In the Wikipedia article, they refer to her secret work for the government. So it turns out that, as you know, she was a great explorer and aviator and all that stuff. She, During World War II, she was the only person, aside from the Germans, who knew about the radio waves over the North Atlantic. And she served. And she served, used her own money to help break. To help break the Nazi code. And because of Louise Boyd. This is per what Leslie Simons told me. Because of Louise Boyd, the United States Navy was able to, in effect, bomb German ships. And so in the Wikipedia article, they just referred to her secret work. So she was part of us winning the war.",
+      "start": 1645690,
+      "end": 1729560
+    },
+    {
+      "speaker": "B",
+      "text": "And.",
+      "start": 1729800,
+      "end": 1730080
+    },
+    {
+      "speaker": "H",
+      "text": "And that is the reason, according to Leslie, why she died penniless. She was never paid for this work. And so we celebrate not only her courage, her bravery, but also her expertise and the fact that I think she needs to be raised just a little bit higher. She was not just an explorer and, you know, an unusual woman for her time. She also was someone who helped us win the war. Thank you very much.",
+      "start": 1730390,
+      "end": 1756310
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you. Appreciate that additional information. Anyone else like to comment on Louise board before I read the proclamation? No, this is on the proclamation around Louise Boyd. Okay, I'm going to go ahead and read it and add in a few more details from what Amy already talked about. Louise Boyd is an inter. Louise Boyd, an internationally known explorer, geographer and photographer from San Rafael who independently chartered seven expeditions to the Arctic between 1929 and 1941 to document polar landscapes and scientific research. And she is credited for her groundbreaking work in photogrammetry. Photogrammetry and her research of radio wave transmission in Arctic regions, among other invaluable contributions that aided the United States government during World War II. I think that's what Amy was referring to. And whereas Louise Boyd received the prestigious American Geographical Society's Cullum Gold Medal, just one of the many awards and accolades received by her throughout her remarkable life. And she was the first woman to reach the remote eastern fjords of Greenland, and in 1955, the first woman to fly in an airplane over the North Pole. And whereas throughout her life, Louise Boyd embodied two distinct persons, that of a seafaring adventurer, a society lady, and a philanthropist. And whereas the gate house, now home to the Marin History Museum, which, as the city manager said, there will be a. Or there is an exhibit about her. You have images up there. That's fantastic. Stands as a testament to the rich history of the Boyd family in San Rafael, as well as Maple Lawn, where the San Rafael Elks Lodge is currently located. And whereas many of Louise Boyd's most treasured possessions, including photographs, scrapbooks, journals and letters, were generously donated to the Marin History Museum upon her passing in 1972, therefore, I can't call. On behalf of the council and the city, do hereby proclaim that we honor and celebrate the life, achievement and enduring legacy of Louise Boyd, whose indomitable spirit and pioneering endeavors continue to inspire generations to come. Pretty darn cool. So, everyone check out the exhibit. We'll get the Wikipedia page to be a little bit fuller. So thank you. We've already taken public comment on this item, so I'll roll right along to the public hearing, which is the clarification of objective design standards. And I will see Director Hinkle is here.",
+      "start": 1757130,
+      "end": 1912140
+    },
+    {
+      "speaker": "A",
+      "text": "Good evening, Mayor, council members, economic and community and economic Development Director Micah Hinkle. Tonight I'm just going to give you a quick overview and I'll turn over to our consulting team, Charity Wagner and Laura Simpson. Should there be specific questions on this? This one here really is. Is how it's called out as a clarification of objective design standards contain. The staff report is really kind of a response for the city for the state housing crisis and the applicable laws focused on housing productions. This is an item that the. The city staff have been working on since 2019 with the planning commission and design review board. We've had multiple discussions on this, trying to resolve, modifying or clarifying our somewhat subjective standards, what we have within our ordinances, and then really trying to line up objective standards which would be applicable to housing developments. Really, when we look at this, it's really about tools. You know, this is tools to support staff and design professionals on city design requirements. And with that, I'm going to turn over to charity.",
+      "start": 1932220,
+      "end": 1997140
+    },
+    {
+      "speaker": "C",
+      "text": "Thank you, Micah. Good evening, Mayor Colin. Vice Mayor Hill. I am Charity Wagner. Thanks for the nice introduction, Micah. I am doing some consulting work with city staff. One of my tasks is to help get this, this item through to the finish line, or an intermediate finish line, if you will. So the. My presentation is quite short, but I think it should provide a little first to start a little context and background on why we're here. And then I'll do a brief overview on what the objective design standards are intending to achieve. And then we'll conclude with the recommendation. So with that, the context and background, as Micah Mentioned state law the last five or six years is no secret, has attempted to accelerate housing quite a bit. One of the key, key pieces of this legislation is to allow cities and communities to apply objective design standards to projects and only objective ones. Objective standards are just that. They apply clear objective, quantifiable standards. This is a. It's a bit of a departure from cities in California. Citywide it was very common for cities policies and documents and standards to be more subjective. It's been a planning practice for the last couple decades. So we're taking a turn. The city's policy documents do have many of subjective standards currently. So the goal of what you're looking at tonight is to help build upon those with more objectivity so that staff has the ability to apply the sorts of things to these to future projects. So that's the intent tonight. Just to clarify existing policies and standards to make sure that staff has the tools that they need in order to review projects. The objective design standards that are for discussion tonight are in four parts. There's a building and architecture, site planning, layout, open space, landscape and lighting. These won't be used on their own. When planners in city are reviewing projects they'll be reviewed together with the city's current zoning code which is full of objective standards like building height and far and lot coverage. Also there's exist two documents for existing design guidelines. We'll use those to the extent that we can with their objective modeling standards. And now we're going to add these objective design standards also. So it'll be a companion document to current standards. Something. I'm not going to detail each individual standard in the packet but I will say building design and architecture discusses things like materials and colors. Really requires things like plane break so you don't look at long flat walls. Says things like no iridescent paint is allowed, no reflective materials. The site planning and layout requires new construction to consider window placement when you're building something next to an existing structure so you're not staring directly into somebody else's existing house. Some standards like that are included in that section. Open space and landscape is an important one for us. Requires a minimum open space standard for all new housing units. Right now a project. Some zoning does have that already and that that's great. Some zones like a res commercial zone or mixed use zone might not have. So now we can apply those as well to mixed use projects. And then lastly lighting we have the standards have requirements to provide a photometric plan and to make sure that you're not spilling light out onto adjacent parcels. And then the. Micah had said too that this is a kind of a bridge document for us. In the staff report we discussed too that the 2040 implementation items from the general plan require a zoning code update. So standards like this will be more folded in and review and approval tonight will allow time for staff to work with these two, with the development community and kind of like finesse and work through these so that when we come back with the zoning update, then we have had the opportunity, hopefully applications come in to utilize these and make them the best as we move forward. So with that, staff recommends that the council connect your hearing and adopt the resolution approving the objective design standards for certain residential development projects. Myself, Micah and and Laura Simpson are all here too, if you have any questions.",
+      "start": 2000420,
+      "end": 2249120
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you. And there is obviously more information in the packet. And let me just start out by saying so we're, it's, it's Planning commission has heard it. We are having the conversation tonight, but it will come back as part of an when the ordinances are passed. So if there's anything that is raised, maybe in tonight's discussion that the community might bring up after there's an ability for the community still to weigh in. Is that correct?",
+      "start": 2251440,
+      "end": 2276910
+    },
+    {
+      "speaker": "A",
+      "text": "That is correct. And really we're looking at this as an evaluation period. You know, the commitment we're looking for this is within the next 12 months. Planning Commission is specifically asset return. Really just outlining how did these do what, you know, what are the things we need to do. Maybe it's not 50ft, but 46ft. You know, really go to the details of how the objective design standards are working. And also do we as we're evaluating applications that are coming forward now are these adjustments we need to make to these to make sure they're clear, clear direction moving forward. So there'll be an opportunity to read these as it goes. Does charity mention to ordinance adjustments?",
+      "start": 2277070,
+      "end": 2310600
+    },
+    {
+      "speaker": "D",
+      "text": "Okay, I just wanted to set that because it's, it's a big document and, and it's a meeting document. But knowing the community might have additional comments. So I'll go with questions. Vice Mayor, let's start with you.",
+      "start": 2310680,
+      "end": 2321800
+    },
+    {
+      "speaker": "E",
+      "text": "Thank you, Mayor Kate, and thank you for the presentation.",
+      "start": 2322040,
+      "end": 2324280
+    },
+    {
+      "speaker": "I",
+      "text": "Charity.",
+      "start": 2324620,
+      "end": 2325020
+    },
+    {
+      "speaker": "E",
+      "text": "Just to go back to Mayor Kate's clarification. So coming out of tonight, if it should be this resolution should be adopted, nothing would officially go into place or the developer community would be subject to objective design standards coming out of this meeting.",
+      "start": 2325820,
+      "end": 2340060
+    },
+    {
+      "speaker": "A",
+      "text": "So the developer would be subject to the resolution that calls out these specific outlines or clarifications. We had Them addressed in some of the draft or inside of our existing regulations. But they weren't really specific.",
+      "start": 2341420,
+      "end": 2353700
+    },
+    {
+      "speaker": "D",
+      "text": "They're.",
+      "start": 2353700,
+      "end": 2354060
+    },
+    {
+      "speaker": "A",
+      "text": "Subjective, so. But in these added pieces, for clarity, this is what we're looking to address. And they'll be added as part of the resolution. That's before you got it.",
+      "start": 2355890,
+      "end": 2365010
+    },
+    {
+      "speaker": "E",
+      "text": "So they don't have to go into the zoning ordinance in order for it to become effective after tonight. If we were to adopt it. Okay, thank you. Can you share what the process looks like? If a project deviates from the objective design standards, what is the process for either allowing a variance or remediation? How does that work?",
+      "start": 2365010,
+      "end": 2385680
+    },
+    {
+      "speaker": "D",
+      "text": "Certainly.",
+      "start": 2389120,
+      "end": 2389760
+    },
+    {
+      "speaker": "C",
+      "text": "So, Vice Mayor Hill, when a. If a project comes forward and it is unable to address the objectives design standard, perhaps they can't meet the open space requirement for whatever reason, they have an opportunity to request a waiver or modification variance of that item as part of the package for approval. The project doesn't warrant public hearing. If it's just a byright project, then they could make that request. Depending on the level of change, would go either through director's review, planning commission, or if it's part of a larger project that does require discretion, it gets packaged together and brought to those hearing boards. So these, these standards are the same as the zoning code standard that would go through the same process as existing standards.",
+      "start": 2390560,
+      "end": 2431330
+    },
+    {
+      "speaker": "E",
+      "text": "Thank you.",
+      "start": 2431650,
+      "end": 2432290
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you, Council member Bushy.",
+      "start": 2433810,
+      "end": 2435690
+    },
+    {
+      "speaker": "B",
+      "text": "Council member, I have two questions. One's about what's in the rules and one is about what's not. So starting with what's in the rule, it says that the main color shall have a light reflective value of between 20% and 80%. What does that mean?",
+      "start": 2435690,
+      "end": 2450860
+    },
+    {
+      "speaker": "C",
+      "text": "That's a great question. I appreciate your level of review. It means that it's not overly bright. We're trying to keep the reflectivity and the light value to not be shockingly loud. So a, a developer or a building applicant would have to demonstrate that the selection of the color is within that light criteria as part of their application package.",
+      "start": 2453660,
+      "end": 2472820
+    },
+    {
+      "speaker": "B",
+      "text": "So can a bold fuchsia color meet this requirement?",
+      "start": 2473860,
+      "end": 2479620
+    },
+    {
+      "speaker": "C",
+      "text": "No.",
+      "start": 2479860,
+      "end": 2480260
+    },
+    {
+      "speaker": "B",
+      "text": "Okay, so. But a mauve color put.",
+      "start": 2480740,
+      "end": 2484260
+    },
+    {
+      "speaker": "C",
+      "text": "I think. I feel like that's the intent. I don't know that I could qualify like a pantone wave. But yes, you're on the right track.",
+      "start": 2484980,
+      "end": 2490500
+    },
+    {
+      "speaker": "B",
+      "text": "Okay. So it's a sort of a level of intensity, correct?",
+      "start": 2490500,
+      "end": 2493860
+    },
+    {
+      "speaker": "C",
+      "text": "Yeah.",
+      "start": 2494120,
+      "end": 2494440
+    },
+    {
+      "speaker": "B",
+      "text": "Going forward.",
+      "start": 2494520,
+      "end": 2495080
+    },
+    {
+      "speaker": "D",
+      "text": "Yeah.",
+      "start": 2495160,
+      "end": 2495520
+    },
+    {
+      "speaker": "C",
+      "text": "So that, that standard comes out of standards that say things like use earth tone color. We're trying to give a very objective definition to what that actually means. So yes, that would be within that range.",
+      "start": 2495520,
+      "end": 2506040
+    },
+    {
+      "speaker": "B",
+      "text": "And so how does one measure light reflective value of a color.",
+      "start": 2506120,
+      "end": 2510279
+    },
+    {
+      "speaker": "D",
+      "text": "There adopted standards.",
+      "start": 2512920,
+      "end": 2514360
+    },
+    {
+      "speaker": "A",
+      "text": "Well, it's also part of the paint manufacturing, you know, specifications that tie into it. But then also having a design review board member who has a specialty in color selection does kind of help drive some of these comments coming in that have been been proposed to us tonight. But it is an actual standard base of the manufacturing content of the paint itself, reflectivity value. So we have that as a guidance document to the applicants who are like, I'd like to do it this color. Well, they would give us the specifications of that falling within these objective standards.",
+      "start": 2515320,
+      "end": 2546670
+    },
+    {
+      "speaker": "B",
+      "text": "So you can go to the paint store and say, give me something between 20 and 80%.",
+      "start": 2546670,
+      "end": 2549750
+    },
+    {
+      "speaker": "A",
+      "text": "That's correct.",
+      "start": 2550090,
+      "end": 2550650
+    },
+    {
+      "speaker": "I",
+      "text": "Okay.",
+      "start": 2551050,
+      "end": 2551450
+    },
+    {
+      "speaker": "A",
+      "text": "Of that color type. Because there also might be other color types that would meet that standard also.",
+      "start": 2551450,
+      "end": 2554970
+    },
+    {
+      "speaker": "B",
+      "text": "Okay. So we're not getting into colors, but we're getting into sort of intensities. Okay. Right. Great. Okay. Now to move on to what's not in the. In the rules in which I think it. I think the point is to take it out on. But what about beauty and architecture, the textural achievement? How do we. How do we keep the good part of that but not use that as an excuse to impede everything? And I think as a specific thought, I know these are standards, but could we have guidelines? Like, we'd also like the building to be beautiful, not a binding thing, but something that. A reach goal for them.",
+      "start": 2555130,
+      "end": 2603910
+    },
+    {
+      "speaker": "A",
+      "text": "Definitely. And I think that's really some of the opportunity that we as a city and staff have to work with our development community about just general expectations. What I found when we work with the developers is you can outline certain issues, criteria, things we'd like to meet as goals, and they're going to do their best to try to meet them. But there will be some moments where this is where sometimes the subjective issues come into play, like, well, I understand the goal, but I can't really meet that. How can you help me do that? But I think it's that partnership. And that's why looking for this clarification document kind of helps us at least start a starting position of like, these are where we're at now as we look at your project and evaluate it over time. Let's work in into meet, you know, the overall goal of a high quality project that's thrown across our general plan, our zoning ordinance, our design guidelines. Let's start with a quality project and work from there. The intent, though, is not to reduce unit count or other things that would limit them. And still within our zoning allowances so really trying to focus on that, but then working with the development community on.",
+      "start": 2606160,
+      "end": 2666430
+    },
+    {
+      "speaker": "B",
+      "text": "The upfront, that's a great. Maybe we could go into the general plan and pick out some of those policies that address the beauty idea and capture that and include that in there. Because to be honest, reading these are not inspiring, but they're not supposed to be. They're supposed to be mundane and very specific. So if we can figure out a way to bring in those other standards, that would be great. Thank you.",
+      "start": 2666430,
+      "end": 2694580
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you. Council Member Uren G. Yes, thank you.",
+      "start": 2695860,
+      "end": 2699380
+    },
+    {
+      "speaker": "F",
+      "text": "So thank you so much for the presentation. And my, my question was a little bit related. Like some of our neighborhoods are, you know, different cultural values. So I guess the question that I had it was not about color intensity, but it was around coloring. You know, if there is like a particular neighborhood that dec that they are going to be very colorful, like think Puerto Rico, I don't know. So I just wanted to make sure that this doesn't preclude from something like that or will that be like an.",
+      "start": 2699940,
+      "end": 2727720
+    },
+    {
+      "speaker": "D",
+      "text": "Exception to the rule?",
+      "start": 2727720,
+      "end": 2729040
+    },
+    {
+      "speaker": "A",
+      "text": "I think it'd be the opportunity of the exception evaluation. These are really set objective standards. But if you, as to Vice Mayor Hill's question, there are other ways to address these or ask for approval of ones that do not meet the standards. And we've actually seen a few projects come in with that request. If you remember 15, 15 had that same kind of request for they didn't meet certain requirements and they outlined why and what they're willing to do.",
+      "start": 2730480,
+      "end": 2754730
+    },
+    {
+      "speaker": "F",
+      "text": "Okay, great. And then if, let's just say we have a project where they decide that they want to put like an art or like a mural, will that be kind of like following these guidelines and then following, you know, the guidelines that we have around public art?",
+      "start": 2755130,
+      "end": 2769050
+    },
+    {
+      "speaker": "A",
+      "text": "Yeah, a little different. You know, public fine art is categorized differently. So there'll be a evaluation process for that as compared to building design or construction. So.",
+      "start": 2769940,
+      "end": 2780020
+    },
+    {
+      "speaker": "B",
+      "text": "Okay. Okay.",
+      "start": 2780020,
+      "end": 2781100
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you Council Member Kurtz. Thank you.",
+      "start": 2781100,
+      "end": 2785540
+    },
+    {
+      "speaker": "G",
+      "text": "Great update and presentation in terms of the objectives. I know we have guidelines and rules.",
+      "start": 2786580,
+      "end": 2793620
+    },
+    {
+      "speaker": "D",
+      "text": "Around.",
+      "start": 2793700,
+      "end": 2794100
+    },
+    {
+      "speaker": "G",
+      "text": "Buildings to in homes for firewise and to be fire safe. And I'm wondering if we have, I mean some of those are required, some of them are highly suggested. And I'm wondering if there's any need to call out additional around rules around fire prevention, fire safety. Like we have the different gutters, we have different the grates, you know, for vents on homes and things like that.",
+      "start": 2795890,
+      "end": 2825780
+    },
+    {
+      "speaker": "A",
+      "text": "So I, I, we fully anticipate that, you know, as we adopt the, the new firewise standards and then seeing the developments come in on those. And that's really looking at the opportunity to do a comprehensive ordinance amendment to include all those as very specific. So you look in one place for. For these items that need to be met. Right now we have multiple documents. So trying to actually fund that clarity thing. And even to Council member Bushy's question, trying to help the developers find that guidance. So like how do they want to meet these requirements? You have to let. Make sure we let them know how to do it. And so trying to find some clarity with our current regulations, but then outlined guidance documents to help them do that. So it is taking that document amongst other hillside guidelines and our municipal code really being a very comprehensive approach to try to help that. But then that's really. We're looking for this time to evaluate what we have and actually start to really comprehensive list of the development requirements and then actually do when we do our zoning ordinance update to actually get them all captured in one moment.",
+      "start": 2828020,
+      "end": 2886520
+    },
+    {
+      "speaker": "G",
+      "text": "That would be great. I mean, I think we're seeing a lot coming from the insurance companies and the way the insurance companies are reacting right now to homes in California that there might be things that we have to get in front of sooner than later in terms of some of those requirements. And then the other one is what else? This is a limited list. I imagine there's others, other items potentially out in the. In our list that we'd want to include as part of an objective standard. Can you share if there was any of those that we chose not to include right now and that there might be down the road?",
+      "start": 2886600,
+      "end": 2921940
+    },
+    {
+      "speaker": "C",
+      "text": "What was brought forward was actually what was reviewed by the DRB at a couple meetings and then all of their recommended changes and documents. So those are the big four topics that they sunk their teeth into in the. In the beginning and throughout the review and then those reviewed by the planning commission. But so additional ones. Yes, certainly. I think once we start looking at it consistent rolling into the zoning ordinance update, I think that's a good time to think about what needs additionally needs to be clarified or maybe added into that single source document. Because it's. There's a lot already in the guidelines that is there talks a lot about beauty, neighborhood identification that we can. That we still get to use. You know, we still have that as guidance too. So I don't have any particular off the cuff ones that aren't in these four topics that we want to make sure we grab. And if Micah has anything to add.",
+      "start": 2927700,
+      "end": 2976280
+    },
+    {
+      "speaker": "A",
+      "text": "I just wanted to add that we're also We've adopted a new downtown precise plan with a form base code. So even recognizing, you know, this was what we move forward with, there might be adjustments that we contain within that. Also the other one is also looking at some of our public work standards. Include some of those, those very specific things, maybe sidewalk design or clarity on locations of trees and how they're set up. We, we have some of those items, but also trying to capture, at least in a single document all these different requirements that come into play.",
+      "start": 2976280,
+      "end": 3006840
+    },
+    {
+      "speaker": "D",
+      "text": "Great, thank you. Thank you. And I'm just going to build on the questions we've already heard following Council member Micah is on the blank walls and the very. It says very specifically any blank walls adjacent to alleyways or side property lines have graffiti resistant paint. I had the same thinking as we want to have more community art. It's something that we've been leaning into. We're a cultural art city, only one of a handful in California. So I am concerned because that to me seems the exact kind of place where we'd actually want to have an unexpected first of art. So I'm a little. And I. Maybe it's only handled through the exception and that's fine too because we also don't want to have the graffiti. So I don't know if it needs further clarification here, but absolutely thinking what council member Micah was thinking.",
+      "start": 3006920,
+      "end": 3055240
+    },
+    {
+      "speaker": "A",
+      "text": "I think it's really going to fall on more the exception side to say these are the base standards applying to projects. But if someone wants to bring in a public art mural, they definitely have a process and approach for that when looking for on their buildings. So I think it'll be handled through a different permit request.",
+      "start": 3057480,
+      "end": 3071540
+    },
+    {
+      "speaker": "D",
+      "text": "And that won't be an unwieldy process to have.",
+      "start": 3071540,
+      "end": 3075300
+    },
+    {
+      "speaker": "A",
+      "text": "Well, I think that's one we're, we're continuing to develop. I know we have an existing public art policy on, on publicly owned lands. Private development's a little different, but that's something that both the community Economic Development Department, along with library and recreation and the city manager working towards.",
+      "start": 3076020,
+      "end": 3092590
+    },
+    {
+      "speaker": "B",
+      "text": "Okay.",
+      "start": 3092750,
+      "end": 3093110
+    },
+    {
+      "speaker": "D",
+      "text": "Well, I think it's good feedback to hear from us that that's something that we're continuing to be interested in. The whole section on lighting and again going what Councilman Bush was saying is very technical. So I don't actually know how these look in the real world. This city has really been committed to having a dark skies approach. So can you tell me that what's in here manifests as a dark skies approach, which for most folks that means just that it preserves the dark Night sky as much as possible. So as opposed to having lights that feel like you're at an airport or something. It's much more subtle.",
+      "start": 3093110,
+      "end": 3126320
+    },
+    {
+      "speaker": "C",
+      "text": "Yeah, I can. But Mayor COLIN I can clarify that that standard is actually derived out of what we say right now, current documents where they are more lofty or subjective language. We just try to hone that in and say you can't bleed out 5ft with on property line. You have to shield it down light and you have to give us a photometric study. So just trying to outline what it looks like to meet the current guideline. So. So it is modeled after that to your point, the dark sky language. Trying to give object. Objectivity towards how do you meet that.",
+      "start": 3126640,
+      "end": 3155740
+    },
+    {
+      "speaker": "D",
+      "text": "So and is that for residential single family homes as well or is this only for major. Is this. Does this standard apply to everybody or. Because I'm. We're all thinking up here, at least I'm thinking like commercial projects. That's what this reads like. Multifamily, multi unit. Is it also for new single family homes at the same or existing.",
+      "start": 3155740,
+      "end": 3175750
+    },
+    {
+      "speaker": "A",
+      "text": "It's for housing.",
+      "start": 3175910,
+      "end": 3176870
+    },
+    {
+      "speaker": "D",
+      "text": "So it's for all of San Rafael. Okay, well we already have people that are violating that or night.",
+      "start": 3176870,
+      "end": 3183270
+    },
+    {
+      "speaker": "G",
+      "text": "Okay.",
+      "start": 3183270,
+      "end": 3183790
+    },
+    {
+      "speaker": "D",
+      "text": "It's part of. That's an education piece. Okay. And then the last question, this is just pulling way out. So I remember starting this process in 2019. And so I'm curious. So here we are today and I'm glad we're doing it. I have two questions. One is, are all cities or most cities in. In California doing this in response to state legislation? So I'm kind of curious about best practices. And then second, if we didn't further clarify what is the downside, what's. What is the. What do we run into the impact of that?",
+      "start": 3183790,
+      "end": 3212830
+    },
+    {
+      "speaker": "A",
+      "text": "So I, I would say yes, this is something that all cities are. Are working towards and that is really a direct reflection of the state laws put in place for housing development. A lot of cities have already been down the road of creating these in a very, very similar circumstance that we are adopting by resolution, you know, guidance or documents in there, but then also giving the opportunity to come back and do like a full ordinance amendment. We have. The county's also developed a model ordinance looking at objective design standards. So an opportunity to evaluate those and bring them into also San Rafael amongst other communities. But also I know Laura Simpson has also been working on these in different jurisdictions also. So maybe she has some additional input she'd like to provide.",
+      "start": 3216350,
+      "end": 3260790
+    },
+    {
+      "speaker": "D",
+      "text": "No, no. And then. And maybe also as director Simpson. Thank you and also, what happens if we weren't going to do it? What's the downside? I thank you.",
+      "start": 3263750,
+      "end": 3274830
+    },
+    {
+      "speaker": "C",
+      "text": "LAURA Simpson, Community and Economic Development Yes.",
+      "start": 3274830,
+      "end": 3278960
+    },
+    {
+      "speaker": "B",
+      "text": "I have worked in Los Altos, right, as they were adopting, and this was.",
+      "start": 3278960,
+      "end": 3284400
+    },
+    {
+      "speaker": "C",
+      "text": "About a year ago, so some cities.",
+      "start": 3284400,
+      "end": 3286240
+    },
+    {
+      "speaker": "D",
+      "text": "Did it last year, went through that.",
+      "start": 3286640,
+      "end": 3289080
+    },
+    {
+      "speaker": "C",
+      "text": "Process, and it took it took a long time and discussion.",
+      "start": 3289080,
+      "end": 3292000
+    },
+    {
+      "speaker": "D",
+      "text": "And that's why we think it's good.",
+      "start": 3292000,
+      "end": 3293240
+    },
+    {
+      "speaker": "C",
+      "text": "That it's coming back through the planning commission with some time to evaluate and.",
+      "start": 3293240,
+      "end": 3297040
+    },
+    {
+      "speaker": "D",
+      "text": "You know, take a look at maybe.",
+      "start": 3297120,
+      "end": 3299400
+    },
+    {
+      "speaker": "C",
+      "text": "Some refinement as needed. So I think it's good timing for it to happen now.",
+      "start": 3299400,
+      "end": 3304960
+    },
+    {
+      "speaker": "D",
+      "text": "And in terms of what might happen.",
+      "start": 3306380,
+      "end": 3307820
+    },
+    {
+      "speaker": "C",
+      "text": "I mean, developers have the ability to.",
+      "start": 3308460,
+      "end": 3311100
+    },
+    {
+      "speaker": "D",
+      "text": "Challenge if we ask for something that.",
+      "start": 3311100,
+      "end": 3314380
+    },
+    {
+      "speaker": "C",
+      "text": "Was a little too broad, like aesthetically.",
+      "start": 3314380,
+      "end": 3317900
+    },
+    {
+      "speaker": "D",
+      "text": "Pleasing or language that we used to follow.",
+      "start": 3317900,
+      "end": 3320300
+    },
+    {
+      "speaker": "C",
+      "text": "And so if they challenged it, it's.",
+      "start": 3320620,
+      "end": 3324140
+    },
+    {
+      "speaker": "D",
+      "text": "Unlikely that it would go too far.",
+      "start": 3324140,
+      "end": 3326060
+    },
+    {
+      "speaker": "C",
+      "text": "Unless it was something drastic. But because developers, we work closely with them and they want to meet the.",
+      "start": 3326060,
+      "end": 3332020
+    },
+    {
+      "speaker": "D",
+      "text": "City'S these goals and objectives.",
+      "start": 3332020,
+      "end": 3333830
+    },
+    {
+      "speaker": "C",
+      "text": "So typically that's not a big issue. But if it came up that it were something that maybe was cost prohibitive or something on their side, they could make that challenge and say, you know, you're not being you're not using objective standards.",
+      "start": 3333830,
+      "end": 3348470
+    },
+    {
+      "speaker": "D",
+      "text": "And is this similar to what you've seen in other jurisdictions then the ones that you've worked, just similar language, similar categories? Like this is pretty much, yes, very similar.",
+      "start": 3348790,
+      "end": 3357110
+    },
+    {
+      "speaker": "C",
+      "text": "Very similar in terms of the topics that it covers.",
+      "start": 3357430,
+      "end": 3360360
+    },
+    {
+      "speaker": "D",
+      "text": "Okay, thank you, Director. There might be more questions that come after public comment, so I will open up the public comment on this item. Yep.",
+      "start": 3360830,
+      "end": 3372750
+    },
+    {
+      "speaker": "F",
+      "text": "Welcome.",
+      "start": 3373390,
+      "end": 3374030
+    },
+    {
+      "speaker": "J",
+      "text": "Hello, City Council. How are you this evening?",
+      "start": 3379870,
+      "end": 3382510
+    },
+    {
+      "speaker": "A",
+      "text": "It's a lovely day.",
+      "start": 3382510,
+      "end": 3383630
+    },
+    {
+      "speaker": "J",
+      "text": "I'm sorry, I didn't read your report, so my questions may be off base and I'll ask them anyway. One is future question. I wonder what the intersection between your Harvard project and what these standards are coming up with as being a good design for a city of this size or any size, and trying to understand some of the things that are being presented here. I took a list of items that you mentioned during this presentation. One is zoning ordinances. Others are building standards. These are objective standards, then public art standards. And I'm seeing layers of things. I'm like, oh, okay, there's a lot of moving parts here. And my question is, how do you, as a city council and we as the public, get a firm understanding of how these parts work together so that we can come up with an informed and hopefully listen to a suggestion on how to proceed in the future? The Other thing is, and this may have been expired, but during the discussion of the development of the. What was it? The bank on A Street, 4th and A. I guess it was. There was something about three waivers being allowed for the development. So the developer was granted three waivers of things that were considered standards. And again, working in certain industries, a standard and a waiver kind of just don't make any sense to me. And again here I heard that where a developer can question a standard and it's like wait, if you had a standard in questioning it, there should be a firm process by which somebody can make a argument against the standard for valid reasons and not just because it's inconvenient. So my question would be how do we ensure I'm out of time anyway? How do we ensure that that's happening?",
+      "start": 3384750,
+      "end": 3512500
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you. Yep. We will ask those of staff any other questions on this item or community input. Not seen any. I'll close the public comment. I think that's an excellent question, which I know we've asked up here. But I think when you have something new, how does it interact? So if you could speak to the layering with everything else, there might be that single source document and then the role of any sort of waivers is the term that was used. But really when the city grants you variances or exceptions, how does that intersect with this?",
+      "start": 3513060,
+      "end": 3543760
+    },
+    {
+      "speaker": "A",
+      "text": "Sure, I guess the like the layering of regulation is really that's developed a profession of years of understanding the layers of regulations. I think this is really the opportunity for us to really evaluate our regulations especially with the general plan adoption along with the downtown precise plan and then the new regulations put in place by the state of California primarily for housing development, with the desired outcome of developing housing. So this really is that opportunity to recast that and work with the development community amongst ourselves about how to apply subjective design standard to this to make sure we get the number of units that that should be built. Certain locations it is working through though we have a lot of different good documents. That's why I think it is a much bigger question than a single resolution. But a multiple of evaluating our design guidelines, our hillside guidelines. It's a larger scale planning process enough where taking these into account along with the type of applications we keep receiving that differ. You know, these are density projects primarily. They're asking for different things. So this time allowance of working with staff along with the development community, coming back to the planning commission and talk about the findings we're having, what the type of projects are being proposed and what guidance, additional guidance we need for both Planning Commission and City Council I think are necessary. Also the learning lessons from other communities are going through the same questions being asked of them. How to best apply rules and regulations to these developments. Particularly for developers who want to push the envelope into something that is quite. You know, there is question every policy approaches but there is a point that we may receive a project that pushes that to the, you know, the extreme type of design approach or development approach. We're going to have to actually dig deeper in terms of like where does it land first policy and approval process wise. But I think that's really that layering standpoint. But then also providing to Councilmember Bushy's approaches, guidance, documents and then really upfront feedback for those different design professionals and developers of what this community is looking for. And I think that's really our opportunity to embrace new rules and regulations and provide that guidance because I think there are opportunities to get quality projects as we move forward. So really looking at that from that perspective, but this is something that it's not a one time opportunity. This is going to be a multitude of opportunities in learning these requirements. And like our ordinance amendments or our rule modifications, something we have to continuously evaluate to make sure we're achieving what we're trying to achieve.",
+      "start": 3546080,
+      "end": 3709400
+    },
+    {
+      "speaker": "D",
+      "text": "And then also on the variances, I mean if you could just speak to that very specifically and I understand the kind of meta. But again these are practical questions that people are going to ask ask.",
+      "start": 3710360,
+      "end": 3719040
+    },
+    {
+      "speaker": "A",
+      "text": "Sure. And it's really typical in terms of the development standards through the ordinances. There are remedies, you know, may they be minor exceptions or what we consider variances from from the rules, whether special circumstances, findings that need to be made as saying why you do that or why you're allowing this variance or modification to move forward and explain it in full. I think the council does have certain opportunities along with Planning Commission and the Zoning administrator and the director to review different level levels of the request, minor request, staff level or its owning administrator, much greater ones probably Planning Commission and City Council, but there are processes for that.",
+      "start": 3719120,
+      "end": 3762510
+    },
+    {
+      "speaker": "D",
+      "text": "So I didn't frame it properly. So the variance is that a developer is granted through a state process if they're developing under state guide. And I know it's a little bit apples and oranges, but I think we're trying to get our sense how that is. So if someone receives a density bonus, but there's still what I'm hearing you say is even with those variances, if they receive for bent, for whatever reason, affordable housing or for whatever they're still using this design standards regardless. They don't get to walk away from the objective design standards. There's not a way that they can have a variance from that. Right, that. And I'm just. That's the clarification. I think we're asking.",
+      "start": 3762670,
+      "end": 3801180
+    },
+    {
+      "speaker": "C",
+      "text": "Yeah, actually, I don't. I don't know that that's correct.",
+      "start": 3803660,
+      "end": 3807980
+    },
+    {
+      "speaker": "B",
+      "text": "So you.",
+      "start": 3807980,
+      "end": 3808380
+    },
+    {
+      "speaker": "C",
+      "text": "They can ask. So these standards, just like they can ask about floor area ratio, you can say, I can't meet this. They can say, I really want hot fuchsia paint. It's 85%. It's not between 80 and 20. And they can come demonstrate why that is part of a mural or, I mean, exaggerating. But they have that opportunity to do that as part of that. Just like a. A single family homeowner. Not density modus, not anything. If they want to protrude light and it's important to them and it's a safety thing, they could come ask you for that.",
+      "start": 3808380,
+      "end": 3835160
+    },
+    {
+      "speaker": "D",
+      "text": "You know, we're still coming here because some of these variances are actually granted by the state processes. They don't come through the city sometimes if there's bonuses or.",
+      "start": 3835160,
+      "end": 3845120
+    },
+    {
+      "speaker": "A",
+      "text": "So there are concessions that are allowed for affordable housing. So there are preemptions that they can ask.",
+      "start": 3847680,
+      "end": 3854370
+    },
+    {
+      "speaker": "D",
+      "text": "I don't know all the terminology.",
+      "start": 3854370,
+      "end": 3855450
+    },
+    {
+      "speaker": "A",
+      "text": "We still have to outline them, though, to say that we do not meet this requirement, the standard. This actually played out on 1515 Fourth Street.",
+      "start": 3856170,
+      "end": 3862970
+    },
+    {
+      "speaker": "B",
+      "text": "Okay.",
+      "start": 3862970,
+      "end": 3863330
+    },
+    {
+      "speaker": "A",
+      "text": "They didn't meet a couple of specific requirements. And then the developer made their. Made their findings or approach to the findings, saying that by applying these regulations, it would lower the number of units that we would be able to build. So then because of the state laws that fit within those parameters, so they're able to use those preemptions. So.",
+      "start": 3863330,
+      "end": 3882620
+    },
+    {
+      "speaker": "C",
+      "text": "So the findings are different, right? Yes. And your point is? The state says you have to allow these because it's affordable housing. Those findings are different than what your zoning ordinance says where it has to be a special circumstance or something.",
+      "start": 3882620,
+      "end": 3893100
+    },
+    {
+      "speaker": "B",
+      "text": "So.",
+      "start": 3893100,
+      "end": 3893500
+    },
+    {
+      "speaker": "D",
+      "text": "Well, we appreciate. Thank you charity for. For the information. Well, it seems straightforward, but I think anytime there's something new, and especially when the. The impetus, the catalyst is from the state, I think we're just trying to understand how it manifests in our community. Are there additional questions from my colleagues? If not, I will welcome any comments before a motion. So start with comments. Council member Bushy.",
+      "start": 3895180,
+      "end": 3920210
+    },
+    {
+      "speaker": "B",
+      "text": "I think it's time to get this out on the street and get some. Get. Get an iterative process going. Listen to our development community and listen More broadly to the principals who've adopted their general plan. I'm in favor of us adopting this tonight.",
+      "start": 3922130,
+      "end": 3935760
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you. Council Member Kurtz, any comments?",
+      "start": 3936000,
+      "end": 3938640
+    },
+    {
+      "speaker": "C",
+      "text": "Also in favor.",
+      "start": 3939840,
+      "end": 3940960
+    },
+    {
+      "speaker": "G",
+      "text": "It's definitely important to have as much objective in the work that we're doing right now and appreciate us going forward with this. And, and I do think there'll be iterations as we talk to the developing community as well as individuals and what else comes forward in the community as we move forward with different projects.",
+      "start": 3941840,
+      "end": 3965290
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you. Council Member Uran Scolati.",
+      "start": 3965770,
+      "end": 3968410
+    },
+    {
+      "speaker": "F",
+      "text": "Yes, I like the approach that we are following and especially around the Planning Commission. So we will see is there like any changes that we are going to be seeing.",
+      "start": 3968490,
+      "end": 3978210
+    },
+    {
+      "speaker": "D",
+      "text": "So thank you. Thank you. And closing comments.",
+      "start": 3978210,
+      "end": 3980700
+    },
+    {
+      "speaker": "B",
+      "text": "Vice Mayor and a motion as well.",
+      "start": 3980700,
+      "end": 3982580
+    },
+    {
+      "speaker": "E",
+      "text": "Thank you. Mayor KATE yeah, and I think I'll make an attempt to beat succinct in why why we're doing this tonight where we've arrived at in this community in San Rafael. The state has handed down many state laws over the last many years and we've had to make many adjustments. We've adopted a downtown precise plan. We have had much of our code rendered basically ineffective, especially when it comes to buy right development. And to that end, if we are not, if we were not to adopt objective standards, we would not have any way to have any measure of some guidance to developers. I actually believe that developers do want to do the right thing, but I think I would rather have these in place than nothing. And, and so I am, I am thrilled that we've run through a process with the Design Review Board, with the Planning Commission for us to adopt these tonight. And to Council Member Bushy's comments. I am looking forward to the Planning Commission evaluating how this goes over in the planning Department CDD to to continue to work with developers to see how it's working. Thank you.",
+      "start": 3983780,
+      "end": 4054330
+    },
+    {
+      "speaker": "D",
+      "text": "I have no further comments. You summed it up beautifully. Would you like to make a motion?",
+      "start": 4055130,
+      "end": 4058530
+    },
+    {
+      "speaker": "E",
+      "text": "Thank you.",
+      "start": 4058530,
+      "end": 4059000
+    },
+    {
+      "speaker": "A",
+      "text": "Yes.",
+      "start": 4059710,
+      "end": 4060110
+    },
+    {
+      "speaker": "E",
+      "text": "I move that we adopt the resolution adopting objective design standards for certain residential development projects.",
+      "start": 4062110,
+      "end": 4069150
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you. Is there a second? Second moved and seconded. Roll call, please. Council Member Bushy, Vice Mayor Hill.",
+      "start": 4069470,
+      "end": 4075390
+    },
+    {
+      "speaker": "E",
+      "text": "Aye.",
+      "start": 4075390,
+      "end": 4075790
+    },
+    {
+      "speaker": "D",
+      "text": "Council Member Kurtz.",
+      "start": 4076030,
+      "end": 4077030
+    },
+    {
+      "speaker": "B",
+      "text": "Aye.",
+      "start": 4077030,
+      "end": 4077390
+    },
+    {
+      "speaker": "D",
+      "text": "Council Maria Escalade.",
+      "start": 4077550,
+      "end": 4078910
+    },
+    {
+      "speaker": "B",
+      "text": "Aye.",
+      "start": 4078910,
+      "end": 4079270
+    },
+    {
+      "speaker": "D",
+      "text": "Mayor Kate aye. That motion carries. 5, 0. Thank you. Next item on our agenda is open time for public expression. I know Travis had left a card, but he departed. So we will email him and find out what his input was. But if anyone else would like to provide a public comment.",
+      "start": 4079270,
+      "end": 4095870
+    },
+    {
+      "speaker": "B",
+      "text": "Yes.",
+      "start": 4096270,
+      "end": 4096670
+    },
+    {
+      "speaker": "D",
+      "text": "Mr. Tari.",
+      "start": 4096670,
+      "end": 4097630
+    },
+    {
+      "speaker": "J",
+      "text": "Alvateri, Gerstel Park. I noticed the library Hours have been reduced somewhat and the reason for that on the website is that there's a lack of staff. And I didn't know if there was a lack of individuals willing to do the job or there's no money to pay them. So at some point I didn't hear anything from one of the city council. I'm not sure if there's a representative on the City council representing this, the library, but I'd like to hear something in the future if possible.",
+      "start": 4104110,
+      "end": 4129920
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you. And as you know, we won't comment and answer, but I think that's a great question. So we will refer to the city manager. Anybody else before we close the meeting?",
+      "start": 4130480,
+      "end": 4139600
+    },
+    {
+      "speaker": "E",
+      "text": "Good evening.",
+      "start": 4145050,
+      "end": 4145570
+    },
+    {
+      "speaker": "I",
+      "text": "Jonathan Freeman here. You all got an email earlier today about E Bikes and I assume that you might be concerned about revenue because of the new store on Francisco. But I'm going to refer back to a conversation that Christine, you and I had last fall was about the philosophy of. Of public government and put our MPAs to work and thought about social services. And I began to think there's got to be another funding mechanism for this city to be able to enact. And it's based on my corporate personhood experience. I'm sure you all are aware of what I've done with that. And it comes down to this. Give corporations the right to vote. This has been done in Delaware. Cities are doing that. But here's the catch. Do it for a fee. Now, we're already getting about. Almost $3 million a year on about 5,000 licenses. That's an average of $600 per. You want to make sure you get at least 10 million because it's an important right. Voting is very valuable. I'm sure the corporations would love to be able to vote in our elections just the way other persons are.",
+      "start": 4145570,
+      "end": 4236100
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you. Thank you. Anyone else have any comments from the public on anything that was not on the agenda? Do you want to say something?",
+      "start": 4236820,
+      "end": 4253760
+    },
+    {
+      "speaker": "B",
+      "text": "No, I. I forgot that it starts.",
+      "start": 4254160,
+      "end": 4257160
+    },
+    {
+      "speaker": "D",
+      "text": "At 6, but you can still. We haven't closed the meeting yet, so you can comment on agenda item if you wanted to come on down. Yeah, come down.",
+      "start": 4257160,
+      "end": 4264960
+    },
+    {
+      "speaker": "B",
+      "text": "Of course.",
+      "start": 4266160,
+      "end": 4266720
+    },
+    {
+      "speaker": "D",
+      "text": "Nice to see you, K.",
+      "start": 4267760,
+      "end": 4268800
+    },
+    {
+      "speaker": "C",
+      "text": "My comment is just on the objective design standards and I attended via Zoom, the planning commission meeting on that. I would just encourage the council to not only. I assume that you adopted the ones that were recommended by the planning commission, but at that meeting, the planning director recommended that they bring those back in within nine months.",
+      "start": 4273130,
+      "end": 4301450
+    },
+    {
+      "speaker": "G",
+      "text": "I think it's really critical to have the city plan for the city's future.",
+      "start": 4301770,
+      "end": 4310870
+    },
+    {
+      "speaker": "C",
+      "text": "And not have it being driven by developers plans.",
+      "start": 4310950,
+      "end": 4314390
+    },
+    {
+      "speaker": "D",
+      "text": "So I, I'm hoping that you will really pay attention to, and stay on.",
+      "start": 4314950,
+      "end": 4318790
+    },
+    {
+      "speaker": "C",
+      "text": "The, stay really involved in the objective design standards as they move forward and, and get more fleshed out. Thanks so much. Thank you for the. This opportunity.",
+      "start": 4319429,
+      "end": 4330550
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you. I think if you go back and look at the tape, you'll see we had quite a robust discussion about it and Director Hinkle did confirm that the planning commission will continue to review it.",
+      "start": 4330960,
+      "end": 4339920
+    },
+    {
+      "speaker": "B",
+      "text": "So. Okay.",
+      "start": 4340400,
+      "end": 4342560
+    },
+    {
+      "speaker": "D",
+      "text": "Anyone else? Not seeing anyone else? We shall adjourn tonight's meeting. Thank you, everyone. Meeting's adjourned.",
+      "start": 4342720,
+      "end": 4350320
+    }
+  ],
+  "audio_duration_minutes": 72.51,
+  "language": "en",
+  "processed_at": "2025-11-23T19:06:40.178733",
+  "processing_service": "assemblyai",
+  "assemblyai_id": "6303910b-c625-411c-94ef-f1da565fd920",
+  "cost_usd": 3.0,
+  "processing_time_seconds": 0
+}

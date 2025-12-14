@@ -1,0 +1,70 @@
+{
+  "jurisdiction_id": "city-san-rafael",
+  "jurisdiction_name": "San Rafael",
+  "date_range": {
+    "start": "2024-11-01",
+    "end": "2025-11-30"
+  },
+  "analysis_timestamp": "2025-11-13T10:04:02.837517",
+  "meetings_analyzed": 33,
+  "meetings_with_high_stakes_decisions": 1,
+  "total_high_stakes_decisions": 1,
+  "min_budget_threshold": 100000,
+  "min_stakes_score": 6,
+  "decisions": [
+    {
+      "item_ref": "4.f",
+      "title": "Miovision Traffic Camera Perpetual Services Agreement",
+      "description": "The City Council will decide whether to authorize the City Manager to enter into a perpetual service license agreement with Miovision Technologies Incorporated for traffic cameras. The total cost of the agreement is not to exceed $206,483. The decision also includes authorizing a supplemental budget appropriation of $103,242 from the General Fund to help pay for the agreement.",
+      "meeting_date": "2025-01-21T18:00:00",
+      "meeting_type": "city_council",
+      "is_high_stakes": true,
+      "stakes_score": 6,
+      "decision_type": "budget",
+      "budget_amount": 206483,
+      "budget_description": "Agreement for a traffic camera perpetual services license, including a $103,242 supplemental appropriation from the General Fund.",
+      "affected_population_estimate": null,
+      "geographic_scope": "citywide",
+      "project_size_units": null,
+      "project_location": null,
+      "project_types": [
+        "transportation",
+        "budget",
+        "public_safety"
+      ],
+      "keywords_for_matching": [
+        "traffic",
+        "camera",
+        "miovision",
+        "intersection",
+        "congestion",
+        "signal timing",
+        "surveillance",
+        "public works"
+      ],
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "value": "Lindsay.lara@cityofsanrafael.org"
+        }
+      ],
+      "agenda_url": "https://storage.googleapis.com/proudcity/sanrafaelca/2025/01/Agenda-Packet-2025-01-21.pdf",
+      "staff_report_url": null,
+      "full_agenda_packet_url": null,
+      "minutes_url": null,
+      "testimony_count": null,
+      "speaker_names": [],
+      "vote_results": {},
+      "passed": true
+    }
+  ],
+  "summary": {
+    "total_budget_amount": 206483.0,
+    "decision_types_breakdown": {
+      "budget": 1
+    },
+    "by_meeting_type": {
+      "city_council": 1
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "jurisdiction_id": "city-richmond",
+  "jurisdiction_name": "Richmond, CA",
+  "last_updated": "2025-10-07T18:30:00.000000",
+  "federal_programs": {
+    "cdbg": {
+      "program_name": "Community Development Block Grant",
+      "allocation_status": "urban_county_participant",
+      "allocation_note": "Richmond receives CDBG services through Contra Costa County Urban County program (not a direct HUD entitlement city)",
+      "allocation_source": "Contra Costa County Department of Conservation and Development",
+      "allocation_url": "https://www.contracosta.ca.gov/4823/Community-Development-Block-Grant",
+      "urban_county_info": {
+        "urban_county_name": "Contra Costa County",
+        "independent_entitlement_cities": [
+          "Antioch",
+          "Concord",
+          "Pittsburg",
+          "Walnut Creek"
+        ],
+        "note": "All other Contra Costa cities (including Richmond) receive CDBG through Urban County allocation"
+      },
+      "application_process": {
+        "status": "Contact Contra Costa County for funding opportunities",
+        "allocation_recommendations": "Published by Contra Costa County Department of Conservation and Development",
+        "requirements": "Follow HUD and Contra Costa County guidelines"
+      },
+      "compliance_requirements": [
+        "24 CFR Part 570 (federal CDBG regulations)",
+        "HUD guidelines",
+        "Contra Costa County Consolidated Plan priorities",
+        "Funds must principally benefit low- and moderate-income persons"
+      ],
+      "key_contacts": {
+        "department": "Contra Costa County Department of Conservation and Development",
+        "planning_contact": "30 Muir Road, Martinez, CA 94553",
+        "website": "https://www.contracosta.ca.gov/8695/Federal-Programs-Funds-HOME-and-CDBG"
+      }
+    }
+  }
+}

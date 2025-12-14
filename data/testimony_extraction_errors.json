@@ -1,0 +1,244 @@
+[
+  {
+    "timestamp": "2025-11-23T11:20:34.654506",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "Transcript processing error: Transcoding failed. File does not appear to contain audio. File type is text/html (HTML document, Unicode text, UTF-8 text, with very long lines (6363), with no line terminators).",
+    "context": {
+      "youtube_video_id": "pIkTn2aixns",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-10-07"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T11:20:53.189596",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "Transcript processing error: Transcoding failed. File does not appear to contain audio. File type is text/html (HTML document, Unicode text, UTF-8 text, with very long lines (6363), with no line terminators).",
+    "context": {
+      "youtube_video_id": "qJfKTje1ujU",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-09-16"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T11:21:09.790620",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "Transcript processing error: Transcoding failed. File does not appear to contain audio. File type is text/html (HTML document, Unicode text, UTF-8 text, with very long lines (6363), with no line terminators).",
+    "context": {
+      "youtube_video_id": "XONq2clMpg4",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-08-19"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T11:21:42.946347",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "Transcript processing error: Transcoding failed. File does not appear to contain audio. File type is text/html (HTML document, Unicode text, UTF-8 text, with very long lines (6363), with no line terminators).",
+    "context": {
+      "youtube_video_id": "cxEG6VQ3wWc",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-07-15"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T11:21:59.096271",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "Transcript processing error: Transcoding failed. File does not appear to contain audio. File type is text/html (HTML document, Unicode text, UTF-8 text, with very long lines (6363), with no line terminators).",
+    "context": {
+      "youtube_video_id": "yLivT7reEFg",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-06-17"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T11:33:58.188819",
+    "operation": "unknown",
+    "error_type": "RetryError",
+    "error_message": "RetryError[<Future at 0x103f08750 state=finished raised YouTubeTranscriptError>]",
+    "context": {
+      "youtube_video_id": "pIkTn2aixns",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-10-07"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T11:34:55.060537",
+    "operation": "unknown",
+    "error_type": "RetryError",
+    "error_message": "RetryError[<Future at 0x104404950 state=finished raised YouTubeTranscriptError>]",
+    "context": {
+      "youtube_video_id": "pIkTn2aixns",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-10-07"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T11:35:52.858434",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "SDK transcription failed: Transcription failed: Transcoding failed. File does not appear to contain audio. File type is text/html (HTML document, Unicode text, UTF-8 text, with very long lines (6363), with no line terminators).",
+    "context": {
+      "youtube_video_id": "pIkTn2aixns",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-10-07"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T12:04:07.875476",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "Failed to download YouTube audio",
+    "context": {
+      "youtube_video_id": "qJfKTje1ujU",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-09-16"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T12:13:41.278694",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "Failed to download YouTube audio",
+    "context": {
+      "youtube_video_id": "XONq2clMpg4",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-08-19"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T12:18:14.114435",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "Failed to download YouTube audio",
+    "context": {
+      "youtube_video_id": "cxEG6VQ3wWc",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-07-15"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T12:38:54.989084",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "SDK transcription failed: Failed to upload audio file: \nReason: <html>\r\n<head><title>502 Bad Gateway</title></head>\r\n<body>\r\n<center><h1>502 Bad Gateway</h1></center>\r\n</body>\r\n</html>\r\n\nRequest: <Request('POST', 'https://api.assemblyai.com/v2/upload')>",
+    "context": {
+      "youtube_video_id": "yLivT7reEFg",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-06-17"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T13:04:58.470066",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "SDK transcription failed: Failed to upload audio file: \nReason: <html>\r\n<head><title>502 Bad Gateway</title></head>\r\n<body>\r\n<center><h1>502 Bad Gateway</h1></center>\r\n</body>\r\n</html>\r\n\nRequest: <Request('POST', 'https://api.assemblyai.com/v2/upload')>",
+    "context": {
+      "youtube_video_id": "LB97ztoKAxQ",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-06-03"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T14:09:46.120419",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "Failed to download YouTube audio",
+    "context": {
+      "youtube_video_id": "kXm7iBdfF-s",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-05-20"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T14:09:46.207416",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "Failed to download YouTube audio",
+    "context": {
+      "youtube_video_id": "oqyuPj011qg",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-05-06"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T14:09:46.259224",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "Failed to download YouTube audio",
+    "context": {
+      "youtube_video_id": "eggjVcjw3YY",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-04-15"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T14:09:46.314933",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "Failed to download YouTube audio",
+    "context": {
+      "youtube_video_id": "PPGHwBeYHiw",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-03-18"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T14:09:46.370107",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "Failed to download YouTube audio",
+    "context": {
+      "youtube_video_id": "Kpearlw-p3s",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-03-04"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T17:40:51.129200",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "SDK transcription failed: The write operation timed out",
+    "context": {
+      "youtube_video_id": "PPGHwBeYHiw",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-03-18"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T17:44:34.639958",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "Failed to download YouTube audio",
+    "context": {
+      "youtube_video_id": "Kpearlw-p3s",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-03-04"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T18:51:31.902367",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "SDK transcription failed: The write operation timed out",
+    "context": {
+      "youtube_video_id": "kXm7iBdfF-s",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-05-20"
+    }
+  },
+  {
+    "timestamp": "2025-11-23T19:06:48.991272",
+    "operation": "assemblyai",
+    "error_type": "AssemblyAIError",
+    "error_message": "Failed to download YouTube audio",
+    "context": {
+      "youtube_video_id": "Kpearlw-p3s",
+      "jurisdiction_id": "san-rafael",
+      "meeting_date": "2024-03-04"
+    }
+  }
+]

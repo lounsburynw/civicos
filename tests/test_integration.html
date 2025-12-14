@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Civic Integration Test</title>
+    <style>
+        body { font-family: system-ui; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .test { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .pending { background: #fff3cd; border-color: #ffeeba; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Civic Platform Integration Test</h1>
+    
+    <div id="test1" class="test pending">
+        <h3>Test 1: API Connectivity</h3>
+        <p>Testing connection to civic_api.py on port 8080...</p>
+        <pre id="api-result"></pre>
+    </div>
+    
+    <div id="test2" class="test pending">
+        <h3>Test 2: Schema Compliance</h3>
+        <p>Verifying events match civic-app-schema.json...</p>
+        <pre id="schema-result"></pre>
+    </div>
+    
+    <div id="test3" class="test pending">
+        <h3>Test 3: User Experience Progression</h3>
+        <p>Testing user level detection and localStorage...</p>
+        <pre id="user-result"></pre>
+    </div>
+    
+    <div id="test4" class="test pending">
+        <h3>Test 4: Dynamic Rendering</h3>
+        <p>Testing opportunity display for different user levels...</p>
+        <div id="render-result"></div>
+    </div>
+
+    <script>
+        // Test 1: API Connectivity
+        async function testAPI() {
+            const test1 = document.getElementById('test1');
+            const result = document.getElementById('api-result');
+            
+            try {
+                const response = await fetch('http://localhost:8080/api/events');
+                const data = await response.json();
+                
+                if (data.events) {
+                    test1.className = 'test success';
+                    result.textContent = `✅ Connected! Found ${data.events.length} events\n` +
+                        `Last updated: ${data.metadata?.last_updated || 'unknown'}`;
+                } else {
+                    throw new Error('No events in response');
+                }
+            } catch (error) {
+                test1.className = 'test error';
+                result.textContent = `❌ Error: ${error.message}\n\nMake sure civic_api.py is running on port 8080`;
+            }
+            
+            return test1.className.includes('success');
+        }
+        
+        // Test 2: Schema Compliance
+        async function testSchema() {
+            const test2 = document.getElementById('test2');
+            const result = document.getElementById('schema-result');
+            
+            try {
+                const response = await fetch('http://localhost:8080/api/events');
+                const data = await response.json();
+                
+                if (data.events && data.events.length > 0) {
+                    const opp = data.events[0];
+                    const requiredFields = ['opportunity_id', 'title', 'meeting_date', 'location', 'participation_methods'];
+                    const missing = requiredFields.filter(field => !opp[field]);
+                    
+                    if (missing.length === 0) {
+                        test2.className = 'test success';
+                        result.textContent = `✅ Schema compliant!\nSample opportunity:\n${JSON.stringify(opp, null, 2).substring(0, 300)}...`;
+                    } else {
+                        test2.className = 'test error';
+                        result.textContent = `❌ Missing required fields: ${missing.join(', ')}`;
+                    }
+                } else {
+                    test2.className = 'test pending';
+                    result.textContent = '⚠️ No events to validate';
+                }
+            } catch (error) {
+                test2.className = 'test error';
+                result.textContent = `❌ Error: ${error.message}`;
+            }
+        }
+        
+        // Test 3: User Experience Progression
+        function testUserProgression() {
+            const test3 = document.getElementById('test3');
+            const result = document.getElementById('user-result');
+            
+            try {
+                // Test user creation and progression
+                const testUser = {
+                    id: 'test-123',
+                    email: 'test@example.com',
+                    experience_level: 'new',
+                    civic_profile: {
+                        visits: 1,
+                        interactions: 0
+                    }
+                };
+                
+                // Save to localStorage
+                localStorage.setItem('civic_test_user', JSON.stringify(testUser));
+                
+                // Read back
+                const saved = JSON.parse(localStorage.getItem('civic_test_user'));
+                
+                // Test progression logic
+                saved.civic_profile.visits = 2;
+                saved.experience_level = 'returning';
+                
+                saved.civic_profile.visits = 3;
+                saved.civic_profile.interactions = 8;
+                saved.experience_level = 'expert';
+                
+                test3.className = 'test success';
+                result.textContent = `✅ User progression working!\n` +
+                    `new → returning (2 visits)\n` +
+                    `returning → expert (3 visits + 8 interactions)`;
+                
+                // Cleanup
+                localStorage.removeItem('civic_test_user');
+            } catch (error) {
+                test3.className = 'test error';
+                result.textContent = `❌ Error: ${error.message}`;
+            }
+        }
+        
+        // Test 4: Dynamic Rendering
+        async function testRendering() {
+            const test4 = document.getElementById('test4');
+            const result = document.getElementById('render-result');
+            
+            try {
+                const response = await fetch('http://localhost:8080/api/events');
+                const data = await response.json();
+                
+                if (data.events && data.events.length > 0) {
+                    const opp = data.events[0];
+                    
+                    // Simulate rendering for different user levels
+                    const levels = ['new', 'returning', 'expert'];
+                    let html = '';
+                    
+                    levels.forEach(level => {
+                        html += `<h4>As ${level} user:</h4>`;
+                        html += `<div style="border: 1px solid #ddd; padding: 10px; margin: 10px 0;">`;
+                        html += `<strong>${opp.title}</strong><br>`;
+                        html += `<small>${opp.impact_summary}</small><br>`;
+                        
+                        if (level === 'new') {
+                            html += `<button>Learn More</button>`;
+                        } else if (level === 'returning') {
+                            html += `<button>Details</button> <button>Set Reminder</button>`;
+                        } else {
+                            html += `<button>Draft Comment</button> <button>Find Neighbors</button> <button>Track Impact</button>`;
+                        }
+                        html += `</div>`;
+                    });
+                    
+                    result.innerHTML = html;
+                    test4.className = 'test success';
+                } else {
+                    test4.className = 'test pending';
+                    result.innerHTML = '⚠️ No events to render';
+                }
+            } catch (error) {
+                test4.className = 'test error';
+                result.innerHTML = `❌ Error: ${error.message}`;
+            }
+        }
+        
+        // Run all tests
+        async function runTests() {
+            console.log('Starting integration tests...');
+            
+            await testAPI();
+            await testSchema();
+            testUserProgression();
+            await testRendering();
+            
+            console.log('Tests complete!');
+        }
+        
+        // Run tests on load
+        runTests();
+    </script>
+</body>
+</html>

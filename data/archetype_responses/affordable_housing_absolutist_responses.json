@@ -1,0 +1,334 @@
+{
+  "archetype_id": "affordable_housing_absolutist",
+  "archetype_name": "Affordable Housing Absolutist",
+  "scenario_count": 54,
+  "successful_responses": 54,
+  "errors": 0,
+  "api_used": "openai",
+  "responses": [
+    {
+      "scenario_id": "housing_001",
+      "position": "strongly_oppose",
+      "confidence": 95,
+      "reasoning": "This proposal fails to meet the principles of the Affordable Housing Absolutist archetype, as only 15% of units are designated as affordable, and even those are set at 80% AMI, which is not truly affordable for many residents. Allowing a zoning variance for a project that prioritizes market-rate housing would exacerbate the affordability crisis and enable private developers to profit at the expense of public need. Instead, this land should be utilized for a 100% affordable or social housing project to ensure long-term affordability and equitable access to housing for all residents."
+    },
+    {
+      "scenario_id": "housing_002",
+      "position": "support",
+      "confidence": 85,
+      "reasoning": "This policy aligns with the Affordable Housing Absolutist's core belief that housing should be a public good, and it is a step towards ensuring more developments include affordable units. Although the ideal would be 100% affordable housing, mandating 25% at 60% AMI represents progress in making housing more accessible. The reduction in market-rate housing construction is seen as a necessary trade-off to prioritize affordability over market-driven developments, which often fail to address the needs of lower-income residents."
+    },
+    {
+      "scenario_id": "housing_003",
+      "position": "strongly_support",
+      "confidence": 90,
+      "reasoning": "The proposal aligns well with the core values of this archetype, which prioritizes permanent affordability and public provision of housing. Establishing a community land trust prevents market forces from displacing current and future residents, directly addressing the harmful effects of gentrification. While the cost and ongoing subsidies are significant, they are justified as necessary investments to decommodify housing and ensure it remains a human right rather than a speculative asset."
+    },
+    {
+      "scenario_id": "housing_004",
+      "position": "neutral",
+      "confidence": 60,
+      "reasoning": "While the potential increase in housing supply from allowing fourplexes by-right is a step toward addressing the housing shortage, this policy does not guarantee affordability. Without mechanisms ensuring these units are affordable, there's a risk they could still cater to higher-income residents, exacerbating displacement pressures. The archetype prefers policies that directly create or convert units into social housing, ensuring long-term affordability and protection from market forces."
+    },
+    {
+      "scenario_id": "housing_005",
+      "position": "support",
+      "confidence": 85,
+      "reasoning": "Expanding rent control to buildings constructed before 2010 aligns with the goal of maintaining housing affordability and protecting tenants from rapid rent increases. While the ideal solution is to decommodify housing entirely, this policy provides immediate relief and stability to renters. However, there is a recognition that rent control is a stopgap measure and not a substitute for creating a robust social housing system."
+    },
+    {
+      "scenario_id": "transportation_001",
+      "position": "oppose",
+      "confidence": 80,
+      "reasoning": "While improved public transit can benefit low-income residents by providing better access to employment centers, the increased property taxes could exacerbate housing affordability issues. For the Affordable Housing Absolutist, it is crucial that public funds prioritize direct investment in affordable housing projects rather than infrastructure that might indirectly support housing affordability. Additionally, without guarantees that this rail extension would directly support housing access or affordability, the measure does not align with the core priority of decommodifying and expanding affordable housing."
+    },
+    {
+      "scenario_id": "transportation_002",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "While primarily focused on housing, the Affordable Housing Absolutist values equitable urban planning, which includes sustainable and accessible transportation options. The addition of protected bike lanes could support lower-income residents who rely on biking for transportation and potentially lower living costs. However, the archetype may have some reservations if the plan does not explicitly address how it integrates with broader strategies to increase affordable housing, hence the moderate confidence."
+    },
+    {
+      "scenario_id": "transportation_003",
+      "position": "support",
+      "confidence": 80,
+      "reasoning": "Eliminating parking minimums can reduce construction costs, which aligns with the goal of making housing more affordable. While the proposal doesn't directly address the need for 100% affordable housing, it can indirectly benefit affordability by potentially increasing the supply of housing near transit-rich areas. However, the archetype would prefer that any cost savings from removing parking requirements be reinvested into ensuring housing is 100% affordable, hence the support rather than strong support."
+    },
+    {
+      "scenario_id": "transportation_004",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "The Affordable Housing Absolutist supports initiatives that can indirectly alleviate housing costs by reducing transportation expenses for low-income residents. While this congestion pricing scheme doesn't directly address housing, it reallocates resources to make living in the city more affordable, aligning with the broader goal of economic equity. However, the confidence is not higher because the scheme does not directly increase the stock of affordable housing or challenge the commodification of housing."
+    },
+    {
+      "scenario_id": "transportation_005",
+      "position": "oppose",
+      "confidence": 80,
+      "reasoning": "While the electrification and high-speed rail upgrades could provide long-term environmental and transportation benefits, the immediate displacement of 30 households is a significant concern. The Affordable Housing Absolutist would oppose this project as it prioritizes market-rate compensation over secure, affordable housing for those displaced. Instead, the focus should be on ensuring these households are relocated into 100% affordable housing options, ensuring no net loss in affordable housing availability along the corridor."
+    },
+    {
+      "scenario_id": "environment_001",
+      "position": "support",
+      "confidence": 65,
+      "reasoning": "While the Affordable Housing Absolutist prioritizes housing affordability and public provision, there is recognition that sustainable and environmentally friendly housing is essential for long-term community health and resilience. However, there is concern about the potential cost burden on low-income homeowners and renters, which could exacerbate housing affordability issues. The archetype would likely support this measure if it includes public subsidies or assistance for low-income households to offset retrofit costs, ensuring that the transition to all-electric buildings does not displace or financially burden those already struggling with housing costs."
+    },
+    {
+      "scenario_id": "environment_002",
+      "position": "support",
+      "confidence": 85,
+      "reasoning": "While the loss of mature trees is regrettable, this project aligns with the core value of providing 100% affordable housing, which is critical for addressing the current housing crisis. The commitment to plant replacement trees demonstrates a willingness to mitigate environmental impact, and the long-term benefits of stable, affordable housing for 200 families outweigh the temporary loss of mature trees. The focus remains on ensuring housing as a human right and prioritizing public provision over environmental concerns in this instance."
+    },
+    {
+      "scenario_id": "environment_003",
+      "position": "support",
+      "confidence": 65,
+      "reasoning": "While the Affordable Housing Absolutist archetype primarily focuses on housing issues, sustainable energy solutions can complement affordable housing goals by reducing utility costs in the long term. However, the requirement for all residents to pay upfront could be a concern, especially for those already struggling with housing costs. The potential for cost savings and environmental benefits aligns with the broader social welfare goals, but the initial financial commitment might conflict with some affordability priorities."
+    },
+    {
+      "scenario_id": "environment_004",
+      "position": "neutral",
+      "confidence": 60,
+      "reasoning": "As an Affordable Housing Absolutist, the primary focus is on housing policies rather than environmental regulations. While supporting environmental sustainability aligns with broader social justice goals, the concern here is the financial impact on small businesses, which might indirectly affect housing affordability by increasing costs for lower-income communities. This archetype would likely prefer a policy that balances environmental goals with the economic realities faced by small business owners, potentially through subsidies or incentives to offset costs."
+    },
+    {
+      "scenario_id": "environment_005",
+      "position": "support",
+      "confidence": 65,
+      "reasoning": "The Affordable Housing Absolutist would support initiatives that provide funding for climate adaptation in disadvantaged communities, as these communities often overlap with those most in need of affordable housing. However, there is concern that the fee could exacerbate financial burdens on low-income households, potentially affecting their housing stability. Therefore, while supportive of the climate adaptation goals, there would be a strong advocacy for exemptions or subsidies for lower-income households to mitigate any negative impacts on housing affordability."
+    },
+    {
+      "scenario_id": "budget_001",
+      "position": "support",
+      "confidence": 80,
+      "reasoning": "The proposed tax increase directly funds affordable housing, which aligns with the core value of housing as a human right. While taxes can be regressive, the benefits of increased affordable housing and supportive services for the homeless and mentally ill justify the measure. It is a step towards decommodifying housing, though it would be ideal if the funding was exclusively dedicated to 100% affordable public housing projects."
+    },
+    {
+      "scenario_id": "budget_002",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "As an Affordable Housing Absolutist, maintaining accessible public services like libraries is crucial for community well-being, particularly for low-income households. Increasing property taxes, although not ideal due to potential impact on housing affordability, could be justified if it helps keep public services intact. However, this creates a conflict as higher property taxes can exacerbate housing costs, which is why the confidence in this position is not absolute."
+    },
+    {
+      "scenario_id": "budget_003",
+      "position": "neutral",
+      "confidence": 65,
+      "reasoning": "While the Affordable Housing Absolutist archetype recognizes the importance of funding social programs like childcare and pre-K, its primary focus is on initiatives directly related to housing. The proposed tax does not address housing affordability or the expansion of social housing. However, supporting broader social welfare could indirectly benefit housing stability by reducing financial pressures on families. Therefore, the archetype remains neutral but acknowledges the potential indirect benefits, albeit with moderate confidence due to the potential for business relocation impacting local economies."
+    },
+    {
+      "scenario_id": "budget_004",
+      "position": "support",
+      "confidence": 65,
+      "reasoning": "While infrastructure improvements are necessary and indirectly support housing development, the increase in property taxes could disproportionately affect low-income residents, potentially making housing less affordable. However, if the city can ensure that the improved infrastructure directly supports 100% affordable housing projects and protects low-income residents from tax burdens, this bond issuance could align with the goal of enhancing the living conditions for all residents. The archetype would prefer guarantees that these improvements directly support social housing initiatives."
+    },
+    {
+      "scenario_id": "budget_005",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "While not directly related to affordable housing, expanding after-school programs aligns with the broader goal of community investment and social infrastructure. Investing in youth supports the development of stable, equitable communities, which is an essential foundation for advocating future social housing initiatives. However, the decision is not directly related to housing, resulting in moderate support."
+    },
+    {
+      "scenario_id": "public_safety_001",
+      "position": "strongly_support",
+      "confidence": 90,
+      "reasoning": "The reallocation of funds from policing to mental health crisis responders and homeless outreach aligns with the belief that housing and social services should be prioritized to address root causes of societal issues. This shift in funding could prevent homelessness and provide crucial support to those in need, which complements the goal of ensuring housing as a human right. While there may be concerns about reduced police staffing, the potential benefits in public safety and community well-being through proactive support services outweigh these concerns."
+    },
+    {
+      "scenario_id": "public_safety_002",
+      "position": "support",
+      "confidence": 60,
+      "reasoning": "While the primary focus of the Affordable Housing Absolutist is not directly related to law enforcement oversight, there is an understanding that community trust and safety are important for all residents, particularly those in affordable housing. The measure's potential to hold police accountable and address systemic issues may indirectly support stable and safe environments for housing. However, given the focus on housing rather than law enforcement, the confidence in this support is moderate."
+    },
+    {
+      "scenario_id": "public_safety_003",
+      "position": "strongly_oppose",
+      "confidence": 90,
+      "reasoning": "The Affordable Housing Absolutist archetype would strongly oppose the allocation of $12M for surveillance, as these funds could be better used to address the housing crisis through public investment in affordable housing. Additionally, the expansion of surveillance raises significant concerns about civil liberties and privacy, potentially targeting marginalized communities who are already vulnerable in the housing market. The focus should be on creating safe and affordable living environments rather than increasing policing and surveillance."
+    },
+    {
+      "scenario_id": "public_safety_004",
+      "position": "neutral",
+      "confidence": 60,
+      "reasoning": "While the Affordable Housing Absolutist prioritizes housing as a fundamental right and focuses on public expenditure for affordable housing, they also recognize the importance of essential public services like fire departments, which ensure community safety. However, the archetype may feel conflicted if funds allocated for emergency services could potentially divert resources from housing projects. Balancing these priorities means they neither strongly support nor oppose the proposal, acknowledging its necessity while wishing for more robust public investment in housing."
+    },
+    {
+      "scenario_id": "public_safety_005",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "While this proposal does not directly address housing, the Affordable Housing Absolutist appreciates community-based solutions that could lead to safer neighborhoods, potentially making them more viable for future public housing projects. However, there is some concern that funding for such programs could detract from direct investments in affordable housing. Balancing community safety and housing needs is important, and this program could indirectly support housing stability by fostering safer communities."
+    },
+    {
+      "scenario_id": "education_001",
+      "position": "support",
+      "confidence": 60,
+      "reasoning": "While the Affordable Housing Absolutist is primarily focused on housing issues, there is an understanding that strong public services, including education, are crucial for community well-being. Supporting public education aligns with a broader vision of public good; however, there is concern that additional taxes might strain low-income homeowners and renters indirectly through increased costs. The senior exemption is a positive aspect, but any additional tax could detract from efforts to address housing affordability."
+    },
+    {
+      "scenario_id": "education_002",
+      "position": "oppose",
+      "confidence": 85,
+      "reasoning": "Closing schools in lower-income neighborhoods exacerbates inequality and could contribute to community destabilization, which often leads to housing insecurity. As an Affordable Housing Absolutist, it's crucial to support measures that maintain community integrity and stability. Increasing class sizes is not ideal, but it's a temporary measure that preserves neighborhood resources while looking for long-term equitable solutions."
+    },
+    {
+      "scenario_id": "education_003",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "While the Affordable Housing Absolutist archetype is primarily focused on housing issues, there is recognition of the broader social benefits that public services like libraries provide, especially in supporting education and reducing inequality. Expanding library services aligns with the values of public provision and accessibility. However, the confidence is tempered by the concern that funding for this expansion should not detract from or delay investments in affordable housing initiatives."
+    },
+    {
+      "scenario_id": "education_004",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "While the Affordable Housing Absolutist primarily focuses on housing issues, there is an understanding that universal pre-K is a critical component of social welfare that can help lift families out of poverty, indirectly alleviating housing stress. However, the funding mechanism through commercial property tax could inadvertently impact resources available for housing initiatives, creating a slight conflict. Therefore, while supportive, the focus remains on ensuring housing priorities are not compromised."
+    },
+    {
+      "scenario_id": "education_005",
+      "position": "support",
+      "confidence": 80,
+      "reasoning": "While the Affordable Housing Absolutist primarily focuses on housing, there is a strong overlap in values concerning social equity and addressing systemic inequalities. Reallocating funds to underperforming schools in low-income areas aligns with the broader aim of equitable resource distribution. Supporting this initiative acknowledges the interconnectedness of education and housing in addressing social inequities, even if it temporarily shifts focus from housing-specific solutions."
+    },
+    {
+      "scenario_id": "governance_001",
+      "position": "support",
+      "confidence": 80,
+      "reasoning": "Transparency in financial transactions is crucial for ensuring that public funds are used effectively, especially in the context of housing. This measure would allow citizens to scrutinize expenditures and contracts, potentially highlighting any misuse of funds that could otherwise be allocated for affordable housing projects. While the cost of implementation is significant, the potential for uncovering inefficiencies or corruption justifies the expense, aligning with the broader goal of ensuring that every dollar is directed towards creating and maintaining affordable housing."
+    },
+    {
+      "scenario_id": "governance_002",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "The Affordable Housing Absolutist would generally support participatory budgeting as it empowers residents to have a direct say in resource allocation, potentially prioritizing affordable housing initiatives. While there is concern that this process could slow down urgent projects, the democratization of budget decisions aligns with the belief that housing solutions should be community-driven. However, the confidence is moderate as the success of this model depends on whether affordable housing is prioritized within the participatory process."
+    },
+    {
+      "scenario_id": "governance_003",
+      "position": "strongly_support",
+      "confidence": 90,
+      "reasoning": "Moving city elections to even years with higher turnout aligns with the Affordable Housing Absolutist's commitment to broadening democratic participation, which can amplify voices advocating for public and affordable housing. Higher turnout can lead to more diverse representation and potentially more support for social housing initiatives. While there is a risk of increased influence from state and national partisanship, the potential to engage more voters in crucial housing policy decisions outweighs this concern."
+    },
+    {
+      "scenario_id": "governance_004",
+      "position": "support",
+      "confidence": 60,
+      "reasoning": "The Affordable Housing Absolutist might support term limits as a means to ensure fresh perspectives and new ideas in city governance, particularly for advancing innovative social housing policies. However, there is some internal conflict, as experienced council members with a strong track record in affordable housing advocacy can be valuable allies. Balancing the need for institutional knowledge with the desire for change makes this position less certain."
+    },
+    {
+      "scenario_id": "governance_005",
+      "position": "support",
+      "confidence": 85,
+      "reasoning": "The Affordable Housing Absolutist would support the creation of an independent ethics commission, as it aligns with the goal of ensuring transparency and accountability in local governance. This is particularly important when public resources and policies affecting housing are at stake. An independent body could help prevent corruption and ensure that decisions are made in the public interest rather than for private gain, which is crucial for advancing the agenda of public and affordable housing."
+    },
+    {
+      "scenario_id": "development_001",
+      "position": "strongly_oppose",
+      "confidence": 90,
+      "reasoning": "The proposed development prioritizes commercial and office space, which does not address the urgent need for affordable housing. The displacement of existing small businesses further highlights the negative impact on the community. This project exemplifies the market-driven approach that prioritizes profit over people, and without a commitment to making all residential units affordable, it fails to align with the core value of housing as a human right. The focus should be on public or social housing development, ensuring permanent affordability and community stability."
+    },
+    {
+      "scenario_id": "development_002",
+      "position": "strongly_oppose",
+      "confidence": 95,
+      "reasoning": "This archetype would strongly oppose the tax break for Amazon because it prioritizes public investment in housing over corporate subsidies, especially for companies that often exacerbate housing affordability crises. The $50M could be better invested in acquiring and developing affordable housing, which would provide long-term community benefits. Additionally, the creation of low-wage jobs does not address the core issue of housing affordability and may further strain local housing markets by increasing demand without providing sufficient housing supply."
+    },
+    {
+      "scenario_id": "development_003",
+      "position": "oppose",
+      "confidence": 80,
+      "reasoning": "The Affordable Housing Absolutist would likely oppose rezoning industrial land for a biotech campus, as this land could instead be used for developing 100% affordable housing. While job creation is important, the potential environmental concerns and the opportunity cost of not using the land for social housing projects weigh heavily against the support for this project. The focus should remain on utilizing available land to address the housing crisis directly."
+    },
+    {
+      "scenario_id": "development_004",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "The Affordable Housing Absolutist would likely support the pedestrianization of downtown streets as it aligns with broader goals of creating livable, accessible urban spaces that prioritize people over cars. This move can enhance community connectivity and make urban areas more attractive for diverse socio-economic groups, which is beneficial for social housing integration. However, there is a slight concern about the impact on suburban access, which could be mitigated by improving public transportation links to these pedestrian zones."
+    },
+    {
+      "scenario_id": "development_005",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "While the demolition of a historic building is not ideal, the theater's long vacancy and substantial restoration cost make its preservation impractical without a clear tenant. This scenario presents an opportunity to replace a non-functional space with housing units, provided that the new development is 100% affordable. Ensuring that the development aligns with social housing principles is crucial to gain full support, reflecting the priority of addressing the housing crisis over preserving underutilized structures."
+    },
+    {
+      "scenario_id": "community_001",
+      "position": "neutral",
+      "confidence": 60,
+      "reasoning": "While the conversion of the golf course into a regional park aligns with principles of public land use and community benefit, it does not directly address the core priority of developing 100% affordable housing. The archetype might support utilizing this public land for social housing development instead, but recognizes the value of community spaces. There is internal conflict as the need for affordable housing is pressing, but public recreational spaces are also vital for community well-being."
+    },
+    {
+      "scenario_id": "community_002",
+      "position": "support",
+      "confidence": 85,
+      "reasoning": "Affordable Housing Absolutists believe that housing is a fundamental human right and that immediate support for those experiencing homelessness is crucial. While there is a preference for permanent, affordable housing solutions, the establishment of a homeless navigation center is a critical step in addressing urgent needs. Although concerns from the local community are understandable, the potential positive impact on individuals experiencing homelessness outweighs those concerns, provided that the center is well-managed and integrates effectively into the neighborhood."
+    },
+    {
+      "scenario_id": "community_003",
+      "position": "neutral",
+      "confidence": 60,
+      "reasoning": "While arts and culture are important and can enrich communities, the Affordable Housing Absolutist archetype is primarily focused on housing policies and may not prioritize funding for arts through a hotel tax. However, recognizing that vibrant arts and culture can contribute to community well-being, there is some support for the tax. The neutral stance reflects a lack of direct connection to housing goals, acknowledging potential indirect benefits but focusing on more urgent housing needs."
+    },
+    {
+      "scenario_id": "community_004",
+      "position": "neutral",
+      "confidence": 60,
+      "reasoning": "While the concept of parklets enhances public space and can improve urban livability, it does not directly address the urgent need for affordable housing. However, reducing car dependency aligns with creating more sustainable urban environments, which could indirectly benefit housing affordability in the long term. Given the limited impact on housing, the Affordable Housing Absolutist would remain neutral unless the program included provisions for creating public housing or preserving affordability in nearby areas."
+    },
+    {
+      "scenario_id": "community_005",
+      "position": "support",
+      "confidence": 60,
+      "reasoning": "While the Affordable Housing Absolutist archetype is primarily focused on housing, they would recognize the value of comprehensive community development in high-poverty areas. A youth center with various services can support the social infrastructure necessary for thriving communities. However, the delay in other infrastructure projects could be concerning if those projects include affordable housing, hence the moderate confidence level in supporting this initiative."
+    },
+    {
+      "scenario_id": "housing_006",
+      "position": "support",
+      "confidence": 80,
+      "reasoning": "Although the proposal includes 30% market-rate units, the establishment of a social housing authority and the significant allocation of 70% of units as affordable is a substantial step towards decommodifying housing. This initiative aligns with the core values of prioritizing public provision of housing and ensuring long-term affordability. The bond funding provides a sustainable financial model, but the inclusion of market-rate units prevents a fully enthusiastic endorsement."
+    },
+    {
+      "scenario_id": "transportation_006",
+      "position": "neutral",
+      "confidence": 60,
+      "reasoning": "While the Affordable Housing Absolutist recognizes the importance of safe and livable neighborhoods, which slower streets can promote, this proposal does not directly address the core issue of affordable housing. The use of fines could disproportionately impact low-income residents, potentially exacerbating their financial struggles. The archetype would prefer measures that directly enhance housing affordability and community stability, although they do not oppose measures improving neighborhood safety outright."
+    },
+    {
+      "scenario_id": "environment_006",
+      "position": "support",
+      "confidence": 80,
+      "reasoning": "While water conservation measures are not directly related to affordable housing, they are crucial for ensuring sustainable living conditions for all, especially in a context where resource scarcity can disproportionately affect low-income communities. Such measures can help maintain a stable environment necessary for the development and maintenance of social housing projects. However, the focus should also remain on ensuring that these measures do not become a financial burden on residents of affordable housing communities."
+    },
+    {
+      "scenario_id": "budget_006",
+      "position": "oppose",
+      "confidence": 70,
+      "reasoning": "As an Affordable Housing Absolutist, the restructuring proposal is concerning because it could undermine public sector workers who are essential to delivering public services, including housing. Reducing benefits for future hires may deter skilled individuals from joining public sector roles, potentially hampering efforts to expand social housing initiatives. Increasing employee contributions burdens workers financially, which could exacerbate housing affordability issues for them. However, there is an understanding of the financial constraints faced by the city, leading to some internal conflict about the best path forward."
+    },
+    {
+      "scenario_id": "public_safety_006",
+      "position": "support",
+      "confidence": 80,
+      "reasoning": "While affordable housing is the primary focus, the Affordable Housing Absolutist recognizes the importance of comprehensive support systems in ensuring community well-being. Supervised drug consumption sites can reduce harm and provide pathways to addiction services, which indirectly support housing stability. Ensuring public health and safety aligns with the broader goal of creating equitable, livable communities."
+    },
+    {
+      "scenario_id": "education_006",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "As an Affordable Housing Absolutist, I support efforts that aim to reduce inequities and promote inclusivity, values that align with advocating for universal access and equity in housing. While the primary focus is on housing, the principles of equality and reducing gaps are applicable here. However, the potential trade-off of not adequately serving high-achievers requires careful consideration, thus the support is not without reservation."
+    },
+    {
+      "scenario_id": "governance_006",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "The Affordable Housing Absolutist archetype generally supports ranked-choice voting because it can lead to more diverse and representative elected bodies, potentially increasing the chances of electing officials who prioritize affordable housing policies. However, this archetype is primarily focused on housing issues, so while they support electoral reforms that could indirectly benefit their cause, their confidence in this position is not as high as it would be for direct housing measures."
+    },
+    {
+      "scenario_id": "development_006",
+      "position": "strongly_oppose",
+      "confidence": 95,
+      "reasoning": "The proposal of building a tech campus with only 800 housing units, which likely will not be 100% affordable, exacerbates the housing crisis by increasing demand without adequate supply of truly affordable housing. Without a commitment to decommodifying all 800 units, and given the limited transit options, this project risks further gentrification, displacement, and an unsustainable increase in housing costs. The focus should be on converting existing spaces for public housing or developing social housing models similar to those in Vienna or Singapore."
+    },
+    {
+      "scenario_id": "community_006",
+      "position": "support",
+      "confidence": 85,
+      "reasoning": "The Affordable Housing Absolutist archetype supports reparations for those displaced by historical urban renewal, as it aligns with the value of rectifying historical injustices that have contributed to current housing inequities. While the program doesn't directly create affordable housing, the funding mechanism through a property transfer tax is a progressive approach that targets wealth generated from real estate transactions. This aligns with the principle of using existing wealth for social good, though there might be a preference for more direct investment in permanent affordable housing solutions."
+    }
+  ]
+}

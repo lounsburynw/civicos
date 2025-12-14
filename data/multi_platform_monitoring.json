@@ -1,0 +1,1863 @@
+[
+  {
+    "timestamp": "2025-09-25T00:40:08.843103",
+    "legistar_api": {
+      "total_clients": 7,
+      "working_clients": 6,
+      "estimated_monthly_cost": 9.0,
+      "cost_per_session": 0.05,
+      "client_details": [
+        {
+          "client_name": "oakland",
+          "status": "working",
+          "current_events": 4,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-25T00:39:37.511879"
+        },
+        {
+          "client_name": "santa-rosa",
+          "status": "working",
+          "current_events": 6,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-25T00:39:39.317565"
+        },
+        {
+          "client_name": "sonoma-county",
+          "status": "working",
+          "current_events": 3,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-25T00:39:40.932617"
+        },
+        {
+          "client_name": "hayward",
+          "status": "working",
+          "current_events": 6,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-25T00:39:42.634873"
+        },
+        {
+          "client_name": "napa",
+          "status": "working",
+          "current_events": 4,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-25T00:39:44.330882"
+        },
+        {
+          "client_name": "bart",
+          "status": "working",
+          "current_events": 4,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-25T00:39:46.067091"
+        },
+        {
+          "client_name": "san_francisco",
+          "status": "failed",
+          "error": "API not accessible",
+          "last_checked": "2025-09-25T00:40:08.839260"
+        }
+      ]
+    },
+    "html_parsing": {
+      "total_sessions": 27,
+      "total_cost": 2.208000000000001,
+      "average_cost_per_session": 0.08177777777777782,
+      "monthly_estimate": 9.81333333333334,
+      "cities_tracked": [
+        "san_rafael",
+        "marin_county",
+        "santa_rosa",
+        "berkeley"
+      ],
+      "last_7_days": [
+        {
+          "timestamp": "2025-09-20T23:49:42.545621",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-20T23:49:56.496638",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-20T23:50:09.749426",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-20T23:50:21.595480",
+          "city_id": "santa_rosa",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T00:38:48.750053",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T00:39:06.586768",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T00:39:20.676221",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T00:39:41.115206",
+          "city_id": "santa_rosa",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T01:04:39.938612",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T01:04:53.795710",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T01:05:06.874655",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T01:25:34.007002",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T01:26:41.103219",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 3,
+          "cost_per_opportunity": 0.016
+        },
+        {
+          "timestamp": "2025-09-21T01:26:53.564016",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:41:44.719920",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:43:57.857026",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:46:15.496830",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 14,
+          "cost_per_opportunity": 0.003428571428571429
+        },
+        {
+          "timestamp": "2025-09-21T16:46:32.426817",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:48:07.434754",
+          "city_id": "santa_rosa",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T21:29:15.854516",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T23:41:30.728825",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T23:43:33.574521",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T23:45:50.267822",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 16,
+          "cost_per_opportunity": 0.003
+        },
+        {
+          "timestamp": "2025-09-21T23:46:16.485755",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 5,
+          "cost_per_opportunity": 0.019200000000000002
+        },
+        {
+          "timestamp": "2025-09-22T14:35:54.997499",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-22T14:37:53.763920",
+          "city_id": "san_rafael",
+          "temporal_scope": "current_active_only",
+          "estimated_cost": 0.144,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.144
+        },
+        {
+          "timestamp": "2025-09-23T22:34:10.265742",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        }
+      ]
+    },
+    "summary": {
+      "total_working_platforms": 10,
+      "estimated_monthly_cost": 18.81333333333334,
+      "cost_breakdown": {
+        "legistar_api": 9.0,
+        "html_parsing": 9.81333333333334
+      },
+      "platform_efficiency": {
+        "legistar_cost_per_session": 0.05,
+        "html_cost_per_session": 0.08177777777777782,
+        "cost_ratio": "API is 1.6x cheaper"
+      }
+    }
+  },
+  {
+    "timestamp": "2025-09-26T20:42:43.178546",
+    "legistar_api": {
+      "total_clients": 7,
+      "working_clients": 6,
+      "estimated_monthly_cost": 9.0,
+      "cost_per_session": 0.05,
+      "client_details": [
+        {
+          "client_name": "oakland",
+          "status": "working",
+          "current_events": 10,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-26T20:42:10.053793"
+        },
+        {
+          "client_name": "santa-rosa",
+          "status": "working",
+          "current_events": 5,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-26T20:42:12.200192"
+        },
+        {
+          "client_name": "sonoma-county",
+          "status": "working",
+          "current_events": 3,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-26T20:42:14.187512"
+        },
+        {
+          "client_name": "hayward",
+          "status": "working",
+          "current_events": 5,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-26T20:42:16.169910"
+        },
+        {
+          "client_name": "napa",
+          "status": "working",
+          "current_events": 6,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-26T20:42:18.273530"
+        },
+        {
+          "client_name": "bart",
+          "status": "working",
+          "current_events": 5,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-26T20:42:20.209415"
+        },
+        {
+          "client_name": "san_francisco",
+          "status": "failed",
+          "error": "API not accessible",
+          "last_checked": "2025-09-26T20:42:43.174159"
+        }
+      ]
+    },
+    "html_parsing": {
+      "total_sessions": 27,
+      "total_cost": 2.208000000000001,
+      "average_cost_per_session": 0.08177777777777782,
+      "monthly_estimate": 9.81333333333334,
+      "cities_tracked": [
+        "santa_rosa",
+        "marin_county",
+        "berkeley",
+        "san_rafael"
+      ],
+      "last_7_days": [
+        {
+          "timestamp": "2025-09-20T23:49:42.545621",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-20T23:49:56.496638",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-20T23:50:09.749426",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-20T23:50:21.595480",
+          "city_id": "santa_rosa",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T00:38:48.750053",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T00:39:06.586768",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T00:39:20.676221",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T00:39:41.115206",
+          "city_id": "santa_rosa",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T01:04:39.938612",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T01:04:53.795710",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T01:05:06.874655",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T01:25:34.007002",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T01:26:41.103219",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 3,
+          "cost_per_opportunity": 0.016
+        },
+        {
+          "timestamp": "2025-09-21T01:26:53.564016",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:41:44.719920",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:43:57.857026",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:46:15.496830",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 14,
+          "cost_per_opportunity": 0.003428571428571429
+        },
+        {
+          "timestamp": "2025-09-21T16:46:32.426817",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:48:07.434754",
+          "city_id": "santa_rosa",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T21:29:15.854516",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T23:41:30.728825",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T23:43:33.574521",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T23:45:50.267822",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 16,
+          "cost_per_opportunity": 0.003
+        },
+        {
+          "timestamp": "2025-09-21T23:46:16.485755",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 5,
+          "cost_per_opportunity": 0.019200000000000002
+        },
+        {
+          "timestamp": "2025-09-22T14:35:54.997499",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-22T14:37:53.763920",
+          "city_id": "san_rafael",
+          "temporal_scope": "current_active_only",
+          "estimated_cost": 0.144,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.144
+        },
+        {
+          "timestamp": "2025-09-23T22:34:10.265742",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        }
+      ]
+    },
+    "summary": {
+      "total_working_platforms": 10,
+      "estimated_monthly_cost": 18.81333333333334,
+      "cost_breakdown": {
+        "legistar_api": 9.0,
+        "html_parsing": 9.81333333333334
+      },
+      "platform_efficiency": {
+        "legistar_cost_per_session": 0.05,
+        "html_cost_per_session": 0.08177777777777782,
+        "cost_ratio": "API is 1.6x cheaper"
+      }
+    }
+  },
+  {
+    "timestamp": "2025-09-27T13:51:14.848555",
+    "legistar_api": {
+      "total_clients": 7,
+      "working_clients": 6,
+      "estimated_monthly_cost": 9.0,
+      "cost_per_session": 0.05,
+      "client_details": [
+        {
+          "client_name": "oakland",
+          "status": "working",
+          "current_events": 10,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-27T13:50:42.079341"
+        },
+        {
+          "client_name": "santa-rosa",
+          "status": "working",
+          "current_events": 5,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-27T13:50:44.007626"
+        },
+        {
+          "client_name": "sonoma-county",
+          "status": "working",
+          "current_events": 2,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-27T13:50:46.108752"
+        },
+        {
+          "client_name": "hayward",
+          "status": "working",
+          "current_events": 5,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-27T13:50:48.133227"
+        },
+        {
+          "client_name": "napa",
+          "status": "working",
+          "current_events": 6,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-27T13:50:50.068458"
+        },
+        {
+          "client_name": "bart",
+          "status": "working",
+          "current_events": 4,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-27T13:50:51.954479"
+        },
+        {
+          "client_name": "san_francisco",
+          "status": "failed",
+          "error": "API not accessible",
+          "last_checked": "2025-09-27T13:51:14.845902"
+        }
+      ]
+    },
+    "html_parsing": {
+      "total_sessions": 33,
+      "total_cost": 2.6400000000000015,
+      "average_cost_per_session": 0.08000000000000004,
+      "monthly_estimate": 9.600000000000005,
+      "cities_tracked": [
+        "santa_rosa",
+        "berkeley",
+        "marin_county",
+        "san_rafael"
+      ],
+      "last_7_days": [
+        {
+          "timestamp": "2025-09-20T23:49:42.545621",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-20T23:49:56.496638",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-20T23:50:09.749426",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-20T23:50:21.595480",
+          "city_id": "santa_rosa",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T00:38:48.750053",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T00:39:06.586768",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T00:39:20.676221",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T00:39:41.115206",
+          "city_id": "santa_rosa",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T01:04:39.938612",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T01:04:53.795710",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T01:05:06.874655",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T01:25:34.007002",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T01:26:41.103219",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 3,
+          "cost_per_opportunity": 0.016
+        },
+        {
+          "timestamp": "2025-09-21T01:26:53.564016",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:41:44.719920",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:43:57.857026",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:46:15.496830",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 14,
+          "cost_per_opportunity": 0.003428571428571429
+        },
+        {
+          "timestamp": "2025-09-21T16:46:32.426817",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:48:07.434754",
+          "city_id": "santa_rosa",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T21:29:15.854516",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T23:41:30.728825",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T23:43:33.574521",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T23:45:50.267822",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 16,
+          "cost_per_opportunity": 0.003
+        },
+        {
+          "timestamp": "2025-09-21T23:46:16.485755",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 5,
+          "cost_per_opportunity": 0.019200000000000002
+        },
+        {
+          "timestamp": "2025-09-22T14:35:54.997499",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-22T14:37:53.763920",
+          "city_id": "san_rafael",
+          "temporal_scope": "current_active_only",
+          "estimated_cost": 0.144,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.144
+        },
+        {
+          "timestamp": "2025-09-23T22:34:10.265742",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-26T21:56:55.240654",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 4,
+          "cost_per_opportunity": 0.024
+        },
+        {
+          "timestamp": "2025-09-26T21:58:05.128249",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 6,
+          "cost_per_opportunity": 0.008
+        },
+        {
+          "timestamp": "2025-09-26T21:58:32.149097",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 5,
+          "cost_per_opportunity": 0.019200000000000002
+        },
+        {
+          "timestamp": "2025-09-26T21:58:48.198387",
+          "city_id": "santa_rosa",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-27T13:47:01.513588",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 4,
+          "cost_per_opportunity": 0.024
+        },
+        {
+          "timestamp": "2025-09-27T13:48:03.654823",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 6,
+          "cost_per_opportunity": 0.008
+        }
+      ]
+    },
+    "summary": {
+      "total_working_platforms": 10,
+      "estimated_monthly_cost": 18.600000000000005,
+      "cost_breakdown": {
+        "legistar_api": 9.0,
+        "html_parsing": 9.600000000000005
+      },
+      "platform_efficiency": {
+        "legistar_cost_per_session": 0.05,
+        "html_cost_per_session": 0.08000000000000004,
+        "cost_ratio": "API is 1.6x cheaper"
+      }
+    }
+  },
+  {
+    "timestamp": "2025-09-27T14:11:10.986202",
+    "legistar_api": {
+      "total_clients": 7,
+      "working_clients": 6,
+      "estimated_monthly_cost": 9.0,
+      "cost_per_session": 0.05,
+      "client_details": [
+        {
+          "client_name": "oakland",
+          "status": "working",
+          "current_events": 10,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-27T14:10:39.516725"
+        },
+        {
+          "client_name": "santa-rosa",
+          "status": "working",
+          "current_events": 5,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-27T14:10:41.235685"
+        },
+        {
+          "client_name": "sonoma-county",
+          "status": "working",
+          "current_events": 2,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-27T14:10:42.952637"
+        },
+        {
+          "client_name": "hayward",
+          "status": "working",
+          "current_events": 5,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-27T14:10:44.659610"
+        },
+        {
+          "client_name": "napa",
+          "status": "working",
+          "current_events": 6,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-27T14:10:46.385804"
+        },
+        {
+          "client_name": "bart",
+          "status": "working",
+          "current_events": 4,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-27T14:10:48.335712"
+        },
+        {
+          "client_name": "san_francisco",
+          "status": "failed",
+          "error": "API not accessible",
+          "last_checked": "2025-09-27T14:11:10.984943"
+        }
+      ]
+    },
+    "html_parsing": {
+      "total_sessions": 37,
+      "total_cost": 3.072000000000002,
+      "average_cost_per_session": 0.08302702702702708,
+      "monthly_estimate": 9.96324324324325,
+      "cities_tracked": [
+        "san_rafael",
+        "berkeley",
+        "marin_county",
+        "santa_rosa"
+      ],
+      "last_7_days": [
+        {
+          "timestamp": "2025-09-20T23:49:42.545621",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-20T23:49:56.496638",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-20T23:50:09.749426",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-20T23:50:21.595480",
+          "city_id": "santa_rosa",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T00:38:48.750053",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T00:39:06.586768",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T00:39:20.676221",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T00:39:41.115206",
+          "city_id": "santa_rosa",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T01:04:39.938612",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T01:04:53.795710",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T01:05:06.874655",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T01:25:34.007002",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T01:26:41.103219",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 3,
+          "cost_per_opportunity": 0.016
+        },
+        {
+          "timestamp": "2025-09-21T01:26:53.564016",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:41:44.719920",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:43:57.857026",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:46:15.496830",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 14,
+          "cost_per_opportunity": 0.003428571428571429
+        },
+        {
+          "timestamp": "2025-09-21T16:46:32.426817",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:48:07.434754",
+          "city_id": "santa_rosa",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T21:29:15.854516",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T23:41:30.728825",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T23:43:33.574521",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T23:45:50.267822",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 16,
+          "cost_per_opportunity": 0.003
+        },
+        {
+          "timestamp": "2025-09-21T23:46:16.485755",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 5,
+          "cost_per_opportunity": 0.019200000000000002
+        },
+        {
+          "timestamp": "2025-09-22T14:35:54.997499",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-22T14:37:53.763920",
+          "city_id": "san_rafael",
+          "temporal_scope": "current_active_only",
+          "estimated_cost": 0.144,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.144
+        },
+        {
+          "timestamp": "2025-09-23T22:34:10.265742",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-26T21:56:55.240654",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 4,
+          "cost_per_opportunity": 0.024
+        },
+        {
+          "timestamp": "2025-09-26T21:58:05.128249",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 6,
+          "cost_per_opportunity": 0.008
+        },
+        {
+          "timestamp": "2025-09-26T21:58:32.149097",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 5,
+          "cost_per_opportunity": 0.019200000000000002
+        },
+        {
+          "timestamp": "2025-09-26T21:58:48.198387",
+          "city_id": "santa_rosa",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-27T13:47:01.513588",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 4,
+          "cost_per_opportunity": 0.024
+        },
+        {
+          "timestamp": "2025-09-27T13:48:03.654823",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 6,
+          "cost_per_opportunity": 0.008
+        },
+        {
+          "timestamp": "2025-09-27T13:52:17.031648",
+          "city_id": "san_rafael",
+          "temporal_scope": "current_active_only",
+          "estimated_cost": 0.144,
+          "opportunities_generated": 4,
+          "cost_per_opportunity": 0.036
+        },
+        {
+          "timestamp": "2025-09-27T13:52:46.068002",
+          "city_id": "berkeley",
+          "temporal_scope": "current_active_only",
+          "estimated_cost": 0.072,
+          "opportunities_generated": 6,
+          "cost_per_opportunity": 0.011999999999999999
+        },
+        {
+          "timestamp": "2025-09-27T13:52:56.735664",
+          "city_id": "marin_county",
+          "temporal_scope": "current_active_only",
+          "estimated_cost": 0.144,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.144
+        },
+        {
+          "timestamp": "2025-09-27T13:53:35.545881",
+          "city_id": "santa_rosa",
+          "temporal_scope": "current_active_only",
+          "estimated_cost": 0.072,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.072
+        }
+      ]
+    },
+    "summary": {
+      "total_working_platforms": 10,
+      "estimated_monthly_cost": 18.963243243243248,
+      "cost_breakdown": {
+        "legistar_api": 9.0,
+        "html_parsing": 9.96324324324325
+      },
+      "platform_efficiency": {
+        "legistar_cost_per_session": 0.05,
+        "html_cost_per_session": 0.08302702702702708,
+        "cost_ratio": "API is 1.7x cheaper"
+      }
+    }
+  },
+  {
+    "timestamp": "2025-09-27T14:47:26.264524",
+    "legistar_api": {
+      "total_clients": 7,
+      "working_clients": 6,
+      "estimated_monthly_cost": 9.0,
+      "cost_per_session": 0.05,
+      "client_details": [
+        {
+          "client_name": "oakland",
+          "status": "working",
+          "current_events": 10,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-27T14:46:54.746826"
+        },
+        {
+          "client_name": "santa-rosa",
+          "status": "working",
+          "current_events": 5,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-27T14:46:56.621102"
+        },
+        {
+          "client_name": "sonoma-county",
+          "status": "working",
+          "current_events": 2,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-27T14:46:58.285535"
+        },
+        {
+          "client_name": "hayward",
+          "status": "working",
+          "current_events": 5,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-27T14:47:00.092950"
+        },
+        {
+          "client_name": "napa",
+          "status": "working",
+          "current_events": 6,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-27T14:47:01.811769"
+        },
+        {
+          "client_name": "bart",
+          "status": "working",
+          "current_events": 4,
+          "estimated_monthly_sessions": 30,
+          "monthly_cost": 1.5,
+          "data_quality": "good",
+          "last_checked": "2025-09-27T14:47:03.502675"
+        },
+        {
+          "client_name": "san_francisco",
+          "status": "failed",
+          "error": "API not accessible",
+          "last_checked": "2025-09-27T14:47:26.253286"
+        }
+      ]
+    },
+    "html_parsing": {
+      "total_sessions": 37,
+      "total_cost": 3.072000000000002,
+      "average_cost_per_session": 0.08302702702702708,
+      "monthly_estimate": 9.96324324324325,
+      "cities_tracked": [
+        "santa_rosa",
+        "san_rafael",
+        "berkeley",
+        "marin_county"
+      ],
+      "last_7_days": [
+        {
+          "timestamp": "2025-09-20T23:49:42.545621",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-20T23:49:56.496638",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-20T23:50:09.749426",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-20T23:50:21.595480",
+          "city_id": "santa_rosa",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T00:38:48.750053",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T00:39:06.586768",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T00:39:20.676221",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T00:39:41.115206",
+          "city_id": "santa_rosa",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T01:04:39.938612",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T01:04:53.795710",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T01:05:06.874655",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T01:25:34.007002",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T01:26:41.103219",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 3,
+          "cost_per_opportunity": 0.016
+        },
+        {
+          "timestamp": "2025-09-21T01:26:53.564016",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:41:44.719920",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:43:57.857026",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:46:15.496830",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 14,
+          "cost_per_opportunity": 0.003428571428571429
+        },
+        {
+          "timestamp": "2025-09-21T16:46:32.426817",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T16:48:07.434754",
+          "city_id": "santa_rosa",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-21T21:29:15.854516",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T23:41:30.728825",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T23:43:33.574521",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-21T23:45:50.267822",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 16,
+          "cost_per_opportunity": 0.003
+        },
+        {
+          "timestamp": "2025-09-21T23:46:16.485755",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 5,
+          "cost_per_opportunity": 0.019200000000000002
+        },
+        {
+          "timestamp": "2025-09-22T14:35:54.997499",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-22T14:37:53.763920",
+          "city_id": "san_rafael",
+          "temporal_scope": "current_active_only",
+          "estimated_cost": 0.144,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.144
+        },
+        {
+          "timestamp": "2025-09-23T22:34:10.265742",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 1,
+          "cost_per_opportunity": 0.096
+        },
+        {
+          "timestamp": "2025-09-26T21:56:55.240654",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 4,
+          "cost_per_opportunity": 0.024
+        },
+        {
+          "timestamp": "2025-09-26T21:58:05.128249",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 6,
+          "cost_per_opportunity": 0.008
+        },
+        {
+          "timestamp": "2025-09-26T21:58:32.149097",
+          "city_id": "marin_county",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 5,
+          "cost_per_opportunity": 0.019200000000000002
+        },
+        {
+          "timestamp": "2025-09-26T21:58:48.198387",
+          "city_id": "santa_rosa",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.048
+        },
+        {
+          "timestamp": "2025-09-27T13:47:01.513588",
+          "city_id": "san_rafael",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.096,
+          "opportunities_generated": 4,
+          "cost_per_opportunity": 0.024
+        },
+        {
+          "timestamp": "2025-09-27T13:48:03.654823",
+          "city_id": "berkeley",
+          "temporal_scope": "future_meetings_only",
+          "estimated_cost": 0.048,
+          "opportunities_generated": 6,
+          "cost_per_opportunity": 0.008
+        },
+        {
+          "timestamp": "2025-09-27T13:52:17.031648",
+          "city_id": "san_rafael",
+          "temporal_scope": "current_active_only",
+          "estimated_cost": 0.144,
+          "opportunities_generated": 4,
+          "cost_per_opportunity": 0.036
+        },
+        {
+          "timestamp": "2025-09-27T13:52:46.068002",
+          "city_id": "berkeley",
+          "temporal_scope": "current_active_only",
+          "estimated_cost": 0.072,
+          "opportunities_generated": 6,
+          "cost_per_opportunity": 0.011999999999999999
+        },
+        {
+          "timestamp": "2025-09-27T13:52:56.735664",
+          "city_id": "marin_county",
+          "temporal_scope": "current_active_only",
+          "estimated_cost": 0.144,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.144
+        },
+        {
+          "timestamp": "2025-09-27T13:53:35.545881",
+          "city_id": "santa_rosa",
+          "temporal_scope": "current_active_only",
+          "estimated_cost": 0.072,
+          "opportunities_generated": 0,
+          "cost_per_opportunity": 0.072
+        }
+      ]
+    },
+    "civicplus_cms": {
+      "total_cities": 8,
+      "working_cities": 0,
+      "estimated_monthly_cost": 1.1520000000000001,
+      "cost_per_opportunity": 0.048,
+      "city_details": [
+        {
+          "city_name": "richmond",
+          "status": "configured",
+          "recent_opportunities": 0,
+          "estimated_monthly_sessions": 10,
+          "monthly_cost": 0.14400000000000002,
+          "efficiency_rating": "high",
+          "last_checked": "2025-09-27T14:47:26.264485"
+        },
+        {
+          "city_name": "el_cerrito",
+          "status": "configured",
+          "recent_opportunities": 0,
+          "estimated_monthly_sessions": 10,
+          "monthly_cost": 0.14400000000000002,
+          "efficiency_rating": "high",
+          "last_checked": "2025-09-27T14:47:26.264496"
+        },
+        {
+          "city_name": "dublin",
+          "status": "configured",
+          "recent_opportunities": 0,
+          "estimated_monthly_sessions": 10,
+          "monthly_cost": 0.14400000000000002,
+          "efficiency_rating": "high",
+          "last_checked": "2025-09-27T14:47:26.264500"
+        },
+        {
+          "city_name": "union_city",
+          "status": "configured",
+          "recent_opportunities": 0,
+          "estimated_monthly_sessions": 10,
+          "monthly_cost": 0.14400000000000002,
+          "efficiency_rating": "high",
+          "last_checked": "2025-09-27T14:47:26.264504"
+        },
+        {
+          "city_name": "concord",
+          "status": "configured",
+          "recent_opportunities": 0,
+          "estimated_monthly_sessions": 10,
+          "monthly_cost": 0.14400000000000002,
+          "efficiency_rating": "high",
+          "last_checked": "2025-09-27T14:47:26.264507"
+        },
+        {
+          "city_name": "san_leandro",
+          "status": "configured",
+          "recent_opportunities": 0,
+          "estimated_monthly_sessions": 10,
+          "monthly_cost": 0.14400000000000002,
+          "efficiency_rating": "high",
+          "last_checked": "2025-09-27T14:47:26.264510"
+        },
+        {
+          "city_name": "campbell",
+          "status": "configured",
+          "recent_opportunities": 0,
+          "estimated_monthly_sessions": 10,
+          "monthly_cost": 0.14400000000000002,
+          "efficiency_rating": "high",
+          "last_checked": "2025-09-27T14:47:26.264512"
+        },
+        {
+          "city_name": "pleasant_hill",
+          "status": "configured",
+          "recent_opportunities": 0,
+          "estimated_monthly_sessions": 10,
+          "monthly_cost": 0.14400000000000002,
+          "efficiency_rating": "high",
+          "last_checked": "2025-09-27T14:47:26.264516"
+        }
+      ],
+      "platform_type": "civicplus_cms"
+    },
+    "summary": {
+      "total_working_platforms": 10,
+      "estimated_monthly_cost": 20.11524324324325,
+      "cost_breakdown": {
+        "legistar_api": 9.0,
+        "html_parsing": 9.96324324324325,
+        "civicplus_cms": 1.1520000000000001
+      },
+      "platform_efficiency": {
+        "legistar_cost_per_session": 0.05,
+        "html_cost_per_session": 0.08302702702702708,
+        "civicplus_cost_per_opportunity": 0.048,
+        "cost_comparison": "CivicPlus CMS most efficient ($0.048), 1.7x better than HTML parsing"
+      }
+    }
+  }
+]

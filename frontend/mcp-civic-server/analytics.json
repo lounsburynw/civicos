@@ -1,0 +1,681 @@
+{
+  "sessions": [],
+  "events": [
+    {
+      "id": "104f0786-4db6-4872-99eb-f0912260d3bf",
+      "timestamp": "2025-09-01T22:49:18.408453",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": true,
+        "item_id": "test-analytics-1",
+        "meeting_type": "Test Council"
+      }
+    },
+    {
+      "id": "1c7cfd8d-e096-4493-893b-7c73fd23aa9d",
+      "timestamp": "2025-09-01T22:49:24.965379",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "c0954f0c-8bd7-42d4-9694-ab055dbfb540",
+      "timestamp": "2025-09-01T22:49:32.759797",
+      "type": "comment_generation_start",
+      "data": {
+        "item_id": "analytics-test",
+        "item_title": "Analytics Test Item",
+        "stance": "support",
+        "key_points_length": 54
+      }
+    },
+    {
+      "id": "549be0d9-7fe0-4a10-ad35-b4c920a10d05",
+      "timestamp": "2025-09-01T22:49:38.785853",
+      "type": "comment_generation_success",
+      "data": {
+        "item_id": "analytics-test",
+        "item_title": "Analytics Test Item",
+        "stance": "support",
+        "word_count": 189,
+        "char_count": 1332,
+        "ai_generated": true
+      }
+    },
+    {
+      "id": "16cfe1ed-a471-4333-85f5-5a3d23c312c3",
+      "timestamp": "2025-09-01T22:50:08.058546",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": true,
+        "item_id": "final-test-housing",
+        "meeting_type": "Planning Commission"
+      }
+    },
+    {
+      "id": "654ed3cb-8b8f-495d-b171-6a4b47fd5952",
+      "timestamp": "2025-09-01T22:50:17.630471",
+      "type": "comment_generation_start",
+      "data": {
+        "item_id": "final-test-housing",
+        "item_title": "Final Test Affordable Housing Project",
+        "stance": "support",
+        "key_points_length": 102
+      }
+    },
+    {
+      "id": "7d1e50a9-f323-4d2b-9c33-807fddd3cf32",
+      "timestamp": "2025-09-01T22:50:22.296427",
+      "type": "comment_generation_success",
+      "data": {
+        "item_id": "final-test-housing",
+        "item_title": "Final Test Affordable Housing Project",
+        "stance": "support",
+        "word_count": 198,
+        "char_count": 1379,
+        "ai_generated": true
+      }
+    },
+    {
+      "id": "c25c91ee-de26-41e5-8042-3c9dda035095",
+      "timestamp": "2025-09-01T22:50:30.846925",
+      "type": "comment_generation_start",
+      "data": {
+        "item_id": "test-oppose",
+        "item_title": "Parking Meter Expansion",
+        "stance": "oppose",
+        "key_points_length": 71
+      }
+    },
+    {
+      "id": "c1ed238f-4e09-4d80-9679-23eb333a60e6",
+      "timestamp": "2025-09-01T22:50:36.049489",
+      "type": "comment_generation_success",
+      "data": {
+        "item_id": "test-oppose",
+        "item_title": "Parking Meter Expansion",
+        "stance": "oppose",
+        "word_count": 207,
+        "char_count": 1385,
+        "ai_generated": true
+      }
+    },
+    {
+      "id": "e2ca20f4-185e-4abe-9d90-ce8d20c882fd",
+      "timestamp": "2025-09-01T22:50:44.401022",
+      "type": "comment_generation_start",
+      "data": {
+        "item_id": "test-question",
+        "item_title": "Public Safety Budget",
+        "stance": "question",
+        "key_points_length": 111
+      }
+    },
+    {
+      "id": "3c70d318-e33b-4d19-8500-1ee573c51a20",
+      "timestamp": "2025-09-01T22:50:49.128859",
+      "type": "comment_generation_success",
+      "data": {
+        "item_id": "test-question",
+        "item_title": "Public Safety Budget",
+        "stance": "question",
+        "word_count": 187,
+        "char_count": 1237,
+        "ai_generated": true
+      }
+    },
+    {
+      "id": "d6057402-63fa-4020-befc-a2e89c586ad9",
+      "timestamp": "2025-09-01T22:51:36.601064",
+      "type": "page_view",
+      "data": {
+        "page": "index"
+      }
+    },
+    {
+      "id": "9e8d5a7c-1f47-48fd-a3a5-877a659361e1",
+      "timestamp": "2025-09-01T22:51:40.860539",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "b599a486-5a19-4a2d-9d3c-7510473037ce",
+      "timestamp": "2025-09-01T22:52:12.179937",
+      "type": "page_view",
+      "data": {
+        "page": "index"
+      }
+    },
+    {
+      "id": "a5477e72-4cbc-404e-8337-58c63b811d40",
+      "timestamp": "2025-09-01T22:52:13.221615",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "365e5a5c-7237-4876-ae05-14967fef8bea",
+      "timestamp": "2025-09-01T22:53:48.616826",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "e0d69847-1606-4725-8d09-9d42b8fae6ff",
+      "timestamp": "2025-09-01T22:54:48.815419",
+      "type": "page_view",
+      "data": {
+        "page": "index"
+      }
+    },
+    {
+      "id": "4c7279d3-b109-457d-b63c-40451e1f429d",
+      "timestamp": "2025-09-01T22:54:50.561603",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "6c21b944-f5d5-4e8b-86bc-8f6de41aba0b",
+      "timestamp": "2025-09-01T22:57:27.700274",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "ee7d82f1-b79b-47ab-8d1b-c6fe61f52995",
+      "timestamp": "2025-09-01T22:57:32.719595",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "79a5b4d9-3ba3-4fdc-84fe-47ae06f7a3f7",
+      "timestamp": "2025-09-01T22:57:33.473136",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "5f5dd709-35ed-46a8-9eaa-959899800176",
+      "timestamp": "2025-09-01T22:57:39.440741",
+      "type": "page_view",
+      "data": {
+        "page": "index"
+      }
+    },
+    {
+      "id": "71fb9982-4574-4994-b170-fb087e70321d",
+      "timestamp": "2025-09-01T22:57:48.025347",
+      "type": "page_view",
+      "data": {
+        "page": "index"
+      }
+    },
+    {
+      "id": "5b523558-381b-4bc6-b269-fd9f2104963c",
+      "timestamp": "2025-09-01T22:57:49.546610",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "a4d34c8a-4b6d-4809-b644-aed6a44b2474",
+      "timestamp": "2025-09-01T22:58:04.019073",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "73090457-de31-4b39-b88c-8846c8601697",
+      "timestamp": "2025-09-01T22:58:12.030270",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "73528690-3487-41cd-b70d-a9574336790f",
+      "timestamp": "2025-09-01T22:58:47.946180",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "04404101-cd51-4803-be61-70cc9477e5a7",
+      "timestamp": "2025-09-01T22:59:40.357746",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "09389fe7-fbdc-4713-afd2-ffb453508fe8",
+      "timestamp": "2025-09-01T23:00:04.108159",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "66e3a999-63da-4af8-9560-948c8168996b",
+      "timestamp": "2025-09-01T23:01:08.669992",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "8e85603f-675a-44a7-807f-22a086d740f5",
+      "timestamp": "2025-09-01T23:02:25.096832",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "7b650b96-48a3-464c-af05-e7f2903126da",
+      "timestamp": "2025-09-01T23:02:31.088294",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "1b952f2a-340d-4b8a-b7e9-1686a0c06c5c",
+      "timestamp": "2025-09-01T23:02:36.386087",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "d0290f32-bc19-43bd-9aa6-08a9191ee138",
+      "timestamp": "2025-09-01T23:02:42.222418",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "1fb6f081-0744-4afe-b770-754ec89b73da",
+      "timestamp": "2025-09-01T23:02:49.559085",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "74646bfa-481c-4baa-a5f0-5c5ec216ea57",
+      "timestamp": "2025-09-01T23:03:46.281210",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "098791cc-a783-443c-a7e8-382535fcb94f",
+      "timestamp": "2025-09-01T23:03:59.454938",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "f22e5cdd-3b4d-4636-b55d-98cb53954204",
+      "timestamp": "2025-09-01T23:05:23.570876",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "e660d201-59dd-4361-ae09-5fd24873c8f0",
+      "timestamp": "2025-09-01T23:05:59.147668",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "f7d81bf2-8c31-40fd-825d-ec0bb281cd34",
+      "timestamp": "2025-09-02T09:22:50.667723",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "a7e12a01-7149-4902-afc8-bcdb0ba07ba6",
+      "timestamp": "2025-09-02T09:24:10.734845",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "fc9c2492-397c-45fe-ab8d-9cf45871c1b5",
+      "timestamp": "2025-09-02T09:24:50.970969",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "95e00776-3608-4eb2-84d1-b9a91d79ba22",
+      "timestamp": "2025-09-02T09:25:40.892150",
+      "type": "comment_generation_start",
+      "data": {
+        "item_id": "demo-2024-1",
+        "item_title": "Affordable Housing Project - 1234 Main St",
+        "stance": "support",
+        "key_points_length": 58
+      }
+    },
+    {
+      "id": "00a39133-50da-4afc-bed5-a7cd1f272d69",
+      "timestamp": "2025-09-02T09:25:47.745803",
+      "type": "comment_generation_success",
+      "data": {
+        "item_id": "demo-2024-1",
+        "item_title": "Affordable Housing Project - 1234 Main St",
+        "stance": "support",
+        "word_count": 200,
+        "char_count": 1254,
+        "ai_generated": true
+      }
+    },
+    {
+      "id": "cfa8d542-2759-4a18-a9b2-2d9870affb42",
+      "timestamp": "2025-09-02T09:34:36.737792",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "4bdc208e-1381-4624-b55b-e8db6976320c",
+      "timestamp": "2025-09-02T09:34:51.576232",
+      "type": "comment_generation_start",
+      "data": {
+        "item_id": "ux-test",
+        "item_title": "UX Improved Housing Project",
+        "stance": "support",
+        "key_points_length": 74
+      }
+    },
+    {
+      "id": "ae090903-4071-46ca-9b1d-eb961a75ee87",
+      "timestamp": "2025-09-02T09:34:57.789437",
+      "type": "comment_generation_success",
+      "data": {
+        "item_id": "ux-test",
+        "item_title": "UX Improved Housing Project",
+        "stance": "support",
+        "word_count": 219,
+        "char_count": 1452,
+        "ai_generated": true
+      }
+    },
+    {
+      "id": "c1068c29-3ff9-45b5-a826-5cd546beb523",
+      "timestamp": "2025-09-02T09:36:04.771953",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "5f3522a2-b675-410e-9670-7f0dc496cf4a",
+      "timestamp": "2025-09-02T09:36:45.328889",
+      "type": "comment_generation_start",
+      "data": {
+        "item_id": "demo-2024-1",
+        "item_title": "Affordable Housing Project - 1234 Main St",
+        "stance": "support",
+        "key_points_length": 29
+      }
+    },
+    {
+      "id": "0b27ed5d-c3f5-4ada-ae39-34c2688d2d55",
+      "timestamp": "2025-09-02T09:36:51.366410",
+      "type": "comment_generation_success",
+      "data": {
+        "item_id": "demo-2024-1",
+        "item_title": "Affordable Housing Project - 1234 Main St",
+        "stance": "support",
+        "word_count": 212,
+        "char_count": 1403,
+        "ai_generated": true
+      }
+    },
+    {
+      "id": "62827ce0-1ade-4abb-9246-db9f28e870de",
+      "timestamp": "2025-09-02T09:58:15.332683",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "c618fda5-e0a1-41cb-b927-f6943ea7d304",
+      "timestamp": "2025-09-02T10:03:41.637293",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "323fca00-0bdb-4864-bf7b-9ea6c2451412",
+      "timestamp": "2025-09-02T10:03:55.326893",
+      "type": "comment_generation_start",
+      "data": {
+        "item_id": "modern-ui-test",
+        "item_title": "Modern UI Test Project",
+        "stance": "support",
+        "key_points_length": 74
+      }
+    },
+    {
+      "id": "af897fcc-8cba-4225-809f-0b8d426ddc51",
+      "timestamp": "2025-09-02T10:04:04.272503",
+      "type": "comment_generation_success",
+      "data": {
+        "item_id": "modern-ui-test",
+        "item_title": "Modern UI Test Project",
+        "stance": "support",
+        "word_count": 188,
+        "char_count": 1258,
+        "ai_generated": true
+      }
+    },
+    {
+      "id": "9ae91aba-255c-46d0-a2f6-9defe15f9526",
+      "timestamp": "2025-09-02T10:04:50.086520",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "5707f3b8-f5a1-4dfb-864e-f18bdc8663c3",
+      "timestamp": "2025-09-02T10:05:35.092911",
+      "type": "comment_generation_start",
+      "data": {
+        "item_id": "demo-2024-1",
+        "item_title": "Affordable Housing Project - 1234 Main St",
+        "stance": "support",
+        "key_points_length": 23
+      }
+    },
+    {
+      "id": "d4be159a-cc16-45f8-8418-9a8be1a2bdd3",
+      "timestamp": "2025-09-02T10:05:40.431608",
+      "type": "comment_generation_success",
+      "data": {
+        "item_id": "demo-2024-1",
+        "item_title": "Affordable Housing Project - 1234 Main St",
+        "stance": "support",
+        "word_count": 188,
+        "char_count": 1260,
+        "ai_generated": true
+      }
+    },
+    {
+      "id": "c5150859-d2ec-483a-95ad-b98f3d8622b7",
+      "timestamp": "2025-09-02T10:07:00.975121",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "1e636fc1-87c0-4c8e-a940-9f2a040e868e",
+      "timestamp": "2025-09-02T10:22:35.893135",
+      "type": "page_view",
+      "data": {
+        "page": "demo",
+        "from_newsletter": false,
+        "item_id": null,
+        "meeting_type": null
+      }
+    },
+    {
+      "id": "8c17839f-11fe-4210-80f2-d8a9ba5c7b45",
+      "timestamp": "2025-09-02T10:38:45.697897",
+      "type": "comment_generation_start",
+      "data": {
+        "item_id": "demo-2024-1",
+        "item_title": "Affordable Housing Project - 1234 Main St",
+        "stance": "neutral",
+        "key_points_length": 24
+      }
+    },
+    {
+      "id": "d33fd40d-b5ce-4a9f-9e2b-44ff1b826141",
+      "timestamp": "2025-09-02T10:38:50.608734",
+      "type": "comment_generation_success",
+      "data": {
+        "item_id": "demo-2024-1",
+        "item_title": "Affordable Housing Project - 1234 Main St",
+        "stance": "neutral",
+        "word_count": 207,
+        "char_count": 1362,
+        "ai_generated": true
+      }
+    }
+  ]
+}

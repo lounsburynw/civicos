@@ -1,0 +1,27 @@
+{
+  "meeting": {
+    "city": "San Rafael",
+    "date": "March 15, 2024",
+    "start_time": "19:00",
+    "location": "City Council Chambers, 1400 Fifth Avenue",
+    "public_comment_email": "clerk@cityofsanrafael.org",
+    "meeting_type": "Planning Commission",
+    "phone": "(415) 485-3066"
+  },
+  "items": [
+    {
+      "title": "Northgate Town Square Mixed-Use Development",
+      "change": "425-unit residential complex with 25,000 sq ft retail",
+      "impact": "Major housing addition to address regional shortage. Traffic impact on Northgate Drive requires mitigation.",
+      "how_to_participate": "Email planning@cityofsanrafael.org by March 12 or attend meeting",
+      "project_type": "housing",
+      "location": "300 Northgate Drive",
+      "deadline": "March 12, 2024",
+      "contact_email": "planning@cityofsanrafael.org",
+      "contact_name": "Paul Jensen",
+      "contact_title": "Planning Manager",
+      "engagement_tier": "full_engagement",
+      "success_strategy": "Reference Northgate success - submit detailed alternatives 1+ weeks early"
+    }
+  ]
+}

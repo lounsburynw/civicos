@@ -1,0 +1,2067 @@
+{
+  "video_id": "H9UxWiAFvxg",
+  "meeting_url": "",
+  "speakers_count": 10,
+  "utterances_count": 342,
+  "utterances": [
+    {
+      "speaker": "A",
+      "text": "Foreign.",
+      "start": 357660,
+      "end": 357980
+    },
+    {
+      "speaker": "B",
+      "text": "Welcome everyone. Today is November. Monday, November 4th. Welcome to the regular meeting of the City Council. I'll request the City Clerk to call the roll.",
+      "start": 364300,
+      "end": 374620
+    },
+    {
+      "speaker": "C",
+      "text": "Council Member Bushy. Present. Vice Mayor Hill.",
+      "start": 375180,
+      "end": 377740
+    },
+    {
+      "speaker": "A",
+      "text": "Present.",
+      "start": 377740,
+      "end": 378060
+    },
+    {
+      "speaker": "C",
+      "text": "Council Member Kurtz.",
+      "start": 378380,
+      "end": 379460
+    },
+    {
+      "speaker": "D",
+      "text": "Present.",
+      "start": 379460,
+      "end": 379740
+    },
+    {
+      "speaker": "C",
+      "text": "Councilmember Yeten Scott.",
+      "start": 380060,
+      "end": 381380
+    },
+    {
+      "speaker": "B",
+      "text": "In.",
+      "start": 381380,
+      "end": 381540
+    },
+    {
+      "speaker": "E",
+      "text": "Present.",
+      "start": 381540,
+      "end": 381820
+    },
+    {
+      "speaker": "C",
+      "text": "Mary Kate.",
+      "start": 382060,
+      "end": 382780
+    },
+    {
+      "speaker": "A",
+      "text": "Who?",
+      "start": 382780,
+      "end": 382960
+    },
+    {
+      "speaker": "E",
+      "text": "Present.",
+      "start": 383110,
+      "end": 383310
+    },
+    {
+      "speaker": "B",
+      "text": "All five of us are here this evening. We met in closed session prior to this meeting. I'll ask the City Attorney if there's anything to report. Out.",
+      "start": 383310,
+      "end": 389990
+    },
+    {
+      "speaker": "F",
+      "text": "Good evening.",
+      "start": 390150,
+      "end": 390910
+    },
+    {
+      "speaker": "A",
+      "text": "No reportable action was taken in closed session this evening.",
+      "start": 390910,
+      "end": 393910
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you so welcome. We are glad that you're here. Whether in person or watching online, we always start appreciating San Rafael City employees who do the incredible work day in and day out on our streets, in our facilities, helping our community and our city to function so well. So thank you for all that you do. Recently I had the honor of being invited to speak at the Black Student Union's get out the Vote event at Dominican University. It was inspiring and reassuring that these college students recognize the importance of voting as part of our nation's democracy and their insight and their enthusiasm to embrace this civic role. Tomorrow is our national, state and local elections, so be sure to drop off your ballot at a ballot box or at your local election outlet. Or you can always go to the civic center. But please, let's get out the vote. As part of my opening remarks, we also include a land acknowledgment. We thank the original caretakers of this land. San Rafael is traditionally home to the Coast Miwok people, many of whom today are tribal citizens of the Federated Indians of Great Rancheria. And we honor their continuing involvement in stewardship practices that benefit us all. We do have a proclamation later, so we will talk more about that. And in addition to this statement, we also work with the tribe on mutually beneficial issues. Right now it's been a lot about Art and Matthew I know will come down later and say a few words about that. So again, welcome. I will ask the City of Clerk to describe how people can participate this evening.",
+      "start": 394390,
+      "end": 492900
+    },
+    {
+      "speaker": "C",
+      "text": "Thank you. Mayor Kate before we begin, I'd like to announce that tonight's meeting will include Spanish language simultaneous and consecutive interpretation provided by qualified interpreters on the Spanish channel.",
+      "start": 493300,
+      "end": 503550
+    },
+    {
+      "speaker": "B",
+      "text": "For agenda item 8A only, which is.",
+      "start": 503550,
+      "end": 506030
+    },
+    {
+      "speaker": "C",
+      "text": "Marin Sanitary Service Rates and amendments for 2025. If you're watching on Zoom, you can.",
+      "start": 506030,
+      "end": 511270
+    },
+    {
+      "speaker": "B",
+      "text": "Join the Spanish channel by clicking on.",
+      "start": 511270,
+      "end": 512950
+    },
+    {
+      "speaker": "C",
+      "text": "The interpretation icon in the toolbar. And if you're attending in person and you don't have access to the Zoom meeting from your phone, you can see me and I can get you set up with a device so that you can listen to the meeting in Spanish.",
+      "start": 512950,
+      "end": 523750
+    },
+    {
+      "speaker": "B",
+      "text": "As a reminder, we ask that everyone participating tonight please speak slowly to allow.",
+      "start": 524150,
+      "end": 528390
+    },
+    {
+      "speaker": "C",
+      "text": "Our interpreters to effectively express their comments.",
+      "start": 528390,
+      "end": 530550
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. We'll start with our city and I.",
+      "start": 532650,
+      "end": 534730
+    },
+    {
+      "speaker": "C",
+      "text": "Believe, sorry, Andrew, will hop on in and say that in Spanish consecutively for us.",
+      "start": 534730,
+      "end": 538410
+    },
+    {
+      "speaker": "F",
+      "text": "Gracias.",
+      "start": 539610,
+      "end": 540330
+    },
+    {
+      "speaker": "G",
+      "text": "En el canal en espanol solamente paraltema del orden del dia ocho punto a que es tarifas para servicios sanitarios paramaren y en miendas para dos mil veinticinco siesta viento en Zoom pued unears el canal en espanol con solo primire eli cono para interpretacion en lavara de ramientas. Por favor abordeme yole provere una parato paraqui uste de escuce la junta en espanol como recordatorio perimos que todos los questen participando esta noche hablen lentamente para permitir que los interpretes expressensus commentarios de manera effectiva.",
+      "start": 554170,
+      "end": 605330
+    },
+    {
+      "speaker": "C",
+      "text": "Thank you. Tonight's meeting is being recorded and streamed live to YouTube for members of the public wishing to provide public comment displayed on the podium and the projector is a timer to help you stay within.",
+      "start": 606930,
+      "end": 617470
+    },
+    {
+      "speaker": "B",
+      "text": "The two minute time frame.",
+      "start": 617470,
+      "end": 618670
+    },
+    {
+      "speaker": "C",
+      "text": "You're invited, though not required, to introduce yourself and say what part of Centerfell.",
+      "start": 618830,
+      "end": 622710
+    },
+    {
+      "speaker": "B",
+      "text": "You live in or if you're from outside of Centerfell.",
+      "start": 622710,
+      "end": 625150
+    },
+    {
+      "speaker": "C",
+      "text": "We do offer closed captioning for the evening's meeting on Zoom. You can select the live transcript button to enable this feature and if you're experiencing any technical difficulties you can contact.",
+      "start": 625310,
+      "end": 634750
+    },
+    {
+      "speaker": "B",
+      "text": "Me by email@city clerkityofsanderfeld.org thank you. Thank you. Now we will turn to the City Manager for City Manager reports.",
+      "start": 634750,
+      "end": 645650
+    },
+    {
+      "speaker": "C",
+      "text": "Good evening Mayor and Council.",
+      "start": 645810,
+      "end": 647170
+    },
+    {
+      "speaker": "H",
+      "text": "I have some good news to report. We just got a notice today that the city's credit rating was upgraded from a double A to a double A plus. So just a couple of comments on that. The new There's a new rating system by Fitch and anytime we see this even slightly incremental increase, it's real benefit to the city and the community. We've been rated with top financial resilience because of good reserves are funds over 25% of our budget and often holding more than 40% in reserves to cover unexpected costs. So this rating not only reflects about the the city's internal finances, but the resilience and the diverse local economy which reflects the larger economic outlook in the region. So really positive move in the right direction there. Also, there's a new bike share hubs being installed all around the city. And this is a it's called the Redwood Bike Share Pilot Program. It's funded by a grant from Metropolitan Transportation Commission and it's a collaborative effort between Sonoma County Transportation Authority and our Transportation Authority of Marin. There's an app that's really easy to use that you can download from their website, which is redwoodbikeshare.com I downloaded the app today to see how easy would it actually be to get on there and find a bike and figure out where I can pick one up and pay for one. And it was pretty seamless. So it's a really exciting multimodal benefit in San Rafael. So take a look at that website to see where they're going to be located. I think one's going to be right out here on Fifth Avenue in front of City Hall. Also wanted to share a scheduling update on the Northgate Town Square project. We were originally targeting 18 November for the first public hearing at the City Council after the Planning Commission hearing last week. There's a number of comments that staff are working on responding to. There's some technical information that we need to work on before we bring it forward to the council. So that is now currently scheduled for the Dec. 2 city council meeting. Then a few upcoming events on Friday. We have from 5 to 8 the second Friday Art Walk. Let's see. Also Transportation Authority Marin is having a community workshop on the Bellum Corridor improvements and that's going to be at the Marin Health and Wellness center at 32 Kerner Boulevard, it's on November 14th from 5:30 to 7:30. And there will be Spanish speaking staff there there to help provide support to the community. We have it's the holidays. Can you believe it's the holidays? It really is. So I just wanted to announce because there they are. Coming up pretty Quickly, we have three holiday events. The San Fel's 43rd annual Holiday of Lights and Winter Wonderland begins on Saturday, November 30th from 11 to 6 downtown. And that evening will be the tree lighting ceremony at the downtown plaza on Fourth street at 5:30pm to a lot of fun stuff for the kids that day. And then on the 29th of December. Oh wait, I'm going in chronological order. Hold on a second. The Lighted Boat Parade, which is a big favorite, is on Saturday, December 7th. So that's next. And then the giant manure lighting and gelt drop which was super fun last year with the fire truck and all our fire engine. On Sunday, December 29 from 5 to 6:30, also at the downtown plaza. Also just wanted to mention there's a grand opening at the smart pathway from McGinnis Parkway to Smith Ranch Road. That's going to be on Friday, November 22 at 12pm and that will take place directly across from 155McGinnis to celebrate that opening of that new pedestrian bridge and that connectivity. And lastly, as Mayor Kate said, don't forget to vote tomorrow.",
+      "start": 648210,
+      "end": 873140
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, City Manager Lillovich. I will turn to my colleagues to report out on meetings they've attended. I'll start with the vice mayor.",
+      "start": 875380,
+      "end": 881210
+    },
+    {
+      "speaker": "F",
+      "text": "Thank you, Mayor Kate. I have a few meetings to report on Wednesday, October 23rd at the Marin County Council, mayors and council members, which I'm serving as the president for this year. The entire council was present. We received an update from Gary Najeris, the director of Homelessness and Coordinated care for Marin county, who provided an update on efforts to support and address homelessness in Marin. We also received a presentation from the leadership of Marin Builders association on the permit process improvement. San Rafael was highlighted as a city that had a NPI score of 40 plus, which is a big deal. On Thursday, October 24th, myself, Mayor Kate and Council Member Kurtz had a tour of the sanctioned encampment area that was I will report that from the folks that are running it that it is being well run. As we interacted with folks there, we received a lot of positive feedback about what this experience has meant for folks that are now in the sanctioned camping area. So we are eager to have it continue to be run that way and it seems to be going as planned. I would also like to report that on Thursday, October 24th, I presented to the Rotary Manor on 5th. Just talked about local issues, mostly centered on safety along sidewalks and the public right of way. There's a lot of concerns about that for the residents at Rotary Manor. And those are my report. That's my report for this week.",
+      "start": 882080,
+      "end": 982659
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, Council Member Kurtz.",
+      "start": 982659,
+      "end": 984580
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you. I attended the Chamber of Commerce Women of Industry luncheon and congratulations to Carolyn Flattery, who is the founder of Make It Home, and Andre Jonaski, owner of Bellum Storage, for being recognized for their work. I attended the MCC legislative meeting because he already said it. Can we have to say it again?",
+      "start": 986820,
+      "end": 1016240
+    },
+    {
+      "speaker": "B",
+      "text": "Okay.",
+      "start": 1017840,
+      "end": 1018320
+    },
+    {
+      "speaker": "D",
+      "text": "Marin County Council of Mayors and Council members. The important thing about the legislative conversation right now is that they're in the legislators are in recess and it's the time of the year to bring ideas and areas of concern to the legislation visibility so that it can be discussed for potential either policy changes or funding. I attended the Cal City's Homeless Roundtable and was able to highlight the work that San Rafael is doing and many of the areas across the state were very interested in our website as well as the work undergoing right now within the sanction encampment. So that was really a good conversation. Thanks. In partnership with Supervisor Sackett, we attended the Capri and Silvera Parkway hoa. So thank you for inviting us. Shinji had a really good conversation and I also am participating on the County Youth Ebike Safety Committee with Supervisor Sackett addressing how Marin county is going to address AB 1778, which is the new legislation specifically for Marin county and the alignment across all the jurisdictions on how do we help our youth not be crazy on the ebike situation. And that's it.",
+      "start": 1018320,
+      "end": 1108130
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, Council Member Bushy.",
+      "start": 1108850,
+      "end": 1111170
+    },
+    {
+      "speaker": "C",
+      "text": "Last week I attended the Santa Fe Sanitation District Board meeting with the mayor. The primary topic is our continued work with the Central Marin Sanitation Agency on a joint operating agreement to bring efficiency to our operations. We were pleased at that meeting to have as a guest the Ross Valley Sanitation District Assistant Manager who presented a list of potential consultants that could be hired to address some issues that had been raised by the Ross Valley Sanitation District as part of our efforts on this this new contract. Ross Valley is also a member of the Central Marine Sanitation District. So it was a productive meeting that moved forward that issue. I also attended last Saturday with the Mayor and with the Assistant City Manager Stefanski, the annual meeting of the Point San Pedro Road Coalition. That coalition is a group of all the homeowners associations that go down Point San Pedro Road, basically out on the east of San Rafael. One of the many issues that brings them together is the medians down the middle of those roads and a fact that some people that many people don't know they are funded by a Mello Roos district. We tax ourselves to do that. The city oversees the contract every year. That is that is funded by those tax dollars to keep those medians in shape. So the points of Pedro Rural Coalition, long standing, very productive member of community and I was delighted that the mayor and the assistant City manager did and everyone who contributed to the presentation, which was really, I thought, the highlight of the meeting. So thank you very much for attending that meeting.",
+      "start": 1113330,
+      "end": 1221990
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, Council Member Uren Sculatti.",
+      "start": 1223590,
+      "end": 1225710
+    },
+    {
+      "speaker": "E",
+      "text": "Thank you, Mayor. So I attended the State of the North Bay Community and Growth, an online meeting talking about the future and the, you know, economic impact. And our very own City Manager Chris. Christine was there and she gave a great update on the city and we were very well represented. So thank you. Also attended the Women of Industry Awards. And in addition to the awardees, they were recognizing Cecilia Zamora for her lifetime membership for the San Rafael Chamber of Commerce Leadership class, which I'm an alumni and I know that in my class, Assistant. I'm sorry, City Manager Christine Lolovich was in my class as well, so she was definitely recognized. Also part of the Hispanic Chamber of Commerce. Also attended the Bay Wave Executive Steering Committee at the Sea Level Rise and Marines Bayside with Mayor Kate. And still in the same day was the mccmc. We already talked about it. The meeting in Tiburan and Belvedere. October 24, I attended the MC Clean Energy Board retreat in Pittsburgh. So it was great to see. Actually, all the board members are representing all the cities where MC has services. We always see each other. It's a hybrid meeting. So it was really nice to meet them in person, but also go to Pittsburgh and see some of the highlights of the city over there. So that was very interesting. And then that afternoon we had the CCAP quarterly meeting, the Climate Change Action Plan with our Super Sustainability Program manager, Cory Bitoff. There was an update on the GHG inventory, which is the Greenhouse Gas Emissions and Building Electrification plan. There were like fabulous students from Marine Academy talking about electrifying and renewable energies. And it was fascinating. And an update on also an MC Clean Energy. And then that evening I participated on the. It was busy days in the virtual Marine Green home tour for 2024. And they were featuring different types of homes in Marin county with different sustainable, sustainable choices to update our homes to fight, to fight and adapt to climate change. And then my last update, it was, and I leave it for last, but it was amazing. Saturday, it was the Dia de los Muertos celebration in Picaw. Huge, huge thank you to Carina Ramirez Cortez, the organizer with Multicultural center, and all the volunteers who made it possible. All our staff from the City of San Rafael, rec and library departments, especially Steve Mason. He told me how many steps he did that day. 40 miles, just walking around. And all the team at the Alboro center, our police and fire departments, they were definitely there for the parade. And oh my gosh, it's just such an amazing celebration. Celebration in the community. I think it gets bigger every year. I took two different people, many of them were coming from Novato. So it's just, it's my favorite event. Of the year. So thank you so much for everybody that was involved.",
+      "start": 1225710,
+      "end": 1412750
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, thank you. And I'll just build on that. It is an incredible event that just every year, as you said, gets bigger and bigger. And this year, for the first time, this city had an altar that celebrated the lives of the late Al Burrow and the late Cyr Miller. So we want to appreciate staff for putting that together in addition to all the other just incredible, incredible altars that were there. The benefit of going last is so many of the meetings that I had attended have already been mentioned. I did want to reiterate what the city manager had talked about. The Transportation Authority of Marin. We did have our TAM meeting. So the Redwood bike share, they're actually, they're installed. We haven't had the official ribbon cutting yet because they're waiting for the whole thing to be ready. The premise behind that is first and last mile around the SMART station. So they are on fifth Street. There's one over here near the public safety center. There'll be one down the block. They are operational even though we haven't had the ribbon cutting. So they'll be I'll be updating you on the data on how they are used next year after they've been out and about for at least six months. In addition, the 101580 comment period has been extended to November 15th. You go to the Transportation Authority of Marin website and you can continue to put comments in there. The city manager already talked about the workshop for the Bellum project. Again, we are so grateful to the county Marin for being the lead agency on that project. And then finally TAM allocated to Marin Transit some funding to add five new bus shelters. So when we bus stop shelters and bus stops in the Canal neighborhood where we have many transit dependent riders. So we're appreciative to the entire TAM board for that. I 2 weeks ago I was able to attend a Girl Scout meeting with daisies and brownies and they were very squirmy as I've forgotten what it's like to be around kindergarteners but they're doing their civic badge. So we talked about civic things. We'll see. I don't know how much was retained but they had snack after. So I think maybe that was part of the issue anyway. But it was really fantastic to as always connect with their young people and be talking about local government. So thank you as always to my colleagues for what you're doing every single day outside of the dais work. You've been very busy and with that I will accept any comments from the public on the city manager and council member reports. If you'd like to make a comment on what you just heard, now is the moment. Welcome. You're invited, but not required to say your name and what part of Summerfell you live in.",
+      "start": 1412910,
+      "end": 1572660
+    },
+    {
+      "speaker": "I",
+      "text": "Good evening, everybody. Shinji Sakayegi. I live over by McGinnis Golf Course. It's great to hear about this, I guess, this bike share program. Just one thing in my observation is that the people that use these bikes tend to be younger. I don't know. I'm kind of from the Stone Age, so I don't get on my phone and I don't do this kind of stuff. So to be honest, as someone who encourages biking, I don't know anything about how to actually operate this bike share program. So I was wondering if it would be effective to have some sort of free period, maybe like the first couple weeks. Obviously it'll create more access for everybody, but. But it also bring different age groups and just different backgrounds and everything as well, and having some sort of tutorial for how to use it. Otherwise, one of my concerns is that it'll just be mostly young people, which is good. Which is good. But there's a lot of other folks here too. So thank you.",
+      "start": 1574020,
+      "end": 1641110
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you for your comments. Anyone else? Okay, not seeing anything. I'll close the public comment and move to the consent agenda. We have items A through I. Any of my colleagues like to hold any of the items not seen. Any. Any members of the public like to comment on the consent agenda. Not seeing any. I'll bring it back. And before I request a motion, I will Highlight that Item 5B is a Proclamation around Veterans Day, which we're not be reading, but we do want to highlight how appreciative we are for the veterans. Next Monday is Veterans Holiday. City hall will be closed, but of course, all public safety departments will be working that day. But I just wanted to highlight that because I know that's something that's important to our community. I would welcome a motion on this item.",
+      "start": 1641190,
+      "end": 1694280
+    },
+    {
+      "speaker": "E",
+      "text": "I'll make a motion to approve the Constant agenda.",
+      "start": 1694440,
+      "end": 1696920
+    },
+    {
+      "speaker": "B",
+      "text": "Second moved and seconded. Roll call, please.",
+      "start": 1697160,
+      "end": 1699800
+    },
+    {
+      "speaker": "C",
+      "text": "Councilmember Bushy?",
+      "start": 1699800,
+      "end": 1700920
+    },
+    {
+      "speaker": "J",
+      "text": "Aye.",
+      "start": 1701090,
+      "end": 1701370
+    },
+    {
+      "speaker": "C",
+      "text": "Vice Mayor Hill, Aye. Council Member Kurtz?",
+      "start": 1701370,
+      "end": 1703850
+    },
+    {
+      "speaker": "D",
+      "text": "Aye.",
+      "start": 1703850,
+      "end": 1704210
+    },
+    {
+      "speaker": "C",
+      "text": "Council Mariana Scolati, aye.",
+      "start": 1704370,
+      "end": 1706170
+    },
+    {
+      "speaker": "B",
+      "text": "Mayor Kate I. That motion carries.5 0. We have a special presentation. And before we have the presentation, we open it up for public comment. So if you would like to comment on the proclamation regarding Native American Heritage Month, we would welcome your comment at this time. Not seeing any. I will go ahead and read the proclamation. And I'm delighted that tribal council member Matthew Johnson is here as well. So I'll read a few things and then, Mr. Johnson, if you'd be so kind to come and say a few words after. Great. Thank you. So it's a proclamation. Recognition of Native American Heritage Month. It is a time to celebrate the vibrant and diverse cultures, histories and traditions of Native Americans, honoring their significant contributions and their enduring sacrifices. And whereas the city of San Rafael acknowledges the Federated Indians of Great Rancheria as a sovereign nation consisting of Coast Miwok and Southern Pomo peoples and the only federally recognized tribe whose ancestral territory encompasses Marin county and the city of San Rafael. And that tribe maintains a partnership with government agencies and local municipalities with whom they collaborate on matters of education, cultural resource protection, land management, environmental justice and social welfare. Therefore, be it resolved that the mayor and City Council of San Rafael hereby proclaim November 2024 as Native American Heritage Month and encourages all citizens and residents to join in observing and recognizing the accomplishments, contributions and sacrifices of the Federated Indians of Great Rancheria and all Native Americans here in our local community and throughout the United States. Thank you. And Matthew, we would welcome you to the podium if you'd like to say a few words.",
+      "start": 1706170,
+      "end": 1819900
+    },
+    {
+      "speaker": "J",
+      "text": "Thank you so much. Matthew Johnson. Hello, my name is Matthew Johnson. I hope all of you are well. I am a tribal council member at large for the Federated Indians of Great Northeria, and I'm also an enrolled tribal citizen. I am Kosmiwok. My family comes from Marin county, and I got here early today and took a walk around the block because I do have ancestors that were at Mission San Rafael. And I really want to acknowledge them and all their struggles and sacrifices, because without that, I would not be here standing before you here today. And just want to also acknowledge the fact that I feel so blessed that we've come so far and we're at this point where we're at today, where our voices are heard and we can work alongside the City of San Rafael in partnership. One of the exciting projects we're working on is the mural at the Borough Center. I've been able to pay a visit with Mayor Kate and council member Micah. And so I'm just very honored to be here to accept the proclamation on behalf, behalf of my tribe. And thank you for including us at the table in the conversation.",
+      "start": 1826860,
+      "end": 1909840
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Thank you for being here. And we'll have a reveal, although you can see the mural because it's very, very large, but we'll have an official reveal sometime in the next couple of weeks. And I know that you'll be a part of that as well.",
+      "start": 1910480,
+      "end": 1920720
+    },
+    {
+      "speaker": "J",
+      "text": "Absolutely.",
+      "start": 1920720,
+      "end": 1921250
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. And I realize I had the proclamation here. I didn't really quite figure out the logistics of that. I'm sorry, Matthew. Okay. Yeah. Thank you. Our first agenda item is Encampment resolution fund round three erf in state of California. State Senator McGuire funding agreements and collaboration agreement between the county of Marin and City of Sam Rafael. I will turn to Assistant City Manager John Stefanski for this item.",
+      "start": 1921720,
+      "end": 1953210
+    },
+    {
+      "speaker": "C",
+      "text": "Great.",
+      "start": 1953690,
+      "end": 1954050
+    },
+    {
+      "speaker": "I",
+      "text": "Thank you, Honorable Mayor, members of City Council John Stefanski, Assistant City Manager. Before I dive into the brief staff presentation tonight, I do want to recognize Supervisor Mary Sackett who is here. This item is really kind of a testament to the work that our two agencies have undertaken in recent months around the sanctioned camping area and the ERF grant. So this item is regarding the agreements.",
+      "start": 1954050,
+      "end": 1981620
+    },
+    {
+      "speaker": "J",
+      "text": "That the city needs to execute in.",
+      "start": 1981620,
+      "end": 1983380
+    },
+    {
+      "speaker": "I",
+      "text": "Order to request reimbursement for costs associated with the ERF3 grant and the sanctioned camping area. So it's kind of more of an administrative item. As we all know. Earlier this year, the city and the county partnered together on an ERF application, successfully was awarded $6 million for our sanctioned camping program. And then we also have around $1 million in one time funding that our state senator McGuire was able to secure through a state budget appropriation and was matched by the county of Marin dollar for dollar. Since the county is the lead agency on the grant application, they are the ones who serve as the fiduciary agent for the grant as well as the Senator McGuire funds. And as such we have to enter into these agreements in order for the.",
+      "start": 1983380,
+      "end": 2033040
+    },
+    {
+      "speaker": "J",
+      "text": "City to request reimbursement.",
+      "start": 2033040,
+      "end": 2034720
+    },
+    {
+      "speaker": "I",
+      "text": "So there are two agreements, the first of which is for the ERF grant itself and that will cover the city's portions of our responsibilities for those grant activities as well as then for the McGuire Agreement, capturing the costs associated with.",
+      "start": 2034720,
+      "end": 2049960
+    },
+    {
+      "speaker": "J",
+      "text": "Standing up the sanctioned camping area as.",
+      "start": 2049960,
+      "end": 2051800
+    },
+    {
+      "speaker": "I",
+      "text": "Well as the first couple months of operation there.",
+      "start": 2051800,
+      "end": 2053880
+    },
+    {
+      "speaker": "F",
+      "text": "So earlier this year in August, we.",
+      "start": 2054840,
+      "end": 2057800
+    },
+    {
+      "speaker": "I",
+      "text": "Had a large presentation on homelessness in general on the city, as well as an overview of the sanctioned camping area. And at that time, the City council also approved a number of agreements for the city to enter into regarding the actual operations of the sanctioned camping area. So this is D Block Security FS Global. We hope for showers, Downtown Streets Team as well as the other John company and those are the vendors who are.",
+      "start": 2057800,
+      "end": 2082180
+    },
+    {
+      "speaker": "J",
+      "text": "Currently providing the services for the sanctioned.",
+      "start": 2082180,
+      "end": 2084260
+    },
+    {
+      "speaker": "I",
+      "text": "Camping area as well as other additional homeless response services in the city. And the last Agreement that is before the City Council this evening is something that, at a staff level, we have been working with the county staff for the last four months. And this is a collaboration agreement, and this is really our framework and our formal partnership of how the city and the county are jointly going to manage the ERF grant as well as the sanctioned camping area. And so this collaborative agreement establishes our roles and responsibilities around grant implementation, but also helps to just ensure that we're able to facilitate coordination and achieve all the objectives that we need to under the grant. And so, with that said, that concludes the staff presentation, but I'm happy to answer any questions that you may have.",
+      "start": 2084260,
+      "end": 2135330
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. I'll see if there are questions. Vice Mayor.",
+      "start": 2135810,
+      "end": 2139010
+    },
+    {
+      "speaker": "F",
+      "text": "I have no. I have no questions.",
+      "start": 2139329,
+      "end": 2142210
+    },
+    {
+      "speaker": "B",
+      "text": "Council Member Kurtz. No.",
+      "start": 2142370,
+      "end": 2144610
+    },
+    {
+      "speaker": "D",
+      "text": "No questions.",
+      "start": 2144610,
+      "end": 2145410
+    },
+    {
+      "speaker": "B",
+      "text": "Oh, okay. We have a collective no questions. I will open it up to members of the public to comment on this item if you're interested. Welcome, Supervisor Sackett. We were going to give you compliments in the comment portion, but thank you for being here. It actually means a lot to the city to have our county representative, so thank you.",
+      "start": 2145570,
+      "end": 2163810
+    },
+    {
+      "speaker": "J",
+      "text": "Welcome.",
+      "start": 2163810,
+      "end": 2164170
+    },
+    {
+      "speaker": "B",
+      "text": "It's a pleasure to be here with you all. And no comments, I guess, is a good thing that our staffs are really working together to get all these agreements together to move forward. I think it's unprecedented collaboration and unprecedented amount of dollars that are really going.",
+      "start": 2164170,
+      "end": 2180490
+    },
+    {
+      "speaker": "A",
+      "text": "To.",
+      "start": 2180490,
+      "end": 2180810
+    },
+    {
+      "speaker": "B",
+      "text": "Result in things that we see on the ground and getting people on that pathway to housing. So I just want to be here to thank you all and to share that myself, the county executive and our county staff are going to continue to walk side by side with the city through this process. We know there may be wrinkles along.",
+      "start": 2182550,
+      "end": 2201110
+    },
+    {
+      "speaker": "H",
+      "text": "The way, but because we can work.",
+      "start": 2201110,
+      "end": 2203670
+    },
+    {
+      "speaker": "B",
+      "text": "Together, we will move forward.",
+      "start": 2203670,
+      "end": 2205750
+    },
+    {
+      "speaker": "H",
+      "text": "And I look forward to these same agreements coming to our board on November 19th for approval.",
+      "start": 2206630,
+      "end": 2211700
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Thank you, Supervisor. Any other comments? Not seeing any. I'll close the public comment and bring it back for our own comments prior to a motion. Vice Mayor, would you like to make some comments?",
+      "start": 2211940,
+      "end": 2227940
+    },
+    {
+      "speaker": "F",
+      "text": "Yes. Thank you, Mayor Kate. As Assistant City Manager Stefanski shared, there were many stakeholders involved here. The partnership with the county has been essential for the encampment resolution fund to come to life, not the least of which involved state Senator McGuire, who sponsored this and made certain that this. This happened. It is difficult to imagine how we could resolve the encampment without these. This type of funding. The amounts are significant. They are making a major impact to our community. Folks may or may not know, but I. I walk there every weekend, both Saturday and Sunday. These last two weekends I've been walk the southern part of Mahone Creek and it's completely empty. That is not to say that we are done. We are just at the beginning. The residents in the sanction encampment are thriving. To my eye, I was grateful to have the opportunity to have that tour. And yet again, we are at the beginning. This is an interim site for people to be staged, to be in best position for housing. Opportunities and services are being availed every day. So what I can say is that this council member is entirely grateful to every stakeholder that stepped forward to be bold to lean in and entrust the nonprofits, our city staff, the county and again the state for, for this opportunity. Thank you.",
+      "start": 2228100,
+      "end": 2318850
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, Council member Bushy. Any additional comments?",
+      "start": 2319330,
+      "end": 2321780
+    },
+    {
+      "speaker": "C",
+      "text": "Just a few. To bring the historic nature of this to the forefront. There have been many years when we needed this and now we have it. And my goodness, look what it's doing. Working together, we're able to bring funding and services to our community that we couldn't apart. The sum is greater. The sum some is greater than the parts. That's what I want to say. Yes. And this is an incredible illustration of that for our community and for the people in our community most in need. So thank you to Supervisor Sackett and to all of the supervisors and to all their staff that have and to our staff who have come forward to put together this amazing package of services that will bring so many benefits to our community, to our residential community, to our schools and to the future of San Rafael and Marin County. So thank you to everyone involved. I am delighted to support the matter before us.",
+      "start": 2323050,
+      "end": 2392140
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, Council member Micah.",
+      "start": 2392460,
+      "end": 2394220
+    },
+    {
+      "speaker": "E",
+      "text": "Yes, I want to echo the sentiment. Really appreciate everybody that has been who has been involved with the agreement. It's been really tough, not only for people that they are in house, but also for the neighbors, for the businesses. I think this type of collaboration is going to, to bring the best that can be done to, for the path to housing. You know, I keep from my reminding myself that this is a temporary solution, hoping that it will be really effective and we won't have to be looking at this, you know, in the next year or so, 18 months. So. But, but I'm very grateful, very grateful because we, when we had something similar, it was underneath the freeway. We knew that it was very successful. So I'm really hoping that everybody can have access to services to, with a path to housing and they can remain, you know, housed and hopefully support everybody in the community. So this is going to Affect everybody, really.",
+      "start": 2394860,
+      "end": 2455710
+    },
+    {
+      "speaker": "B",
+      "text": "So thank you. Thank you. And Council Member Kurtz.",
+      "start": 2455710,
+      "end": 2459150
+    },
+    {
+      "speaker": "D",
+      "text": "Also would like to echo. Thanks to everyone. Long time in coming to get us here. And, and you know, when I shared what we were doing with other cities across the state, they were very surprised. And I think the reason is because it is such a huge amount of.",
+      "start": 2460990,
+      "end": 2481940
+    },
+    {
+      "speaker": "B",
+      "text": "Work to get here.",
+      "start": 2481940,
+      "end": 2483020
+    },
+    {
+      "speaker": "D",
+      "text": "And I think this is going to be a model for a number of other cities and counties across, across the state as well as other places, because a lot of places are just not doing this type of work because of the amount of honestly, it's bureaucracy of the amount that has to be done to actually do what we know is the right thing to do to get this done. And so I really appreciate everyone because we know the community wanted this. We all wanted this earlier, faster and as much. And when I talked to them and said how quickly we delivered this, I keep using the term city years. It's like dog years. I mean, the fact that this was done so quickly is just unheard of. And unfortunately it doesn't seem like it was quick, but for government work, this was quick. So thank you to everyone who is part of this. This is again, a new chapter. It's not the end of the end of the book. It's a new chapter of the work that we're going to continue doing. And having this as our starting point right now really sets out a good pathway for to move forward. So I really appreciate City Assistant City Manager Sepowski and with Mel and everyone on the ground who's working in the encampment right now, it's really great. And you could see, you know, our tour walking through, it's going, it's going to make a difference. It's not going to solve homelessness today, but it's going to make a difference in the work that we need to do to get people housed.",
+      "start": 2483740,
+      "end": 2577820
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, thank you. And thank you, Council Member Curts, for all the work you've done with all the neighboring jurisdictions through the MCCMC Homeless Committee. This is not an issue that can be solved by just San Rafael and just the county. It really is all the jurisdictions. So thank you for bringing all those folks to the table as well. And I just one thing that wasn't mentioned and it was high and it need it bears highlighting is that these funds were very competitive that we have been that were brought into our community through the county and through the city. And the reason that we were successful in obtaining them is because we have had success throughout rate through the previous sanctioned camping area. And we've shown that when you bring in the right programs and the right support, people are able to get case management and to do the next step. So even though the action before us tonight is really an administrative action regarding these funds, as you've heard from my colleagues, it really is representative of a new time. And again, very appreciative of Supervisor Sackett to be here. Supervisor Lukin is on the homeless subcommittee at the county. Before that it was Supervisor Rice who who've been working on the issue for a long time and the housing first kind of realignment years ago. And a special thank you to both our City Manager Ililovich as well as Derek Johnson, the new county administrator. It needs to come at all levels. So we're up here. We've been asking and pressing for a long time, the five of us, and we need the staff support in both organizations really collaborating. And that is really what we're seeing is brand new with these actions before us. So we're looking forward. As has already been said, this is the first step is a journey that we are all committed to. It is not okay to have people living on our streets and that is the world in which we live. So San Rafael is committed to continuing to work with folks to get them into housing. So you got an earful on that. But we think it was important that we did have the opportunity to talk about the significance of the funding in our community. And I will ask council member Kurtz if she'd like to make this motion.",
+      "start": 2578220,
+      "end": 2697600
+    },
+    {
+      "speaker": "D",
+      "text": "Great, thank you. You see, like to make a motion authorize the city manager to execute professional services agreements with the county of Marin related to the encampment resolution Fund Round 3 and the State of California State Senator McGuire funding and authorize the City Manager to execute and amend as needed the collaboration agreement between the county of Marin and the city of San Rafael for encampment resolution fund round three erf3 grant funds.",
+      "start": 2697600,
+      "end": 2728780
+    },
+    {
+      "speaker": "J",
+      "text": "It's under the fold.",
+      "start": 2729820,
+      "end": 2731020
+    },
+    {
+      "speaker": "C",
+      "text": "The.",
+      "start": 2733180,
+      "end": 2733580
+    },
+    {
+      "speaker": "D",
+      "text": "State of California Senator McGuire funds and the 5050 match for housing based case manager.",
+      "start": 2735580,
+      "end": 2741420
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Is there a second? Second moved and seconded. Roll call, please.",
+      "start": 2741820,
+      "end": 2746300
+    },
+    {
+      "speaker": "C",
+      "text": "Council Member Bushy, Vice Mayor Hill I Council Member Kurt I. Council Maria Den I. Mayor Kate I.",
+      "start": 2746300,
+      "end": 2753230
+    },
+    {
+      "speaker": "B",
+      "text": "That motion carries.5 0. Thank you. Assistant City Manager John Snansky. We have a public hearing next on our agenda. It is on the Marin Sanitary Service Rates and amendments for 2025.",
+      "start": 2753230,
+      "end": 2765310
+    },
+    {
+      "speaker": "I",
+      "text": "Welcome.",
+      "start": 2767310,
+      "end": 2775570
+    },
+    {
+      "speaker": "J",
+      "text": "Good evening, Mayor and council. Nice to see you all. This is our annual Marin Sanitary Service rate review. And we have a few other things on the docket for you. Tonight as well. Very excited to be sitting next to Lieutenant Todd Barringer here who's been one of our partners in our illegal dumping programs for the past five years since the inception of the Together San Rafael team. I also want to shout out to Walter Gonzalez, who's in the audience, who was very instrumental in this in the past three to four years as well in bringing this forward. And then let you know that Patty Garberino is here as well as the whole team from Marine Sanitary Service. Everybody said hello and they're here for questions if you have any as well.",
+      "start": 2787240,
+      "end": 2824930
+    },
+    {
+      "speaker": "F",
+      "text": "And then we have Garth Schultz from.",
+      "start": 2824930,
+      "end": 2826170
+    },
+    {
+      "speaker": "J",
+      "text": "R3 Consulting and Megan Burke, our outside legal counsel as well in case there are any questions that they can answer. And then I believe we have have two folks online, Nate Forrest and Jim Howison from R3 as well that did a lot of the financial analysis for this. So I have too many slides. I was told that by Walter and then John confirmed it. And I also talk too fast and we have translators. So you're going to help me keep it slow, right? Thank you. So we have four main things. The 2025 rate review, the illegal dumping program proposal, the franchise agreement amendments and then we'll open it up for questions and public hearing. So we'll dive right in. Every year we bring this forward. As you know, we work with all the other Marin Sanitary Service jurisdictions and that we have a rate setting methodology we adopted in 2018 that is simple based on a CPI for the most part and it's been super successful. As Councilmember Bushy likes to remind me that this has been really good at keeping rates steady and lower than normal as well. And it's reviewed by R3 Consulting independent third party that we hire to make sure that the rates are consistent and correct every year. A lot of what's baked into the rates is state legislation and diversion goals as well as baked into what Marine Sanitary Service does in addition to all the wonderful work that they do every day as it is. And so this year the rate base rate application came in lower than average and lower than cpi. And one of the big things that contributes to the rate increases are the the operations for Marin Sanitary Service. This year we had the benefit of some one time reductions. Zero Waste Marin applied for a large grant on behalf of all the jurisdictions in margin Marin and that is to do a lot of the work that their fees are for. So it's a one time reduction in fees from Zero Waste Marin each this year which helped reduce the rates. In addition, recycling markets are positive, have Been positive, more positive. And then customer base continues to grow coming out of the pandemic. And now we'll go into our together San Rafael illegal dumping proposal. So a little background, and I know some of you know this, but for the benefit of folks at home as well, a quarter of our CCLIC fix requests that come in are related to illegal dumping and trash. That's twice as much as any other request. Potholes, sidewalk repair, all those things. Anecdotally, we've heard from you that up to 20% of council contacts are related to illegal dumping and trash. We spend over $300,000 in city staff time, multiple departments, and typically we just react, we collect the materials. So the approach we took five years ago with our together centerfeld cross departmental team was to conduct pilots through a human centered design lens to really understand what is really happening. What do people experience? What are the causes? What are potential options that we could explore with an equity focus. And then we gave ourselves this huge, big, hairy, audacious goal. What would happen if we had to reduce illegal dumping 50%? What would we do differently? So you've heard this before. We have two types of dumpers. The illicit dumper is the one we all think about. Dump stuff, they load up a truck and dump it in a dark alley or at night or when people are not watching. But then we also started to understand that there's a more casual dumper, and that's the folks that might see a free sign on a couch or just lots of set outs near their homes. It's folks that typically don't have access to the same disposal options that a lot of other people do. It's typically a neighborhood norm. Typically in places where there's more multifamily housing and there are multiple types of folks in multifamily housing that contribute to the issue. And what we learned was that over 90% of our dumping is really related to this. So that made us kind of switch gears and think about it in a little different way and approach it in a little different way. So typical reasons for dumping. It's the norm. People don't know what to do. There's lack of access. It costs money, by the way. You got to transport it to the dump. And underlying it all is really just this issue of overcrowding. It contributes to a lot of our waste management issues as well when people need to sublet to a lot of people in order to be able to make the rent. So we'll go into the interventions and then we'll talk a little bit about what we learned and then we'll talk about the proposal. So key three key areas. And this is pretty standard as we did all of our research. But I just acknowledge that equitable access to baseline people need to have a good way of disposing things conveniently and cheaply. Active engagements like painting the Golden Gate Bridge. Once you get done, you got to get started again because I need to do multiple languages in multiple ways and meeting people where they are. And then Todd will talk about enforcement. But the importance of visible enforcement is super important. So people know that there are consequences in terms of access. We tried a number of different things. I just highlight two of them. Our bulky item drop off events at Pickleweed park have been super successful. They're centrally located, they're on a regular schedule. We learn this over time that if they're on a regular schedule, people start to know that they're happening. We fill up so much material on one Saturday that that whole hallway out there from the very end to the lobby could be filled with, from top to bottom with. With material. And that's what we collect on these Saturdays. And we also tried an on site collection pilot owing to the fact that we know that transportation is such a major barrier year. And so we tried it out as a pilot, did it bi weekly on site, no cost. We needed property manager participation. And we did see reductions nearby in one of the critical areas that we tried it at. Some of the key findings, again, transportation, huge barrier. So on site collection works best, but people need it at different times. We assume that everybody moves out at the end of the month, but not everybody does. Does it only worked our pilot in places where there was space to store things and there were very few that had that space. The on call function met the needs the most. But some prefer different situations where they might have a dumpster rented for a weekend or preferred to have coupons to be able to take it when it worked best for them. And we also found that even with that, the bulky item drop off events are warranted in the canal neighborhood neighborhood. And then our active engagement. We did all kinds of engagement and bilingually. And again, credit Walter for a lot of assistance with this. Doing presentations, focus groups, surveys, meeting people where they are developing these mailing materials and magnets with QR codes so people could see how they could get disposed of things for free. And then these hotspot campaigns which were fantastic because we would sort of everybody would coalesce around one area. We had volunteers that did the cleanups. We had police that would come out and do drive bys regularly. We put up signage, we got businesses I am talking fast again to install cameras and signage and then we could actually get data too and show that when you apply all these things you see a dramatic reduction in it's a place where we could actually get some decent data. Some of the key findings again, again we lack staff capacity to be able to do this so we were doing it as time allowed and with fellows. There's no standardized cross departmental coordination right now. It requires ongoing consistent engagement because people move a lot. We're getting new tenants all the time. Engagement needs enforcement as well to nudge towards compliance even when it is more set out oriented and then it is very challenging to good good data and I'll toss it over to Todd for enforcement.",
+      "start": 2826170,
+      "end": 3313890
+    },
+    {
+      "speaker": "A",
+      "text": "Thank you Corey Enforcement is a key component of curbing illegal dumping. Five years ago we made a concerted effort to educate officers on the applicable laws, how to put together a thorough illegal dumping investigation and made it easier for the public to report illegal dumping. We also implemented short term rotating surveillance cameras at areas that consistently saw illegal dumping. This was typically done in conjunction with the Hotspot campaign as Corey mentioned earlier, where we focused and engaged with the surrounding community that was impacted by illegal dumping. In addition, DPW would issue pre citations or warnings to property owners or business owners who violated the San Rafael Municipal Code by allowing discarded waste to impede the right of way fronting their property. Along the same vein, Minimum service level analysis was conducted by R3 Consulting Group. They found that there were some multifamily properties that had multiple instances of having overflowing trash and dumpsters each year. They found there was often more dumping near these properties, showing a correlation, not necessarily a causation relationship. They also found that the current system of fines and requirements to increase service to meet the actual need was insufficient and needed some adjustments. Possible adjustments to the Municipal Code regulations regarding the minimum service level and reviewing the fine structures may be more effective to address overflowing dump dumpsters. One of the more effective tools in combating illegal dumping was empowering our community to be partners through our Crime Prevention through Environmental Design Mini Grants. We refer to them by the acronym of SEPTED. These $1,000 grants are awarded to City of San Rafael business license holders who make physical implement improvements to their locations such as lighting, fencing, signage, hardscape or surveillance cameras. The project is vetted by a review committee and is reimbursed to the property owner once the work is verif. These grants provide a financial incentive but also create a partnership with the city to address illegal dumping. Since 2019, the city has received 37 grant applications, approved 32 septed projects and awarded 18. I also received a call from Florida. They wanted to model the similar program Some of the Key Findings When It Comes to Enforcement One of the key findings from our enforcement efforts was it must be consistent and village visible based on the applicable laws. Officers were used to investigate penal code violations and code enforcement and or DPW was used to enforce municipal code violations, thus necessitating different enforcement entities. As a result, coordinated enforcement between Sustainability, Department of Public Works, the Police Department and code enforcement was necessary and effective. We also discovered that staff capacity was limited as personnel changes occurred, enforcement efforts would fluctuate. One of the most impactful remedies to curb illegal dumping was educating property and business owners on the importance of crime prevention through environmental design strategies. We found that when implemented and properly maintained, there were long term benefits. Additionally, we found that the pre citation notices worked for landlords to encourage them to clean up the right of ways fronting their properties under the threat of possible fines. Having options available to community members was important. Without disposal options, enforcement just pushed the problem to another location. The biggest takeaway from the pilot was that multiple coordinated interventions are needed for success. One intervention alone is insufficient to address illegal doping.",
+      "start": 3314850,
+      "end": 3527590
+    },
+    {
+      "speaker": "J",
+      "text": "Okay, so that's a synopsis of what we've tried, what we've done over the past five years and so we get to our final program recommendations and I know that this is all in your packets so you can read it. So I'll just go over it briefly. The two main ones at the top are the ones that are the largest areas for funding and will have the most success. The Bulky Item Collection at Multifamily Properties offers that access, that baseline of access to easy, convenient and inexpensive disposal of bulky items. So that's the baseline and then having a waste management coordinator can help ensure that all the other activities happen and that consistent engagement and being deputized to be a code enforcement officer as well to be able to enforce when necessary on property managers and all the other things are included in the budget as well as in the packet. Most importantly, I think this ability to continue to apply human centered design and continue to evolve the program over the time to be looking at our codes, to be looking at our hotspot campaign campaigns and seeing what works and continuing to make it better over time. So I'll focus just on those two main things. The Bulky waste service options. Again with a lot of work and big kudos to marin sanitary and R3 for helping us research this and understand this better and come up with these options. Marin Sanitary was certain that it was important to not just provide one option, that different apartment complexes are different and managers, some managers really do address this proactive effectively. Some prefer to have dumpster delivery and this is typically the larger properties that have the space and in that way, which is actually a more inexpensive option to administer. They once or twice a month can be able to collect the materials and be picked up and that takes care of it for them. But the vast majority will be choosing most likely on call pickup, smaller and medium sized apartment complexes and tenants and then the coupons for self haul. We've had a couple of apartment managers that prefer to just have an area said when my truck gets full, I take it and it works for me because it's the flow of the material and that's, that's better. So we're proposing that it be offered in that way and that it be phased in over three years. And this is because first what we found in our research is that the uptake is not going to happen right away. It's going to take some time to get the word out and get people to use this, especially when the norm is the easiest way to do it. So some enforcement may be involved there as well. The second reason is because just in case it does, we don't want to overwhelm rent sanitary service. It's much better to start off slow, get some experience under your belt, make some adjustments to administration if necessary, and also not overfund the program up front. But to be able when we're in sanitary feels like it's necessary. Now we need to get another driver and another truck. That's the time for the funding to be available. The dedicated staffing would do two things and it wouldn't all be just for illegal dumping, but it'd be to coordinate all aspects of our waste management, including all of our compliance with SB 1383, which is a slog. It's a lot of information, It's a lot of reporting. We have to track every single paper product that we purchase and we have to keep receipts on it and we have to report on it regularly. It's a big deal. So the proposal is that we have a waste management coordinator, not an illegal dumping coordinator that take care of that. And this is consistent with other jurisdictions of our size and makeup, especially due to SB 1383. And so the cost, what we're proposing is that this be applied to the rates like the single family collection is and like other programs are, which would incur a two point supposed to be 32%. I think I reversed the numbers there, excuse me, to year one on the rates with an adjustment for the ramp up of the multifamily collection over years two and three. And we don't really know what that's going to be just because it depends on what the rate is, what the percentage is due to the rate, but between a half and three quarter percent most likely in the next two years. And that would require an amendment to the franchise agreement to include the program in the description of services and the staff position and all the materials and collateral and all that is in the budget, in the the attachment for the franchise agreement amendment and just a smattering of community engagement. And that QR code takes you to a just released case study on San Rafael by the Mattress Recycling Council that was focused on our multifamily pilot. And I'll just mention too again lots of departments contributed to this as well, including digital services and code enforcement and public works and, and all that. And so quickly on the amendments and then we can open up for public comment. So two other amendments. One is to prohibit customer owned carts and this is primarily due to SB 1383. Fairfax and Senate Sumo have already done this. We wanted to wait until we had to open up the amendment for other things. And all the other jurisdictions are considering this amendment right now as well. You know they have the automated trucks and that doesn't work so well with customer owned carts. It smashes them sometimes. It causes drivers to get out and manually deal with them. But also they're not compliant with SB 1383. They need to be the right color and have the right signage on them as well. So the idea would be that we'd start messaging as early as January 1st and the cards would be disallowed as of March 1st. And then the other amendment has to do with our franchise fee study. That fee study, as you may remember, came to you last year. It was conducted in 2023 because franchise fees that was fined through California Supreme Court may be subject to Prop 26. And we needed to demonstrate reasonable charges for all the costs incurred by the city, including city cost operations, staffing, the use of city right of way and property and vehicle impacts. So instead of tying a franchise fee to a percentage of revenue, it's now going to be tied to a very specific amount in that franchise fee study and it would increase by CPI year over year year, at which point every five years or so we would want to do a new study and set the baseline. So that is this end of the presentation and summary of the amendments. We'll open up for questions. Thank you.",
+      "start": 3531190,
+      "end": 3921230
+    },
+    {
+      "speaker": "B",
+      "text": "Yeah, thank you, Corey. Thank you. Lieutenant Behringer, open up for questions. Vice MAYOR yes, thank you.",
+      "start": 3921230,
+      "end": 3927910
+    },
+    {
+      "speaker": "F",
+      "text": "Mayor KATE thank you, Corey. I have comments, but I also have questions. I'll start with the questions first. So does staff anticipate that the waste management coordinator role will be full time permanent or full time fixed?",
+      "start": 3927910,
+      "end": 3943190
+    },
+    {
+      "speaker": "J",
+      "text": "Full time permanent.",
+      "start": 3943670,
+      "end": 3944790
+    },
+    {
+      "speaker": "F",
+      "text": "Can you share a little bit more about, about why we anticipate that to be a permanent? It's a big deal, I think, to add full time role. I love that we can do that. But what is your thinking?",
+      "start": 3945190,
+      "end": 3954710
+    },
+    {
+      "speaker": "J",
+      "text": "Yeah, well, fixed term means that we think that the problem is going to completely go away and that SB 1383 would be repealed or the like. You know, we're anticipating a lot more waste management laws. SB 54 was passed. There are other waste management laws being proposed. So San Rafael is going to be on the hook to comply with a lot of those laws. And we need to have an interface with Zero Waste Marin. We also need a coordinator that focuses on working with Marin Sanitary and tying together all those departments. So we don't really see that going away. Even if we see 50% reduction in illegal dumping, we still have a lot of waste management work to be done. Great.",
+      "start": 3954790,
+      "end": 3991410
+    },
+    {
+      "speaker": "F",
+      "text": "Thank you. And then we do this pretty often. And I think we might take for granted that a community member or ratepayer may not understand the significance of what a franchise agreement is, the why, the how and the when. Can you talk a little bit about what a franchise agreement is and why it's appropriate here?",
+      "start": 3991410,
+      "end": 4009290
+    },
+    {
+      "speaker": "J",
+      "text": "Oh, sure. So we've had the franchise agreement since at least 2001, and we had agreements prior to of that. The franchise agreement acknowledges that a private entity is doing work that may be a city function. And so we require then that they help us with our health and safety laws. There's certain requirements and regulations that we impose upon them as part of the agreement. And in return for that, we then acknowledge that they need to have a rate structure and rate setting that funds the service and other agreements like that. So it's just a, it's a, it's a way for the city and the third party hauler to ensure that all of our health and safety requirements, such as need to have service and to compost and comply with SB 1383 and all that are captured in an agreement.",
+      "start": 4009530,
+      "end": 4059080
+    },
+    {
+      "speaker": "B",
+      "text": "Great.",
+      "start": 4059560,
+      "end": 4059960
+    },
+    {
+      "speaker": "F",
+      "text": "I have one more question, which is what as we, you Mentioned the implementation of bulky item pickup for multi family units. What is the mechanism for engagement? Is it contemplated to be a web interface, a phone, a form? How do, how do people engage? Is it, is it through the city or with Marin Sanitary?",
+      "start": 4060360,
+      "end": 4082380
+    },
+    {
+      "speaker": "J",
+      "text": "It's with Marin Sanitary service and our outreach waste management coordinator would be doing a lot of that outreach directly. Again, it's that whole carrot and stick approach. You know, it's going to apartment managers making sure that the know that service is available and that there are fines available if they don't take advantage of it and don't make make good use of it. So. But Mern Sanitary will be handling, as I understand it, through all their customer service, which they had believe that they can handle in year one with their current customer service staff and all that as well. And we'll set up a method of requesting it. We're starting with apartment managers in the first year and that's the majority of the outreach and then moving on to tenants after that. That based on what we see the uptake is. So within the first half year or so we'll start to see what the uptake is and see if we need to do more robust outreach or not. And then the idea would be that in year one that system will be tested and tried and other opportunities brought about.",
+      "start": 4082380,
+      "end": 4139749
+    },
+    {
+      "speaker": "F",
+      "text": "Thank you.",
+      "start": 4141430,
+      "end": 4142070
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Council member Kurtz.",
+      "start": 4142470,
+      "end": 4144550
+    },
+    {
+      "speaker": "D",
+      "text": "A couple more questions around the phasing. You sort of just mentioned the apartment managers. Are you seeing that to do that to open that up across San Rafael or another filtering around size of the property or volunteer? How can you talk a little bit?",
+      "start": 4146790,
+      "end": 4164290
+    },
+    {
+      "speaker": "J",
+      "text": "That's a really good question. Yeah, the idea would be it'd be across San Rafael so it wouldn't be by geographic area in any way. The idea was to start with apartment managers and then from there if the uptake is not meeting our expectations or our desires, it's not really getting up there like we'd like to see. Then we start to look at it based on hotspots and based on the size.",
+      "start": 4164290,
+      "end": 4184249
+    },
+    {
+      "speaker": "B",
+      "text": "Okay, great.",
+      "start": 4184649,
+      "end": 4185409
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you. And then a question that we had talked about a little bit earlier today was in the bigger scope of things around fees, do you see over time that fees might be aligned more to residents behavior?",
+      "start": 4185409,
+      "end": 4198649
+    },
+    {
+      "speaker": "J",
+      "text": "Yeah, yeah, it's a challenging one. Several years ago we did a whole rate study, rate structure study, trying to determine if there was a behavioral economics approach to this to get people to, to divert more. And it was really challenging. We didn't come up with anything that felt we felt confident was really going to move the needle Just because there were a lot of other considerations. And sometimes when you try behavioral economics, you find that people spend as much time getting around that as opposed to actually diverting. So for instance, filling up a recycling can with garbage because the recycling can is not actually paying for an extra garbage can. Right. So. So we didn't really come up with a great solution or interventions at that point. Now, that was 10 years ago. I think it may be worth looking at again at some point from a broader behavioral standpoint as opposed to just behavioral economics.",
+      "start": 4199049,
+      "end": 4257280
+    },
+    {
+      "speaker": "C",
+      "text": "So be interesting to see.",
+      "start": 4257280,
+      "end": 4258720
+    },
+    {
+      "speaker": "B",
+      "text": "That's it. Thank you. Thank you, Council Member Bushy.",
+      "start": 4258720,
+      "end": 4261720
+    },
+    {
+      "speaker": "C",
+      "text": "I have a question for each of you. Cory's is looking forward and Lt. Behringer is looking back. So we'll go to Cory first. You talked in your presentation about the audacious goal of reducing dumping by 50%. What did do you think you've made that goal? And looking forward, what is your goal and how are you going to measure it? So what's going to be the metric to know if this.",
+      "start": 4262920,
+      "end": 4287690
+    },
+    {
+      "speaker": "J",
+      "text": "That's so great. Thank you. Yeah, we have not been able to track metrics like we wanted to. It's really challenging. Public Works is collecting the material. Material. And we gave them. We developed a survey 1, 2, 3 app. And especially on places like Lincoln Avenue, where it's really dangerous and there's a lot of traffic and they need to get out, get in and out quickly. It was just too hard to track regularly, consistently. So it was very hard for us to tell. So that's why the hotspot campaigns were so valuable. We could see dramatic reductions in those hotspot campaigns, but we didn't have the ability to apply that citywide. And so, so the best data we have is at the weigh station at Rent Sanitary service, but that doesn't give us location data. And so part of this proposal is actually to try out a new AI, what's the word based app that actually can tell what items are that are being dumped and learns over time so that you cure the data. And after a few months of curing the data, it can pretty much recognize 90 to 90, 95%. And so it's as simple as taking a picture. It's geolocated. And so we want to try that out. And that's part of what we're proposing here. And a waste management coordinator then would be that centralized place to actually track the data and be able to prove the concept about whether or not this is actually working or not. So we were not able to show 50% reduction because we just frankly don't even have the data. We can show that or better at the hotspots, but we can't show that over. So I, I would suggest we probably set a new goal. We've got three years now, and let's set a goal for three years and see what we can reduce.",
+      "start": 4287770,
+      "end": 4390800
+    },
+    {
+      "speaker": "C",
+      "text": "Well, as usual, you've brought a great deal of analysis and creative ideas to this. I was thinking you just count the C click fix on tickets, but that yours sounds much more sophisticated and probably would give us a better day data. Okay, on to Lieutenant Ben. The question for you. You talked about the installing the cameras and how effective that is, and presumably the cameras are to give you evidence. So I'm, I'm wondering, have you, have you had any prosecutions for illegal dumping?",
+      "start": 4391200,
+      "end": 4425410
+    },
+    {
+      "speaker": "J",
+      "text": "Yes.",
+      "start": 4426290,
+      "end": 4426770
+    },
+    {
+      "speaker": "A",
+      "text": "Oftentimes, though, the cameras themselves are acting as more of a deterrent. Sometimes we have to make them really open, overt. And on Starkworth or Path, that's probably our best example. So we would see discarded debris and we put it just overt right up in the, in the tree where everybody would see it. And the next thing you know, we saw a significant decrease in it. And so then we realized, like, if we could prevent it and not have to go through all the efforts, then that was equally as valuable for us than the prosecution. But yes, we have seen prosecutions with regards to illegal dumping. Oftentimes it's better when we have a witness. We find that either it's happening at night, the license plates are blurry, or there's other impediments to the investigation. When we have an eyewitness. There was a photo that was captured here in the, in the PowerPoint that was actually a witness's photograph of the illicit dumping. And so then we could go after the individual who was a, a hauler, a waste hauler, and those ones the district attorney is really interested in because someone is financially beneficial benefiting from these type of cases. The other ones where it's the homeowner or the someone who's doesn't have the means to do it, a lot of times it's an education piece and we're trying to change behaviors then. So really the, the focus of the effort is really towards the illicit haulers and some of those other people who are benefiting from it. But yes, we have had prosecutions.",
+      "start": 4427730,
+      "end": 4512000
+    },
+    {
+      "speaker": "C",
+      "text": "Very good. Thank you.",
+      "start": 4512320,
+      "end": 4513280
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Council Member Guadi.",
+      "start": 4514320,
+      "end": 4516400
+    },
+    {
+      "speaker": "E",
+      "text": "Yes. I cannot tell you how excited I am for this, because since I started as a council member member, this has been like really the top issues, you know, So I guess my question is I, I have talked to so many community members that they are like, they want to help. So for the Waste Management coordinator, would it be possible to work with the community into maybe like a grassroots. Because I love, I love the idea of prevention and education and maybe that helps. So I wonder if that could be included.",
+      "start": 4516400,
+      "end": 4549160
+    },
+    {
+      "speaker": "B",
+      "text": "That's part of the scope.",
+      "start": 4549310,
+      "end": 4550350
+    },
+    {
+      "speaker": "J",
+      "text": "Absolutely, a major part of the scope. Working with volunteers is a big piece of it. In those hotspot campaigns that are really volunteer based, we always go to where we have folks that are willing to come out and volunteer. That picture I showed was on Jordan street, and our San Rafael Clean volunteers came out and helped with that. And so absolutely, I think that's essential.",
+      "start": 4551950,
+      "end": 4570110
+    },
+    {
+      "speaker": "B",
+      "text": "That's great.",
+      "start": 4570350,
+      "end": 4570990
+    },
+    {
+      "speaker": "E",
+      "text": "And the other one that we've seen like a big increase after Covid because of the illegal vaccine vendors and all the garbage that they generate. And I. So I guess my question is, in a timeline we approved today, you're going to have to go through the process of hiring somebody. What can we do? And I don't know if this is in coordination with the county to educate the illegal vendors. And also for the garbage, a lot of it right now is they leave it next to the garbage cans. You already know all this, but. Or like in the bus stops where people cannot even be waiting there. So in the timeline, I know the priority will be to start working with the landlords, but what can we do in the meantime?",
+      "start": 4571550,
+      "end": 4617930
+    },
+    {
+      "speaker": "J",
+      "text": "So. Right. What I understand, and I haven't looked at this in a while, this was when Anna Santiago was here at Code Enforcement and we were discussing food vendors. And food vendors typically are supposed to have a canteen and they're supposed to bring their refuse back to their canteen. But I think that's, it's an interesting area of exploration to see whether they do or not. And if not, then can we impose a requirement to have some sort of refuse service? And so I think that's an exploration that we would need to do. And I think a Waste Management coordinator could help with that exploration. I think the challenge here though is Waste Management coordinator really needs to work and focus in on things that are directly related to benefit to ratepayers. And so, you know, it wouldn't be that we'd be able to assign them this job to work with vendors necessarily. On the other hand, I think they'd be a perfect support for thinking through what types of interventions would be good.",
+      "start": 4618730,
+      "end": 4677690
+    },
+    {
+      "speaker": "H",
+      "text": "And I'll just briefly chime in that I know that code enforcement is working on that assistant City Manager Angela Robinson Pinion is working also in collaboration, collaborating with County Environmental Health and trying to figure out how do we have a holistic program that addresses compliance and support and outreach and education.",
+      "start": 4677930,
+      "end": 4694800
+    },
+    {
+      "speaker": "C",
+      "text": "So there is an important nexus there.",
+      "start": 4694880,
+      "end": 4696480
+    },
+    {
+      "speaker": "H",
+      "text": "With illegal dumping compliance that I think that will be a good partnership there going forward.",
+      "start": 4696480,
+      "end": 4701760
+    },
+    {
+      "speaker": "C",
+      "text": "That's great. Great.",
+      "start": 4701840,
+      "end": 4702960
+    },
+    {
+      "speaker": "E",
+      "text": "Thank you so much.",
+      "start": 4702960,
+      "end": 4703760
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. And I just have two questions. One is around other jurisdictions and what the best practices are. And I don't mean just in Marin. I mean across maybe the Bay Area, because we cannot be the only community that has this issue. So I'd love just the highlights on what we've learned from others. And then the second. And you talked quite a bit about the interaction with landlords and managers. I'm curious what type of engagement you've talked about the necessity, which we all understand you have to keep it ongoing. But I'm just curious what that looks like. What does that engagement actually look like? And then the number of apartment managers. I. I'm just. I don't have a sense of the quantity. Are we talking 10? 100? A thousand? 10,000? So if you could give us a sense of that.",
+      "start": 4704640,
+      "end": 4745450
+    },
+    {
+      "speaker": "J",
+      "text": "So I'm sorry, the first question was.",
+      "start": 4749290,
+      "end": 4752410
+    },
+    {
+      "speaker": "B",
+      "text": "Around best practices from other jurisdictions.",
+      "start": 4752410,
+      "end": 4754650
+    },
+    {
+      "speaker": "J",
+      "text": "So what we found is that a lot of jurisdictions are struggling with this as well, and that it's very different in different places. So we were at the illegal dumping conference, actually, Todd went to the first one, like, four years ago. And rural folks are dealing with a completely different animal than suburban versus urban. So Oakland is. The conference is in Oakland every year. And what they're dealing with is off the charts compared to us and may have very different interventions. So that's why that human centered design approach was so helpful. That said, we have learned. That's how we learned about this app for tracking. And so, you know, going to those conferences is helpful. We also presented in February, I think, to the Illegal Dumping Task Force, the statewide illegal Dumping Task Force. So. And then we did interviews with Richmond City, Rich Richmond and Long beach and a whole bunch of others, San Francisco, Hayward. Some of the things we learned were that some of the, like, signage placement and the types of signage you use, like, where do people find out information? We were thinking, well, you can mail it. You can get it through the apartment managers. And we learned that, you know, actually it's better to have signs in laundry rooms, that more tenants see it than, you know, that there are a lot of subletters, and so they. They don't get the mail. So those are Some of the things that we learned through best practices for others, some of the other things we learned were that there are a lack of best practices, that a lot of jurisdictions had bulky waste pickup but they had no tie into illegal dumping and whether there was any reduction or not and that a lot of the tenants didn't even know about it. And so there really need to be better practices put in place for engagement. And so your question about engaging with apartment managers is we're fortunate enough here that a lot of apartments are 16 and above and that's the only ones that are required to have an apartment manager. And so that's. I, I can't give you the number, forgive me, I don't have that on the top of my head. But it's probably in the hundreds, low hundreds and, and those are folks that we can reach out directly to. And that's why to come to remember Kurtz's question, You know, going to the larger ones after, you know, it really makes a lot of, of sense but it's, it's a lot. It's going to be one on one with the apartment managers to start. I think, you know, you start with the mailers, the emails, but then you end up going and doing one on ones. We have had a lot of folks reach out to us too when we've done mailers to apartment managers. So.",
+      "start": 4754650,
+      "end": 4900040
+    },
+    {
+      "speaker": "B",
+      "text": "And have you seen in any of the other jurisdictions. Thank you for that. It's really helpful for that additional context. Have you seen apartments or landlords being fined mind for not engaging or for not. You know there's this, the carrot right of hey, we're going to bring these services so we can do the right thing. Is there a stick part of it with the apartment managers and landlords are.",
+      "start": 4900440,
+      "end": 4922720
+    },
+    {
+      "speaker": "J",
+      "text": "Building specifically what we have found is even here in San Rafael, Public works and code enforcement some years back would just issue precites to apartment managers when it was very common. Clear that a lot of material was just pushed out into the street from their property. And the pre site 95% of the time was enough to get them to clean it up.",
+      "start": 4922720,
+      "end": 4948190
+    },
+    {
+      "speaker": "B",
+      "text": "Okay.",
+      "start": 4948190,
+      "end": 4948710
+    },
+    {
+      "speaker": "J",
+      "text": "And so the citations were never even issued.",
+      "start": 4948870,
+      "end": 4951670
+    },
+    {
+      "speaker": "B",
+      "text": "And that's a tool we're still going to employ as part of the whole packet.",
+      "start": 4952470,
+      "end": 4955630
+    },
+    {
+      "speaker": "J",
+      "text": "Exactly. And that's part of what why we would like this waste management coordinator to be deputized as a code enforcement officer as well because we just don't have the staff to do it and follow up. It ends up of being low on the totem pole.",
+      "start": 4955630,
+      "end": 4966360
+    },
+    {
+      "speaker": "B",
+      "text": "Oh, thank you. Thank you. There Might be. Yes, Councilman Kurt. Yeah, go ahead.",
+      "start": 4966680,
+      "end": 4972120
+    },
+    {
+      "speaker": "D",
+      "text": "Based on that conversation. And this might actually go to community development. I'm not sure in our for altogether San Rafael, across all the departments has community development been started to be engaged with all the new development properties that we're seeing now which are going to be multi dwelling you units to actually build in something. Because you had talked about having the actual space was a real key factor. And I was wondering if that's something we've actually now adopted as well.",
+      "start": 4972440,
+      "end": 5002610
+    },
+    {
+      "speaker": "J",
+      "text": "That's a good question. And no, we have not had that discussion in quite a while. That's something that Marin Sanitary used to bring up all the time. And they had a procedure as I recall that when any new development would happen they would actually talk with Marin Sanitary Service about making sure the space was adequate. Especially because space requirements were only for garbage. Then they had to add a recycling cart and then a green cart and you know, and so the requirement the space needs became even greater. But yeah. Thank you, Michael.",
+      "start": 5002690,
+      "end": 5030900
+    },
+    {
+      "speaker": "B",
+      "text": "Sorry for the director.",
+      "start": 5030900,
+      "end": 5031620
+    },
+    {
+      "speaker": "J",
+      "text": "Let me walk up and just clarify for some of these comments. We do actually route for our major development projects actually go to sanitary service and they do actually provide comments like do for the department. So they provide review and comments in a adjustments to actually meet some of the requirements. So that is occurring now and has actually has been for some time.",
+      "start": 5033060,
+      "end": 5050500
+    },
+    {
+      "speaker": "A",
+      "text": "So.",
+      "start": 5050500,
+      "end": 5050780
+    },
+    {
+      "speaker": "D",
+      "text": "Right, great. So with the. With the feedback that you've now seen needing the additional space then maybe that starts getting incorporated back into the developments.",
+      "start": 5050780,
+      "end": 5061140
+    },
+    {
+      "speaker": "J",
+      "text": "That's correct.",
+      "start": 5061540,
+      "end": 5062180
+    },
+    {
+      "speaker": "G",
+      "text": "And that's really as the laws change and the requirements actually get enhanced for those spaces. And it's actually a challenge and something we do recognize.",
+      "start": 5062180,
+      "end": 5068980
+    },
+    {
+      "speaker": "J",
+      "text": "When I was working through Marine Sanitary Service, particularly for urban development.",
+      "start": 5069060,
+      "end": 5072850
+    },
+    {
+      "speaker": "A",
+      "text": "Right. Because this.",
+      "start": 5072930,
+      "end": 5073970
+    },
+    {
+      "speaker": "J",
+      "text": "The space requirements sometimes just don't have it.",
+      "start": 5073970,
+      "end": 5076450
+    },
+    {
+      "speaker": "G",
+      "text": "So what is the response to that?",
+      "start": 5076450,
+      "end": 5077890
+    },
+    {
+      "speaker": "J",
+      "text": "What's the solution to it?",
+      "start": 5077890,
+      "end": 5078850
+    },
+    {
+      "speaker": "D",
+      "text": "So great, appreciate that. Thank you.",
+      "start": 5078850,
+      "end": 5080610
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Vice Mayor. Yes.",
+      "start": 5081810,
+      "end": 5083970
+    },
+    {
+      "speaker": "A",
+      "text": "Yes.",
+      "start": 5083970,
+      "end": 5084370
+    },
+    {
+      "speaker": "F",
+      "text": "I had one more question that occurred to me. The waste management coordinator. I have a couple questions about this role because I don't know that there's a school that says I went there for waste coordination management. But I'm curious what is a background background that we would. You would say here's a resume for someone who do that and then what is the time frame for the hire?",
+      "start": 5084610,
+      "end": 5104850
+    },
+    {
+      "speaker": "J",
+      "text": "Yeah, the time frame for the hire is a good question. You know, we wanted to see if it was approved first and then we can set the timeline for the hire. But sooner than later. Of course we're heading into the holidays. But There are a lot of waste management coordinator job descriptions out there. There are a lot of waste management coordinators, so we pulled from a lot of them and when we did budget, we pulled from, you know, looking across the Bay Area at other waste management coordinators and their, their compensation, I didn't see a lot that had this specific illegal dumping piece in it as called out in the role as, as I'd hoped. But there are a lot of waste management coordinators for, for municipal operations. So.",
+      "start": 5106450,
+      "end": 5144840
+    },
+    {
+      "speaker": "C",
+      "text": "Awesome.",
+      "start": 5144920,
+      "end": 5145400
+    },
+    {
+      "speaker": "F",
+      "text": "Thank you.",
+      "start": 5145400,
+      "end": 5145880
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Not seeing any additional questions. There might be some that come from the public, so I will open open up public comment on this item. If you have anything you'd like to ask or share with the council, now is your opportunity and as always, you're invited but not required to say your name and what part of San Rafael you live in.",
+      "start": 5147240,
+      "end": 5166680
+    },
+    {
+      "speaker": "J",
+      "text": "Hi.",
+      "start": 5169720,
+      "end": 5170200
+    },
+    {
+      "speaker": "I",
+      "text": "Shinji Sakai Egi. Wow, it's very tall here, you know. So I live in a condo complex. We have a 56 units, 100 people. And I wonder why aren't we utilizing this? Right? I mean you hear about it, you know, people's houses, they do this bulk pickup, but for some reason, you know, it's not available to us. And I think for us, my community, I think it has to do with, has to do with a level of pride. And you know, I say this before too. It's, it's like, well, if people are going to put their stuff out in a certain area, then what does that look like? And you know, if we, if it isn't a pickup day and people still put that stuff out there, you know, does it lead to that? So I think part of the communication with these property managers or maybe even like the hoas is, is to get around this kind of what it, what it could potentially look like, like, and maybe focusing on, you know, the benefits more and things like that. The other thing is, I do wonder if this approach is sustainable because, you know, just people out there, you know, might think year to year, let's get new furniture and stuff like that. So does this create more garbage and would it be better to maybe have a campaign on, on reusing things and obviously respecting your neighbor too? Right. It's like we could do all these laws and do all this stuff kind of thing, but it's really about like, do we respect each other and sometimes we don't, right? So maybe having a campaign like that, you know, neighbors knowing each other, you know, these are all things that I think prevent bad behavior.",
+      "start": 5170600,
+      "end": 5282060
+    },
+    {
+      "speaker": "C",
+      "text": "Thank you.",
+      "start": 5282220,
+      "end": 5282860
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you for your question. Comments, anyone Else. Welcome.",
+      "start": 5283500,
+      "end": 5287920
+    },
+    {
+      "speaker": "C",
+      "text": "There you go.",
+      "start": 5298400,
+      "end": 5299080
+    },
+    {
+      "speaker": "B",
+      "text": "Yep. Yes.",
+      "start": 5299080,
+      "end": 5300000
+    },
+    {
+      "speaker": "G",
+      "text": "Good evening. My name is Elizabeth Rodriguez and I support Boces de Canal. I've lived a long time in the neighborhood where, where I live and near where we park our vehicle is a fence where there was a lot of gathering of. Of rats who would oftentimes get in. Into. Into the front of my. Into the front of my vehicle, which caused a lot of problems, caused a lot of expenses on our behalf for damages to. To our property. As you know, rodents can cause sickness. There were also many times when there were raccoons in the area. And so I just wanted to know if perhaps, perhaps in this program there was someone that you guys could assign in our neighborhood to oversee that things like this don't happen. I'm sure that with the. The proposal that you guys are, are making, you guys will do make the best decision to keep our neighborhoods clean and safe, which is a source of pride for us. So I know you guys and I can trust you will make the right decision. Thank you so much for your time. Have a good night.",
+      "start": 5389510,
+      "end": 5476330
+    },
+    {
+      "speaker": "H",
+      "text": "Welcome.",
+      "start": 5482010,
+      "end": 5482570
+    },
+    {
+      "speaker": "C",
+      "text": "Hi everyone. Buenas noches. I'm happy here to see familiar, familiar faces.",
+      "start": 5484170,
+      "end": 5490010
+    },
+    {
+      "speaker": "H",
+      "text": "And here I'm here. My name is Rosa Vasquez and I am.",
+      "start": 5490330,
+      "end": 5494410
+    },
+    {
+      "speaker": "C",
+      "text": "Canal.",
+      "start": 5502330,
+      "end": 5502810
+    },
+    {
+      "speaker": "B",
+      "text": "Meor.",
+      "start": 5560070,
+      "end": 5560550
+    },
+    {
+      "speaker": "E",
+      "text": "Gracias.",
+      "start": 5560550,
+      "end": 5561270
+    },
+    {
+      "speaker": "B",
+      "text": "Gracias, Rosa.",
+      "start": 5562710,
+      "end": 5563990
+    },
+    {
+      "speaker": "G",
+      "text": "Good evening. My name is Rosa Vasquez and I.",
+      "start": 5566070,
+      "end": 5569230
+    },
+    {
+      "speaker": "A",
+      "text": "Also.",
+      "start": 5569230,
+      "end": 5569510
+    },
+    {
+      "speaker": "G",
+      "text": "Support the voices for AR de Canal. I ask that again, as someone who lives in the Canal area, if you could please help keep our neighborhood clean. Because as you know, know, having a lot of garbage in the area attracts things like, like rodents, rats, cockroaches, flies, and those things can be bad for our health. And not only that, but just makes our neighborhood not look as good as. As it can. So please, I'm here to support.",
+      "start": 5571830,
+      "end": 5614060
+    },
+    {
+      "speaker": "A",
+      "text": "Support.",
+      "start": 5614280,
+      "end": 5614520
+    },
+    {
+      "speaker": "G",
+      "text": "This proposal as well to help keep. Keep our neighborhoods clean. And I ask you that you please approve this. This to help get our. Our neighborhoods and keep our. Our neighborhoods clean.",
+      "start": 5616440,
+      "end": 5630840
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Welcome. Anyone.",
+      "start": 5633480,
+      "end": 5636200
+    },
+    {
+      "speaker": "E",
+      "text": "Buenas noches, mi nombres.",
+      "start": 5641890,
+      "end": 5643690
+    },
+    {
+      "speaker": "H",
+      "text": "Gloria Barriosoi voluntaria de voce de Canal.",
+      "start": 5643690,
+      "end": 5646850
+    },
+    {
+      "speaker": "B",
+      "text": "Gracias. Gracias. Thank you.",
+      "start": 5745090,
+      "end": 5748130
+    },
+    {
+      "speaker": "G",
+      "text": "Good evening. My name is Gloria Barrios and I also am a supporter of Vos del Canal and I'm here to talk about the problem that we're having with garbage in our neighborhood. I've lived in 129 Canal for many years and we've had problems with. With our streets being filled with trash beds, couches, especially by. By people who don't even live in our neighborhood, but come to specific areas to drop off or dump their. Dump their garbage. Again, as others have spoken about this, these, this type of garbage brings. Brings in ropes, rodents like rats, raccoons, skunks, cockroaches and other. And other things which not only make our community, our neighborhood look bad, but can also bring in, you know, a lot of. A lot of sickness and be detrimental to our health as well as empty beer cans and bottles of liquor by people who, who drink on the. On the street street. We've tried to inform our community on how to do. Do better, but we ask that now you support this, this proposal to help clean up our streets and help us avoid sickness and, and bring in pride to our neighborhood.",
+      "start": 5751090,
+      "end": 5849230
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Anyone else else like?",
+      "start": 5852830,
+      "end": 5855230
+    },
+    {
+      "speaker": "C",
+      "text": "Yeah.",
+      "start": 5855230,
+      "end": 5855710
+    },
+    {
+      "speaker": "B",
+      "text": "Welcome Podero.",
+      "start": 5859390,
+      "end": 5995230
+    },
+    {
+      "speaker": "G",
+      "text": "Gracias.",
+      "start": 5996030,
+      "end": 5996750
+    },
+    {
+      "speaker": "B",
+      "text": "Gracias. Thank you.",
+      "start": 5996830,
+      "end": 5998910
+    },
+    {
+      "speaker": "G",
+      "text": "Good evening. My name is Virginia Savino and I've been living in this area for 40 years and I've been very proud to live here. I've been very proud to see more people come to Georgia join in our neighborhood. But as with all things, the more people you have, the more needs there will exist. And unfortunately, not everybody cooperates to help keep our neighborhoods clean. With more people in the neighborhood, there's going to be more business. More businesses. And we've seen a growth especially in. In businesses with. With. With Latinos. And unfortunately, not everybody cooperates to keep our, our neighborhoods and our communities clean, which I invite everybody to put in their part for our kids and our grandchildren. Back in Mexico, we have an old school saying that we should put our trash in its rightful place. We have to keep in mind that if, if we don't do this, we are hurting not just the environment and our, in our community, but ourselves as well. Because with this type of garbage, as my contemporaries have already spoken before, brings more sicknesses. We've seen an increase in in sickness sicknesses like cancer and diabetes, not just with older people, but now with, with younger people as well. And so for our own sake and sake of.",
+      "start": 6002270,
+      "end": 6114400
+    },
+    {
+      "speaker": "A",
+      "text": "Of.",
+      "start": 6114400,
+      "end": 6114760
+    },
+    {
+      "speaker": "G",
+      "text": "Of our neighborhoods, I invite everyone to put in their part and part of that is supporting this. This program program to help clean up our. Our communities and our neighborhoods and keep them clean.",
+      "start": 6114760,
+      "end": 6128480
+    },
+    {
+      "speaker": "J",
+      "text": "Thank you for your time.",
+      "start": 6128800,
+      "end": 6129920
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Anyone else like to provide public comment? Yeah. Welcome.",
+      "start": 6133520,
+      "end": 6139040
+    },
+    {
+      "speaker": "C",
+      "text": "Hi. Can you guys hear me? Okay. My name is Rhea. I grew up in the canal and I'd just like to thank Corey for his proposal.",
+      "start": 6140400,
+      "end": 6148080
+    },
+    {
+      "speaker": "B",
+      "text": "I also just had a question about the. The waste management coordinator.",
+      "start": 6149690,
+      "end": 6154170
+    },
+    {
+      "speaker": "E",
+      "text": "Is it going to have a focus.",
+      "start": 6154650,
+      "end": 6156490
+    },
+    {
+      "speaker": "C",
+      "text": "Are they going to have a focus in the canal and are they going to be bilingual?",
+      "start": 6156570,
+      "end": 6160650
+    },
+    {
+      "speaker": "B",
+      "text": "So go ahead and ask your question and then at the end of comments and we'll answer all of them. So.",
+      "start": 6161930,
+      "end": 6166570
+    },
+    {
+      "speaker": "A",
+      "text": "Yeah.",
+      "start": 6166890,
+      "end": 6167290
+    },
+    {
+      "speaker": "C",
+      "text": "Okay. I'm also going to say in Spanish, is that okay?",
+      "start": 6167290,
+      "end": 6169130
+    },
+    {
+      "speaker": "H",
+      "text": "Perfect.",
+      "start": 6169130,
+      "end": 6169530
+    },
+    {
+      "speaker": "C",
+      "text": "Canal.",
+      "start": 6175830,
+      "end": 6176310
+    },
+    {
+      "speaker": "E",
+      "text": "Poblado and San Rafael.",
+      "start": 6189750,
+      "end": 6191070
+    },
+    {
+      "speaker": "B",
+      "text": "It's the most densely populated neighborhood or.",
+      "start": 6191070,
+      "end": 6194230
+    },
+    {
+      "speaker": "C",
+      "text": "Area in San Rafael. So that's why I'm curious. Okay.",
+      "start": 6194230,
+      "end": 6197990
+    },
+    {
+      "speaker": "B",
+      "text": "Yeah.",
+      "start": 6197990,
+      "end": 6198510
+    },
+    {
+      "speaker": "C",
+      "text": "Thank you.",
+      "start": 6198510,
+      "end": 6199110
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, Rhea. Madam City Clerk Ray did a great job of doing Spanish and English, but do we want to have our interpreter also speak or not? Just didn't know from a public records.",
+      "start": 6199350,
+      "end": 6212840
+    },
+    {
+      "speaker": "C",
+      "text": "Standpoint if she wanted to interpret her own comments. Andrew, were they reflective of her comments?",
+      "start": 6212840,
+      "end": 6219360
+    },
+    {
+      "speaker": "G",
+      "text": "Yes, they were.",
+      "start": 6221600,
+      "end": 6222400
+    },
+    {
+      "speaker": "B",
+      "text": "Just wanted to make sure. Thank you. We're doing both sides. Anyone else? Okay. Not seen anyone? We'll close the public comment and thank you all for coming down and offering your comments. And we'll look forward to staff speaking on the rodent control basically there. So we would like to hear more about what's being done there. There was also talking about excess garbage. We've talked a lot about illegal dumping and you showed photos of mattresses and bulky items. Items. But there's also a conversation around excess garbage. So probably household garbage bottles were mentioned. But what is being done about that? And then my own question, and maybe this is part of the answer, is how is environmental health at the county? We don't have environmental health here, but when you're talking about the health implications of actual household garbage, that's an environmental health. So always, you know, we need lots of agencies. So I would appreciate hearing from staff.",
+      "start": 6222640,
+      "end": 6280870
+    },
+    {
+      "speaker": "J",
+      "text": "Okay.",
+      "start": 6282470,
+      "end": 6282910
+    },
+    {
+      "speaker": "A",
+      "text": "Yeah.",
+      "start": 6282910,
+      "end": 6283150
+    },
+    {
+      "speaker": "J",
+      "text": "Thank you. So our focus of our project was not specifically on rodents and on environmental health. It was more on dumping. We did that analysis, I should say R3 did that analysis with marine sanitary service specific to overages and which buildings had overages. And there were a dozen or so buildings that had regular overages. And those need to be address. And that's part of what the Waste Management coordinator would be able to focus on. Because at this point, Red Sanitary doesn't have a partner to address that. And part of what that will entail is some process improvements of making sure that our ordinance is enacted and that increases in service become mandated for folks that are continually not having enough refuse service for their residents. We always love to partner. And so partnering with environmental health makes a lot of sense. We partner with Zero Waste Marin right now, and they specifically work with environmental health around SB 1383. And so SB 1383 offers some challenges and some opportunities when it comes to rodents. The issue is usually food or things that attract rodents. Right. And so right now, those are all all in. In a lot of places in big open dumpsters. Right. And so that's very attractive to rats. There's concern about using green carts specifically in doing composting because of rodents as well. Roaches in houses, other pests inside, you know, units. But also the potential for it outside the opportunity there is that if it gets out of the dumpsters and into enclosed green carts, maybe you have a better chance of reducing all that. To say is there's a lot to be unpacked there. And I could see our waste management coordinator working with environmental health and certainly working with Zero Waste Marin in partnership around SB 1383. But we didn't really study that. So I don't have a lot to offer.",
+      "start": 6283150,
+      "end": 6402620
+    },
+    {
+      "speaker": "B",
+      "text": "Corey, just on the bilingual, too, whether the coordinator will be bilingual. Sorry, that was the other question.",
+      "start": 6403100,
+      "end": 6408540
+    },
+    {
+      "speaker": "J",
+      "text": "Sure. And I do invite comments by anybody that has some more information on environmental health. Health. And we do. We would like to preference somebody that speaks Spanish. And yeah, the Canal neighborhood is, I think, the second densest neighborhood in the whole Bay Area. So it makes a lot of sense to focus a lot of time. And that's where the majority of public works spends their time in cleaning up bulky items.",
+      "start": 6408620,
+      "end": 6430780
+    },
+    {
+      "speaker": "C",
+      "text": "Just.",
+      "start": 6431420,
+      "end": 6431780
+    },
+    {
+      "speaker": "H",
+      "text": "Director Hinkle can speak to the question about rat control specifically.",
+      "start": 6431780,
+      "end": 6436620
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. No, I think it's important. Even though it's tangential to the actual item on our agenda, it's what the community is concerned. Concerned about.",
+      "start": 6437340,
+      "end": 6443880
+    },
+    {
+      "speaker": "C",
+      "text": "So.",
+      "start": 6443880,
+      "end": 6444280
+    },
+    {
+      "speaker": "J",
+      "text": "So yes, Director Hinkle, Community Economic Development for.",
+      "start": 6446360,
+      "end": 6451760
+    },
+    {
+      "speaker": "G",
+      "text": "For those complaints, we.",
+      "start": 6451760,
+      "end": 6452880
+    },
+    {
+      "speaker": "J",
+      "text": "We also have Marine Sonoma Mosquito and Vector Control District that actually provides those services, too. So in essence, if there are concerns on residents who actually can control the services already paid for through property taxes.",
+      "start": 6452880,
+      "end": 6464040
+    },
+    {
+      "speaker": "G",
+      "text": "And they actually will come out, inspect.",
+      "start": 6464120,
+      "end": 6465760
+    },
+    {
+      "speaker": "J",
+      "text": "Your property, look for source issues, source controls.",
+      "start": 6465760,
+      "end": 6469440
+    },
+    {
+      "speaker": "G",
+      "text": "And Corey's right, actually, in terms of.",
+      "start": 6469440,
+      "end": 6471080
+    },
+    {
+      "speaker": "J",
+      "text": "Like the bins is one element, but.",
+      "start": 6471230,
+      "end": 6472990
+    },
+    {
+      "speaker": "G",
+      "text": "Also securing the house and open holes.",
+      "start": 6472990,
+      "end": 6474990
+    },
+    {
+      "speaker": "J",
+      "text": "And there is a support service that.",
+      "start": 6474990,
+      "end": 6476750
+    },
+    {
+      "speaker": "G",
+      "text": "Provides that, in addition to our code.",
+      "start": 6476750,
+      "end": 6478550
+    },
+    {
+      "speaker": "J",
+      "text": "Enforcement division also does when we do our housing inspection program, if there is.",
+      "start": 6478550,
+      "end": 6483270
+    },
+    {
+      "speaker": "G",
+      "text": "A complaint on that, we're also kind of working.",
+      "start": 6483270,
+      "end": 6485310
+    },
+    {
+      "speaker": "J",
+      "text": "They can look through those type of issues. But for that service, really, the Marine Sonoma Mosquito and Vector control would be the right appropriate group for that.",
+      "start": 6485310,
+      "end": 6493070
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you for reminding us that that service is available right now to our community.",
+      "start": 6494110,
+      "end": 6498020
+    },
+    {
+      "speaker": "H",
+      "text": "Community.",
+      "start": 6498090,
+      "end": 6498330
+    },
+    {
+      "speaker": "B",
+      "text": "Okay. Any. I'll bring it back to the council for any additional comments before making a motion. Vice Mayor.",
+      "start": 6500250,
+      "end": 6506970
+    },
+    {
+      "speaker": "F",
+      "text": "Thank you, Mayor Kate, and thank you, Cory and Lt. Baringer. For presenting tonight. And of course behind you are many departments Public Works I think are unsung on the operational side. I personally do a lot of C click fix. I do not pull rank. I am a community member when I submit these, these, these observations and they. They are picked up. So it is, it is behind the scenes heroic. So thank you Public Works and of course thank you Walter and for. For leaning into this. What is so exciting about this? This is the crescendo of many years of very smart, thoughtful, action oriented analysis and experimentation to arrive at truth. You talked about user centered design. There's nothing, nothing one size fits all about this matter. Why is illegal dumping so triggering to any community member? It's for all the reasons. It represents some sort of violation of our society. You're not supposed to take discarded things and place them elsewhere. And yet I think this is the right way forward. I support 100% the recommendations to create an equitable opportunity for folks to be able to take bulky items and have them disposed. I love that there are three ways that people can opt for that. Whether it's through a coupon, an on call or a time based dumpster.",
+      "start": 6508090,
+      "end": 6596290
+    },
+    {
+      "speaker": "I",
+      "text": "That's.",
+      "start": 6596290,
+      "end": 6596610
+    },
+    {
+      "speaker": "F",
+      "text": "That's fantastic. I also support the full time waste management coordinator role. I think that's great. You made a very persuasive case and we've made certain that that this role is. Is paid for going forward. And while it wasn't in the top two, I also concurred with Lt. Barringer's the. The crime prevention through Environmental Design. I was want to say the full initialism SEP TED mini grant. It's a fantastic program and I appreciated how you walked us through that Lt. Baringer that it's as much a deterrent as it is probably more so than something that we would prosecute on the other side. So I, I appreciate your testimony right around that. I appreciated every community member who came out and provided testimony about what is what matters to folks. And while bulky item was the matter tonight, your voice comes through clearly that we want to make certain that everybody can experience a safe and sightly environment. So I support whatever we need to do for that. I appreciated Director Hinkle's recommendation to make sure that there's engagement with Mosquito and Vector Control clear. That's a reactive moment but it's still something that's important to manage the issue. While we're on this topic, I would love to be able to have Marin Sanitary consider because AI was brought up on the dais tonight that there is a potential app that Folks could use to identify where does this item go? Because so many, many times I think that there's a lot of wish cycling that's going on out there and I'd love for someone to say where does this go? Does this go in a bin? Does this go into hazardous waste? I don't think it's a money making idea, but I do think it is something where you could train an AI to say where does this item go? But I do love the Ask Joe app which is part of the website, which is fantastic. And then this is not directly in the matter before us there. And it was raised by a community member, Shinji Sakai, around the idea of how do we change behavior about upstream and consumer behavior. There are so many ways that we consume in our society that ends up downstream and then we're paying to manage for it. This is not in the matter before us, but I do love the prompt to say what are our individual roles in terms of how we consume so that not so many things go into the downstream. So I will be supporting the, the amendment this evening as well as the the other matter. Thank you.",
+      "start": 6596610,
+      "end": 6754770
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, Council member Uren Sculadi.",
+      "start": 6754850,
+      "end": 6757170
+    },
+    {
+      "speaker": "E",
+      "text": "Yes, thank you. As I mentioned, I am so excited because first of all I want to thank you, um, Walter. And I think this is like what we do best. Listening to the community and really figuring it out what is needed not for us just come to come out and tell them what is needed. So I feel that this has a lot of potential. Illegal dumping is definitely an issue and there is nothing worse than going through your neighborhoods and see like a mattress in the streets or like bags of waste and rodents. I mean there's nothing worse to me. So I'm really excited and I fully support hiring a new person to help us with illegal dumping, but also engaging with the community. I know we have amazing leaders. Some of them are here tonight that they are willing to volunteer and really be out there wherever we can coordinate with them. So I think it's a great opportunity having somebody that is bilingual. I'm so happy you mentioned that because I think it's a no brainer. We need to have somebody that can speak English and Spanish. And so I'm, I'm fully supporting this and hoping that the time will go fast where we can implement it as fast as we can. I have used the see it, click it, fix it for the first time time. There was a mattress and brear for two weeks and I'm like, okay, so. And I would love for more people in our community, more people in the canal to really learn how to use it because I think it's really effective and I don't know what I did, but I think I signed up to receive updates. Like I'm getting a lot of emails now with all the updates in the city. But it's actually really good to go into the neighborhoods and see what's happening and who has put different requests. So I think it definitely works. And to the police. I really appreciate you being here, being part of this process and talking about prevention because we don't really want to penalize people. We really want to encourage people to do the right thing. I think my last thought is with the new law that is coming from the state, this is a no brainer. We really need more support in the city to be able to deal with all that. Thank you Marine Sanitary for being here, for being a great part partner. I know that you are very involved with the community as well, so really appreciate your partnership. So thank you.",
+      "start": 6759410,
+      "end": 6912220
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you Council member Kurtz.",
+      "start": 6912860,
+      "end": 6914780
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you. I echo all the comments that have been said and thank you to everyone who's worked on this. This is a definitely, it's a, you think it's an easy issue and it's a really complicated issue in terms of all the different hands that have to be involved in this type of solving the problem. And so I really appreciate everyone working on it and this is going to continue. I'm glad we are staying up on the fees so because it's never, it's one of those things that it's going to continue to cost to be able to resolve. And so I think this is really important. I think putting the resources to addressing the problem. And the third piece of this around being proactive. And you know, in 10 years I was looking at our census numbers from 2020. You know, we're at 44% of multifamily units and that was in 2020. By 2030, I imagine that's going to be much higher. I don't think we're going to have additional density. We may, but in the canal, but across San Rafael we will. And so I think the more that we're able to continue working on thinking about proactive ways of either within design or within the management of these, of these buildings so that we can be in front of this, we're going to be able to help issues that we're seeing right now in other areas in the community and try to get in front of that. So I really, this is super important. It's, it's Affects many people and, and I'm really happy we're moving out of the pilot phase. A five year pilot's a long term pilot. So I'm glad we're moving out of the pilot and being able to now expand this across San Rafael.",
+      "start": 6917020,
+      "end": 7017000
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, Council member Bushy.",
+      "start": 7017880,
+      "end": 7020440
+    },
+    {
+      "speaker": "C",
+      "text": "Thank you. I have two sort of sets of comments. My first set of comment is on the proposal in front of us. I think it's awesome. I think it's great. This is directed at legal dumping. It's all driven by on facts. And the proposals brought forward makes sense and I completely support them. In contrast, I hear the testimony from our residents coming forward with a public health problem that has been going on for a long time. And we apparently know that there are a dozen of these places that continually have excess garbage. In conjunction with our big program for illegal dumping. I think we need a targeted, immediate enforcement plan to address these problems. We can't have rats running around and eating up people's cars. And while vector control is great for wildlife control this situation, we know what the problem is. The inadequate trash refuse being removed. My recommendation is that in addition to all these other things, that we have a 90 day plan to address those 12 known locations. Marin Sanitary has been just an incredible partner in everything. I'm sure that they can assist in this. On the identification, your, your people are out there on the streets every day. You, you know where this is and can come up with a pragmatic, economic and efficient plan to address the rodent problem that our, our residents have, have told us about. So while all of this is good, the, the, the, the broader program's great, 100% gonna support it. I think we need a 90 day plan to just clean up these particular locations that we know about.",
+      "start": 7021160,
+      "end": 7150210
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. So I also want to start with thanks to Lt. Barringer and Walter at Bosas de Canal Corey. This is not one group of people or one sector or one agency that can address it. Marin Sanitary, you've always been a leader in the waste hall business and we focused on illegal dumping. But there's so many other things where you, you have led really the industry. And Patti, you've been recognized by, I think the highest. I can't remember the name of the award that you received, but it was being recognized by your peers in the waste industry for your visionary way of recycling, reducing all the great things that you have been doing. And so we're so lucky that you continue to be a partner with us. And I didn't want that to get lost. Zero waste Marin is an incredible partner as well. And obviously it's not one agency that can do any of this. We have and we will have more unfunded mandates that come down from the state. That's the reality of it. I, as you've heard from the dais, having a waste management coordinator is, will be a necessity for a community of our size to, to get at the issues that are before us and the ones that are going to come down. In addition to the illegal dumping that. I wanted to speak just for a second on the rates and you have one slide on it. But really the work that's been done in years past by the council in conjunction with MSS with R3 of really having a way to a legal, defensible, workable way to have the rates not go up and down, up and down and spike in the way that they did decades ago. And I wanted to make sure that was also recognized. When I look at these rates and you look at the amount of service and what you do for our community, especially in comparison to other jurisdictions, local or across the bay, and with their pain, I mean the incredible work we get and the value, I mean you bring real value. It's top notch service. And we are so grateful that, that we get that benefit here in our community. In terms of just building for a moment what Councilman Bushy said, I also appreciate the community members that came down and brought forward an issue that's adjacent to the bulky, the illegal dumping bulky a items. And what I would do is defer to staff. They have all heard it. I saw them all taking notes. That is something that again, it's not just a San Rafael issue. We have to have environmental health. There's a lot of players that were involved in that, whether it's 90 days or a few months. I think the direction you're hearing is a concern that because there's a health implication we would like to have at a future date what that might be, what that might be look like. So that would be something that if we could hear about that in the new year, that might be a good time when people have gotten through the holidays, we've settled a little bit. I'm sure the rest of the council would be interested in that and again appreciate the community coming forward. In addition to council meetings, we were always available outside the council meetings to hear the issues that are important to our community. So. And you make it easy when you come here and speak with us directly. So there are two items that are on, are on this agenda item are two different Recommended actions.",
+      "start": 7153090,
+      "end": 7348680
+    },
+    {
+      "speaker": "F",
+      "text": "I'm happy to make the motion.",
+      "start": 7349880,
+      "end": 7351160
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Go ahead.",
+      "start": 7351400,
+      "end": 7352280
+    },
+    {
+      "speaker": "F",
+      "text": "I move that we adopt a resolution authorizing the maximum rates collected by.",
+      "start": 7352600,
+      "end": 7357160
+    },
+    {
+      "speaker": "B",
+      "text": "Hold on. Hold on for a second.",
+      "start": 7357240,
+      "end": 7358320
+    },
+    {
+      "speaker": "F",
+      "text": "Oh, sorry.",
+      "start": 7358320,
+      "end": 7358760
+    },
+    {
+      "speaker": "A",
+      "text": "It's the other one.",
+      "start": 7358760,
+      "end": 7359359
+    },
+    {
+      "speaker": "I",
+      "text": "Okay.",
+      "start": 7359359,
+      "end": 7359720
+    },
+    {
+      "speaker": "F",
+      "text": "Adopt a resolution approving a fifth amendment to the amendment and restatement of the collection agreement of the city of San Rafael M Sanitary service.",
+      "start": 7359720,
+      "end": 7368040
+    },
+    {
+      "speaker": "B",
+      "text": "Second, moved and seconded. Roll call, please.",
+      "start": 7368200,
+      "end": 7370930
+    },
+    {
+      "speaker": "C",
+      "text": "Council member Bushy. Aye. Vice Mer Hill.",
+      "start": 7371010,
+      "end": 7373250
+    },
+    {
+      "speaker": "F",
+      "text": "Aye.",
+      "start": 7373250,
+      "end": 7373650
+    },
+    {
+      "speaker": "C",
+      "text": "Council member Kurtz. Aye. Council member Yudanz Gilotti.",
+      "start": 7373730,
+      "end": 7376610
+    },
+    {
+      "speaker": "B",
+      "text": "Aye.",
+      "start": 7376610,
+      "end": 7377050
+    },
+    {
+      "speaker": "C",
+      "text": "Mayor Kate I.",
+      "start": 7377050,
+      "end": 7378010
+    },
+    {
+      "speaker": "B",
+      "text": "That motion carries. 5, 0. Council member Bushy, because you were part of the subcommittee, would you do us the honor of the next motion?",
+      "start": 7378010,
+      "end": 7385210
+    },
+    {
+      "speaker": "C",
+      "text": "I move that we adopt a resolution authorizing the maximum rates collected by Marin Sanitary Service for refuse and recyclable material collection and disposal services to be effective January 1, 2020, and adopting a city cost of solid waste services fee, refuse vehicle impact fee and franchise fee for the use of city property in the provision of solid waste related services.",
+      "start": 7385210,
+      "end": 7407950
+    },
+    {
+      "speaker": "B",
+      "text": "And I'll second moved and seconded. Roll call, please.",
+      "start": 7408190,
+      "end": 7410990
+    },
+    {
+      "speaker": "C",
+      "text": "Council Member Bushy.",
+      "start": 7411150,
+      "end": 7412270
+    },
+    {
+      "speaker": "B",
+      "text": "Vice Mayor Hill I.",
+      "start": 7413950,
+      "end": 7415070
+    },
+    {
+      "speaker": "C",
+      "text": "Council Member Kurtz.",
+      "start": 7415470,
+      "end": 7416550
+    },
+    {
+      "speaker": "D",
+      "text": "Aye.",
+      "start": 7416550,
+      "end": 7416910
+    },
+    {
+      "speaker": "B",
+      "text": "Council Maria Enzoani.",
+      "start": 7416910,
+      "end": 7418390
+    },
+    {
+      "speaker": "H",
+      "text": "Aye.",
+      "start": 7418390,
+      "end": 7418710
+    },
+    {
+      "speaker": "C",
+      "text": "Mayor Kate.",
+      "start": 7418710,
+      "end": 7419350
+    },
+    {
+      "speaker": "B",
+      "text": "Aye. That motion carries.50. Thank you all for the work that you have done to this point and the work you'll continue to do. Thank you so much. Thank you, Lieutenant. Thank you. Corey.",
+      "start": 7419350,
+      "end": 7427980
+    },
+    {
+      "speaker": "C",
+      "text": "Is there still an opportunity to talk? I thought that was coming next and.",
+      "start": 7431180,
+      "end": 7436180
+    },
+    {
+      "speaker": "H",
+      "text": "I promise to make it very brief.",
+      "start": 7436180,
+      "end": 7438060
+    },
+    {
+      "speaker": "C",
+      "text": "I so apologize for being.",
+      "start": 7438940,
+      "end": 7440540
+    },
+    {
+      "speaker": "B",
+      "text": "Patty. We would be thrilled to have you say a few comments on this agenda item. I will reopen the agenda item.",
+      "start": 7442300,
+      "end": 7449020
+    },
+    {
+      "speaker": "H",
+      "text": "I am so excited.",
+      "start": 7449100,
+      "end": 7450540
+    },
+    {
+      "speaker": "B",
+      "text": "It's already been approved.",
+      "start": 7450540,
+      "end": 7451660
+    },
+    {
+      "speaker": "C",
+      "text": "But have we.",
+      "start": 7451660,
+      "end": 7451900
+    },
+    {
+      "speaker": "B",
+      "text": "We would appreciate your public comment.",
+      "start": 7452050,
+      "end": 7453930
+    },
+    {
+      "speaker": "C",
+      "text": "Thank you.",
+      "start": 7453930,
+      "end": 7454410
+    },
+    {
+      "speaker": "H",
+      "text": "In my 37 years, this has never happened where I missed the opportunity to speak before you. But probably the most important thing for me to do right now is to introduce my colleagues who are the face of the company, in addition to the drivers that we introduced you to or sh showed pictures of last time. And my colleagues here tonight are Peggy. In terms of outreach, Peggy, Maggie, Shannon, Rhea. Thank you, Shannon. Thank you, Rhea. And Jennifer. And these are those rock star outreach people that do such a fine, fine job, and I'm ever grateful. Also, we have Jason, our CFO is here, and Justin, our wonderful man in charge of just about everything. Joe is holding down the fort. He's at home and. And hopefully successfully watching the Warrior game. So with that, I also want to show you a picture of those other colleagues. There are 261 of us there, but last year, if you remember, we Talked about the drivers. These are the guys in charge of all the diversion and very, very, very much proud of all of them as well. We're proud to serve you. We are happy to be a part of. Of the program that you've got going of illegal dumping. I'm old enough evidently to have remembered the initial efforts with Sharon Andress. She probably retired out a long time ago. But a lot of the problem, and those 12 in particular are absentee landlords and they just don't get it and it's almost impossible to get a hold of them. I'm sure you will find that out. We've completely cooperated, obviously on everything. But getting their addresses and their names, that's golden. And we will do our very best to help you with that. But I can completely appreciate the problem that these women have and should not have and just it's a communication issue with those people that own those properties. I think the next thing that I would like to do before I sit down. Oh, okay. We do have a program. Thank you. Where does it go, Joe? All good. Our trade association also has has a Next Generation program that we started in 2008. Most of these family and independent hauling companies didn't have a formal way of training the next generation to take over. So I'd love to be able to get word out about this new program and the new position via that in terms of upstream as well. I was a board member of the California Product Stewardship Council. I'm now on the National Stewardship Council Action Council. It's all about generation. We've got to drive that down. We produce per capita at least six times. We're at 13.2 pounds per person per day as an industrialized country. The next is actually Italy at 2.6. Nothing to be proud of. Our number one and number two exports as a nation are our trash. Nothing to be proud of. So we continue to work on that, that advocacy. And I wanted you to know that I had the chance to go into the canal and try and find that band from Paraguay. And we have pictures of that as well. I was so taken aback once I got to Pickleweed to find them. Turns out they'd had a flat somewhere near LA and they showed up later in the day. If you want to know where all the hippies are in Marin, they're at a dance class at 9:30. Same time that they. They were going to perform every Saturday and I thought about joining them. Instead I went back to work and I got a hold of the email that invited me to see the young people from Paraguay whose music is.",
+      "start": 7454410,
+      "end": 7688450
+    },
+    {
+      "speaker": "F",
+      "text": "Made.",
+      "start": 7690370,
+      "end": 7690770
+    },
+    {
+      "speaker": "H",
+      "text": "Possible by the benefit. They live in a little village outside of Asucion. The landfill for Asucion is what gives their parents a revenue source. So all of those instruments are made from trash from that place. We invited them to come the next day and play for us. So everybody took a break at about 2 o' clock and they played. And I want to point out in particular, that's our group photo. But the bass players. Somehow his bass broke. He needed more wood. So we went right inside the dump and found him wood and fixed it is big. It's unbelievable. They're coming back next year and they will. We will house them for a week. And in the classroom, they'll also be able to do that community outreach and help the city with all of that. Now, let me make sure before I sit down. I don't want to walk out without having. Oh, okay. New on the front for us. And then I will sit down and I'm sorry. Our potential for hydrogen trucks. I had the opportunity to go with 11 of my colleagues in the industry to Germany for four days to study what they're doing about hydrogen. They're not doing electric garbage trucks in Germany or in northern Europe. They're looking at hydrogen. So we continue to explore that with our biomass, the wood that we process on site. Finally, our customer service. This rock team here, our customer service appreciation day. Last year we had 201 people.",
+      "start": 7690770,
+      "end": 7785170
+    },
+    {
+      "speaker": "C",
+      "text": "People.",
+      "start": 7785320,
+      "end": 7785560
+    },
+    {
+      "speaker": "H",
+      "text": "This year, how many did we have, Jen? 526 who all came down to take tours, get compost, do all the shredding that they needed to do. And it was just a wonderful day. Those. Those are your constituents just coming down to spend a day at the dump. It's just phenomenal. And with that, again, I'm sorry I didn't get up at the right time. My s. My sister Samuel at Dominican would be so ashamed of me. So I think I've hit all of those points and I thank you again. It's just our privilege to be able to serve you.",
+      "start": 7785960,
+      "end": 7823650
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, Patty. And of course, we're going to open the agenda item up to have your comments. And Justin, if you could come and clarify the award that Patti received that I couldn't remember the name of.",
+      "start": 7824130,
+      "end": 7833730
+    },
+    {
+      "speaker": "C",
+      "text": "John Musko.",
+      "start": 7835330,
+      "end": 7836230
+    },
+    {
+      "speaker": "A",
+      "text": "Yeah.",
+      "start": 7837100,
+      "end": 7837300
+    },
+    {
+      "speaker": "J",
+      "text": "The John Moscone award. It's our.",
+      "start": 7837300,
+      "end": 7840860
+    },
+    {
+      "speaker": "A",
+      "text": "Our industry.",
+      "start": 7841020,
+      "end": 7841580
+    },
+    {
+      "speaker": "J",
+      "text": "The Cal RRCC Resource Recovery Coalition of California's lifetime achievement award.",
+      "start": 7841820,
+      "end": 7849580
+    },
+    {
+      "speaker": "B",
+      "text": "Were you the first woman to receive it?",
+      "start": 7849820,
+      "end": 7851820
+    },
+    {
+      "speaker": "C",
+      "text": "I was. It's.",
+      "start": 7851900,
+      "end": 7852940
+    },
+    {
+      "speaker": "H",
+      "text": "I'm laughing because it's the man of The Year award. And they plan on still calling it the man of the Year. What I thought so. You know, you do it, you can. It was still an honor. Yes. Thank you.",
+      "start": 7853260,
+      "end": 7865710
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Thank you so much. We will close the agenda item. As always, very appreciative to Marin Sanitary Service. Thank you. We have one more public hearing and that's on the Biomarin development agreement. Welcome Director Hinkle.",
+      "start": 7866430,
+      "end": 7886590
+    },
+    {
+      "speaker": "J",
+      "text": "Good evening Mayor Kate and council members. Director Hinkle, Community and Economic Development.",
+      "start": 7900840,
+      "end": 7905240
+    },
+    {
+      "speaker": "G",
+      "text": "So as staffs try to balance out presentations after following Corey's presentation of multiple slides. Slides. We have zero slides tonight, so.",
+      "start": 7906920,
+      "end": 7915730
+    },
+    {
+      "speaker": "J",
+      "text": "But I will have the distinct pleasure of introducing our consulting planner, Charity Wagner, who will actually give a verbal presentation for tonight's item. So thank you.",
+      "start": 7916130,
+      "end": 7925730
+    },
+    {
+      "speaker": "B",
+      "text": "Welcome. And we're thrilled with a verbal presentation. Thank you.",
+      "start": 7925970,
+      "end": 7928770
+    },
+    {
+      "speaker": "C",
+      "text": "And it's actually quite short and sweet too, I believe. So thank you again, Micah. I'm Charity Wagner, consulting planner with community Development. Good evening, honorable mayor and council members. This public hearing item is a report on the development agreement with Bimarin Pharmaceuticals and city of San Rafael. It was adopted in March 2020 and part of that ordinance requires that Biomarin themselves submits an annual report timely. It's the first quarter of the year, which they did. It's attached to staff report in March of this year. And then the city staff takes a look at that and compares it to the development agreement terms and conditions and make sure that that everything's in alignment and that they're meeting all of the appropriate obligations in terms of the agreement. The staff report goes into a little bit more detail on those. There are about 10 terms that are applicable at this time. Most of them are completed. The things like donation to Whistle Stop and all of their fee payments for traffic signalization and shuttle service. They've made the appropriate four payments to total, you know, 500,000 for traffic light, 400,000 for shuttle service service. They have an agreement with the city to allow for temporary parking. They have the agreement with Vivalon free leaseback. The items that aren't yet complete shouldn't be complete because they're triggered by construction of the proposed building. So that's then incomplete is not a bad thing. Just not quite ready for that yet. So you will get reports on those items in the coming years. It's a 10 year term. Da. So in year five, maybe hopefully we'll have more information on the status of things like. Like the retail space that's part of the building and the public plaza. So in the coming years you'll get Updates on those as well. So this is. There's a mention of a resolution asking to adopt a resolution approving this. That's. That's not the case. All we're asking for you is to accept the report confirming that the document that the fourth annual report is in turn consistent with the requirements of the DA at this time. And that would be following public. Any public comment that you might have. We're also happy to answer any questions you may have. But ultimately we're looking for your acceptance of the report confirming that the property owner, Bayern Pharmaceutical, is in compliance and good faith with the terms and conditions of the development agreement. Thank you.",
+      "start": 7929330,
+      "end": 8066840
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, Charity. Any questions? Okay. Not seeing any questions. Open up the public comment. Anyone like to comment on this item? Not seen any public comment. I will close it and bring it back. And in a way it's pro forma, but it's not because I think it's important. Biomarin is a very large business in the heart of our downtown. And so this is part of the agreement is making sure that we are continu. To make sure that they are following through as had promised. So just want to make that clear. I don't know if there are additional comment or I would entertain a motion on this item.",
+      "start": 8066840,
+      "end": 8103920
+    },
+    {
+      "speaker": "F",
+      "text": "Can make a motion.",
+      "start": 8106080,
+      "end": 8107040
+    },
+    {
+      "speaker": "B",
+      "text": "Do you want.",
+      "start": 8109040,
+      "end": 8109680
+    },
+    {
+      "speaker": "F",
+      "text": "I move that we accept the 4th anniversary annual report for the executed development agreement ordinance number 1982 between BioMarin Pharmaceutical and the city of San Rafael for the development of an expanded San Rafael Corporate Center. 750, 790 Lindaro street and 781. 12791 Lincoln Avenue and 999 Third Street. Case number DA18 001. Oh, sorry. I'm seeing what I just did. That's it.",
+      "start": 8111120,
+      "end": 8141960
+    },
+    {
+      "speaker": "B",
+      "text": "You're great. Is there a second? Moved and seconded. Roll call, please.",
+      "start": 8141960,
+      "end": 8145599
+    },
+    {
+      "speaker": "C",
+      "text": "Council member Bushy. Aye. Vice Mayor Hill I. Council member Kurtz.",
+      "start": 8145680,
+      "end": 8149160
+    },
+    {
+      "speaker": "B",
+      "text": "Aye.",
+      "start": 8149160,
+      "end": 8149480
+    },
+    {
+      "speaker": "C",
+      "text": "Council Maria and Scalati.",
+      "start": 8149480,
+      "end": 8150840
+    },
+    {
+      "speaker": "H",
+      "text": "Aye.",
+      "start": 8150840,
+      "end": 8151240
+    },
+    {
+      "speaker": "C",
+      "text": "Mayor Kate I.",
+      "start": 8151240,
+      "end": 8152160
+    },
+    {
+      "speaker": "B",
+      "text": "That motion carries.50. The last item of our agenda tonight is open time for public expression. This is any comments from the public on an item not on tonight' agenda. Welcome. Hi.",
+      "start": 8152160,
+      "end": 8167820
+    },
+    {
+      "speaker": "I",
+      "text": "Okay, we all want to go home here, but so Board of Supervisors tomorrow at 1:30. It sounds like we're going to be talking about the Richmond San Rafael Bridge and you know, the pedestrian bike access. You know, I just encourage people to go out there. I mean, I. I look at. I think about these other bridges around here and there seems to be be more access in terms of pedestrians and bicyclists and it boggles my mind. That we're going the opposite direction here. You know, access. You know, we all live in the Bay Area here, and we all hit bridges kind of thing. It's. It would be unfortunate if we had barriers around us that limited where we could go, where we could work. I think it's important people show up, voice your opinion. Like here.",
+      "start": 8167820,
+      "end": 8214210
+    },
+    {
+      "speaker": "B",
+      "text": "Okay, thank you. And before we adjourn, I know our city attorney, Rob Epstein, had a comment he would like to make clarification.",
+      "start": 8214280,
+      "end": 8221320
+    },
+    {
+      "speaker": "F",
+      "text": "I'm thinking of my late father who.",
+      "start": 8222120,
+      "end": 8223840
+    },
+    {
+      "speaker": "J",
+      "text": "Used to say, I may not always be right, but I'm never wrong.",
+      "start": 8223840,
+      "end": 8228120
+    },
+    {
+      "speaker": "F",
+      "text": "And I aired earlier this evening when.",
+      "start": 8228920,
+      "end": 8231760
+    },
+    {
+      "speaker": "A",
+      "text": "I said that there was no reportable.",
+      "start": 8231760,
+      "end": 8233320
+    },
+    {
+      "speaker": "F",
+      "text": "Action taken in the closed session.",
+      "start": 8233320,
+      "end": 8235560
+    },
+    {
+      "speaker": "A",
+      "text": "There was reportable action taken in the closed session. The city council unan unanimously authorized the.",
+      "start": 8235560,
+      "end": 8242000
+    },
+    {
+      "speaker": "J",
+      "text": "Initiation of a civil action for breach of contract and indemnity against Kimley Horn in connection with engineering services that it.",
+      "start": 8242000,
+      "end": 8253530
+    },
+    {
+      "speaker": "A",
+      "text": "Provided to the city several years ago.",
+      "start": 8253530,
+      "end": 8255730
+    },
+    {
+      "speaker": "J",
+      "text": "Thank you.",
+      "start": 8255970,
+      "end": 8256610
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you for that clarification. Not seen any other further comment. This meeting is adjourned.",
+      "start": 8257330,
+      "end": 8263090
+    },
+    {
+      "speaker": "A",
+      "text": "Sam.",
+      "start": 8269100,
+      "end": 8294400
+    }
+  ],
+  "audio_duration_minutes": 138.53,
+  "language": "en",
+  "processed_at": "2025-11-15T21:33:08.131005",
+  "processing_service": "assemblyai",
+  "assemblyai_id": "9fb741c3-ab60-466c-92d2-f0a4a5a92c3f",
+  "cost_usd": 2.77,
+  "processing_time_seconds": 113.75
+}

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ICS Generation Test</title>
+</head>
+<body>
+    <h1>Test ICS File Generation</h1>
+    <button onclick="testICS()">Generate Test ICS</button>
+    <div id="output"></div>
+    
+    <script>
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+        
+        function testICS() {
+            const event = {
+                title: "Test Meeting; with special chars: & < >",
+                start: "2025-09-07T01:56:03.608258+00:00",
+                location: "City Hall, Room 201 & Conference Center",
+                description: "Line 1\nLine 2\nSpecial chars: & < > ; :"
+            };
+            
+            // Parse the ISO date string
+            const startDate = new Date(event.start);
+            const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
+            
+            // Format dates for ICS (YYYYMMDDTHHMMSSZ)
+            const formatICSDate = (date) => {
+                return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+            };
+            
+            // Escape special characters for ICS
+            const escapeICS = (str) => {
+                if (!str) return '';
+                return str
+                    .replace(/\\/g, '\\\\')
+                    .replace(/;/g, '\\;')
+                    .replace(/,/g, '\\,')
+                    .replace(/\n/g, '\\n');
+            };
+            
+            // Build ICS content
+            const icsContent = [
+                'BEGIN:VCALENDAR',
+                'VERSION:2.0',
+                'PRODID:-//Civic Conversational OS//EN',
+                'CALSCALE:GREGORIAN',
+                'METHOD:PUBLISH',
+                'BEGIN:VEVENT',
+                `UID:${generateUUID()}@civic-os`,
+                `DTSTART:${formatICSDate(startDate)}`,
+                `DTEND:${formatICSDate(endDate)}`,
+                `SUMMARY:${escapeICS(event.title)}`,
+                `DESCRIPTION:${escapeICS(event.description)}`,
+                `LOCATION:${escapeICS(event.location)}`,
+                'STATUS:CONFIRMED',
+                'END:VEVENT',
+                'END:VCALENDAR'
+            ].join('\r\n');
+            
+            // Display the content
+            document.getElementById('output').innerHTML = '<pre>' + icsContent.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
+            
+            // Test download
+            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'test-meeting.ics';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            
+            console.log('ICS file generated and downloaded');
+        }
+    </script>
+</body>
+</html>

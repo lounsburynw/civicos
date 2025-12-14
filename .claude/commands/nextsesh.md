@@ -1,0 +1,1 @@
+Re-write `docs/core/next_session_prompt.md` to describe the next implementation steps such that it can be copy and pasted into the next Claude Code session.

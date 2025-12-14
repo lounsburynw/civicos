@@ -1,0 +1,22 @@
+🔍 SAN RAFAEL RETROSPECTIVE ANALYSIS
+======================================================================
+Loaded 114 meetings from data/pilot/san_rafael_meetings_enhanced.json
+Date range: 2024-11-01 to 2025-11-30
+
+Filtering to 1 meeting types: city_council
+Analyzing 33 meetings
+
+
+📋 CITY COUNCIL
+   33 meetings to analyze
+
+   [1/33] City Council Special Meeting – November 12, 2025
+       Date: 2025-11-12
+   📄 Split into 15 agenda items
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+E0000 00:00:1763067254.065949 32421034 alts_credentials.cc:93] ALTS creds ignored. Not running on GCP and untrusted ALTS is not enabled.
+       ⚠️  No high-stakes decisions found
+
+   [2/33] City Council – November 3, 2025
+       Date: 2025-11-03
+   📄 Split into 119 agenda items

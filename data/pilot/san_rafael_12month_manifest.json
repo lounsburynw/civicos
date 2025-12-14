@@ -1,0 +1,80 @@
+{
+  "description": "San Rafael City Council meetings from Oct 2023 - Oct 2024 for 12-month testimony retrospective",
+  "jurisdiction_id": "san-rafael",
+  "period": {
+    "start": "2023-10-02",
+    "end": "2024-10-07"
+  },
+  "already_processed": [
+    {
+      "date": "2024-10-06",
+      "youtube_id": "MpxrGRb16HQ",
+      "title": "Oct 6 City Council - Wildfire Fund Case Study",
+      "status": "complete",
+      "notes": "Processed in Sessions 107-110, complete with testimony extraction and gap analysis"
+    }
+  ],
+  "meetings": [
+    {
+      "date": "2024-10-07",
+      "youtube_id": "pIkTn2aixns",
+      "title": "Oct 7, 2024 City Council"
+    },
+    {
+      "date": "2024-09-16",
+      "youtube_id": "qJfKTje1ujU",
+      "title": "Sept 16, 2024 City Council"
+    },
+    {
+      "date": "2024-08-19",
+      "youtube_id": "XONq2clMpg4",
+      "title": "Aug 19, 2024 City Council"
+    },
+    {
+      "date": "2024-07-15",
+      "youtube_id": "cxEG6VQ3wWc",
+      "title": "July 15, 2024 City Council"
+    },
+    {
+      "date": "2024-06-17",
+      "youtube_id": "yLivT7reEFg",
+      "title": "June 17, 2024 City Council"
+    },
+    {
+      "date": "2024-06-03",
+      "youtube_id": "LB97ztoKAxQ",
+      "title": "June 3, 2024 City Council"
+    },
+    {
+      "date": "2024-05-20",
+      "youtube_id": "kXm7iBdfF-s",
+      "title": "May 20, 2024 City Council"
+    },
+    {
+      "date": "2024-05-06",
+      "youtube_id": "oqyuPj011qg",
+      "title": "May 6, 2024 City Council"
+    },
+    {
+      "date": "2024-04-15",
+      "youtube_id": "eggjVcjw3YY",
+      "title": "April 15, 2024 City Council"
+    },
+    {
+      "date": "2024-03-18",
+      "youtube_id": "PPGHwBeYHiw",
+      "title": "March 18, 2024 City Council"
+    },
+    {
+      "date": "2024-03-04",
+      "youtube_id": "Kpearlw-p3s",
+      "title": "March 4, 2024 City Council"
+    }
+  ],
+  "summary": {
+    "total_meetings": 11,
+    "estimated_cost_per_meeting": 3.00,
+    "estimated_total_cost": 33.00,
+    "processing_notes": "Excludes Oct 6, 2024 (already processed). Focus on regular City Council meetings with public testimony."
+  }
+}

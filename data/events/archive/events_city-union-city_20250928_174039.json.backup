@@ -1,0 +1,1345 @@
+{
+  "id": "b5f4f2cb-b5eb-49cf-b1cc-8e37cdec3cf9",
+  "jurisdiction": {
+    "id": "city-union-city",
+    "name": "Union City",
+    "type": "city",
+    "website": "https://www.unioncity.org",
+    "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+  },
+  "opportunities": [
+    {
+      "id": "c2fc6735-4c8a-4a6d-95cd-1e75b4c66132",
+      "title": "Planning Commission Meeting",
+      "original_title": "Planning Commission Meeting",
+      "description": null,
+      "when": "2025-09-04T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "Event Location",
+      "meeting_type": "planning_commission",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.359609+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "planning_action",
+      "when_human": "Thu Sep 4, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Event Location",
+          "when": "2025-09-04T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "e63d818f-2510-49ea-aa6a-67a962e30acc",
+      "title": "Ribbon Cutting Celebration: Heritage Oak Park",
+      "original_title": "Ribbon Cutting Celebration: Heritage Oak Park",
+      "description": null,
+      "when": "2025-09-05T11:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Direct community involvement and environmental improvement",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "2509 Trailside Way",
+      "meeting_type": "community_meeting",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.359788+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Fri Sep 5, 2025 \u2022 11:00 AM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "2509 Trailside Way",
+          "when": "2025-09-05T11:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "f32e1980-677a-48e2-be6a-b63ee696ed34",
+      "title": "City Council Special Meeting and Closed Session",
+      "original_title": "City Council Special Meeting and Closed Session",
+      "description": null,
+      "when": "2025-09-09T17:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "City Hall, 34009 Alvarado Niles Road",
+      "meeting_type": "city_council",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.359891+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Tue Sep 9, 2025 \u2022 5:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "City Hall, 34009 Alvarado Niles Road",
+          "when": "2025-09-09T17:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "c6bf4900-9d10-408b-88de-76c8730efca5",
+      "title": "City Council Regular Meeting",
+      "original_title": "City Council Regular Meeting",
+      "description": null,
+      "when": "2025-09-09T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "City Hall, 34009 Alvarado Niles Road",
+      "meeting_type": "city_council",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.360013+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Tue Sep 9, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "City Hall, 34009 Alvarado Niles Road",
+          "when": "2025-09-09T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "08356495-4e6c-4144-8fee-89e7f31ee665",
+      "title": "Park & Recreation Commission",
+      "original_title": "Park & Recreation Commission",
+      "description": null,
+      "when": "2025-09-10T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Direct community involvement and environmental improvement",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "Event Location",
+      "meeting_type": "commission",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.360091+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Wed Sep 10, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Event Location",
+          "when": "2025-09-10T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "ac3a14eb-b0f7-457a-b924-64f04d5b0f92",
+      "title": "Union City BART Mural Project - Community Forum",
+      "original_title": "Union City BART Mural Project - Community Forum",
+      "description": null,
+      "when": "2025-09-11T18:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Community engagement and civic participation",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "Kennedy Youth Center, 1333 Decoto Road",
+      "meeting_type": "community_meeting",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.360162+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Thu Sep 11, 2025 \u2022 6:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Kennedy Youth Center, 1333 Decoto Road",
+          "when": "2025-09-11T18:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "7f8830fb-07f5-4077-83c6-c86f619d0faf",
+      "title": "Union City - CERT Open House",
+      "original_title": "Union City - CERT Open House",
+      "description": null,
+      "when": "2025-09-13T09:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Increased public awareness and civic knowledge",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "CERT Building, 33555 Central Avenue",
+      "meeting_type": "community_meeting",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.360236+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Sat Sep 13, 2025 \u2022 9:00 AM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "CERT Building, 33555 Central Avenue",
+          "when": "2025-09-13T09:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "6ea9491e-fdaa-4d8c-a7dc-38ce18a5b2cd",
+      "title": "Senior Commission Meeting",
+      "original_title": "Senior Commission Meeting",
+      "description": null,
+      "when": "2025-09-16T14:30:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "City Council Chambers",
+      "meeting_type": "commission",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.360344+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Tue Sep 16, 2025 \u2022 2:30 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "City Council Chambers",
+          "when": "2025-09-16T14:30:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "f8fe603c-6440-48cf-8075-2dfe23ed7321",
+      "title": "Arts & Culture Commission",
+      "original_title": "Arts & Culture Commission",
+      "description": null,
+      "when": "2025-09-16T18:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "Online",
+      "meeting_type": "commission",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.360417+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Tue Sep 16, 2025 \u2022 6:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Online",
+          "when": "2025-09-16T18:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "30b5c164-b763-476c-8fc5-fb7a597e19c3",
+      "title": "Planning Commission Meeting",
+      "original_title": "Planning Commission Meeting",
+      "description": null,
+      "when": "2025-09-18T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "Event Location, City Council Chambers",
+      "meeting_type": "planning_commission",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.360481+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "planning_action",
+      "when_human": "Thu Sep 18, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Event Location, City Council Chambers",
+          "when": "2025-09-18T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "b15cfcfa-968d-4daa-88a0-0d331f0ccc6c",
+      "title": "City Council Regular Meeting",
+      "original_title": "City Council Regular Meeting",
+      "description": null,
+      "when": "2025-09-23T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "City Hall, 34009 Alvarado Niles Road",
+      "meeting_type": "city_council",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.360544+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Tue Sep 23, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "City Hall, 34009 Alvarado Niles Road",
+          "when": "2025-09-23T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "194881fd-e215-4add-8610-e6975ed43035",
+      "title": "Human Relations Commission",
+      "original_title": "Human Relations Commission",
+      "description": null,
+      "when": "2025-09-24T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "Event Location, 34009 Alvarado Niles Road",
+      "meeting_type": "commission",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.360609+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Wed Sep 24, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Event Location, 34009 Alvarado Niles Road",
+          "when": "2025-09-24T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "57fcb7dd-6019-478b-8fb6-ecd5146bfbb3",
+      "title": "Ribbon Cutting Celebration: Union City Blvd Bike Lanes",
+      "original_title": "Ribbon Cutting Celebration: Union City Blvd Bike Lanes",
+      "description": null,
+      "when": "2025-09-27T10:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Community engagement and civic participation",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "Delaine Eastin Elementary School, 34901 Eastin Drive",
+      "meeting_type": "community_meeting",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.360673+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Sat Sep 27, 2025 \u2022 10:00 AM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Delaine Eastin Elementary School, 34901 Eastin Drive",
+          "when": "2025-09-27T10:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "0cb5d7bc-3dbe-411e-aa9a-293abd903248",
+      "title": "Bicycle and Pedestrian Advisory Committee (BPAC)",
+      "original_title": "Bicycle and Pedestrian Advisory Committee (BPAC)",
+      "description": null,
+      "when": "2025-09-16T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Community engagement and civic participation",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "Event Location",
+      "meeting_type": "committee",
+      "project_type": "transportation",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.360735+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Tue Sep 16, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Event Location",
+          "when": "2025-09-16T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "9338211a-160d-41bd-8056-c356954852ce",
+      "title": "Sports Advisory Meeting / Master Plan Sports Focus Group",
+      "original_title": "Sports Advisory Meeting / Master Plan Sports Focus Group",
+      "description": "The Union City Sports Advisory Meetings compose of City Staff, Local Sports Organizations, and Field & Gym Users of Union City Parks and Facilities.  This group meet quarterly (March, June, September,...",
+      "when": "2025-10-02T18:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "Mark Green Sports Center, 31224 Union City Boulevard",
+      "meeting_type": "committee",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.360802+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Thu Oct 2, 2025 \u2022 6:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Mark Green Sports Center, 31224 Union City Boulevard",
+          "when": "2025-10-02T18:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "b8658926-26ed-4021-a9f7-c939fd254d12",
+      "title": "Planning Commission Meeting",
+      "original_title": "Planning Commission Meeting",
+      "description": null,
+      "when": "2025-10-02T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "Event Location",
+      "meeting_type": "planning_commission",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.360861+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "planning_action",
+      "when_human": "Thu Oct 2, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Event Location",
+          "when": "2025-10-02T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "b3124a77-b732-4633-b975-5346f2fa4bf4",
+      "title": "CERT - Psychological First Aid",
+      "original_title": "CERT - Psychological First Aid",
+      "description": null,
+      "when": "2025-10-08T18:30:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Community engagement and civic participation",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "Newark Senior Center, 7401 Enterprise Drive",
+      "meeting_type": "workshop",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.360923+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Wed Oct 8, 2025 \u2022 6:30 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Newark Senior Center, 7401 Enterprise Drive",
+          "when": "2025-10-08T18:30:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "49c8273c-fe95-4f76-9cbb-27f0b00c5f2c",
+      "title": "Park & Recreation Commission",
+      "original_title": "Park & Recreation Commission",
+      "description": null,
+      "when": "2025-10-08T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Direct community involvement and environmental improvement",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "Event Location",
+      "meeting_type": "commission",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.360983+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Wed Oct 8, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Event Location",
+          "when": "2025-10-08T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "1d8ef371-30e6-4ed9-ab8a-d9fce5e1d4d7",
+      "title": "City Council Regular Meeting",
+      "original_title": "City Council Regular Meeting",
+      "description": null,
+      "when": "2025-10-14T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "City Hall, 34009 Alvarado Niles Road",
+      "meeting_type": "city_council",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.361043+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Tue Oct 14, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "City Hall, 34009 Alvarado Niles Road",
+          "when": "2025-10-14T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "01e21282-2eea-4fe4-be47-906dcb3f3ea7",
+      "title": "Planning Commission Meeting",
+      "original_title": "Planning Commission Meeting",
+      "description": null,
+      "when": "2025-10-16T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "Event Location",
+      "meeting_type": "planning_commission",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.361101+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "planning_action",
+      "when_human": "Thu Oct 16, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Event Location",
+          "when": "2025-10-16T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "826eadb3-e53b-4571-b44c-194eda40570e",
+      "title": "State of the City Address & Commissioner Appreciation Night",
+      "original_title": "State of the City Address & Commissioner Appreciation Night",
+      "description": null,
+      "when": "2025-10-17T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "Ruggieri Senior Center, 33997 Alvarado-Niles Rd.",
+      "meeting_type": "community_meeting",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.361168+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Fri Oct 17, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Ruggieri Senior Center, 33997 Alvarado-Niles Rd.",
+          "when": "2025-10-17T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "126da842-e84a-48e1-ba49-11d832a359b7",
+      "title": "Human Relations Commission",
+      "original_title": "Human Relations Commission",
+      "description": null,
+      "when": "2025-10-22T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "Event Location, 34009 Alvarado Niles Road",
+      "meeting_type": "commission",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.361227+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Wed Oct 22, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Event Location, 34009 Alvarado Niles Road",
+          "when": "2025-10-22T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "24178c1f-5de2-46e3-9f73-bd40271ae7dc",
+      "title": "City Council Regular Meeting",
+      "original_title": "City Council Regular Meeting",
+      "description": null,
+      "when": "2025-10-28T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.unioncity.org/Calendar.aspx",
+      "location": "City Hall, 34009 Alvarado Niles Road",
+      "meeting_type": "city_council",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-union-city",
+        "name": "Union City",
+        "type": "city",
+        "website": "https://www.unioncity.org",
+        "meeting_calendar_url": "https://www.unioncity.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@unioncity.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:40:39.361286+00:00",
+      "scraped_from": "https://www.unioncity.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Tue Oct 28, 2025 \u2022 7:00 PM UTC",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@unioncity.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "City Hall, 34009 Alvarado Niles Road",
+          "when": "2025-10-28T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    }
+  ],
+  "generation_metadata": {
+    "scrape_urls": [
+      "https://www.unioncity.org/Calendar.aspx"
+    ],
+    "ai_model_used": "gpt-5-mini",
+    "wiki_files_loaded": [],
+    "generation_cost": 0.0,
+    "processing_time": 0.0,
+    "unparseable_urls": null
+  },
+  "html_content": "Subject: City Council Meeting\n\n# \u2709\ufe0f City Council Meeting\n*Your quick guide to what's on the City Council agenda \u2014 September 4, 2025*\n\n## \ud83d\udde3\ufe0f How to Participate\n- **Meeting:** [Thursday, September 4 at 7:00 PM](https://calendar.google.com/calendar/render?action=TEMPLATE&text=City%20Council%20Meeting&dates=20250904T190000/20250904T210000&location=Event%20Location&details=City%20Council%20Meeting%20in%20Union%20City) \ud83d\udcc5\n- **Where:** Event Location\n- **Watch Online:** Not specified.\n- **Call In:** Not specified.\n- **Email Comments:** Not specified. \u2014 **deadline:** Not specified.\n- **Attend & Speak:** Check meeting agenda for public comment rules\n- **Full Agenda:** [View original meeting agenda](https://www.unioncity.org/Calendar.aspx)\n\n## \ud83d\udea8 What's on the Agenda\n### Planning Commission Meeting\n- **Change:** Not specified.\n- **Impact:** Opportunity to influence local government decisions\n- **Action:** Submit public comment, attend meeting, or contact representatives\n\n## \u2705 Bottom Line\nFound 24 civic engagement opportunities in El Cerrito's calendar. Participate in local governance by attending meetings or submitting comments.\n\n\u26a1 *Independent and nonpartisan summary. Facts only; no spin.*",
+  "text_content": "Subject: City Council Meeting\n\n# \u2709\ufe0f City Council Meeting\n*Your quick guide to what's on the City Council agenda \u2014 September 4, 2025*\n\n## \ud83d\udde3\ufe0f How to Participate\n- **Meeting:** [Thursday, September 4 at 7:00 PM](https://calendar.google.com/calendar/render?action=TEMPLATE&text=City%20Council%20Meeting&dates=20250904T190000/20250904T210000&location=Event%20Location&details=City%20Council%20Meeting%20in%20Union%20City) \ud83d\udcc5\n- **Where:** Event Location\n- **Watch Online:** Not specified.\n- **Call In:** Not specified.\n- **Email Comments:** Not specified. \u2014 **deadline:** Not specified.\n- **Attend & Speak:** Check meeting agenda for public comment rules\n- **Full Agenda:** [View original meeting agenda](https://www.unioncity.org/Calendar.aspx)\n\n## \ud83d\udea8 What's on the Agenda\n### Planning Commission Meeting\n- **Change:** Not specified.\n- **Impact:** Opportunity to influence local government decisions\n- **Action:** Submit public comment, attend meeting, or contact representatives\n\n## \u2705 Bottom Line\nFound 24 civic engagement opportunities in El Cerrito's calendar. Participate in local governance by attending meetings or submitting comments.\n\n\u26a1 *Independent and nonpartisan summary. Facts only; no spin.*",
+  "subject_line": "City Council Meeting",
+  "send_date": "2025-09-29T00:40:39.361736+00:00",
+  "recipients": [],
+  "analytics": {
+    "sent_count": 0,
+    "open_rate": 0.0,
+    "click_rate": 0.0,
+    "action_conversion_rate": 0.0
+  },
+  "created_at": "2025-09-29T00:40:39.361738+00:00"
+}
