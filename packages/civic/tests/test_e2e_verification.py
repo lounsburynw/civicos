@@ -39,6 +39,57 @@ skip_without_server = pytest.mark.skipif(
     reason="API server not available (src/ dependencies not installed)"
 )
 
+
+def _check_db_tables_exist():
+    """Check if the civic database has required tables for REST API tests."""
+    try:
+        db_path = PROJECT_ROOT / "data" / "civic.db"
+        if not db_path.exists():
+            return False
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = {row[0] for row in cursor.fetchall()}
+        conn.close()
+        # Tables required by REST API endpoints
+        required_tables = {'follows', 'issues'}
+        return required_tables.issubset(tables)
+    except Exception:
+        return False
+
+
+DB_TABLES_AVAILABLE = _check_db_tables_exist()
+skip_without_db_tables = pytest.mark.skipif(
+    not DB_TABLES_AVAILABLE,
+    reason="Database tables not initialized (follows, issues tables missing)"
+)
+
+
+def _check_frontend_available():
+    """Check if npm and frontend dependencies are available."""
+    try:
+        import shutil
+        # Check if npm is available
+        if shutil.which("npm") is None:
+            return False
+        # Check if frontend node_modules exist
+        frontend_dir = PROJECT_ROOT / "frontend" / "civic-workspace"
+        if not frontend_dir.exists():
+            return False
+        if not (frontend_dir / "node_modules").exists():
+            return False
+        return True
+    except Exception:
+        return False
+
+
+FRONTEND_AVAILABLE = _check_frontend_available()
+skip_without_frontend = pytest.mark.skipif(
+    not FRONTEND_AVAILABLE,
+    reason="Frontend not available (npm or node_modules missing)"
+)
+
+
 # ============================================================================
 # E2E TESTS: python_api (verification.json > e2e_tests > python_api)
 # ============================================================================
@@ -437,6 +488,7 @@ class TestPythonApiE2E:
 
 
 @skip_without_server
+@skip_without_db_tables
 class TestRestApiE2E:
     """
     E2E tests for REST API - maps to verification.json > e2e_tests > rest_api
@@ -1441,6 +1493,7 @@ class TestDatabaseE2E:
 
 
 @skip_without_server
+@skip_without_frontend
 class TestFrontendBrowserE2E:
     """
     E2E tests for Frontend Browser - maps to verification.json > e2e_tests > frontend_browser
