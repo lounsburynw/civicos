@@ -449,8 +449,15 @@ class DataFreshnessManager:
                 "confidence": 0.5
             }
 
-# Initialize data freshness manager globally
-data_freshness_manager = DataFreshnessManager()
+# Data freshness manager - lazy initialization to avoid API key requirement at import
+_data_freshness_manager = None
+
+def get_data_freshness_manager():
+    """Lazily initialize and return the data freshness manager."""
+    global _data_freshness_manager
+    if _data_freshness_manager is None:
+        _data_freshness_manager = DataFreshnessManager()
+    return _data_freshness_manager
 
 # Configure audit logging (Session 246: Uses structured logging from logging_config)
 # audit_logger is now configured via configure_logging() with JSON output
@@ -5819,7 +5826,7 @@ Key Topics (choose up to 3 from):
             if self.detect_refresh_need(message):
                 print(f"🔄 User query indicates need for fresh data: '{message[:50]}...'")
                 # Analyze intent to determine optimal refresh scope
-                intent_analysis = data_freshness_manager.analyze_user_intent(message)
+                intent_analysis = get_data_freshness_manager().analyze_user_intent(message)
                 if intent_analysis['temporal_focus'] == 'future_only':
                     refresh_scope = 'future_meetings_only'
                 elif intent_analysis['temporal_focus'] == 'recent_past':
@@ -7351,7 +7358,7 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
 
             # Analyze user intent to determine refresh scope
             if user_query:
-                intent_analysis = data_freshness_manager.analyze_user_intent(user_query)
+                intent_analysis = get_data_freshness_manager().analyze_user_intent(user_query)
 
                 # Determine refresh strategy based on temporal focus
                 if intent_analysis['temporal_focus'] == 'future_only':
