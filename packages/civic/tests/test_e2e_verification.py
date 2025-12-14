@@ -13,11 +13,31 @@ Reference: docs/VERIFICATION_TUTORIAL.md
 import pytest
 import tempfile
 import os
+import sys
 import sqlite3
 from pathlib import Path
 
 # Project root - works on both local and CI environments
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+
+# Check if the API server module is available (requires src/ to be set up)
+def _check_api_server_available():
+    """Check if the API server can be imported."""
+    try:
+        sys.path.insert(0, str(PROJECT_ROOT / "src"))
+        import civic_api_integrated
+        return True
+    except ImportError:
+        return False
+    finally:
+        if str(PROJECT_ROOT / "src") in sys.path:
+            sys.path.remove(str(PROJECT_ROOT / "src"))
+
+API_SERVER_AVAILABLE = _check_api_server_available()
+skip_without_server = pytest.mark.skipif(
+    not API_SERVER_AVAILABLE,
+    reason="API server not available (src/ dependencies not installed)"
+)
 
 # ============================================================================
 # E2E TESTS: python_api (verification.json > e2e_tests > python_api)
@@ -416,6 +436,7 @@ class TestPythonApiE2E:
 # ============================================================================
 
 
+@skip_without_server
 class TestRestApiE2E:
     """
     E2E tests for REST API - maps to verification.json > e2e_tests > rest_api
@@ -1419,6 +1440,7 @@ class TestDatabaseE2E:
 # ============================================================================
 
 
+@skip_without_server
 class TestFrontendBrowserE2E:
     """
     E2E tests for Frontend Browser - maps to verification.json > e2e_tests > frontend_browser
