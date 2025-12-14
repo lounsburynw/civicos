@@ -119,3 +119,6 @@ data/pilot/vectors_test/
 data/pilot/minutes_cache/
 data/youtube_audio/
 legal_index/
+
+# Package-level runtime data
+packages/civic/data/
