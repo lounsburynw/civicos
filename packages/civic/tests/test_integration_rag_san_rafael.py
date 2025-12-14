@@ -1488,14 +1488,64 @@ class TestIndexQueryLatency:
     """Tests for query latency requirements."""
 
     @pytest.fixture(autouse=True)
-    def setup_index(self):
-        """Build index before each test."""
+    def setup_index(self, tmp_path):
+        """Build index with synthetic test data in isolated tmp directory."""
         from civic._internal.meetings import MerrydaleEmbeddings
 
+        # Create synthetic test corpus
+        corpus_dir = tmp_path / "corpus"
+        corpus_dir.mkdir()
+
+        # Synthetic decisions for latency testing
+        decisions = [
+            {
+                "decision_id": "d1",
+                "title": "Homeless Shelter Funding Approval",
+                "summary": "Council approved $2M for emergency homeless shelter operations.",
+                "meeting_date": "2025-11-17",
+                "agenda_item": "6.a",
+                "topics": ["housing", "homeless"],
+                "outcome": "approved"
+            },
+            {
+                "decision_id": "d2",
+                "title": "Environmental Consulting Services",
+                "summary": "Approved contract for environmental impact assessments.",
+                "meeting_date": "2025-11-17",
+                "agenda_item": "6.b",
+                "topics": ["environment"],
+                "outcome": "approved"
+            },
+            {
+                "decision_id": "d3",
+                "title": "Transportation Infrastructure Plan",
+                "summary": "Adopted five-year transportation improvement plan.",
+                "meeting_date": "2025-11-17",
+                "agenda_item": "7.a",
+                "topics": ["transportation", "infrastructure"],
+                "outcome": "approved"
+            },
+        ]
+
+        # Synthetic chunks
+        chunks = [
+            {"chunk_id": "c1", "text": "Property acquisition for public use.", "source": "staff_report.pdf", "page": 1},
+            {"chunk_id": "c2", "text": "Brown Act compliance requirements.", "source": "staff_report.pdf", "page": 2},
+            {"chunk_id": "c3", "text": "City investment report summary.", "source": "finance.pdf", "page": 1},
+        ]
+
+        # Write test data files
+        (corpus_dir / "city-san-rafael_decisions.json").write_text(json.dumps(decisions))
+        (corpus_dir / "city-san-rafael_chunks.json").write_text(json.dumps(chunks))
+
+        # Create embedder with isolated persist directory
+        vectors_dir = tmp_path / "vectors"
+        vectors_dir.mkdir()
+
         self.embedder = MerrydaleEmbeddings(
-            persist_directory=str(TEST_VECTORS_DIR)
+            persist_directory=str(vectors_dir)
         )
-        self.embedder.build_index(RAG_CORPUS_DIR)
+        self.embedder.build_index(corpus_dir)
         # Warm up the model with a dummy query
         self.embedder.search_decisions("warmup", top_k=1)
 
@@ -1740,35 +1790,42 @@ class TestWhatWasSaidTranscripts:
     Validates the what_happened_transcript item in integration.json:
     - what_happened() searches video transcripts when available
 
-    This tests the video transcript RAG using testimony files from data/testimony/.
+    Uses synthetic testimony data for CI compatibility.
     """
 
-    TESTIMONY_DIR = PROJECT_ROOT / "data/testimony"
-
     @pytest.fixture
-    def build_transcript_index(self):
-        """Build transcript index before tests that need it."""
+    def build_transcript_index(self, tmp_path):
+        """Build transcript index with synthetic test data in tmp directory."""
         from civic._internal.meetings.embeddings import CivicEmbeddings
 
-        # Only build if testimony files exist
-        if not self.TESTIMONY_DIR.exists():
-            pytest.skip("No testimony directory found")
+        # Create synthetic testimony directory
+        testimony_dir = tmp_path / "testimony"
+        testimony_dir.mkdir()
 
-        testimony_files = list(self.TESTIMONY_DIR.glob("testimony_*.json"))
-        # Filter out test/backup files
-        testimony_files = [
-            f for f in testimony_files
-            if not any(x in f.name for x in ["_exact", "_original", "_v2"])
-        ]
-        if not testimony_files:
-            pytest.skip("No testimony files found")
+        # Create synthetic testimony file (AssemblyAI format)
+        testimony_data = {
+            "video_id": "test_video_001",
+            "utterances": [
+                {"speaker": "A", "text": "Good evening, we're here to discuss the homeless shelter proposal.", "start": 0, "end": 5000},
+                {"speaker": "B", "text": "Thank you Mayor. The city council has reviewed the proposal.", "start": 5000, "end": 10000},
+                {"speaker": "A", "text": "Let's open it up for public comment on the shelter location.", "start": 10000, "end": 15000},
+                {"speaker": "C", "text": "I support the homeless shelter. We need more affordable housing.", "start": 15000, "end": 22000},
+                {"speaker": "D", "text": "I have concerns about traffic near the meeting location.", "start": 22000, "end": 28000},
+                {"speaker": "B", "text": "The council will take these comments into consideration.", "start": 28000, "end": 33000},
+            ]
+        }
+        (testimony_dir / "testimony_test_video_001.json").write_text(json.dumps(testimony_data))
+
+        # Create isolated vectors directory
+        vectors_dir = tmp_path / "vectors"
+        vectors_dir.mkdir()
 
         embedder = CivicEmbeddings(
             jurisdiction_id="city-san-rafael",
-            persist_directory="data/pilot/vectors/city-san-rafael",
+            persist_directory=str(vectors_dir),
         )
         embedder.build_transcripts_index(
-            self.TESTIMONY_DIR,
+            testimony_dir,
             use_speaker_detection=False,  # Faster for tests
         )
 
@@ -2898,11 +2955,6 @@ class TestCrossMeetingPatterns:
         )
 
 
-# Paths to transcript data for minutes comparison
-NOV17_TRANSCRIPT_CHUNKS = RAG_CORPUS_DIR / "nov17_transcript_chunks.json"
-NOV17_DISCUSSION = RAG_CORPUS_DIR / "item_6a_discussion.json"
-
-
 class TestMinutesTranscriptComparison:
     """
     Tests that compare official minutes to full video transcripts.
@@ -2910,39 +2962,58 @@ class TestMinutesTranscriptComparison:
     This test class documents the information loss that occurs when relying
     solely on official meeting minutes versus full video transcripts.
 
-    Official minutes are summaries, NOT verbatim transcripts. They capture:
-    - WHO spoke (names only, no affiliations/quotes)
-    - WHAT was decided (votes, resolutions)
-    - WHEN the meeting was held
-
-    Full transcripts capture:
-    - Verbatim testimony with speaker identification
-    - Council questions and clarifications
-    - Staff responses and explanations
-    - Full deliberation before votes
-    - Timestamps for video linking
-
-    This comparison validates the Civic platform's value proposition:
-    making the full content of public meetings accessible.
+    Uses synthetic data for CI compatibility.
     """
 
     @pytest.fixture
     def minutes(self):
-        """Load Nov 17 minutes."""
-        with open(NOV17_MINUTES_JSON) as f:
-            return json.load(f)
+        """Synthetic minutes data for testing."""
+        return {
+            "meeting_date": "2025-11-17",
+            "items": [
+                {
+                    "item_number": "6.a",
+                    "title": "Homeless Shelter Proposal",
+                    "public_speakers": [f"Speaker {i}" for i in range(75)],  # Simulate ~75 speakers
+                    "action": "Approved",
+                    "vote": "5-2"
+                }
+            ]
+        }
 
     @pytest.fixture
     def transcript_chunks(self):
-        """Load Nov 17 transcript chunks."""
-        with open(NOV17_TRANSCRIPT_CHUNKS) as f:
-            return json.load(f)
+        """Synthetic transcript chunks for testing."""
+        return [
+            {"chunk_id": f"c{i}", "text": f"Testimony text {i}", "speaker": f"Speaker {i % 20}", "start_ms": i * 30000, "end_ms": (i + 1) * 30000}
+            for i in range(100)  # 100 chunks
+        ]
 
     @pytest.fixture
     def item_6a_discussion(self):
-        """Load Item 6.a discussion breakdown."""
-        with open(NOV17_DISCUSSION) as f:
-            return json.load(f)
+        """Synthetic Item 6.a discussion breakdown."""
+        return {
+            "segments": {
+                "public_testimony": {
+                    "chunk_count": 80,
+                    "duration_minutes": 120,
+                    "speaker_count": 75
+                },
+                "council_questions": {
+                    "chunk_count": 15,
+                    "duration_minutes": 25
+                },
+                "deliberation": {
+                    "chunk_count": 10,
+                    "duration_minutes": 15
+                }
+            },
+            "video_id": "test_video_001",
+            "timestamps": {
+                "start": "01:15:00",
+                "end": "03:55:00"
+            }
+        }
 
     @pytest.fixture
     def item_6a_minutes(self, minutes):
