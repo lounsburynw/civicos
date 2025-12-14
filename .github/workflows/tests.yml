@@ -36,7 +36,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e packages/civic[all]
+          # Smoke tests only need core + dev deps (skip embeddings to save ~2GB disk)
+          pip install -e packages/civic[dev]
 
       - name: Run smoke tests
         run: |
@@ -66,6 +67,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          # Install CPU-only PyTorch first (saves ~2GB by skipping CUDA drivers)
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install -e packages/civic[all]
           pip install pytest-split
 
