@@ -54,93 +54,93 @@ except ImportError:
 try:
     from agenda_integration import AgendaIntegrator
     AGENDA_INTEGRATION_AVAILABLE = True
-    logger.debug("module_loaded", extra={"module": "agenda_integration"})
+    logger.debug("module_loaded", extra={"module_name": "agenda_integration"})
 except ImportError:
     AGENDA_INTEGRATION_AVAILABLE = False
-    logger.warning("module_unavailable", extra={"module": "agenda_integration", "reason": "Import failed"})
+    logger.warning("module_unavailable", extra={"module_name": "agenda_integration", "reason": "Import failed"})
 
 # Legislative context enrichment
 try:
     from legislative_enrichment import enrich_opportunities_batch
     from legislative_context_cache import legislative_cache
     LEGISLATIVE_ENRICHMENT_AVAILABLE = True
-    logger.debug("module_loaded", extra={"module": "legislative_enrichment"})
+    logger.debug("module_loaded", extra={"module_name": "legislative_enrichment"})
 except ImportError:
     LEGISLATIVE_ENRICHMENT_AVAILABLE = False
-    logger.warning("module_unavailable", extra={"module": "legislative_enrichment", "reason": "Import failed"})
+    logger.warning("module_unavailable", extra={"module_name": "legislative_enrichment", "reason": "Import failed"})
 
 # Complaint handling system (Phase 1 MVP)
 try:
     from issue_handler import handle_message as handle_issue
     COMPLAINT_HANDLER_AVAILABLE = True
-    logger.debug("module_loaded", extra={"module": "issue_handler"})
+    logger.debug("module_loaded", extra={"module_name": "issue_handler"})
 except ImportError as e:
     COMPLAINT_HANDLER_AVAILABLE = False
-    logger.warning("module_unavailable", extra={"module": "issue_handler", "error": str(e)})
+    logger.warning("module_unavailable", extra={"module_name": "issue_handler", "error": str(e)})
 
 # Research service for cache-first factual retrieval (Session 66)
 try:
     from research_service import ResearchService
     research_service = ResearchService()
     RESEARCH_SERVICE_AVAILABLE = True
-    logger.debug("module_loaded", extra={"module": "research_service"})
+    logger.debug("module_loaded", extra={"module_name": "research_service"})
 except ImportError as e:
     RESEARCH_SERVICE_AVAILABLE = False
-    logger.warning("module_unavailable", extra={"module": "research_service", "error": str(e)})
+    logger.warning("module_unavailable", extra={"module_name": "research_service", "error": str(e)})
 
 # OpenAI integration for conversation API
 try:
     import openai
     OPENAI_AVAILABLE = True
-    logger.debug("module_loaded", extra={"module": "openai"})
+    logger.debug("module_loaded", extra={"module_name": "openai"})
 except ImportError:
     OPENAI_AVAILABLE = False
-    logger.warning("module_unavailable", extra={"module": "openai", "reason": "Not installed"})
+    logger.warning("module_unavailable", extra={"module_name": "openai", "reason": "Not installed"})
 
 # Session 68: LLM Provider abstraction for cost optimization
 try:
     from llm_provider import get_provider_for_task
     LLM_PROVIDER_AVAILABLE = True
-    logger.debug("module_loaded", extra={"module": "llm_provider"})
+    logger.debug("module_loaded", extra={"module_name": "llm_provider"})
 except ImportError as e:
     LLM_PROVIDER_AVAILABLE = False
-    logger.warning("module_unavailable", extra={"module": "llm_provider", "error": str(e), "fallback": "openai_only"})
+    logger.warning("module_unavailable", extra={"module_name": "llm_provider", "error": str(e), "fallback": "openai_only"})
 
 # Chat routing system (Session 27 - Chat-first navigation)
 try:
     from civic_chat_router import get_router
     CHAT_ROUTING_AVAILABLE = True
-    logger.debug("module_loaded", extra={"module": "civic_chat_router"})
+    logger.debug("module_loaded", extra={"module_name": "civic_chat_router"})
 except ImportError as e:
     CHAT_ROUTING_AVAILABLE = False
-    logger.warning("module_unavailable", extra={"module": "civic_chat_router", "error": str(e)})
+    logger.warning("module_unavailable", extra={"module_name": "civic_chat_router", "error": str(e)})
 
 # Personalization service (Phase 1 - Database & Service Foundation)
 try:
     from personalization_service import PersonalizationService
     PERSONALIZATION_SERVICE_AVAILABLE = True
-    logger.debug("module_loaded", extra={"module": "personalization_service"})
+    logger.debug("module_loaded", extra={"module_name": "personalization_service"})
 except ImportError as e:
     PERSONALIZATION_SERVICE_AVAILABLE = False
-    logger.warning("module_unavailable", extra={"module": "personalization_service", "error": str(e)})
+    logger.warning("module_unavailable", extra={"module_name": "personalization_service", "error": str(e)})
 
 # Conversation store (Session 79 - Persistent conversation storage)
 try:
     from conversation_store import ConversationStore
     CONVERSATION_STORE_AVAILABLE = True
-    logger.debug("module_loaded", extra={"module": "conversation_store"})
+    logger.debug("module_loaded", extra={"module_name": "conversation_store"})
 except ImportError as e:
     CONVERSATION_STORE_AVAILABLE = False
-    logger.warning("module_unavailable", extra={"module": "conversation_store", "error": str(e)})
+    logger.warning("module_unavailable", extra={"module_name": "conversation_store", "error": str(e)})
 
 # SeeClickFix integration (Session 90 - Operational complaint→policy bridge)
 try:
     from seeclickfix_client import SeeClickFixClient
     SEECLICKFIX_AVAILABLE = True
-    logger.debug("module_loaded", extra={"module": "seeclickfix_client"})
+    logger.debug("module_loaded", extra={"module_name": "seeclickfix_client"})
 except ImportError as e:
     SEECLICKFIX_AVAILABLE = False
-    logger.warning("module_unavailable", extra={"module": "seeclickfix_client", "error": str(e)})
+    logger.warning("module_unavailable", extra={"module_name": "seeclickfix_client", "error": str(e)})
 
 # County mapping for hierarchical jurisdiction tree
 COUNTY_MAPPING = {

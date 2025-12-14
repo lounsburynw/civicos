@@ -45,15 +45,15 @@ jobs:
 
   # Full test suite - runs in parallel across multiple jobs
   full:
-    name: Full Suite (${{ matrix.group }}/4)
+    name: Full Suite (${{ matrix.group }}/8)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     needs: smoke  # Only run if smoke tests pass
 
     strategy:
       fail-fast: false  # Let all groups complete even if one fails
       matrix:
-        group: [1, 2, 3, 4]
+        group: [1, 2, 3, 4, 5, 6, 7, 8]
 
     steps:
       - uses: actions/checkout@v4
@@ -71,15 +71,16 @@ jobs:
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install -e packages/civic[all]
           pip install -e packages/civic-extraction
+          pip install -r requirements.txt
           pip install pytest-split
 
       - name: Run test group ${{ matrix.group }}
         run: |
           pytest packages/civic/tests/ \
             --override-ini="addopts=" \
-            --splits 4 \
+            --splits 8 \
             --group ${{ matrix.group }} \
-            -n auto \
+            -n 2 \
             -q \
             --tb=short
 
