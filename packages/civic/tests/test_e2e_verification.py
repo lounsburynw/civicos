@@ -5255,7 +5255,8 @@ class TestSecurityNoSecretsInLogs:
         # Filter known false positives
         real_violations = [v for v in violations if
             'key_points' not in v and
-            'VERIFICATION_TUTORIAL' not in v]
+            'VERIFICATION_TUTORIAL' not in v and
+            'server_started' not in v]  # Logs boolean, not actual key
 
         assert len(real_violations) == 0, \
             f"Found potential secret exposure:\n" + "\n".join(real_violations[:10])
@@ -6670,12 +6671,13 @@ class TestCodeAuditDocumentation:
         import os
         import json
 
-        phase_files = [
+        # Required phase tracking files (verification.json archived, pilot.json is current)
+        required_files = [
             str(PROJECT_ROOT / 'phase.json'),
-            str(PROJECT_ROOT / 'verification.json'),
+            str(PROJECT_ROOT / 'pilot.json'),
         ]
 
-        for filepath in phase_files:
+        for filepath in required_files:
             assert os.path.exists(filepath), f"Missing phase tracking file: {filepath}"
 
             with open(filepath, 'r') as f:
