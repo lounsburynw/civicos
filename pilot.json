@@ -33,6 +33,9 @@
     "test_categorization": {
       "slow_test_markers": {"status": "not_ready", "priority": 2, "artifact": "Mark integration tests with @pytest.mark.slow"},
       "ci_test_profile": {"status": "not_ready", "priority": 2, "artifact": "CI runs fast tests by default, full suite on main branch"}
+    },
+    "code_packaging": {
+      "src_as_package": {"status": "not_ready", "priority": 1, "artifact": "Package src/ as installable module for CI", "note": "API server e2e tests currently skip in CI because src/ imports fail. Need to either: (1) create src/pyproject.toml, (2) merge src/ into packages/civic, or (3) add src/ to PYTHONPATH in CI"}
     }
   },
 
