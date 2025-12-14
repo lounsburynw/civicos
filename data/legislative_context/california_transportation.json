@@ -1,0 +1,104 @@
+{
+  "jurisdiction": "california",
+  "topic": "transportation",
+  "last_updated": "2025-10-07T14:48:45.646223",
+  "data_sources": [
+    "Perplexity Sonar Pro API",
+    "leginfo.legislature.ca.gov (cited by Perplexity)",
+    "Trusted Perplexity sources (~90-95% precision)"
+  ],
+  "perplexity_citations": [
+    "https://calbudgetcenter.org/resources/understanding-californias-new-transportation-package/",
+    "https://www.mendocinocog.org/sb-1-road-repair-accountability-act",
+    "https://dot.ca.gov/news-releases/news-release-2025-011",
+    "https://dot.ca.gov/programs/sb1",
+    "https://its.ucdavis.edu/news/california-transportation-bills-wrap-2025",
+    "https://trackbill.com/s3/bills/CA/2025/SB/71/analyses/senate-transportation.pdf",
+    "https://calmatters.org/commentary/2025/09/california-new-housing-law-projects/",
+    "https://calmatters.org/housing/2025/05/la-gentrification-public-transit/"
+  ],
+  "state_legislation": {
+    "ca-sb1": {
+      "bill": "Road Repair and Accountability Act of 2017",
+      "status": "Active",
+      "enacted": "2017-04-28",
+      "local_implementation_required": true,
+      "local_deadline": null,
+      "leverage_point": "Residents can advocate for local project prioritization using SB 1 funds.",
+      "official_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=201720180SB1",
+      "summary": "Invests $54 billion over 10 years for road maintenance, public transit, and pedestrian/bicycle infrastructure improvements.",
+      "keywords": [
+        "transportation",
+        "roads",
+        "transit",
+        "bicycle",
+        "pedestrian"
+      ]
+    },
+    "ca-sb71": {
+      "bill": "California Environmental Quality Act (CEQA) Exemptions for Transportation Projects",
+      "status": "Pending",
+      "enacted": "Not yet available",
+      "local_implementation_required": false,
+      "local_deadline": null,
+      "leverage_point": "Residents can support projects benefiting from CEQA exemptions at local planning meetings.",
+      "official_url": "Not yet available",
+      "summary": "Makes CEQA exemptions for transportation projects permanent, enhancing public transportation and safety.",
+      "keywords": [
+        "transportation",
+        "CEQA",
+        "public transit",
+        "safety"
+      ]
+    },
+    "ca-sb237": {
+      "bill": "Gasoline Price Stabilization and Supply",
+      "status": "Pending",
+      "enacted": "Not yet available",
+      "local_implementation_required": false,
+      "local_deadline": null,
+      "leverage_point": "Residents can discuss the impact of gasoline supply strategies at local energy meetings.",
+      "official_url": "Not yet available",
+      "summary": "Aims to stabilize gasoline prices and supply by adjusting CEQA requirements and gasoline specifications.",
+      "keywords": [
+        "transportation",
+        "gasoline",
+        "energy",
+        "supply"
+      ]
+    },
+    "ca-ab1147": {
+      "bill": "Transit-Oriented Development",
+      "status": "Active",
+      "enacted": "2021-09-28",
+      "local_implementation_required": true,
+      "local_deadline": null,
+      "leverage_point": "Residents can advocate for transit-oriented development projects in their communities.",
+      "official_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202120220AB1147",
+      "summary": "Encourages transit-oriented development by streamlining local processes.",
+      "keywords": [
+        "transportation",
+        "transit",
+        "development",
+        "housing"
+      ]
+    },
+    "ca-ab2097": {
+      "bill": "Bicycle and Pedestrian Infrastructure",
+      "status": "Active",
+      "enacted": "2022-09-16",
+      "local_implementation_required": true,
+      "local_deadline": null,
+      "leverage_point": "Residents can support local projects that reduce parking requirements and enhance active transportation options.",
+      "official_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202120220AB2097",
+      "summary": "Prohibits local governments from imposing minimum parking requirements near transit stations, promoting more pedestrian and bicycle-friendly infrastructure.",
+      "keywords": [
+        "transportation",
+        "bicycle",
+        "pedestrian",
+        "infrastructure"
+      ]
+    }
+  },
+  "federal_programs": {}
+}

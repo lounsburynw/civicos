@@ -1,0 +1,128 @@
+{
+  "jurisdiction": "california",
+  "topic": "housing",
+  "last_updated": "2025-10-07T14:03:15.432682",
+  "data_sources": [
+    "Perplexity Sonar Pro API",
+    "leginfo.legislature.ca.gov (cited by Perplexity)",
+    "NEEDS HUMAN VERIFICATION"
+  ],
+  "verification_status": "DRAFT - NOT VERIFIED",
+  "perplexity_citations": [
+    "https://www.hklaw.com/en/insights/publications/2024/11/californias-2025-housing-laws-what-you-need-to-know",
+    "https://ternercenter.berkeley.edu/blog/california-housing-laws-that-go-into-effect-in-2025/",
+    "https://ternercenter.berkeley.edu/california-land-use-housing/",
+    "https://ahcd.assembly.ca.gov/system/files/2025-02/background-recent-california-housing-legislation.pdf",
+    "https://housingca.org/policy/policy-priorities-2025/",
+    "https://cayimby.org/legislation/",
+    "https://legiscan.com/CA/pending/assembly-housing-community-development-committee/id/459",
+    "https://shou.senate.ca.gov/node/13/resources-and-fact-sheets"
+  ],
+  "state_legislation": {
+    "ca-sb9": {
+      "bill": "California Housing Opportunity and More Efficiency (HOME) Act",
+      "status": "Active",
+      "enacted": "2021-09-16",
+      "local_implementation_required": true,
+      "local_deadline": "2022-01-01",
+      "leverage_point": "Residents can advocate for local compliance and use SB 9 to support duplexes or lot splits at public hearings, countering exclusionary zoning arguments.",
+      "official_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202120220SB9",
+      "summary": "SB 9 allows homeowners to split single-family residential lots and build up to two units per lot, effectively enabling up to four homes on parcels previously zoned for one.",
+      "keywords": [
+        "housing",
+        "zoning",
+        "density",
+        "lot split",
+        "duplex",
+        "single-family",
+        "HOME Act"
+      ]
+    },
+    "ca-ab2011": {
+      "bill": "Affordable Housing and High Road Jobs Act of 2022",
+      "status": "Active",
+      "enacted": "2022-09-28",
+      "local_implementation_required": true,
+      "local_deadline": "2023-07-01",
+      "leverage_point": "Residents can support projects using AB 2011 to advocate for affordable housing on commercial sites and ensure local governments follow streamlined approval requirements.",
+      "official_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202120220AB2011",
+      "summary": "AB 2011 streamlines approval for affordable and mixed-income housing on underutilized commercial corridors, bypassing discretionary review if labor and affordability standards are met.",
+      "keywords": [
+        "housing",
+        "affordable housing",
+        "streamlining",
+        "commercial zoning",
+        "labor standards"
+      ]
+    },
+    "ca-sb35": {
+      "bill": "Streamlined Ministerial Approval Process for Infill Housing",
+      "status": "Active",
+      "enacted": "2017-09-29",
+      "local_implementation_required": true,
+      "local_deadline": "2018-01-01",
+      "leverage_point": "Residents can invoke SB 35 to demand streamlined approval for eligible projects and challenge local delays or denials at public meetings.",
+      "official_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=201720180SB35",
+      "summary": "SB 35 requires local governments to use a streamlined, ministerial approval process for qualifying infill housing developments in cities not meeting state housing goals.",
+      "keywords": [
+        "housing",
+        "streamlining",
+        "ministerial approval",
+        "infill",
+        "affordable housing"
+      ]
+    },
+    "ca-sb330": {
+      "bill": "Housing Crisis Act of 2019",
+      "status": "Active",
+      "enacted": "2019-10-09",
+      "local_implementation_required": true,
+      "local_deadline": "2020-01-01",
+      "leverage_point": "Residents can cite SB 330 to oppose local downzoning or procedural delays and support housing projects at city council or planning commission meetings.",
+      "official_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=201920200SB330",
+      "summary": "SB 330 limits local governments' ability to downzone, impose housing moratoria, or increase procedural barriers to housing production during the declared housing crisis.",
+      "keywords": [
+        "housing",
+        "zoning",
+        "housing crisis",
+        "downzoning",
+        "procedural barriers"
+      ]
+    },
+    "ca-ab1287": {
+      "bill": "Density Bonus Law Expansion",
+      "status": "Active",
+      "enacted": "2023-10-11",
+      "local_implementation_required": true,
+      "local_deadline": "2024-01-01",
+      "leverage_point": "Residents can use AB 1287 to advocate for higher-density affordable projects and ensure local governments grant the expanded bonuses as required.",
+      "official_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240AB1287",
+      "summary": "AB 1287 expands California\u2019s Density Bonus Law, allowing additional density bonuses for projects that provide more affordable housing than required, including a new 'stacked bonus' for deeper affordability.",
+      "keywords": [
+        "housing",
+        "density bonus",
+        "affordable housing",
+        "zoning",
+        "incentives"
+      ]
+    },
+    "ca-sb1123": {
+      "bill": "Vacant Lot Subdivision Streamlining Act",
+      "status": "Active",
+      "enacted": "2024-09-30",
+      "local_implementation_required": true,
+      "local_deadline": "2025-01-01",
+      "leverage_point": "Residents can reference SB 1123 to support subdivision of vacant lots and challenge unnecessary local restrictions at planning meetings.",
+      "official_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240SB1123",
+      "summary": "SB 1123 streamlines the subdivision of vacant lots for small-scale residential development, reducing procedural barriers and enabling faster housing production on underutilized land.",
+      "keywords": [
+        "housing",
+        "vacant lots",
+        "subdivision",
+        "streamlining",
+        "small-scale development"
+      ]
+    }
+  },
+  "federal_programs": {}
+}

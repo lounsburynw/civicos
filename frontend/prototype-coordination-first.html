@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Civic - Find Your Neighbors</title>
+  <style>
+    :root {
+      --bg: #fdf6e3;
+      --bg-alt: #eee8d5;
+      --fg: #657b83;
+      --fg-emphasis: #073642;
+      --accent: #268bd2;
+      --accent-warm: #cb4b16;
+      --green: #859900;
+      --magenta: #d33682;
+      --radius: 12px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.5;
+    }
+
+    /* Screen container */
+    .screen {
+      display: none;
+      min-height: 100vh;
+      padding: 20px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    .screen.active { display: block; }
+
+    /* Header */
+    .header {
+      text-align: center;
+      padding: 40px 0 30px;
+    }
+    .header h1 {
+      font-size: 28px;
+      color: var(--fg-emphasis);
+      font-weight: 600;
+    }
+    .header .subtitle {
+      font-size: 16px;
+      color: var(--fg);
+      margin-top: 8px;
+    }
+
+    /* Location input */
+    .location-input {
+      background: white;
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 24px;
+    }
+    .location-input input {
+      width: 100%;
+      border: none;
+      font-size: 18px;
+      color: var(--fg-emphasis);
+      outline: none;
+    }
+    .location-input input::placeholder {
+      color: #93a1a1;
+    }
+
+    /* Cards */
+    .card {
+      background: white;
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    }
+
+    /* Social presence indicators */
+    .presence {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .avatars {
+      display: flex;
+    }
+    .avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid white;
+      margin-left: -8px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+    }
+    .avatar:first-child { margin-left: 0; }
+    .avatar.a1 { background: #268bd2; }
+    .avatar.a2 { background: #859900; }
+    .avatar.a3 { background: #cb4b16; }
+    .avatar.a4 { background: #6c71c4; }
+    .avatar.more { background: var(--bg-alt); color: var(--fg); font-size: 10px; }
+
+    .presence-text {
+      font-size: 13px;
+      color: var(--accent);
+      font-weight: 500;
+    }
+    .presence-text.urgent {
+      color: var(--accent-warm);
+    }
+
+    /* Live indicator */
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Card content */
+    .card-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--fg);
+      margin-bottom: 6px;
+    }
+    .card-title {
+      font-size: 17px;
+      color: var(--fg-emphasis);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .card-meta {
+      font-size: 13px;
+      color: var(--fg);
+    }
+
+    /* Activity feed */
+    .activity {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--bg-alt);
+    }
+    .activity:last-child { border-bottom: none; }
+    .activity-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .activity-content {
+      flex: 1;
+    }
+    .activity-name {
+      font-weight: 600;
+      color: var(--fg-emphasis);
+    }
+    .activity-action {
+      font-size: 14px;
+    }
+    .activity-time {
+      font-size: 12px;
+      color: #93a1a1;
+      margin-top: 2px;
+    }
+
+    /* Thread view */
+    .thread-header {
+      background: white;
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
+    }
+    .thread-topic {
+      font-size: 13px;
+      color: var(--accent);
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+    .thread-title {
+      font-size: 20px;
+      color: var(--fg-emphasis);
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .thread-stats {
+      display: flex;
+      gap: 20px;
+      font-size: 14px;
+    }
+    .stat {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .stat-value {
+      font-weight: 600;
+      color: var(--fg-emphasis);
+    }
+
+    /* Messages */
+    .messages {
+      background: white;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .message {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--bg-alt);
+    }
+    .message:last-child { border-bottom: none; }
+    .message-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .message-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    .message-name {
+      font-weight: 600;
+      color: var(--fg-emphasis);
+      font-size: 14px;
+    }
+    .message-time {
+      font-size: 12px;
+      color: #93a1a1;
+    }
+    .message-body {
+      font-size: 15px;
+      padding-left: 42px;
+    }
+    .message-body.ai {
+      background: var(--bg-alt);
+      margin: -16px -20px -16px -20px;
+      padding: 16px 20px 16px 62px;
+    }
+
+    /* CTA buttons */
+    .cta {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      padding: 16px 24px;
+      font-size: 16px;
+      font-weight: 600;
+      width: 100%;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: background 0.15s;
+    }
+    .cta:hover { background: #1a6fa3; }
+    .cta.secondary {
+      background: white;
+      color: var(--accent);
+      border: 2px solid var(--accent);
+    }
+    .cta.secondary:hover {
+      background: var(--bg-alt);
+    }
+
+    /* Drafts section */
+    .drafts-section {
+      background: white;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-top: 16px;
+      overflow: hidden;
+    }
+    .drafts-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--bg-alt);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .drafts-title {
+      font-weight: 600;
+      color: var(--fg-emphasis);
+    }
+    .drafts-count {
+      background: var(--green);
+      color: white;
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    .draft-item {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--bg-alt);
+      cursor: pointer;
+    }
+    .draft-item:hover { background: var(--bg); }
+    .draft-item:last-child { border-bottom: none; }
+    .draft-author {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .draft-preview {
+      font-size: 14px;
+      color: var(--fg);
+      font-style: italic;
+    }
+
+    /* Back button */
+    .back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-bottom: 16px;
+    }
+
+    /* Section headers */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 24px 0 12px;
+    }
+    .section-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--fg);
+      font-weight: 600;
+    }
+
+    /* Insight callout */
+    .insight {
+      background: linear-gradient(135deg, #268bd2 0%, #6c71c4 100%);
+      color: white;
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .insight-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      opacity: 0.8;
+      margin-bottom: 8px;
+    }
+    .insight-text {
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    /* Neighbor suggestion */
+    .neighbor-card {
+      background: white;
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+    .neighbor-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 18px;
+    }
+    .neighbor-info { flex: 1; }
+    .neighbor-name {
+      font-weight: 600;
+      color: var(--fg-emphasis);
+    }
+    .neighbor-detail {
+      font-size: 13px;
+      color: var(--fg);
+    }
+    .neighbor-badge {
+      background: var(--bg-alt);
+      color: var(--fg);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-weight: 500;
+    }
+
+    /* Screen indicator */
+    .screen-indicator {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--bg-alt);
+      cursor: pointer;
+    }
+    .dot.active { background: var(--accent); }
+  </style>
+</head>
+<body>
+
+<!-- SCREEN 1: Entry / Discovery -->
+<div class="screen active" id="screen1">
+  <div class="header">
+    <h1>Civic</h1>
+    <div class="subtitle">Find your neighbors. Shape your city.</div>
+  </div>
+
+  <div class="location-input">
+    <input type="text" placeholder="Enter your city..." value="San Rafael" id="cityInput">
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">Happening now in San Rafael</div>
+    <div class="insight-text">23 neighbors are preparing for next week's Planning Commission meeting on housing</div>
+  </div>
+
+  <div class="section-header">
+    <div class="section-title">Your neighbors are talking about</div>
+  </div>
+
+  <div class="card" onclick="goTo(2)">
+    <div class="presence">
+      <div class="avatars">
+        <div class="avatar a1">S</div>
+        <div class="avatar a2">M</div>
+        <div class="avatar a3">J</div>
+        <div class="avatar more">+20</div>
+      </div>
+      <div class="presence-text urgent">23 neighbors preparing</div>
+      <div class="live-dot"></div>
+    </div>
+    <div class="card-label">Planning Commission • Dec 12</div>
+    <div class="card-title">ADU Regulations Update</div>
+    <div class="card-meta">Public comment deadline in 5 days</div>
+  </div>
+
+  <div class="card" onclick="goTo(2)">
+    <div class="presence">
+      <div class="avatars">
+        <div class="avatar a2">R</div>
+        <div class="avatar a4">K</div>
+        <div class="avatar more">+6</div>
+      </div>
+      <div class="presence-text">8 neighbors discussing</div>
+    </div>
+    <div class="card-label">City Council • Dec 18</div>
+    <div class="card-title">Downtown Parking Requirements</div>
+    <div class="card-meta">Draft EIR released</div>
+  </div>
+
+  <div class="card">
+    <div class="presence">
+      <div class="avatars">
+        <div class="avatar a1">T</div>
+        <div class="avatar a3">L</div>
+      </div>
+      <div class="presence-text">4 neighbors watching</div>
+    </div>
+    <div class="card-label">School Board • Dec 14</div>
+    <div class="card-title">Middle School Redistricting</div>
+    <div class="card-meta">Community input session</div>
+  </div>
+</div>
+
+<!-- SCREEN 2: Coordination Thread -->
+<div class="screen" id="screen2">
+  <div class="back" onclick="goTo(1)">← Back</div>
+
+  <div class="thread-header">
+    <div class="thread-topic">Planning Commission • Dec 12</div>
+    <div class="thread-title">ADU Regulations Update</div>
+    <div class="presence">
+      <div class="avatars">
+        <div class="avatar a1">S</div>
+        <div class="avatar a2">M</div>
+        <div class="avatar a3">J</div>
+        <div class="avatar a4">R</div>
+        <div class="avatar more">+19</div>
+      </div>
+      <div class="presence-text">5 here now</div>
+      <div class="live-dot"></div>
+    </div>
+    <div class="thread-stats">
+      <div class="stat">
+        <span class="stat-value">23</span> neighbors
+      </div>
+      <div class="stat">
+        <span class="stat-value">7</span> drafts ready
+      </div>
+      <div class="stat">
+        <span class="stat-value">3</span> speaking
+      </div>
+    </div>
+  </div>
+
+  <div class="messages">
+    <div class="message">
+      <div class="message-header">
+        <div class="message-avatar" style="background: #268bd2">S</div>
+        <div class="message-name">Sarah M.</div>
+        <div class="message-time">2 hours ago</div>
+      </div>
+      <div class="message-body">
+        Has anyone looked at the parking requirements in the new proposal? They're requiring 2 spaces per ADU which seems excessive for transit-accessible areas.
+      </div>
+    </div>
+
+    <div class="message">
+      <div class="message-header">
+        <div class="message-avatar" style="background: #859900">M</div>
+        <div class="message-name">Marcus T.</div>
+        <div class="message-time">1 hour ago</div>
+      </div>
+      <div class="message-body">
+        Yes! Berkeley only requires 0.5 spaces near BART. I found the comparison study — sharing in my draft.
+      </div>
+    </div>
+
+    <div class="message">
+      <div class="message-header">
+        <div class="message-avatar" style="background: #6c71c4">🤖</div>
+        <div class="message-name">Civic AI</div>
+        <div class="message-time">45 min ago</div>
+      </div>
+      <div class="message-body ai">
+        <strong>I noticed a connection:</strong> State bill AB 2097 (2022) actually prohibits parking minimums near transit. San Rafael's proposal may not comply. I've added this to the shared research.
+      </div>
+    </div>
+
+    <div class="message">
+      <div class="message-header">
+        <div class="message-avatar" style="background: #cb4b16">J</div>
+        <div class="message-name">Jennifer K.</div>
+        <div class="message-time">20 min ago</div>
+      </div>
+      <div class="message-body">
+        This is huge. Who's planning to speak Tuesday? We should coordinate so we're not all making the same point.
+      </div>
+    </div>
+  </div>
+
+  <div class="drafts-section">
+    <div class="drafts-header">
+      <div class="drafts-title">Shared Drafts</div>
+      <div class="drafts-count">7 ready</div>
+    </div>
+    <div class="draft-item" onclick="goTo(3)">
+      <div class="draft-author">
+        <div class="message-avatar" style="background: #859900; width: 24px; height: 24px; font-size: 11px;">M</div>
+        <span class="message-name" style="font-size: 13px;">Marcus T.</span>
+        <span class="neighbor-badge">Parking data</span>
+      </div>
+      <div class="draft-preview">"Comparing peer cities, San Rafael's 2-space requirement is an outlier..."</div>
+    </div>
+    <div class="draft-item">
+      <div class="draft-author">
+        <div class="message-avatar" style="background: #268bd2; width: 24px; height: 24px; font-size: 11px;">S</div>
+        <span class="message-name" style="font-size: 13px;">Sarah M.</span>
+        <span class="neighbor-badge">Housing need</span>
+      </div>
+      <div class="draft-preview">"As a 10-year resident, I've watched housing costs push out young families..."</div>
+    </div>
+    <div class="draft-item">
+      <div class="draft-author">
+        <div class="message-avatar" style="background: #d33682; width: 24px; height: 24px; font-size: 11px;">A</div>
+        <span class="message-name" style="font-size: 13px;">Alex R.</span>
+        <span class="neighbor-badge">Legal angle</span>
+      </div>
+      <div class="draft-preview">"AB 2097 compliance requires the city to reconsider..."</div>
+    </div>
+  </div>
+
+  <button class="cta" onclick="goTo(3)">Add Your Voice</button>
+</div>
+
+<!-- SCREEN 3: Your Voice -->
+<div class="screen" id="screen3">
+  <div class="back" onclick="goTo(2)">← Back to thread</div>
+
+  <div class="thread-header">
+    <div class="thread-topic">Your voice on</div>
+    <div class="thread-title">ADU Regulations Update</div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-label">Gaps in the conversation</div>
+    <div class="insight-text">No one has addressed the impact on seniors wanting to age in place. Is this relevant to you?</div>
+  </div>
+
+  <div class="section-header">
+    <div class="section-title">Neighbors covering other angles</div>
+  </div>
+
+  <div class="neighbor-card">
+    <div class="neighbor-avatar" style="background: #859900">M</div>
+    <div class="neighbor-info">
+      <div class="neighbor-name">Marcus T.</div>
+      <div class="neighbor-detail">Covering parking data + peer cities</div>
+    </div>
+    <div class="neighbor-badge">✓ Ready</div>
+  </div>
+
+  <div class="neighbor-card">
+    <div class="neighbor-avatar" style="background: #d33682">A</div>
+    <div class="neighbor-info">
+      <div class="neighbor-name">Alex R.</div>
+      <div class="neighbor-detail">Covering AB 2097 legal compliance</div>
+    </div>
+    <div class="neighbor-badge">✓ Ready</div>
+  </div>
+
+  <div class="neighbor-card">
+    <div class="neighbor-avatar" style="background: #cb4b16">J</div>
+    <div class="neighbor-info">
+      <div class="neighbor-name">Jennifer K.</div>
+      <div class="neighbor-detail">Covering affordability impact</div>
+    </div>
+    <div class="neighbor-badge">Drafting</div>
+  </div>
+
+  <div class="messages" style="margin-top: 24px;">
+    <div class="message">
+      <div class="message-header">
+        <div class="message-avatar" style="background: #6c71c4">🤖</div>
+        <div class="message-name">Civic AI</div>
+      </div>
+      <div class="message-body ai">
+        <strong>Since you mentioned you're a longtime resident:</strong><br><br>
+        Your perspective on neighborhood change over time would be unique. The commission responds well to personal stories.
+        <br><br>
+        Would you like me to help you draft something about the "aging in place" angle? It's not covered yet and could strengthen the group's case.
+      </div>
+    </div>
+  </div>
+
+  <button class="cta">Draft My Comment</button>
+  <button class="cta secondary" style="margin-top: 12px;">I'll Support Others Instead</button>
+</div>
+
+<!-- Screen indicator -->
+<div class="screen-indicator">
+  <div class="dot active" onclick="goTo(1)"></div>
+  <div class="dot" onclick="goTo(2)"></div>
+  <div class="dot" onclick="goTo(3)"></div>
+</div>
+
+<script>
+  function goTo(screenNum) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.dot').forEach(d => d.classList.remove('active'));
+    document.getElementById('screen' + screenNum).classList.add('active');
+    document.querySelectorAll('.dot')[screenNum - 1].classList.add('active');
+    window.scrollTo(0, 0);
+  }
+</script>
+
+</body>
+</html>

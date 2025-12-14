@@ -1,0 +1,39 @@
+{
+  "id": "ab33e5fe-8127-401c-90f5-bd6e9e3b431e",
+  "jurisdiction": {
+    "id": "city-richmond",
+    "name": "Richmond",
+    "type": "city",
+    "website": null,
+    "meeting_calendar_url": null
+  },
+  "generation_metadata": {
+    "scrape_urls": [
+      "https://www.ci.richmond.ca.us/4157/City-of-Richmond-Council-Meetings"
+    ],
+    "ai_model_used": "gpt-5-mini",
+    "wiki_files_loaded": [],
+    "generation_cost": 0.0,
+    "processing_time": 0.0,
+    "unparseable_urls": [
+      {
+        "url": "https://www.ci.richmond.ca.us/4157/City-of-Richmond-Council-Meetings",
+        "reason": "JavaScript-embedded eScribe calendar system",
+        "user_guidance": "Visit link for City Council meetings (eScribe calendar - not auto-parsed)"
+      }
+    ]
+  },
+  "html_content": "Subject: City Council Meeting\n\n# \u2709\ufe0f Richmond City Council Meeting\n*Your quick guide to what's on the city council agenda \u2014 Not specified*\n\n## \ud83d\udde3\ufe0f How to Participate\n- **Meeting:** [Not specified at Not specified](https://calendar.google.com/calendar/render?action=TEMPLATE&text=Richmond%20City%20Council%20Meeting&dates=20250929T000000/20250929T020000&location=Richmond%20City%20Hall%2C%20450%20Civic%20Center%20Plaza%2C%20Richmond%2C%20CA%2094804&details=Richmond%20City%20Council%20Meeting) \ud83d\udcc5\n- **Where:** Richmond City Hall, 450 Civic Center Plaza, Richmond, CA 94804\n- **Watch Online:** Not specified.\n- **Call In:** Not specified.\n- **Email Comments:** Not specified. \u2014 **deadline:** Not specified.\n- **Attend & Speak:** Check meeting agenda for public comment rules\n- **Full Agenda:** [View original meeting agenda](https://www.ci.richmond.ca.us/4157/City-of-Richmond-Council-Meetings)\n\n## \ud83d\udea8 What's on the Agenda\nNo agenda items specified.\n\n## \u2705 Bottom Line\nNot specified.\n\n\u26a1 *Independent and nonpartisan summary. Facts only; no spin.*",
+  "text_content": "Subject: City Council Meeting\n\n# \u2709\ufe0f Richmond City Council Meeting\n*Your quick guide to what's on the city council agenda \u2014 Not specified*\n\n## \ud83d\udde3\ufe0f How to Participate\n- **Meeting:** [Not specified at Not specified](https://calendar.google.com/calendar/render?action=TEMPLATE&text=Richmond%20City%20Council%20Meeting&dates=20250929T000000/20250929T020000&location=Richmond%20City%20Hall%2C%20450%20Civic%20Center%20Plaza%2C%20Richmond%2C%20CA%2094804&details=Richmond%20City%20Council%20Meeting) \ud83d\udcc5\n- **Where:** Richmond City Hall, 450 Civic Center Plaza, Richmond, CA 94804\n- **Watch Online:** Not specified.\n- **Call In:** Not specified.\n- **Email Comments:** Not specified. \u2014 **deadline:** Not specified.\n- **Attend & Speak:** Check meeting agenda for public comment rules\n- **Full Agenda:** [View original meeting agenda](https://www.ci.richmond.ca.us/4157/City-of-Richmond-Council-Meetings)\n\n## \ud83d\udea8 What's on the Agenda\nNo agenda items specified.\n\n## \u2705 Bottom Line\nNot specified.\n\n\u26a1 *Independent and nonpartisan summary. Facts only; no spin.*",
+  "subject_line": "City Council Meeting",
+  "send_date": "2025-09-29T00:30:18.617019+00:00",
+  "recipients": [],
+  "analytics": {
+    "sent_count": 0,
+    "open_rate": 0.0,
+    "click_rate": 0.0,
+    "action_conversion_rate": 0.0
+  },
+  "created_at": "2025-09-29T00:30:18.617054+00:00",
+  "events": []
+}

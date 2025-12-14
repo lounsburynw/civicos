@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "civic-extraction"
+version = "0.1.0"
+description = "Platform clients for extracting civic meeting data - Legistar, CivicClerk, Granicus"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.9"
+authors = [
+    {name = "Civic Platform", email = "contact@civic.example.com"}
+]
+keywords = ["civic", "legistar", "civicclerk", "granicus", "municipal", "meetings"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+]
+
+dependencies = [
+    "requests>=2.28.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "responses>=0.23.0",  # For mocking requests
+]
+
+[project.urls]
+Homepage = "https://github.com/civic-platform/civic-extraction"
+Documentation = "https://github.com/civic-platform/civic-extraction#readme"
+Repository = "https://github.com/civic-platform/civic-extraction"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+civic_extraction = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

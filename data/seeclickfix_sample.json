@@ -1,0 +1,272 @@
+[
+  {
+    "id": 20396085,
+    "status": "Open",
+    "summary": "Street Sign and Markings / Se\u00f1ales y marcas viales",
+    "description": "Red zone should be extended from busy 4 way intersection with school.",
+    "rating": 1,
+    "lat": 37.96787467999049,
+    "lng": -122.5353479294805,
+    "address": "35 Marin St San Rafael, California, 94901",
+    "created_at": "2025-11-11T18:04:13-05:00",
+    "acknowledged_at": null,
+    "closed_at": null,
+    "reopened_at": null,
+    "updated_at": "2025-11-11T18:04:22-05:00",
+    "url": "https://seeclickfix.com/api/v2/issues/20396085",
+    "point": {
+      "type": "Point",
+      "coordinates": [
+        -122.5353479294805,
+        37.96787467999049
+      ]
+    },
+    "private_visibility": false,
+    "html_url": "https://seeclickfix.com/issues/20396085",
+    "show_blocked_issue_text": false,
+    "request_type": {
+      "id": 39032,
+      "title": "Street Sign and Markings / Se\u00f1ales y marcas viales",
+      "organization": "Department of Public Works",
+      "url": "https://seeclickfix.com/api/v2/request_types/39032",
+      "related_issues_url": "https://seeclickfix.com/api/v2/issues?lat=37.96787467999049&lng=-122.5353479294805&request_types=39032&sort=distance"
+    },
+    "comment_url": "https://seeclickfix.com/api/v2/issues/20396085/comments",
+    "flag_url": "https://seeclickfix.com/api/v2/issues/20396085/flag",
+    "transitions": {},
+    "reporter": {
+      "id": 0,
+      "name": "An anonymous SeeClickFix user",
+      "role": "Registered User",
+      "avatar": {
+        "full": "https://seeclickfix.com/assets/no-avatar-100-4c3cf895b7ee80b7e97c54d1c7ee80ef9e8d176702efb9a7dcf02abb38ffa5b8.png",
+        "square_100x100": "https://seeclickfix.com/assets/no-avatar-100-4c3cf895b7ee80b7e97c54d1c7ee80ef9e8d176702efb9a7dcf02abb38ffa5b8.png"
+      },
+      "html_url": "https://seeclickfix.com/users/anonymous",
+      "witty_title": "",
+      "civic_points": 0
+    },
+    "media": {
+      "video_url": null,
+      "image_full": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzU3Mzc1NTUsInB1ciI6ImJsb2JfaWQifX0=--76e9f96af975184d82bee9fc42821d48642f5c2e/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--242b3e94addeeae50b5fd8df8a0a8fbcf02bf33c/d49412a2-9336-470d-81cb-1a17fa75d670_2025-11-11T18-03-02-05-00.jpg",
+      "image_square_100x100": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzU3Mzc1NTUsInB1ciI6ImJsb2JfaWQifX0=--76e9f96af975184d82bee9fc42821d48642f5c2e/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/d49412a2-9336-470d-81cb-1a17fa75d670_2025-11-11T18-03-02-05-00.jpg",
+      "representative_image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzU3Mzc1NTUsInB1ciI6ImJsb2JfaWQifX0=--76e9f96af975184d82bee9fc42821d48642f5c2e/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/d49412a2-9336-470d-81cb-1a17fa75d670_2025-11-11T18-03-02-05-00.jpg"
+    }
+  },
+  {
+    "id": 20395647,
+    "status": "Open",
+    "summary": "Illegal Dumping / Desecho ilegal",
+    "description": "",
+    "rating": 1,
+    "lat": 37.96597339333482,
+    "lng": -122.50224597868615,
+    "address": "4 Elaine Way San Rafael, California, 94901",
+    "created_at": "2025-11-11T16:34:16-05:00",
+    "acknowledged_at": null,
+    "closed_at": null,
+    "reopened_at": null,
+    "updated_at": "2025-11-11T16:34:28-05:00",
+    "url": "https://seeclickfix.com/api/v2/issues/20395647",
+    "point": {
+      "type": "Point",
+      "coordinates": [
+        -122.50224597868615,
+        37.96597339333482
+      ]
+    },
+    "private_visibility": false,
+    "html_url": "https://seeclickfix.com/issues/20395647",
+    "show_blocked_issue_text": false,
+    "request_type": {
+      "id": 39009,
+      "title": "Illegal Dumping / Desecho ilegal",
+      "organization": "Department of Public Works",
+      "url": "https://seeclickfix.com/api/v2/request_types/39009",
+      "related_issues_url": "https://seeclickfix.com/api/v2/issues?lat=37.96597339333482&lng=-122.50224597868615&request_types=39009&sort=distance"
+    },
+    "comment_url": "https://seeclickfix.com/api/v2/issues/20395647/comments",
+    "flag_url": "https://seeclickfix.com/api/v2/issues/20395647/flag",
+    "transitions": {},
+    "reporter": {
+      "id": 2454259,
+      "name": "San Rafael, CA  Neighbor",
+      "role": "Guest",
+      "avatar": {
+        "full": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "square_100x100": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png"
+      },
+      "html_url": "https://seeclickfix.com/users/2454259",
+      "witty_title": "",
+      "civic_points": 0
+    },
+    "media": {
+      "video_url": null,
+      "image_full": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzU3MzU5MzEsInB1ciI6ImJsb2JfaWQifX0=--e2feffb26fae65487443133b3ac1f6af47000dcc/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJwbmciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--57f85c85093db4303fe6b4e7261d952e5d1fef3e/1dd53ed3-09e0-4bbc-a823-f1650e06de4c_2025-11-11T16-33-49-05-00.png",
+      "image_square_100x100": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzU3MzU5MzEsInB1ciI6ImJsb2JfaWQifX0=--e2feffb26fae65487443133b3ac1f6af47000dcc/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJwbmciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--8a8d0aa5681efd735abc391b83016b612fc2482f/1dd53ed3-09e0-4bbc-a823-f1650e06de4c_2025-11-11T16-33-49-05-00.png",
+      "representative_image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzU3MzU5MzEsInB1ciI6ImJsb2JfaWQifX0=--e2feffb26fae65487443133b3ac1f6af47000dcc/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJwbmciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--8a8d0aa5681efd735abc391b83016b612fc2482f/1dd53ed3-09e0-4bbc-a823-f1650e06de4c_2025-11-11T16-33-49-05-00.png"
+    }
+  },
+  {
+    "id": 20395452,
+    "status": "Open",
+    "summary": "Illegal Dumping / Desecho ilegal",
+    "description": "",
+    "rating": 1,
+    "lat": 37.9641882,
+    "lng": -122.5105117,
+    "address": "21 Front St San Rafael, California, 94901",
+    "created_at": "2025-11-11T16:01:12-05:00",
+    "acknowledged_at": null,
+    "closed_at": null,
+    "reopened_at": null,
+    "updated_at": "2025-11-11T16:01:18-05:00",
+    "url": "https://seeclickfix.com/api/v2/issues/20395452",
+    "point": {
+      "type": "Point",
+      "coordinates": [
+        -122.5105117,
+        37.9641882
+      ]
+    },
+    "private_visibility": false,
+    "html_url": "https://seeclickfix.com/issues/20395452",
+    "show_blocked_issue_text": false,
+    "request_type": {
+      "id": 39009,
+      "title": "Illegal Dumping / Desecho ilegal",
+      "organization": "Department of Public Works",
+      "url": "https://seeclickfix.com/api/v2/request_types/39009",
+      "related_issues_url": "https://seeclickfix.com/api/v2/issues?lat=37.9641882&lng=-122.5105117&request_types=39009&sort=distance"
+    },
+    "comment_url": "https://seeclickfix.com/api/v2/issues/20395452/comments",
+    "flag_url": "https://seeclickfix.com/api/v2/issues/20395452/flag",
+    "transitions": {},
+    "reporter": {
+      "id": 3184159,
+      "name": "Douglas Long",
+      "role": "Registered User",
+      "avatar": {
+        "full": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "square_100x100": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png"
+      },
+      "html_url": "https://seeclickfix.com/users/3184159",
+      "witty_title": "",
+      "civic_points": 0
+    },
+    "media": {
+      "video_url": null,
+      "image_full": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzU3MzUxMjAsInB1ciI6ImJsb2JfaWQifX0=--8c664bd8beb74549961fc1e8aee265750c44bf9c/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--242b3e94addeeae50b5fd8df8a0a8fbcf02bf33c/34092478-5e39-419b-9a33-e3c50baf3f8c_2025-11-11T16-00-53-05-00.png",
+      "image_square_100x100": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzU3MzUxMjAsInB1ciI6ImJsb2JfaWQifX0=--8c664bd8beb74549961fc1e8aee265750c44bf9c/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/34092478-5e39-419b-9a33-e3c50baf3f8c_2025-11-11T16-00-53-05-00.png",
+      "representative_image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzU3MzUxMjAsInB1ciI6ImJsb2JfaWQifX0=--8c664bd8beb74549961fc1e8aee265750c44bf9c/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/34092478-5e39-419b-9a33-e3c50baf3f8c_2025-11-11T16-00-53-05-00.png"
+    }
+  },
+  {
+    "id": 20393895,
+    "status": "Open",
+    "summary": "Stormwater Drainage / Drenaje de Aguas Pluviales",
+    "description": "This is a second request to clear a drainage area down Jewell Street between Ridge and Union.  North/East side.  The DPW solved an ongoing problem by clearing the the first time about 4 years ago.  Unfortunately it needs cleaning out each year.\n\nThere are no houses on this side of Jewell.- but across from several.\n\nIt was dug out by DPW a few years ago and has allowed heavy rain water to flow downhill to a street drain near Union St.   Thank you!\n\nIt keeps the water from crossing the street and running down driveways on the South/West side.  This takes it into the properties downhill on Union St.\n\nUnfortunately it's currently filled with vegetation - leaves, etc. which is blocking the gutter.  With the rain coming this week, I'm concerned and requesting that DPW remove the debris that will block the flow to the drain.",
+    "rating": 1,
+    "lat": 37.97615297598178,
+    "lng": -122.51400618698173,
+    "address": "232-298 Jewell St San Rafael, CA, 94901, USA",
+    "created_at": "2025-11-11T11:56:48-05:00",
+    "acknowledged_at": null,
+    "closed_at": null,
+    "reopened_at": null,
+    "updated_at": "2025-11-11T11:56:49-05:00",
+    "url": "https://seeclickfix.com/api/v2/issues/20393895",
+    "point": {
+      "type": "Point",
+      "coordinates": [
+        -122.51400618698173,
+        37.97615297598178
+      ]
+    },
+    "private_visibility": false,
+    "html_url": "https://seeclickfix.com/issues/20393895",
+    "show_blocked_issue_text": false,
+    "request_type": {
+      "id": 39028,
+      "title": "Stormwater Drainage / Drenaje de Aguas Pluviales",
+      "organization": "Department of Public Works",
+      "url": "https://seeclickfix.com/api/v2/request_types/39028",
+      "related_issues_url": "https://seeclickfix.com/api/v2/issues?lat=37.97615297598178&lng=-122.51400618698173&request_types=39028&sort=distance"
+    },
+    "comment_url": "https://seeclickfix.com/api/v2/issues/20393895/comments",
+    "flag_url": "https://seeclickfix.com/api/v2/issues/20393895/flag",
+    "transitions": {},
+    "reporter": {
+      "id": 2526236,
+      "name": "ABC",
+      "role": "Registered User",
+      "avatar": {
+        "full": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "square_100x100": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png"
+      },
+      "html_url": "https://seeclickfix.com/users/2526236",
+      "witty_title": "",
+      "civic_points": 0
+    },
+    "media": {
+      "video_url": null,
+      "image_full": null,
+      "image_square_100x100": null,
+      "representative_image_url": "https://seeclickfix.com/assets/categories/trash-cb97ad375c0b11cbdb79643c8830c48dfcc55060d49300a20a59529952ed9f3d.png"
+    }
+  },
+  {
+    "id": 20393859,
+    "status": "Open",
+    "summary": "Pothole/Road Condition / Bache (hoyo)/Condici\u00f3n de Carreteras",
+    "description": "The manhole cover in the street in front of 292 Knight Drive in San Rafael looks like it was first popped up by the heavy machinery that has been working on this street daily since July or so. Then this manhole cover had been broken into two or more pieces, likely by the same type of machinery. It was then covered with sand and has two orange cones on each side. This sits right in the middle of our narrow street, which means that cars must drive around, which is potentially dangerous. This should be fixed as soon as possible. Also, you'll notice that the house at 292 Knight Drive has two large piles of stones against the curb and extending well into the street, with orange cones around the piles. These piles of stones have been there for at least 4 months. The homeowner seems to be totally disregarding the fact that these piles of stones make cars have to veer away from the piles coming up the street. The situation is made considerably worse by the broken manhole cover that is only a few feet away from those piles. Again, this combination is creating a dangerous obstruction in the middle of Upper Knight Drive. ",
+    "rating": 1,
+    "lat": 37.99327459308845,
+    "lng": -122.48036158386635,
+    "address": "292 Knight Dr San Rafael, California, 94901",
+    "created_at": "2025-11-11T11:51:09-05:00",
+    "acknowledged_at": null,
+    "closed_at": null,
+    "reopened_at": null,
+    "updated_at": "2025-11-11T11:51:10-05:00",
+    "url": "https://seeclickfix.com/api/v2/issues/20393859",
+    "point": {
+      "type": "Point",
+      "coordinates": [
+        -122.48036158386635,
+        37.99327459308845
+      ]
+    },
+    "private_visibility": false,
+    "html_url": "https://seeclickfix.com/issues/20393859",
+    "show_blocked_issue_text": false,
+    "request_type": {
+      "id": 39023,
+      "title": "Pothole/Road Condition / Bache (hoyo)/Condici\u00f3n de Carreteras",
+      "organization": "Department of Public Works",
+      "url": "https://seeclickfix.com/api/v2/request_types/39023",
+      "related_issues_url": "https://seeclickfix.com/api/v2/issues?lat=37.99327459308845&lng=-122.48036158386635&request_types=39023&sort=distance"
+    },
+    "comment_url": "https://seeclickfix.com/api/v2/issues/20393859/comments",
+    "flag_url": "https://seeclickfix.com/api/v2/issues/20393859/flag",
+    "transitions": {},
+    "reporter": {
+      "id": 2454259,
+      "name": "San Rafael, CA  Neighbor",
+      "role": "Guest",
+      "avatar": {
+        "full": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "square_100x100": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png"
+      },
+      "html_url": "https://seeclickfix.com/users/2454259",
+      "witty_title": "",
+      "civic_points": 0
+    },
+    "media": {
+      "video_url": null,
+      "image_full": null,
+      "image_square_100x100": null,
+      "representative_image_url": "https://seeclickfix.com/assets/categories/pothole-b9770831f94f1525be41a29550ce30ea51289d8421bea4a8a29d370d1666af46.png"
+    }
+  }
+]

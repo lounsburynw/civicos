@@ -1,0 +1,265 @@
+{
+  "last_updated": "2025-10-08T05:31:12.551867Z",
+  "total_cities": 6,
+  "duplicate_count": 0,
+  "cities": {
+    "city-berkeley": {
+      "name": "Berkeley",
+      "jurisdiction_id": "city-berkeley",
+      "platform": "Berkeley",
+      "status": "degraded",
+      "last_extraction": "20251007-_2-12T59::Z",
+      "extraction_history": [
+        {
+          "timestamp": "20251007_212359",
+          "events_found": 6,
+          "agendas_parsed": 4,
+          "items_extracted": 15,
+          "parse_rate": 0.67,
+          "cost": 0.0,
+          "errors": [
+            "Agenda may be placeholder/not yet finalized"
+          ]
+        }
+      ],
+      "current_metrics": {
+        "events": 6,
+        "agendas_parsed": 4,
+        "actionable_items": 15,
+        "parse_rate": 0.67,
+        "avg_items_per_agenda": 3.8
+      },
+      "known_limitations": [
+        "Berkeley custom CMS with multi-pass extraction",
+        "\u274c CRITICAL: Datetime extraction broken - shows extraction timestamp, not actual meeting date",
+        "User trust violation - verify dates manually before use",
+        "Parse error: Agenda may be placeholder/not yet finalized"
+      ],
+      "notes": "\u274c DATETIME BROKEN - Shows extraction timestamp, not actual meeting date",
+      "platform_config": {
+        "agent_type": "berkeley",
+        "meeting_urls": [
+          "https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104"
+        ],
+        "agenda_parsing_enabled": true
+      }
+    },
+    "city-el-cerrito": {
+      "name": "El Cerrito",
+      "jurisdiction_id": "city-el-cerrito",
+      "platform": "CivicClerk",
+      "status": "operational",
+      "last_extraction": "20251007-_2-12T16::Z",
+      "extraction_history": [
+        {
+          "timestamp": "20251007_212816",
+          "events_found": 7,
+          "agendas_parsed": 2,
+          "items_extracted": 8,
+          "parse_rate": 0.29,
+          "cost": 0.0,
+          "errors": [
+            "Stale content: References FY 2018, which is 7 years old (meeting is in 2025)",
+            "Stale content: References FY 2019, which is 6 years old (meeting is in 2025)",
+            "Stale content: Header references JUNE 2020, which is 5 years old"
+          ]
+        }
+      ],
+      "current_metrics": {
+        "events": 7,
+        "agendas_parsed": 2,
+        "actionable_items": 8,
+        "parse_rate": 0.29,
+        "avg_items_per_agenda": 4.0
+      },
+      "known_limitations": [
+        "CivicClerk API returns agendaId=0 for unpublished agendas",
+        "Many future meetings don't have agendas published yet",
+        "Parse rate improves closer to meeting dates",
+        "Parse error: Stale content: References FY 2018, which is 7 years old (meeting is in 2025)",
+        "Parse error: Stale content: References FY 2019, which is 6 years old (meeting is in 2025)"
+      ],
+      "notes": "Events extracting correctly, agenda availability depends on city publishing schedule"
+    },
+    "city-hayward": {
+      "name": "Hayward",
+      "jurisdiction_id": "city-hayward",
+      "platform": "Legistar",
+      "status": "operational",
+      "last_extraction": "20251007-_2-13T58::Z",
+      "extraction_history": [
+        {
+          "timestamp": "20251007_213058",
+          "events_found": 5,
+          "agendas_parsed": 4,
+          "items_extracted": 12,
+          "parse_rate": 0.8,
+          "cost": 0.0,
+          "errors": [
+            "Agenda may be placeholder/not yet finalized"
+          ]
+        }
+      ],
+      "current_metrics": {
+        "events": 5,
+        "agendas_parsed": 4,
+        "actionable_items": 12,
+        "parse_rate": 0.8,
+        "avg_items_per_agenda": 3.0
+      },
+      "known_limitations": [
+        "Parse error: Agenda may be placeholder/not yet finalized"
+      ],
+      "notes": "Best performing city - consistent agenda publication",
+      "platform_config": {
+        "agent_type": "legistar",
+        "meeting_urls": [
+          "https://hayward.legistar.com/Calendar.aspx"
+        ],
+        "agenda_parsing_enabled": true
+      }
+    },
+    "city-oakland": {
+      "name": "Oakland",
+      "jurisdiction_id": "city-oakland",
+      "platform": "Legistar",
+      "status": "operational",
+      "last_extraction": "20251007-_2-13T26::Z",
+      "extraction_history": [
+        {
+          "timestamp": "20251007_213426",
+          "events_found": 15,
+          "agendas_parsed": 13,
+          "items_extracted": 38,
+          "parse_rate": 0.87,
+          "cost": 0.0,
+          "errors": [
+            "Agenda may be placeholder/not yet finalized"
+          ]
+        }
+      ],
+      "current_metrics": {
+        "events": 15,
+        "agendas_parsed": 13,
+        "actionable_items": 38,
+        "parse_rate": 0.87,
+        "avg_items_per_agenda": 2.9
+      },
+      "known_limitations": [
+        "Parse error: Agenda may be placeholder/not yet finalized"
+      ],
+      "notes": "Best performing city - consistent agenda publication",
+      "platform_config": {
+        "agent_type": "legistar",
+        "meeting_urls": [
+          "https://oakland.legistar.com/Calendar.aspx"
+        ],
+        "agenda_parsing_enabled": true
+      }
+    },
+    "city-san-rafael": {
+      "name": "San Rafael",
+      "jurisdiction_id": "city-san-rafael",
+      "platform": "HTML",
+      "status": "operational",
+      "last_extraction": "20251007-_2-21T46::Z",
+      "extraction_history": [
+        {
+          "timestamp": "20251007_221946",
+          "events_found": 3,
+          "agendas_parsed": 2,
+          "items_extracted": 2,
+          "parse_rate": 0.67,
+          "cost": 0.0,
+          "errors": []
+        }
+      ],
+      "current_metrics": {
+        "events": 3,
+        "agendas_parsed": 2,
+        "actionable_items": 2,
+        "parse_rate": 0.67,
+        "avg_items_per_agenda": 1.0
+      },
+      "known_limitations": [],
+      "notes": "",
+      "platform_config": {
+        "agent_type": "html",
+        "meeting_urls": [
+          "https://www.cityofsanrafael.org/departments/public-meetings/"
+        ],
+        "agenda_parsing_enabled": true
+      }
+    },
+    "city-santa-rosa": {
+      "name": "Santa Rosa",
+      "jurisdiction_id": "city-santa-rosa",
+      "platform": "Legistar",
+      "status": "operational",
+      "last_extraction": "20251007-_2-22T21::Z",
+      "extraction_history": [
+        {
+          "timestamp": "20251007_222321",
+          "events_found": 9,
+          "agendas_parsed": 9,
+          "items_extracted": 17,
+          "parse_rate": 1.0,
+          "cost": 0.0,
+          "errors": []
+        },
+        {
+          "timestamp": "20251007_185203",
+          "events_found": 9,
+          "agendas_parsed": 9,
+          "items_extracted": 18,
+          "parse_rate": 1.0,
+          "cost": 0.0,
+          "errors": []
+        }
+      ],
+      "current_metrics": {
+        "events": 9,
+        "agendas_parsed": 9,
+        "actionable_items": 17,
+        "parse_rate": 1.0,
+        "avg_items_per_agenda": 1.9
+      },
+      "known_limitations": [],
+      "notes": "Best performing city - consistent agenda publication",
+      "platform_config": {
+        "agent_type": "legistar",
+        "meeting_urls": [
+          "https://santa-rosa.legistar.com/Calendar.aspx"
+        ],
+        "agenda_parsing_enabled": true
+      }
+    }
+  },
+  "platform_summary": {
+    "Berkeley": {
+      "cities": 1,
+      "total_items": 15,
+      "status": "operational",
+      "avg_parse_rate": 0.67
+    },
+    "CivicClerk": {
+      "cities": 1,
+      "total_items": 8,
+      "status": "operational",
+      "avg_parse_rate": 0.29,
+      "notes": "Low parse rate due to agenda publishing schedules, not code issues"
+    },
+    "Legistar": {
+      "cities": 3,
+      "total_items": 67,
+      "status": "excellent",
+      "avg_parse_rate": 0.89
+    },
+    "HTML": {
+      "cities": 1,
+      "total_items": 2,
+      "status": "operational",
+      "avg_parse_rate": 0.67
+    }
+  }
+}

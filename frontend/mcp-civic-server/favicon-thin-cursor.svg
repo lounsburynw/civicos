@@ -1,0 +1,9 @@
+<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- '<_' with thin underscore, transparent background for natural browser tab blending -->
+
+    <!-- '<' prompt -->
+    <polygon points="10,4 6,8 10,12 9,12 5,8 9,4" fill="#333333"/>
+
+    <!-- '_' cursor (thinner) -->
+    <rect x="11" y="12.5" width="2" height="0.5" fill="#666666"/>
+</svg>

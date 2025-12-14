@@ -1,0 +1,493 @@
+{
+  "version": "1.0",
+  "created_at": "2025-10-30",
+  "scenario_count": 50,
+  "scenarios": [
+    {
+      "id": "housing_001",
+      "topic": "housing",
+      "category": "density",
+      "text": "A developer proposes an 8-story, 120-unit apartment building on a surface parking lot downtown. 15% of units would be affordable (80% AMI). The project requires a zoning variance for height. Do you support this project?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["zoning", "affordability", "height"]
+    },
+    {
+      "id": "housing_002",
+      "topic": "housing",
+      "category": "affordability",
+      "text": "The city council proposes requiring all new developments over 20 units to include 25% affordable housing (60% AMI) without any density bonuses. This would likely reduce market-rate housing construction by 30-40%. Do you support this policy?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["affordability", "inclusionary", "market-rate"]
+    },
+    {
+      "id": "housing_003",
+      "topic": "housing",
+      "category": "displacement",
+      "text": "A neighborhood facing gentrification pressure proposes a community land trust to acquire 50 existing rental units, ensuring permanent affordability. This would require $15M in city funds and ongoing subsidies of $800K/year. Do you support this investment?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["community land trust", "displacement", "subsidy"]
+    },
+    {
+      "id": "housing_004",
+      "topic": "housing",
+      "category": "zoning",
+      "text": "The city is considering allowing fourplexes by-right on all single-family lots (similar to SB 9 but more permissive). Projections show this could add 2,000 units over 10 years but may change neighborhood character. Do you support this zoning change?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["upzoning", "density", "missing middle"]
+    },
+    {
+      "id": "housing_005",
+      "topic": "housing",
+      "category": "tenant_protection",
+      "text": "The city proposes expanding rent control to buildings constructed before 2010 (currently only pre-1995 buildings are covered), with annual increases capped at 3%. Landlord groups warn this will reduce rental housing investment. Do you support this expansion?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["rent control", "tenant protection"]
+    },
+    {
+      "id": "transportation_001",
+      "topic": "transportation",
+      "category": "transit",
+      "text": "The city proposes a $500M bond measure to build a 5-mile light rail extension connecting downtown to a major employment center. This would add $120/year to the average property tax bill. Do you support this measure?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["transit", "tax", "infrastructure"]
+    },
+    {
+      "id": "transportation_002",
+      "topic": "transportation",
+      "category": "bikes",
+      "text": "The city plans to remove 200 parking spaces on a major arterial to add protected bike lanes, reducing car lanes from 4 to 2. Traffic modeling shows 15-minute delays during peak hours but expects 40% increase in cycling. Do you support this plan?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["bike infrastructure", "parking", "traffic"]
+    },
+    {
+      "id": "transportation_003",
+      "topic": "transportation",
+      "category": "parking",
+      "text": "A proposal would eliminate parking minimums for new development near BART stations (within 1/2 mile), allowing developers to build without any parking. Merchants worry about customer access. Do you support eliminating parking requirements?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["parking", "transit-oriented"]
+    },
+    {
+      "id": "transportation_004",
+      "topic": "transportation",
+      "category": "cars",
+      "text": "The city proposes a $5/day congestion charge for driving into the downtown core (6am-7pm weekdays), with revenue dedicated to free transit passes for low-income residents. Do you support this congestion pricing scheme?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["congestion pricing", "equity", "transit funding"]
+    },
+    {
+      "id": "transportation_005",
+      "topic": "transportation",
+      "category": "transit",
+      "text": "CalTrain proposes electrification and high-speed rail compatibility upgrades requiring property acquisitions along the corridor, displacing 30 households and 8 businesses. Compensation would be at market rate. Do you support this project?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["high-speed rail", "displacement", "eminent domain"]
+    },
+    {
+      "id": "environment_001",
+      "topic": "environment",
+      "category": "climate",
+      "text": "The city proposes requiring all new buildings to be all-electric (no gas hookups) and existing buildings to convert by 2035. This would add $15K-$40K in retrofit costs for homeowners. Do you support this gas ban?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["climate", "electrification", "retrofits"]
+    },
+    {
+      "id": "environment_002",
+      "topic": "environment",
+      "category": "trees",
+      "text": "A proposed 200-unit affordable housing project requires removing 45 mature oak trees. The developer will plant 200 replacement trees, but they'll take 30+ years to mature. Do you support approving this project?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["trees", "development", "trade-offs"]
+    },
+    {
+      "id": "environment_003",
+      "topic": "environment",
+      "category": "energy",
+      "text": "The city proposes a community solar program requiring all residents to pay $8/month for solar farm development, with energy credits reducing bills by $12/month on average after 5 years. Do you support mandatory participation?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["solar", "renewable energy", "mandatory program"]
+    },
+    {
+      "id": "environment_004",
+      "topic": "environment",
+      "category": "waste",
+      "text": "The city proposes banning single-use plastics (bags, straws, utensils, to-go containers) with violations resulting in $250 fines for businesses. Small businesses estimate 15-20% cost increases. Do you support this ban?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["waste reduction", "plastics", "business impact"]
+    },
+    {
+      "id": "environment_005",
+      "topic": "environment",
+      "category": "climate",
+      "text": "The city proposes a carbon fee on natural gas usage, starting at $20/ton ($12/month for average household) and increasing 5% annually. Revenue would fund climate adaptation projects in disadvantaged communities. Do you support this fee?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["carbon pricing", "climate justice", "fees"]
+    },
+    {
+      "id": "budget_001",
+      "topic": "budget",
+      "category": "taxes",
+      "text": "The city proposes a 0.5% sales tax increase (bringing total to 9.75%) to fund homeless services, mental health programs, and affordable housing. This would raise $25M/year. Do you support this tax increase?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["sales tax", "homeless services", "revenue"]
+    },
+    {
+      "id": "budget_002",
+      "topic": "budget",
+      "category": "spending",
+      "text": "Facing a $50M budget deficit, the city must choose: cut all library hours by 40% and close 2 of 8 branches, OR increase property taxes by 8%. Which approach do you support?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["budget cuts", "libraries", "property tax"]
+    },
+    {
+      "id": "budget_003",
+      "topic": "budget",
+      "category": "revenue",
+      "text": "The city proposes a commercial rent tax (3.5% on businesses with revenue over $1M) to fund childcare and pre-K programs. Business groups warn this will push companies to relocate. Do you support this tax?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["business tax", "childcare", "economic impact"]
+    },
+    {
+      "id": "budget_004",
+      "topic": "budget",
+      "category": "debt",
+      "text": "The city proposes issuing $800M in bonds for infrastructure (roads, water, sewer) with 30-year repayment adding $280/year to average property tax bills. Bond rating agencies give the plan AA rating. Do you support these bonds?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["bonds", "infrastructure", "debt"]
+    },
+    {
+      "id": "budget_005",
+      "topic": "budget",
+      "category": "priorities",
+      "text": "The city has $10M in surplus revenue and must choose: increase police staffing by 25 officers, OR expand after-school programs to serve 2,000 more youth, OR invest in street repaving (clearing 60% of backlog). Which is your top priority?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["budget priorities", "trade-offs"]
+    },
+    {
+      "id": "public_safety_001",
+      "topic": "public_safety",
+      "category": "police",
+      "text": "The city proposes reallocating 25% of police budget ($40M) to create a new department of mental health crisis responders, homeless outreach, and violence prevention. Police staffing would drop from 800 to 600 officers. Do you support this reallocation?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["police budget", "mental health", "defund"]
+    },
+    {
+      "id": "public_safety_002",
+      "topic": "public_safety",
+      "category": "oversight",
+      "text": "A ballot measure would create an independent police oversight commission with subpoena power, authority to investigate misconduct, and binding disciplinary recommendations. The police union strongly opposes. Do you support this measure?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["police oversight", "accountability", "civilian review"]
+    },
+    {
+      "id": "public_safety_003",
+      "topic": "public_safety",
+      "category": "surveillance",
+      "text": "The police department wants to install 500 cameras with facial recognition at major intersections and transit hubs, costing $12M. Civil liberties groups oppose. Do you support this surveillance expansion?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["surveillance", "privacy", "technology"]
+    },
+    {
+      "id": "public_safety_004",
+      "topic": "public_safety",
+      "category": "fire",
+      "text": "The fire department proposes building 2 new stations in underserved areas to reduce response times from 9 minutes to 5 minutes, costing $35M in construction plus $8M/year in operations. Do you support this expansion?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["fire services", "response times", "infrastructure"]
+    },
+    {
+      "id": "public_safety_005",
+      "topic": "public_safety",
+      "category": "community",
+      "text": "The city proposes a violence prevention program using community outreach workers and 'violence interrupters' (formerly incarcerated mentors), costing $5M/year. Early data from other cities shows 20-40% reductions in shootings. Do you support this program?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["violence prevention", "community safety", "evidence-based"]
+    },
+    {
+      "id": "education_001",
+      "topic": "education",
+      "category": "funding",
+      "text": "The school district proposes a parcel tax of $400/year per property to restore art, music, and PE programs cut during budget crises. Senior exemptions would be available. Do you support this education tax?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["education funding", "parcel tax", "programs"]
+    },
+    {
+      "id": "education_002",
+      "topic": "education",
+      "category": "schools",
+      "text": "Due to declining enrollment, the district must close 5 of 30 elementary schools or increase class sizes from 22 to 28 students district-wide. Closures would disproportionately affect lower-income neighborhoods. Which approach do you support?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["school closures", "class size", "equity"]
+    },
+    {
+      "id": "education_003",
+      "topic": "education",
+      "category": "libraries",
+      "text": "The library proposes expanding to 7-day-a-week service, adding homework help centers, and acquiring 50% more digital resources. This requires a $6M/year budget increase (12% total library budget). Do you support this expansion?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["libraries", "services", "education access"]
+    },
+    {
+      "id": "education_004",
+      "topic": "education",
+      "category": "early_childhood",
+      "text": "The city proposes universal pre-K for all 4-year-olds, serving 2,500 children at a cost of $35M/year (funded by commercial property tax increase). Pre-K would be full-day, bilingual, and income-blind. Do you support this program?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["pre-K", "early childhood", "universal programs"]
+    },
+    {
+      "id": "education_005",
+      "topic": "education",
+      "category": "equity",
+      "text": "The district proposes reallocating $15M from high-performing schools (where PTAs raise significant private funds) to underperforming schools in low-income areas. High-performing school families protest. Do you support this reallocation?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["educational equity", "resource allocation", "PTA funding"]
+    },
+    {
+      "id": "governance_001",
+      "topic": "governance",
+      "category": "transparency",
+      "text": "A ballot measure would require the city to publish all contracts, financial records, and communications over $10K in a searchable online database within 30 days. Implementation costs $2M/year. Do you support this transparency measure?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "easy",
+      "tags": ["transparency", "open data", "accountability"]
+    },
+    {
+      "id": "governance_002",
+      "topic": "governance",
+      "category": "participation",
+      "text": "The city proposes participatory budgeting allowing residents to directly allocate $10M (5% of discretionary budget) through neighborhood assemblies and online voting. Staff warn this may slow down projects. Do you support this experiment?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["participatory budgeting", "direct democracy", "engagement"]
+    },
+    {
+      "id": "governance_003",
+      "topic": "governance",
+      "category": "elections",
+      "text": "A ballot measure would move city elections from odd years (low turnout: 25%) to even years with presidential/gubernatorial races (turnout: 65%). This may increase influence of state/national partisanship in local races. Do you support this change?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["elections", "turnout", "timing"]
+    },
+    {
+      "id": "governance_004",
+      "topic": "governance",
+      "category": "term_limits",
+      "text": "A ballot measure would impose 2-term limits (8 years total) on city council members. Currently there are no term limits, with several members serving 15+ years. Do you support term limits?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["term limits", "elected officials", "governance"]
+    },
+    {
+      "id": "governance_005",
+      "topic": "governance",
+      "category": "accountability",
+      "text": "The city proposes creating an independent ethics commission with authority to investigate elected officials, impose fines up to $50K, and refer cases for prosecution. Council members would not be able to override findings. Do you support this commission?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "easy",
+      "tags": ["ethics", "accountability", "oversight"]
+    },
+    {
+      "id": "development_001",
+      "topic": "development",
+      "category": "commercial",
+      "text": "A developer proposes a mixed-use project with 80K sq ft of retail, 120K sq ft of office space, and 180 apartments. The site currently has 12 small businesses (vintage shops, cafes, bookstore) that would be displaced. Do you support this development?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["mixed-use", "small business", "displacement"]
+    },
+    {
+      "id": "development_002",
+      "topic": "development",
+      "category": "economic",
+      "text": "The city proposes offering Amazon a $50M tax break over 10 years to locate a fulfillment center creating 2,000 jobs (avg. wage $42K). Critics say this subsidizes low-wage work and harms local businesses. Do you support this deal?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["tax breaks", "economic development", "jobs"]
+    },
+    {
+      "id": "development_003",
+      "topic": "development",
+      "category": "industrial",
+      "text": "A biotech company wants to build a 300K sq ft research campus on industrial land, creating 800 high-wage jobs. Environmental groups worry about chemical storage and truck traffic. Do you support rezoning for this project?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["biotech", "industrial", "jobs"]
+    },
+    {
+      "id": "development_004",
+      "topic": "development",
+      "category": "downtown",
+      "text": "The city proposes converting downtown streets to pedestrian-only zones (Friday-Sunday), removing 400 parking spaces. Early pilot shows 35% increase in foot traffic but 20% drop in car-dependent suburban shoppers. Do you support permanent conversion?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["pedestrianization", "downtown", "placemaking"]
+    },
+    {
+      "id": "development_005",
+      "topic": "development",
+      "category": "historic",
+      "text": "A developer proposes demolishing a 1920s historic theater (not formally landmarked) to build a 200-unit residential building. The theater has been vacant for 15 years; restoration would cost $25M with no clear tenant. Do you support demolition?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["historic preservation", "housing", "trade-offs"]
+    },
+    {
+      "id": "community_001",
+      "topic": "community",
+      "category": "parks",
+      "text": "The city proposes converting a 9-hole golf course (150 acres) into a regional park with trails, picnic areas, community gardens, and native habitat restoration. Golf advocates say this eliminates the only public course. Do you support this conversion?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["parks", "golf", "open space"]
+    },
+    {
+      "id": "community_002",
+      "topic": "community",
+      "category": "social_services",
+      "text": "The city proposes opening a homeless navigation center (150 beds, services, no sobriety requirement) in a residential neighborhood. The site is 3 blocks from an elementary school. NIMBYs organize opposition. Do you support this location?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["homeless services", "navigation center", "NIMBY"]
+    },
+    {
+      "id": "community_003",
+      "topic": "community",
+      "category": "culture",
+      "text": "The city proposes a 1% tax on hotel stays to fund arts and culture programs, raising $8M/year for grants to theaters, museums, music venues, and public art. The hospitality industry opposes. Do you support this tax?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["arts funding", "hotel tax", "culture"]
+    },
+    {
+      "id": "community_004",
+      "topic": "community",
+      "category": "public_spaces",
+      "text": "The city proposes a 'parklet' program allowing businesses and residents to convert parking spaces into outdoor seating, greenery, and public gathering spaces. Each parklet removes 2-3 parking spaces. Do you support this program?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["parklets", "public space", "parking"]
+    },
+    {
+      "id": "community_005",
+      "topic": "community",
+      "category": "youth",
+      "text": "The city proposes building a $45M youth center with gym, computer lab, art studios, and counseling services in a high-poverty neighborhood. Funding would come from developer impact fees, delaying other infrastructure projects by 3 years. Do you support this priority?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["youth services", "community centers", "priorities"]
+    },
+    {
+      "id": "housing_006",
+      "topic": "housing",
+      "category": "social_housing",
+      "text": "The city proposes a social housing authority that would directly build and manage 1,000 mixed-income apartments (30% market-rate, 70% affordable) over 10 years, funded by $200M in bonds. Do you support public housing development?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["public housing", "social housing", "mixed-income"]
+    },
+    {
+      "id": "transportation_006",
+      "topic": "transportation",
+      "category": "pedestrian",
+      "text": "The city proposes reducing speed limits on all residential streets from 25mph to 15mph, with automated speed cameras issuing $150 fines. Traffic fatalities have increased 40% over 5 years. Do you support this 'slow streets' program?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["traffic safety", "speed limits", "vision zero"]
+    },
+    {
+      "id": "environment_006",
+      "topic": "environment",
+      "category": "water",
+      "text": "The city proposes mandatory water conservation measures: no outdoor watering 3 days/week, fines for excessive use, and rebates for drought-tolerant landscaping. This responds to reservoir levels at 35% capacity. Do you support these restrictions?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["water conservation", "drought", "mandatory restrictions"]
+    },
+    {
+      "id": "budget_006",
+      "topic": "budget",
+      "category": "pension",
+      "text": "The city faces $500M in unfunded pension liabilities. Proposed solution: reduce benefits for future hires, increase employee contributions from 8% to 12%, and issue pension obligation bonds. Public sector unions oppose. Do you support this restructuring?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["pensions", "retirement", "fiscal sustainability"]
+    },
+    {
+      "id": "public_safety_006",
+      "topic": "public_safety",
+      "category": "drugs",
+      "text": "The city proposes a supervised drug consumption site where users can inject pre-obtained drugs under medical supervision, with addiction services available. Research shows 35% reduction in overdose deaths. Do you support this harm reduction approach?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["harm reduction", "overdose prevention", "drugs"]
+    },
+    {
+      "id": "education_006",
+      "topic": "education",
+      "category": "access",
+      "text": "The school district proposes eliminating 'gifted and talented' tracking programs in favor of differentiated instruction in mixed-ability classrooms. Research shows reduced achievement gaps but concerns about adequately serving high-achievers. Do you support this change?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["educational equity", "gifted programs", "tracking"]
+    },
+    {
+      "id": "governance_006",
+      "topic": "governance",
+      "category": "voting",
+      "text": "A ballot measure would establish ranked-choice voting for all city elections, allowing voters to rank up to 5 candidates. This typically reduces negative campaigning and increases diversity of winners. Do you support ranked-choice voting?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["ranked-choice", "electoral reform", "voting systems"]
+    },
+    {
+      "id": "development_006",
+      "topic": "development",
+      "category": "tech",
+      "text": "A tech company proposes building a 2 million sq ft campus for 8,000 employees in a formerly industrial area. The project includes 800 housing units, but transit is limited (25-minute bus to BART). Do you support this mega-project?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "moderate",
+      "tags": ["tech campus", "jobs-housing", "transit"]
+    },
+    {
+      "id": "community_006",
+      "topic": "community",
+      "category": "equity",
+      "text": "The city proposes a reparations program providing $50K direct payments to descendants of residents displaced by urban renewal (1950s-70s), funded by a 0.5% property transfer tax. Total cost: $200M over 10 years. Do you support this reparations program?",
+      "response_scale": ["strongly_support", "support", "neutral", "oppose", "strongly_oppose"],
+      "difficulty": "divisive",
+      "tags": ["reparations", "racial justice", "urban renewal"]
+    }
+  ]
+}

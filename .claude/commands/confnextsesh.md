@@ -1,0 +1,1 @@
+Excellent! Is `docs/next_session_prompt.md` ready to copy and paste into the next Claude Code session?

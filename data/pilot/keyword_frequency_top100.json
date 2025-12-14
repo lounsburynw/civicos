@@ -1,0 +1,406 @@
+{
+  "total_words": 112383,
+  "unique_words": 8011,
+  "top_100_keywords": [
+    {
+      "word": "community",
+      "count": 494
+    },
+    {
+      "word": "public",
+      "count": 484
+    },
+    {
+      "word": "rafael",
+      "count": 469
+    },
+    {
+      "word": "work",
+      "count": 386
+    },
+    {
+      "word": "member",
+      "count": 371
+    },
+    {
+      "word": "county",
+      "count": 359
+    },
+    {
+      "word": "well",
+      "count": 335
+    },
+    {
+      "word": "staff",
+      "count": 329
+    },
+    {
+      "word": "marin",
+      "count": 309
+    },
+    {
+      "word": "ordinance",
+      "count": 290
+    },
+    {
+      "word": "right",
+      "count": 281
+    },
+    {
+      "word": "questions",
+      "count": 281
+    },
+    {
+      "word": "need",
+      "count": 274
+    },
+    {
+      "word": "report",
+      "count": 264
+    },
+    {
+      "word": "okay",
+      "count": 264
+    },
+    {
+      "word": "comments",
+      "count": 246
+    },
+    {
+      "word": "comment",
+      "count": 242
+    },
+    {
+      "word": "actually",
+      "count": 239
+    },
+    {
+      "word": "program",
+      "count": 234
+    },
+    {
+      "word": "last",
+      "count": 234
+    },
+    {
+      "word": "meeting",
+      "count": 233
+    },
+    {
+      "word": "kind",
+      "count": 219
+    },
+    {
+      "word": "again",
+      "count": 215
+    },
+    {
+      "word": "working",
+      "count": 209
+    },
+    {
+      "word": "question",
+      "count": 208
+    },
+    {
+      "word": "evening",
+      "count": 207
+    },
+    {
+      "word": "housing",
+      "count": 203
+    },
+    {
+      "word": "much",
+      "count": 199
+    },
+    {
+      "word": "great",
+      "count": 195
+    },
+    {
+      "word": "back",
+      "count": 194
+    },
+    {
+      "word": "plan",
+      "count": 193
+    },
+    {
+      "word": "part",
+      "count": 191
+    },
+    {
+      "word": "budget",
+      "count": 187
+    },
+    {
+      "word": "looking",
+      "count": 186
+    },
+    {
+      "word": "things",
+      "count": 182
+    },
+    {
+      "word": "area",
+      "count": 179
+    },
+    {
+      "word": "next",
+      "count": 178
+    },
+    {
+      "word": "something",
+      "count": 178
+    },
+    {
+      "word": "take",
+      "count": 174
+    },
+    {
+      "word": "forward",
+      "count": 173
+    },
+    {
+      "word": "first",
+      "count": 173
+    },
+    {
+      "word": "support",
+      "count": 173
+    },
+    {
+      "word": "around",
+      "count": 171
+    },
+    {
+      "word": "members",
+      "count": 169
+    },
+    {
+      "word": "motion",
+      "count": 168
+    },
+    {
+      "word": "property",
+      "count": 159
+    },
+    {
+      "word": "sure",
+      "count": 158
+    },
+    {
+      "word": "doing",
+      "count": 158
+    },
+    {
+      "word": "look",
+      "count": 156
+    },
+    {
+      "word": "yeah",
+      "count": 154
+    },
+    {
+      "word": "kate",
+      "count": 152
+    },
+    {
+      "word": "fund",
+      "count": 152
+    },
+    {
+      "word": "provide",
+      "count": 149
+    },
+    {
+      "word": "able",
+      "count": 146
+    },
+    {
+      "word": "down",
+      "count": 146
+    },
+    {
+      "word": "level",
+      "count": 145
+    },
+    {
+      "word": "help",
+      "count": 144
+    },
+    {
+      "word": "additional",
+      "count": 142
+    },
+    {
+      "word": "services",
+      "count": 141
+    },
+    {
+      "word": "camping",
+      "count": 141
+    },
+    {
+      "word": "project",
+      "count": 140
+    },
+    {
+      "word": "opportunity",
+      "count": 140
+    },
+    {
+      "word": "little",
+      "count": 139
+    },
+    {
+      "word": "canal",
+      "count": 138
+    },
+    {
+      "word": "point",
+      "count": 135
+    },
+    {
+      "word": "welcome",
+      "count": 134
+    },
+    {
+      "word": "different",
+      "count": 134
+    },
+    {
+      "word": "team",
+      "count": 134
+    },
+    {
+      "word": "bushy",
+      "count": 133
+    },
+    {
+      "word": "continue",
+      "count": 133
+    },
+    {
+      "word": "process",
+      "count": 132
+    },
+    {
+      "word": "funding",
+      "count": 132
+    },
+    {
+      "word": "second",
+      "count": 131
+    },
+    {
+      "word": "state",
+      "count": 131
+    },
+    {
+      "word": "does",
+      "count": 129
+    },
+    {
+      "word": "resolution",
+      "count": 129
+    },
+    {
+      "word": "kurtz",
+      "count": 128
+    },
+    {
+      "word": "safety",
+      "count": 126
+    },
+    {
+      "word": "call",
+      "count": 124
+    },
+    {
+      "word": "both",
+      "count": 124
+    },
+    {
+      "word": "department",
+      "count": 124
+    },
+    {
+      "word": "appreciate",
+      "count": 123
+    },
+    {
+      "word": "done",
+      "count": 123
+    },
+    {
+      "word": "maybe",
+      "count": 123
+    },
+    {
+      "word": "within",
+      "count": 122
+    },
+    {
+      "word": "service",
+      "count": 122
+    },
+    {
+      "word": "projects",
+      "count": 121
+    },
+    {
+      "word": "individuals",
+      "count": 121
+    },
+    {
+      "word": "important",
+      "count": 119
+    },
+    {
+      "word": "having",
+      "count": 119
+    },
+    {
+      "word": "trying",
+      "count": 118
+    },
+    {
+      "word": "vice",
+      "count": 117
+    },
+    {
+      "word": "three",
+      "count": 117
+    },
+    {
+      "word": "health",
+      "count": 116
+    },
+    {
+      "word": "every",
+      "count": 115
+    },
+    {
+      "word": "bring",
+      "count": 115
+    },
+    {
+      "word": "number",
+      "count": 113
+    },
+    {
+      "word": "million",
+      "count": 113
+    },
+    {
+      "word": "coming",
+      "count": 111
+    },
+    {
+      "word": "order",
+      "count": 111
+    }
+  ]
+}

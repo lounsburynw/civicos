@@ -1,0 +1,33 @@
+{
+  "id": "7ed59df5-2b58-4058-9abe-d851777826b7",
+  "jurisdiction": {
+    "id": "city-santa-rosa",
+    "name": "Santa Rosa",
+    "type": "city",
+    "website": null,
+    "meeting_calendar_url": null
+  },
+  "generation_metadata": {
+    "scrape_urls": [
+      "https://santa-rosa.legistar.com/Calendar.aspx"
+    ],
+    "ai_model_used": "gpt-5-mini",
+    "wiki_files_loaded": [],
+    "generation_cost": 0.0,
+    "processing_time": 0.0,
+    "unparseable_urls": null
+  },
+  "html_content": "Subject: City Council Meeting\n\n# \u2709\ufe0f Santa Rosa City Council Meeting\n*Your quick guide to what's on the City Council agenda \u2014 September 30, 2025*\n\n## \ud83d\udde3\ufe0f How to Participate\n- **Meeting:** [Tuesday, September 30 at 12:00 PM](https://calendar.google.com/calendar/render?action=TEMPLATE&text=Santa%20Rosa%20City%20Council%20Meeting&dates=20250930T190000Z/20250930T210000Z&location=City%20Hall%2C%20Council%20Chamber%2C%20100%20Santa%20Rosa%20Avenue%2C%20Santa%20Rosa%2C%20CA%2095404&details=Santa%20Rosa%20City%20Council%20Meeting) \ud83d\udcc5\n- **Where:** City Hall, Council Chamber, 100 Santa Rosa Avenue, Santa Rosa, CA 95404\n- **Watch Online:** Not specified.\n- **Call In:** Not specified.\n- **Email Comments:** Not specified \u2014 **deadline:** Not specified.\n- **Attend & Speak:** Check meeting agenda for public comment rules\n- **Full Agenda:** [View original meeting agenda](https://santa-rosa.legistar.com/Calendar.aspx)\n\n## \ud83d\udea8 What's on the Agenda\nNo specific agenda items provided.\n\n## \u2705 Bottom Line\nNot specified.\n\n\u26a1 *Independent and nonpartisan summary. Facts only; no spin.*",
+  "text_content": "Subject: City Council Meeting\n\n# \u2709\ufe0f Santa Rosa City Council Meeting\n*Your quick guide to what's on the City Council agenda \u2014 September 30, 2025*\n\n## \ud83d\udde3\ufe0f How to Participate\n- **Meeting:** [Tuesday, September 30 at 12:00 PM](https://calendar.google.com/calendar/render?action=TEMPLATE&text=Santa%20Rosa%20City%20Council%20Meeting&dates=20250930T190000Z/20250930T210000Z&location=City%20Hall%2C%20Council%20Chamber%2C%20100%20Santa%20Rosa%20Avenue%2C%20Santa%20Rosa%2C%20CA%2095404&details=Santa%20Rosa%20City%20Council%20Meeting) \ud83d\udcc5\n- **Where:** City Hall, Council Chamber, 100 Santa Rosa Avenue, Santa Rosa, CA 95404\n- **Watch Online:** Not specified.\n- **Call In:** Not specified.\n- **Email Comments:** Not specified \u2014 **deadline:** Not specified.\n- **Attend & Speak:** Check meeting agenda for public comment rules\n- **Full Agenda:** [View original meeting agenda](https://santa-rosa.legistar.com/Calendar.aspx)\n\n## \ud83d\udea8 What's on the Agenda\nNo specific agenda items provided.\n\n## \u2705 Bottom Line\nNot specified.\n\n\u26a1 *Independent and nonpartisan summary. Facts only; no spin.*",
+  "subject_line": "City Council Meeting",
+  "send_date": "2025-09-29T00:25:34.557876+00:00",
+  "recipients": [],
+  "analytics": {
+    "sent_count": 0,
+    "open_rate": 0.0,
+    "click_rate": 0.0,
+    "action_conversion_rate": 0.0
+  },
+  "created_at": "2025-09-29T00:25:34.557890+00:00",
+  "events": []
+}

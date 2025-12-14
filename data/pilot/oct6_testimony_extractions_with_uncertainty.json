@@ -1,0 +1,207 @@
+{
+  "meeting_id": "oct6_2025_san_rafael",
+  "video_id": "MpxrGRb16HQ",
+  "extraction_date": "2025-11-18",
+  "extraction_method": "Hybrid: YouTube LLM analysis + AssemblyAI utterance extraction",
+
+  "wildfire_testimony_speakers": [
+    {
+      "speaker_name": "Belle Cole",
+      "speaker_role": "public",
+      "speaker_title": "Chair, Dominican Black Canyon Firewise Committee",
+
+      "assemblyai_data": {
+        "speaker_label": "B",
+        "utterance_count": 12,
+        "start_timestamp_ms": 6903850,
+        "end_timestamp_ms": 6995440,
+        "start_timestamp_formatted": "01:55:03",
+        "end_timestamp_formatted": "01:56:35",
+        "duration_seconds": 91.6,
+        "video_url": "https://www.youtube.com/watch?v=MpxrGRb16HQ&t=6904s",
+
+        "full_testimony_text": "Hi, I'm Bell Cole and it's a. I work with all of these people. And we have all the. Think that one of the reasons this. Mean to say that the 38 wouldn't. Because we have it. Of all of us to protect ourselves. We're small, we do the best we. So I think that as we work. To do with the county, that the. And the other thing I wanted to say is that I think that we. I mean, what this woman said about."
+      },
+
+      "youtube_llm_analysis": {
+        "contexts": [
+          {
+            "chunk": 14,
+            "context": "Emphasized collaboration between the county and city for community fire safety efforts."
+          },
+          {
+            "chunk": 15,
+            "context": "Recognized for her leadership in biomass recovery and community efforts related to wildfire prevention."
+          }
+        ],
+        "mentions": 2
+      },
+
+      "uncertainty_metrics": {
+        "speaker_attribution": {
+          "confidence": "MEDIUM",
+          "notes": "Speaker label 'B' contains 51 total utterances including Vice Mayor Bushy, Quinn Gardner (wildfire presenter), and Belle Cole. Timestamp filtering (6.9M-7.0M ms) isolates Belle's segment, but diarization merged multiple speakers."
+        },
+        "transcription_quality": {
+          "confidence": "LOW",
+          "notes": "Testimony highly fragmented - incomplete sentences suggest transcription errors or poor audio quality. Transcribed as 'Bell Cole' (missing 'e' in Belle). Fragment examples: 'And we have all the.', 'Think that one of the reasons this.'"
+        },
+        "completeness": {
+          "confidence": "MEDIUM",
+          "notes": "12 utterances over 91.6 seconds suggests complete testimony timeframe captured, but fragmentation makes it difficult to assess if all words were transcribed accurately."
+        },
+        "overall_confidence": "LOW"
+      },
+
+      "validation_notes": [
+        "Council Member (Speaker C) references Belle at 02:00:10: 'I was grateful that Bell Cole came forward to make public comment. So folks don't know Bell has been a leader in the community around biomass recovery at the very beginning stages as MWP was forming.'",
+        "This confirms Belle testified and discussed biomass/wildfire prevention, supporting the fragmented testimony extraction.",
+        "Testimony appears incomplete/fragmented - may require manual video review for complete quotes."
+      ]
+    },
+
+    {
+      "speaker_name": "Salama (from Terra Linda)",
+      "speaker_role": "public",
+      "speaker_title": "San Rafael Age Friendly Partnership Committee",
+
+      "assemblyai_data": {
+        "speaker_label": "UNKNOWN",
+        "status": "NOT FOUND IN ASSEMBLYAI TRANSCRIPT",
+        "notes": "Name not found in AssemblyAI utterances. May be transcribed differently (e.g., 'Selma', 'Salamah') or merged into another speaker label."
+      },
+
+      "youtube_llm_analysis": {
+        "contexts": [
+          {
+            "chunk": 14,
+            "context": "Spoke on behalf of the Sanfell Age Friendly Partnership Committee, praising a local community event focused on fire safety education."
+          }
+        ],
+        "mentions": 1,
+        "note": "YouTube transcribed as 'Salama from Terinda' (likely 'Terra Linda' neighborhood)"
+      },
+
+      "uncertainty_metrics": {
+        "speaker_attribution": {
+          "confidence": "UNKNOWN",
+          "notes": "Could not locate speaker in AssemblyAI transcript. Name likely transcribed with errors or merged into multi-speaker label."
+        },
+        "transcription_quality": {
+          "confidence": "UNKNOWN",
+          "notes": "YouTube auto-transcript shows name as 'Salama' but may have errors. Cannot validate without AssemblyAI match."
+        },
+        "completeness": {
+          "confidence": "UNKNOWN",
+          "notes": "Unable to extract testimony - speaker not found in AssemblyAI data."
+        },
+        "overall_confidence": "UNKNOWN"
+      },
+
+      "extraction_method": "FAILED",
+      "next_steps": [
+        "Manual video review at ~1:57:26 - 2:05:43 timestamp range",
+        "Search for phonetic variations: 'Selma', 'Salamah', 'Salima'",
+        "Check if testimony was very brief (may not have been diarized separately)"
+      ]
+    },
+
+    {
+      "speaker_name": "Sharon Demer",
+      "speaker_role": "public",
+      "speaker_title": "President, Montecito Area Residents Association",
+
+      "assemblyai_data": {
+        "speaker_label": "UNKNOWN",
+        "status": "NOT FOUND IN ASSEMBLYAI TRANSCRIPT",
+        "notes": "Name not found in AssemblyAI utterances. May be transcribed as 'Sherna Demer' (from case study) or phonetic variation."
+      },
+
+      "youtube_llm_analysis": {
+        "contexts": [
+          {
+            "chunk": 14,
+            "context": "President of the Monosedo Area Residents Association, raised concerns about fire hazards due to unmaintained yards in her neighborhood."
+          }
+        ],
+        "mentions": 1,
+        "note": "YouTube transcribed as 'Sharon Demer' and 'Monosedo' (likely 'Montecito')"
+      },
+
+      "uncertainty_metrics": {
+        "speaker_attribution": {
+          "confidence": "UNKNOWN",
+          "notes": "Could not locate speaker in AssemblyAI transcript. Name may be transcribed differently or merged into multi-speaker label."
+        },
+        "transcription_quality": {
+          "confidence": "UNKNOWN",
+          "notes": "YouTube shows 'Sharon Demer' but case study mentions 'Sherna Deamer'. Name transcription inconsistent."
+        },
+        "completeness": {
+          "confidence": "UNKNOWN",
+          "notes": "Unable to extract testimony - speaker not found in AssemblyAI data."
+        },
+        "overall_confidence": "UNKNOWN"
+      },
+
+      "extraction_method": "FAILED",
+      "next_steps": [
+        "Manual video review at ~1:57:26 - 2:05:43 timestamp range",
+        "Search for variations: 'Sherna Deamer', 'Sharon Deemer'",
+        "Check approved minutes for exact spelling"
+      ]
+    }
+  ],
+
+  "summary": {
+    "total_wildfire_speakers": 3,
+    "successfully_extracted": 1,
+    "failed_extractions": 2,
+    "success_rate": "33%",
+
+    "key_findings": [
+      "AssemblyAI severely under-counts speakers (5 detected vs 50 actual)",
+      "Speaker B merges at least 3 different people (Vice Mayor, Quinn Gardner, Belle Cole)",
+      "Transcription quality variable - Belle Cole testimony highly fragmented",
+      "2 of 3 speakers not found in AssemblyAI transcript (likely merged or transcription errors)",
+      "Exact testimony extraction requires manual video review for validation"
+    ],
+
+    "uncertainty_sources": {
+      "speaker_diarization_errors": "AssemblyAI merged 50 speakers into 5 labels - high false clustering",
+      "transcription_fragmentation": "Many incomplete sentences suggest audio quality issues or transcription errors",
+      "name_transcription_errors": "Belle→Bell, Salama→? , Sharon/Sherna→?, Terra Linda→Terinda",
+      "timestamp_accuracy": "±5 seconds based on utterance boundaries"
+    },
+
+    "confidence_assessment": {
+      "belle_cole_testimony": "LOW - Extracted but highly fragmented",
+      "salama_testimony": "UNKNOWN - Not found in AssemblyAI",
+      "sharon_demer_testimony": "UNKNOWN - Not found in AssemblyAI",
+      "overall": "LOW - 67% extraction failure rate, fragmentation issues"
+    }
+  },
+
+  "recommendations": {
+    "for_oct6_validation": [
+      "Manual video review (8 minutes at 1:57:26-2:05:43) to get clean testimony quotes",
+      "Compare with approved minutes for speaker name verification",
+      "Review staff report for context on testimony themes"
+    ],
+
+    "for_future_analysis": [
+      "Do not rely on AssemblyAI speaker diarization for speaker counting",
+      "Use hybrid approach: YouTube LLM for names + manual video review for quotes",
+      "Add transcription quality checks before storing testimony",
+      "Include uncertainty metrics in all extracted testimony",
+      "Build validation workflow: Auto-extract → Flag low confidence → Manual review"
+    ],
+
+    "for_seeclickfix_cross_reference": [
+      "We have 3 speaker names but only 1 partial testimony",
+      "Manual video review needed to understand testimony themes",
+      "Compare themes to SeeClickFix complaint categories",
+      "Expected: Low overlap (community leaders testify, not complainants)"
+    ]
+  }
+}

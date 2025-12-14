@@ -1,0 +1,1863 @@
+{
+  "video_id": "rbbh5eOeOtM",
+  "meeting_url": "",
+  "speakers_count": 8,
+  "utterances_count": 308,
+  "utterances": [
+    {
+      "speaker": "A",
+      "text": "Foreign.",
+      "start": 408800,
+      "end": 409040
+    },
+    {
+      "speaker": "B",
+      "text": "Welcome, everybody. Today is Monday, March 3rd. It's a regular meeting of the San Rafael City Council. I'll request the City Clerk to call the roll. Vice Mayor Bushy? Present. Council Member Hill?",
+      "start": 430080,
+      "end": 441480
+    },
+    {
+      "speaker": "C",
+      "text": "Present.",
+      "start": 441480,
+      "end": 441840
+    },
+    {
+      "speaker": "B",
+      "text": "Council member Kurtz?",
+      "start": 442080,
+      "end": 443160
+    },
+    {
+      "speaker": "D",
+      "text": "Present.",
+      "start": 443160,
+      "end": 443440
+    },
+    {
+      "speaker": "B",
+      "text": "Councilor. Un.",
+      "start": 443600,
+      "end": 444400
+    },
+    {
+      "speaker": "E",
+      "text": "Present.",
+      "start": 444800,
+      "end": 445200
+    },
+    {
+      "speaker": "B",
+      "text": "Mayor Kate? Present. All five of us are here. We met on a closed session. I'll invite the City Attorney to report out, please.",
+      "start": 445280,
+      "end": 451280
+    },
+    {
+      "speaker": "C",
+      "text": "Good evening. No reportable action was taken in closed session.",
+      "start": 452400,
+      "end": 455520
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you so welcome everyone. We are delighted that you're here, either in person or online. We're glad to have you. We like to start our meetings by thanking city staff for the incredible work they do every single day to keep our city running. They are truly the backbone of San Rafael and we are indebted to what they do for us every single day. And as you know, San Rafael does not exist in a vacuum. So city staff does continue to monitor all the federal directives and their potential impact on San Rafael. In order to stay in the know, I encourage all the residents to sign up for Snapshot. That's our bi monthly newsletter, as well as many notifications, so you can see the agendas not only for the City council, but also all the boards and commissions. There is a lot going on in the city and we want our community to be informed. And we encourage you to keep participating in city business. Before we get to our business agenda, we like to include a land acknowledgement. This is in addition to the work that we do with the tribe on our shared issues. We thank the original caretakers of this land. San Rafael is traditionally home to the Coast Miwok people, many of whom today are tribal citizens of the Federated Indians of Great and Rancheria. And we honor their continuing involvement in stewardship practices that benefit us all. Welcome. I will turn to the city clerk. She can describe how people can participate in tonight's meeting. Thank you, Mayor Kate. Before we begin, I'd like to introduce. I'd like to announce that tonight's meeting will include Spanish language simultaneous and consecutive interpretation provided by qualified interpreters on the Spanish channel, starting on agenda item 5A, which is the update and report on sea level rise. If you're watching on Zoom, you can join the Spanish channel by clicking on the interpretation icon in the toolbar. And if you're attending in person and don't have access to the Zoom meeting or from your phone, you're welcome to come see me. And I have the transmitters and the.",
+      "start": 455920,
+      "end": 571430
+    },
+    {
+      "speaker": "E",
+      "text": "Devices to help get you set up.",
+      "start": 571430,
+      "end": 572790
+    },
+    {
+      "speaker": "B",
+      "text": "To hear the meeting in Spanish. As a reminder, we ask that everyone participating tonight please speak to slowly to allow our interpreters to effectively express your comments and I'll invite Andrew to say the same.",
+      "start": 573270,
+      "end": 582970
+    },
+    {
+      "speaker": "F",
+      "text": "Gracias alcalde que antes de commensar me gusteria nunciar que la reunion de esta noche incluira interpretacion simultaneous y consecutiva en espanol proportionada por interpretes calificados en el canal de espanol apartiro del punto cinco junto a de la genda at del marque puede escuchar la revunion en espanol como recordatorio pedimos que todos los participipantes de estanoche hablen lentamente para permitarios de manera effectiva.",
+      "start": 585850,
+      "end": 647990
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Tonight's meeting is being recorded and streamed live to YouTube for members of the public wishing to provide public comments displayed on the podium and the projector as a timer to help you stay within your two minute time frame. You're invited, though not required, to introduce yourself and say what part of Centerfell you live in or if you're from outside of Centerfell. We do offer closed captioning for this meeting on Zoom. You can select the Live Transcript button on Zoom to enable this feature. Community members may request reasonable accommodations to provide public comments virtually. For more information about that or if you experience any technical difficulties, you can email me@city clerkityofsanrefeld.org thank you. Thank you. I'll turn to the City Manager for her report. Good evening, Mayor, Council and Community.",
+      "start": 649590,
+      "end": 693660
+    },
+    {
+      "speaker": "E",
+      "text": "I just wanted to report that we had a robust discussion about the draft.",
+      "start": 694140,
+      "end": 697900
+    },
+    {
+      "speaker": "B",
+      "text": "Three year Council goals and objectives in.",
+      "start": 697900,
+      "end": 699940
+    },
+    {
+      "speaker": "D",
+      "text": "A public meeting study session format where.",
+      "start": 699940,
+      "end": 702060
+    },
+    {
+      "speaker": "E",
+      "text": "The staff received feedback from the Council, wanted to share the next steps for.",
+      "start": 702060,
+      "end": 706500
+    },
+    {
+      "speaker": "B",
+      "text": "That or for staff to revise that document.",
+      "start": 706500,
+      "end": 708660
+    },
+    {
+      "speaker": "D",
+      "text": "As we work on aligning both available resources both in funding and staff capacity to align with those goals, we'll bring a revised draft of that document, the.",
+      "start": 708660,
+      "end": 720280
+    },
+    {
+      "speaker": "B",
+      "text": "Three year Council Goals for consideration and.",
+      "start": 720280,
+      "end": 722880
+    },
+    {
+      "speaker": "D",
+      "text": "Adoption, along with the fiscal year 2526 budget which will be in June. Additionally, I think it's important to mention that we are tracking very closely how federal policies and potential executive orders could impact funding for city projects.",
+      "start": 722880,
+      "end": 738760
+    },
+    {
+      "speaker": "B",
+      "text": "We are getting updates from the California.",
+      "start": 740120,
+      "end": 742160
+    },
+    {
+      "speaker": "D",
+      "text": "League of Cities and the County's Legislative.",
+      "start": 742160,
+      "end": 744040
+    },
+    {
+      "speaker": "B",
+      "text": "Director has been very generous in sharing their tracking.",
+      "start": 744040,
+      "end": 747440
+    },
+    {
+      "speaker": "D",
+      "text": "I'll keep the Council and the community.",
+      "start": 747440,
+      "end": 748760
+    },
+    {
+      "speaker": "B",
+      "text": "Informed if and when we receive any definitive information.",
+      "start": 748760,
+      "end": 751620
+    },
+    {
+      "speaker": "D",
+      "text": "There's a lot of conjecture and there's.",
+      "start": 751780,
+      "end": 754780
+    },
+    {
+      "speaker": "B",
+      "text": "Not a lot of clarity, but as we get more information, we'll be sure to keep everyone informed.",
+      "start": 754780,
+      "end": 761380
+    },
+    {
+      "speaker": "D",
+      "text": "I also wanted to mention an opportunity for community input around fire hazard severity.",
+      "start": 761860,
+      "end": 767780
+    },
+    {
+      "speaker": "B",
+      "text": "Maps that have been updated for Marin County.",
+      "start": 767780,
+      "end": 769700
+    },
+    {
+      "speaker": "E",
+      "text": "Cal Fire just released updated draft fire.",
+      "start": 770020,
+      "end": 773180
+    },
+    {
+      "speaker": "B",
+      "text": "Hazard severity maps using improved modeling to assess fire risks.",
+      "start": 773180,
+      "end": 778580
+    },
+    {
+      "speaker": "D",
+      "text": "These maps will help us guide future fire resistant building and land landscaping regulations.",
+      "start": 778820,
+      "end": 783520
+    },
+    {
+      "speaker": "B",
+      "text": "So local jurisdictions as well as the public has the next 120 days to.",
+      "start": 783520,
+      "end": 788080
+    },
+    {
+      "speaker": "E",
+      "text": "Review and provide feedback before they're finalized.",
+      "start": 788080,
+      "end": 790560
+    },
+    {
+      "speaker": "B",
+      "text": "You can check your specific properties, fire risk and learn more at the Cal Fires website.",
+      "start": 790800,
+      "end": 795360
+    },
+    {
+      "speaker": "D",
+      "text": "We're also continuing to seek community input.",
+      "start": 796160,
+      "end": 799320
+    },
+    {
+      "speaker": "B",
+      "text": "On a conceptual residential parking permit program in East San Rafael aimed at reducing.",
+      "start": 799320,
+      "end": 804440
+    },
+    {
+      "speaker": "D",
+      "text": "Parking congestion and ensuring equitable access for residents and guests.",
+      "start": 804440,
+      "end": 809040
+    },
+    {
+      "speaker": "B",
+      "text": "There is a survey that's available in.",
+      "start": 809280,
+      "end": 810920
+    },
+    {
+      "speaker": "D",
+      "text": "Both English and Spanish that we've extended, but we'll close this coming Friday, March 7th. You can find that survey on the.",
+      "start": 810920,
+      "end": 818380
+    },
+    {
+      "speaker": "E",
+      "text": "City of San Rafael's website at Parking.",
+      "start": 818380,
+      "end": 822540
+    },
+    {
+      "speaker": "B",
+      "text": "Permit Program we also mailed out the.",
+      "start": 822620,
+      "end": 827180
+    },
+    {
+      "speaker": "E",
+      "text": "Spring and summer activity guide for our.",
+      "start": 827180,
+      "end": 829060
+    },
+    {
+      "speaker": "D",
+      "text": "Recreation program, so wanted to make mention of that that those should be landing in people's mailboxes.",
+      "start": 829060,
+      "end": 834300
+    },
+    {
+      "speaker": "B",
+      "text": "So registration for camps and adult classes started today.",
+      "start": 834700,
+      "end": 837540
+    },
+    {
+      "speaker": "D",
+      "text": "We also have a number of events.",
+      "start": 837540,
+      "end": 839060
+    },
+    {
+      "speaker": "B",
+      "text": "For older adults and aquatics programs at.",
+      "start": 839060,
+      "end": 840780
+    },
+    {
+      "speaker": "E",
+      "text": "The Teralinda Pool, so check that out. You can view the guide@cityofsanrafa.org forward/activityguide and.",
+      "start": 840780,
+      "end": 848320
+    },
+    {
+      "speaker": "D",
+      "text": "Then just a couple quick events.",
+      "start": 848320,
+      "end": 849680
+    },
+    {
+      "speaker": "B",
+      "text": "There's a Marin Arts and Crafts show.",
+      "start": 849680,
+      "end": 851480
+    },
+    {
+      "speaker": "D",
+      "text": "Which is a celebration of art and handcraft. It's a free event happening from March.",
+      "start": 851480,
+      "end": 855800
+    },
+    {
+      "speaker": "B",
+      "text": "7Th to the 9th from 10 to.",
+      "start": 856360,
+      "end": 858160
+    },
+    {
+      "speaker": "D",
+      "text": "5Pm at the Marin Center Exhibit hall.",
+      "start": 858160,
+      "end": 860440
+    },
+    {
+      "speaker": "B",
+      "text": "And of course on the 14th of.",
+      "start": 860520,
+      "end": 862159
+    },
+    {
+      "speaker": "D",
+      "text": "March 2nd Friday Art Walk 5 to.",
+      "start": 862159,
+      "end": 864120
+    },
+    {
+      "speaker": "B",
+      "text": "8Pm in downtown San Rafael. Thank you. I'll turn to my colleagues to report out on their meetings they've attended. The Vice Mayor it's been transit, transit and all transit. Last Thursday I was pleased to substitute for the Mayor at the Transportation Authority of Marin. Some great notable San Rafael events occurred there. Most importantly, our Mayor was appointed on behalf of TAM to the Sonoma Marin Area Rail Transit District Board of Directors. That's a great thing. Second of all, and the report from the Metropolitan Transportation Commission included the report that two grants have been awarded to the City of San Rafael.",
+      "start": 864120,
+      "end": 906350
+    },
+    {
+      "speaker": "E",
+      "text": "They total over $10 million in awards.",
+      "start": 906350,
+      "end": 910030
+    },
+    {
+      "speaker": "B",
+      "text": "And the word they use was impressive that we were able to get both of those because our applications were so well done. I've also been informed by the Director Miller that there's another award that was just came out on Friday, so we'll be hearing hearing more on that front. The main event at TAM though was the Belem Boulevard app off ramp improvement project. You will remember this project has been around for nine years. It will add an extra exit lane to the off ramp. It is in the the stage of the contracts being awarded. The construction is set to begin within the month and it is to be it's being overseen by the county and is to be completed by next fall. So I'm very excited about that project finally going forward. The price and cost of the project increased greatly. The reason it was on the the agenda was to have some financing rearranged to meet the higher costs. But the project is going forward and we should have construction underway very soon. So a good meeting at TAM for San Rafael. I'll continue on the transit taking it slightly out of order. Today was the Marin Transit Board meeting. There was a San Rafael issue there as well. But the first thing we did was welcome Council member Lawrence Vellotti to the Marin Transit Board. So we now have two representatives there for the San Rafael issue related to the Marin Transit bus charging site that they are planning to construct in East San Rafael which is we were hoping.",
+      "start": 910510,
+      "end": 1020540
+    },
+    {
+      "speaker": "D",
+      "text": "To have a more robust role in.",
+      "start": 1021500,
+      "end": 1024060
+    },
+    {
+      "speaker": "B",
+      "text": "The public outreach project. And they discussed it and well it's not formalized. We're hopeful that there will be enough staff to staff interaction and elected to elected interaction to make sure that all of our issues are brought forward. Also there we signed our largest contract effort Marin Transit $75 million over four years Marin Airporter to provide local bus service. And last and the most fun yesterday San Rafael age friendly at B Street 90 and better. I was there with Council member Kurtz and Council member Lorenz Gladi. Very fun event. That's it. Thank you Council Member Kurtz.",
+      "start": 1024220,
+      "end": 1072280
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you. I'm just going to highlight a couple of the items today actually I joined Supervisor Sacket and we went with Vivalon's Meals on Wheels and delivered meals to a couple of their clients. But really had the opportunity to meet with those clients and talk about their use of services and how to reach services and who do they contact. It's not always easy and it takes work. So Supervisor Sackett and I both walked away feeling good in one sense that we have lots of services in our area and on the other sense that it's it is sometimes very difficult to navigate. The attended the Marin Wildfire Prevention Authority board meeting. A lot of time is focused right now on not only the maps that we hadn't quite released yet, but really talking about our Zone zero which is a continuing conversation and will be tended the MCCMC which is the Marin County Council of Mayors and Council Members, where Assemblymember Conley spoke about his initiatives that he's moving forward. This, this legislative session, there are going to be a number of measures, not only from Assemblymember Connolly, but across the state. So there's work that's going to be happening there. And with Council Member Hill, we attended the ribbon cutting of Ritter Center's new van that was funded through Anthem foundation. And it's an outreach van, which is it includes not only supplies but also an area to meet with clients one on one in the van. So it really is that model going to where people are at to serve and to reach them. And then I'm just going to reiterate the great event and thanks to the Age friendly committee and Parks and Rec who helped support that event and many others. It was well attended by the number of people who are 80, 90 and above. And the funny story is last year it was 85 and above and they sold out, so they had to change the age to 90 and above.",
+      "start": 1074600,
+      "end": 1202420
+    },
+    {
+      "speaker": "B",
+      "text": "So thank you. Thank you, Council Member Hill.",
+      "start": 1203370,
+      "end": 1207290
+    },
+    {
+      "speaker": "C",
+      "text": "Thank you, Mary Kate. As Council Member Kurtz mentioned, we both.",
+      "start": 1208330,
+      "end": 1212250
+    },
+    {
+      "speaker": "G",
+      "text": "Attended the Marin County Council of Mayors and council members meeting.",
+      "start": 1212250,
+      "end": 1215690
+    },
+    {
+      "speaker": "C",
+      "text": "The only other speaker of note was.",
+      "start": 1215930,
+      "end": 1218050
+    },
+    {
+      "speaker": "G",
+      "text": "Jenny Silva, who's the executive director of.",
+      "start": 1218050,
+      "end": 1220810
+    },
+    {
+      "speaker": "C",
+      "text": "MEC, known as the Marin Environmental Housing Collaborative.",
+      "start": 1220810,
+      "end": 1225450
+    },
+    {
+      "speaker": "G",
+      "text": "And she provided an overview of what.",
+      "start": 1225770,
+      "end": 1227650
+    },
+    {
+      "speaker": "C",
+      "text": "MEC does and then again reiterating what.",
+      "start": 1227650,
+      "end": 1231690
+    },
+    {
+      "speaker": "G",
+      "text": "Council member Kurt said at the unveiling of the Raider Center Behavioral Health outreach van. The only data that I would add.",
+      "start": 1231690,
+      "end": 1238610
+    },
+    {
+      "speaker": "C",
+      "text": "Is that Anthem Blue Cross provided $750,000 in grant to provide for several years of that van being in operation. And it's expecting to reach 3,600 folks, which is about 10 people a day that require these kinds of services and outreach. Thank you.",
+      "start": 1238610,
+      "end": 1254980
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, Council Member Duran Scolati.",
+      "start": 1255540,
+      "end": 1257700
+    },
+    {
+      "speaker": "E",
+      "text": "Thank you, Mayor Kate. I attended. So tonight I'm very excited about sea level rise, but there is also at the county level, collaborative sea level rise adaptation planning. And I am representing the city of San Rafael there. So we had a one on one with a consultant that is helping define the group and the plan for the county. Also I attended last week a tour of the canal with our Congressman Jerry Hoffman, organized by Canal alliance. And we went to the site where we are hoping to build a bridge that will connect the canal with the other side, the Montecito area. So it was really excited to have them there. He's very supportive, although the funding right now, he said at the federal level, maybe not so much, but definitely a lot of support there and it was great again with Canal alliance being able to also look at the different housing that is happening or that we are hoping that it will happen in the canal. Also attended the 90 and better celebration. The advice of somebody that is over 90 years old, save at least 10% of your salary when you know because you're going to need it. Don't smoke and make sure that you keep on moving like every day. Those were like three tips that I heard, so I thought that I would share that with you. And then this morning again, I was very happy to join Marine Transit Board meeting as an alternate. And right after that I had the MC Clean Energy Executive Committee meeting. So it's all about the budgets for next year. And then several meetings around permit, permit parking. And also met with Supervisor Mary Sackett.",
+      "start": 1257700,
+      "end": 1360470
+    },
+    {
+      "speaker": "B",
+      "text": "So that's Mary Barlow.",
+      "start": 1360470,
+      "end": 1361550
+    },
+    {
+      "speaker": "E",
+      "text": "Thank you.",
+      "start": 1361550,
+      "end": 1361990
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. I also had some transit the Sonoma Marin Area Rapid Rail Transit. We had our meeting recently and ridership continues to increase. This year, January of 2025 was 40% higher than 2024 for a total of 92,000 riders. So continues to see more ridership. There is now a shuttle at Larkspur Landing. So if you take SMART to where the ferry is, there's a shuttle that goes from there to the actual ferry because it's about a half a mile. That shuttle usage is increasing right now. It's from Thursday through Sunday is the service and we're going to consider expanding it to every day of the week. We're continuing to look at the data. SMART will be extended to Windsor, so that extension is coming soon. The ribbon cutting will be in June. That is making good on the promise to the voters. And finally, if you don't subscribe to the monthly newsletter, SMART has a lot of information about ridership and different passes. So I encourage you to sign up. I was honored to represent the city at a ribbon cutting as those are always really fun. This one was at Mary's Angel Dog Training and Mary helps pet owners to learn how to manage their pets and their puppies. There were not puppies there. I was a little sad about that, but it's a great business. And that is located actually in the Canal neighborhood. We had our San Rafael Sanitation District meeting along with the vice mayor, which she was waiting for me to mention that we continue to have our conversation around our strategies going forward and operational consolidation with Central Marin Sanitation Agency. The meeting was spent talking about different aspects of that. And then finally, I know I'm not on Marin Transit, but I spent last week Talking to all the Marin Transit boards about the city's desire, deep desire to have a formal arrangement either through a memorandum of understanding or collaboration agreement to come together around community engagement. And so I know from talking to those present Maroon Transit, that vote did not happen today. But we are hopeful that formal agreement will come through to Marin Transit as that would be the best thing for our community to be able to weigh in. So as always, thank you for what you do. In between the work that we have on the dais, I would welcome any comments from the public on either the city manager's report or any of the council members report if you'd like to comment. Now is your opportunity and you are welcome but not required to say your name and what part of San Rafael you live in.",
+      "start": 1362150,
+      "end": 1528180
+    },
+    {
+      "speaker": "D",
+      "text": "Hi.",
+      "start": 1528820,
+      "end": 1529300
+    },
+    {
+      "speaker": "G",
+      "text": "Shinji Sakai, Eggie. I live over by McGinnis Park. It sounds like with Bellum we're kind of sticking to what is currently there, but expanding. It sounds great. I think it's good for the community to not do too much here and then smart, you know, smart. You know, people under age 19 and over the age of 64 can ride smart for free. It's been a success. I see people, I see these crowded trains midday, lots of kids coming later in the afternoon. I think this program has been so successful that we need to consider keeping this permanent. It's been getting people out of their homes and up and active like we were just talking about. Hopefully this will extend beyond June of this year.",
+      "start": 1529460,
+      "end": 1577200
+    },
+    {
+      "speaker": "C",
+      "text": "Thank you.",
+      "start": 1577600,
+      "end": 1578240
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Anyone else want to comment on the council member or city manager report?",
+      "start": 1579600,
+      "end": 1584240
+    },
+    {
+      "speaker": "C",
+      "text": "Thank you. Jonathan Freeman. About 2007 or so, I was working with Ted Postoma to try to develop and build a bridge across the canal. And I was featured an article in the IJ back then. And we'll say this, that whatever bridge you construct, that's the least of your problems. That's the least of them. What's concerning is where and what kind of infrastructure have to be done on both sides and perhaps public domain or eminent domain work. I'm not suggesting that it be named after Ted. He was so frustrated that he threw himself off the Golden Gate Bridge shortly after. But it is something that's definitely needed and I'm willing to help on this. I have a lot of knowledge. I have talking to sound like Trump, don't I? Yao, One of my best friends is a mechanical engineer professor down at Stanford and I presented this issue to them and they said no problem on the bridge. It's going to be getting the community involved on either side to be able to get it actually constructed. Thank you.",
+      "start": 1586160,
+      "end": 1665800
+    },
+    {
+      "speaker": "B",
+      "text": "Any other public comment on this item? Not seeing any. I will turn to the consent agenda and see if there's any items that my colleagues would like to pull from the agenda. Not seen any. I will open up the public comment on the consent calendar. This is item A through H. You'd like to comment, Please come on down.",
+      "start": 1667720,
+      "end": 1690080
+    },
+    {
+      "speaker": "C",
+      "text": "Good to feel busy right away. So I'm going to comment on the one that has to do with inspection and massage. As some of you know, I've done a lot of work on this a number of years ago. And if you go back and through your files, you'll find a report that I wrote on some of the establishments that I ran, as I understand right now. Well, the first thing needs to be commented. You're concerned about. You're concerned about prostitution fronts. That's a bad word to use. It's really bad. The word is sex worker. And you should be respectful of the men and women who choose to engage in this, this, this career, this profession. That's the first thing that you really got to do. Second is they're all smart enough to stay with the new regulations. There's probably about 15 establishments right now that you might think would be offering extra services. The 75,000 bucks that you're spending on to about $5,000 per business. Lamont Mac did a lot of work a number of years ago on that. I also think that you should make public a report of any work that has been done in order to justify the expenditure of this. And also the establishments we're mostly concerned about, I think, are women owned. They're owned also by Asians. And with four women on the council, I believe we should support women owned businesses. You don't have any idea how many are practiced without a license. And so I don't know if this is an efficient form or whether you spend your dollars. Thank you.",
+      "start": 1696000,
+      "end": 1810880
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Any other comments on the consent agenda? Not seeing any. I will bring it back. Is there a motion, please? I'll make a motion to approve the consent agenda.",
+      "start": 1811680,
+      "end": 1821920
+    },
+    {
+      "speaker": "D",
+      "text": "Second.",
+      "start": 1821920,
+      "end": 1822320
+    },
+    {
+      "speaker": "B",
+      "text": "Moved and seconded. Roll call, please. Vice Mayor Bushey?",
+      "start": 1822560,
+      "end": 1825560
+    },
+    {
+      "speaker": "C",
+      "text": "Aye.",
+      "start": 1825560,
+      "end": 1825850
+    },
+    {
+      "speaker": "B",
+      "text": "Aye. Council member Hill?",
+      "start": 1825920,
+      "end": 1826960
+    },
+    {
+      "speaker": "C",
+      "text": "Aye.",
+      "start": 1826960,
+      "end": 1827360
+    },
+    {
+      "speaker": "B",
+      "text": "Council member Kurtz?",
+      "start": 1827360,
+      "end": 1828440
+    },
+    {
+      "speaker": "E",
+      "text": "Aye.",
+      "start": 1828440,
+      "end": 1828720
+    },
+    {
+      "speaker": "B",
+      "text": "Council Maria Escalade?",
+      "start": 1828720,
+      "end": 1830000
+    },
+    {
+      "speaker": "E",
+      "text": "Aye.",
+      "start": 1830000,
+      "end": 1830320
+    },
+    {
+      "speaker": "B",
+      "text": "Mayor Kate. Aye. That motion carries.5,0. We have. Our main item this evening is an update on the sea level rise project. I see Kate Hegeman and maybe. No, Corey's not coming up there. Okay. We look forward to hearing what you have to say. Welcome. And we will remember to speak more slowly than we normally Do.",
+      "start": 1830320,
+      "end": 1856810
+    },
+    {
+      "speaker": "E",
+      "text": "Thank you so much. And let me just. Sorry. Back up to the beginning of the presentation here. Apologize for the quick preview. Thank you so much. So my name is Kate. I work here at the city of San Rafael. Tonight we're going to be talking about sea level rise, but that is a little bit of a misnomer because we're really talking about the situation that we have here today currently. So this project, as you can see by this room, is not a city of projects solely, it's a collaborative. We've been, thanks to the foresight of Corey and Aaron and Walter and many others put this project together as a, as a collaborative. So our partners, Canal alliance, the Multicultural center of Marin, we've been lucky to be joined also by researchers at UC Berkeley as well as the county. And then we have a steering committee of residents and business owners who are here and some of them will, will present as well as being supported by many others, including Yplan, Canal Arts and, and many of you in this room. So I'm just giving the presentation, but by no means there are many people behind this project. So we are in the middle of the project. I will mention, I'll speak specifically about where we are in the grant funded portions of this. But as we zoom out, the issue of flooding in San Rafael has obviously been known for quite a long time. There have been many studies talking about the risk risks. And unfortunately with this kind of work, this kind of work is never done. So to some extent you always have to kind of move that ball along further. And so the study that we're doing now is focused on better understanding the risk. But what we're really trying to do is get a better handle on what are the feasible ways to respond. You know, there have been several studies already from consultants at the city design competitions, the Army Corps of Engineers, who have proposed ways to, to reduce the risk of flooding. But the goal of this effort right now is to get a better handle on how feasible are they, what are the main implications of that so that it can be a solid foundation for large community discussions that are needed about the best way to proceed. So just for those in the audience that aren't familiar, this project does not involve the design or construction of any of these things that we're talking about. Those are things that would come in a future phase. But when we talk about sea level rise, you know, we're not talking about 2100. This was a picture from December. We already have quite a lot of. So for San Rafael, San Rafael is the most vulnerable community in the Bay Area. And it's really a current risk rather than a future risk. So when we think about why San Rafael, the most vulnerable community in the Bay Area, physically, when you think about it, it's so simple story in the sense that the land is very low, that land is also sinking, and what is sort of blocking the water, keeping the water out during the high tides right now is very informal. And so I'll just step through those. And then to add, we have tens of more than 10,000 people living in a very small area. So before the urbanization that happened, San Rafael looked kind of like what China Camp looks like. So there's this ground, and then in between, the wetlands came up into the valleys. So San Rafael, on the hill behind us here in 1901, looked the same. So this is the bank of America building today, and all the way back into Gerstel park, where the tidal channels. So as you develop on top of those areas, it just sort of has an inherent flood risk of building on wetlands and lowlands. In addition, San Rafael, if we were looking out towards, towards the East Bay, this is the point sand. This is where the bridge to Richmond sort of takes up. Originally, the shoreline had this curved shape. Everything that is Target and Home Depot in that area was just wetlands or was part of the bay. So a lot of the southeastern part of the city is actually built on what was the bay. Very thick bay muds or fill. So this is as recently as the 60s. You can still see that sort of natural foundation of the wetland and the fill being placed to enable the development of businesses and homes on top of that. But the way that it was developed was sort of from a low, sort of low elevation and just adding a little bit extra on top of that. And so what we have now is land that's close to the bay, that's just a few inches higher than the bay during that high tide. And the ground is also going down because it's built in on the wetlands and the thick bay muds. Over the past several decades, the ground has been. Has been sinking very slowly, gradually. But as you add those little bits up, it means that some places, like this area by our pump station, the ground's gone down two feet since the 70s, and just because of the soils, is expected to go down another two to four feet in the coming years. So we have those two changes happening at the same time. The ground is going down while the water is coming up. So if one goes down by one foot and the water goes up by one foot, we've got a two foot change there that's, that's creating this amplified risk. And it's not everywhere. Fortunately, much of the areas that are shown in green here are stable. And it's really kind of most pronounced in the areas where we have those thick bay mods, those areas that were built on film. And some of these areas were intentionally designed extra high, knowing that that was going to happen. But that's not the case universally. So all this means that right now, today and this year, we have land that's lower than the bay. And so this is our sort of starting condition as we think about how to adapt where much of the southeast part of the city and is on land that's lower than the bay during high tide. So this dock is higher than the cars here. And so that area extends everywhere where you see the dark purple. So back through Bret Harte and woodland and other areas. It's not just the canal in that kind of bowl shape topography. And thank you to Kiara and others who have helped make these visualizations so that we can actually know at each, at each individual building how deep could the flooding be in different scenarios. And we can visualize it so we can get out in front of our it. But the third component of the risk that I think is very humbling is that what is keeping that whole area dry are privately built and privately constructed barriers. And they're a very variable quality. They're not necessarily designed by an engineer and they're certainly not built for a storm. They're just a few inches higher than the high tides we have today. And they're a mix of materials, drop boards or planter boxes, they're not in great shape. But all these little private yards and gardens are serving a very public purpose of keeping 101 dry, keeping 580 dry, keeping the wastewater treatment plant dry. And so even though they're sort of small and ad hoc, they're serving a very big purpose for all of us who use those who live here. The other challenge with, with the condition here in San Rafael is that we have a lot of buildings that are half on land and half on water and they're just a few inches above the highest tide. So as this tide goes up another 3, 4 inches or we have a storm, there's a risk that folks homes are affected by the flooding. So along the canal we have a lot of buildings that are in that, that kind of condition. So I'll mention that we're doing a feasibility study, which I mentioned before, with the engineering team and many Folks involved with expertise from New Orleans and the Bay Area. And so they're looking at what are the feasible ways that we can prepare. And that study is ongoing and they're very much in the middle of it. So we're just at the draft phase of trying to fact find. So we're not ready to present on the findings of that, but just to give a preview as we think about the kind of options that are available. Obviously, one option is to not act quickly enough, and everything is kind of in comparison to that baseline scenario. But they're looking at essentially three alternatives. One, to put something between the water and the land, to find a way to raise the shoreline or raise a street, to act as a barrier. Another, to look at a type of barrier that would be in the canal. And then a third strategy of elevating incrementally over time. And all of these strategies, I'll just say we're not talking about them in detail today because all of these strategies involve a level of planning, design, construction that takes at a minimum, several years to decades. So for each of these alternatives, the team is looking at how long would it take if we worked with the Army Corps FEMA to build this and plan this? And all of them are sort of in a time frame of 2000-40s or even longer. So knowing that we have this risk today and this long horizon ahead in terms of planning these more comprehensive approaches, we're here today to talk about what can we do right now? What are the priorities that have arisen through the. Through the collaboration and through the community engagement that can be moved forward while this planning happens? This has to happen, but we can't wait, of course, to get started. So what we're talking about today is as. As we've been doing this, let me. Sorry, just jump around really quickly and just mention that we will have that kind of completed study by September and we'll have more details. And so we'll certainly come back and be doing much more community engagement and, and outreach when we have better information. But what we're going to talk about tonight, today and tonight is just what can we. What are the priorities that have, that have come out of all the conversations that have been had over these last two years? So Canal Alliance Multicultural Center, Walter, the city, they're in a lot of conversations, and we really want to be responsive to the priorities that we're hearing. And so I'm going to pass the floor to my colleagues who have been part of the steering committee or the Consejo or the Canal alliance to share their involvement and what they've been hearing. And so with that, I'll pass. Our first presenter is Ms. Rita Diegos who is a Sea Level Rise Steering committee member. And Rita S. She has been so involved, appreciated a little video. Either one is fine. I believe so. Involved creating radio programs, a video, a trailer for movies in the park. Super involved. So we're so grateful. Muy gracidos.",
+      "start": 1857050,
+      "end": 2541460
+    },
+    {
+      "speaker": "D",
+      "text": "Gracias. Gracias. Muy buenas tardes a todos aqui presentes mi nombre. Rita Masariego Educadores transmisores y generadores de conocinto anestra comunidad hacer del conocimiento a la comunidad de las amenasas y consequencias de la omento del nivel del Mar. Yasico mufomentar la participacion activa de la comunidad. El apoyo necessario de axiones entre comunidad y ciudad afianzando los lasos provocados por elaumento del Mivel del Mar y hacer las adaptaciones necessarias par adaptars consequencias de lamento del Nivel del Mar y que todas las partes in bolucradas. Thank you.",
+      "start": 2541460,
+      "end": 2704570
+    },
+    {
+      "speaker": "B",
+      "text": "Hold on one moment while we have the interpretation. Andrew, let me know. I can take a picture of this and send it to you if you need. If that would be easier. That was a lot.",
+      "start": 2705210,
+      "end": 2712410
+    },
+    {
+      "speaker": "F",
+      "text": "That would be very kind. I would appreciate that greatly.",
+      "start": 2714500,
+      "end": 2717060
+    },
+    {
+      "speaker": "E",
+      "text": "I can also. Yeah, let me just send this to them.",
+      "start": 2717700,
+      "end": 2720500
+    },
+    {
+      "speaker": "B",
+      "text": "Sorry, I just sent it over to you. Should be there any second.",
+      "start": 2720580,
+      "end": 2745390
+    },
+    {
+      "speaker": "F",
+      "text": "I have it. Thank you so much. I really appreciate that. Good evening to everybody who is present. My name is Rita Masariegos and I form part of the directive table for the sea level rise of San Rafael. And I've been working in this project for about five years working with the community of Canal. And I'm here to share with everybody our mission and vision for the. For the community. Our table of directors are made up of different sectors of the community. Our mission is to. To make ourselves into defenders, educators and be able to transmit and generate knowledge to our community and have them understand the challenges that our community, that our community faces and possible consequences of the rise of sea level. And that way form an active participation with the community of Canal and generate support, necessary support to take action for our community and with the. And with the city so that we together can face these challenges and make any adaptations that are necessary so that we could be prepared for the possible impact that the climate could bring. Our vision is that the Canal community be educated, understand and support the initiatives and help the community to adapt to possible consequences that sea level rise could bring. And have everybody get involved in educating, respecting each other and include everybody in this process of making decisions that could impact our neighborhoods of San Rafael. That's why we are going out of our way to really try and educate and help the community, help them understand and support the initiatives that we're seeking for our community to adapt to to these consequences or possible consequences of sea level rise. We'd like for this council to create a permanent space between the council and the community so that everybody in the community could have a safe space in which to participate and be included in all these preparations and to participate in planning for facing the sea level rise. I'd like for the City of San Rafael to create more possibilities of educating and training in what has to do with flooding and training for cert for the community of Canal. That way all of our neighborhoods can be ready in case a natural disaster should occur. So we can be ready in a case of emergency, an emergency of a magnitude that fire department and police won't be able to handle on their own. We all need to help and better the community so that we are all prepared, educated and trained should an emergency come in the future.",
+      "start": 2750670,
+      "end": 2995860
+    },
+    {
+      "speaker": "E",
+      "text": "Thank you so much and thank you everybody for your patience. I'm going to invite our next steering committee member up, Angel Minor, who can tell us more about the steering committee and her involvement as well as priorities for moving forward.",
+      "start": 3000100,
+      "end": 3012900
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, thank you, thank you for having us here today. My name is Angel Minor and I am the CEO of Conservation Corps North Bay. So I'm a business owner, we are a property owner. We are a community based organization and we are training young adults from 18 to 30 that live in the canal to give them job skills education, ESL classes. So I'm going to come at this.",
+      "start": 3012980,
+      "end": 3037540
+    },
+    {
+      "speaker": "D",
+      "text": "From all of those pieces.",
+      "start": 3037540,
+      "end": 3038660
+    },
+    {
+      "speaker": "B",
+      "text": "As a property owner, I have pumps on my property. I now pay $25,000 a year in flood insurance. And that is going to go up because the new flood maps are coming out. And it's terrifying to think of what that might do for us as a nonprofit. I think about my property and say, well, gosh, if I could raise it up, well, I had that estimated for one small building. It was well over a million dollars four years ago. And I went to my insurance broker and I said, well, look, I could do this and she's like, it doesn't matter because every street you're on is still going to flood. And so nothing you do individually will matter. From a business perspective, my cost of continuing to do business in the canal is only going to get more and more impacted. We often have folks there sometimes around the clock when the rains come and they're heavy. To make sure we're protecting our property from a community based organization. This is probably what is most important to me because this is who we serve, this is who we are. We don't exist without the community.",
+      "start": 3040490,
+      "end": 3099650
+    },
+    {
+      "speaker": "E",
+      "text": "Right.",
+      "start": 3099970,
+      "end": 3100370
+    },
+    {
+      "speaker": "B",
+      "text": "So if the residents of the canal are not there, we're not there. If we aren't there, who's going to be there to support them? And so I think about, you know, the canal as a neighborhood and I think about the residents that are there, the homeowners that are there, the business owners are there, and it's all working together. And I've never quite seen, you know, like, we try to get in front of it and say, oh, hey, we heard about this. And they just look at me and they're like, we've known that for a week, but thanks for sharing. There's just this community there that shares information that takes care of each other that is so special that, you know, we don't want to lose that. So as we think about going forward, that's probably the thing that scares me. You can't move an apartment, you can't move my business without impacting everything else that is there. So I wanted to highlight those and what that means to us as a business organization, but also what it means to the community. We're fortunate that we are an environmental organization. So we're out there doing flood mitigation and control for you when it's raining and we're doing fire fuel work and our corps members want to hear about what's going on because they care about what's going to happen in their future. And the first thing they always say to us is, why can't we help? This is what we do. Put us to work. What can we do? And they want to not just figure out the answer, but they want boots on the ground and be able to help solve what's there for our neighborhood. So they care about what's happening and they want to be a part of that. So I want to make sure. Sorry. That I'm sharing that with all of you because. Because they aren't here, they're not going to come up and talk to you. But I want to make sure that that message gets across. So those are main points. And then we have the slide for drafting guiding principles. So I was asked to talk about a couple of these and I. Every time I look at it, I'm like, I don't know which two to pick. So I guess I'll say it this way because I think it kind of talks about all of them, this steering committee, you know, it's not something I've been a part of before, but I sat at a table with the folks that live there, the folks that work there, the folks that own businesses, own homes, own. And you heard different perspectives that I never would have thought about, even though I feel like I'm fairly connected with what I do in the Canal. And it's these kind of steering committees bringing this community together that should be helpful in making that decision. Right. So you can't come in and go, this is what we're doing to you, and this is how we're going to help you. I think it's critical they're involved in what those decisions are, but they're also critical in how that gets rolled out, you know, once the decisions are made and how they're going to be impacted and how we're going to keep the community together. So I would say while all these are really important, I do think that it all is going to come back to this community and how do we protect them and how do we educate them and. And have them be part of the solution? So, did I miss anything?",
+      "start": 3100610,
+      "end": 3255580
+    },
+    {
+      "speaker": "F",
+      "text": "Perfect.",
+      "start": 3256140,
+      "end": 3256620
+    },
+    {
+      "speaker": "E",
+      "text": "Thank you so much. And I'll introduce our next speaker, Senor Javier. Si me promites seria mejor para avlarat. If we could do the translation during his presentation, I think that would be smoother, if that's possible. But he does also have the remarks, if that's preferred. But I'll also say, muy gracias, porvenir gracias.",
+      "start": 3256780,
+      "end": 3280040
+    },
+    {
+      "speaker": "F",
+      "text": "Good evening. My name is Javier Biafany and I'm a resident of Canal, where I also work. I've been living in the neighborhood for about five years. My family's live. Live there longer. I'm also a res. I'm also a member of the residential council of Nuestro of Canal for the Future, where we meet to see how we can improve in our neighborhood. In those years that I've been living in the Canal neighborhood, I've been able to observe that it's a. It's a very vibrant place, full of multicultural aspects. But along along with it, with its beauty, there does there. There are challenges that we are not without problems, problems of security, problems with housing and the cost of housing. And now the challenge that we're, that we're faced with those, the rise of the sea level. In this problem that we are talking about with the sea level rising, it is a real problem. And there are already cases of parts of the Canal neighborhood that are already flooding. So working in conjunction with Canal alliance, we are trying to spread knowledge to others about this. We've also been looking to hear from the community and what we've heard from the community is that they're looking for information on how to prepare in case of an emergency, emergency routes, should something happen so that they can be. Be prepared when something does happen. One of the other things that also worries him should an emergency happen or should flooding happen is protection for, for all those who, who, who are, who are renting and are in fear of losing their homes to have a plan in place, some sort of protection so, so that they don't lose their homes and have nowhere that they're also concerned about the building of new dwellings. Are these, are these new dwellings made up to new codes that are in preparation for. For flooding? Is there, are, are they being built in a way that's prepared for, shall we say, anti. Anti flooding? When I started to learn about the danger of flooding, all these thoughts and concerns that the community has of resonated with me as well. And I asked the same questions that the rest of the community is asking. I have the strong belief that if the city council works and creates a space with the community to face these challenges, we can be prepared for them. Thank you so much for your time.",
+      "start": 3321630,
+      "end": 3715370
+    },
+    {
+      "speaker": "E",
+      "text": "I'll now pass the floor to our colleague Carly from Canal alliance who will talk about the community priorities for near term action.",
+      "start": 3720890,
+      "end": 3727990
+    },
+    {
+      "speaker": "G",
+      "text": "Hello.",
+      "start": 3731350,
+      "end": 3731830
+    },
+    {
+      "speaker": "B",
+      "text": "Good evening. Thank you, Kate. I want. My name is Carly. As Kate mentioned, senior policy manager at Canal Alliance. We really appreciate your time and also just want to give a huge thanks to Kate and to Corey and to the team at the city. We're really excited to be a part of this project which is just really shifting the way that San Rafael does community engagement and bringing in Canal alliance and the Multicultural center from the beginning and really investing in building the leadership capacity of residents and business owners and organizations with deep roots in the community. You've heard from some just now and we'll hear from more during public comment. And so I really think that this is just such an important way to do this kind of engagement where we raise awareness and we really involve the folks that are going to be directly impacted did from the beginning. And so we've talked with a lot of community members over the last couple of years.",
+      "start": 3731830,
+      "end": 3788180
+    },
+    {
+      "speaker": "E",
+      "text": "If we can go to the next slide, please.",
+      "start": 3788180,
+      "end": 3790860
+    },
+    {
+      "speaker": "B",
+      "text": "And there are a few things that have really risen to the surface in these conversations. We know that it's going to be a really complex decision of what is the best long term adaptation pathway for San Rafael. But we also have heard from residents that there are things that we can and really need to start making progress on now. And we can't wait until we figure out are we going to build a wall, are we going to elevate the city? One thing that rises to the surface a lot is we explain the risk of flooding, as you all have heard tonight. And then we talk about these different options to adapt to sea level rise that will be in place and provide protection in 15 to 20 to 30 years. And we very understandably get the question of, well, what happens if there's a flood tomorrow? Where do I go? Do I try and shelter in place? Do I evacuate? It looks like all of the evacuation routes are squarely within the floodplain. What, what are the options? And really what is, what can we do to prepare ourselves and what can we collectively do to reduce that risk of an emergency, emergency flood? And so both Canal alliance and Multicultural center have been really happy to partner with the city and the county and many others to get folks signed up for emergency alerts and to share the word. But there still are a lot of gaps and questions in the trainings and materials that exist that could use some specificity to this flood risk that we have in eastern San Rafael. If we could go to the next slide, please. The fear of displacement also comes up all the time and people talking about, you know, if there is an emergency flood, will I be able to return to my home? Or what will happen, particularly to tenants, because a lot of the emergency response resources that are available flow to property owners. And where does that lead tenants in this very dense, very renter heavy community? You know, people want to know, is my, is my apartment safe where I live now? And the reality is many, many apartments and a lot of the housing that's there is going to need a lot of investment in order to be safe. In the decades to come with the flood risk and climate change, are those investments in, to make the property in the unit that I live in safe going to mean that I get evicted in the process or that my rents are increased so much that I can't continue to live there? You know, what, what is the comprehensive plan for protecting tenants, for preserving affordable housing, for creating more affordable housing. And how do we do that in a way that really ensures that our housing stock is climate resilient and safe for people? We also get a lot of questions around, well, there's, there's. There's planned construction, there's these projects that are already in the work that we're spending millions and millions of dollars on. Are those investments going to last? Will this infrastructure still function in the event of a flood and in 20 years? And is there more that we can do to make sure that we're wisely investing in the projects and the infrastructure, especially the really critical infrastructure, that our evacuation routes that are our potential evacuation sites, and making sure that we're not going to end up in a position where in 10 years we need to rebuild things that we've just put in place. Right. And then finally, really continuing the city's commitment to environmental justice. And I think that, you know, the folks in this room clearly are committed to doing this work in partnership with the city. And we hear time and time again that residents really want to be aware of and involved in these decisions that are going to directly impact them and their families and their livelihoods, and making sure that we are, again, being thoughtful in the investments that we're making and making sure that they really reach the folks who are most vulnerable and who need that support the most and don't have their own safety nets. And so that's just a summary of some of the things that we've heard a lot from community members that we feel like there's no regrets in really prioritizing and taking action on these issues now, because this will be a strong foundation no matter what adaptation pathway we go down. And it will only make our collective work easier and lighter than if we just continue the inaction that really restricts the choices that we have when, you know, as the problem continues to worsen and the risk continues to increase. And so I know that Canal alliance and this partnership and the folks in the room are really committed to doing this work in partnership. It's going to take a lot of collaboration, and I think that San Rafael has a lot of work ahead, but a lot of an opportunity to be an example for the rest of the Bay Area, because we may be experiencing this first because of sort of the combination of factors that Kate outlined and the risk that exists today. And we won't be the last ones that are facing this. And so it's. We, yeah, San Rafael has a challenge, but also an opportunity that we are looking forward to tackling together. So thank you.",
+      "start": 3791500,
+      "end": 4127630
+    },
+    {
+      "speaker": "E",
+      "text": "Thank you so much, Carly. And I'll just quickly summarize some of the next steps because I know we have many people that are here to speak and share their, their thoughts and their participation. So these community priorities that were just reviewed, we've worked as much as we can to integrate these into the draft goals and objectives which you discussed this afternoon. So obviously a lot of this also falls within sort of our core, our core work as a city as we try and prepare both ourselves and our residents. So as much as we can, we're trying to tie these into our goals and objectives. But as Carly mentioned, many of the of these steps require partnership and require outside funding. But just to zoom back into the next steps, when we talk about this particular study, you know, tonight we're talking about these first actions, these kind of community informed priorities so you can get going with potentially soon. And then this summer we'll have the feasibility study completed from the consultants, which will give us much better information about the implications of these different options. And then we're hoping to roll that information into the East Center Fellow specific plan or the pda. And then also the Community Vision Plan, Nuestro Canal Nue Returo, which was mentioned before. And then the city or the county can do it collectively, we're required by the state to do an adaptation plan in the next nine years. So that's another step that's on the horizon. So with that, I'll just mention that for those who want to get involved, we do have other events coming up on April 24th and May 3rd if folks want to learn more. This Tonight is our 97th event. So these will be 98 and 99 if you want to get involved. So we would really welcome you and of course, reach out to any of us if you have more questions or want to talk about your specifics. So with that, I will stop talking and pause for questions. And again, just thank everybody for coming and for all the work that you've done to, to get us this far.",
+      "start": 4128670,
+      "end": 4247480
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, Kate. And thank you to all who already presented. I know there might be questions that the council has, but I want to go right to public comment so we can hear from you. So if you'd like to provide your thoughts. You have two minutes. You're welcome. Welcome, but not required to say your name and what part of Sam Rafael. And we'd love to hear from you. So come on down.",
+      "start": 4247880,
+      "end": 4269410
+    },
+    {
+      "speaker": "C",
+      "text": "Everyone.",
+      "start": 4280690,
+      "end": 4281090
+    },
+    {
+      "speaker": "B",
+      "text": "I am so proud to be a member of the San Rafael Steering Committee.",
+      "start": 4282690,
+      "end": 4288530
+    },
+    {
+      "speaker": "D",
+      "text": "For sea level rise and honored to.",
+      "start": 4288530,
+      "end": 4290910
+    },
+    {
+      "speaker": "B",
+      "text": "Have the opportunity to speak on its behalf.",
+      "start": 4290910,
+      "end": 4293030
+    },
+    {
+      "speaker": "D",
+      "text": "My name is Claire Taylor and I.",
+      "start": 4293270,
+      "end": 4294950
+    },
+    {
+      "speaker": "B",
+      "text": "Live in Spinnaker Point. What a privilege it is to be able to work, be a part of.",
+      "start": 4294950,
+      "end": 4301310
+    },
+    {
+      "speaker": "D",
+      "text": "A group of folks who care so deeply about our communities both today and tomorrow.",
+      "start": 4301310,
+      "end": 4307750
+    },
+    {
+      "speaker": "B",
+      "text": "We know that the sea level rise.",
+      "start": 4309030,
+      "end": 4311510
+    },
+    {
+      "speaker": "D",
+      "text": "Steering committee has an end date, but we know too that, that the conversation does not. So the community, especially the canal neighborhood, continues to be more educated, more aware, more involved in discussions.",
+      "start": 4311910,
+      "end": 4330000
+    },
+    {
+      "speaker": "B",
+      "text": "Just look at the turnouts we have had for our King Tide days and all of the other educational days that we've had.",
+      "start": 4330560,
+      "end": 4339200
+    },
+    {
+      "speaker": "D",
+      "text": "And now we need to create a space where we can continue talking and.",
+      "start": 4339440,
+      "end": 4344270
+    },
+    {
+      "speaker": "B",
+      "text": "Taking action about sea level rise after this project and the steering committee ends. We are willing and we care. We want to make it happen. And I would like to add that.",
+      "start": 4344270,
+      "end": 4355110
+    },
+    {
+      "speaker": "D",
+      "text": "As an added bonus to being a.",
+      "start": 4355110,
+      "end": 4357030
+    },
+    {
+      "speaker": "B",
+      "text": "Part of the steering committee.",
+      "start": 4357030,
+      "end": 4358270
+    },
+    {
+      "speaker": "D",
+      "text": "Over the past year, our members have.",
+      "start": 4358270,
+      "end": 4361550
+    },
+    {
+      "speaker": "B",
+      "text": "Got to know each other as neighbors and as allies.",
+      "start": 4361550,
+      "end": 4364430
+    },
+    {
+      "speaker": "D",
+      "text": "We share ideas and recognize each other's needs and concerns.",
+      "start": 4364910,
+      "end": 4369000
+    },
+    {
+      "speaker": "B",
+      "text": "And this has been a wonderful opportunity for community building. And I'm so pleased to be a part of that.",
+      "start": 4369550,
+      "end": 4375310
+    },
+    {
+      "speaker": "D",
+      "text": "And you also know that we can't do it alone. We have seen that power. We've seen the power of collaboration between the many agencies that are a part of this project. We recognize and are grateful that the city is committed to long term actions.",
+      "start": 4376270,
+      "end": 4389430
+    },
+    {
+      "speaker": "B",
+      "text": "To address sea level rise.",
+      "start": 4389430,
+      "end": 4390830
+    },
+    {
+      "speaker": "D",
+      "text": "But we also need your help to.",
+      "start": 4391070,
+      "end": 4392630
+    },
+    {
+      "speaker": "B",
+      "text": "Plan for immediate actions to protect the community. For example, are there any plans to rebuild existing back seawalls? Are there plans for emergency hubs and emergency preparedness for focused on flooding?",
+      "start": 4392630,
+      "end": 4409320
+    },
+    {
+      "speaker": "D",
+      "text": "We have requested a cert training focused on sea level rise to be held in Spanish in the canal. And we already have like 30 people.",
+      "start": 4409960,
+      "end": 4419800
+    },
+    {
+      "speaker": "B",
+      "text": "Who are committed to take the training.",
+      "start": 4419800,
+      "end": 4422200
+    },
+    {
+      "speaker": "D",
+      "text": "And become cert trained.",
+      "start": 4422200,
+      "end": 4423560
+    },
+    {
+      "speaker": "B",
+      "text": "Is there a way you can help us facilitate this? Claire? If you could just wrap up so we can hear from others. One more point. Okay, thank you.",
+      "start": 4424040,
+      "end": 4430920
+    },
+    {
+      "speaker": "D",
+      "text": "And also we would like to be.",
+      "start": 4432040,
+      "end": 4434040
+    },
+    {
+      "speaker": "B",
+      "text": "Informed and collaborate with the other organizations.",
+      "start": 4434520,
+      "end": 4437560
+    },
+    {
+      "speaker": "D",
+      "text": "Who are doing the same kind of work. And again, thank you so much for listening.",
+      "start": 4437560,
+      "end": 4443560
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you.",
+      "start": 4443640,
+      "end": 4444280
+    },
+    {
+      "speaker": "D",
+      "text": "PNSO ketos nosotros novamosa permitiros locate.",
+      "start": 4523840,
+      "end": 4528240
+    },
+    {
+      "speaker": "E",
+      "text": "Thank you.",
+      "start": 4585070,
+      "end": 4585550
+    },
+    {
+      "speaker": "D",
+      "text": "I'm going to ask.",
+      "start": 4586830,
+      "end": 4587630
+    },
+    {
+      "speaker": "B",
+      "text": "Sorry, could you stay there? Stay right up here. Yeah. And Andrew, if there's any point you need her to repeat something. I know that was a lot.",
+      "start": 4587630,
+      "end": 4595710
+    },
+    {
+      "speaker": "F",
+      "text": "Good evening everybody. My name is Crispin. I'm with. I'm a member of the community of. Of. Of Canal. I'M here to ask to. For. For help in all in. In becoming prepared for and having a. A plan of education for the community in In. In preparing for For. For flooding any other type of flooding or or for for any type of. I'm sorry not experience. But should something something else occur. There's a. There's a. There's a middle part that. That. That went a little bit. A little too too quickly. Anyway. It was preparing for. For emergencies.",
+      "start": 4598510,
+      "end": 4661350
+    },
+    {
+      "speaker": "D",
+      "text": "Maybe you could take it. Let me see.",
+      "start": 4669110,
+      "end": 4671350
+    },
+    {
+      "speaker": "B",
+      "text": "Andrew, screenshots coming your way.",
+      "start": 4695440,
+      "end": 4696960
+    },
+    {
+      "speaker": "F",
+      "text": "Thank you so much. I just. I. I just received it and feel free to.",
+      "start": 4698400,
+      "end": 4702680
+    },
+    {
+      "speaker": "B",
+      "text": "If you need. If you need us to slow down, you can stop us. That's fine as well.",
+      "start": 4702680,
+      "end": 4706080
+    },
+    {
+      "speaker": "F",
+      "text": "Thank you you. I'm asking for. For existing protection for For.",
+      "start": 4706720,
+      "end": 4715610
+    },
+    {
+      "speaker": "C",
+      "text": "For.",
+      "start": 4715610,
+      "end": 4716010
+    },
+    {
+      "speaker": "F",
+      "text": "For residents. It's crucial to collaborate with with tenants and proprietors to. To help prepare from. From people losing losing their homes. Integrating into politics accessible housing options for housing options that are. That are mixed and promoting social cohesion and diversity. We're also looking to have more security in construction and reconstruction. Our infrastructure should be planned and considered and considering the rise of sea level and other fact. Other climate factors securing sustainability and functionality long term. We're also looking to prioritize climactic justice. It's essential that our communities, our vulnerable communities are hurt when decisions are being taken. Climactic justice should include support. Specific support for those who need it and resources for those who. Who need it.",
+      "start": 4716490,
+      "end": 4806230
+    },
+    {
+      "speaker": "D",
+      "text": "I can say. I can say the last part in English. So I just want to say like no one is coming to our house to say. Say what to do or not to do. We are the expert in our house. So as a community we are experts on our community. You can see like it is floating coming tomorrow. Like we only have like two exit and two entrances. And so we're having a huge wall for the freeway.",
+      "start": 4809430,
+      "end": 4832250
+    },
+    {
+      "speaker": "C",
+      "text": "For the.",
+      "start": 4832250,
+      "end": 4832609
+    },
+    {
+      "speaker": "D",
+      "text": "From the freeway. So it's gonna be like come on. You know. Also you guys had any swimming classes for everyone.",
+      "start": 4832609,
+      "end": 4840410
+    },
+    {
+      "speaker": "F",
+      "text": "So it's gonna be good.",
+      "start": 4840650,
+      "end": 4841690
+    },
+    {
+      "speaker": "D",
+      "text": "But yes. So we are the experts and we are here for collaborate together for be together and we can finding solutions and we are the experts in our community. So yes, thank you for your comments.",
+      "start": 4841850,
+      "end": 4856310
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you.",
+      "start": 4856790,
+      "end": 4857430
+    },
+    {
+      "speaker": "E",
+      "text": "So I can help if it needs assistance.",
+      "start": 4986750,
+      "end": 4988430
+    },
+    {
+      "speaker": "F",
+      "text": "Thank you so much for. For her offer. You know I will. I will do my best to. To honor her words. My name is Marina de Palma and I've lived and worked in the Canal community for years as a volunteer on community initiatives mainly focused on housing, sporting activities, leadership and organization. Of the community on topics that affect all of us directly. I'm thankful to. To everyone here tonight. Several months ago, I joined the. As a member of. Of the community. I joined them because of the. The rise of sea levels. I was aware that it's something that the community might not. Might not have been aware of. And still as. As of now, don't identify it as a present. As a present risk for all residents of. Of the canal. Many years, for many years now, I've seen the need to improve security for our community and protection facing emergencies. Now that I am aware of the danger of the rise of sea level and of strong rain or storms in combination put us at a high risk of flooding and we are at risk of losing our homes in the canal. Our community would be destroyed and the great rich culture in the enriching culture of Marin County. I firmly believe that together we should make an effort to minimize the effects that these floods could have. I believe it's important for all of us to take immediate action to maintain security in our community. And it's my opinion that this should be a priority. It should be a priority in educating and preparing for these emergencies to make it our focus should floodings arise.",
+      "start": 4994590,
+      "end": 5169660
+    },
+    {
+      "speaker": "D",
+      "text": "Pretty much.",
+      "start": 5178540,
+      "end": 5179180
+    },
+    {
+      "speaker": "G",
+      "text": "I completely understand how hard it is.",
+      "start": 5181260,
+      "end": 5183180
+    },
+    {
+      "speaker": "E",
+      "text": "I did gave a copy to Kate.",
+      "start": 5183740,
+      "end": 5185900
+    },
+    {
+      "speaker": "D",
+      "text": "And I'll be happy to email you. But I guess we all coming here to request an immediate action which is to start with some type of emergency preparedness for flooding.",
+      "start": 5185980,
+      "end": 5198900
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Thank you so much. Thank you.",
+      "start": 5198980,
+      "end": 5201300
+    },
+    {
+      "speaker": "F",
+      "text": "Good evening, everyone. My name is Felix Perez and I have the pleasure of being a part of the leadership of Canel Alliance. Because of lack of communication, there are many times where we as members of the community don't know where to look for answers on certain things. And so one of my questions is in preparedness for an emergency like flooding, is there a plan in place of a location or place where those who would be affected by flooding can. Can. Can go to? Is there. Is there a secure place that we can. That we can go to? Is our plan in place for that?",
+      "start": 5259700,
+      "end": 5306750
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you.",
+      "start": 5311390,
+      "end": 5312030
+    },
+    {
+      "speaker": "A",
+      "text": "Oh, good evening, honorable mayor, honorable council member.",
+      "start": 5320990,
+      "end": 5326430
+    },
+    {
+      "speaker": "G",
+      "text": "My name is Romario Conrado.",
+      "start": 5326980,
+      "end": 5328460
+    },
+    {
+      "speaker": "A",
+      "text": "I use he, him, his pronouns. Si estamos hablando en espanol el. And I have the pleasure of serving the community as community Action Marin's advocacy manager. I wanted to touch upon a personal story really quickly. I had the joy of growing up in the canal. My brother and I, we used to save discarded items on Novato street and then we would try to flip them. We were four and six years old.",
+      "start": 5328460,
+      "end": 5356130
+    },
+    {
+      "speaker": "B",
+      "text": "Trying to hawk items.",
+      "start": 5356610,
+      "end": 5357970
+    },
+    {
+      "speaker": "A",
+      "text": "These items included a table with a missing peg, a fan without a screen. We rarely made any money, but we mostly were paid with gracious yet disturbed smiles.",
+      "start": 5358210,
+      "end": 5369490
+    },
+    {
+      "speaker": "G",
+      "text": "One time the PAL man did reward.",
+      "start": 5370850,
+      "end": 5373170
+    },
+    {
+      "speaker": "A",
+      "text": "Us with some free ice cream, which was great. But looking back, I think, though it may seem trivial.",
+      "start": 5373170,
+      "end": 5379520
+    },
+    {
+      "speaker": "G",
+      "text": "That's environmental justice.",
+      "start": 5380950,
+      "end": 5382390
+    },
+    {
+      "speaker": "A",
+      "text": "Finding value in what others have deemed trash or little value and deciding to protect it.",
+      "start": 5383190,
+      "end": 5389110
+    },
+    {
+      "speaker": "G",
+      "text": "We were protecting what others have overlooked.",
+      "start": 5389750,
+      "end": 5392470
+    },
+    {
+      "speaker": "A",
+      "text": "All while making the community a bit prettier in the process. Our entrepreneurial, communal mindset is everything that makes the Canal so great. And unfortunately, very real threats now loom to wash it all away. And sea level rise is one of those threats.",
+      "start": 5392790,
+      "end": 5409160
+    },
+    {
+      "speaker": "G",
+      "text": "So Community Action Marin joins Canal alliance.",
+      "start": 5409800,
+      "end": 5412280
+    },
+    {
+      "speaker": "A",
+      "text": "And others in their sea level rise advocacy and urges the city to prioritize implementing Program 11 of the Housing element, which would protect tenants from eviction due to climate related damage. A Community Action Marin we work on, we work alongside and on behalf of thousands of San Rafael residents, particularly people of color and those with low incomes who are disproportionately impacted by both the housing and climate crisis. And so we know that we need stronger relocation assistance, habitability standards and just cause protections. Thank you so much for your time.",
+      "start": 5412280,
+      "end": 5446610
+    },
+    {
+      "speaker": "B",
+      "text": "Thank.",
+      "start": 5447330,
+      "end": 5447810
+    },
+    {
+      "speaker": "E",
+      "text": "You.",
+      "start": 5457570,
+      "end": 5457730
+    },
+    {
+      "speaker": "D",
+      "text": "Bibo and Elaria de Cana.",
+      "start": 5482360,
+      "end": 5484010
+    },
+    {
+      "speaker": "F",
+      "text": "Good evening. My name is Aurelia Vargas and I am a resident who lives in the area of, of Canal. I am here in regards to the rise of the sea level. I'm here once, once again before you guys to ask for your. For your help and your support so that we can develop plans of emergency and have educational materials made to help prepare us in case of an emergency like flooding or even earthquakes. We live in an area that's exposed to, to. To the possibility or the danger of flooding and we don't have any knowledge of what to do or where to go should something like that happen. My family has been trying to put a plan in place that we still have not yet been able to, to complete because I have children, because I have pets. And I think that together we can, we can plan something and, and support each other to come up with plans in, in being prepared. I always encourage and advise my neighbors for them also to come up with a family plan as to what to do should an emergency like this happen. But again, there just isn't enough knowledge and a lot of them aren't aware of, of. Of the dangers. And so we, we. We find ourselves here needing educational material both in Spanish and in Vietnamese. So we're Asking for your help in these matters.",
+      "start": 5548550,
+      "end": 5661270
+    },
+    {
+      "speaker": "D",
+      "text": "Implementando casos con mas gravedad este tambien. Anton says.",
+      "start": 5721400,
+      "end": 5750930
+    },
+    {
+      "speaker": "F",
+      "text": "Good evening. My name is Elizabeth and I am here much the same as a lot of my fellow members of the community to talk about what we can do in cases of emergency. And I'm wondering should an emergency like flooding happen, is there, there. Is there a building that, that. That can be used to maybe housed house people with. With injuries or house people who are. Or have. Have lost their homes? Should places like hospitals become either too full or out of or. Or two or. Or too far away? We've been told of places that could be used as. As like emergency hubs like Valle Vista School. But it turns out that I don't really believe that that, that that's a place that. That is secure enough. If I, if I may really quick just ask Mr. A clarification. Places like Pick Away, the Pickway Building and Bayavista School could be used as emergency hubs, but I personally don't believe that a lot of these places would be secure. I think it would be important to have resources available to us for educational purposes like classes for CPR or classes educating us on what we could do for evacuation or evacuation drills to be prepared for these types of disasters.",
+      "start": 5777340,
+      "end": 5907880
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Gracias.",
+      "start": 5912670,
+      "end": 5913870
+    },
+    {
+      "speaker": "F",
+      "text": "Podemosque. Good evening. My name is Francisco Albino and I'm a resident of Nuevaru. But I'm part of the leadership, the leadership program of Canal and I'd like to thank. Thank you first of all, this opportunity to be able to speak and be able to be heard and address my fellow members of the community. There are many times when we don't know what to do in case of an emergency. And although I know that disasters can't be avoided, but if we do have dialogue now beforehand, there are ways that we could come up to avoid certain dangers that come with these disasters. And perhaps that way we can save lives. We might not be able to save everybody's lives, but we can save a lot of lives. If we unite as a town, as a community, look for ways on what we can do to be prepared. We might be able to accomplish a lot. A lot of the times things happen because we're not aware and then sometimes we're not paying attention. But, but we need what we need to because we don't want to. We don't want to try and find a solution for something once we have water around, around our necks. Thank you so much. I'm so sorry. If I may. Okay. Muchas gracias. Good evening. My name is Soyla Rios and I'm here looking for support and help in being prepared for flooding in the canal area. Area is a very vulnerable location that, that in in regards to to flooding. Places like like Via Vista are not are not safe locations. We are already seeing signs of of flooding and and, and the impending flooding is is almost inevitable. It's. There's going to be a sea level rise of about. Of about 2ft. We need to be prepared. We need to have plans in place for help. We need programs of orientation to help us not only be educated on this matter, but educated on what we can do. So we are here as a community putting our. Looking for your help and putting our trust in in that you. That you will that you will do something to help the. To help the community be prepared. Thank you for your time. Good evening. My name is Raquel Sanchez and I also do form a part of the leadership program of the community. I've taken leadership courses and even though I myself am a woman of very few words, I do try to put my part in by recruiting and unifying the community. I try to invite everybody from the community to meetings like this to, to, to be a part and put their part in as well. So we are here because you have the have the means of of being able to help and we as a community can join with you and together we can. We can do great great things. We're so we're here letting you know that we are ready as members of the community to to be a part of and help in any way that that we can.",
+      "start": 5986970,
+      "end": 6495550
+    },
+    {
+      "speaker": "C",
+      "text": "Him.",
+      "start": 6495700,
+      "end": 6495940
+    },
+    {
+      "speaker": "E",
+      "text": "Hello.",
+      "start": 6503300,
+      "end": 6503780
+    },
+    {
+      "speaker": "D",
+      "text": "Good evening everybody. Hola. Buenas tardes, mucho gusto, Sara.",
+      "start": 6503780,
+      "end": 6506980
+    },
+    {
+      "speaker": "B",
+      "text": "Queas.",
+      "start": 6506980,
+      "end": 6508340
+    },
+    {
+      "speaker": "D",
+      "text": "Gracias palabras. Hi, my name is Daisy Ramirez Lopez and I'm an environmental engineer at Pathways Climate Institute, a research based consulting firm.",
+      "start": 6510500,
+      "end": 6519820
+    },
+    {
+      "speaker": "E",
+      "text": "In San Francisco, California.",
+      "start": 6519820,
+      "end": 6521060
+    },
+    {
+      "speaker": "D",
+      "text": "And I serve as a technical Advisory committee member on the San Rafael Sea.",
+      "start": 6521790,
+      "end": 6526510
+    },
+    {
+      "speaker": "B",
+      "text": "Level Rise Feasibility Study.",
+      "start": 6526510,
+      "end": 6528190
+    },
+    {
+      "speaker": "D",
+      "text": "I work on a wide variety of climate adaptation projects across the Bay Area and the Central Coast. The effects of climate change can be seen all across the globe and San Rafael is no exception by any means. It has been held time and again that frontline and disadvantaged communities such as the Canal District will be impacted first. We see that today and it's extremely alarming. The high density of residents living in the district who are exposed to flood risk subsidence, sea level rise today could just simply not be ignored. Many Bay Area cities are taking steps to adapt to climate change today. I urge you to not only consider but Understand that San Rafael needs immediate action today. San Rafael cannot afford to wait for other cities and counties to take action.",
+      "start": 6528750,
+      "end": 6573240
+    },
+    {
+      "speaker": "B",
+      "text": "And fight the climate change effects.",
+      "start": 6573640,
+      "end": 6576680
+    },
+    {
+      "speaker": "D",
+      "text": "Rather, it is imperative that San Rafael lead by example and collectively work with partners such as Canal alliance, the multicultural center of Marin, and like others, government and residents who live, work and play in the area to address the present and future flood and subsidence risks that exist. Investing in the resilience of a vibrant community such as the Canal District can ensure that present and future generations can continue to grow, prosper and have a safe place and dignified place to live.",
+      "start": 6577720,
+      "end": 6606970
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you for your time. Thank you.",
+      "start": 6607370,
+      "end": 6611130
+    },
+    {
+      "speaker": "A",
+      "text": "Welcome.",
+      "start": 6611770,
+      "end": 6612330
+    },
+    {
+      "speaker": "D",
+      "text": "Hi, Good evening. First of all, thank you for your time. It's a privilege for me to have.",
+      "start": 6615050,
+      "end": 6620290
+    },
+    {
+      "speaker": "B",
+      "text": "The opportunity to talk to you.",
+      "start": 6620290,
+      "end": 6621770
+    },
+    {
+      "speaker": "D",
+      "text": "My name is Laura Jimenez Deeks and I'm a resident of Marin County. I work in San Rafael and more specifically for Canal alliance as Supervisor of Community Programs. As such, one of the main responsibilities of my role is to work with county partners, Fire Department, San Rafael, community based organizations and leaders in the Canal to better serve the San Rafael area. One of the most prominent working groups is the CRT Collaborative, the Community Resiliency Team. This is a multi agency coalition robustly supported by Marin County. As such, we strive to build resiliency by identifying gaps and deficiencies in vulnerable communities. In the heels of events like the tsunami warning of the winter of 2024, the devastating fires of Los Angeles in January of 2025, and the latent reality of sea level rise in San Rafael, we know a top priority has to be emergency preparedness. It is evident that existing emergency preparedness.",
+      "start": 6622410,
+      "end": 6685070
+    },
+    {
+      "speaker": "B",
+      "text": "Initiatives contain critical gaps in their plans.",
+      "start": 6685070,
+      "end": 6687950
+    },
+    {
+      "speaker": "D",
+      "text": "In their tools and in their services, leaving vulnerable populations at risk during disasters.",
+      "start": 6688110,
+      "end": 6694270
+    },
+    {
+      "speaker": "B",
+      "text": "For example, emergency plans that are existing.",
+      "start": 6694910,
+      "end": 6698350
+    },
+    {
+      "speaker": "D",
+      "text": "Do not provide multiple languages such as Spanish, particularly making it very difficult for non English speakers to access life saving information. We do have CERT trainings but not available in Spanish. Additionally, some plans fail to address specific threats as flood preparedness. With all that we've been hearing today, this has to become top priority in spite of increasing extreme weather events and climate change. Again, flood repair needs to be top priority. Without comprehensive and inclusive strategies, these oversights can lead to confusion, delayed response times and unnecessary loss of life. To ensure public safety, emergency preparedness efforts must be and have to expand to include multilingual resources, diverse disaster scenarios and.",
+      "start": 6698910,
+      "end": 6756130
+    },
+    {
+      "speaker": "B",
+      "text": "Accessible tools that reach all community communities.",
+      "start": 6756130,
+      "end": 6759590
+    },
+    {
+      "speaker": "D",
+      "text": "Regardless of language, location and socioeconomic status. It is imperative to prepare today for.",
+      "start": 6759590,
+      "end": 6766830
+    },
+    {
+      "speaker": "B",
+      "text": "The emergencies of tomorrow.",
+      "start": 6766830,
+      "end": 6768390
+    },
+    {
+      "speaker": "D",
+      "text": "We are a beautiful community. The Latino community is strong and vibrant and we want to be prepared.",
+      "start": 6769030,
+      "end": 6774790
+    },
+    {
+      "speaker": "B",
+      "text": "You could wrap up. Thank you.",
+      "start": 6775030,
+      "end": 6776870
+    },
+    {
+      "speaker": "D",
+      "text": "We are asking for access to tools and please understand preparedness saves lives. Help us have the right tools to better prepare.",
+      "start": 6776870,
+      "end": 6785360
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, thank you. Thank you for your comments.",
+      "start": 6785360,
+      "end": 6786880
+    },
+    {
+      "speaker": "C",
+      "text": "All right.",
+      "start": 6794000,
+      "end": 6794640
+    },
+    {
+      "speaker": "A",
+      "text": "Good evening, council members. My name is Ethan Stroll. I am a housing policy advocate at Legal Aid of Marin and we're the only legal service provider for folks facing eviction in Marin County. And this is such a big subject and I just want to focus on some specific considerations around the impacts of flooding to folks facing displacement. That really applies most to what we do as an organization. So we've seen emergencies before that affect housing. You know, like we've, we've heard the Sonoma fires a few years ago, the LA fires right now, and many, many more around the country. And as the presenters covered, we face the risk that flooding destroys a lot of housing in San Rafael and so lots of homes could be lost. And if we can learn from these places, we know that when the supply of housing suddenly decreases, landlords have an opportunity to profit from this scarcity. They have an opportunity to raise prices when so many people need housing. And I know we're all, all pretty community minded in here, but let's recognize that there's some institutions that own housing in our city that report to shareholders and not necessarily to our community. So other cities have taken steps to prepare for states of emergency like these based on what's happened in their in, in cities across the country. And when declared, these measures include rent freezes for, for new and existing tenancies. So if you, you live in or are looking for housing in this state of emergency that has become so much more valuable, the landlord can't increase the rent. And measures like if you can't pay rent because this disaster and can demonstrate that for some reason you can't make money, you can't be evicted for non payment of rent. So these are just a few examples along with so many others that will help us really be prepared in the case of flooding that affects housing. Thanks so much.",
+      "start": 6795120,
+      "end": 6921820
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you.",
+      "start": 6923100,
+      "end": 6923740
+    },
+    {
+      "speaker": "C",
+      "text": "I'm a little taller than other people. Good evening council members and Mayor Kate. I'm Aaron Burnett, Director of policy and civic engagement at Canal Alliance. I think in these times it's really important to celebrate rate the little things. I, I want to honor all of you for your commitment to achieving equitable solutions to the large challenges that our city faces. This whole project wouldn't have been possible if it wasn't for your commitment to empowering the city manager, Cory Bitoff, to going after grants to, to further this initiative. So wanted to thank you first and foremost for empowering the city to do this equitable work. With regard to my normal day job, I think this project really shows its value because I'm not here to speak on behalf of the community because they've all spoken for themselves. So what I do want to address is just the fact that this is going to be a huge lift with the long term solutions and even with some of the short term solutions, it's also not going to be a walk in the park. But I think you do have the key component here, which is an excellent city staff at our service. And there are certain things you can do with the city's future goals and objectives. Make sure you're incorporating this into those goals and objectives over the next two years. Also, you've heard some of my colleagues talk about, about other ways that we can further existing initiatives to incorporate sea level rise adaptation strategies through the housing element. And also want to give a shout out to Director Hinkle and also Director.",
+      "start": 6929900,
+      "end": 7032460
+    },
+    {
+      "speaker": "G",
+      "text": "Miller for going after those awesome McCab.",
+      "start": 7032460,
+      "end": 7034820
+    },
+    {
+      "speaker": "C",
+      "text": "Grants because they're going to allow us to do some comprehensive planning around the prior development area and these standard fall specific plans. So I think there's a lot of things in the near term that are going to help us find solutions to these comprehensive issues that we face.",
+      "start": 7034900,
+      "end": 7050380
+    },
+    {
+      "speaker": "F",
+      "text": "Thank you.",
+      "start": 7050380,
+      "end": 7050860
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Hi, my name is Gail Napel and I'm a 26 year resident of San Rafael. Live, play, volunteer, pay taxes, vote and shop here. I'm a retired architect with a specialty in climate adaptation. I have been honored to be on the technical advisory group for the sea level rise project. And I also had the incredible privilege of working with the Laurel Dell fifth graders last spring as they designed their own adaptation to sea level rise. And they're brilliant. And one thing that I want to bring up, because it hasn't been brought up here yet, one of their suggestions, well, actually two for solutions. One is in their adaptation to sea level rise. They said their school should be an emergency shelter because it's on high ground. So just putting that out there, the other thing that they pointed out, and they didn't know necessarily that so many of you are so connected to transportation in Marin. But one of our biggest problems is one of our biggest assets. And I would ask you all to consider water as an evacuation route and to work with anyone who has the equivalent of tam, but in the water to talk about how can we leverage that to provide an immediate emergency Access route. Route for. For residents of the canal. I also won't speak for the Canal. These people are. They're wonderful. They're so engaged. The rest of the city has so much to learn from them. This is an amazing city council. I'm so privileged to live here. I do have one other thing that I would like to reiterate that Carly brought up, which is you do have the power to have. Our building and planning departments require that new and major new. New construction and major renovations are designed to adapt to sea level rise and extreme heat, which is the other thing that we're all facing. And we all know from the National Institute of Building Sciences that for every dollar you spend on mitigating against disasters, you save $11 down the line. So, yes, we know it's expensive, but think about those savings. So the last thing is, you know, we all are going to be facing this. The Canal is facing this first. The whole city is going to face issues around climate change. Change. So let's not ask what the city can do for us, but let's ask you to ask us citizens what we can do for the city. Thank you.",
+      "start": 7052140,
+      "end": 7182820
+    },
+    {
+      "speaker": "E",
+      "text": "Thank you.",
+      "start": 7183780,
+      "end": 7184420
+    },
+    {
+      "speaker": "D",
+      "text": "Good evening.",
+      "start": 7193220,
+      "end": 7193980
+    },
+    {
+      "speaker": "E",
+      "text": "My name is Zuli and I'm a member of the Sea Level Rise Committee.",
+      "start": 7193980,
+      "end": 7197140
+    },
+    {
+      "speaker": "D",
+      "text": "In San Rafael and I'm also a.",
+      "start": 7197140,
+      "end": 7199180
+    },
+    {
+      "speaker": "E",
+      "text": "Resident and work in the canal. As a community, we face a future where flooding will become more frequent and severe. This impacts housing, access to health care and threatens families well being. Without clear information and opportunities for our families to participate, our families will become the most affected. It's essential that everyone in the canal is informed and has a voice in the decisions that impact our safety and housing. We need concrete and accessible solutions and spaces where we can learn and collaborate with the city. Investing in the canal community means investing in a safer future for all of San Rafael residents.",
+      "start": 7199180,
+      "end": 7239480
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you.",
+      "start": 7239720,
+      "end": 7240360
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you.",
+      "start": 7241960,
+      "end": 7242600
+    },
+    {
+      "speaker": "C",
+      "text": "Good evening, Mayor Kates, any council members on. Miles Smith, board member of Sustainable San Rafael, along with Aaron's comments. I do want to celebrate the work that you all are doing. I especially want to call out Kate's work. I want to say that the work that you're doing and the educational events are, I think, enormously valuable. I think my one recommendation is not to increase the amount of work you're doing, but somehow find more ways to partner with more organizations because we have to get the word out. Clearly, we're doing a great job in some cases, but I think there are.",
+      "start": 7250440,
+      "end": 7287690
+    },
+    {
+      "speaker": "F",
+      "text": "People who do not know about this.",
+      "start": 7287690,
+      "end": 7289770
+    },
+    {
+      "speaker": "C",
+      "text": "Reality of the complexity of the issue and the urgency of the issue. So I think there's just ways in which we need to get the word out and it's not going to be all on you. So ways to partner with Sustainable San Rafael and other organizations. So education. We are committed to partnering with the organizations across the city. It's become one of our top priorities this year for Sustainable San Rafael. And we now even have a youth student advisory committee that is looking at.",
+      "start": 7290250,
+      "end": 7319120
+    },
+    {
+      "speaker": "D",
+      "text": "These issues as well.",
+      "start": 7319120,
+      "end": 7320080
+    },
+    {
+      "speaker": "C",
+      "text": "So thank you. It's complex. Going to spend a lot of money, but keep up the good work. Thank you.",
+      "start": 7320160,
+      "end": 7326800
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you.",
+      "start": 7327760,
+      "end": 7328400
+    },
+    {
+      "speaker": "G",
+      "text": "Shinji Sakai Ege I think nobody fills a room better than this crew here. I'm impressed.",
+      "start": 7336970,
+      "end": 7345130
+    },
+    {
+      "speaker": "C",
+      "text": "You all are a force in your leadership.",
+      "start": 7345930,
+      "end": 7348410
+    },
+    {
+      "speaker": "G",
+      "text": "Thank you.",
+      "start": 7348410,
+      "end": 7348970
+    },
+    {
+      "speaker": "C",
+      "text": "This is tough. I think you all are going to.",
+      "start": 7351930,
+      "end": 7355850
+    },
+    {
+      "speaker": "G",
+      "text": "Have to get really creative. You're going to think way outside of the box. This might be way out of our.",
+      "start": 7355850,
+      "end": 7362690
+    },
+    {
+      "speaker": "C",
+      "text": "Benchmark kind of thing, right?",
+      "start": 7362690,
+      "end": 7364050
+    },
+    {
+      "speaker": "G",
+      "text": "This, this is going to get catastrophic, right? So that day will come eventually. I think it's important to be proactive, right? I mean, you could be reactive, you could be responsive. And I think that there is a time for that, you know, emergencies and stuff like that. We need to be prepared. But you really have to be proactive, right? It's like we, we're all, all of.",
+      "start": 7364050,
+      "end": 7391060
+    },
+    {
+      "speaker": "C",
+      "text": "Us here in the, in the room, everyone, we're all part of the problem, right? Climate change. How did we get here, you know.",
+      "start": 7391060,
+      "end": 7397140
+    },
+    {
+      "speaker": "G",
+      "text": "In the first place, right? We advocate for things, yet we drive there, right? You know, things like that. So I just encourage you to be proactive, right? I mean, we talked about transit and things like that. You know, I say, hey, take the bus. Take the smart train. And they're like, no, I'm not going to do that. You know, I have my pride or whatever it is. For whatever reason, you really going to have to change people's attitudes. It's like we're just going to kick the can down the road, right? And maybe that really does ultimately what happens, right? Because we've never been in this situation before. We don't know, right? Some great ideas. Maybe we're going to be a floating city at some point. Maybe things like houseboats should be more accessible and attainable for people. Yeah. You just got to think outside the box. If you're not sweating when you think about climate change, then you don't have enough urgency.",
+      "start": 7397140,
+      "end": 7453050
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you.",
+      "start": 7453210,
+      "end": 7453850
+    },
+    {
+      "speaker": "C",
+      "text": "Good evening. Bill Carney, also on the board of Sustainable San Rafael and the board of Marin Climate Action Network countywide. Just three things. First, I really wanted to thank the canal community for the Leadership that they're showing the rest of the city in engaging wholeheartedly in dealing with a real climate crisis. It was great and very inspiring tonight. Also wanted to thank staff in the staff report for emphasizing it's going to cost a lot of money. Once we get out of the starting block and actually start implementing some things.",
+      "start": 7461050,
+      "end": 7499200
+    },
+    {
+      "speaker": "F",
+      "text": "It'S going to cost a lot of money.",
+      "start": 7499200,
+      "end": 7500720
+    },
+    {
+      "speaker": "C",
+      "text": "So I put that out to ask that each of you start thinking about.",
+      "start": 7501040,
+      "end": 7505400
+    },
+    {
+      "speaker": "F",
+      "text": "That, you know, how what are the.",
+      "start": 7505400,
+      "end": 7507360
+    },
+    {
+      "speaker": "C",
+      "text": "Mechanisms for raising the order of magnitude of funds that are going to be necessary to address this critical issue, which I'll say probably goes beyond even the resources that have been marshaled for wildfire prevention. I mean, this sea level rises are real bare. And then finally, including those funds, as you think about it, funding for the reduction of the climate change that's driving the problem. So reduction of greenhouse gases has got.",
+      "start": 7507360,
+      "end": 7543600
+    },
+    {
+      "speaker": "F",
+      "text": "To be a part of our full.",
+      "start": 7543600,
+      "end": 7546960
+    },
+    {
+      "speaker": "C",
+      "text": "Range of funding going forward. Ultimately, that's how this risk is going to be reduced and the cost ultimately reduced as well. Thank you very much.",
+      "start": 7548000,
+      "end": 7560200
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Anyone else like to provide public comment on this item? Okay, not seeing anyone. I'll close public comment first. Say thank you for all of you who came out. We know it's not easy to get up and speak in front of a room full of people, so you did that beautifully. There were questions that were put forward and this is an update on the sea level rise collaboration project. So what I suggest to staff is that you note these questions and then work back through with the collaborative around what happens after the collaborative. Collaborative sunsets, flooding and evacuation plans. Many comments around training, cert, CPR and education materials. I think the best place to have that conversation, and that's why we appreciate the public forum, is through the collaborative. And then when you come back at the next update or after the feasibility study is done, we can have more information and have additional staff here that can help fill out those answers. City Manager, does that sound like a good approach? Sounds perfect. Okay, thank you. So I will bring it back. And of course, as always, my colleagues are welcome to ask questions or provide comments. Comments on this and I'll start with Vice Mayor. No questions. My only comments.",
+      "start": 7561800,
+      "end": 7637240
+    },
+    {
+      "speaker": "D",
+      "text": "I'm looking forward to the feasibility study.",
+      "start": 7637320,
+      "end": 7639200
+    },
+    {
+      "speaker": "B",
+      "text": "Results and the recommendations brought forward by this very energetic and involved group. Thank you. Council Member Kurtz.",
+      "start": 7639200,
+      "end": 7646120
+    },
+    {
+      "speaker": "D",
+      "text": "Just to add on to the list of sort of questions or things to consider in the future is some best practices and lessons learned from other communities, whether that's in county, California, the Bay Area, Foster City, Napa and then internationally, Singapore. They've done a ton of work around this. And then I also had the same question around where does the Golden Gate Ferry come into play with emergency preparedness work?",
+      "start": 7646760,
+      "end": 7675240
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Did you have any comments that you wanted to provide?",
+      "start": 7676440,
+      "end": 7678440
+    },
+    {
+      "speaker": "D",
+      "text": "Yes, absolutely. Thank you. And thank you to the whole community for the work. I mean, I mean, this is a long process. We hope we can move faster than sea level rise, but it is a slow, long process. But it's so great to have so many people in the community engaged because this is what it's about. And everyone the biggest factor. I know there's a lot of wanting to have details around emergency preparedness, but I know in the work that I do, the connections you have with each other is one of the key factors in emergency preparedness. And so I think the work that you're doing as working together is also a big factor in helping that work. And thank you to Kate, thank you to Corey and everyone else who has been working on this for a long time. And I'm looking forward, as it moves forward, to see how we can start making some incremental changes.",
+      "start": 7679640,
+      "end": 7735440
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, Council Brill.",
+      "start": 7736490,
+      "end": 7738010
+    },
+    {
+      "speaker": "C",
+      "text": "Thank you, Mayor KATE yeah, I had a question, but we don't have to answer it tonight. And it builds on what Council Member Kurtz indicated, which is other communities that have similar profiles to San Rafael. You had mentioned New Orleans, and I was very interested in what the after action report in that was that they would have done differently. There are clearly some similarities and some differences, but I think there's more similarities and differences. And then my comments are, it is so powerful to receive public comment. My response is that your voice and your presence are they matter and they are powerful. So thank you for coming out and giving your testimony tonight on what's important and what what is at stake here. And I look forward to the two parts. I think it's essentially what would we do now in the event of a major incident and then what are we doing? What are the feasibility what is the feasibility study going to reveal? Obviously, that will take its course, but I'm very moved by tonight's testimony. Thank you.",
+      "start": 7739530,
+      "end": 7809640
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, Council Member Uranus Galati.",
+      "start": 7810200,
+      "end": 7812520
+    },
+    {
+      "speaker": "E",
+      "text": "Yes, thank you, Mayor. I was just going to say that, no, I am so excited to have all of you here tonight. This is a very complex issue. It's not going away. I feel so much gratitude first for our staff, Corey, Kate, the priorities from this council, city manager and everybody else that is working on Sea Level Rise, the adaptation plan, our partners Carly and Aaron and Everybody from Canada alliance and Multi Multicultural center and all our other partners. I mean, this is a very complex issue and it takes a lot of people, a lot of resources.",
+      "start": 7813000,
+      "end": 7857660
+    },
+    {
+      "speaker": "B",
+      "text": "And I'm a little bit, you know.",
+      "start": 7858380,
+      "end": 7861500
+    },
+    {
+      "speaker": "E",
+      "text": "Expectant and also concerned about when the feasibility study will be done because I know the solutions are they, they are not good solutions.",
+      "start": 7861900,
+      "end": 7872060
+    },
+    {
+      "speaker": "D",
+      "text": "They are just.",
+      "start": 7872140,
+      "end": 7872860
+    },
+    {
+      "speaker": "E",
+      "text": "I mean there will be solutions to protect our community, but they are going to have a deep impact in our community as well. So I look forward to that report. But really so much gratitude for our community. I just love to hear that the neighbor from Spinnaker Point with neighbors from the canal, from the business sides coming together and recognizing this is very complex. And I agree with, with Council Member Hill.",
+      "start": 7874150,
+      "end": 7901720
+    },
+    {
+      "speaker": "B",
+      "text": "Each of you has such a powerful.",
+      "start": 7902520,
+      "end": 7904400
+    },
+    {
+      "speaker": "E",
+      "text": "Voice and not just the commitment to be here tonight, but all the meetings that you've been having, all the learning. So I also hear about like, hey, what's our evacuation? If there is a tsunami alert or sea level rise, what's the plan? What's the training? I hear about simulations so people really understand what will happen. So I think we are all on the same page. It's really nice to see that we are all on the same page and we just have to work together and figure it out from the state level, from the federal and see what resources.",
+      "start": 7904400,
+      "end": 7937540
+    },
+    {
+      "speaker": "B",
+      "text": "We can use because this is huge.",
+      "start": 7937620,
+      "end": 7940820
+    },
+    {
+      "speaker": "E",
+      "text": "But I'm very grateful for our community and I'm so happy tonight just to hear all of you. So thank you for being here.",
+      "start": 7941540,
+      "end": 7947460
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. And I'll just build on what has already been said. When I think about best practices, I think think we're probably the only jurisdiction around the bay that has a multi sector collaborative that has been doing the work for over a year. So I know that other areas are going to be looking to us and it's great being at the forefront and it's also difficult being at the forefront. And this is also just so, you know, part of a state mandate, SB272, which requires a regional shoreline at a plan by all the jurisdictions that are on the bay. So a lot of what was brought up this evening, everything concerns about displacement as well as evacuation, all the intersection of those issues are to be captured in that regional shoreline adaptation plan. So I can assure you that staff is already looking at that and how that does intersect. And of course the amount of resources required is breathtaking. And so as we look at the near term, middle and long term to build on that. And I feel we're. That is our goal. That is. And I Say our. I don't mean our, I mean our, all of us. That is our goal and that's why the community work is so important. So as we're prioritizing the near or the medium term at projects, we'll have the input from the community. So stay engaged. Kate, when you said this was meeting number 9798, I'm like, wow, this is a resilient group of people to keep showing up. So please do keep doing that because the only way we're going to have the solutions that represent our community is by doing it together again and again. So thank you for your participation tonight, but we're going to see you again at other meetings. This conversation is just going to keep going. So thank you Ken, Kate, for bringing us to the council as well as Corey and the rest of the staff that has brought it here. So that agenda item is concluded. And before we adjourn, we also include as part of our business meeting open time for public expression. And that's anything that was not on tonight's agenda. We are interested in what you have to say. You have two minutes. You're welcome but not required to say your name and what part of Summerfield you live in.",
+      "start": 7948900,
+      "end": 8085170
+    },
+    {
+      "speaker": "C",
+      "text": "Good morning. Jonathan Freeman here again. It's been a long time. In mid February there was a sting which stopped four men from supposedly going to children for sex. It was, it was a fake setup so they weren't going for the kids. They just wanted to make an example of these people. 50% of the people were Latino. The city has done this repeatedly and 70% of the people arrested have been Latino. They're going to do that, that because they will seek a low end website, undercut the market cost by 70%. No wonder you get low income individuals. This is a waste of time and money. You could take that money and devote it to this project that we just heard about. It's not going to stop the pursuit of children by adult women and men of younger people. Child studies show. You know, I can tell you about all sorts of stuff about sex work. That's just something that is being ignored. But the important point is that when you arrange such fake activities and you damage your relationship with the Latino community, you're only damaging the rest the of of the city. So I would urge that you have your police department stop getting involved and that we don't really know whether they did it, but I'm sure that they did because they've been involved with them before. Thank you.",
+      "start": 8090050,
+      "end": 8201330
+    },
+    {
+      "speaker": "B",
+      "text": "Any other comments on anything not on tonight's? Agenda.",
+      "start": 8204050,
+      "end": 8207650
+    },
+    {
+      "speaker": "C",
+      "text": "Well.",
+      "start": 8266910,
+      "end": 8267150
+    },
+    {
+      "speaker": "H",
+      "text": "Pero perfalta.",
+      "start": 8293340,
+      "end": 8294380
+    },
+    {
+      "speaker": "A",
+      "text": "Canal Pakalhanta.",
+      "start": 8299420,
+      "end": 8301100
+    },
+    {
+      "speaker": "H",
+      "text": "Transport.",
+      "start": 8302860,
+      "end": 8303420
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you.",
+      "start": 8345769,
+      "end": 8346249
+    },
+    {
+      "speaker": "F",
+      "text": "Good evening again. Again, I am Felix Perez and I'd like to bring up an issue that I think represents a lot of Santa Fe. I, for many years now live on, have lived on 215 Bay View.",
+      "start": 8349769,
+      "end": 8363849
+    },
+    {
+      "speaker": "D",
+      "text": "And.",
+      "start": 8364809,
+      "end": 8365209
+    },
+    {
+      "speaker": "F",
+      "text": "I'm referring in regards to a couple of walkways for, for pedestrians that start up on, up on the hill and that come down all the way to like Second Street. And a lot of times in these pathways, if you were, if you're driving your vehicle, there are certain blind spots where pedestrians aren't, aren't really, aren't really visible. And even though you know that when you're, when you're driving, driving your car, should a pedestrian be walking or crossing the street, they have, they have the right of way and you have to stop for them. Which is, which is, which is wonderful. But if you can't see them, then that, that becomes, that becomes a problem not just for us as drivers, but also as, as pedestrians. Because a lot of times, you know, after work we use these walkways as well if we want to go for, for strolls around the neighborhood or maybe at the park. And so what I'm, what I'm here to, to ask is that maybe there could be lights that are installed so that pedestrians are more easily, easily visible. That's the petition that I'm asking for here today. It's also my first time that I've ever been to one of these meetings. So I'd like to thank Audi for, in inviting me to him because a lot of times we have issues and we don't know where to go to be able to, be able to, to present them. So again, thank you for, for your time.",
+      "start": 8367449,
+      "end": 8462810
+    },
+    {
+      "speaker": "B",
+      "text": "If I may just correct that as well. It was for E Street. E Street.",
+      "start": 8464810,
+      "end": 8468730
+    },
+    {
+      "speaker": "E",
+      "text": "I, I believe it was D. D and David.",
+      "start": 8469050,
+      "end": 8472170
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. D Street is the D. Perfect.",
+      "start": 8473050,
+      "end": 8475660
+    },
+    {
+      "speaker": "E",
+      "text": "And they. And he was referring to some of those beacon lights.",
+      "start": 8475740,
+      "end": 8480380
+    },
+    {
+      "speaker": "D",
+      "text": "Yep.",
+      "start": 8481980,
+      "end": 8482620
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Thank you for your comments. Hello, my name is Stephanie Hall. I'm a union electrician with the International Brotherhood of Electrical Workers Local 551. I'm sure I don't look like or sound like your typical construction worker, but.",
+      "start": 8482700,
+      "end": 8499740
+    },
+    {
+      "speaker": "E",
+      "text": "I did graduate the apprentice apprenticeship program in 2018.",
+      "start": 8499740,
+      "end": 8502240
+    },
+    {
+      "speaker": "B",
+      "text": "I had the pleasure of actually working.",
+      "start": 8502960,
+      "end": 8504520
+    },
+    {
+      "speaker": "E",
+      "text": "My very first job was at Marin Commons. And then I finished my apprenticeship just over here on second street for Bio Marin.",
+      "start": 8504520,
+      "end": 8511040
+    },
+    {
+      "speaker": "B",
+      "text": "This week is Women in Construction Week. I just like to, you know, highlight our apprenticeship program. It's available to anybody that's willing to apply. I'm proof that anybody can do it. You know, I'm not big. I'm not, you know, the typical male, you know, form that you usually see in construction. So anybody that's willing to, you know, put in the work, I, you know, suggest that you apply to the apprenticeship program.",
+      "start": 8511600,
+      "end": 8535380
+    },
+    {
+      "speaker": "E",
+      "text": "And then any of the council members.",
+      "start": 8535700,
+      "end": 8537340
+    },
+    {
+      "speaker": "B",
+      "text": "That are willing and want to come and view our apprenticeship program, we have a nice new facility that we love showing off. So I'll reach out to you later to schedule a time to come and visit. All right. Thank you. Thank you. Thank you for coming down. Anyone else?",
+      "start": 8537340,
+      "end": 8553710
+    },
+    {
+      "speaker": "C",
+      "text": "Yeah.",
+      "start": 8554590,
+      "end": 8555030
+    },
+    {
+      "speaker": "B",
+      "text": "Welcome.",
+      "start": 8555030,
+      "end": 8555470
+    },
+    {
+      "speaker": "D",
+      "text": "Un emphasis de los puestos de comida de laria de Canal. Gracias.",
+      "start": 8563950,
+      "end": 8607470
+    },
+    {
+      "speaker": "F",
+      "text": "Good evening again. My name is Aurelia Vargas, and what I'd like to bring up at this moment are food stands. In the area. In the area of Canal, there are a lot of food stands with people trying to run their businesses. But with. With these food stands, we're getting a lot of people who are. Are setting up who don't live in the. In the Canal area and aren't showing the proper respect to. To our neighborhood and our community. And so there's. There's been a lot more garbage lying around in. In the area. There's more traffic that. That, that comes with it as well. And a lot of these. A lot of these stands are now starting to not respect our. Our community and our neighborhood by setting up on top of curbs and. And. And being in locations that. That they really. That they really shouldn't be. And so what I'm asking for is maybe to have some sort of. Of some sort of plan or order or rules that can be established to better accommodate this and see if we can bring a little bit more order to these businesses. Hello, my name is Raquel Sanchez. I'm. I'm standing before you again, but this time I'd like to bring up a situation in my. In my neighborhood. I live off of. Off of Laurel, and there is a neighbor who has seven. Who has seven vehicles. And these vehicles, they don't. They don't use every day. They're. They're taking up parking for. For long periods of. Of time. I've spoken to on an occasion to somebody who worked from. From the city to see if there was possibly anything that they could do about maybe giving this person person a ticket for not moving their cars. And they said that they couldn't do anything because knew to move their car at a. At enough distance once their. Their tires were were marked. And so all they do is just move their car from one place to another. So with all these vehicles, they're taking up a lot of, a lot of spaces in the neighborhood that can be used, used by others. And for people like myself as a, as a woman, you know, comes home late at night, I have to, to park farther from my house than, than than I would want to. So I'm here asking for, for your help as to maybe there's something that you can do about this, about this situation. Thank you.",
+      "start": 8612510,
+      "end": 8854250
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Any other comments on items not on tonight's agenda? Not seen any. I'll close the public comment and I just wanted to say on those last three. So thank you for coming down. This is a great way to bring forward issues on either sidewalks which we do have plans on and we can't comment on it because it was not on the agenda. But the illegal vendors. There is a whole web page on the, on the city website that you can report and take photographs of illegal vendors. So do follow up with either myself or Councilman Michael or any of staff. They can point you to that direction. And in terms of, of parking, that is an ongoing conversation. But please feel free to email the city manager's office for any of these issues at City Manager city of San rafael.org We appreciate you being here and telling us and you can also email us if you can't make it to a meeting. So thank you all for a productive meeting. This meeting is adjourned.",
+      "start": 8855450,
+      "end": 8917780
+    }
+  ],
+  "audio_duration_minutes": 150.67,
+  "language": "en",
+  "processed_at": "2025-11-15T21:28:14.508570",
+  "processing_service": "assemblyai",
+  "assemblyai_id": "dd78d98f-1d4e-429e-a8a6-991add537850",
+  "cost_usd": 3.01,
+  "processing_time_seconds": 117.9
+}

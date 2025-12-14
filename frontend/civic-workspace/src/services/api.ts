@@ -1,0 +1,1145 @@
+import type {
+  CivicEvent,
+  Issue,
+  OperationalIssue,
+  Jurisdiction,
+  JurisdictionsResponse,
+  IssuesResponse,
+  FileIssueRequest,
+  FileIssueResponse,
+  ConversationRequest,
+  ConversationResponse,
+  StateBill,
+  FederalProgram,
+  IssueTimelineEntry,
+  FollowInfoResponse,
+  UserFollowsResponse,
+  ThreadMessagesResponse,
+  SendMessageRequest,
+  ThreadMessage,
+  SetLocationResponse
+} from '@/types/civic';
+
+/**
+ * Civic API Service
+ *
+ * Type-safe client for the Civic Conversational OS backend API.
+ * Uses Vite proxy configuration to route /api requests to backend server.
+ */
+class CivicAPI {
+  private baseURL: string;
+  private apiKey: string;
+
+  constructor() {
+    // In development, Vite proxy routes /api → http://localhost:8001
+    // In production, API should be served from same origin
+    this.baseURL = import.meta.env.VITE_API_BASE_URL || '';
+    this.apiKey = import.meta.env.VITE_API_KEY || 'dev_key_local';
+  }
+
+  /**
+   * Get authentication headers for API requests
+   */
+  private getAuthHeaders(): HeadersInit {
+    return {
+      'Authorization': `Bearer ${this.apiKey}`,
+      'Content-Type': 'application/json'
+    };
+  }
+
+  /**
+   * Get all jurisdictions with event counts
+   * GET /api/jurisdictions
+   *
+   * Backend: src/civic_api_integrated.py:623-770
+   */
+  async getJurisdictions(): Promise<Jurisdiction[]> {
+    const response = await fetch(`${this.baseURL}/api/jurisdictions`, {
+      headers: this.getAuthHeaders()
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch jurisdictions: ${response.statusText}`);
+    }
+    const data: JurisdictionsResponse = await response.json();
+    return data.jurisdictions;
+  }
+
+  /**
+   * Get all events with optional filters
+   * GET /api/events?jurisdiction_id=...&project_type=...&start_date=...
+   *
+   * Backend: src/civic_api_integrated.py (existing endpoint)
+   */
+  async getEvents(filters?: {
+    jurisdiction_id?: string;
+    project_type?: string;
+    start_date?: string;
+  }): Promise<CivicEvent[]> {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) params.append(key, value);
+      });
+    }
+
+    const url = `${this.baseURL}/api/events${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await fetch(url, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch events: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Search events with advanced filtering (Session 28 - Chat UX Refinements)
+   * GET /api/events/search?jurisdiction=...&topic=...&q=...&date_range=...
+   *
+   * Backend: src/civic_api_integrated.py:798-868
+   */
+  async searchEvents(params: {
+    jurisdiction?: string;
+    topic?: string;
+    query?: string;
+    dateRange?: string;
+  }): Promise<{ events: CivicEvent[]; count: number; query: any; jurisdictions_searched: string[] }> {
+    const queryParams = new URLSearchParams();
+
+    if (params.jurisdiction) queryParams.append('jurisdiction', params.jurisdiction);
+    if (params.topic) queryParams.append('topic', params.topic);
+    if (params.query) queryParams.append('q', params.query);
+    if (params.dateRange) queryParams.append('date_range', params.dateRange);
+
+    const url = `${this.baseURL}/api/events/search?${queryParams.toString()}`;
+    const response = await fetch(url, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to search events: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Search user's issues with filtering (Session 63 - Robust Fix)
+   * GET /api/issues/search?user_id=...&ownership=...&status=...&category=...&jurisdiction=...&q=...
+   *
+   * Backend: src/civic_api_integrated.py:1084-1250
+   */
+  async searchIssues(params: {
+    user_id: string;
+    ownership?: string;  // Session 63: Separate from status
+    status?: string;
+    category?: string;
+    jurisdiction?: string;
+    q?: string;
+  }): Promise<{ issues: any[]; count: number; query: any; filters_applied: any }> {
+    const queryParams = new URLSearchParams();
+
+    queryParams.append('user_id', params.user_id);
+    if (params.ownership) queryParams.append('ownership', params.ownership);
+    if (params.status) queryParams.append('status', params.status);
+    if (params.category) queryParams.append('category', params.category);
+    if (params.jurisdiction) queryParams.append('jurisdiction', params.jurisdiction);
+    if (params.q) queryParams.append('q', params.q);
+
+    const url = `${this.baseURL}/api/issues/search?${queryParams.toString()}`;
+    const response = await fetch(url, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to search issues: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get single event by ID
+   * GET /api/events/{id}
+   *
+   * Backend: src/civic_api_integrated.py (existing endpoint)
+   */
+  async getEvent(id: string): Promise<CivicEvent> {
+    const response = await fetch(`${this.baseURL}/api/events/${id}`, {
+      headers: this.getAuthHeaders()
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch event ${id}: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  /**
+   * Get discussion stats for multiple events (Session 33 - Event Discovery)
+   * GET /api/events/discussion-stats?event_ids=event1,event2,event3
+   *
+   * Backend: src/civic_api_integrated.py:2075-2138
+   */
+  async getEventDiscussionStats(eventIds: string[]): Promise<{
+    stats: Array<{
+      event_id: string;
+      thread_id: string;
+      participant_count: number;
+      message_count: number;
+    }>;
+  }> {
+    const url = `${this.baseURL}/api/events/discussion-stats?event_ids=${eventIds.join(',')}`;
+
+    const response = await fetch(url, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch discussion stats: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Generate AI-powered comment draft for civic event (Session 39 - Auto-inference)
+   * POST /api/events/{event_id}/draft-comment
+   *
+   * Backend: src/civic_api_integrated.py:2012-2250
+   *
+   * All fields are optional - AI will infer from event/agenda context
+   * Session 41: Added archetypes for personalized comment framing (Privacy Tier 1)
+   */
+  async draftComment(eventId: string, request: {
+    userId?: string;  // Optional - for tracking
+    archetypes?: Array<{id: string; name: string; score: number; description: string}>;  // Privacy Tier 1
+    position?: 'support' | 'oppose' | 'neutral' | 'questions';  // Optional - AI infers
+    keyConcern?: string;  // Optional - AI infers from event
+    personalContext?: {
+      stakes?: string[];
+      yearsInArea?: number;
+      district?: string;
+      expertise?: string;
+    };
+    agendaItemId?: string;
+  } = {}): Promise<{
+    draft: string;
+    word_count: number;
+    estimated_speaking_time: string;
+    comment_id: string;
+    structured_summary?: {
+      tldr: string;
+      position: 'support' | 'oppose' | 'neutral' | 'questions';
+      key_topics: string[];
+      legislative_references: string[];
+      primary_archetype?: string;
+    };
+  }> {
+    const response = await fetch(`${this.baseURL}/api/events/${eventId}/draft-comment`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(request)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to generate comment draft: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get existing draft comment for an event (Session 45 - Draft Persistence)
+   * GET /api/events/{eventId}/draft-comment?user_id={userId}
+   *
+   * Returns most recent draft or null if none exists.
+   * Enables Google Docs-style draft loading without API generation cost.
+   *
+   * Backend: src/civic_api_integrated.py:handle_get_draft
+   */
+  async getDraft(eventId: string, userId: string): Promise<{
+    draft_id: string | null;
+    draft: string | null;
+    structured_summary: any;
+    personal_context: any;
+    selected_agenda_items: string[];
+    is_template: boolean;
+    created_at: string;
+    updated_at: string;
+    submitted: boolean;
+  }> {
+    const response = await fetch(
+      `${this.baseURL}/api/events/${eventId}/draft-comment?user_id=${encodeURIComponent(userId)}`,
+      { headers: this.getAuthHeaders() }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to load draft: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Update draft comment (autosave) (Session 45 - Draft Persistence)
+   * PUT /api/drafts/{draftId}
+   *
+   * Updates draft content from user edits (debounced autosave).
+   *
+   * Backend: src/civic_api_integrated.py:handle_update_draft
+   */
+  async updateDraft(draftId: string, data: { content: string }): Promise<{ success: boolean; updated_at: string }> {
+    const response = await fetch(
+      `${this.baseURL}/api/drafts/${draftId}`,
+      {
+        method: 'PUT',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(data)
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to save draft: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Mark draft as submitted (Session 45 - Draft Persistence)
+   * POST /api/drafts/{draftId}/submit
+   *
+   * Marks draft as submitted after user emails to clerk.
+   *
+   * Backend: src/civic_api_integrated.py:handle_mark_draft_submitted
+   */
+  async markDraftSubmitted(draftId: string): Promise<{ success: boolean }> {
+    const response = await fetch(
+      `${this.baseURL}/api/drafts/${draftId}/submit`,
+      {
+        method: 'POST',
+        headers: this.getAuthHeaders()
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to mark draft as submitted: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get all drafts for an event (Session 46 - Multi-Draft System)
+   * GET /api/events/{eventId}/drafts?user_id={userId}
+   *
+   * Returns all drafts for this user+event (multi-draft system).
+   * Each draft is keyed by agenda item selection.
+   *
+   * Backend: src/civic_api_integrated.py:handle_get_all_drafts
+   */
+  async getAllDrafts(eventId: string, userId: string): Promise<{
+    drafts: Array<{
+      draft_id: string;
+      content: string;
+      content_preview: string;
+      structured_summary: any;
+      personal_context: any;
+      selected_agenda_items: string[];
+      created_at: string;
+      updated_at: string;
+      submitted: boolean;
+    }>;
+  }> {
+    const response = await fetch(
+      `${this.baseURL}/api/events/${eventId}/drafts?user_id=${encodeURIComponent(userId)}`,
+      { headers: this.getAuthHeaders() }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to load drafts: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Regenerate comment for single agenda item (Session 47 - Per-Item Memoization)
+   * POST /api/events/{eventId}/items/{itemRef}/regenerate
+   *
+   * Regenerates comment for one specific item (bypasses cache).
+   * Used when user wants to improve one section without affecting others.
+   *
+   * Backend: src/civic_api_integrated.py:handle_regenerate_item_comment
+   */
+  async regenerateItemComment(
+    eventId: string,
+    itemRef: string,
+    request: {
+      userId: string;
+      archetypes: any[];
+      personalContext: any;
+    }
+  ): Promise<{
+    content: string;
+    word_count: number;
+    item_ref: string;
+  }> {
+    const response = await fetch(
+      `${this.baseURL}/api/events/${eventId}/items/${itemRef}/regenerate`,
+      {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(request)
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to regenerate item: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Delete draft (Session 48)
+   * DELETE /api/drafts/{draftId}
+   */
+  async deleteDraft(draftId: string): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(
+      `${this.baseURL}/api/drafts/${draftId}`,
+      {
+        method: 'DELETE',
+        headers: this.getAuthHeaders()
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to delete draft: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get operational issues (SeeClickFix complaints) for a jurisdiction
+   * GET /api/operational-issues/{jurisdiction_id}
+   *
+   * Backend: src/civic_api_integrated.py (Session 90 - SeeClickFix Integration)
+   */
+  async getOperationalIssues(
+    jurisdictionId: string,
+    filters?: {
+      status?: 'open' | 'closed' | 'acknowledged';
+      perPage?: number;
+      page?: number;
+    }
+  ): Promise<{ issues: OperationalIssue[]; metadata: { total: number; page: number; per_page: number } }> {
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.perPage) params.append('per_page', filters.perPage.toString());
+    if (filters?.page) params.append('page', filters.page.toString());
+
+    const url = `${this.baseURL}/api/operational-issues/${jurisdictionId}${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await fetch(url, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch operational issues: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get all complaints for a user
+   * GET /api/issues?user_id={user}
+   *
+   * Backend: src/civic_api_integrated.py:772-849
+   */
+  async getComplaints(user_id: string | null): Promise<Issue[]> {
+    const url = user_id
+      ? `${this.baseURL}/api/issues?user_id=${encodeURIComponent(user_id)}`
+      : `${this.baseURL}/api/issues`;
+    const response = await fetch(url, {
+      headers: this.getAuthHeaders()
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch complaints: ${response.statusText}`);
+    }
+    const data: IssuesResponse = await response.json();
+
+    // DEBUG: Log first complaint's related_complaints
+    if (data.issues.length > 0) {
+      console.log('[API] Sample complaint data:', {
+        id: data.issues[0].id,
+        issue_type: data.issues[0].issue_type,
+        related_complaints: data.issues[0].related_issues,
+        related_count: data.issues[0].related_issues?.length || 0
+      });
+    }
+
+    return data.issues;
+  }
+
+  /**
+   * File a new complaint with automatic event matching
+   * POST /api/issues
+   *
+   * Backend: src/civic_api_integrated.py:901-1035
+   */
+  async fileComplaint(request: FileIssueRequest): Promise<FileIssueResponse> {
+    const response = await fetch(`${this.baseURL}/api/issues`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(request)
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(error.error || 'Failed to file complaint');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Send a message to the conversational AI
+   * POST /api/conversation
+   *
+   * Backend: src/civic_api_integrated.py (existing endpoint)
+   */
+  async sendMessage(request: ConversationRequest): Promise<ConversationResponse> {
+    const response = await fetch(`${this.baseURL}/api/conversation`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(request)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to send message: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Set user location via geocoding
+   * POST /api/user/location
+   *
+   * Backend: src/civic_api_integrated.py:1790-1903
+   */
+  async setUserLocation(userId: string, address: string): Promise<SetLocationResponse> {
+    const response = await fetch(`${this.baseURL}/api/user/location`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ user_id: userId, address })
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(error.error || 'Failed to set location');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get user location
+   * GET /api/user/location?user_id={user_id}
+   *
+   * Backend: src/civic_api_integrated.py:1905-1936
+   */
+  async getUserLocation(userId: string): Promise<SetLocationResponse> {
+    const response = await fetch(`${this.baseURL}/api/user/location?user_id=${encodeURIComponent(userId)}`, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get user location: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get user profile with demographics and preferences (Session 39)
+   * GET /api/user/profile
+   *
+   * Backend: src/civic_api_integrated.py:3247-3289
+   */
+  async getUserProfile(): Promise<{
+    user_id: string;
+    display_name?: string;
+    jurisdiction_id?: string;
+    stakes?: string[];
+    years_in_area?: number;
+    district?: string;
+    expertise?: string;
+    civic_interests?: string[];
+    profile_completeness?: number;
+  }> {
+    const response = await fetch(`${this.baseURL}/api/user/profile`, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      // Profile not found is okay - user may not have created one yet
+      if (response.status === 404) {
+        return { user_id: '', stakes: [], civic_interests: [] };
+      }
+      throw new Error(`Failed to get user profile: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get state bills by topic
+   * GET /api/legislative/state?topic={topic}
+   *
+   * Backend: src/civic_api_integrated.py:899-979
+   */
+  async getStateBills(topic: string): Promise<{ bills: StateBill[]; metadata: any }> {
+    const response = await fetch(`${this.baseURL}/api/legislative/state?topic=${topic}`, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch state bills: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get federal programs by topic
+   * GET /api/legislative/federal?topic={topic}
+   *
+   * Backend: src/civic_api_integrated.py:981-1061
+   */
+  async getFederalPrograms(topic: string): Promise<{ programs: FederalProgram[]; metadata: any }> {
+    const response = await fetch(`${this.baseURL}/api/legislative/federal?topic=${topic}`, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch federal programs: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get timeline for a complaint
+   * GET /api/issues/{id}/timeline
+   *
+   * Backend: src/civic_api_integrated.py:1084-1126
+   */
+  async getComplaintTimeline(issueId: string): Promise<IssueTimelineEntry[]> {
+    const response = await fetch(`${this.baseURL}/api/issues/${issueId}/timeline`, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch complaint timeline: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.timeline;
+  }
+
+  /**
+   * Get issue status history (filed + status changes only)
+   * GET /api/issues/{id}/status-history
+   *
+   * Backend: src/civic_api_integrated.py:1584-1629
+   */
+  async getIssueStatusHistory(issueId: string): Promise<IssueTimelineEntry[]> {
+    const response = await fetch(`${this.baseURL}/api/issues/${issueId}/status-history`, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch issue status history: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.history;
+  }
+
+  /**
+   * Update issue status
+   * PUT /api/issues/{id}/status
+   *
+   * Backend: src/civic_api_integrated.py:1639-1738
+   */
+  async updateComplaintStatus(
+    issueId: string,
+    status: 'open' | 'closed',
+    note?: string,
+    closed_reason?: 'resolved' | 'duplicate' | 'not-actionable' | 'abandoned'
+  ): Promise<{ success: boolean; issue_id: string; new_status: string; closed_reason?: string; message: string }> {
+    const body: { status: string; note?: string; closed_reason?: string } = { status };
+    if (note) body.note = note;
+    if (closed_reason) body.closed_reason = closed_reason;
+
+    const response = await fetch(`${this.baseURL}/api/issues/${issueId}/status`, {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(error.error || 'Failed to update issue status');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Manually link complaint to events (Phase 2 - Task 1)
+   * POST /api/issues/{id}/link-events
+   *
+   * Backend: src/civic_api_integrated.py:1218-1308
+   */
+  async linkComplaintToEvents(
+    issueId: string,
+    eventIds: string[]
+  ): Promise<{ success: boolean; issue_id: string; linked_count: number; invalid_event_ids: string[]; message: string; complaint: Issue }> {
+    const response = await fetch(`${this.baseURL}/api/issues/${issueId}/link-events`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ event_ids: eventIds })
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(error.error || 'Failed to link events to complaint');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get follow information for a focal point (Phase 2 - Task 2)
+   * GET /api/follows/{focal_type}/{focal_id}?user_id={user_id}
+   *
+   * Backend: src/civic_api_integrated.py:1400-1439
+   */
+  async getFollowInfo(
+    focalType: 'issue' | 'event',
+    focalId: string,
+    userId?: string
+  ): Promise<FollowInfoResponse> {
+    const params = userId ? `?user_id=${encodeURIComponent(userId)}` : '';
+    const response = await fetch(`${this.baseURL}/api/follows/${focalType}/${focalId}${params}`, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch follow info: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Create a follow (Phase 2 - Task 2)
+   * POST /api/follows
+   *
+   * Backend: src/civic_api_integrated.py:1441-1517
+   */
+  async createFollow(
+    userId: string,
+    focalType: 'issue' | 'event',
+    focalId: string,
+    jurisdictionId?: string
+  ): Promise<{ follower_count: number; thread_id: string; your_following: boolean }> {
+    const response = await fetch(`${this.baseURL}/api/follows`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({
+        user_id: userId,
+        focal_type: focalType,
+        focal_id: focalId,
+        jurisdiction_id: jurisdictionId
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(error.error || 'Failed to create follow');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Delete a follow / unfollow (Phase 2 - Task 2)
+   * DELETE /api/follows/{focal_type}/{focal_id}?user_id={user_id}
+   *
+   * Backend: src/civic_api_integrated.py:1519-1559
+   */
+  async deleteFollow(
+    userId: string,
+    focalType: 'issue' | 'event',
+    focalId: string
+  ): Promise<{ follower_count: number; your_following: boolean }> {
+    const response = await fetch(
+      `${this.baseURL}/api/follows/${focalType}/${focalId}?user_id=${encodeURIComponent(userId)}`,
+      {
+        method: 'DELETE',
+        headers: this.getAuthHeaders()
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(error.error || 'Failed to delete follow');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get all follows for a user (Phase 2 - Task 2)
+   * GET /api/follows?user_id={user_id}
+   *
+   * Backend: src/civic_api_integrated.py:1937-2013
+   */
+  async getUserFollows(userId: string): Promise<UserFollowsResponse> {
+    const response = await fetch(
+      `${this.baseURL}/api/follows?user_id=${encodeURIComponent(userId)}`,
+      {
+        headers: this.getAuthHeaders()
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(error.error || 'Failed to get user follows');
+    }
+
+    return response.json();
+  }
+
+  // ============================================================================
+  // Coordination Messaging (Phase 2 - Task 3)
+  // ============================================================================
+
+  /**
+   * Get messages for a coordination thread
+   * @param threadId - Thread ID
+   * @param userId - Current user ID (for authentication)
+   * @returns Thread messages and participants
+   */
+  async getThreadMessages(threadId: string, userId: string): Promise<ThreadMessagesResponse> {
+    const response = await fetch(
+      `${this.baseURL}/api/threads/${threadId}/messages?user_id=${userId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(error.error || 'Failed to fetch thread messages');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Send a message to a coordination thread
+   * @param threadId - Thread ID
+   * @param request - Message request (user_id, content)
+   * @returns Created message
+   */
+  async sendThreadMessage(threadId: string, request: SendMessageRequest): Promise<ThreadMessage> {
+    const response = await fetch(
+      `${this.baseURL}/api/threads/${threadId}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(request)
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(error.error || 'Failed to send message');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Update user's last_seen timestamp for a thread (mark messages as read)
+   * @param focalType - Type of focal point (issue/event)
+   * @param focalId - ID of focal point
+   * @param userId - Current user ID
+   */
+  async markThreadAsRead(focalType: 'issue' | 'event', focalId: string, userId: string): Promise<void> {
+    const response = await fetch(
+      `${this.baseURL}/api/follows/${focalType}/${focalId}/mark-read`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ user_id: userId })
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(error.error || 'Failed to mark thread as read');
+    }
+  }
+
+  /**
+   * Get a single complaint by ID
+   * GET /api/issues/{id}
+   *
+   * Backend: src/civic_api_integrated.py:1259-1326
+   */
+  async getIssue(issueId: string): Promise<Issue> {
+    const response = await fetch(`${this.baseURL}/api/issues/${issueId}`, {
+      headers: this.getAuthHeaders()
+    });
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error(`Issue ${issueId} not found`);
+      }
+      throw new Error(`Failed to fetch complaint: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  /**
+   * Get all coordination threads
+   * GET /api/threads?jurisdiction={jurisdiction_id}
+   *
+   * Backend: src/civic_api_integrated.py:1811-1858
+   */
+  async getThreads(options?: { jurisdictionId?: string; limit?: number }): Promise<{
+    threads: Array<{
+      thread_id: string;
+      focal_type: 'issue' | 'event';
+      focal_id: string;
+      focal_point_title: string;
+      participant_count: number;
+      message_count: number;
+      created_at: string;
+      last_message_at: string | null;
+    }>;
+    count: number;
+  }> {
+    const params = new URLSearchParams();
+    if (options?.jurisdictionId) {
+      params.append('jurisdiction', options.jurisdictionId);
+    }
+    if (options?.limit) {
+      params.append('limit', options.limit.toString());
+    }
+
+    const url = `${this.baseURL}/api/threads${params.toString() ? '?' + params.toString() : ''}`;
+
+    const response = await fetch(url, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch threads: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get thread info by ID
+   * GET /api/threads/{thread_id}
+   *
+   * Backend: src/civic_api_integrated.py:1860-1902
+   */
+  async getThreadInfo(threadId: string): Promise<{
+    thread_id: string;
+    focal_type: 'issue' | 'event';
+    focal_id: string;
+    participant_count: number;
+    message_count: number;
+    created_at: string;
+    last_message_at: string | null;
+  }> {
+    const response = await fetch(`${this.baseURL}/api/threads/${threadId}`, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Thread not found');
+      }
+      throw new Error(`Failed to fetch thread info: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  // ============================================================================
+  // Configuration (Public endpoints - no auth required)
+  // ============================================================================
+
+  /**
+   * Get Google Maps API key for frontend
+   * GET /api/config/google-maps-key (public endpoint)
+   *
+   * Backend: src/civic_api_integrated.py:2141-2165
+   */
+  async getGoogleMapsApiKey(): Promise<string> {
+    const response = await fetch(`${this.baseURL}/api/config/google-maps-key`, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+      // No Authorization header - this is a public endpoint
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch Google Maps API key: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.api_key;
+  }
+
+  /**
+   * Create or update user profile
+   * POST /api/user/profile
+   *
+   * Backend: src/civic_api_integrated.py (PersonalizationService Phase 2)
+   */
+  async createOrUpdateProfile(data: any): Promise<any> {
+    const response = await fetch(`${this.baseURL}/api/user/profile`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to save profile: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Delete user account
+   * DELETE /api/user
+   *
+   * Backend: src/civic_api_integrated.py (PersonalizationService Phase 2 - GDPR)
+   */
+  async deleteUserAccount(): Promise<void> {
+    const response = await fetch(`${this.baseURL}/api/user`, {
+      method: 'DELETE',
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to delete account: ${response.statusText}`);
+    }
+  }
+
+  /**
+   * Export user data (GDPR)
+   * GET /api/user/export
+   *
+   * Backend: src/civic_api_integrated.py (PersonalizationService Phase 2 - GDPR)
+   */
+  async exportUserData(): Promise<any> {
+    const response = await fetch(`${this.baseURL}/api/user/export`, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to export data: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  // ============================================================================
+  // Onboarding (Phase 2.5 - Tinder-style swipe onboarding)
+  // ============================================================================
+
+  /**
+   * Get personalized onboarding card deck
+   * GET /api/onboarding/cards
+   *
+   * Backend: src/civic_api_integrated.py (Phase 2.5 - Swipe Onboarding)
+   */
+  async getOnboardingCards(): Promise<{ cards: any[] }> {
+    const response = await fetch(`${this.baseURL}/api/onboarding/cards`, {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch onboarding cards: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Record swipe action during onboarding
+   * POST /api/onboarding/swipe
+   *
+   * Backend: src/civic_api_integrated.py (Phase 2.5 - Swipe Onboarding)
+   */
+  async recordOnboardingSwipe(data: {
+    card_id: string;
+    card_type: string;
+    swipe_direction: 'left' | 'right';
+    metadata?: any;
+  }): Promise<void> {
+    const response = await fetch(`${this.baseURL}/api/onboarding/swipe`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to record swipe: ${response.statusText}`);
+    }
+  }
+
+  /**
+   * Mark onboarding as complete
+   * POST /api/onboarding/complete
+   *
+   * Backend: src/civic_api_integrated.py (Phase 2.5 - Swipe Onboarding)
+   */
+  async completeOnboarding(): Promise<void> {
+    const response = await fetch(`${this.baseURL}/api/onboarding/complete`, {
+      method: 'POST',
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to complete onboarding: ${response.statusText}`);
+    }
+  }
+}
+
+// Export singleton instance
+export const api = new CivicAPI();

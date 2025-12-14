@@ -1,0 +1,2483 @@
+{
+  "date_range": {
+    "start": "2025-09-06T00:00:00+00:00",
+    "end": "2025-10-06T23:59:59+00:00"
+  },
+  "keywords": [
+    "fire",
+    "wildfire",
+    "tree",
+    "vegetation",
+    "overgrown",
+    "fuel",
+    "hazard",
+    "defensible",
+    "space",
+    "brush",
+    "weeds",
+    "limbs",
+    "branches",
+    "dead",
+    "dry"
+  ],
+  "total_issues_fetched": 300,
+  "filtered_count": 48,
+  "issues": [
+    {
+      "id": "scf-20142481",
+      "external_id": 20142481,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Open Space / Espacio Abierto",
+      "description": "the hill is eroding into the ditch that PW is supposed to be maintaining refer to SCFx ticket #17565372 which I have been told has closed. Cleaning it is not enough. You were supposed to come up with a solution about the erosion into the ditch that carries a large amount of water that comes down from an open space waterfall. It has been take a lot of time to you to come up with a solution. I contacted the Mayor's office who wrote me that you will be cleaning it. That does not address the erosion.",
+      "status": "acknowledged",
+      "location": {
+        "address": "20 Angelica Ct San Rafael, CA, 94901, USA",
+        "lat": 37.98672083746762,
+        "lng": -122.51767504592945,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.51767504592945,
+            37.98672083746762
+          ]
+        }
+      },
+      "category": "Open Space / Espacio Abierto",
+      "category_id": 39017,
+      "organization": "Department of Public Works",
+      "created_at": "2025-10-04T19:23:11-04:00",
+      "updated_at": "2025-10-06T17:23:09-04:00",
+      "acknowledged_at": "2025-10-06T17:23:09-04:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2535195,
+        "name": "Tatiana Mardirosian",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ4ODU3MzIsInB1ciI6ImJsb2JfaWQifX0=--3f309a737f82e1fc4561625e83445bdde75b0f90/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--242b3e94addeeae50b5fd8df8a0a8fbcf02bf33c/Erosion%201.jpg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ4ODU3MzIsInB1ciI6ImJsb2JfaWQifX0=--3f309a737f82e1fc4561625e83445bdde75b0f90/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/Erosion%201.jpg",
+        "video_url": null
+      },
+      "rating": 3,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20142481",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20142481",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20142481/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20134905",
+      "external_id": 20134905,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Street Sweeping / Barrida de Calle",
+      "description": "I am writing to raise a concern about the street sweeping schedule in my neighborhood. The sweeping currently begins every Friday very early in the morning, often before 5:00 a.m., and the noise consistently disturbs my sleep.\n\nWhile I understand and appreciate the importance of keeping our streets clean, the current timing is having a negative effect on residents\u2019 rest, health, and overall quality of life. Many neighbors I have spoken with share the same concern.\n\nSine 5th Avenue is no more commercial zone I respectfully request that the street sweeping schedule be adjusted to a later time in the morning, or that alternative methods be considered to minimize noise during early hours. A small change in timing could make a significant difference for the well-being of the community.\n\nIt seems that some people are either not aware of street sweeping schedule or do not care and park their cars on the street which makes this whole operation a lot less effective.\nThank you for your attention to this matter, and I look forward to your response.",
+      "status": "open",
+      "location": {
+        "address": "1701-1781 5th Ave San Rafael, CA, 94901, USA",
+        "lat": 37.975107048056756,
+        "lng": -122.5377770757922,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.5377770757922,
+            37.975107048056756
+          ]
+        }
+      },
+      "category": "Street Sweeping / Barrida de Calle",
+      "category_id": 39034,
+      "organization": "Department of Public Works",
+      "created_at": "2025-10-03T12:06:00-04:00",
+      "updated_at": "2025-10-03T12:06:00-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20134905",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20134905",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20134905/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20131232",
+      "external_id": 20131232,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Trees / \u00e1rboles",
+      "description": "Fallen tree in the creek. Could pose drainage problem. ",
+      "status": "open",
+      "location": {
+        "address": "513 B St San Rafael, CA, 94901, USA",
+        "lat": 37.96834964629911,
+        "lng": -122.53038774034363,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.53038774034363,
+            37.96834964629911
+          ]
+        }
+      },
+      "category": "Trees / \u00e1rboles",
+      "category_id": 39038,
+      "organization": "Department of Public Works",
+      "created_at": "2025-10-02T20:22:22-04:00",
+      "updated_at": "2025-10-03T09:26:33-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2530803,
+        "name": "Todd P",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ4NDUyNjIsInB1ciI6ImJsb2JfaWQifX0=--e22ba51b5ca83362fe1c1d7c73c22de072d7fa45/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiI4MDB4NjAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--a24cd3b9f26082c533845b9cc150d8421a819967/IMG_8131.jpeg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ4NDUyNjIsInB1ciI6ImJsb2JfaWQifX0=--e22ba51b5ca83362fe1c1d7c73c22de072d7fa45/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiIxMDB4MTAwXiIsImdyYXZpdHkiOiJjZW50ZXIiLCJleHRlbnQiOiIxMDB4MTAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--05cc00cdc285a6131729ac978390fa7276ce7221/IMG_8131.jpeg",
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20131232",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20131232",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20131232/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20130009",
+      "external_id": 20130009,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Street Sweeping / Barrida de Calle",
+      "description": "The class IV cycle track on Second Strret needs to be cleared of debris and weeds.  I see bicyclists swerve into the opposite cycle track to avoid large clumps of weeds growing in the path.",
+      "status": "open",
+      "location": {
+        "address": "2nd St & West St San Rafael, California, 94901",
+        "lat": 37.97258109449084,
+        "lng": -122.54092060292504,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.54092060292504,
+            37.97258109449084
+          ]
+        }
+      },
+      "category": "Street Sweeping / Barrida de Calle",
+      "category_id": 39034,
+      "organization": "Department of Public Works",
+      "created_at": "2025-10-02T17:09:18-04:00",
+      "updated_at": "2025-10-02T17:09:19-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20130009",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20130009",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20130009/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20129928",
+      "external_id": 20129928,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Street Sweeping / Barrida de Calle",
+      "description": "Street gutter needs to be cleared of leaves and debris from 11 Marquard Ave to corner of Marquard and Fremont Rd.",
+      "status": "open",
+      "location": {
+        "address": "Marquard Ave & Fremont Rd San Rafael, California, 94901",
+        "lat": 37.972891019936725,
+        "lng": -122.54142726889877,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.54142726889877,
+            37.972891019936725
+          ]
+        }
+      },
+      "category": "Street Sweeping / Barrida de Calle",
+      "category_id": 39034,
+      "organization": "Department of Public Works",
+      "created_at": "2025-10-02T17:01:31-04:00",
+      "updated_at": "2025-10-02T17:01:31-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20129928",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20129928",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20129928/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20129873",
+      "external_id": 20129873,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Street Sweeping / Barrida de Calle",
+      "description": "The street gutter beginning at the intersection of Fremont Rd and Upper Fremont Dr to 45 Fremont Rd needs to be cleared of dirt and debris before the rain starts. Thank you.",
+      "status": "open",
+      "location": {
+        "address": "Fremont Rd & Upper Fremont Dr San Rafael, California, 94901",
+        "lat": 37.97246069302761,
+        "lng": -122.54158686033523,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.54158686033523,
+            37.97246069302761
+          ]
+        }
+      },
+      "category": "Street Sweeping / Barrida de Calle",
+      "category_id": 39034,
+      "organization": "Department of Public Works",
+      "created_at": "2025-10-02T16:55:56-04:00",
+      "updated_at": "2025-10-02T16:55:57-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20129873",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20129873",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20129873/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20128399",
+      "external_id": 20128399,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Traffic/ Traffic Signal / Tr\u00e1nsito/Se\u00f1al",
+      "description": "I am writing to request the installation of a \"No Public Overnight Parking\" sign at the entrance of Redwood Village. Our neighborhood has increasingly become an overnight parking area for non-residents who park multiple work and personal vehicles here. While we understand that the adjacent public park generates daytime traffic, the issue intensifies after the park closes at dark. Vehicles come and go throughout the night, creating noise disturbances, diminishing the neighborhood's appearance, and occupying parking spaces needed by residents. A clearly posted sign restricting overnight public parking would help deter this activity and preserve the quality of life for Redwood Village residents.\n\nThank you for considering this request. Please let me know if you need any additional information.",
+      "status": "acknowledged",
+      "location": {
+        "address": "N San Pedro Rd & Sequoia Rd San Rafael, CA, 94903, USA",
+        "lat": 37.992970788500536,
+        "lng": -122.53493398537225,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.53493398537225,
+            37.992970788500536
+          ]
+        }
+      },
+      "category": "Traffic/ Traffic Signal / Tr\u00e1nsito/Se\u00f1al",
+      "category_id": 39036,
+      "organization": "Department of Public Works",
+      "created_at": "2025-10-02T14:35:57-04:00",
+      "updated_at": "2025-11-04T11:42:20-05:00",
+      "acknowledged_at": "2025-11-04T11:39:22-05:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 2,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20128399",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20128399",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20128399/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20123448",
+      "external_id": 20123448,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Roadside Vegetation / Vegetaci\u00f3n en borde de carretera",
+      "description": "3 times WRong ADDRESS. \nStop light at BioMarin on lindaro. \nIt took 3 years to get the tree branch BLOCKING the stoplight removed. It has now grown back and fairly impossible to see the light. \nSomeone is going to get hit or hurt as a pedestrian has no clue that we can\u2019t see the light coming from Davidson school direction. ",
+      "status": "open",
+      "location": {
+        "address": "23 El Camino Ave San Rafael, CA, 94901, USA",
+        "lat": 37.97467765888444,
+        "lng": -122.53970353973395,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.53970353973395,
+            37.97467765888444
+          ]
+        }
+      },
+      "category": "Roadside Vegetation / Vegetaci\u00f3n en borde de carretera",
+      "category_id": 39551,
+      "organization": "Department of Public Works",
+      "created_at": "2025-10-01T22:48:31-04:00",
+      "updated_at": "2025-10-01T22:48:32-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2527718,
+        "name": "L.S.",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20123448",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20123448",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20123448/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20118558",
+      "external_id": 20118558,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Street Sweeping / Barrida de Calle",
+      "description": "Hi there- \nI belbeli iveIt is a compcomp e a wastebothvoth time monem to do o eybo thstreetsweewet pings on a trash day wcan\u2019tou caanyanywh erentc get  or gutters.  r  It fe a bitels curbswatchwat hingke watcwatc tax dollars drive by on inteninten :- not great when more pressing repairs go unattunatt. eCan you pded iotry to \nns goodschedsch street sweeswee pingduleent -) Pleyou scheactactua ly dry days when ypu and cleqn the, or use resoresou where staff and eqequipme t can get somesome ore t priduprodu do,ne if reschresched isnti feesibfe?asiblesn'tulingctivehingrcestreets. \ncleana:ionshingt's..an'ttreet sweepingo stree",
+      "status": "open",
+      "location": {
+        "address": "226 San Rafael Ave San Rafael, California, 94901",
+        "lat": 37.96635689750713,
+        "lng": -122.53655404662398,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.53655404662398,
+            37.96635689750713
+          ]
+        }
+      },
+      "category": "Street Sweeping / Barrida de Calle",
+      "category_id": 39034,
+      "organization": "Department of Public Works",
+      "created_at": "2025-10-01T12:56:09-04:00",
+      "updated_at": "2025-10-01T12:58:07-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2530526,
+        "name": "Suzanna Rumon",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 2,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20118558",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20118558",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20118558/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20114727",
+      "external_id": 20114727,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Pothole/Road Condition / Bache (hoyo)/Condici\u00f3n de Carreteras",
+      "description": "4th St is the main bike path through downtown. The stretch from Lincoln to Union has the most potholes, bumps and cracks in the entire downtown grid, bounded by  Union, Mission, H St., and 1st street. \nThis is a visible hazard to pedestrians and cyclists, and the issue has already been reported AND caused injuries to the public.. \nMAYBE todays $7million judgment against the city of Oakland will spur San Rafael Public Works to REPAVE -not patch!- the entire six blocks? ",
+      "status": "acknowledged",
+      "location": {
+        "address": "4th St & Tamalpais Ave San Rafael, CA, 94901, USA",
+        "lat": 37.97253585774848,
+        "lng": -122.52302399348163,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.52302399348163,
+            37.97253585774848
+          ]
+        }
+      },
+      "category": "Pothole/Road Condition / Bache (hoyo)/Condici\u00f3n de Carreteras",
+      "category_id": 39023,
+      "organization": "Department of Public Works",
+      "created_at": "2025-10-01T00:12:10-04:00",
+      "updated_at": "2025-10-27T14:12:47-04:00",
+      "acknowledged_at": "2025-10-27T14:12:25-04:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 3637185,
+        "name": "Paul Goessling",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ3ODYwOTUsInB1ciI6ImJsb2JfaWQifX0=--b7b5fd577b6280dc5c120cf7b8a6129b442af412/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiI4MDB4NjAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--a24cd3b9f26082c533845b9cc150d8421a819967/IMG_0270.jpeg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ3ODYwOTUsInB1ciI6ImJsb2JfaWQifX0=--b7b5fd577b6280dc5c120cf7b8a6129b442af412/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiIxMDB4MTAwXiIsImdyYXZpdHkiOiJjZW50ZXIiLCJleHRlbnQiOiIxMDB4MTAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--05cc00cdc285a6131729ac978390fa7276ce7221/IMG_0270.jpeg",
+        "video_url": null
+      },
+      "rating": 2,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20114727",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20114727",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20114727/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20104531",
+      "external_id": 20104531,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Traffic/ Traffic Signal / Tr\u00e1nsito/Se\u00f1al",
+      "description": "As cars go up Reservoir Road and then stay right to go onto Miramar Ave. they often go very fast. It is uphill-north- and be the time they get to where it flattens out it can be too late for them to see ongoing vehicles or bicyclists.  I've witnessed cars/pick up trucks going much faster than the 15mph sign going up Miramar where again, fortunately, no cars or bicyclist were in the street coming in the opposite direction.. On the other hand, cars and bicyclists going south on Miramar Ave. are going around a bend and if a car, particularly one going fast, is coming toward them it can be hard for them to see the car and stop in time. This becomes more of a problem for bicyclist or cars going fast around the bend.   I've witnessed bicyclists wipe out going around the bend and, fortunately, there were no cars going in the opposite direction. I think someone from Public Works should investigate this area for a possible speed bump or speed bumps.  ",
+      "status": "acknowledged",
+      "location": {
+        "address": "4 Miramar Ave San Rafael, California, 94901",
+        "lat": 37.97054274594253,
+        "lng": -122.5392678391837,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.5392678391837,
+            37.97054274594253
+          ]
+        }
+      },
+      "category": "Traffic/ Traffic Signal / Tr\u00e1nsito/Se\u00f1al",
+      "category_id": 39036,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-29T18:54:25-04:00",
+      "updated_at": "2025-10-06T14:11:26-04:00",
+      "acknowledged_at": "2025-09-30T11:02:40-04:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 3635155,
+        "name": "Brent Sclafani",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ3NTAyMDMsInB1ciI6ImJsb2JfaWQifX0=--e29691bf5f0a50d5301994189301eb20228efd20/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--242b3e94addeeae50b5fd8df8a0a8fbcf02bf33c/IMG_1633.jpg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ3NTAyMDMsInB1ciI6ImJsb2JfaWQifX0=--e29691bf5f0a50d5301994189301eb20228efd20/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/IMG_1633.jpg",
+        "video_url": null
+      },
+      "rating": 5,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20104531",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20104531",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20104531/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20103240",
+      "external_id": 20103240,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Trees / \u00e1rboles",
+      "description": "right near this residence is a tree that has hanging branches that can fall at any time and block Southern Heights bld. \nis an urgent request",
+      "status": "open",
+      "location": {
+        "address": "74 Southern Heights Blvd San Rafael, California, 94901",
+        "lat": 37.96022881408261,
+        "lng": -122.52731692163616,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.52731692163616,
+            37.96022881408261
+          ]
+        }
+      },
+      "category": "Trees / \u00e1rboles",
+      "category_id": 39038,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-29T16:44:41-04:00",
+      "updated_at": "2025-09-29T16:47:36-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20103240",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20103240",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20103240/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20099388",
+      "external_id": 20099388,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Traffic/ Traffic Signal / Tr\u00e1nsito/Se\u00f1al",
+      "description": "This morning (9/29) a US Foods truck was delivering to the new Aegis facility. The driver couldn\u2019t fit his truck into the pullout on Lincoln so completely blocked the right lane going South. This caused a backup all the way to Linden and led to probably hundreds of people to be late for work/school. Aegis needs to find another solution for deliveries, whether it\u2019s scheduling deliveries outside of commute hours or expanding the size of the pullout so it\u2019s actually usable. We\u2019ve had to put up with a year\u2019s worth of traffic delays due to construction, it\u2019s unacceptable they are still going to regularly block the street. ",
+      "status": "acknowledged",
+      "location": {
+        "address": "Lincoln Ave & Mission Ave San Rafael, CA, 94901, USA",
+        "lat": 37.9744172983647,
+        "lng": -122.52341568503462,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.52341568503462,
+            37.9744172983647
+          ]
+        }
+      },
+      "category": "Traffic/ Traffic Signal / Tr\u00e1nsito/Se\u00f1al",
+      "category_id": 39036,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-29T11:49:52-04:00",
+      "updated_at": "2025-10-01T11:58:13-04:00",
+      "acknowledged_at": "2025-10-01T11:58:13-04:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 3,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20099388",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20099388",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20099388/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20098183",
+      "external_id": 20098183,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Pavement Maintenance Plan",
+      "description": "Email rec'd re: re-paving:  \"I am writing to remind our city of the promised re-paving of Peacock Gap.\nI am aware your re-paving program is a staggered, expensive enterprise and am pleased with the work you have done in the Glenwood neighborhood.\nWe have lived on Nightingale ln since 1991 and I assure you it has not been paved since then.\nRecent public works projects in our area have further degraded the pavement, creating some hazards for pedestrian traffic in the street, if not the sidewalks.\nWe look forward to the completion of these projects and hopefully then complete re-paving as there is now increased broken pavement due to the many patches.\n\nOf note the pavement on San Pedro West next to United is severely damaged; I am sure you are already aware of this. Thank you for your work on our behalf and your attention to this matter.\"\n",
+      "status": "open",
+      "location": {
+        "address": "Peacock Gap San Rafael, California",
+        "lat": 37.990927833550096,
+        "lng": -122.46474570000001,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.46474570000001,
+            37.990927833550096
+          ]
+        }
+      },
+      "category": "Pavement Maintenance Plan",
+      "category_id": 49990,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-29T10:41:07-04:00",
+      "updated_at": "2025-09-29T10:41:41-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20098183",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20098183",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20098183/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20091294",
+      "external_id": 20091294,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Street Sign and Markings / Se\u00f1ales y marcas viales",
+      "description": "The temporary no parking signs along Albert Park Lane insofar as the timeftime is indicated as 7a-5p but they should read 24 hours; when any cars park there, traffic cannot pass due the nature arrowwidth of the right o as fencing is occupyino much of the roadway. Please review.ccupyingof wayalblockbuframe",
+      "status": "open",
+      "location": {
+        "address": "28-98 Albert Park Ln San Rafael, California, 94901",
+        "lat": 37.96816227374941,
+        "lng": -122.5276135779198,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.5276135779198,
+            37.96816227374941
+          ]
+        }
+      },
+      "category": "Street Sign and Markings / Se\u00f1ales y marcas viales",
+      "category_id": 39032,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-27T18:13:12-04:00",
+      "updated_at": "2025-09-30T17:20:01-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2533453,
+        "name": "Eli Hill",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ3MDQyNDIsInB1ciI6ImJsb2JfaWQifX0=--067556ef585c4bf6930a9bb256f05c2906b2274c/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--242b3e94addeeae50b5fd8df8a0a8fbcf02bf33c/image.jpg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ3MDQyNDIsInB1ciI6ImJsb2JfaWQifX0=--067556ef585c4bf6930a9bb256f05c2906b2274c/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/image.jpg",
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20091294",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20091294",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20091294/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20086691",
+      "external_id": 20086691,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Street Sign and Markings / Se\u00f1ales y marcas viales",
+      "description": "Vehicles constantly park in this area, making it difficult for cars and or larger trucks to get by safely. Numerous complaints from up here. Maybe DPW can put No Parking signs or red curbs/lines? Also, fire boxes were installed up here recently, however the signage is for 6ft center of roadway, not fire box signage.",
+      "status": "acknowledged",
+      "location": {
+        "address": "199 Southern Heights Blvd San Rafael, California, 94901",
+        "lat": 37.96402070326108,
+        "lng": -122.5298014853754,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.5298014853754,
+            37.96402070326108
+          ]
+        }
+      },
+      "category": "Street Sign and Markings / Se\u00f1ales y marcas viales",
+      "category_id": 39032,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-26T16:59:11-04:00",
+      "updated_at": "2025-10-01T12:38:14-04:00",
+      "acknowledged_at": "2025-10-01T11:43:23-04:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2459283,
+        "name": "Jim Myhers",
+        "role": "Verified Official",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 2,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20086691",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20086691",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20086691/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20085630",
+      "external_id": 20085630,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Street Light / Luz de la Calle",
+      "description": "Please place a cap or border frame on this light. It shines directly into our bedroom window. Thank you",
+      "status": "acknowledged",
+      "location": {
+        "address": "167 Du Bois St San Rafael, California, 94901",
+        "lat": 37.95901841938287,
+        "lng": -122.51633123252667,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.51633123252667,
+            37.95901841938287
+          ]
+        }
+      },
+      "category": "Street Light / Luz de la Calle",
+      "category_id": 39030,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-26T14:54:46-04:00",
+      "updated_at": "2025-10-24T11:49:09-04:00",
+      "acknowledged_at": "2025-10-24T11:49:09-04:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 2,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20085630",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20085630",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20085630/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20084057",
+      "external_id": 20084057,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Street Sign and Markings / Se\u00f1ales y marcas viales",
+      "description": "The pavement painting along the Southern Heights Bridge is almost completely degraded on the east side.  The west side is fine. Is there a warranty on that stripe?  Seems like the bridge pavement was recently repainted.",
+      "status": "acknowledged",
+      "location": {
+        "address": "121-127 Southern Heights Blvd San Rafael, CA, 94901, USA",
+        "lat": 37.962377127435474,
+        "lng": -122.52902932175986,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.52902932175986,
+            37.962377127435474
+          ]
+        }
+      },
+      "category": "Street Sign and Markings / Se\u00f1ales y marcas viales",
+      "category_id": 39032,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-26T12:27:04-04:00",
+      "updated_at": "2025-10-14T19:35:13-04:00",
+      "acknowledged_at": "2025-10-14T19:34:36-04:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ2NzY5NTksInB1ciI6ImJsb2JfaWQifX0=--4f89ac9f4e2821495ef6844f10a6ed16ba6d37fb/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJwbmciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--57f85c85093db4303fe6b4e7261d952e5d1fef3e/Picture1.png",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ2NzY5NTksInB1ciI6ImJsb2JfaWQifX0=--4f89ac9f4e2821495ef6844f10a6ed16ba6d37fb/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJwbmciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--8a8d0aa5681efd735abc391b83016b612fc2482f/Picture1.png",
+        "video_url": null
+      },
+      "rating": 2,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20084057",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20084057",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20084057/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20079831",
+      "external_id": 20079831,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Street Sign and Markings / Se\u00f1ales y marcas viales",
+      "description": "Stop sign was hit by a truck and now it looks like it is about to fall off",
+      "status": "acknowledged",
+      "location": {
+        "address": "4th St & G St San Rafael, CA, 94901, USA",
+        "lat": 37.9740429597889,
+        "lng": -122.53753674567567,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.53753674567567,
+            37.9740429597889
+          ]
+        }
+      },
+      "category": "Street Sign and Markings / Se\u00f1ales y marcas viales",
+      "category_id": 39032,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-25T19:26:22-04:00",
+      "updated_at": "2025-09-26T16:25:58-04:00",
+      "acknowledged_at": "2025-09-26T16:25:58-04:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2530566,
+        "name": "Red Dragon Yoga SR",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 2,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20079831",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20079831",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20079831/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20079554",
+      "external_id": 20079554,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Other (Unlisted Request for Public Works) / Otro (Pedido de Obras P\u00fablicas no incluidas)",
+      "description": "Marin transit pulled this bus stop out of use. However,  the curb is still painted red, so it has put about 4 parking spaces out of action.\n\nPlease cover the red paint with gray paint.\n\nThis is on Point San Pedro drive east bound,  just past the lights at Andy's Market.",
+      "status": "acknowledged",
+      "location": {
+        "address": "662 Point San Pedro Rd San Rafael, CA, 94901, USA",
+        "lat": 37.974764706474,
+        "lng": -122.483532356152,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.483532356152,
+            37.974764706474
+          ]
+        }
+      },
+      "category": "Traffic/ Traffic Signal / Tr\u00e1nsito/Se\u00f1al",
+      "category_id": 39036,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-25T18:37:38-04:00",
+      "updated_at": "2025-09-30T14:01:01-04:00",
+      "acknowledged_at": "2025-09-30T12:53:13-04:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2534429,
+        "name": "BrynwDeamer",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ2NjA3NjAsInB1ciI6ImJsb2JfaWQifX0=--412f90c517fef18eccd691cac95ce6497be7e059/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--242b3e94addeeae50b5fd8df8a0a8fbcf02bf33c/1000034934.jpg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ2NjA3NjAsInB1ciI6ImJsb2JfaWQifX0=--412f90c517fef18eccd691cac95ce6497be7e059/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/1000034934.jpg",
+        "video_url": null
+      },
+      "rating": 2,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20079554",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20079554",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20079554/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20079389",
+      "external_id": 20079389,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Stormwater Drainage / Drenaje de Aguas Pluviales",
+      "description": "Storm drains IFO 610/614 C Street filled with debris and clogged for rainwater runoff",
+      "status": "acknowledged",
+      "location": {
+        "address": "614 C St San Rafael, California, 94901",
+        "lat": 37.9699858522954,
+        "lng": -122.53102775780998,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.53102775780998,
+            37.9699858522954
+          ]
+        }
+      },
+      "category": "Stormwater Drainage / Drenaje de Aguas Pluviales",
+      "category_id": 39028,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-25T18:13:11-04:00",
+      "updated_at": "2025-10-22T17:27:00-04:00",
+      "acknowledged_at": "2025-10-09T16:42:40-04:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ2NjAwMjEsInB1ciI6ImJsb2JfaWQifX0=--b5ff2d702c922e770ebec95a1d99c63664bd12ef/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiI4MDB4NjAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--a24cd3b9f26082c533845b9cc150d8421a819967/IMG_3410.jpeg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ2NjAwMjEsInB1ciI6ImJsb2JfaWQifX0=--b5ff2d702c922e770ebec95a1d99c63664bd12ef/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiIxMDB4MTAwXiIsImdyYXZpdHkiOiJjZW50ZXIiLCJleHRlbnQiOiIxMDB4MTAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--05cc00cdc285a6131729ac978390fa7276ce7221/IMG_3410.jpeg",
+        "video_url": null
+      },
+      "rating": 3,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20079389",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20079389",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20079389/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20074814",
+      "external_id": 20074814,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Sidewalks / Banquetas",
+      "description": "Email rec'd from resident inquiring about \"sidewalk power wash program\":\n\n\"I was inquiring if San Rafael still has a program in place to power wash the sidewalks. Specifically the 4th Street corridor..   I will still send you photos and locations that are especially filthy\u2026. Thank you again\"",
+      "status": "open",
+      "location": {
+        "address": "4th St San Rafael, California, 94901",
+        "lat": 37.973587116040854,
+        "lng": -122.53262702493588,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.53262702493588,
+            37.973587116040854
+          ]
+        }
+      },
+      "category": "Sidewalks / Banquetas",
+      "category_id": 39026,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-25T10:55:52-04:00",
+      "updated_at": "2025-09-25T10:57:21-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20074814",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20074814",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20074814/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20071231",
+      "external_id": 20071231,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Report a Campsite Fire Hazard / Reporte un peligro de incendio en un campamento",
+      "description": "Campsite in use",
+      "status": "open",
+      "location": {
+        "address": "100-200 El Cerrito Ave San Rafael, CA, 94901, USA",
+        "lat": 37.97766242195593,
+        "lng": -122.53185880372874,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.53185880372874,
+            37.97766242195593
+          ]
+        }
+      },
+      "category": "Report a Campsite Fire Hazard / Reporte un peligro de incendio en un campamento",
+      "category_id": 39011,
+      "organization": "Police Department / Departamento de Polic\u00eda",
+      "created_at": "2025-09-24T18:08:44-04:00",
+      "updated_at": "2025-09-24T18:08:44-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20071231",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20071231",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20071231/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {
+          "close_url": "https://seeclickfix.com/api/v2/issues/20071231/close"
+        },
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20064224",
+      "external_id": 20064224,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Illegal Dumping / Desecho ilegal",
+      "description": "Soft bedding: dog bed, fluffy cushion. It is abandoned.\n\nGenerally, during the day, a person that hits on it his stairs at the student as they walk by making them very uncomfortable. He has been there for more than a year.\nIts across the street, by the electrical box on Union Street at fourth Street on the side of the street that is closer to the school parking lot by the stop sign the crosswalk and by the fire station. It was quite a bit of debris piled up there now. ",
+      "status": "open",
+      "location": {
+        "address": "Whole Foods",
+        "lat": 37.971187887022026,
+        "lng": -122.51633111772149,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.51633111772149,
+            37.971187887022026
+          ]
+        }
+      },
+      "category": "Illegal Dumping / Desecho ilegal",
+      "category_id": 39009,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-23T23:52:24-04:00",
+      "updated_at": "2025-09-23T23:52:31-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 0,
+        "name": "An anonymous SeeClickFix user",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-4c3cf895b7ee80b7e97c54d1c7ee80ef9e8d176702efb9a7dcf02abb38ffa5b8.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ2MDQ0NjAsInB1ciI6ImJsb2JfaWQifX0=--0f9df92d73855fca3dd4c18eeecb74e8800ab7c6/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiI4MDB4NjAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--a24cd3b9f26082c533845b9cc150d8421a819967/IMG_7395.jpeg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ2MDQ0NjAsInB1ciI6ImJsb2JfaWQifX0=--0f9df92d73855fca3dd4c18eeecb74e8800ab7c6/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiIxMDB4MTAwXiIsImdyYXZpdHkiOiJjZW50ZXIiLCJleHRlbnQiOiIxMDB4MTAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--05cc00cdc285a6131729ac978390fa7276ce7221/IMG_7395.jpeg",
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20064224",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20064224",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20064224/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20064152",
+      "external_id": 20064152,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Parks and Playgrounds / Parques y \u00e1reas de Juego",
+      "description": "Ever since all the trees were cut down along the Clark St side of the park this light on the bathroom is blasting everyone\u2019s house all night long. Is this light necessary? We have light pollution ordinances for the street light. No one should be in the park after dark using the bathroom. Can this light be replaced with a dimmer downcast light? It\u2019s brighter than all three nearby street lights combined. ",
+      "status": "open",
+      "location": {
+        "address": "207-239 San Rafael Ave San Rafael, CA, 94901, USA",
+        "lat": 37.965895918738006,
+        "lng": -122.53710200652465,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.53710200652465,
+            37.965895918738006
+          ]
+        }
+      },
+      "category": "Parks and Playgrounds / Parques y \u00e1reas de Juego",
+      "category_id": 39020,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-23T23:21:50-04:00",
+      "updated_at": "2025-09-24T11:22:59-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 1572815,
+        "name": "BernardHManning",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ2MDQxNTIsInB1ciI6ImJsb2JfaWQifX0=--e3240149d0a84b53b8a3d389b425a41e3280c41d/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiI4MDB4NjAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--a24cd3b9f26082c533845b9cc150d8421a819967/IMG_3327.jpeg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ2MDQxNTIsInB1ciI6ImJsb2JfaWQifX0=--e3240149d0a84b53b8a3d389b425a41e3280c41d/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiIxMDB4MTAwXiIsImdyYXZpdHkiOiJjZW50ZXIiLCJleHRlbnQiOiIxMDB4MTAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--05cc00cdc285a6131729ac978390fa7276ce7221/IMG_3327.jpeg",
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20064152",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20064152",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20064152/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20059162",
+      "external_id": 20059162,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Trees / \u00e1rboles",
+      "description": "Maple tree in area between sidewalk and street is damaging water line. Can we please advise on what resident is allowed to do to make repairs/manage the tree?",
+      "status": "open",
+      "location": {
+        "address": "504 C St San Rafael, California, 94901",
+        "lat": 37.96835020770935,
+        "lng": -122.5314973958449,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.5314973958449,
+            37.96835020770935
+          ]
+        }
+      },
+      "category": "Trees / \u00e1rboles",
+      "category_id": 39038,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-23T12:36:22-04:00",
+      "updated_at": "2025-09-23T12:36:23-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20059162",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20059162",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20059162/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20053501",
+      "external_id": 20053501,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Trees / \u00e1rboles",
+      "description": "Trees on Yacht Club way are overgrown and blocking parking signage.",
+      "status": "open",
+      "location": {
+        "address": "207-299 Yacht Club Dr San Rafael, CA, 94901, USA",
+        "lat": 37.96828527077101,
+        "lng": -122.51689671647982,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.51689671647982,
+            37.96828527077101
+          ]
+        }
+      },
+      "category": "Trees / \u00e1rboles",
+      "category_id": 39038,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-22T17:19:58-04:00",
+      "updated_at": "2025-09-22T17:19:59-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2459283,
+        "name": "Jim Myhers",
+        "role": "Verified Official",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20053501",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20053501",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20053501/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20053083",
+      "external_id": 20053083,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Street Sign and Markings / Se\u00f1ales y marcas viales",
+      "description": "Lights on the solar speed sign are out. ",
+      "status": "acknowledged",
+      "location": {
+        "address": "128 Mission Ave San Rafael, California, 94901",
+        "lat": 37.972051425777494,
+        "lng": -122.51116935280646,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.51116935280646,
+            37.972051425777494
+          ]
+        }
+      },
+      "category": "Traffic/ Traffic Signal / Tr\u00e1nsito/Se\u00f1al",
+      "category_id": 39036,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-22T16:45:43-04:00",
+      "updated_at": "2025-09-24T14:16:48-04:00",
+      "acknowledged_at": "2025-09-24T14:16:48-04:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2471039,
+        "name": "Mary P Maurer",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ1NjM5OTcsInB1ciI6ImJsb2JfaWQifX0=--856c8a91b420a4fe1b3cc794d2a342bd05824e5e/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiI4MDB4NjAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--a24cd3b9f26082c533845b9cc150d8421a819967/IMG_0466.jpeg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ1NjM5OTcsInB1ciI6ImJsb2JfaWQifX0=--856c8a91b420a4fe1b3cc794d2a342bd05824e5e/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiIxMDB4MTAwXiIsImdyYXZpdHkiOiJjZW50ZXIiLCJleHRlbnQiOiIxMDB4MTAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--05cc00cdc285a6131729ac978390fa7276ce7221/IMG_0466.jpeg",
+        "video_url": null
+      },
+      "rating": 2,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20053083",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20053083",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20053083/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20050582",
+      "external_id": 20050582,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Roadside Vegetation / Vegetaci\u00f3n en borde de carretera",
+      "description": "neighbors said that the vegetation around the pump station here was overgrown. They cleaned up the area and put the vegetation in orange bags that they left there. They are asking PW to pick up the bags and further clean up area if needed.",
+      "status": "open",
+      "location": {
+        "address": "34 Narragansett Cv San Rafael, CA, 94901, USA",
+        "lat": 37.96372776998999,
+        "lng": -122.49340266098562,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.49340266098562,
+            37.96372776998999
+          ]
+        }
+      },
+      "category": "Roadside Vegetation / Vegetaci\u00f3n en borde de carretera",
+      "category_id": 39551,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-22T13:36:08-04:00",
+      "updated_at": "2025-09-22T13:36:09-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20050582",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20050582",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20050582/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20027496",
+      "external_id": 20027496,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Traffic/ Traffic Signal / Tr\u00e1nsito/Se\u00f1al",
+      "description": "Signal at Mission and Tamalpais is a disaster  Stays red for traffic on Mission way too long, then is green for about 3 seconds and turns red again  Tamalpais is a very lightly traveled street, and doesn't need the signal to be green for that long  It backs up traffic on Mission something awful, especially during rush hour  Please have someone check on this  Thanks!  ",
+      "status": "acknowledged",
+      "location": {
+        "address": "1120 Lincoln Ave San Rafael, California, 94901",
+        "lat": 37.97421702045702,
+        "lng": -122.52317876351017,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.52317876351017,
+            37.97421702045702
+          ]
+        }
+      },
+      "category": "Traffic/ Traffic Signal / Tr\u00e1nsito/Se\u00f1al",
+      "category_id": 39036,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-18T15:44:35-04:00",
+      "updated_at": "2025-09-23T12:55:18-04:00",
+      "acknowledged_at": "2025-09-23T12:55:18-04:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2530396,
+        "name": "J Harding",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 2,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20027496",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20027496",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20027496/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20026846",
+      "external_id": 20026846,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Other (Unlisted Request for Public Works) / Otro (Pedido de Obras P\u00fablicas no incluidas)",
+      "description": "Can this be done BEFORE PORCHFEST in this neighborhood this coming weekend? PARKING WILL BE AT A PREMIUM EVERYWHERE.\nIn front of 111 Reservoir Road, next to 103 Reservoir Road, & across the street from 110-118 Reservoir Road Is a 2-ft wide pile of rock, dirt, and leaves, that have slid down the hill following 111s sewer line work last year. It IS possible to drive up on top of it, but that will compress it and make it harder for Trevor and the storm drain crew to scoop it up. ",
+      "status": "open",
+      "location": {
+        "address": "103 Reservoir Rd San Rafael, CA, 94901, USA",
+        "lat": 37.969300331534,
+        "lng": -122.538572476496,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.538572476496,
+            37.969300331534
+          ]
+        }
+      },
+      "category": "Street Sweeping / Barrida de Calle",
+      "category_id": 39034,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-18T14:43:58-04:00",
+      "updated_at": "2025-10-20T15:19:18-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2531237,
+        "name": "Lois Tucker",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ0Njg0OTUsInB1ciI6ImJsb2JfaWQifX0=--724a90fa47f6e733ef7d306f7e79f72555bd1400/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--242b3e94addeeae50b5fd8df8a0a8fbcf02bf33c/1000011109.jpg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ0Njg0OTUsInB1ciI6ImJsb2JfaWQifX0=--724a90fa47f6e733ef7d306f7e79f72555bd1400/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/1000011109.jpg",
+        "video_url": null
+      },
+      "rating": 2,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20026846",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20026846",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20026846/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20015841",
+      "external_id": 20015841,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Street Light / Luz de la Calle",
+      "description": "The light in front of San Rafael high school pedestrian light",
+      "status": "acknowledged",
+      "location": {
+        "address": "908 E St San Rafael, CA, 94901, USA",
+        "lat": 37.972703103843145,
+        "lng": -122.53327604492486,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.53327604492486,
+            37.972703103843145
+          ]
+        }
+      },
+      "category": "Street Light / Luz de la Calle",
+      "category_id": 39030,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-17T11:35:08-04:00",
+      "updated_at": "2025-09-24T14:20:58-04:00",
+      "acknowledged_at": "2025-09-24T14:20:58-04:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 2,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20015841",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20015841",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20015841/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20011059",
+      "external_id": 20011059,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "To report a parking violation ( red zone, fire lane etc) / Para reportar una infracci\u00f3n de estacionamiento (En rojo, l\u00ednea de incendio, etc.)",
+      "description": "Car parked less than 20 feet from cross walk and in red Bayview and marin.",
+      "status": "open",
+      "location": {
+        "address": "26-98 Marin St San Rafael, California, 94901",
+        "lat": 37.967891873116265,
+        "lng": -122.53510010422673,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.53510010422673,
+            37.967891873116265
+          ]
+        }
+      },
+      "category": "To report a parking violation ( red zone, fire lane etc) / Para reportar una infracci\u00f3n de estacionamiento (En rojo, l\u00ednea de incendio, etc.)",
+      "category_id": 39021,
+      "organization": "Parking Services / Servcio de Estacionamiento",
+      "created_at": "2025-09-16T17:36:55-04:00",
+      "updated_at": "2025-09-16T17:37:07-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 0,
+        "name": "An anonymous SeeClickFix user",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-4c3cf895b7ee80b7e97c54d1c7ee80ef9e8d176702efb9a7dcf02abb38ffa5b8.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ0MTA3NjcsInB1ciI6ImJsb2JfaWQifX0=--cdabffc4796daaf02704be523bc661620dbbbac8/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--242b3e94addeeae50b5fd8df8a0a8fbcf02bf33c/image.jpg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQ0MTA3NjcsInB1ciI6ImJsb2JfaWQifX0=--cdabffc4796daaf02704be523bc661620dbbbac8/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/image.jpg",
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20011059",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20011059",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20011059/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {
+          "close_url": "https://seeclickfix.com/api/v2/issues/20011059/close"
+        },
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20009907",
+      "external_id": 20009907,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Pothole/Road Condition / Bache (hoyo)/Condici\u00f3n de Carreteras",
+      "description": "Vmail rec'd re: potholes/sunken asphalt from a section of D St to the bottom of Wolf Grade. In the northbound direction on the east side of D Street.\n\n\"i understand that i'm reaching streets and sanitation the streets themselves the surfaces for streets of san rafael i'm calling to connect with someone about a section of D as in david D st from the bottom of wolf grade were wolf grade ends going through the gersto park the residential area the entire way the second there are about 5 there have been and now they're just getting worse 5 what we call potholes the surface of asphalt has sunk and i've hit five of them they're not deep potholes that knock the tire off nothing like that but they're enough to not want to drive over and they've been there i know where three of them are and i was surprised by the other two so it's northbound on the east side of the street of D street from the bottom of just about a block from north from the end of wolf grade on D street itself thank you . i just want to report these and see if anything can be done thank you\"",
+      "status": "open",
+      "location": {
+        "address": "D St San Rafael, California, 94901",
+        "lat": 37.97438656101118,
+        "lng": -122.5318954524267,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.5318954524267,
+            37.97438656101118
+          ]
+        }
+      },
+      "category": "Pothole/Road Condition / Bache (hoyo)/Condici\u00f3n de Carreteras",
+      "category_id": 39023,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-16T15:57:02-04:00",
+      "updated_at": "2025-09-16T15:57:25-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20009907",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20009907",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20009907/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20008371",
+      "external_id": 20008371,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Street Light / Luz de la Calle",
+      "description": "MMWD was digging in this area and dug up a street light cable",
+      "status": "open",
+      "location": {
+        "address": "2123 E Francisco Blvd San Rafael, California, 94901",
+        "lat": 37.94529656115622,
+        "lng": -122.48780132057288,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.48780132057288,
+            37.94529656115622
+          ]
+        }
+      },
+      "category": "Street Light / Luz de la Calle",
+      "category_id": 39030,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-16T13:45:32-04:00",
+      "updated_at": "2025-09-16T15:49:26-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 2,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20008371",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20008371",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20008371/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-20000358",
+      "external_id": 20000358,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Stormwater Drainage / Drenaje de Aguas Pluviales",
+      "description": "Hi there, I'm reopening this ticket because the dried vegetation has not been removed. As homeowners we do not have access to the drainage/ditch to remove the dried vegetation. Even if it is our responsibility to remove, there is no access to the easement. Public Works always comes out to clear out the dried vegetation. You can see in this photo that they started the job but never completed it. I have additional images if needed, I was only able to upload one photo. ",
+      "status": "open",
+      "location": {
+        "address": "29 Bret Ave San Rafael, California, 94901",
+        "lat": 37.96208465126515,
+        "lng": -122.51911279862706,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.51911279862706,
+            37.96208465126515
+          ]
+        }
+      },
+      "category": "Stormwater Drainage / Drenaje de Aguas Pluviales",
+      "category_id": 39028,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-15T16:01:04-04:00",
+      "updated_at": "2025-09-15T19:37:03-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 3210497,
+        "name": "Keely",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQzNzEwMzEsInB1ciI6ImJsb2JfaWQifX0=--e083e74fa4e318c4ed442fde3ea3765637c61eae/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--242b3e94addeeae50b5fd8df8a0a8fbcf02bf33c/IMG_6421.jpg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQzNzEwMzEsInB1ciI6ImJsb2JfaWQifX0=--e083e74fa4e318c4ed442fde3ea3765637c61eae/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/IMG_6421.jpg",
+        "video_url": null
+      },
+      "rating": 2,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/20000358",
+      "api_url": "https://seeclickfix.com/api/v2/issues/20000358",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/20000358/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-19992065",
+      "external_id": 19992065,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Other (Unlisted Request for Public Works) / Otro (Pedido de Obras P\u00fablicas no incluidas)",
+      "description": "Broken lock/gate mechanism on newly installed gate at southwest entrance to Starkweather Path (just up the Path from Baypoint Village Drive).  Gate was just installed by DPW to discourage use of dirt path behind DPW property that was being used inappropriately.  Gate was a deterrent while the lock/mechanism was operable but this morning at around 7 am gate was observed to be wide open and gate had been forced open so no longer will close.",
+      "status": "open",
+      "location": {
+        "address": "Bay Trl & Shoreline Path San Rafael, CA, 94901, USA",
+        "lat": 37.96063089754172,
+        "lng": -122.49123519737817,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.49123519737817,
+            37.96063089754172
+          ]
+        }
+      },
+      "category": "Open Space / Espacio Abierto",
+      "category_id": 39017,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-14T16:45:38-04:00",
+      "updated_at": "2025-09-15T12:22:06-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2533260,
+        "name": "CAL",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQzNDAwNDQsInB1ciI6ImJsb2JfaWQifX0=--8d8cb79a087c5afed4aa51c215562786d2157a92/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--242b3e94addeeae50b5fd8df8a0a8fbcf02bf33c/IMG_3471.jpg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQzNDAwNDQsInB1ciI6ImJsb2JfaWQifX0=--8d8cb79a087c5afed4aa51c215562786d2157a92/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/IMG_3471.jpg",
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/19992065",
+      "api_url": "https://seeclickfix.com/api/v2/issues/19992065",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/19992065/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-19991591",
+      "external_id": 19991591,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Parks and Playgrounds / Parques y \u00e1reas de Juego",
+      "description": "The gate latch near the street isn't opening. The handles turn but don't seem to grabbing and loving the inside latch. At sun valley park.",
+      "status": "open",
+      "location": {
+        "address": "100-198 Solano St San Rafael, CA, 94901, USA",
+        "lat": 37.982526287047286,
+        "lng": -122.54511857329912,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.54511857329912,
+            37.982526287047286
+          ]
+        }
+      },
+      "category": "Parks and Playgrounds / Parques y \u00e1reas de Juego",
+      "category_id": 39020,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-14T14:39:43-04:00",
+      "updated_at": "2025-09-14T14:40:08-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQzMzc4MjEsInB1ciI6ImJsb2JfaWQifX0=--169e81566c9ec548dc044a6d03867519881dfdd9/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--242b3e94addeeae50b5fd8df8a0a8fbcf02bf33c/1000033717.jpg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQzMzc4MjEsInB1ciI6ImJsb2JfaWQifX0=--169e81566c9ec548dc044a6d03867519881dfdd9/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/1000033717.jpg",
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/19991591",
+      "api_url": "https://seeclickfix.com/api/v2/issues/19991591",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/19991591/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-19988074",
+      "external_id": 19988074,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Vegetation Fire Hazard / Un Peligro de Incendio de Vegetaci\u00f3n",
+      "description": "Tree from creek growing onto apartment \n\n\n",
+      "status": "open",
+      "location": {
+        "address": "513 B St San Rafael, CA, 94901, USA",
+        "lat": 37.968462665045664,
+        "lng": -122.53041685857089,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.53041685857089,
+            37.968462665045664
+          ]
+        }
+      },
+      "category": "Vegetation Fire Hazard / Un Peligro de Incendio de Vegetaci\u00f3n",
+      "category_id": 57294,
+      "organization": "Fire Department / Departmento de Bomberos",
+      "created_at": "2025-09-13T15:45:53-04:00",
+      "updated_at": "2025-09-15T13:15:38-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2823195,
+        "name": "MizzJaneDoe82",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQzMjIwNjcsInB1ciI6ImJsb2JfaWQifX0=--8197fcdaa9309a36e38d486ab1b19ce09af82fe5/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiI4MDB4NjAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--a24cd3b9f26082c533845b9cc150d8421a819967/IMG_4995.jpeg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQzMjIwNjcsInB1ciI6ImJsb2JfaWQifX0=--8197fcdaa9309a36e38d486ab1b19ce09af82fe5/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiIxMDB4MTAwXiIsImdyYXZpdHkiOiJjZW50ZXIiLCJleHRlbnQiOiIxMDB4MTAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--05cc00cdc285a6131729ac978390fa7276ce7221/IMG_4995.jpeg",
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/19988074",
+      "api_url": "https://seeclickfix.com/api/v2/issues/19988074",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/19988074/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-19984413",
+      "external_id": 19984413,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Stormwater Drainage / Drenaje de Aguas Pluviales",
+      "description": "The catch basins on Ritter street are full of debris.  Please clean them out before the rainy season arrives.  ",
+      "status": "acknowledged",
+      "location": {
+        "address": "1-17 Ritter St San Rafael, CA, 94901, USA",
+        "lat": 37.97171226205924,
+        "lng": -122.52528511169771,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.52528511169771,
+            37.97171226205924
+          ]
+        }
+      },
+      "category": "Stormwater Drainage / Drenaje de Aguas Pluviales",
+      "category_id": 39028,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-12T18:13:20-04:00",
+      "updated_at": "2025-09-29T12:41:21-04:00",
+      "acknowledged_at": "2025-09-29T12:41:21-04:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 0,
+        "name": "An anonymous SeeClickFix user",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-4c3cf895b7ee80b7e97c54d1c7ee80ef9e8d176702efb9a7dcf02abb38ffa5b8.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 2,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/19984413",
+      "api_url": "https://seeclickfix.com/api/v2/issues/19984413",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/19984413/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-19977521",
+      "external_id": 19977521,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "To report a parking violation ( red zone, fire lane etc) / Para reportar una infracci\u00f3n de estacionamiento (En rojo, l\u00ednea de incendio, etc.)",
+      "description": "",
+      "status": "open",
+      "location": {
+        "address": "2 Bungalow Ave San Rafael, California, 94901",
+        "lat": 37.9634469,
+        "lng": -122.524879,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.524879,
+            37.9634469
+          ]
+        }
+      },
+      "category": "To report a parking violation ( red zone, fire lane etc) / Para reportar una infracci\u00f3n de estacionamiento (En rojo, l\u00ednea de incendio, etc.)",
+      "category_id": 39021,
+      "organization": "Parking Services / Servcio de Estacionamiento",
+      "created_at": "2025-09-11T22:25:51-04:00",
+      "updated_at": "2025-09-11T22:25:57-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQyODQzNDAsInB1ciI6ImJsb2JfaWQifX0=--943b59e083569f2874a6000165f9afc8ff45aa53/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--242b3e94addeeae50b5fd8df8a0a8fbcf02bf33c/img-10000041144968377845645393206.jpg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQyODQzNDAsInB1ciI6ImJsb2JfaWQifX0=--943b59e083569f2874a6000165f9afc8ff45aa53/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/img-10000041144968377845645393206.jpg",
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/19977521",
+      "api_url": "https://seeclickfix.com/api/v2/issues/19977521",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/19977521/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {
+          "close_url": "https://seeclickfix.com/api/v2/issues/19977521/close"
+        },
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-19967583",
+      "external_id": 19967583,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Trees / \u00e1rboles",
+      "description": "The pine trees at 1100 3rd st and leaving debris and needles on the roof of the adjacent business and causing damage. Trees either needs to be severely cut back or removed. ",
+      "status": "open",
+      "location": {
+        "address": "1100 3rd St San Rafael, CA, 94901, USA",
+        "lat": 37.972231889351626,
+        "lng": -122.52856298459011,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.52856298459011,
+            37.972231889351626
+          ]
+        }
+      },
+      "category": "Trees / \u00e1rboles",
+      "category_id": 39038,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-10T18:41:51-04:00",
+      "updated_at": "2025-09-10T18:41:52-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2459283,
+        "name": "Jim Myhers",
+        "role": "Verified Official",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/19967583",
+      "api_url": "https://seeclickfix.com/api/v2/issues/19967583",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/19967583/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-19962921",
+      "external_id": 19962921,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Traffic/ Traffic Signal / Tr\u00e1nsito/Se\u00f1al",
+      "description": "Traffic and walk signals are out of sync, creating a safety hazard for children attending Vallecito Elementary School ",
+      "status": "acknowledged",
+      "location": {
+        "address": "Arias St & Nova Albion Way San Rafael, CA, 94903, USA",
+        "lat": 38.00725662438461,
+        "lng": -122.54959396671016,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.54959396671016,
+            38.00725662438461
+          ]
+        }
+      },
+      "category": "Traffic/ Traffic Signal / Tr\u00e1nsito/Se\u00f1al",
+      "category_id": 39036,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-10T11:43:53-04:00",
+      "updated_at": "2025-09-12T13:59:22-04:00",
+      "acknowledged_at": "2025-09-11T11:37:23-04:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2530474,
+        "name": "Rosie D",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjIwNjA5NDUsInB1ciI6ImJsb2JfaWQifX0=--bd3e995363970feef4842cde6f0c43ca7ab9fae4/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiIxMDB4MTAwXiIsImdyYXZpdHkiOiJjZW50ZXIiLCJleHRlbnQiOiIxMDB4MTAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--05cc00cdc285a6131729ac978390fa7276ce7221/IMG_4584.jpeg",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQyMjkzNjMsInB1ciI6ImJsb2JfaWQifX0=--1b3c812f5cf54038db54e5dd9ac3f2397b742df4/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--242b3e94addeeae50b5fd8df8a0a8fbcf02bf33c/image.jpg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQyMjkzNjMsInB1ciI6ImJsb2JfaWQifX0=--1b3c812f5cf54038db54e5dd9ac3f2397b742df4/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/image.jpg",
+        "video_url": null
+      },
+      "rating": 3,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/19962921",
+      "api_url": "https://seeclickfix.com/api/v2/issues/19962921",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/19962921/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-19949822",
+      "external_id": 19949822,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Pothole/Road Condition / Bache (hoyo)/Condici\u00f3n de Carreteras",
+      "description": "There is a loose cover of a pipe(?) in the middle of the street.  I tried replacing the cover on the pipe, but it does not stay, and will just be kicked up by the next car that drives over it.  I placed the cover in the gutter in front of 75 Lochinvar Rd.",
+      "status": "acknowledged",
+      "location": {
+        "address": "69-99 Lochinvar Rd San Rafael, CA, 94901, USA",
+        "lat": 37.977111156845034,
+        "lng": -122.4880696750929,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.4880696750929,
+            37.977111156845034
+          ]
+        }
+      },
+      "category": "Pothole/Road Condition / Bache (hoyo)/Condici\u00f3n de Carreteras",
+      "category_id": 39023,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-09T01:18:41-04:00",
+      "updated_at": "2025-09-09T09:49:35-04:00",
+      "acknowledged_at": "2025-09-09T09:49:35-04:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2955717,
+        "name": "LDK",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-4c3cf895b7ee80b7e97c54d1c7ee80ef9e8d176702efb9a7dcf02abb38ffa5b8.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQxODM5NzgsInB1ciI6ImJsb2JfaWQifX0=--cebb4ade9f0fdcb2b99f7ed5002ffb32d7feb503/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--242b3e94addeeae50b5fd8df8a0a8fbcf02bf33c/IMG_20250908_180057325_HDR.jpg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQxODM5NzgsInB1ciI6ImJsb2JfaWQifX0=--cebb4ade9f0fdcb2b99f7ed5002ffb32d7feb503/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/IMG_20250908_180057325_HDR.jpg",
+        "video_url": null
+      },
+      "rating": 2,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/19949822",
+      "api_url": "https://seeclickfix.com/api/v2/issues/19949822",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/19949822/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-19948655",
+      "external_id": 19948655,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Suggested Improvement/Change / Sugerencias de mejoras/cambios",
+      "description": "There is inadequate visibility for this crosswalk located on Las Colindas and Wintergreen Terrace in Terra Linda. Cars regularly come flying around a blind corner (going above the 25 mile limit) and we live on this corner with our 2 young children. It\u2019s a huge hazard. We need a speed bump or other way to slow traffic and alert them of the blind drive on Wintergreen and pedestrian traffic crossing Las Colindas. ",
+      "status": "acknowledged",
+      "location": {
+        "address": "Las Colindas Rd & Wintergreen Ter San Rafael, CA, 94903, USA",
+        "lat": 38.01555301436,
+        "lng": -122.556732959373,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.556732959373,
+            38.01555301436
+          ]
+        }
+      },
+      "category": "Traffic/ Traffic Signal / Tr\u00e1nsito/Se\u00f1al",
+      "category_id": 39036,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-08T19:48:04-04:00",
+      "updated_at": "2025-10-21T18:10:36-04:00",
+      "acknowledged_at": "2025-09-10T14:51:27-04:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 3604182,
+        "name": "Dawn Patrice Hwang",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-4c3cf895b7ee80b7e97c54d1c7ee80ef9e8d176702efb9a7dcf02abb38ffa5b8.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQxNzkwNTcsInB1ciI6ImJsb2JfaWQifX0=--37d8b2adf5752010b882ba392a3ececac7f10bf6/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--242b3e94addeeae50b5fd8df8a0a8fbcf02bf33c/image.jpg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQxNzkwNTcsInB1ciI6ImJsb2JfaWQifX0=--37d8b2adf5752010b882ba392a3ececac7f10bf6/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/image.jpg",
+        "video_url": null
+      },
+      "rating": 2,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/19948655",
+      "api_url": "https://seeclickfix.com/api/v2/issues/19948655",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/19948655/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-19942269",
+      "external_id": 19942269,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Report an Abandoned Vehicle / Reporte un Veh\u00ed@#$% Abandonado",
+      "description": "White truck with flat tire and expired tags has been parked here for quite a while now. They are just using the street as storage for their truck, which they do not ever use. Please see photo of plate with expired tags. ",
+      "status": "open",
+      "location": {
+        "address": "124 Bungalow Ave San Rafael, CA, 94901, USA",
+        "lat": 37.9616798306842,
+        "lng": -122.52438288756936,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.52438288756936,
+            37.9616798306842
+          ]
+        }
+      },
+      "category": "Report an Abandoned Vehicle / Reporte un Veh\u00edculo Abandonado",
+      "category_id": 39006,
+      "organization": "Parking Services / Servcio de Estacionamiento",
+      "created_at": "2025-09-08T11:20:22-04:00",
+      "updated_at": "2025-09-08T13:31:44-04:00",
+      "acknowledged_at": null,
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 0,
+        "name": "An anonymous SeeClickFix user",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-4c3cf895b7ee80b7e97c54d1c7ee80ef9e8d176702efb9a7dcf02abb38ffa5b8.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQxNTgyODQsInB1ciI6ImJsb2JfaWQifX0=--1f70302a6488fe7b0291ae51480cb78acc83eb15/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiI4MDB4NjAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--a24cd3b9f26082c533845b9cc150d8421a819967/IMG_5249.jpeg",
+        "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MzQxNTgyODQsInB1ciI6ImJsb2JfaWQifX0=--1f70302a6488fe7b0291ae51480cb78acc83eb15/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiIxMDB4MTAwXiIsImdyYXZpdHkiOiJjZW50ZXIiLCJleHRlbnQiOiIxMDB4MTAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--05cc00cdc285a6131729ac978390fa7276ce7221/IMG_5249.jpeg",
+        "video_url": null
+      },
+      "rating": 1,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/19942269",
+      "api_url": "https://seeclickfix.com/api/v2/issues/19942269",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/19942269/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {
+          "close_url": "https://seeclickfix.com/api/v2/issues/19942269/close"
+        },
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-19941470",
+      "external_id": 19941470,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Suggested Improvement/Change / Sugerencias de mejoras/cambios",
+      "description": "Email rec'd from resident re: security gate install & is offering his suggestions on how to poss deter away from the unexpected results: \"Suggestions -\n\nThe security gate recently installed by Marin Fencing  along the Starkweather path has been very effective for fire control, environmental protection,  and security.\n\nUnexpected results --  People entering the seasonal wetlands from the south end -- bicycles, e-bikes, walking  etc.    - find they can not exit at the north end of the land.  Locked gate.  The result is -  as in photos -  they tear down the existing  chain link fence.  to exit  with bicycles, Target bags,  etc. My suggestion -- repair the chain link fences   and possibly post signage  at the south end of the wetlands--- area closed --- no exit at the end of the path .  Kind of a dead end street  type signage. \n\nThe security situaiton of the wetlands in much better.  Thank  you, \"\n",
+      "status": "acknowledged",
+      "location": {
+        "address": "Baypoint Village Dr San Rafael, California, 94901",
+        "lat": 37.96015352363732,
+        "lng": -122.49629549798384,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.49629549798384,
+            37.96015352363732
+          ]
+        }
+      },
+      "category": "Suggested Improvement/Change / Sugerencias de mejoras/cambios",
+      "category_id": 49727,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-08T10:27:28-04:00",
+      "updated_at": "2025-09-10T14:50:59-04:00",
+      "acknowledged_at": "2025-09-10T14:50:59-04:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 2454259,
+        "name": "San Rafael, CA  Neighbor",
+        "role": "Guest",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 3,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/19941470",
+      "api_url": "https://seeclickfix.com/api/v2/issues/19941470",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/19941470/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    },
+    {
+      "id": "scf-19933920",
+      "external_id": 19933920,
+      "source": "seeclickfix",
+      "issue_type": "operational",
+      "title": "Street Light / Luz de la Calle",
+      "description": "This light is very bright and feels brighter than it used to be. Is there any way to put a shade on it so it doesn\u2019t shine in the houses is is in front of?",
+      "status": "acknowledged",
+      "location": {
+        "address": "118 Terrace Ave San Rafael, California, 94901",
+        "lat": 37.97428667016785,
+        "lng": -122.547108941966,
+        "point": {
+          "type": "Point",
+          "coordinates": [
+            -122.547108941966,
+            37.97428667016785
+          ]
+        }
+      },
+      "category": "Street Light / Luz de la Calle",
+      "category_id": 39030,
+      "organization": "Department of Public Works",
+      "created_at": "2025-09-06T18:38:53-04:00",
+      "updated_at": "2025-09-08T14:31:32-04:00",
+      "acknowledged_at": "2025-09-08T14:23:33-04:00",
+      "closed_at": null,
+      "reopened_at": null,
+      "reporter": {
+        "id": 0,
+        "name": "An anonymous SeeClickFix user",
+        "role": "Registered User",
+        "avatar": "https://seeclickfix.com/assets/no-avatar-100-4c3cf895b7ee80b7e97c54d1c7ee80ef9e8d176702efb9a7dcf02abb38ffa5b8.png",
+        "civic_points": 0
+      },
+      "media": {
+        "image_url": null,
+        "image_thumbnail": null,
+        "video_url": null
+      },
+      "rating": 3,
+      "comment_count": 0,
+      "html_url": "https://seeclickfix.com/issues/19933920",
+      "api_url": "https://seeclickfix.com/api/v2/issues/19933920",
+      "comment_url": "https://seeclickfix.com/api/v2/issues/19933920/comments",
+      "_seeclickfix_metadata": {
+        "transitions": {},
+        "private_visibility": false,
+        "show_blocked_issue_text": false
+      }
+    }
+  ]
+}

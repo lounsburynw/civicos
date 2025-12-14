@@ -1,0 +1,27 @@
+{
+  "meeting": {
+    "city": "Berkeley",
+    "date": "April 2, 2024",
+    "start_time": "18:00",
+    "location": "Council Chambers, 2134 Martin Luther King Jr. Way",
+    "public_comment_email": "clerk@cityofberkeley.info",
+    "meeting_type": "City Council"
+  },
+  "items": [
+    {
+      "title": "Telegraph Avenue Bus Rapid Transit",
+      "change": "Dedicated bus lanes on Telegraph Ave from UC to Downtown",
+      "impact": "Faster transit but removes street parking and traffic lanes",
+      "how_to_participate": "3-minute public comment at meeting or email by 2 PM day of meeting",
+      "project_type": "transportation",
+      "engagement_tier": "quick_action"
+    },
+    {
+      "title": "Cannabis Equity Ordinance Amendment",
+      "change": "Updates to social equity program for cannabis businesses",
+      "impact": "Affects licensing requirements and community benefits",
+      "project_type": "community",
+      "engagement_tier": "expert_level"
+    }
+  ]
+}

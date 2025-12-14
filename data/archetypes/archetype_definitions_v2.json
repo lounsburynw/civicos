@@ -1,0 +1,1057 @@
+{
+  "version": "2.0",
+  "created_at": "2025-10-30",
+  "archetype_count": 25,
+  "archetypes": [
+    {
+      "id": "housing_champion",
+      "name": "Housing Champion",
+      "icon": "Home",
+      "iconColor": "#268bd2",
+      "description": "Pro-housing across income levels, supports density and development",
+      "core_values": [
+        "Housing abundance as solution to affordability crisis",
+        "Economic and racial integration through mixed-income neighborhoods",
+        "Transit-oriented development and climate-smart density",
+        "Market-rate and affordable housing are complementary"
+      ],
+      "typical_concerns": [
+        "Severe housing shortage driving displacement and homelessness",
+        "Environmental costs of suburban sprawl",
+        "Jobs-housing imbalance creating long commutes",
+        "Exclusionary zoning perpetuating segregation"
+      ],
+      "priorities": [
+        "Upzoning near transit and jobs centers",
+        "Streamlined permitting for all housing types",
+        "Inclusionary requirements paired with density bonuses",
+        "By-right development to reduce discretionary approvals"
+      ],
+      "differentiators": {
+        "vs_slow_growth_advocate": "Supports market-rate development with affordability requirements, not just 100% affordable",
+        "vs_market_urbanist": "More willing to accept government regulation and affordability mandates",
+        "vs_neighborhood_protector": "Prioritizes regional housing supply over neighborhood character preservation"
+      },
+      "real_world_examples": [
+        "YIMBY Action, California YIMBY",
+        "East Bay for Everyone, GrowSF",
+        "Housing Action Coalition"
+      ],
+      "sample_positions": {
+        "market_rate_housing_with_15pct_affordable": "support",
+        "100pct_affordable_housing_project": "strongly_support",
+        "upzoning_near_transit": "strongly_support",
+        "fourplex_by_right_zoning": "strongly_support",
+        "rent_control_expansion": "neutral"
+      }
+    },
+    {
+      "id": "slow_growth_advocate",
+      "name": "Slow Growth Advocate",
+      "icon": "Shield",
+      "iconColor": "#d33682",
+      "description": "Anti-displacement focus, skeptical of market-rate development",
+      "core_values": [
+        "Community stability and anti-displacement as top priorities",
+        "Affordable housing without gentrification pressure",
+        "Strong tenant protections and rent control",
+        "Equity and anti-racism in housing policy"
+      ],
+      "typical_concerns": [
+        "Luxury apartments pricing out existing residents",
+        "Developers exploiting affordable housing loopholes",
+        "Loss of cultural community character and small businesses",
+        "Corporate landlords vs. local ownership"
+      ],
+      "priorities": [
+        "100% affordable housing projects only",
+        "Community land trusts and social housing",
+        "Rent control and just-cause eviction protections",
+        "Local hire and community benefits agreements"
+      ],
+      "differentiators": {
+        "vs_housing_champion": "Skeptical of market-rate development even with affordability requirements",
+        "vs_neighborhood_protector": "Equity-focused not aesthetic, may support density if affordable",
+        "vs_affordable_housing_absolutist": "May accept some market-rate with very strong protections"
+      },
+      "real_world_examples": [
+        "SF Mission District tenant organizers",
+        "Oakland anti-displacement activists",
+        "Causa Justa :: Just Cause"
+      ],
+      "sample_positions": {
+        "market_rate_housing_with_15pct_affordable": "oppose",
+        "100pct_affordable_housing_project": "strongly_support",
+        "rent_control_expansion": "strongly_support",
+        "upzoning_without_affordability_requirements": "strongly_oppose",
+        "community_land_trust_funding": "strongly_support"
+      }
+    },
+    {
+      "id": "market_urbanist",
+      "name": "Market Urbanist",
+      "icon": "TrendingUp",
+      "iconColor": "#b58900",
+      "description": "Libertarian YIMBY: pro-density, anti-regulation, market solutions",
+      "core_values": [
+        "Supply and demand drive affordability",
+        "Minimal government regulation of housing market",
+        "Property rights and freedom to build",
+        "Filtering theory (new luxury housing frees up older stock)"
+      ],
+      "typical_concerns": [
+        "Excessive zoning restrictions constraining supply",
+        "Parking mandates and regulatory costs",
+        "Lengthy permitting and discretionary reviews",
+        "Rent control reducing housing investment"
+      ],
+      "priorities": [
+        "Eliminate zoning entirely or allow by-right development",
+        "Remove parking minimums and setback requirements",
+        "No inclusionary housing mandates",
+        "Market-rate development as primary affordability solution"
+      ],
+      "differentiators": {
+        "vs_housing_champion": "Opposes affordability mandates and government intervention",
+        "vs_fiscal_conservative": "Supports density even if it changes neighborhood character",
+        "vs_neighborhood_protector": "Opposes all zoning restrictions including historic preservation"
+      },
+      "real_world_examples": [
+        "Market Urbanism blog",
+        "Libertarian YIMBY voices",
+        "Strong Towns (some overlap)"
+      ],
+      "sample_positions": {
+        "market_rate_housing_with_15pct_affordable": "neutral",
+        "eliminate_all_zoning_restrictions": "strongly_support",
+        "rent_control_expansion": "strongly_oppose",
+        "remove_parking_minimums": "strongly_support",
+        "density_bonuses_without_mandates": "strongly_support"
+      }
+    },
+    {
+      "id": "transit_advocate",
+      "name": "Transit Advocate",
+      "icon": "Train",
+      "iconColor": "#2aa198",
+      "description": "Public transit expansion, car-free living, transit-oriented development",
+      "core_values": [
+        "Public transit as backbone of sustainable cities",
+        "Car-free and car-lite lifestyles",
+        "Transit equity and access for all income levels",
+        "Climate action through transportation electrification"
+      ],
+      "typical_concerns": [
+        "Car-dependent sprawl and traffic congestion",
+        "Transit deserts in low-income neighborhoods",
+        "Climate crisis requiring reduced VMT",
+        "Parking subsidies distorting development"
+      ],
+      "priorities": [
+        "Light rail, BRT, and frequent bus service expansion",
+        "Protected bike lanes and pedestrian infrastructure",
+        "Eliminate parking minimums near transit",
+        "Congestion pricing to fund transit"
+      ],
+      "differentiators": {
+        "vs_environmental_steward": "More willing to accept development trade-offs for transit",
+        "vs_housing_champion": "Transit access is prerequisite for density support",
+        "vs_neighborhood_protector": "Supports road diets and parking removal"
+      },
+      "real_world_examples": [
+        "TransForm, Seamless Bay Area",
+        "SF Transit Riders, StreetsForAll LA",
+        "Walk SF, Bike East Bay"
+      ],
+      "sample_positions": {
+        "light_rail_bond_measure": "strongly_support",
+        "remove_parking_for_bike_lanes": "strongly_support",
+        "congestion_pricing": "support",
+        "eliminate_parking_minimums_near_transit": "strongly_support",
+        "highway_expansion": "strongly_oppose"
+      }
+    },
+    {
+      "id": "environmental_steward",
+      "name": "Environmental Steward",
+      "icon": "Leaf",
+      "iconColor": "#859900",
+      "description": "Climate action, conservation, sustainability, environmental justice",
+      "core_values": [
+        "Climate crisis requires urgent government action",
+        "Environmental justice for frontline communities",
+        "Conservation of natural resources and biodiversity",
+        "Sustainable development balancing growth and ecology"
+      ],
+      "typical_concerns": [
+        "Carbon emissions from buildings and transportation",
+        "Tree removal and habitat loss from development",
+        "Pollution in low-income communities and communities of color",
+        "Water scarcity and resource depletion"
+      ],
+      "priorities": [
+        "Building electrification and renewable energy",
+        "Tree preservation ordinances and urban forestry",
+        "Plastic bans and waste reduction",
+        "Climate adaptation and resilience planning"
+      ],
+      "differentiators": {
+        "vs_transit_advocate": "More cautious about development impacts on trees/habitat",
+        "vs_green_new_dealer": "Less focused on jobs program, more on conservation",
+        "vs_housing_champion": "May oppose housing if environmental impacts are significant"
+      },
+      "real_world_examples": [
+        "Sierra Club local chapters",
+        "350 Bay Area, Sunflower Alliance",
+        "Environmental justice organizations"
+      ],
+      "sample_positions": {
+        "gas_ban_for_buildings": "strongly_support",
+        "housing_requiring_tree_removal": "oppose",
+        "plastic_ban_with_business_costs": "support",
+        "carbon_fee_with_equity_provisions": "strongly_support",
+        "high_density_near_transit": "support"
+      }
+    },
+    {
+      "id": "green_new_dealer",
+      "name": "Green New Dealer",
+      "icon": "Zap",
+      "iconColor": "#859900",
+      "description": "Climate action through government jobs programs and investment",
+      "core_values": [
+        "Climate crisis requires massive public investment",
+        "Green jobs and union labor in climate transition",
+        "Environmental justice and economic justice are inseparable",
+        "Government as driver of clean energy transformation"
+      ],
+      "typical_concerns": [
+        "Fossil fuel industry blocking climate action",
+        "Climate impacts on working-class communities",
+        "Job losses in carbon-intensive industries without alternatives",
+        "Private sector insufficient for climate response"
+      ],
+      "priorities": [
+        "Public green jobs programs (weatherization, solar installation)",
+        "Municipal utilities and community solar",
+        "Public transit and EV charging infrastructure",
+        "Just transition for fossil fuel workers"
+      ],
+      "differentiators": {
+        "vs_environmental_steward": "More focused on jobs and economic transformation",
+        "vs_labor_organizer": "Climate is central priority, not just working conditions",
+        "vs_techno_optimist": "Skeptical of private sector tech solutions"
+      },
+      "real_world_examples": [
+        "Sunrise Movement local chapters",
+        "Richmond Progressive Alliance",
+        "Democratic Socialists of America ecosocialist working groups"
+      ],
+      "sample_positions": {
+        "gas_ban_with_retrofit_subsidies": "strongly_support",
+        "municipal_utility_takeover": "strongly_support",
+        "public_EV_charging_network": "strongly_support",
+        "carbon_fee_funding_green_jobs": "strongly_support",
+        "private_solar_developer": "neutral"
+      }
+    },
+    {
+      "id": "fiscal_conservative",
+      "name": "Fiscal Conservative",
+      "icon": "DollarSign",
+      "iconColor": "#dc322f",
+      "description": "Limited government, low taxes, fiscal responsibility",
+      "core_values": [
+        "Limited government scope and spending",
+        "Low taxes and fiscal discipline",
+        "Private sector efficiency over public programs",
+        "Individual responsibility and property rights"
+      ],
+      "typical_concerns": [
+        "Rising taxes and government spending",
+        "Pension liabilities and unfunded mandates",
+        "Wasteful government programs and bureaucracy",
+        "Property rights infringement"
+      ],
+      "priorities": [
+        "Balanced budgets and debt reduction",
+        "Tax limitations and fee transparency",
+        "Pension reform and privatization where feasible",
+        "Streamlined government operations"
+      ],
+      "differentiators": {
+        "vs_market_urbanist": "May support zoning restrictions to protect property values",
+        "vs_neighborhood_protector": "Less focused on character, more on fiscal impacts",
+        "vs_small_business_booster": "More ideological about limited government"
+      },
+      "real_world_examples": [
+        "Howard Jarvis Taxpayers Association",
+        "Local Republican clubs",
+        "Libertarian Party members"
+      ],
+      "sample_positions": {
+        "sales_tax_increase": "strongly_oppose",
+        "pension_reform": "strongly_support",
+        "public_private_partnerships": "support",
+        "municipal_services_privatization": "support",
+        "bond_measures": "oppose"
+      }
+    },
+    {
+      "id": "community_builder",
+      "name": "Community Builder",
+      "icon": "Users",
+      "iconColor": "#6c71c4",
+      "description": "Social cohesion, public spaces, community programs",
+      "core_values": [
+        "Strong social ties and community cohesion",
+        "Public spaces as gathering places for all",
+        "Programs that bring neighbors together",
+        "Local institutions (libraries, community centers, schools)"
+      ],
+      "typical_concerns": [
+        "Social isolation and declining civic participation",
+        "Loss of public gathering spaces",
+        "Gentrification disrupting established communities",
+        "Corporate chains replacing local businesses"
+      ],
+      "priorities": [
+        "Parks, community centers, and public spaces",
+        "Cultural events and neighborhood festivals",
+        "Support for local businesses and institutions",
+        "Participatory planning and community input"
+      ],
+      "differentiators": {
+        "vs_neighborhood_protector": "More inclusive of newcomers and diversity",
+        "vs_small_business_booster": "Community programs over business development",
+        "vs_direct_democracy_proponent": "Focuses on informal community building"
+      },
+      "real_world_examples": [
+        "Neighborhood associations (community-focused)",
+        "Friends of the Library groups",
+        "Community garden organizers"
+      ],
+      "sample_positions": {
+        "community_center_funding": "strongly_support",
+        "parklets_program": "support",
+        "participatory_budgeting": "support",
+        "arts_and_culture_funding": "strongly_support",
+        "golf_course_to_park_conversion": "support"
+      }
+    },
+    {
+      "id": "safety_first",
+      "name": "Safety First",
+      "icon": "AlertTriangle",
+      "iconColor": "#dc322f",
+      "description": "Public safety, law enforcement, emergency services",
+      "core_values": [
+        "Public safety as fundamental government responsibility",
+        "Strong law enforcement and emergency response",
+        "Order and security for families and businesses",
+        "Prevention through deterrence"
+      ],
+      "typical_concerns": [
+        "Rising crime rates and property crime",
+        "Slow police response times",
+        "Drug use and disorder in public spaces",
+        "Fire risk and emergency preparedness"
+      ],
+      "priorities": [
+        "Adequate police and fire staffing",
+        "Fast emergency response times",
+        "Visible law enforcement presence",
+        "Surveillance and crime prevention technology"
+      ],
+      "differentiators": {
+        "vs_justice_reformer": "Supports traditional law enforcement over alternatives",
+        "vs_fiscal_conservative": "Willing to spend on public safety",
+        "vs_community_builder": "Security through enforcement not social programs"
+      },
+      "real_world_examples": [
+        "Neighborhood watch programs (safety-focused)",
+        "Victims' rights advocates",
+        "Police union supporters"
+      ],
+      "sample_positions": {
+        "police_budget_reallocation": "strongly_oppose",
+        "surveillance_cameras": "support",
+        "fire_station_expansion": "strongly_support",
+        "police_oversight_commission": "neutral",
+        "violence_prevention_programs": "neutral"
+      }
+    },
+    {
+      "id": "justice_reformer",
+      "name": "Justice Reformer",
+      "icon": "Scale",
+      "iconColor": "#6c71c4",
+      "description": "Criminal justice reform, police accountability, alternatives to incarceration",
+      "core_values": [
+        "Racial justice and ending mass incarceration",
+        "Police accountability and civilian oversight",
+        "Mental health and social services over criminalization",
+        "Root causes of crime (poverty, trauma, lack of opportunity)"
+      ],
+      "typical_concerns": [
+        "Police violence and lack of accountability",
+        "Over-policing of Black and Brown communities",
+        "Criminalization of homelessness and mental illness",
+        "Prison pipeline and recidivism"
+      ],
+      "priorities": [
+        "Mental health crisis response teams (not police)",
+        "Independent police oversight with real power",
+        "Harm reduction and diversion programs",
+        "Violence prevention through community outreach"
+      ],
+      "differentiators": {
+        "vs_safety_first": "Sees over-policing as problem, not solution",
+        "vs_community_builder": "Explicitly focused on criminal justice reform",
+        "vs_green_new_dealer": "Criminal justice is central concern"
+      },
+      "real_world_examples": [
+        "Black Lives Matter local chapters",
+        "ACLU affiliates",
+        "Communities United for Restorative Youth Justice (CURYJ)"
+      ],
+      "sample_positions": {
+        "police_budget_reallocation": "strongly_support",
+        "police_oversight_commission": "strongly_support",
+        "surveillance_cameras": "strongly_oppose",
+        "supervised_drug_consumption_site": "strongly_support",
+        "violence_prevention_programs": "strongly_support"
+      }
+    },
+    {
+      "id": "education_advocate",
+      "name": "Education Advocate",
+      "icon": "BookOpen",
+      "iconColor": "#268bd2",
+      "description": "Schools, libraries, youth programs, educational equity",
+      "core_values": [
+        "Quality education as civil right and economic opportunity",
+        "Well-resourced schools and libraries for all neighborhoods",
+        "Early childhood education as foundation",
+        "Closing achievement gaps and addressing inequity"
+      ],
+      "typical_concerns": [
+        "Education funding cuts and school closures",
+        "Achievement gaps by race and income",
+        "Underfunded schools in low-income neighborhoods",
+        "Lack of early childhood and after-school programs"
+      ],
+      "priorities": [
+        "Education parcel taxes and bonds",
+        "Universal pre-K and expanded childcare",
+        "Library funding and expanded hours",
+        "Equitable resource allocation across schools"
+      ],
+      "differentiators": {
+        "vs_parent_prioritizer": "Broader equity focus beyond own children",
+        "vs_fiscal_conservative": "Pro-tax for education funding",
+        "vs_community_builder": "Schools and libraries as primary focus"
+      },
+      "real_world_examples": [
+        "Parent-teacher associations (equity-focused)",
+        "Ed Trust–West",
+        "Friends of the Library"
+      ],
+      "sample_positions": {
+        "education_parcel_tax": "strongly_support",
+        "universal_pre_k": "strongly_support",
+        "library_expansion": "strongly_support",
+        "school_resource_reallocation": "support",
+        "gifted_program_elimination": "neutral"
+      }
+    },
+    {
+      "id": "small_business_booster",
+      "name": "Small Business Booster",
+      "icon": "Store",
+      "iconColor": "#b58900",
+      "description": "Local businesses, entrepreneurship, downtown vitality",
+      "core_values": [
+        "Small businesses as economic backbone",
+        "Local entrepreneurship and ownership",
+        "Vibrant downtowns and commercial corridors",
+        "Business-friendly environment"
+      ],
+      "typical_concerns": [
+        "Regulations and fees burdening small businesses",
+        "Chain stores and corporate competition",
+        "Empty storefronts and declining downtowns",
+        "Parking and customer access"
+      ],
+      "priorities": [
+        "Reduced business regulations and fees",
+        "Commercial rent control and anti-displacement",
+        "Downtown revitalization and placemaking",
+        "Parking and loading zone access"
+      ],
+      "differentiators": {
+        "vs_fiscal_conservative": "Supports targeted business subsidies and interventions",
+        "vs_market_urbanist": "May support regulations to protect small business",
+        "vs_development_advocate": "Wary of large corporate developments"
+      },
+      "real_world_examples": [
+        "Local chambers of commerce",
+        "Main Street organizations",
+        "Independent business alliances"
+      ],
+      "sample_positions": {
+        "commercial_rent_tax": "oppose",
+        "business_fee_reductions": "strongly_support",
+        "pedestrian_zones_removing_parking": "neutral",
+        "corporate_tax_breaks": "oppose",
+        "small_business_displacement": "strongly_oppose"
+      }
+    },
+    {
+      "id": "government_watchdog",
+      "name": "Government Watchdog",
+      "icon": "Eye",
+      "iconColor": "#cb4b16",
+      "description": "Transparency, accountability, ethics, good governance",
+      "core_values": [
+        "Transparent and accountable government",
+        "Ethics and anti-corruption",
+        "Open data and public records access",
+        "Evidence-based policy and performance metrics"
+      ],
+      "typical_concerns": [
+        "Corruption and conflicts of interest",
+        "Opaque decision-making and backroom deals",
+        "Wasteful spending and inefficiency",
+        "Developer influence over elected officials"
+      ],
+      "priorities": [
+        "Ethics commissions with enforcement power",
+        "Open data portals and financial transparency",
+        "Campaign finance reform",
+        "Performance audits and program evaluation"
+      ],
+      "differentiators": {
+        "vs_fiscal_conservative": "Focuses on process and ethics not ideology",
+        "vs_direct_democracy_proponent": "Expertise and institutions matter",
+        "vs_pragmatic_incrementalist": "More confrontational about accountability"
+      },
+      "real_world_examples": [
+        "League of Women Voters chapters",
+        "Common Cause state chapters",
+        "Local investigative journalists and civic watchdogs"
+      ],
+      "sample_positions": {
+        "ethics_commission": "strongly_support",
+        "transparency_database": "strongly_support",
+        "campaign_finance_limits": "strongly_support",
+        "performance_audits": "strongly_support",
+        "developer_tax_breaks": "oppose"
+      }
+    },
+    {
+      "id": "neighborhood_protector",
+      "name": "Neighborhood Protector",
+      "icon": "Home",
+      "iconColor": "#93a1a1",
+      "description": "Character preservation, anti-density, local control",
+      "core_values": [
+        "Neighborhood character and historic preservation",
+        "Local control and community input",
+        "Gradual change respecting existing residents",
+        "Quality of life and livability"
+      ],
+      "typical_concerns": [
+        "Rapid development changing neighborhood feel",
+        "Traffic, parking, and infrastructure strain",
+        "Loss of historic buildings and trees",
+        "Developer profits over community welfare"
+      ],
+      "priorities": [
+        "Historic preservation and design review",
+        "Neighborhood plans with resident input",
+        "Infrastructure improvements before development",
+        "Environmental review (CEQA)"
+      ],
+      "differentiators": {
+        "vs_slow_growth_advocate": "Character preservation not equity focus",
+        "vs_housing_champion": "Opposes density and height increases",
+        "vs_fiscal_conservative": "Willing to regulate development"
+      },
+      "real_world_examples": [
+        "Neighborhood associations (NIMBY-oriented)",
+        "Historic preservation societies",
+        "Save [Neighborhood] groups"
+      ],
+      "sample_positions": {
+        "8_story_building_with_variance": "oppose",
+        "fourplex_by_right": "strongly_oppose",
+        "historic_theater_demolition": "strongly_oppose",
+        "tree_removal_for_housing": "oppose",
+        "upzoning_near_transit": "oppose"
+      }
+    },
+    {
+      "id": "regional_thinker",
+      "name": "Regional Thinker",
+      "icon": "Globe",
+      "iconColor": "#2aa198",
+      "description": "Regional coordination, metropolitan perspective, systems thinking",
+      "core_values": [
+        "Regional solutions to regional problems",
+        "Coordination across jurisdictions",
+        "Systems thinking and long-term planning",
+        "Equitable distribution of benefits and burdens"
+      ],
+      "typical_concerns": [
+        "Beggar-thy-neighbor policies and race-to-bottom",
+        "Jobs-housing imbalance across region",
+        "Fragmented transit and infrastructure",
+        "Concentration of affordable housing in few cities"
+      ],
+      "priorities": [
+        "Regional housing mandates (RHNA)",
+        "Metropolitan transit authorities",
+        "Regional tax base sharing",
+        "Cross-jurisdictional planning"
+      ],
+      "differentiators": {
+        "vs_housing_champion": "Broader than housing, includes all regional systems",
+        "vs_transit_advocate": "Broader than transit, includes housing/jobs/equity",
+        "vs_neighborhood_protector": "Rejects parochial local control"
+      },
+      "real_world_examples": [
+        "SPUR (San Francisco Bay Area Planning and Urban Research)",
+        "Metropolitan Transportation Commission advocates",
+        "Regional equity coalitions"
+      ],
+      "sample_positions": {
+        "regional_housing_mandates": "strongly_support",
+        "regional_transit_authority": "strongly_support",
+        "tax_base_sharing": "support",
+        "local_control_over_housing": "oppose",
+        "jobs_housing_balance_requirements": "support"
+      }
+    },
+    {
+      "id": "renter_advocate",
+      "name": "Renter Advocate",
+      "icon": "Key",
+      "iconColor": "#d33682",
+      "description": "Tenant rights, rent control, renter protections",
+      "core_values": [
+        "Housing as human right not commodity",
+        "Strong tenant protections and rent limits",
+        "Renter power in housing policy",
+        "Preventing displacement and eviction"
+      ],
+      "typical_concerns": [
+        "Rising rents and evictions",
+        "Landlord exploitation and harassment",
+        "Lack of renter political power vs. homeowners",
+        "Displacement from gentrification"
+      ],
+      "priorities": [
+        "Rent control and just-cause eviction",
+        "Tenant anti-harassment ordinances",
+        "Renter tax credits and relocation assistance",
+        "Tenant organizing and collective bargaining"
+      ],
+      "differentiators": {
+        "vs_housing_champion": "More focused on tenant protections than supply",
+        "vs_homeowner_stability_seeker": "Opposite sides on rent control",
+        "vs_slow_growth_advocate": "Tenant rights focus not anti-displacement per se"
+      },
+      "real_world_examples": [
+        "Tenants Together",
+        "East Bay Tenants Union",
+        "Housing Rights Committee of San Francisco"
+      ],
+      "sample_positions": {
+        "rent_control_expansion": "strongly_support",
+        "just_cause_eviction": "strongly_support",
+        "tenant_anti_harassment_law": "strongly_support",
+        "market_rate_housing": "neutral",
+        "condominium_conversion": "strongly_oppose"
+      }
+    },
+    {
+      "id": "homeowner_stability_seeker",
+      "name": "Homeowner Stability Seeker",
+      "icon": "Anchor",
+      "iconColor": "#586e75",
+      "description": "Property values, Prop 13, neighborhood stability",
+      "core_values": [
+        "Homeownership as wealth building and security",
+        "Property value protection",
+        "Tax stability (Prop 13)",
+        "Neighborhood character preservation"
+      ],
+      "typical_concerns": [
+        "Property tax increases threatening fixed incomes",
+        "Development reducing property values",
+        "Density bringing traffic and parking problems",
+        "Schools declining with demographic change"
+      ],
+      "priorities": [
+        "Protecting Prop 13 property tax limits",
+        "Zoning protections for single-family neighborhoods",
+        "Infrastructure maintenance (roads, schools)",
+        "Controlled growth respecting character"
+      ],
+      "differentiators": {
+        "vs_renter_advocate": "Opposite sides on rent control and tenant rights",
+        "vs_neighborhood_protector": "More focused on property values than aesthetics",
+        "vs_fiscal_conservative": "Supports Prop 13 specifically"
+      },
+      "real_world_examples": [
+        "Homeowner associations",
+        "Property rights advocates",
+        "Prop 13 defenders"
+      ],
+      "sample_positions": {
+        "prop_13_reform": "strongly_oppose",
+        "fourplex_by_right": "oppose",
+        "property_tax_increase": "oppose",
+        "upzoning_single_family": "strongly_oppose",
+        "rent_control": "oppose"
+      }
+    },
+    {
+      "id": "parent_prioritizer",
+      "name": "Parent Prioritizer",
+      "icon": "Heart",
+      "iconColor": "#cb4b16",
+      "description": "Family services, schools, childcare, safety for children",
+      "core_values": [
+        "Family well-being and child development",
+        "Quality schools and childcare access",
+        "Safe streets and parks for children",
+        "Work-life balance and parental leave"
+      ],
+      "typical_concerns": [
+        "Unaffordable childcare limiting employment",
+        "School quality and class sizes",
+        "Traffic safety and speeding near schools",
+        "Lack of family-friendly public spaces"
+      ],
+      "priorities": [
+        "Universal pre-K and subsidized childcare",
+        "School funding and smaller class sizes",
+        "Traffic calming and pedestrian safety",
+        "Parks, playgrounds, and youth programs"
+      ],
+      "differentiators": {
+        "vs_education_advocate": "Broader than education, includes childcare and safety",
+        "vs_senior_services_advocate": "Generational focus differs",
+        "vs_community_builder": "Family-specific not general community"
+      },
+      "real_world_examples": [
+        "Parent-teacher associations (child-focused)",
+        "Working families advocacy groups",
+        "Safe Routes to School advocates"
+      ],
+      "sample_positions": {
+        "universal_pre_k": "strongly_support",
+        "school_funding_tax": "support",
+        "traffic_calming_slow_streets": "strongly_support",
+        "youth_center_funding": "support",
+        "childcare_subsidy_tax": "support"
+      }
+    },
+    {
+      "id": "senior_services_advocate",
+      "name": "Senior Services Advocate",
+      "icon": "Heart",
+      "iconColor": "#657b83",
+      "description": "Senior services, accessibility, healthcare, fixed income concerns",
+      "core_values": [
+        "Dignity and independence for older adults",
+        "Healthcare and social service access",
+        "Affordable living on fixed incomes",
+        "Age-friendly communities and accessibility"
+      ],
+      "typical_concerns": [
+        "Rising costs threatening seniors on fixed incomes",
+        "Lack of accessible housing and transit",
+        "Healthcare access and long-term care",
+        "Social isolation of older adults"
+      ],
+      "priorities": [
+        "Senior tax exemptions and rent protections",
+        "Accessible housing and transit",
+        "Senior centers and meal programs",
+        "Healthcare clinics and home care support"
+      ],
+      "differentiators": {
+        "vs_parent_prioritizer": "Generational focus differs",
+        "vs_fiscal_conservative": "Supports social services and tax exemptions",
+        "vs_homeowner_stability_seeker": "Social services not just property concerns"
+      },
+      "real_world_examples": [
+        "Senior advocacy organizations",
+        "Area Agencies on Aging advisory councils",
+        "Senior center boards"
+      ],
+      "sample_positions": {
+        "senior_tax_exemptions": "strongly_support",
+        "accessible_housing_mandates": "support",
+        "senior_services_funding": "strongly_support",
+        "property_tax_increase_without_senior_exemption": "oppose",
+        "healthcare_clinic_funding": "strongly_support"
+      }
+    },
+    {
+      "id": "direct_democracy_proponent",
+      "name": "Direct Democracy Proponent",
+      "icon": "Vote",
+      "iconColor": "#6c71c4",
+      "description": "Ballot measures, participatory budgeting, direct voting",
+      "core_values": [
+        "Direct citizen control over major decisions",
+        "Distrust of elected officials and insiders",
+        "Participatory democracy and deliberation",
+        "Bottom-up power not top-down"
+      ],
+      "typical_concerns": [
+        "Elected officials ignoring constituent preferences",
+        "Special interest influence over government",
+        "Lack of meaningful public input in decisions",
+        "Technocratic elite control"
+      ],
+      "priorities": [
+        "Ballot initiative rights",
+        "Participatory budgeting",
+        "Ranked-choice voting and electoral reform",
+        "Neighborhood councils with real power"
+      ],
+      "differentiators": {
+        "vs_government_watchdog": "Populist vs. institutionalist",
+        "vs_pragmatic_incrementalist": "Distrusts expertise and institutions",
+        "vs_community_builder": "Formal democratic structures not informal community"
+      },
+      "real_world_examples": [
+        "Participatory budgeting advocates",
+        "Ballot measure signature gatherers",
+        "Ranked-choice voting supporters"
+      ],
+      "sample_positions": {
+        "participatory_budgeting": "strongly_support",
+        "ranked_choice_voting": "strongly_support",
+        "ballot_initiative_rights": "strongly_support",
+        "neighborhood_councils_with_veto_power": "support",
+        "appointed_commissions": "oppose"
+      }
+    },
+    {
+      "id": "pragmatic_incrementalist",
+      "name": "Pragmatic Incrementalist",
+      "icon": "Activity",
+      "iconColor": "#2aa198",
+      "description": "Evidence-based policy, pilot programs, gradual reform",
+      "core_values": [
+        "Evidence and data drive good policy",
+        "Pilot programs before full rollout",
+        "Gradual improvement beats ideological purity",
+        "Expert input and technical analysis"
+      ],
+      "typical_concerns": [
+        "Ideological policies ignoring evidence",
+        "Rushing into unproven programs",
+        "Unintended consequences of radical change",
+        "Populism overriding expertise"
+      ],
+      "priorities": [
+        "Pilot programs with rigorous evaluation",
+        "Cost-benefit analysis and impact studies",
+        "Iterative policy development",
+        "Best practices from other cities"
+      ],
+      "differentiators": {
+        "vs_government_watchdog": "Trusts expertise and institutions more",
+        "vs_direct_democracy_proponent": "Skeptical of populism",
+        "vs_techno_optimist": "More cautious about technology"
+      },
+      "real_world_examples": [
+        "Policy wonks and urban planning professionals",
+        "Bloomberg Philanthropies What Works Cities",
+        "Evidence-based policy organizations"
+      ],
+      "sample_positions": {
+        "pilot_program_with_evaluation": "strongly_support",
+        "evidence_based_policymaking": "strongly_support",
+        "rushed_policy_without_study": "oppose",
+        "expert_commission_recommendations": "support",
+        "ballot_measure_without_fiscal_analysis": "oppose"
+      }
+    },
+    {
+      "id": "techno_optimist",
+      "name": "Techno-Optimist",
+      "icon": "Cpu",
+      "iconColor": "#268bd2",
+      "description": "Smart cities, data-driven governance, technology solutions",
+      "core_values": [
+        "Technology as solution to civic challenges",
+        "Data-driven decision making",
+        "Innovation and experimentation",
+        "Public-private partnerships for tech deployment"
+      ],
+      "typical_concerns": [
+        "Government lagging behind technology sector",
+        "Analog processes when digital solutions exist",
+        "Under-utilization of data for insights",
+        "Resistance to innovation and new approaches"
+      ],
+      "priorities": [
+        "Smart city infrastructure (sensors, IoT)",
+        "Digital government services and apps",
+        "Open data and civic tech",
+        "Public-private tech partnerships"
+      ],
+      "differentiators": {
+        "vs_pragmatic_incrementalist": "More enthusiastic about untested tech",
+        "vs_government_watchdog": "Less concerned about privacy/surveillance",
+        "vs_justice_reformer": "May overlook algorithmic bias concerns"
+      },
+      "real_world_examples": [
+        "Code for America brigades",
+        "Civic tech entrepreneurs",
+        "Smart city consultants"
+      ],
+      "sample_positions": {
+        "smart_city_infrastructure": "strongly_support",
+        "facial_recognition_surveillance": "support",
+        "open_data_portal": "strongly_support",
+        "public_private_tech_partnership": "support",
+        "algorithmic_decision_making": "support"
+      }
+    },
+    {
+      "id": "labor_organizer",
+      "name": "Labor Organizer",
+      "icon": "Users",
+      "iconColor": "#dc322f",
+      "description": "Worker rights, living wages, unions, labor standards",
+      "core_values": [
+        "Worker power and collective bargaining",
+        "Living wages and benefits for all",
+        "Labor standards in city contracts",
+        "Economic justice through worker organizing"
+      ],
+      "typical_concerns": [
+        "Wage theft and worker exploitation",
+        "Declining union membership and power",
+        "Gig economy eroding worker protections",
+        "Corporate subsidies without labor standards"
+      ],
+      "priorities": [
+        "Living wage ordinances and prevailing wage",
+        "Project labor agreements and union hiring",
+        "Worker centers and wage enforcement",
+        "Anti-wage theft protections"
+      ],
+      "differentiators": {
+        "vs_green_new_dealer": "Labor focus not climate focus",
+        "vs_small_business_booster": "Worker protections over business flexibility",
+        "vs_fiscal_conservative": "Pro-regulation and pro-union"
+      },
+      "real_world_examples": [
+        "Local labor councils (AFL-CIO)",
+        "SEIU local chapters",
+        "Working Partnerships USA"
+      ],
+      "sample_positions": {
+        "living_wage_ordinance": "strongly_support",
+        "project_labor_agreements": "strongly_support",
+        "prevailing_wage_requirements": "strongly_support",
+        "business_opposition_to_labor_standards": "oppose",
+        "gig_worker_protections": "strongly_support"
+      }
+    },
+    {
+      "id": "affordable_housing_absolutist",
+      "name": "Affordable Housing Absolutist",
+      "icon": "Home",
+      "iconColor": "#d33682",
+      "description": "100% affordable housing, social housing, public development",
+      "core_values": [
+        "Housing as human right requiring public provision",
+        "No market-rate development that could be affordable",
+        "Social housing model (Vienna, Singapore)",
+        "Decommodify housing entirely"
+      ],
+      "typical_concerns": [
+        "Market-rate development worsening affordability crisis",
+        "Private developers profiting from housing crisis",
+        "Affordable housing percentages too low",
+        "Filtering and trickle-down housing economics failing"
+      ],
+      "priorities": [
+        "100% affordable housing projects only",
+        "Social housing authorities",
+        "Acquisition of existing buildings for permanent affordability",
+        "Public land for public housing"
+      ],
+      "differentiators": {
+        "vs_slow_growth_advocate": "More absolutist - zero market-rate acceptable",
+        "vs_housing_champion": "Rejects any market-rate development",
+        "vs_renter_advocate": "Public ownership not just tenant protections"
+      },
+      "real_world_examples": [
+        "Democratic Socialists of America housing working groups",
+        "Social housing advocates",
+        "Radical housing justice organizations"
+      ],
+      "sample_positions": {
+        "market_rate_housing_any_percentage": "strongly_oppose",
+        "100pct_affordable_housing": "strongly_support",
+        "social_housing_authority": "strongly_support",
+        "public_land_for_housing": "strongly_support",
+        "mixed_income_housing": "oppose"
+      }
+    },
+    {
+      "id": "anti_gentrification_activist",
+      "name": "Anti-Gentrification Activist",
+      "icon": "Shield",
+      "iconColor": "#dc322f",
+      "description": "Racial equity, community land trusts, anti-displacement",
+      "core_values": [
+        "Racial justice and reparations for displacement",
+        "Community ownership and control",
+        "Cultural preservation and anti-gentrification",
+        "Centering most impacted communities"
+      ],
+      "typical_concerns": [
+        "Gentrification displacing communities of color",
+        "Loss of cultural institutions and businesses",
+        "White newcomers changing neighborhood character",
+        "City policies facilitating displacement"
+      ],
+      "priorities": [
+        "Community land trusts and cooperative ownership",
+        "Anti-displacement zoning and community preference",
+        "Cultural heritage preservation",
+        "Community benefits agreements with teeth"
+      ],
+      "differentiators": {
+        "vs_slow_growth_advocate": "More focused on race and culture",
+        "vs_affordable_housing_absolutist": "Cultural preservation not just affordability",
+        "vs_neighborhood_protector": "Racial equity not character preservation"
+      },
+      "real_world_examples": [
+        "Urban Habitat",
+        "Causa Justa :: Just Cause",
+        "Anti-displacement coalitions"
+      ],
+      "sample_positions": {
+        "community_land_trust": "strongly_support",
+        "market_rate_housing_in_gentrifying_area": "strongly_oppose",
+        "community_preference_policies": "strongly_support",
+        "cultural_heritage_district": "strongly_support",
+        "community_benefits_agreements": "strongly_support"
+      }
+    }
+  ]
+}

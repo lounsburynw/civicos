@@ -1,0 +1,37 @@
+{
+  "beta_users": [
+    {
+      "email": "user1@example.com",
+      "name": "Test User 1",
+      "city": "San Rafael",
+      "active": true,
+      "weeks_completed": 1,
+      "feedback_received": [],
+      "last_digest_sent": "2025-08-30T12:07:47.605435"
+    },
+    {
+      "email": "nicolas.lounsbury@gmail.com",
+      "name": "Nick",
+      "city": "San Rafael",
+      "active": true,
+      "weeks_completed": 1,
+      "feedback_received": [],
+      "joined_date": "2025-08-30T12:07:25.038415",
+      "last_digest_sent": "2025-08-30T12:07:52.933008"
+    }
+  ],
+  "cities": {
+    "San Rafael": {
+      "meeting_urls": [
+        "https://www.cityofsanrafael.org/meetings/planning-commission/",
+        "https://www.cityofsanrafael.org/meetings/city-council/",
+        "https://www.cityofsanrafael.org/meetings/city-council-september-2-2025-tuesday/"
+      ]
+    }
+  },
+  "schedule": {
+    "day": "Monday",
+    "time": "09:00",
+    "timezone": "America/Los_Angeles"
+  }
+}

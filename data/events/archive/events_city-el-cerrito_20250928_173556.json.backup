@@ -1,0 +1,1972 @@
+{
+  "id": "b13449b5-9647-4454-9c71-e2eac9c12234",
+  "jurisdiction": {
+    "id": "city-el-cerrito",
+    "name": "El Cerrito",
+    "type": "city",
+    "website": "https://www.el-cerrito.org",
+    "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+  },
+  "opportunities": [
+    {
+      "id": "0a609d39-90b8-4fa2-b39d-883f598626a0",
+      "title": "Recycling + Environmental Resource Center Public Tour",
+      "original_title": "Recycling + Environmental Resource Center Public Tour",
+      "description": "Free Public Tour of the City of El Cerrito Recycling + Environmental Resource Center for individuals and small groups. Group tours can be scheduled at other times for a fee. RSVP by email or phone is ...",
+      "when": "2025-09-03T15:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Increased public awareness and civic knowledge",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "Tour starts in the Recycling Center Office Lobby., 7501 Schmidt Lane",
+      "meeting_type": "community_meeting",
+      "project_type": "governance",
+      "engagement_tier": "civic_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.866367+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Wed Sep 3, 2025 \u2022 8:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Tour starts in the Recycling Center Office Lobby., 7501 Schmidt Lane",
+          "when": "2025-09-03T15:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "91c7f2d3-676a-4b68-b605-a06d2566abc6",
+      "title": "Design Review Board Meeting: September 3, 2025",
+      "original_title": "Design Review Board Meeting: September 3, 2025",
+      "description": null,
+      "when": "2025-09-03T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, Council Chambers, 10890 San Pablo Avenue",
+      "meeting_type": "board",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.866584+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Wed Sep 3, 2025 \u2022 12:00 PM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, Council Chambers, 10890 San Pablo Avenue",
+          "when": "2025-09-03T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "4b2449ad-91b5-4ce9-aa41-da11f4075702",
+      "title": "Baxter Creek Gateway Park Volunteer Day",
+      "original_title": "Baxter Creek Gateway Park Volunteer Day",
+      "description": "Please join the El Cerrito Green Teams and other volunteers at Baxter Creek Gateway Park in this jewel on the Ohlone Greenway. The activities will include litter removal, invasive plant removal and na...",
+      "when": "2025-09-07T10:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Direct community involvement and environmental improvement",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "Baxter Creek Gateway Park, Key Blvd. and Conlon Ave.",
+      "meeting_type": "community_meeting",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.866704+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Sun Sep 7, 2025 \u2022 3:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Baxter Creek Gateway Park, Key Blvd. and Conlon Ave.",
+          "when": "2025-09-07T10:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "228f91cc-2552-4887-b9fc-bd3fc4ea7d81",
+      "title": "Urban Forest Committee Meeting",
+      "original_title": "Urban Forest Committee Meeting",
+      "description": "The Urban Forest Committee serves in an advisory capacity to the City Council, other commissions, and the citizens of the City with regard to the growth, maintenance, and location of trees within the ...",
+      "when": "2025-09-08T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+      "meeting_type": "committee",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.866845+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Mon Sep 8, 2025 \u2022 12:00 PM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+          "when": "2025-09-08T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "56284e95-0ee7-4c78-912a-0dc64b81c466",
+      "title": "Environmental Quality Committee Meeting",
+      "original_title": "Environmental Quality Committee Meeting",
+      "description": "The Environmental Quality Committee meets at City Hall on the 2nd Tuesday of every month at 7:00 pm. Click on the link to the right for more information about the EQC. \r\n\r\nMeeting agendas are typicall...",
+      "when": "2025-09-09T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+      "meeting_type": "committee",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.866943+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Tue Sep 9, 2025 \u2022 12:00 PM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+          "when": "2025-09-09T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "1d5066b1-f16a-45a3-b84f-2086f5693cf7",
+      "title": "Community Safety Committee Meeting",
+      "original_title": "Community Safety Committee Meeting",
+      "description": null,
+      "when": "2025-09-15T18:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+      "meeting_type": "committee",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.867026+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Mon Sep 15, 2025 \u2022 11:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+          "when": "2025-09-15T18:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "cc4a83d7-7db2-41ad-98ef-79adfa567bf3",
+      "title": "Economic Development Committee Meeting",
+      "original_title": "Economic Development Committee Meeting",
+      "description": "The Economic Development Committee meets on the 3rd Monday of the month in the El Cerrito City Hall Council Chambers. Click on the \"Download Agenda\" button to view the agenda.",
+      "when": "2025-09-15T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+      "meeting_type": "committee",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.867115+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Mon Sep 15, 2025 \u2022 12:00 PM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+          "when": "2025-09-15T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "32f08342-d12d-4d56-8fe3-dda5298c954d",
+      "title": "Concurrent Successor Agency to the Redevlopment Agency Special Mtg and Regular City Council Mtg",
+      "original_title": "Concurrent Successor Agency to the Redevlopment Agency Special Mtg and Regular City Council Mtg",
+      "description": null,
+      "when": "2025-09-16T18:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+      "meeting_type": "city_council",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.867241+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Tue Sep 16, 2025 \u2022 11:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+          "when": "2025-09-16T18:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "b9e673f2-2518-4bf2-b9c6-554b1aef421c",
+      "title": "Committee on Aging Meting",
+      "original_title": "Committee on Aging Meting",
+      "description": null,
+      "when": "2025-09-17T15:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Community engagement and civic participation",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+      "meeting_type": "committee",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.867333+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Wed Sep 17, 2025 \u2022 8:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+          "when": "2025-09-17T15:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "24bc38f7-d678-4cb7-adbe-3dad640a0f56",
+      "title": "Planning Commission Meeting",
+      "original_title": "Planning Commission Meeting",
+      "description": null,
+      "when": "2025-09-17T19:30:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, Council Chambers, 10890 San Pablo Avenue",
+      "meeting_type": "planning_commission",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.867415+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "planning_action",
+      "when_human": "Wed Sep 17, 2025 \u2022 12:30 PM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, Council Chambers, 10890 San Pablo Avenue",
+          "when": "2025-09-17T19:30:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "9b3efb1a-f808-401e-b22f-fcb164c48960",
+      "title": "Recycling + Environmental Resource Center Public Tour",
+      "original_title": "Recycling + Environmental Resource Center Public Tour",
+      "description": "Free Public Tour of the City of El Cerrito Recycling + Environmental Resource Center for individuals and small groups. Group tours can be scheduled at other times for a fee. RSVP by email or phone is ...",
+      "when": "2025-09-19T15:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Increased public awareness and civic knowledge",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "Tour starts in the Recycling Center Office Lobby., 7501 Schmidt Lane",
+      "meeting_type": "community_meeting",
+      "project_type": "governance",
+      "engagement_tier": "civic_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.867500+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Fri Sep 19, 2025 \u2022 8:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Tour starts in the Recycling Center Office Lobby., 7501 Schmidt Lane",
+          "when": "2025-09-19T15:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "80b716a7-62bd-483a-b9e7-9bf3ceb1ecc7",
+      "title": "City of El Cerrito & American Red Cross Blood Drive",
+      "original_title": "City of El Cerrito & American Red Cross Blood Drive",
+      "description": "Use Sponsor Code \"ELCERRITO\"",
+      "when": "2025-09-19T09:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Support for local health and emergency services",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "Event Location, 7007 Moeser Lane",
+      "meeting_type": "community_meeting",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.867578+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Fri Sep 19, 2025 \u2022 2:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Event Location, 7007 Moeser Lane",
+          "when": "2025-09-19T09:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "74550673-605d-4359-b84b-9689dd19cb27",
+      "title": "Compost Giveaway",
+      "original_title": "Compost Giveaway",
+      "description": "Available at Upper Cerrito Vista Park, adjacent to the tennis courts, across from the tennis court's parking lot, entrance off of Avis, across from Prospect Sierra School.",
+      "when": "2025-09-20T00:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Community engagement and civic participation",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "Cerrito Vista Park, Tennis Court Parking Lot",
+      "meeting_type": "community_meeting",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.867656+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Fri Sep 19, 2025 \u2022 5:00 PM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Cerrito Vista Park, Tennis Court Parking Lot",
+          "when": "2025-09-20T00:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "e469d611-8c23-4a91-9f8f-eb67f605ccdc",
+      "title": "California Coastal Clean-up Day",
+      "original_title": "California Coastal Clean-up Day",
+      "description": "Join your fellow community member volunteers in protecting the waters of Cerrito Creek, San Francisco Bay and the California Coast by removing litter and preventing it from entering the storm drains i...",
+      "when": "2025-09-20T09:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Community engagement and civic participation",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "Creekside Park",
+      "meeting_type": "community_meeting",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.867731+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Sat Sep 20, 2025 \u2022 2:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Creekside Park",
+          "when": "2025-09-20T09:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "bcd40782-78d3-44d9-8218-1a928e233f24",
+      "title": "Special City Council Meeting (Interviews)",
+      "original_title": "Special City Council Meeting (Interviews)",
+      "description": null,
+      "when": "2025-09-23T16:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+      "meeting_type": "city_council",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.867806+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Tue Sep 23, 2025 \u2022 9:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+          "when": "2025-09-23T16:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "1956d528-24bb-4f78-bd4f-9f6222519645",
+      "title": "Financial Advisory Board Meeting",
+      "original_title": "Financial Advisory Board Meeting",
+      "description": null,
+      "when": "2025-09-23T18:30:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+      "meeting_type": "board",
+      "project_type": "community",
+      "engagement_tier": "civic_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.867882+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Tue Sep 23, 2025 \u2022 11:30 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+          "when": "2025-09-23T18:30:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "6692a35f-367b-4d07-9fc0-9e8f756cdcb7",
+      "title": "Arts & Culture Commission Meeting",
+      "original_title": "Arts & Culture Commission Meeting",
+      "description": null,
+      "when": "2025-09-29T18:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+      "meeting_type": "commission",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.867953+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Mon Sep 29, 2025 \u2022 11:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+          "when": "2025-09-29T18:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "d632b70f-a76d-4fef-9b4e-3a4e9fef124f",
+      "title": "Recycling + Environmental Resource Center Public Tour",
+      "original_title": "Recycling + Environmental Resource Center Public Tour",
+      "description": "Free Public Tour of the City of El Cerrito Recycling + Environmental Resource Center for individuals and small groups. Group tours can be scheduled at other times for a fee. RSVP by email or phone is ...",
+      "when": "2025-10-01T15:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Increased public awareness and civic knowledge",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "Tour starts in the Recycling Center Office Lobby., 7501 Schmidt Lane",
+      "meeting_type": "community_meeting",
+      "project_type": "governance",
+      "engagement_tier": "civic_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.868032+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Wed Oct 1, 2025 \u2022 8:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Tour starts in the Recycling Center Office Lobby., 7501 Schmidt Lane",
+          "when": "2025-10-01T15:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "3de42ad5-393e-45c2-bea9-b2befc5d6466",
+      "title": "Design Review Board Meeting",
+      "original_title": "Design Review Board Meeting",
+      "description": null,
+      "when": "2025-10-01T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, Council Chambers, 10890 San Pablo Avenue",
+      "meeting_type": "board",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.868106+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Wed Oct 1, 2025 \u2022 12:00 PM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, Council Chambers, 10890 San Pablo Avenue",
+          "when": "2025-10-01T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "69aa057b-c801-408b-9548-1afdec65272f",
+      "title": "Baxter Creek Gateway Park Volunteer Day",
+      "original_title": "Baxter Creek Gateway Park Volunteer Day",
+      "description": "Please join the El Cerrito Green Teams and other volunteers at Baxter Creek Gateway Park in this jewel on the Ohlone Greenway. The activities will include litter removal, invasive plant removal and na...",
+      "when": "2025-10-05T10:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Direct community involvement and environmental improvement",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "Baxter Creek Gateway Park, Key Blvd. and Conlon Ave.",
+      "meeting_type": "community_meeting",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.868185+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Sun Oct 5, 2025 \u2022 3:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Baxter Creek Gateway Park, Key Blvd. and Conlon Ave.",
+          "when": "2025-10-05T10:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "3ebb2d33-579c-4851-ba18-0c9ab261b414",
+      "title": "Community Safety Committee Meeting",
+      "original_title": "Community Safety Committee Meeting",
+      "description": null,
+      "when": "2025-10-06T18:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+      "meeting_type": "committee",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.868262+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Mon Oct 6, 2025 \u2022 11:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+          "when": "2025-10-06T18:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "20ed9e3a-7e42-404f-ad29-2037152e1ada",
+      "title": "Regular Human Relations Commission Meeting",
+      "original_title": "Regular Human Relations Commission Meeting",
+      "description": null,
+      "when": "2025-10-08T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+      "meeting_type": "commission",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.868332+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Wed Oct 8, 2025 \u2022 12:00 PM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+          "when": "2025-10-08T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "5cdfdbf9-7b1a-4ced-89eb-642adc597b82",
+      "title": "Recycling + Environmental Resource Center Public Tour",
+      "original_title": "Recycling + Environmental Resource Center Public Tour",
+      "description": "Free Public Tour of the City of El Cerrito Recycling + Environmental Resource Center for individuals and small groups. Group tours can be scheduled at other times for a fee. RSVP by email or phone is ...",
+      "when": "2025-10-11T15:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Increased public awareness and civic knowledge",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "Tour starts in the Recycling Center Office Lobby., 7501 Schmidt Lane",
+      "meeting_type": "community_meeting",
+      "project_type": "governance",
+      "engagement_tier": "civic_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.868408+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Sat Oct 11, 2025 \u2022 8:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Tour starts in the Recycling Center Office Lobby., 7501 Schmidt Lane",
+          "when": "2025-10-11T15:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "8fc86e93-7ebb-4bc1-841f-914e2e3c6175",
+      "title": "Green Team Cleanup -- Northern Gateways",
+      "original_title": "Green Team Cleanup -- Northern Gateways",
+      "description": "Join El Cerrito's Green Teams and Environmental Quality Committee for a neighborhood cleanup of El Cerrito's Northern Gateways. Volunteering improves habitat, water quality, and quality of life for ou...",
+      "when": "2025-10-12T10:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Direct community involvement and environmental improvement",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "Northern Gateways Park, Key Boulevard & Knott Ave",
+      "meeting_type": "community_meeting",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.868481+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Sun Oct 12, 2025 \u2022 3:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Northern Gateways Park, Key Boulevard & Knott Ave",
+          "when": "2025-10-12T10:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "f8f42670-1109-440f-9580-20d3c7b0a000",
+      "title": "Urban Forest Committee Meeting",
+      "original_title": "Urban Forest Committee Meeting",
+      "description": "The Urban Forest Committee serves in an advisory capacity to the City Council, other commissions, and the citizens of the City with regard to the growth, maintenance, and location of trees within the ...",
+      "when": "2025-10-13T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+      "meeting_type": "committee",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.868551+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Mon Oct 13, 2025 \u2022 12:00 PM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+          "when": "2025-10-13T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "c12a8c40-07e7-4a2e-8495-1626a032f303",
+      "title": "Environmental Quality Committee Meeting",
+      "original_title": "Environmental Quality Committee Meeting",
+      "description": "The Environmental Quality Committee meets at City Hall on the 2nd Tuesday of every month at 7:00 pm. Click on the link to the right for more information about the EQC. \r\n\r\nMeeting agendas are typicall...",
+      "when": "2025-10-14T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+      "meeting_type": "committee",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.868621+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Tue Oct 14, 2025 \u2022 12:00 PM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+          "when": "2025-10-14T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "1eb388b1-2168-46c1-8f36-ef1c8f006fdd",
+      "title": "Committee on Aging Meting",
+      "original_title": "Committee on Aging Meting",
+      "description": null,
+      "when": "2025-10-15T15:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Community engagement and civic participation",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+      "meeting_type": "committee",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.868694+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Wed Oct 15, 2025 \u2022 8:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+          "when": "2025-10-15T15:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "44da3bef-6b6f-4011-83a6-faebf9a6f090",
+      "title": "Recycling + Environmental Resource Center Public Tour",
+      "original_title": "Recycling + Environmental Resource Center Public Tour",
+      "description": "Free Public Tour of the City of El Cerrito Recycling + Environmental Resource Center for individuals and small groups. Group tours can be scheduled at other times for a fee. RSVP by email or phone is ...",
+      "when": "2025-10-15T15:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Increased public awareness and civic knowledge",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "Tour starts in the Recycling Center Office Lobby., 7501 Schmidt Lane",
+      "meeting_type": "community_meeting",
+      "project_type": "governance",
+      "engagement_tier": "civic_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.868764+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Wed Oct 15, 2025 \u2022 8:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Tour starts in the Recycling Center Office Lobby., 7501 Schmidt Lane",
+          "when": "2025-10-15T15:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "17f2730d-7403-4c44-8cac-7b695a5ed90a",
+      "title": "Planning Commission Meeting",
+      "original_title": "Planning Commission Meeting",
+      "description": null,
+      "when": "2025-10-15T19:30:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, Council Chambers, 10890 San Pablo Avenue",
+      "meeting_type": "planning_commission",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.868829+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "planning_action",
+      "when_human": "Wed Oct 15, 2025 \u2022 12:30 PM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, Council Chambers, 10890 San Pablo Avenue",
+          "when": "2025-10-15T19:30:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "3a1ae3aa-5a28-4d18-b941-273f7b771c2e",
+      "title": "Compost Giveaway",
+      "original_title": "Compost Giveaway",
+      "description": "Available at Upper Cerrito Vista Park, adjacent to the tennis courts, across from the tennis court's parking lot, entrance off of Avis, across from Prospect Sierra School.",
+      "when": "2025-10-18T00:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Community engagement and civic participation",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "Cerrito Vista Park, Tennis Court Parking Lot",
+      "meeting_type": "community_meeting",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.868896+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Fri Oct 17, 2025 \u2022 5:00 PM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "Cerrito Vista Park, Tennis Court Parking Lot",
+          "when": "2025-10-18T00:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "58b7779b-fa98-4715-a947-2d074e0864b7",
+      "title": "Economic Development Committee Meeting",
+      "original_title": "Economic Development Committee Meeting",
+      "description": "The Economic Development Committee meets on the 3rd Monday of the month in the El Cerrito City Hall Council Chambers. Click on the \"Download Agenda\" button to view the agenda.",
+      "when": "2025-10-20T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+      "meeting_type": "committee",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.868968+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Mon Oct 20, 2025 \u2022 12:00 PM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+          "when": "2025-10-20T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "48055deb-671e-4edf-884a-c3f1e29606c4",
+      "title": "Park and Recreation Commission Meeting",
+      "original_title": "Park and Recreation Commission Meeting",
+      "description": null,
+      "when": "2025-10-22T19:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Direct community involvement and environmental improvement",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+      "meeting_type": "commission",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.869032+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Wed Oct 22, 2025 \u2022 12:00 PM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+          "when": "2025-10-22T19:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "5a181bb4-718b-49cf-a97f-ac7bf31b8e6c",
+      "title": "Senior Resource Fair",
+      "original_title": "Senior Resource Fair",
+      "description": null,
+      "when": "2025-10-24T10:00:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Community engagement and civic participation",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito Community Center, 7007 Moeser Lane",
+      "meeting_type": "community_meeting",
+      "project_type": "governance",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.869096+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Fri Oct 24, 2025 \u2022 3:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito Community Center, 7007 Moeser Lane",
+          "when": "2025-10-24T10:00:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "2d051769-f624-45ad-a5f3-fcfb3e4a5a1b",
+      "title": "Financial Advisory Board Meeting",
+      "original_title": "Financial Advisory Board Meeting",
+      "description": null,
+      "when": "2025-10-28T18:30:00+00:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Opportunity to influence local government decisions",
+      "source_url": "https://www.el-cerrito.org/Calendar.aspx",
+      "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+      "meeting_type": "board",
+      "project_type": "community",
+      "engagement_tier": "civic_action",
+      "jurisdiction": {
+        "id": "city-el-cerrito",
+        "name": "El Cerrito",
+        "type": "city",
+        "website": "https://www.el-cerrito.org",
+        "meeting_calendar_url": "https://www.el-cerrito.org/Calendar.aspx"
+      },
+      "contact_info": {
+        "email": "cityclerk@el-cerrito.org",
+        "name": null,
+        "title": null,
+        "phone": null,
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:35:56.869163+00:00",
+      "scraped_from": "https://www.el-cerrito.org/Calendar.aspx",
+      "action_type": "action",
+      "when_human": "Tue Oct 28, 2025 \u2022 11:30 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": null,
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "cityclerk@el-cerrito.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "El Cerrito City Hall, 10890 San Pablo Avenue",
+          "when": "2025-10-28T18:30:00+00:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    }
+  ],
+  "generation_metadata": {
+    "scrape_urls": [
+      "https://www.el-cerrito.org/Calendar.aspx"
+    ],
+    "ai_model_used": "gpt-5-mini",
+    "wiki_files_loaded": [],
+    "generation_cost": 0.0,
+    "processing_time": 0.0,
+    "unparseable_urls": null
+  },
+  "html_content": "Subject: City Council Meeting\n\n# \u2709\ufe0f City Council Meeting\n*Your quick guide to what's on the City Council agenda \u2014 September 3, 2025*\n\n## \ud83d\udde3\ufe0f How to Participate\n- **Meeting:** [Wednesday, September 3 at 3:00 PM](https://calendar.google.com/calendar/render?action=TEMPLATE&text=City%20Council%20Meeting&dates=20250903T150000Z/20250903T170000Z&location=Tour%20starts%20in%20the%20Recycling%20Center%20Office%20Lobby.%2C%207501%20Schmidt%20Lane&details=City%20Council%20Meeting%20in%20El%20Cerrito) \ud83d\udcc5\n- **Where:** Tour starts in the Recycling Center Office Lobby., 7501 Schmidt Lane\n- **Watch Online:** Not specified.\n- **Call In:** Not specified.\n- **Email Comments:** Not specified. \u2014 **deadline:** Not specified.\n- **Attend & Speak:** Check meeting agenda for public comment rules\n- **Full Agenda:** [View original meeting agenda](https://www.el-cerrito.org/Calendar.aspx)\n\n## \ud83d\udea8 What's on the Agenda\n### Recycling + Environmental Resource Center Public Tour\n- **Change:** Free Public Tour of the City of El Cerrito Recycling + Environmental Resource Center for individuals and small groups. Group tours can be scheduled at other times for a fee. RSVP by email or phone is required.\n- **Impact:** Increased public awareness and civic knowledge. Cost not specified.\n- **Action:** RSVP by email or phone is required\n\n## \u2705 Bottom Line\nFound 34 civic engagement opportunities in El Cerrito's calendar. Participate in the City Council meeting to stay informed and involved in local governance.\n\n\u26a1 *Independent and nonpartisan summary. Facts only; no spin.*",
+  "text_content": "Subject: City Council Meeting\n\n# \u2709\ufe0f City Council Meeting\n*Your quick guide to what's on the City Council agenda \u2014 September 3, 2025*\n\n## \ud83d\udde3\ufe0f How to Participate\n- **Meeting:** [Wednesday, September 3 at 3:00 PM](https://calendar.google.com/calendar/render?action=TEMPLATE&text=City%20Council%20Meeting&dates=20250903T150000Z/20250903T170000Z&location=Tour%20starts%20in%20the%20Recycling%20Center%20Office%20Lobby.%2C%207501%20Schmidt%20Lane&details=City%20Council%20Meeting%20in%20El%20Cerrito) \ud83d\udcc5\n- **Where:** Tour starts in the Recycling Center Office Lobby., 7501 Schmidt Lane\n- **Watch Online:** Not specified.\n- **Call In:** Not specified.\n- **Email Comments:** Not specified. \u2014 **deadline:** Not specified.\n- **Attend & Speak:** Check meeting agenda for public comment rules\n- **Full Agenda:** [View original meeting agenda](https://www.el-cerrito.org/Calendar.aspx)\n\n## \ud83d\udea8 What's on the Agenda\n### Recycling + Environmental Resource Center Public Tour\n- **Change:** Free Public Tour of the City of El Cerrito Recycling + Environmental Resource Center for individuals and small groups. Group tours can be scheduled at other times for a fee. RSVP by email or phone is required.\n- **Impact:** Increased public awareness and civic knowledge. Cost not specified.\n- **Action:** RSVP by email or phone is required\n\n## \u2705 Bottom Line\nFound 34 civic engagement opportunities in El Cerrito's calendar. Participate in the City Council meeting to stay informed and involved in local governance.\n\n\u26a1 *Independent and nonpartisan summary. Facts only; no spin.*",
+  "subject_line": "City Council Meeting",
+  "send_date": "2025-09-29T00:35:56.869748+00:00",
+  "recipients": [],
+  "analytics": {
+    "sent_count": 0,
+    "open_rate": 0.0,
+    "click_rate": 0.0,
+    "action_conversion_rate": 0.0
+  },
+  "created_at": "2025-09-29T00:35:56.869751+00:00"
+}

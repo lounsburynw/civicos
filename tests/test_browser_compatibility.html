@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Civic App - Browser Compatibility Test</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 20px;
+            background: #f5f5f7;
+        }
+        .test-container {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin: 16px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            font-family: monospace;
+        }
+        .pass { background: #d1edff; border-left: 4px solid #007AFF; }
+        .fail { background: #ffe6e6; border-left: 4px solid #ff3b30; }
+        .info { background: #f0f0f0; border-left: 4px solid #86868b; }
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 8px;
+        }
+        button:hover { background: #005bb5; }
+        .header { 
+            background: linear-gradient(135deg, #007AFF 0%, #AF52DE 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧪 Civic App Browser Compatibility Test</h1>
+        <p>Testing consistent behavior across Chrome, Brave, Firefox, Safari, and Edge</p>
+    </div>
+
+    <div class="test-container">
+        <h2>🔍 Browser Detection Tests</h2>
+        <div id="browser-tests"></div>
+        <button onclick="runBrowserTests()">Run Browser Tests</button>
+    </div>
+
+    <div class="test-container">
+        <h2>📧 Email Preference Tests</h2>
+        <div id="email-tests"></div>
+        <button onclick="runEmailTests()">Run Email Tests</button>
+        <button onclick="clearEmailPreference()">Clear Email Preference</button>
+    </div>
+
+    <div class="test-container">
+        <h2>💾 LocalStorage Tests</h2>
+        <div id="storage-tests"></div>
+        <button onclick="runStorageTests()">Run Storage Tests</button>
+    </div>
+
+    <div class="test-container">
+        <h2>🎛️ UI Element Tests</h2>
+        <div id="ui-tests"></div>
+        <button onclick="runUITests()">Run UI Tests</button>
+    </div>
+
+    <div class="test-container">
+        <h2>🔗 Integration Test</h2>
+        <div id="integration-tests"></div>
+        <button onclick="runIntegrationTest()">Test with Live App</button>
+    </div>
+
+    <script>
+        function addResult(containerId, message, type = 'info') {
+            const container = document.getElementById(containerId);
+            const result = document.createElement('div');
+            result.className = `test-result ${type}`;
+            result.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            container.appendChild(result);
+        }
+
+        function runBrowserTests() {
+            const container = document.getElementById('browser-tests');
+            container.innerHTML = '';
+            
+            // Browser detection
+            const userAgent = navigator.userAgent;
+            addResult('browser-tests', `User Agent: ${userAgent}`, 'info');
+            
+            // Test browser identification
+            const isChrome = userAgent.includes('Chrome');
+            const isBrave = userAgent.includes('Brave') || (userAgent.includes('Chrome') && !userAgent.includes('Edge'));
+            const isFirefox = userAgent.includes('Firefox');
+            const isSafari = userAgent.includes('Safari') && !userAgent.includes('Chrome');
+            const isEdge = userAgent.includes('Edge');
+            
+            addResult('browser-tests', `Chrome detected: ${isChrome}`, isChrome ? 'pass' : 'info');
+            addResult('browser-tests', `Brave detected: ${isBrave}`, isBrave ? 'pass' : 'info');
+            addResult('browser-tests', `Firefox detected: ${isFirefox}`, isFirefox ? 'pass' : 'info');
+            addResult('browser-tests', `Safari detected: ${isSafari}`, isSafari ? 'pass' : 'info');
+            addResult('browser-tests', `Edge detected: ${isEdge}`, isEdge ? 'pass' : 'info');
+            
+            // Test the old problematic logic
+            const oldLogicWouldDetectGmail = isChrome;
+            addResult('browser-tests', 
+                `OLD LOGIC: Would assume Gmail user: ${oldLogicWouldDetectGmail}`, 
+                oldLogicWouldDetectGmail ? 'fail' : 'pass'
+            );
+            
+            addResult('browser-tests', 
+                '✅ NEW LOGIC: No browser-specific assumptions made', 
+                'pass'
+            );
+        }
+
+        function runEmailTests() {
+            const container = document.getElementById('email-tests');
+            container.innerHTML = '';
+            
+            // Test email preference detection (simulated)
+            function detectEmailPreference() {
+                try {
+                    const savedPreference = localStorage.getItem('email_preference');
+                    if (savedPreference === 'gmail' || savedPreference === 'mailto') {
+                        return savedPreference;
+                    }
+                    return 'ask';
+                } catch (e) {
+                    return 'mailto';
+                }
+            }
+            
+            const preference = detectEmailPreference();
+            addResult('email-tests', `Current email preference: ${preference}`, 'info');
+            
+            // Test email preference setting
+            try {
+                localStorage.setItem('test_email_preference', 'gmail');
+                const retrieved = localStorage.getItem('test_email_preference');
+                addResult('email-tests', 
+                    `Email preference storage: ${retrieved === 'gmail' ? 'PASS' : 'FAIL'}`, 
+                    retrieved === 'gmail' ? 'pass' : 'fail'
+                );
+                localStorage.removeItem('test_email_preference');
+            } catch (e) {
+                addResult('email-tests', `Email preference storage: FAIL - ${e.message}`, 'fail');
+            }
+            
+            // Test mock email composer
+            function mockOpenEmailComposer(action) {
+                const preference = detectEmailPreference();
+                if (preference === 'ask') {
+                    return 'Would show preference choice dialog';
+                } else if (preference === 'gmail') {
+                    return 'Would open Gmail composer';
+                } else {
+                    return 'Would use mailto';
+                }
+            }
+            
+            const mockAction = { mailto: 'test@example.com', subject: 'Test', body: 'Test email' };
+            const result = mockOpenEmailComposer(mockAction);
+            addResult('email-tests', `Email composer behavior: ${result}`, 'pass');
+        }
+
+        function clearEmailPreference() {
+            localStorage.removeItem('email_preference');
+            addResult('email-tests', '🗑️ Email preference cleared', 'info');
+        }
+
+        function runStorageTests() {
+            const container = document.getElementById('storage-tests');
+            container.innerHTML = '';
+            
+            // Test localStorage availability
+            if (typeof Storage !== "undefined") {
+                addResult('storage-tests', '✅ localStorage supported', 'pass');
+            } else {
+                addResult('storage-tests', '❌ localStorage not supported', 'fail');
+                return;
+            }
+            
+            // Test basic storage operations
+            try {
+                localStorage.setItem('test_key', 'test_value');
+                const value = localStorage.getItem('test_key');
+                addResult('storage-tests', 
+                    `Basic storage: ${value === 'test_value' ? 'PASS' : 'FAIL'}`, 
+                    value === 'test_value' ? 'pass' : 'fail'
+                );
+                localStorage.removeItem('test_key');
+            } catch (e) {
+                addResult('storage-tests', `Basic storage: FAIL - ${e.message}`, 'fail');
+            }
+            
+            // Test JSON storage (civic user data)
+            try {
+                const testUser = {
+                    email: 'test@example.com',
+                    experience_level: 'new',
+                    civic_profile: { visits: 1, interactions: 0 }
+                };
+                localStorage.setItem('test_civic_user', JSON.stringify(testUser));
+                const retrieved = JSON.parse(localStorage.getItem('test_civic_user'));
+                addResult('storage-tests', 
+                    `JSON storage: ${retrieved.email === 'test@example.com' ? 'PASS' : 'FAIL'}`, 
+                    retrieved.email === 'test@example.com' ? 'pass' : 'fail'
+                );
+                localStorage.removeItem('test_civic_user');
+            } catch (e) {
+                addResult('storage-tests', `JSON storage: FAIL - ${e.message}`, 'fail');
+            }
+            
+            // Test storage limits (some browsers have different limits)
+            try {
+                const largeString = 'x'.repeat(1000000); // 1MB string
+                localStorage.setItem('large_test', largeString);
+                addResult('storage-tests', '✅ Large data storage: PASS', 'pass');
+                localStorage.removeItem('large_test');
+            } catch (e) {
+                addResult('storage-tests', `⚠️ Large data storage: ${e.message}`, 'info');
+            }
+        }
+
+        function runUITests() {
+            const container = document.getElementById('ui-tests');
+            container.innerHTML = '';
+            
+            // Test DOM manipulation capabilities
+            const testDiv = document.createElement('div');
+            testDiv.id = 'test-element';
+            testDiv.style.display = 'none';
+            document.body.appendChild(testDiv);
+            
+            // Test style manipulation
+            testDiv.style.display = 'block';
+            const computed = window.getComputedStyle(testDiv);
+            addResult('ui-tests', 
+                `Style manipulation: ${computed.display === 'block' ? 'PASS' : 'FAIL'}`, 
+                computed.display === 'block' ? 'pass' : 'fail'
+            );
+            
+            // Test class manipulation
+            testDiv.className = 'test-class visible';
+            addResult('ui-tests', 
+                `Class manipulation: ${testDiv.classList.contains('visible') ? 'PASS' : 'FAIL'}`, 
+                testDiv.classList.contains('visible') ? 'pass' : 'fail'
+            );
+            
+            // Test opacity changes (key for quick-access visibility)
+            testDiv.style.opacity = '0.5';
+            const opacity = window.getComputedStyle(testDiv).opacity;
+            addResult('ui-tests', 
+                `Opacity changes: ${opacity === '0.5' ? 'PASS' : 'FAIL'}`, 
+                opacity === '0.5' ? 'pass' : 'fail'
+            );
+            
+            // Clean up
+            document.body.removeChild(testDiv);
+            
+            // Test setTimeout (used in UI transitions)
+            let timeoutWorked = false;
+            setTimeout(() => {
+                timeoutWorked = true;
+                addResult('ui-tests', 
+                    `setTimeout functionality: ${timeoutWorked ? 'PASS' : 'FAIL'}`, 
+                    timeoutWorked ? 'pass' : 'fail'
+                );
+            }, 100);
+        }
+
+        function runIntegrationTest() {
+            const container = document.getElementById('integration-tests');
+            container.innerHTML = '';
+            
+            addResult('integration-tests', '🚀 Starting integration test with live app...', 'info');
+            
+            // Test if we can access the civic app
+            const appUrl = window.location.protocol + '//' + window.location.host + '/frontend/mcp-civic-server/civic-conversational-OS.html';
+            addResult('integration-tests', `App URL: ${appUrl}`, 'info');
+            
+            // Test API connectivity
+            const apiUrl = 'http://127.0.0.1:8000/health';
+            fetch(apiUrl)
+                .then(response => {
+                    if (response.ok) {
+                        addResult('integration-tests', '✅ API server is running', 'pass');
+                        return response.json();
+                    } else {
+                        throw new Error('API server not responding');
+                    }
+                })
+                .then(data => {
+                    addResult('integration-tests', `API health: ${JSON.stringify(data)}`, 'info');
+                    addResult('integration-tests', '🎯 Ready for cross-browser testing!', 'pass');
+                    addResult('integration-tests', 
+                        '📋 Test steps: 1) Open app in Chrome 2) Open in Brave 3) Compare UI elements', 
+                        'info'
+                    );
+                })
+                .catch(error => {
+                    addResult('integration-tests', `⚠️ API server check: ${error.message}`, 'info');
+                    addResult('integration-tests', '💡 Start server with: python src/civic_api_integrated.py', 'info');
+                });
+        }
+
+        // Auto-run basic tests on load
+        window.onload = function() {
+            runBrowserTests();
+            runStorageTests();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+# Civic Platform - Docker Compose Configuration
+# Services: REST API, WebSocket Server, Frontend
+# Data persistence via volumes
+
+services:
+  # REST API Server (port 8001)
+  civic-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: civic-api
+    ports:
+      - "8001:8001"
+    environment:
+      - CIVIC_ENV=${CIVIC_ENV:-production}
+      - CIVIC_API_PORT=8001
+      - CIVIC_WEB_KEY=${CIVIC_WEB_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY:-}
+    volumes:
+      - civic-data:/app/data
+      - ./data/pilot/vectors:/app/data/pilot/vectors:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # WebSocket Server (port 8002)
+  civic-websocket:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: civic-websocket
+    command: ["python", "src/civic_socketio_server.py", "8002"]
+    ports:
+      - "8002:8002"
+    environment:
+      - CIVIC_ENV=${CIVIC_ENV:-production}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - civic-data:/app/data
+      - ./data/pilot/vectors:/app/data/pilot/vectors:ro
+    restart: unless-stopped
+    depends_on:
+      civic-api:
+        condition: service_healthy
+
+  # Frontend (optional - comment out if deploying separately)
+  civic-frontend:
+    build:
+      context: ./frontend/civic-workspace
+      dockerfile: Dockerfile
+    container_name: civic-frontend
+    ports:
+      - "80:80"
+    environment:
+      - VITE_API_URL=http://civic-api:8001
+      - VITE_WS_URL=http://civic-websocket:8002
+    depends_on:
+      - civic-api
+      - civic-websocket
+    profiles:
+      - with-frontend
+
+volumes:
+  civic-data:
+    driver: local

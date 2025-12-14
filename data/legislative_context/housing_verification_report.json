@@ -1,0 +1,71 @@
+{
+  "generated_at": "2025-10-07T14:30:00",
+  "total_bills_verified": 6,
+  "verification_method": "Open States API v3",
+  "reports": [
+    {
+      "bill_number": "SB9",
+      "verified": true,
+      "openstates_title": "Accessory Dwelling Units: ordinances.",
+      "perplexity_title": "California Housing Opportunity and More Efficiency (HOME) Act",
+      "title_match": false,
+      "verified_enactment_date": null,
+      "perplexity_enactment_date": "2021-09-16",
+      "enactment_date_match": false,
+      "official_sources": [],
+      "perplexity_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202120220SB9",
+      "total_actions": 0
+    },
+    {
+      "bill_number": "AB2011",
+      "verified": true,
+      "openstates_title": "Unlawful employment practices: small employer family leave mediation program: reproductive loss leave.",
+      "perplexity_title": "Affordable Housing and High Road Jobs Act of 2022",
+      "title_match": false,
+      "verified_enactment_date": null,
+      "perplexity_enactment_date": "2022-09-28",
+      "enactment_date_match": false,
+      "official_sources": [],
+      "perplexity_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202120220AB2011",
+      "total_actions": 0
+    },
+    {
+      "bill_number": "SB35",
+      "verified": true,
+      "openstates_title": "Alcohol and drug programs.",
+      "perplexity_title": "Streamlined Ministerial Approval Process for Infill Housing",
+      "title_match": false,
+      "verified_enactment_date": null,
+      "perplexity_enactment_date": "2017-09-29",
+      "enactment_date_match": false,
+      "official_sources": [],
+      "perplexity_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=201720180SB35",
+      "total_actions": 0
+    },
+    {
+      "bill_number": "SB330",
+      "verified": true,
+      "openstates_title": "Electrical transmission infrastructure: financing.",
+      "perplexity_title": "Housing Crisis Act of 2019",
+      "title_match": false,
+      "verified_enactment_date": null,
+      "perplexity_enactment_date": "2019-10-09",
+      "enactment_date_match": false,
+      "official_sources": [],
+      "perplexity_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=201920200SB330",
+      "total_actions": 0
+    },
+    {
+      "bill_number": "AB1287",
+      "verified": false,
+      "error": "Not found in Open States API",
+      "recommendation": "Manual verification required at leginfo.legislature.ca.gov"
+    },
+    {
+      "bill_number": "SB1123",
+      "verified": false,
+      "error": "Not found in Open States API",
+      "recommendation": "Manual verification required at leginfo.legislature.ca.gov"
+    }
+  ]
+}

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Signup Schema Compliance Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f7;
+        }
+        .test-container {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.1);
+        }
+        .test-result {
+            padding: 12px;
+            border-radius: 8px;
+            margin: 8px 0;
+            font-family: monospace;
+        }
+        .pass { background: #d4edda; color: #155724; }
+        .fail { background: #f8d7da; color: #721c24; }
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 8px 8px 8px 0;
+        }
+        button:hover { background: #0056CC; }
+        pre {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>User Signup Schema Compliance Test</h1>
+        <p>Testing the schema-compliant user creation and persistence system.</p>
+        
+        <div id="testResults"></div>
+        
+        <button onclick="runTests()">Run Schema Compliance Tests</button>
+        <button onclick="testSignupFlow()">Test Signup Flow</button>
+        <button onclick="clearUserData()">Clear User Data</button>
+        <button onclick="viewStoredData()">View Stored Data</button>
+    </div>
+    
+    <div class="test-container" id="dataViewer" style="display: none;">
+        <h2>Stored User Data</h2>
+        <pre id="userData"></pre>
+    </div>
+
+    <script>
+        // Copy the user management functions from the main app
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+        
+        function createSchemaUser(email, location, civicInterests = []) {
+            const now = new Date().toISOString();
+            return {
+                id: generateUUID(),
+                email: email,
+                experience_level: 'new',
+                location: {
+                    city: location.city,
+                    county: location.county,
+                    state: location.state,
+                    postal_code: location.postal_code || null,
+                    street_address: location.street_address || null,
+                    jurisdiction_ids: location.jurisdiction_ids || [],
+                    coordinates: location.coordinates || null
+                },
+                civic_profile: {
+                    visits: 1,
+                    interactions: 0,
+                    comments_submitted: 0,
+                    meetings_attended: 0,
+                    neighbors_connected: 0,
+                    issues_followed: [],
+                    civic_interests: civicInterests,
+                    notification_preferences: {
+                        newsletter: true,
+                        meeting_reminders: false,
+                        neighbor_updates: false,
+                        government_responses: true
+                    }
+                },
+                preferences: {
+                    interface_mode: 'simple',
+                    conversation_style: 'supportive'
+                },
+                created_at: now,
+                last_active: now
+            };
+        }
+        
+        function saveUser(user) {
+            localStorage.setItem('civic_user', JSON.stringify(user));
+            return user;
+        }
+        
+        function loadUser() {
+            const userData = localStorage.getItem('civic_user');
+            if (userData) {
+                try {
+                    return JSON.parse(userData);
+                } catch (e) {
+                    console.error('Error loading user data:', e);
+                    return null;
+                }
+            }
+            return null;
+        }
+        
+        // Schema validation functions
+        function validateUserSchema(user) {
+            const results = [];
+            
+            // Test required fields
+            results.push(testField(user.id, 'string', 'id'));
+            results.push(testField(user.email, 'string', 'email'));
+            results.push(testEnum(user.experience_level, ['new', 'returning', 'expert'], 'experience_level'));
+            
+            // Test location object
+            if (user.location) {
+                results.push(testField(user.location.city, 'string', 'location.city'));
+                results.push(testField(user.location.county, 'string', 'location.county'));
+                results.push(testField(user.location.state, 'string', 'location.state'));
+            } else {
+                results.push({pass: false, message: 'location object missing'});
+            }
+            
+            // Test civic_profile object
+            if (user.civic_profile) {
+                results.push(testField(user.civic_profile.visits, 'number', 'civic_profile.visits'));
+                results.push(testField(user.civic_profile.interactions, 'number', 'civic_profile.interactions'));
+                results.push(testArray(user.civic_profile.civic_interests, 'civic_profile.civic_interests'));
+            } else {
+                results.push({pass: false, message: 'civic_profile object missing'});
+            }
+            
+            // Test ISO date formats
+            results.push(testISO8601(user.created_at, 'created_at'));
+            results.push(testISO8601(user.last_active, 'last_active'));
+            
+            return results;
+        }
+        
+        function testField(value, expectedType, fieldName) {
+            const actualType = typeof value;
+            const pass = actualType === expectedType && value !== null && value !== undefined;
+            return {
+                pass: pass,
+                message: `${fieldName}: ${pass ? 'PASS' : 'FAIL'} (expected ${expectedType}, got ${actualType}: ${value})`
+            };
+        }
+        
+        function testEnum(value, allowedValues, fieldName) {
+            const pass = allowedValues.includes(value);
+            return {
+                pass: pass,
+                message: `${fieldName}: ${pass ? 'PASS' : 'FAIL'} (expected one of [${allowedValues.join(', ')}], got ${value})`
+            };
+        }
+        
+        function testArray(value, fieldName) {
+            const pass = Array.isArray(value);
+            return {
+                pass: pass,
+                message: `${fieldName}: ${pass ? 'PASS' : 'FAIL'} (expected array, got ${typeof value})`
+            };
+        }
+        
+        function testISO8601(dateString, fieldName) {
+            const pass = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z/.test(dateString) && !isNaN(Date.parse(dateString));
+            return {
+                pass: pass,
+                message: `${fieldName}: ${pass ? 'PASS' : 'FAIL'} (expected ISO8601 format, got ${dateString})`
+            };
+        }
+        
+        function runTests() {
+            const resultsDiv = document.getElementById('testResults');
+            resultsDiv.innerHTML = '<h3>Running Schema Compliance Tests...</h3>';
+            
+            // Test 1: Create schema-compliant user
+            const testLocation = {
+                city: 'San Rafael',
+                county: 'Marin County',
+                state: 'California'
+            };
+            const testInterests = ['housing', 'traffic', 'environment'];
+            
+            const user = createSchemaUser('test@example.com', testLocation, testInterests);
+            
+            // Test 2: Validate schema compliance
+            const validationResults = validateUserSchema(user);
+            
+            // Test 3: Test persistence
+            const savedUser = saveUser(user);
+            const loadedUser = loadUser();
+            const persistenceTest = JSON.stringify(savedUser) === JSON.stringify(loadedUser);
+            
+            // Display results
+            let html = '<h3>Test Results</h3>';
+            
+            validationResults.forEach(result => {
+                html += `<div class="test-result ${result.pass ? 'pass' : 'fail'}">${result.message}</div>`;
+            });
+            
+            html += `<div class="test-result ${persistenceTest ? 'pass' : 'fail'}">Persistence: ${persistenceTest ? 'PASS' : 'FAIL'} (localStorage save/load)</div>`;
+            
+            const passCount = validationResults.filter(r => r.pass).length + (persistenceTest ? 1 : 0);
+            const totalCount = validationResults.length + 1;
+            
+            html += `<div class="test-result ${passCount === totalCount ? 'pass' : 'fail'}"><strong>Overall: ${passCount}/${totalCount} tests passed</strong></div>`;
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        function testSignupFlow() {
+            // Simulate the signup flow
+            alert('Opening main conversational interface for signup flow test. Check the signup form appears for new users.');
+            window.open('./civic-conversational-OS.html', '_blank');
+        }
+        
+        function clearUserData() {
+            localStorage.removeItem('civic_user');
+            document.getElementById('testResults').innerHTML = '<div class="test-result pass">User data cleared from localStorage</div>';
+            document.getElementById('dataViewer').style.display = 'none';
+        }
+        
+        function viewStoredData() {
+            const userData = loadUser();
+            const viewer = document.getElementById('dataViewer');
+            const dataElement = document.getElementById('userData');
+            
+            if (userData) {
+                dataElement.textContent = JSON.stringify(userData, null, 2);
+                viewer.style.display = 'block';
+            } else {
+                dataElement.textContent = 'No user data found in localStorage';
+                viewer.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>

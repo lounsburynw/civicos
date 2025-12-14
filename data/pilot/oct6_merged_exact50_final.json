@@ -1,0 +1,1621 @@
+{
+  "source": "merged_youtube_assemblyai",
+  "youtube_analysis_file": "data/pilot/oct6_full_transcript_analysis.json",
+  "assemblyai_transcript_file": "data/testimony/testimony_MpxrGRb16HQ_exact50.json",
+  "summary": {
+    "youtube_total": 50,
+    "assemblyai_total": 50,
+    "high_confidence_mappings": 11,
+    "discrepancy": 0,
+    "mentioned_not_spoken": [
+      {
+        "name": "Council member Hill",
+        "role": "council",
+        "mentions": 10,
+        "contexts": [
+          {
+            "chunk": 1,
+            "context": "Present for the meeting roll call."
+          },
+          {
+            "chunk": 2,
+            "context": "Talked about the success of PorchFest and community engagement."
+          },
+          {
+            "chunk": 3,
+            "context": "Supported initiatives reported by the Vice Mayor."
+          },
+          {
+            "chunk": 4,
+            "context": "Raise questions about the impact of AB130 on the project and fiscal implications for the city."
+          },
+          {
+            "chunk": 7,
+            "context": "Voted 'aye' for item 5B."
+          },
+          {
+            "chunk": 8,
+            "context": "Inquired about the specifics of the seven member community stakeholder committee."
+          },
+          {
+            "chunk": 9,
+            "context": "Builds upon the Vice Mayor's comments, acknowledging the effort and community engagement involved in the project."
+          },
+          {
+            "chunk": 12,
+            "context": "Inquires about grants available for fire prevention."
+          },
+          {
+            "chunk": 15,
+            "context": "Discussed the 38-point plan connected to wildfire prevention efforts."
+          },
+          {
+            "chunk": 16,
+            "context": "Expressed views on the terminology used for wildfire prevention plans."
+          }
+        ]
+      },
+      {
+        "name": "Council member Curts",
+        "role": "council",
+        "mentions": 6,
+        "contexts": [
+          {
+            "chunk": 1,
+            "context": "Present for the meeting roll call."
+          },
+          {
+            "chunk": 7,
+            "context": "Voted 'aye' for item 5B."
+          },
+          {
+            "chunk": 8,
+            "context": "Asked about community communications and engagement regarding the project."
+          },
+          {
+            "chunk": 9,
+            "context": "Echoes enthusiasm for the project and emphasizes the importance of early communication as a project manager."
+          },
+          {
+            "chunk": 13,
+            "context": "Council Member Curts expresses pride and seeks an update on the effectiveness of the 38 point plan to reduce wildfire risk."
+          },
+          {
+            "chunk": 16,
+            "context": "Supported the discussion on wildfire prevention initiatives."
+          }
+        ]
+      },
+      {
+        "name": "Vice Mayor Bushy",
+        "role": "council",
+        "mentions": 6,
+        "contexts": [
+          {
+            "chunk": 1,
+            "context": "Present for the meeting roll call."
+          },
+          {
+            "chunk": 3,
+            "context": "Reported on various city transportation and safety initiatives."
+          },
+          {
+            "chunk": 6,
+            "context": "Moved to approve an item related to the environmental review contract."
+          },
+          {
+            "chunk": 7,
+            "context": "Moved to approve item 5B."
+          },
+          {
+            "chunk": 9,
+            "context": "Expressed excitement about moving forward with the project related to the Albert Park Library and Community Center."
+          },
+          {
+            "chunk": 16,
+            "context": "Voiced support for the update regarding wildfire prevention."
+          }
+        ]
+      },
+      {
+        "name": "Mayor Kate",
+        "role": "council",
+        "mentions": 6,
+        "contexts": [
+          {
+            "chunk": 1,
+            "context": "Welcomed attendees, introduced new employee Walter Gonzalez, and acknowledged the importance of local government during federal shutdown."
+          },
+          {
+            "chunk": 3,
+            "context": "Facilitated the meeting and supported council member comments."
+          },
+          {
+            "chunk": 7,
+            "context": "Facilitated the meeting and discussed the approval of item 5B and upcoming wildfire discussions."
+          },
+          {
+            "chunk": 9,
+            "context": "Greets the speakers from the wildfire mitigation update."
+          },
+          {
+            "chunk": 12,
+            "context": "Facilitates the meeting and asks for questions."
+          },
+          {
+            "chunk": 16,
+            "context": "Facilitated the council meeting."
+          }
+        ]
+      },
+      {
+        "name": "Vice Mayor",
+        "role": "council",
+        "mentions": 4,
+        "contexts": [
+          {
+            "chunk": 2,
+            "context": "Reported on local events including the library reopening and community honors."
+          },
+          {
+            "chunk": 4,
+            "context": "Ask questions about the environmental impact report and its administration."
+          },
+          {
+            "chunk": 11,
+            "context": "Asked about the management and regrowth of eucalyptus trees in relation to wildfire risk."
+          },
+          {
+            "chunk": 15,
+            "context": "Commended the progress and involvement of Marin County in wildfire prevention."
+          }
+        ]
+      },
+      {
+        "name": "City Manager",
+        "role": "staff",
+        "mentions": 4,
+        "contexts": [
+          {
+            "chunk": 1,
+            "context": "Reviewed events including the library reopening, acknowledged fire prevention week, and noted a recent structure fire."
+          },
+          {
+            "chunk": 2,
+            "context": "Provided updates on the upcoming community events and activities."
+          },
+          {
+            "chunk": 13,
+            "context": "Will possibly provide further insights on whether the plan should be officially adopted by the council."
+          },
+          {
+            "chunk": 14,
+            "context": "Addressed the ongoing updates needed for council related to fire management efforts."
+          }
+        ]
+      },
+      {
+        "name": "Chief",
+        "role": "staff",
+        "mentions": 2,
+        "contexts": [
+          {
+            "chunk": 15,
+            "context": "Gratitude was expressed for leadership and efforts in wildfire prevention."
+          },
+          {
+            "chunk": 16,
+            "context": "Thanked for leadership in wildfire prevention efforts."
+          }
+        ]
+      },
+      {
+        "name": "Quinn Kate",
+        "role": "staff",
+        "mentions": 2,
+        "contexts": [
+          {
+            "chunk": 15,
+            "context": "Acknowledged for her efforts and tireless work in supporting the community's wildfire prevention initiatives."
+          },
+          {
+            "chunk": 16,
+            "context": "Acknowledged for tireless work in wildfire prevention."
+          }
+        ]
+      },
+      {
+        "name": "Quinn",
+        "role": "staff",
+        "mentions": 2,
+        "contexts": [
+          {
+            "chunk": 11,
+            "context": "Discussed updates on fire prevention measures within the building code and wildfire mitigation strategies."
+          },
+          {
+            "chunk": 14,
+            "context": "Discussed the blending of policy and operational elements in a 38 point plan related to the city's response to fire hazards."
+          }
+        ]
+      },
+      {
+        "name": "Council Member Kurts",
+        "role": "council",
+        "mentions": 2,
+        "contexts": [
+          {
+            "chunk": 2,
+            "context": "Mentioned attending various community events and the Marin Wildfire Prevention Authority meeting."
+          },
+          {
+            "chunk": 15,
+            "context": "Highlighted the collaboration between San Rafael and the Marin Wildfire Prevention Authority."
+          }
+        ]
+      },
+      {
+        "name": "Unnamed Speaker",
+        "role": "public",
+        "mentions": 2,
+        "contexts": [
+          {
+            "chunk": 5,
+            "context": "Member of the Safe Dominican Valley steering committee questioning the city's agreement."
+          },
+          {
+            "chunk": 5,
+            "context": "Discussed issues of safety, insurance concerns, and environmental assessments related to the development."
+          }
+        ]
+      },
+      {
+        "name": "City Clerk",
+        "role": "staff",
+        "mentions": 2,
+        "contexts": [
+          {
+            "chunk": 1,
+            "context": "Described how the public can participate in the meeting, including guidelines for public comment."
+          },
+          {
+            "chunk": 6,
+            "context": "Assisted with procedural questions during the approval process."
+          }
+        ]
+      },
+      {
+        "name": "City Attorney",
+        "role": "staff",
+        "mentions": 2,
+        "contexts": [
+          {
+            "chunk": 1,
+            "context": "Reported on closed session matters before the meeting."
+          },
+          {
+            "chunk": 6,
+            "context": "Provided responses and clarifications regarding questions related to the contract and consistency analysis."
+          }
+        ]
+      },
+      {
+        "name": "Christine (last name not provided)",
+        "role": "staff",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 8,
+            "context": "Responsible for giving the ability to sign the contract to kick off the work."
+          }
+        ]
+      },
+      {
+        "name": "Salama from Terinda",
+        "role": "public",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 14,
+            "context": "Spoke on behalf of the Sanfell Age Friendly Partnership Committee, praising a local community event focused on fire safety education."
+          }
+        ]
+      },
+      {
+        "name": "Christina Estado",
+        "role": "staff",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 3,
+            "context": "Provided additional information regarding the environmental consulting contract."
+          }
+        ]
+      },
+      {
+        "name": "Ed Ruski",
+        "role": "public",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 17,
+            "context": "Ed emphasized the necessity of independence for the PAC from law enforcement to create accountability and trust."
+          }
+        ]
+      },
+      {
+        "name": "Alveter",
+        "role": "public",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 3,
+            "context": "Inquired about carbon credit recognition for public transportation miles."
+          }
+        ]
+      },
+      {
+        "name": "Quinn (no last name given)",
+        "role": "staff",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 9,
+            "context": "Provides an update on the city's wildfire prevention efforts."
+          }
+        ]
+      },
+      {
+        "name": "Council member Yadens Galadia",
+        "role": "council",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 1,
+            "context": "Absent for the meeting roll call."
+          }
+        ]
+      },
+      {
+        "name": "Mayor",
+        "role": "council",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 6,
+            "context": "Guided the meeting and clarified the focus of the discussion on the contract, not the project merits."
+          }
+        ]
+      },
+      {
+        "name": "Kate (no last name given)",
+        "role": "staff",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 9,
+            "context": "Assists in presenting the wildfire mitigation efforts alongside Quinn."
+          }
+        ]
+      },
+      {
+        "name": "Christina",
+        "role": "staff",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 6,
+            "context": "Explained the relationship between the environmental impact report and the consistency letter."
+          }
+        ]
+      },
+      {
+        "name": "Anonymous Public Commenter",
+        "role": "public",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 3,
+            "context": "Requested to improve Wi-Fi security at the library."
+          }
+        ]
+      },
+      {
+        "name": "Christina Esido",
+        "role": "staff",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 4,
+            "context": "Provide additional information regarding the contract services for the environmental impact report."
+          }
+        ]
+      },
+      {
+        "name": "Chief Roman",
+        "role": "staff",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 7,
+            "context": "Accepted the proclamation for fire prevention week and spoke about community fire safety."
+          }
+        ]
+      },
+      {
+        "name": "Stan Berford",
+        "role": "public",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 12,
+            "context": "Credited for the idea of a dual gate for fire safety."
+          }
+        ]
+      },
+      {
+        "name": "Micah Hinkle",
+        "role": "staff",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 3,
+            "context": "Introduced a contract for environmental consulting services related to a development proposal."
+          }
+        ]
+      },
+      {
+        "name": "Belle Cole",
+        "role": "public",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 15,
+            "context": "Recognized for her leadership in biomass recovery and community efforts related to wildfire prevention."
+          }
+        ]
+      },
+      {
+        "name": "Steve Danaher",
+        "role": "public",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 16,
+            "context": "Talked about ongoing crime issues in the area."
+          }
+        ]
+      },
+      {
+        "name": "Chris Wer",
+        "role": "public",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 6,
+            "context": "Questioned the city's financial agreement with the developer regarding the environmental review contract."
+          }
+        ]
+      },
+      {
+        "name": "Kate",
+        "role": "staff",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 10,
+            "context": "Discussed the accomplishments of the wildfire mitigation team and community engagement efforts."
+          }
+        ]
+      },
+      {
+        "name": "Quinn Gardner, Deputy Director of Emergency Management",
+        "role": "staff",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 10,
+            "context": "Provided updates on policy actions related to wildfire mitigation and emergency management."
+          }
+        ]
+      },
+      {
+        "name": "Tammy Edmonson",
+        "role": "public",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 17,
+            "context": "Tammy discussed the need for independence in the Police Advisory and Accountability Committee to ensure effective oversight."
+          }
+        ]
+      },
+      {
+        "name": "John Stfansky",
+        "role": "staff",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 7,
+            "context": "Discussed the capital project management services contract related to the library and community center."
+          }
+        ]
+      },
+      {
+        "name": "City Staff Representative",
+        "role": "staff",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 13,
+            "context": "Describes the most impactful actions taken to reduce wildfire risk, including resident and council action."
+          }
+        ]
+      },
+      {
+        "name": "Unknown Speaker (City staff)",
+        "role": "staff",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 12,
+            "context": "Provides information on eucalyptus tree management and grant programs."
+          }
+        ]
+      },
+      {
+        "name": "Unknown Speaker",
+        "role": "unknown",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 13,
+            "context": "Inquires about how the city prioritizes work related to wildfire prevention."
+          }
+        ]
+      },
+      {
+        "name": "Council member Kurt",
+        "role": "council",
+        "mentions": 1,
+        "contexts": [
+          {
+            "chunk": 3,
+            "context": "Supported initiatives reported by the Vice Mayor."
+          }
+        ]
+      }
+    ]
+  },
+  "speaker_mappings": [
+    {
+      "assemblyai_label": "B",
+      "name": "Kate [LastName]",
+      "role": "Mayor",
+      "confidence": "medium",
+      "evidence": "Minutes cross-reference: Chaired meeting (procedural language matches Mayor role)",
+      "utterance_count": 134,
+      "sample_utterance": "Good evening everyone. We apologize that we starting a few minutes late."
+    },
+    {
+      "assemblyai_label": "AS",
+      "name": "Unknown (AS)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 126,
+      "sample_utterance": "Yes, yes."
+    },
+    {
+      "assemblyai_label": "C",
+      "name": "Kate [LastName]",
+      "role": "Mayor",
+      "confidence": "medium",
+      "evidence": "Minutes cross-reference: Chaired meeting (procedural language matches Mayor role)",
+      "utterance_count": 124,
+      "sample_utterance": "Welcome to the regular meeting of San Rafael City Council."
+    },
+    {
+      "assemblyai_label": "AT",
+      "name": "Unknown (AT)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 119,
+      "sample_utterance": "Quite a few of the items within."
+    },
+    {
+      "assemblyai_label": "D",
+      "name": "Unknown (D)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 103,
+      "sample_utterance": "Today is Monday, October 6th."
+    },
+    {
+      "assemblyai_label": "E",
+      "name": "Unknown (E)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 100,
+      "sample_utterance": "I'll request the City Clerk to call the roll."
+    },
+    {
+      "assemblyai_label": "P",
+      "name": "Unknown (P)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 83,
+      "sample_utterance": "I'll turn to City Manager Aich."
+    },
+    {
+      "assemblyai_label": "V",
+      "name": "Unknown (V)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 51,
+      "sample_utterance": "Thank you, Mayor Kate. I have been heaped upon a lot."
+    },
+    {
+      "assemblyai_label": "I",
+      "name": "Unknown (I)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 50,
+      "sample_utterance": "Present."
+    },
+    {
+      "assemblyai_label": "Q",
+      "name": "Unknown (Q)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 47,
+      "sample_utterance": "Some staff as well. We had a really great celebration."
+    },
+    {
+      "assemblyai_label": "AR",
+      "name": "Unknown (AR)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 44,
+      "sample_utterance": "Good evening Mayor Kate, Members of the City Council, John Stefanski, Assistant City Manager."
+    },
+    {
+      "assemblyai_label": "AQ",
+      "name": "Unknown (AQ)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 43,
+      "sample_utterance": "Thank you."
+    },
+    {
+      "assemblyai_label": "R",
+      "name": "Unknown (R)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 32,
+      "sample_utterance": "The Downtown Library grand reopening was back."
+    },
+    {
+      "assemblyai_label": "H",
+      "name": "Unknown (H)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 30,
+      "sample_utterance": "Council Member Hill."
+    },
+    {
+      "assemblyai_label": "S",
+      "name": "Unknown (S)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 28,
+      "sample_utterance": "The voters passed last year."
+    },
+    {
+      "assemblyai_label": "AH",
+      "name": "Ron Klyman",
+      "role": "public",
+      "confidence": "high",
+      "evidence": "Self-introduction found: 'Ron Kleiman' \u2192 matched to 'Ron Klyman'",
+      "utterance_count": 26,
+      "sample_utterance": "The Dominican neighborhood and for 45 years or so have been walking on on the property. Subject is development application and understand that tonight"
+    },
+    {
+      "assemblyai_label": "AG",
+      "name": "Don Dickinson",
+      "role": "public",
+      "confidence": "high",
+      "evidence": "Self-introduction found: 'Don Dickinson.' \u2192 matched to 'Don Dickinson'",
+      "utterance_count": 25,
+      "sample_utterance": "I'm Don Dickinson. I'm a almost 46 year resident of."
+    },
+    {
+      "assemblyai_label": "F",
+      "name": "Unknown (F)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 24,
+      "sample_utterance": "Vice Mayor Bushy."
+    },
+    {
+      "assemblyai_label": "J",
+      "name": "Cristine Alilovich",
+      "role": "City Manager",
+      "confidence": "medium",
+      "evidence": "Minutes cross-reference: Staff presentation language (low confidence on specific person)",
+      "utterance_count": 24,
+      "sample_utterance": "Present."
+    },
+    {
+      "assemblyai_label": "U",
+      "name": "Cristine Alilovich",
+      "role": "City Manager",
+      "confidence": "medium",
+      "evidence": "Minutes cross-reference: Staff presentation language (low confidence on specific person)",
+      "utterance_count": 24,
+      "sample_utterance": "Thank you."
+    },
+    {
+      "assemblyai_label": "T",
+      "name": "Sharon Demer",
+      "role": "public",
+      "confidence": "high",
+      "evidence": "Self-introduction found: 'Sherna Deamer' \u2192 matched to 'Sharon Demer'",
+      "utterance_count": 21,
+      "sample_utterance": "Vice Mayor well, I don't have any."
+    },
+    {
+      "assemblyai_label": "AV",
+      "name": "Unknown (AV)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 19,
+      "sample_utterance": "712D street, just down the street between."
+    },
+    {
+      "assemblyai_label": "G",
+      "name": "Lindsay Lara",
+      "role": "City Clerk",
+      "confidence": "medium",
+      "evidence": "Minutes cross-reference: Clerk procedural language (2 patterns matched)",
+      "utterance_count": 18,
+      "sample_utterance": "President."
+    },
+    {
+      "assemblyai_label": "M",
+      "name": "Gary Ragianti",
+      "role": "public",
+      "confidence": "high",
+      "evidence": "Self-introduction found: 'Gary Ragianti.' \u2192 matched to 'Gary Ragianti'",
+      "utterance_count": 18,
+      "sample_utterance": "The council will resume the closed session."
+    },
+    {
+      "assemblyai_label": "W",
+      "name": "Unknown (W)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 18,
+      "sample_utterance": "Of expectation to talk about Porch Fest."
+    },
+    {
+      "assemblyai_label": "AC",
+      "name": "Unknown (AC)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 17,
+      "sample_utterance": "Good evening Mayor Kate, Council members."
+    },
+    {
+      "assemblyai_label": "AD",
+      "name": "Unknown (AD)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 17,
+      "sample_utterance": "Micah Hinkle, Community and Economic development Director. Joining me tonight is Principal Planner Christina."
+    },
+    {
+      "assemblyai_label": "AU",
+      "name": "Unknown (AU)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 16,
+      "sample_utterance": "My name's Steve Danaher."
+    },
+    {
+      "assemblyai_label": "AE",
+      "name": "Gary Chub",
+      "role": "public",
+      "confidence": "high",
+      "evidence": "Self-introduction found: 'Gary Chubb' \u2192 matched to 'Gary Chub'",
+      "utterance_count": 15,
+      "sample_utterance": "That's there'll be an opportunity really for."
+    },
+    {
+      "assemblyai_label": "K",
+      "name": "Unknown (K)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 15,
+      "sample_utterance": "Mayor Kate."
+    },
+    {
+      "assemblyai_label": "AA",
+      "name": "Craig Fenick",
+      "role": "public",
+      "confidence": "high",
+      "evidence": "Self-introduction found: 'Craig Fenneck' \u2192 matched to 'Craig Fenick'",
+      "utterance_count": 14,
+      "sample_utterance": "I used a library a lot and."
+    },
+    {
+      "assemblyai_label": "AP",
+      "name": "Unknown (AP)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 14,
+      "sample_utterance": "August 21st reminds us that fire prevention."
+    },
+    {
+      "assemblyai_label": "AI",
+      "name": "Sarah Sonnet",
+      "role": "public",
+      "confidence": "high",
+      "evidence": "Self-introduction found: 'Sarah Sonnett' \u2192 matched to 'Sarah Sonnet'",
+      "utterance_count": 12,
+      "sample_utterance": "Thank you."
+    },
+    {
+      "assemblyai_label": "AL",
+      "name": "Unknown (AL)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 12,
+      "sample_utterance": "I live on right on the intersection of. Of Highland and Margarita First."
+    },
+    {
+      "assemblyai_label": "AJ",
+      "name": "Bella Cole",
+      "role": "public",
+      "confidence": "high",
+      "evidence": "Self-introduction found: 'Bell Cole' \u2192 matched to 'Bella Cole'",
+      "utterance_count": 11,
+      "sample_utterance": "Okay, thank you."
+    },
+    {
+      "assemblyai_label": "AK",
+      "name": "Michael Porius",
+      "role": "public",
+      "confidence": "high",
+      "evidence": "Self-introduction found: 'Michael Porius,' \u2192 matched to 'Michael Porius'",
+      "utterance_count": 11,
+      "sample_utterance": "Hi, my name is Michael Porius, and."
+    },
+    {
+      "assemblyai_label": "O",
+      "name": "Unknown (O)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 11,
+      "sample_utterance": "Email me at City Clerk atcity ofcenterfall.org thank you."
+    },
+    {
+      "assemblyai_label": "A",
+      "name": "Unknown (A)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 10,
+      "sample_utterance": "Recording in progress."
+    },
+    {
+      "assemblyai_label": "AB",
+      "name": "Unknown (AB)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 8,
+      "sample_utterance": "I come in here but wireless access."
+    },
+    {
+      "assemblyai_label": "AO",
+      "name": "Unknown (AO)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 7,
+      "sample_utterance": "Good evening Madam Mayor, members of the council."
+    },
+    {
+      "assemblyai_label": "L",
+      "name": "Unknown (L)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 7,
+      "sample_utterance": "There were two matters. There was no reportable action as to the first. The second matter, the court."
+    },
+    {
+      "assemblyai_label": "AF",
+      "name": "Unknown (AF)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 6,
+      "sample_utterance": "That's correct."
+    },
+    {
+      "assemblyai_label": "AM",
+      "name": "Tim Blair",
+      "role": "public",
+      "confidence": "high",
+      "evidence": "Self-introduction found: 'Tim Blair,' \u2192 matched to 'Tim Blair'",
+      "utterance_count": 5,
+      "sample_utterance": "My name is Tim Blair, I live."
+    },
+    {
+      "assemblyai_label": "AW",
+      "name": "Sergio Braz",
+      "role": "public",
+      "confidence": "high",
+      "evidence": "Self-introduction found: 'Sergio Bras' \u2192 matched to 'Sergio Braz'",
+      "utterance_count": 5,
+      "sample_utterance": "Good evening, mayor, council members and Community members. My name is Sergio Bras and I represent the hard working men and women of the Carpenter's U"
+    },
+    {
+      "assemblyai_label": "Y",
+      "name": "Unknown (Y)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 5,
+      "sample_utterance": "Alva Terry Gersel Park I have a quick question for smart."
+    },
+    {
+      "assemblyai_label": "AN",
+      "name": "Unknown (AN)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 4,
+      "sample_utterance": "At 80 Fairway Drive. I would like to know, considering the topography, the geology and the hydrology of this type of property, this hillside, why on e"
+    },
+    {
+      "assemblyai_label": "AX",
+      "name": "Unknown (AX)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 4,
+      "sample_utterance": "That ensure our workers are treated fairly with dignity and respect."
+    },
+    {
+      "assemblyai_label": "N",
+      "name": "Unknown (N)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 4,
+      "sample_utterance": "Following the regular meeting and I'll report out following that at the next regular meeting."
+    },
+    {
+      "assemblyai_label": "Z",
+      "name": "Unknown (Z)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 4,
+      "sample_utterance": "On the same page and I've been thinking about this."
+    },
+    {
+      "assemblyai_label": "X",
+      "name": "Unknown (X)",
+      "role": "unknown",
+      "confidence": "low",
+      "evidence": "No self-introduction or minutes match found",
+      "utterance_count": 2,
+      "sample_utterance": "The right path for our future. Thank you."
+    }
+  ],
+  "mentioned_not_spoken": [
+    {
+      "name": "Council member Hill",
+      "role": "council",
+      "mentions": 10,
+      "contexts": [
+        {
+          "chunk": 1,
+          "context": "Present for the meeting roll call."
+        },
+        {
+          "chunk": 2,
+          "context": "Talked about the success of PorchFest and community engagement."
+        },
+        {
+          "chunk": 3,
+          "context": "Supported initiatives reported by the Vice Mayor."
+        },
+        {
+          "chunk": 4,
+          "context": "Raise questions about the impact of AB130 on the project and fiscal implications for the city."
+        },
+        {
+          "chunk": 7,
+          "context": "Voted 'aye' for item 5B."
+        },
+        {
+          "chunk": 8,
+          "context": "Inquired about the specifics of the seven member community stakeholder committee."
+        },
+        {
+          "chunk": 9,
+          "context": "Builds upon the Vice Mayor's comments, acknowledging the effort and community engagement involved in the project."
+        },
+        {
+          "chunk": 12,
+          "context": "Inquires about grants available for fire prevention."
+        },
+        {
+          "chunk": 15,
+          "context": "Discussed the 38-point plan connected to wildfire prevention efforts."
+        },
+        {
+          "chunk": 16,
+          "context": "Expressed views on the terminology used for wildfire prevention plans."
+        }
+      ]
+    },
+    {
+      "name": "Council member Curts",
+      "role": "council",
+      "mentions": 6,
+      "contexts": [
+        {
+          "chunk": 1,
+          "context": "Present for the meeting roll call."
+        },
+        {
+          "chunk": 7,
+          "context": "Voted 'aye' for item 5B."
+        },
+        {
+          "chunk": 8,
+          "context": "Asked about community communications and engagement regarding the project."
+        },
+        {
+          "chunk": 9,
+          "context": "Echoes enthusiasm for the project and emphasizes the importance of early communication as a project manager."
+        },
+        {
+          "chunk": 13,
+          "context": "Council Member Curts expresses pride and seeks an update on the effectiveness of the 38 point plan to reduce wildfire risk."
+        },
+        {
+          "chunk": 16,
+          "context": "Supported the discussion on wildfire prevention initiatives."
+        }
+      ]
+    },
+    {
+      "name": "Vice Mayor Bushy",
+      "role": "council",
+      "mentions": 6,
+      "contexts": [
+        {
+          "chunk": 1,
+          "context": "Present for the meeting roll call."
+        },
+        {
+          "chunk": 3,
+          "context": "Reported on various city transportation and safety initiatives."
+        },
+        {
+          "chunk": 6,
+          "context": "Moved to approve an item related to the environmental review contract."
+        },
+        {
+          "chunk": 7,
+          "context": "Moved to approve item 5B."
+        },
+        {
+          "chunk": 9,
+          "context": "Expressed excitement about moving forward with the project related to the Albert Park Library and Community Center."
+        },
+        {
+          "chunk": 16,
+          "context": "Voiced support for the update regarding wildfire prevention."
+        }
+      ]
+    },
+    {
+      "name": "Mayor Kate",
+      "role": "council",
+      "mentions": 6,
+      "contexts": [
+        {
+          "chunk": 1,
+          "context": "Welcomed attendees, introduced new employee Walter Gonzalez, and acknowledged the importance of local government during federal shutdown."
+        },
+        {
+          "chunk": 3,
+          "context": "Facilitated the meeting and supported council member comments."
+        },
+        {
+          "chunk": 7,
+          "context": "Facilitated the meeting and discussed the approval of item 5B and upcoming wildfire discussions."
+        },
+        {
+          "chunk": 9,
+          "context": "Greets the speakers from the wildfire mitigation update."
+        },
+        {
+          "chunk": 12,
+          "context": "Facilitates the meeting and asks for questions."
+        },
+        {
+          "chunk": 16,
+          "context": "Facilitated the council meeting."
+        }
+      ]
+    },
+    {
+      "name": "Vice Mayor",
+      "role": "council",
+      "mentions": 4,
+      "contexts": [
+        {
+          "chunk": 2,
+          "context": "Reported on local events including the library reopening and community honors."
+        },
+        {
+          "chunk": 4,
+          "context": "Ask questions about the environmental impact report and its administration."
+        },
+        {
+          "chunk": 11,
+          "context": "Asked about the management and regrowth of eucalyptus trees in relation to wildfire risk."
+        },
+        {
+          "chunk": 15,
+          "context": "Commended the progress and involvement of Marin County in wildfire prevention."
+        }
+      ]
+    },
+    {
+      "name": "City Manager",
+      "role": "staff",
+      "mentions": 4,
+      "contexts": [
+        {
+          "chunk": 1,
+          "context": "Reviewed events including the library reopening, acknowledged fire prevention week, and noted a recent structure fire."
+        },
+        {
+          "chunk": 2,
+          "context": "Provided updates on the upcoming community events and activities."
+        },
+        {
+          "chunk": 13,
+          "context": "Will possibly provide further insights on whether the plan should be officially adopted by the council."
+        },
+        {
+          "chunk": 14,
+          "context": "Addressed the ongoing updates needed for council related to fire management efforts."
+        }
+      ]
+    },
+    {
+      "name": "Chief",
+      "role": "staff",
+      "mentions": 2,
+      "contexts": [
+        {
+          "chunk": 15,
+          "context": "Gratitude was expressed for leadership and efforts in wildfire prevention."
+        },
+        {
+          "chunk": 16,
+          "context": "Thanked for leadership in wildfire prevention efforts."
+        }
+      ]
+    },
+    {
+      "name": "Quinn Kate",
+      "role": "staff",
+      "mentions": 2,
+      "contexts": [
+        {
+          "chunk": 15,
+          "context": "Acknowledged for her efforts and tireless work in supporting the community's wildfire prevention initiatives."
+        },
+        {
+          "chunk": 16,
+          "context": "Acknowledged for tireless work in wildfire prevention."
+        }
+      ]
+    },
+    {
+      "name": "Quinn",
+      "role": "staff",
+      "mentions": 2,
+      "contexts": [
+        {
+          "chunk": 11,
+          "context": "Discussed updates on fire prevention measures within the building code and wildfire mitigation strategies."
+        },
+        {
+          "chunk": 14,
+          "context": "Discussed the blending of policy and operational elements in a 38 point plan related to the city's response to fire hazards."
+        }
+      ]
+    },
+    {
+      "name": "Council Member Kurts",
+      "role": "council",
+      "mentions": 2,
+      "contexts": [
+        {
+          "chunk": 2,
+          "context": "Mentioned attending various community events and the Marin Wildfire Prevention Authority meeting."
+        },
+        {
+          "chunk": 15,
+          "context": "Highlighted the collaboration between San Rafael and the Marin Wildfire Prevention Authority."
+        }
+      ]
+    },
+    {
+      "name": "Unnamed Speaker",
+      "role": "public",
+      "mentions": 2,
+      "contexts": [
+        {
+          "chunk": 5,
+          "context": "Member of the Safe Dominican Valley steering committee questioning the city's agreement."
+        },
+        {
+          "chunk": 5,
+          "context": "Discussed issues of safety, insurance concerns, and environmental assessments related to the development."
+        }
+      ]
+    },
+    {
+      "name": "City Clerk",
+      "role": "staff",
+      "mentions": 2,
+      "contexts": [
+        {
+          "chunk": 1,
+          "context": "Described how the public can participate in the meeting, including guidelines for public comment."
+        },
+        {
+          "chunk": 6,
+          "context": "Assisted with procedural questions during the approval process."
+        }
+      ]
+    },
+    {
+      "name": "City Attorney",
+      "role": "staff",
+      "mentions": 2,
+      "contexts": [
+        {
+          "chunk": 1,
+          "context": "Reported on closed session matters before the meeting."
+        },
+        {
+          "chunk": 6,
+          "context": "Provided responses and clarifications regarding questions related to the contract and consistency analysis."
+        }
+      ]
+    },
+    {
+      "name": "Christine (last name not provided)",
+      "role": "staff",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 8,
+          "context": "Responsible for giving the ability to sign the contract to kick off the work."
+        }
+      ]
+    },
+    {
+      "name": "Salama from Terinda",
+      "role": "public",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 14,
+          "context": "Spoke on behalf of the Sanfell Age Friendly Partnership Committee, praising a local community event focused on fire safety education."
+        }
+      ]
+    },
+    {
+      "name": "Christina Estado",
+      "role": "staff",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 3,
+          "context": "Provided additional information regarding the environmental consulting contract."
+        }
+      ]
+    },
+    {
+      "name": "Ed Ruski",
+      "role": "public",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 17,
+          "context": "Ed emphasized the necessity of independence for the PAC from law enforcement to create accountability and trust."
+        }
+      ]
+    },
+    {
+      "name": "Alveter",
+      "role": "public",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 3,
+          "context": "Inquired about carbon credit recognition for public transportation miles."
+        }
+      ]
+    },
+    {
+      "name": "Quinn (no last name given)",
+      "role": "staff",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 9,
+          "context": "Provides an update on the city's wildfire prevention efforts."
+        }
+      ]
+    },
+    {
+      "name": "Council member Yadens Galadia",
+      "role": "council",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 1,
+          "context": "Absent for the meeting roll call."
+        }
+      ]
+    },
+    {
+      "name": "Mayor",
+      "role": "council",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 6,
+          "context": "Guided the meeting and clarified the focus of the discussion on the contract, not the project merits."
+        }
+      ]
+    },
+    {
+      "name": "Kate (no last name given)",
+      "role": "staff",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 9,
+          "context": "Assists in presenting the wildfire mitigation efforts alongside Quinn."
+        }
+      ]
+    },
+    {
+      "name": "Christina",
+      "role": "staff",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 6,
+          "context": "Explained the relationship between the environmental impact report and the consistency letter."
+        }
+      ]
+    },
+    {
+      "name": "Anonymous Public Commenter",
+      "role": "public",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 3,
+          "context": "Requested to improve Wi-Fi security at the library."
+        }
+      ]
+    },
+    {
+      "name": "Christina Esido",
+      "role": "staff",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 4,
+          "context": "Provide additional information regarding the contract services for the environmental impact report."
+        }
+      ]
+    },
+    {
+      "name": "Chief Roman",
+      "role": "staff",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 7,
+          "context": "Accepted the proclamation for fire prevention week and spoke about community fire safety."
+        }
+      ]
+    },
+    {
+      "name": "Stan Berford",
+      "role": "public",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 12,
+          "context": "Credited for the idea of a dual gate for fire safety."
+        }
+      ]
+    },
+    {
+      "name": "Micah Hinkle",
+      "role": "staff",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 3,
+          "context": "Introduced a contract for environmental consulting services related to a development proposal."
+        }
+      ]
+    },
+    {
+      "name": "Belle Cole",
+      "role": "public",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 15,
+          "context": "Recognized for her leadership in biomass recovery and community efforts related to wildfire prevention."
+        }
+      ]
+    },
+    {
+      "name": "Steve Danaher",
+      "role": "public",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 16,
+          "context": "Talked about ongoing crime issues in the area."
+        }
+      ]
+    },
+    {
+      "name": "Chris Wer",
+      "role": "public",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 6,
+          "context": "Questioned the city's financial agreement with the developer regarding the environmental review contract."
+        }
+      ]
+    },
+    {
+      "name": "Kate",
+      "role": "staff",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 10,
+          "context": "Discussed the accomplishments of the wildfire mitigation team and community engagement efforts."
+        }
+      ]
+    },
+    {
+      "name": "Quinn Gardner, Deputy Director of Emergency Management",
+      "role": "staff",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 10,
+          "context": "Provided updates on policy actions related to wildfire mitigation and emergency management."
+        }
+      ]
+    },
+    {
+      "name": "Tammy Edmonson",
+      "role": "public",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 17,
+          "context": "Tammy discussed the need for independence in the Police Advisory and Accountability Committee to ensure effective oversight."
+        }
+      ]
+    },
+    {
+      "name": "John Stfansky",
+      "role": "staff",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 7,
+          "context": "Discussed the capital project management services contract related to the library and community center."
+        }
+      ]
+    },
+    {
+      "name": "City Staff Representative",
+      "role": "staff",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 13,
+          "context": "Describes the most impactful actions taken to reduce wildfire risk, including resident and council action."
+        }
+      ]
+    },
+    {
+      "name": "Unknown Speaker (City staff)",
+      "role": "staff",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 12,
+          "context": "Provides information on eucalyptus tree management and grant programs."
+        }
+      ]
+    },
+    {
+      "name": "Unknown Speaker",
+      "role": "unknown",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 13,
+          "context": "Inquires about how the city prioritizes work related to wildfire prevention."
+        }
+      ]
+    },
+    {
+      "name": "Council member Kurt",
+      "role": "council",
+      "mentions": 1,
+      "contexts": [
+        {
+          "chunk": 3,
+          "context": "Supported initiatives reported by the Vice Mayor."
+        }
+      ]
+    }
+  ]
+}

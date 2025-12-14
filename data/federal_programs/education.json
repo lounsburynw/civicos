@@ -1,0 +1,60 @@
+{
+  "jurisdiction": "federal",
+  "topic": "education",
+  "last_updated": "2025-10-07T18:30:00.000000",
+  "data_sources": [
+    "Perplexity Sonar Pro API",
+    "U.S. Department of Education (cited by Perplexity)",
+    "State education agencies (cited by Perplexity)"
+  ],
+  "verification_status": "Perplexity-sourced, pending verification",
+  "perplexity_citations": [
+    "https://www.pa.gov/agencies/education/programs-and-services/federal-programs/title-i",
+    "http://www.ed.gov/grants-and-programs/formula-grants/school-improvement-grants/title-i-part-improving-basic-programs-operated-local-educational-agencies",
+    "https://www.nysed.gov/essa/title-i-part-improving-basic-programs-operated-leas",
+    "https://www.nysed.gov/essa/title-i-part-improving-basic-programs-operated-leas-fact-sheet",
+    "https://www.positiveaction.net/blog/title-1-school-funding",
+    "https://sam.gov/fal/c3f4371c8e324d39a680e0a0b34aa7d5/view",
+    "https://www.nassp.org/title-i-improving-basic-programs-operated-by-state-and-local-education-agencies/",
+    "https://nces.ed.gov/fastfacts/display.asp?id=158",
+    "https://www.everystudentsucceedsact.org/title-i-improving-basic-school-programs-operated-by-state-and-local-educational-agencies"
+  ],
+  "programs": {
+    "title_i_part_a": {
+      "program_name": "Title I Grants to Local Educational Agencies (Title I, Part A)",
+      "administering_agency": "U.S. Department of Education",
+      "description": "Title I, Part A provides financial assistance to local educational agencies (LEAs)—such as public school districts and charter schools—to improve educational opportunities for children from low-income families. Local governments (LEAs) are responsible for identifying eligible schools, allocating funds, and implementing programs to close achievement gaps and ensure all students meet state academic standards.",
+      "eligible_activities": [
+        "Supplemental instruction in reading, language arts, and mathematics for students at risk of failing",
+        "Schoolwide program upgrades (in schools with ≥40% poverty), such as curriculum improvements and professional development for teachers",
+        "Targeted assistance programs for specific students who are failing or at risk of failing to meet academic standards",
+        "After-school, summer, and extended learning programs to reinforce the regular curriculum",
+        "Early childhood education and preschool programs for eligible children",
+        "Family and parent engagement activities to support student learning and school improvement",
+        "Services for eligible private school students residing in the LEA's jurisdiction"
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Annual public meetings: Each Title I school must hold an annual meeting for parents to explain the program, available services, and parent rights",
+        "Written parent and family engagement policy: LEAs must develop this policy in consultation with parents and families of participating students and distribute it annually",
+        "Stakeholder consultation: LEAs must consult with parents, teachers, and community members during the annual planning and application process for Title I funds",
+        "Resident advisory committees: Many states and districts have Title I Parent Advisory Councils or similar bodies to advise on program planning and evaluation",
+        "Community needs assessment: LEAs are expected to assess community and student needs as part of the planning process, often involving public input",
+        "Annual reporting and feedback: LEAs must report on program outcomes and provide opportunities for public comment on these reports"
+      ],
+      "leverage_point": "Residents can influence local Title I funding and program decisions by: (1) Attending annual Title I meetings at their child's school to learn about and provide input on program offerings, (2) Participating in parent advisory councils or committees, which advise on Title I planning and implementation, (3) Engaging in public comment periods during the LEA's annual planning and reporting cycles, (4) Contacting the local Title I coordinator (typically found in the school district's federal programs or grants office) or the school principal to ask about participation opportunities and provide feedback, (5) Reviewing and commenting on the district's written parent and family engagement policy and annual Title I plan",
+      "official_url": "https://www.ed.gov/grants-and-programs/formula-grants/school-improvement/improving-basic-programs-operated-by-local-educational-agencies-esea-title-i-part-a",
+      "keywords": [
+        "education",
+        "Title I",
+        "school funding",
+        "student achievement",
+        "low-income students",
+        "educational equity",
+        "K-12 education",
+        "parent engagement"
+      ]
+    }
+  }
+}

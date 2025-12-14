@@ -1,0 +1,140 @@
+{
+  "jurisdiction": "federal",
+  "topic": "housing",
+  "last_updated": "2025-10-07T16:01:43.717989",
+  "data_sources": [
+    "Perplexity Sonar Pro API",
+    "HUD.gov (cited by Perplexity)",
+    "NEEDS HUMAN VERIFICATION"
+  ],
+  "verification_status": "DRAFT - NOT VERIFIED",
+  "perplexity_citations": [
+    "https://www.grants.ca.gov/grants/community-development-block-grant-cdbg/",
+    "https://www.achcd.org/community-development-block-grant-cdbg/",
+    "https://www.hud.gov/hud-partners/community-cdbg",
+    "https://www.hcd.ca.gov/grants-and-funding/programs-active/community-development-block-grant",
+    "https://www.rialtoca.gov/168/Community-Development-Block-Grant-CDBG",
+    "https://hudgis-hud.opendata.arcgis.com/datasets/HUD::community-development-block-grant-activity/about",
+    "https://www.hudexchange.info/programs/cdbg/",
+    "https://catalog.data.gov/dataset/community-development-block-grant-cdbg-activity",
+    "https://www.hudexchange.info/programs/cdbg-entitlement/",
+    "https://catalog.data.gov/dataset/cdbg-performance-profiles-py12"
+  ],
+  "programs": {
+    "cdbg": {
+      "program_name": "Community Development Block Grant",
+      "administering_agency": "HUD",
+      "description": "Provides annual grants on a formula basis to states, cities, and counties to develop viable urban communities by providing decent housing and a suitable living environment, and by expanding economic opportunities, principally for low- and moderate-income persons. The program is designed to reinforce flexibility, consolidated planning, and technical assistance to build community capacity.",
+      "eligible_activities": [
+        "acquisition of real property",
+        "relocation and demolition",
+        "rehabilitation of residential and non-residential structures",
+        "construction of public facilities and improvements",
+        "public services",
+        "energy conservation and renewable energy resources",
+        "assistance to profit-motivated businesses for economic development"
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Consolidated Plan public hearings",
+        "Annual Action Plan public comment periods",
+        "citizen participation in local government meetings",
+        "community needs assessment input"
+      ],
+      "leverage_point": "Residents can influence funding allocation through participation in consolidated planning process, public comment periods, and by contacting local municipal or county officials who determine which local projects receive funding",
+      "official_url": "https://www.hud.gov/hud-partners/community-cdbg",
+      "keywords": [
+        "affordable housing",
+        "community development",
+        "federal funding",
+        "low-moderate income",
+        "urban communities",
+        "economic opportunities"
+      ]
+    },
+    "home_investment_partnerships_program": {
+      "program_name": "HOME Investment Partnerships Program",
+      "administering_agency": "U.S. Department of Housing and Urban Development (HUD)",
+      "description": "Provides formula-based grants to states and localities to create affordable housing for low-income households. HOME funds can be used for a wide range of activities including building, buying, or rehabilitating affordable housing for rent or homeownership, or providing direct rental assistance to low-income people.",
+      "eligible_activities": [
+        "Acquisition, construction, or rehabilitation of affordable rental housing[1][2][3].",
+        "Assistance to homebuyers for purchase and/or rehabilitation of homes[1][2][3].",
+        "Tenant-based rental assistance (TBRA) for low-income households[1][2][3].",
+        "Rehabilitation of owner-occupied housing to improve safety, accessibility, and energy efficiency[1][3].",
+        "Development of transitional and permanent housing for individuals and families experiencing or at risk of homelessness[4].",
+        "Support for Community Housing Development Organizations (CHDOs) to develop affordable housing[3][5].",
+        "Accessibility modifications for persons with disabilities[1][3]."
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Public hearings and comment periods: Local governments must hold at least one public hearing and provide a public comment period (typically 30 days) during the development of the Consolidated Plan and Annual Action Plan[1][3].",
+        "Community needs assessment: The planning process must include an assessment of local housing and community development needs, with opportunities for residents to provide input[1][3].",
+        "Resident advisory committees or councils: While not mandatory, many jurisdictions establish advisory committees or councils to ensure ongoing resident input, especially from low-income and minority populations[1].",
+        "Annual planning and reporting: The Annual Action Plan and Consolidated Annual Performance and Evaluation Report (CAPER) both require public review and comment before submission to HUD[1][3]."
+      ],
+      "leverage_point": "Participation in public hearings and comment periods during the development of the Consolidated Plan, Annual Action Plan, and CAPER. Engagement in community needs assessments by attending meetings, responding to surveys, or submitting written comments.",
+      "official_url": "https://www.hud.gov/program_offices/comm_planning/home",
+      "keywords": [
+        "affordable housing",
+        "federal funding",
+        "homeownership",
+        "rental assistance"
+      ]
+    },
+    "section_8_housing_choice_voucher_program": {
+      "program_name": "Section 8 Housing Choice Voucher Program",
+      "administering_agency": "U.S. Department of Housing and Urban Development (HUD), implemented by local Public Housing Agencies (PHAs)",
+      "description": "The Section 8 HCVP is a federally funded rental assistance program that helps low-income families, seniors, and individuals with disabilities afford safe, decent housing in the private market[1][2]. HUD provides funding and oversight, but local implementation is managed by Public Housing Agencies (PHAs), which determine eligibility, issue vouchers, inspect units, and pay subsidies directly to landlords on behalf of tenants[1][2]. PHAs also maintain waiting lists, conduct outreach, and ensure compliance with federal regulations.",
+      "eligible_activities": [
+        "Issuing tenant-based vouchers that allow eligible households to choose and lease privately owned housing (apartments, single-family homes, townhouses) that meets program standards[1][2][3].",
+        "Administering project-based vouchers tied to specific housing developments, increasing the stock of affordable units in targeted neighborhoods[1][3].",
+        "Providing mobility counseling to help voucher holders access neighborhoods with greater opportunities (schools, jobs, services)[1].",
+        "Supporting homelessness prevention by prioritizing vouchers for individuals and families experiencing or at risk of homelessness (as allowed by local preferences)[1].",
+        "Ensuring housing accessibility by working with landlords to modify units for people with disabilities and prioritizing accessible units in project-based developments[3].",
+        "Conducting outreach and education to landlords and tenants about program rules, rights, and responsibilities[2].",
+        "Collaborating with local service providers to connect voucher holders with supportive services (e.g., job training, childcare, health care)[1]."
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Public hearings on PHA plans and policies",
+        "Resident advisory boards at local PHAs",
+        "Annual public comment periods on PHA Annual Plan"
+      ],
+      "leverage_point": "Participate in public hearings and comment periods on PHA Annual Plans and policies. Advocate for voucher allocation priorities and mobility programs that expand housing opportunities.",
+      "official_url": "https://www.hud.gov/topics/housing_choice_voucher_program_section_8",
+      "keywords": [
+        "rental assistance",
+        "affordable housing",
+        "housing choice vouchers",
+        "low-income housing"
+      ]
+    },
+    "low_income_housing_tax_credit_lihtc_program": {
+      "program_name": "Low-Income Housing Tax Credit (LIHTC) Program",
+      "administering_agency": "Internal Revenue Service (IRS) under the U.S. Department of the Treasury",
+      "description": "The LIHTC program provides federal tax credits to state housing agencies, which then allocate these credits to private developers for the construction or rehabilitation of affordable rental housing[1][2][3]. Local governments often participate by supporting projects through zoning, infrastructure, gap financing, or by collaborating with state agencies to identify community needs and priorities for affordable housing development[2][3].",
+      "eligible_activities": [
+        "New construction of affordable rental housing for low- and moderate-income households[1][2].",
+        "Rehabilitation of existing rental housing to preserve or improve affordable units[1][2].",
+        "Acquisition and preservation of at-risk affordable housing to prevent loss of existing affordable stock[1][2].",
+        "Supportive housing development for populations experiencing homelessness or with special needs (when paired with other funding sources)[3].",
+        "Accessibility improvements to ensure compliance with ADA and fair housing requirements[3].",
+        "Site improvements and infrastructure upgrades necessary for affordable housing development (often with local or state funds in conjunction with LIHTC)[2].",
+        "Mixed-income or mixed-use developments that include a required percentage of affordable units[2]."
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Public hearings and comment periods: State housing agencies must hold public hearings and provide opportunities for public comment on their QAP, which sets priorities and selection criteria for LIHTC awards[3].",
+        "Community needs assessment: The QAP process typically involves an assessment of local and statewide affordable housing needs, often informed by public input[3].",
+        "Resident advisory committees/councils: Some states or localities may establish advisory groups to provide input on housing priorities, though this is not federally mandated for LIHTC[3].",
+        "Annual planning/reporting with public input: Updates to the QAP and related planning documents generally require public notice and comment periods, allowing residents to influence priorities for LIHTC allocations[3]."
+      ],
+      "leverage_point": "Participate in public hearings or comment periods during the QAP development or amendment process at the state housing agency. Submit written comments or attend meetings when local governments or housing authorities discuss affordable housing priorities or support for specific LIHTC projects.",
+      "official_url": "https://www.irs.gov/forms-pubs/about-form-8586"
+    }
+  }
+}

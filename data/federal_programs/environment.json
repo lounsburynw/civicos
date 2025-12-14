@@ -1,0 +1,65 @@
+{
+  "jurisdiction": "federal",
+  "topic": "environment",
+  "last_updated": "2025-10-07T16:01:43.719331",
+  "data_sources": [
+    "Perplexity Sonar Pro API",
+    "Federal agency websites (cited by Perplexity)"
+  ],
+  "programs": {
+    "environmental_protection_agency_epa_environmental_justice_grants": {
+      "program_name": "Environmental Protection Agency (EPA) Environmental Justice Grants",
+      "administering_agency": "U.S. Environmental Protection Agency (EPA)",
+      "description": "Provides funding to community-based organizations working on environmental justice solutions to local environmental and public health issues in underserved communities. The program supports community-driven projects that address environmental and public health issues such as air quality, water quality, waste management, and climate resilience.",
+      "eligible_activities": [],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Required Public Hearings or Comment Periods: While specific requirements may vary, public input is crucial for community-driven projects. Applicants must ensure that community residents are integrally involved in project planning and execution.",
+        "Community Needs Assessment Processes: These processes are essential for identifying local environmental justice issues and developing strategies to address them.",
+        "Resident Advisory Committees or Councils: Encouraged to ensure ongoing community engagement and input.",
+        "Annual Planning or Reporting: Public input is typically required during annual planning processes to ensure that community priorities are reflected in project goals."
+      ],
+      "leverage_point": "Influencing Local Funding Decisions: Residents can participate in public hearings and comment periods to influence project priorities. Participation in Planning Processes: Residents should engage early in project planning to ensure their concerns are addressed.",
+      "official_url": "https://www.epa.gov/arp/environmental-justice-small-grants-program",
+      "keywords": [
+        "environmental justice",
+        "community grants",
+        "air quality",
+        "water quality",
+        "climate resilience"
+      ]
+    },
+    "department_of_energy_doe_energy_efficiency_and_conservation_block_grant": {
+      "program_name": "Department of Energy (DOE) Energy Efficiency and Conservation Block Grant",
+      "administering_agency": "U.S. Department of Energy (DOE), specifically the Office of State and Community Energy Programs within the Office of Energy Efficiency and Renewable Energy",
+      "description": "The EECBG Program provides federal formula grants to local governments, states, and tribes to implement strategies that reduce energy use, lower fossil fuel emissions, and improve energy efficiency. Local governments play a central role by designing and executing projects that address community energy needs, sustainability, and climate action priorities[1][2][4].",
+      "eligible_activities": [
+        "Developing and implementing local energy efficiency and conservation strategies[5].",
+        "Conducting energy audits and retrofits for residential and commercial buildings[1][5].",
+        "Establishing financial incentive programs (e.g., loans, rebates, permit fee waivers) for energy efficiency improvements[5].",
+        "Implementing renewable energy projects (e.g., solar or wind installations on public buildings)[4][5].",
+        "Developing and enforcing advanced building codes and inspection services to promote energy efficiency[1][5].",
+        "Supporting sustainable transportation initiatives (e.g., electric vehicle infrastructure, bike lanes, synchronized traffic signals)[4][5].",
+        "Programs addressing environmental justice and community engagement in energy planning[6]."
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Public hearings or comment periods: Many local governments hold public meetings or hearings to solicit feedback on proposed EECBG-funded projects and strategies[6].",
+        "Community needs assessments: Local governments often conduct assessments or surveys to identify community energy priorities, especially in environmental justice communities[6].",
+        "Resident advisory committees or councils: Some jurisdictions establish advisory groups to guide project selection and ensure diverse community representation[6].",
+        "Annual planning or reporting with public input: Local governments may be required to publish annual plans or reports and invite public comment before finalizing funding decisions[6]."
+      ],
+      "leverage_point": "Participate in public meetings or hearings where EECBG strategies and projects are discussed. These are often announced on city or county websites and local media. Submit written comments during designated public comment periods, typically tied to annual planning or project proposal cycles.",
+      "official_url": "https://www.energy.gov/scep/energy-efficiency-and-conservation-block-grant-program",
+      "keywords": [
+        "energy efficiency",
+        "conservation",
+        "renewable energy",
+        "climate action",
+        "sustainability"
+      ]
+    }
+  }
+}
