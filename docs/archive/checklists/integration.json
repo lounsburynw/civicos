@@ -1,0 +1,896 @@
+{
+  "version": "1.0",
+  "phase": "integration",
+  "last_updated": "2025-12-05T20:15:00",
+  "real_data_validation": {
+    "description": "Verify system works with production-like San Rafael data",
+    "data_extraction": {
+      "san_rafael_extraction": {
+        "status": "tested",
+        "priority": 1,
+        "test": "Extract real meetings from San Rafael (ProudCity web scraper)",
+        "note": "San Rafael uses ProudCity/WordPress, not Legistar",
+        "test_file": "packages/civic/tests/test_integration_extraction.py::TestSanRafaelExtraction"
+      },
+      "meeting_data_quality": {
+        "status": "tested",
+        "priority": 1,
+        "test": "Extracted meetings have required fields (title, date, location)",
+        "test_file": "packages/civic/tests/test_integration_extraction.py::TestMeetingDataQuality"
+      },
+      "agenda_items_present": {
+        "status": "tested",
+        "priority": 1,
+        "test": "Meetings include agenda items with descriptions",
+        "test_file": "packages/civic/tests/test_integration_extraction.py::TestAgendaItemsPresent"
+      },
+      "historical_data_depth": {
+        "status": "tested",
+        "priority": 2,
+        "test": "At least 6 months of historical data available",
+        "test_file": "packages/civic/tests/test_integration_extraction.py::TestHistoricalDataDepth"
+      },
+      "extraction_consolidation": {
+        "status": "tested",
+        "priority": 1,
+        "test": "Move SanRafaelArchiveScraper into packages/civic-extraction as ProudCityClient",
+        "note": "ProudCityClient created in packages/civic-extraction/src/civic_extraction/clients/proudcity.py",
+        "test_file": "packages/civic-extraction/tests/test_clients.py::TestProudCityClient"
+      }
+    },
+    "query_with_real_data": {
+      "whats_next_real": {
+        "status": "tested",
+        "priority": 2,
+        "test": "whats_next() returns actual upcoming San Rafael meetings",
+        "test_file": "packages/civic/tests/test_integration_san_rafael.py::TestWhatsNextWithRealData"
+      },
+      "what_applies_real": {
+        "status": "tested",
+        "priority": 2,
+        "test": "what_applies('housing') returns relevant SF housing context",
+        "test_file": "packages/civic/tests/test_integration_san_rafael.py::TestWhatAppliesWithRealData"
+      },
+      "what_happened_real": {
+        "status": "tested",
+        "priority": 2,
+        "test": "what_happened('merrydale') returns Nov 17 shelter decisions",
+        "note": "Basic keyword matching implementation. Semantic search upgrade tracked in city_state_rag section.",
+        "test_file": "packages/civic/tests/test_integration_san_rafael.py::TestWhatHappenedWithRealData"
+      },
+      "whos_with_me_real": {
+        "status": "tested",
+        "priority": 2,
+        "test": "whos_with_me() works with seeded community data",
+        "test_file": "packages/civic/tests/test_integration_san_rafael.py::TestWhosWithMeWithRealData"
+      }
+    },
+    "context_accuracy": {
+      "description": "Current tests use keyword matching. MIGRATE TO SEMANTIC SEARCH when city_state_rag infrastructure is ready.",
+      "regulatory_context_relevant": {
+        "status": "tested",
+        "priority": 2,
+        "test": "what_applies() returns contextually appropriate regulations",
+        "test_file": "packages/civic/tests/test_integration_san_rafael.py::TestRegulatoryContextRelevant",
+        "semantic_migration": "Replace keyword matching with embedding similarity for topic-regulation relevance scoring"
+      },
+      "topic_extraction_accurate": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Agenda items correctly mapped to topics",
+        "test_file": "packages/civic/tests/test_integration_san_rafael.py::TestTopicExtractionAccurate",
+        "semantic_migration": "Use embeddings to map agenda item text to topic categories instead of keyword/rule-based matching"
+      }
+    }
+  },
+  "concurrent_users": {
+    "description": "Verify system handles multiple simultaneous users",
+    "same_initiative": {
+      "concurrent_voices": {
+        "status": "tested",
+        "priority": 1,
+        "test": "10 users add_voice() to same initiative simultaneously",
+        "test_file": "packages/civic/tests/test_integration_concurrent.py::TestConcurrentVoices::test_concurrent_voices_10_users"
+      },
+      "concurrent_follows": {
+        "status": "tested",
+        "priority": 1,
+        "test": "10 users follow() same item simultaneously",
+        "test_file": "packages/civic/tests/test_integration_concurrent.py::TestConcurrentFollows::test_concurrent_follows_10_users"
+      },
+      "voice_count_accurate": {
+        "status": "tested",
+        "priority": 1,
+        "test": "Voice counts remain accurate under concurrent writes",
+        "test_file": "packages/civic/tests/test_integration_concurrent.py::TestVoiceCountAccuracy::test_voice_count_accurate"
+      },
+      "no_duplicate_subscriptions": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Same user can't create duplicate subscriptions",
+        "test_file": "packages/civic/tests/test_integration_concurrent.py::TestNoDuplicateSubscriptions"
+      }
+    },
+    "database_contention": {
+      "write_conflicts": {
+        "status": "tested",
+        "priority": 1,
+        "test": "Concurrent writes don't cause database locks",
+        "test_file": "packages/civic/tests/test_integration_concurrent.py::TestDatabaseContention::test_write_conflicts"
+      },
+      "read_during_write": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Reads succeed while writes in progress",
+        "test_file": "packages/civic/tests/test_integration_concurrent.py::TestReadDuringWrite::test_read_during_write"
+      },
+      "transaction_isolation": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Partial writes don't become visible",
+        "test_file": "packages/civic/tests/test_integration_concurrent.py::TestTransactionIsolation"
+      }
+    }
+  },
+  "platform_extraction_failures": {
+    "description": "Verify graceful degradation when external platforms fail",
+    "web_scraper_failures": {
+      "scraper_timeout": {
+        "status": "tested",
+        "priority": 1,
+        "test": "System handles website timeout gracefully (San Rafael ProudCity)",
+        "test_file": "packages/civic/tests/test_integration_extraction_failures.py::TestScraperTimeout"
+      },
+      "scraper_404": {
+        "status": "tested",
+        "priority": 1,
+        "test": "System handles missing pages gracefully",
+        "test_file": "packages/civic/tests/test_integration_extraction_failures.py::TestScraper404"
+      },
+      "html_structure_change": {
+        "status": "tested",
+        "priority": 2,
+        "test": "System detects and logs HTML structure changes",
+        "test_file": "packages/civic/tests/test_integration_extraction_failures.py::TestHtmlStructureChange"
+      }
+    },
+    "legistar_failures": {
+      "legistar_timeout": {
+        "status": "tested",
+        "priority": 1,
+        "test": "System handles Legistar API timeout gracefully (for other cities)",
+        "test_file": "packages/civic/tests/test_integration_extraction_failures.py::TestLegistarTimeout"
+      },
+      "legistar_rate_limit": {
+        "status": "tested",
+        "priority": 2,
+        "test": "System backs off on rate limiting",
+        "test_file": "packages/civic/tests/test_integration_extraction_failures.py::TestLegistarRateLimit"
+      }
+    },
+    "fallback_behavior": {
+      "cached_data_used": {
+        "status": "tested",
+        "priority": 1,
+        "test": "Cached data served when extraction fails",
+        "test_file": "packages/civic/tests/test_integration_extraction_failures.py::TestCachedDataFallback"
+      },
+      "partial_extraction": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Partial extraction doesn't corrupt existing data",
+        "test_file": "packages/civic/tests/test_integration_extraction_failures.py::TestPartialExtraction"
+      },
+      "error_logged": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Extraction failures logged with context",
+        "test_file": "packages/civic/tests/test_integration_extraction_failures.py::TestErrorLogging"
+      }
+    }
+  },
+  "load_testing": {
+    "description": "Verify acceptable performance under load",
+    "api_performance": {
+      "query_latency_p95": {
+        "status": "tested",
+        "priority": 1,
+        "test": "Query endpoints respond < 500ms at p95",
+        "test_file": "packages/civic/tests/test_integration_load.py::TestQueryLatencyP95"
+      },
+      "action_latency_p95": {
+        "status": "tested",
+        "priority": 1,
+        "test": "Action endpoints respond < 1s at p95",
+        "test_file": "packages/civic/tests/test_integration_load.py::TestActionLatencyP95"
+      },
+      "concurrent_requests": {
+        "status": "tested",
+        "priority": 2,
+        "test": "System handles 50 concurrent requests",
+        "test_file": "packages/civic/tests/test_integration_load.py::TestConcurrentRequests"
+      }
+    },
+    "database_performance": {
+      "large_result_sets": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Queries with 1000+ results perform acceptably",
+        "test_file": "packages/civic/tests/test_integration_load.py::TestLargeResultSets"
+      },
+      "index_effectiveness": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Common queries use indexes (EXPLAIN QUERY PLAN)",
+        "test_file": "packages/civic/tests/test_integration_load.py::TestIndexEffectiveness"
+      }
+    },
+    "test_suite_optimization": {
+      "profile_slow_tests": {
+        "status": "passing",
+        "priority": 3,
+        "test": "Profile test suite to identify slowest tests (target: full suite < 5 min)",
+        "approach": "Run pytest --durations=20 to find slowest tests, then optimize or mark for CI-only",
+        "current_baseline": "795 tests in ~17m44s (1064 seconds)",
+        "note": "Session 212: Profiled full suite. Top 4 slowest tests account for 624s (59%): test_what_happened_p95_under_500ms (341s), test_what_happened_with_1000_items (122s), test_all_query_methods_p95_combined (97s), test_combined_workload_with_large_dataset (62s). All are in test_integration_load.py. Additional slow tests: extraction_failures (18s each x5), security tests (10s). Recommendation: Mark load tests as @pytest.mark.slow for CI-only runs. Without load tests, suite would run ~7 minutes. With further optimization of extraction_failures mocking, target of <5 min is achievable.",
+        "profile_results": {
+          "total_tests": 795,
+          "total_time_seconds": 1064,
+          "passed": 712,
+          "failed": 33,
+          "errors": 50,
+          "top_slow_tests": [
+            {"test": "test_integration_load.py::TestQueryLatencyP95::test_what_happened_p95_under_500ms", "time_seconds": 341.59},
+            {"test": "test_integration_load.py::TestLargeResultSets::test_what_happened_with_1000_items", "time_seconds": 122.96},
+            {"test": "test_integration_load.py::TestQueryLatencyP95::test_all_query_methods_p95_combined", "time_seconds": 97.93},
+            {"test": "test_integration_load.py::TestLargeResultSets::test_combined_workload_with_large_dataset", "time_seconds": 62.38},
+            {"test": "test_integration_extraction_failures.py (5 tests)", "time_seconds": 84.23}
+          ],
+          "optimization_path": "Mark test_integration_load.py as @pytest.mark.slow, optimize extraction_failures mocking, skip SentenceTransformer tests on CI (50 errors from meta tensor issue)"
+        }
+      },
+      "test_markers": {
+        "status": "passing",
+        "priority": 3,
+        "test": "Add pytest markers (fast/slow/integration) for selective test runs",
+        "rationale": "Enable 'pytest -m fast' for quick verification, full suite for CI",
+        "depends_on": ["profile_slow_tests"],
+        "note": "Session 213: Added markers to pyproject.toml (fast, slow, integration, concurrent, rag, websocket). test_civic.py marked fast (31 tests, ~4s). test_integration_load.py and test_integration_extraction_failures.py marked slow (84 tests). All integration tests marked integration + category. Usage: 'pytest -m fast' (~4s), 'pytest -m \"not slow\"' (~7min), full suite unchanged.",
+        "marker_counts": {
+          "fast": 31,
+          "slow": 84,
+          "integration": 334,
+          "not_slow": 711
+        }
+      }
+    }
+  },
+  "mcp_agent_sequences": {
+    "description": "Verify MCP tools work in realistic AI agent interaction patterns",
+    "discovery_sequence": {
+      "browse_then_filter": {
+        "status": "tested",
+        "priority": 1,
+        "test": "whats_next \u2192 what_applies sequence works",
+        "test_file": "packages/civic/tests/test_integration_mcp_sequences.py::TestDiscoverySequence",
+        "note": "Agent identifies topics from meeting titles; agenda_items extraction tracked in data_model_consistency"
+      },
+      "research_workflow": {
+        "status": "tested",
+        "priority": 1,
+        "test": "what_happened \u2192 whos_with_me \u2192 prepare sequence works",
+        "test_file": "packages/civic/tests/test_integration_mcp_sequences.py::TestResearchWorkflow"
+      }
+    },
+    "action_sequence": {
+      "create_and_voice": {
+        "status": "tested",
+        "priority": 1,
+        "test": "start_something \u2192 add_voice \u2192 follow sequence works",
+        "test_file": "packages/civic/tests/test_integration_mcp_sequences.py::TestActionSequence"
+      },
+      "coordinate_workflow": {
+        "status": "tested",
+        "priority": 1,
+        "test": "start_something \u2192 coordinate \u2192 report_outcome sequence works",
+        "test_file": "packages/civic/tests/test_integration_mcp_sequences.py::TestCoordinateWorkflow"
+      }
+    },
+    "error_recovery": {
+      "retry_after_error": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Agent can retry failed tool call",
+        "test_file": "packages/civic/tests/test_integration_mcp_sequences.py::TestErrorRecovery"
+      },
+      "partial_workflow": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Workflow survives single tool failure",
+        "test_file": "packages/civic/tests/test_integration_mcp_sequences.py::TestPartialWorkflow"
+      }
+    },
+    "state_consistency": {
+      "read_after_write": {
+        "status": "tested",
+        "priority": 1,
+        "test": "Created initiative visible in subsequent queries",
+        "test_file": "packages/civic/tests/test_integration_mcp_sequences.py::TestReadAfterWrite"
+      },
+      "cross_tool_consistency": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Data consistent across different tool views",
+        "test_file": "packages/civic/tests/test_integration_mcp_sequences.py::TestCrossToolConsistency"
+      }
+    }
+  },
+  "websocket_integration": {
+    "description": "Verify real-time updates work correctly",
+    "connection_handling": {
+      "connect_disconnect": {
+        "status": "tested",
+        "priority": 1,
+        "test": "WebSocket connects and disconnects cleanly",
+        "test_file": "packages/civic/tests/test_integration_websocket.py::TestConnectionHandling"
+      },
+      "reconnection": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Client reconnects after connection drop",
+        "test_file": "packages/civic/tests/test_integration_websocket.py::TestReconnection"
+      }
+    },
+    "event_propagation": {
+      "voice_added_event": {
+        "status": "tested",
+        "priority": 2,
+        "test": "New voice triggers real-time update",
+        "test_file": "packages/civic/tests/test_integration_websocket.py::TestMessaging",
+        "note": "Tested via message broadcast to room after voice/message creation"
+      },
+      "initiative_created_event": {
+        "status": "tested",
+        "priority": 2,
+        "test": "New initiative triggers real-time update",
+        "test_file": "packages/civic/tests/test_integration_websocket.py::TestMessaging",
+        "note": "Tested via message broadcast to room; initiatives trigger coordination threads"
+      }
+    }
+  },
+  "data_model_consistency": {
+    "description": "Fix data model inconsistencies between storage and retrieval layers",
+    "agenda_items_model": {
+      "agenda_items_relational": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Agenda items stored in agenda_items table, not embedded in full_data JSON",
+        "note": "Hybrid sync: agenda_items stored in BOTH relational table AND full_data JSON. Relational enables queries; JSON preserves flexibility.",
+        "test_file": "packages/civic/tests/test_integration_data_model.py::TestAgendaItemsRelational"
+      },
+      "whats_next_uses_relational": {
+        "status": "tested",
+        "priority": 2,
+        "test": "whats_next() retrieves agenda_items from relational join, not JSON parsing",
+        "test_file": "packages/civic/tests/test_integration_data_model.py::TestWhatsNextUsesRelational"
+      },
+      "extractors_store_relationally": {
+        "status": "tested",
+        "priority": 2,
+        "test": "ProudCityClient and LegistarClient store agenda_items in proper table",
+        "note": "update_meetings() now populates agenda_items table for any meeting data. Extractors inherit this via StateManager.",
+        "test_file": "packages/civic/tests/test_integration_data_model.py::TestExtractorsStoreRelationally"
+      }
+    },
+    "codebase_audit": {
+      "json_extraction_patterns": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Scan codebase for inconsistent JSON field extraction patterns (nested vs direct)",
+        "note": "Session 180: Fixed 12 bare except handlers (9 in manager.py, 2 in history.py, 1 in civic.py). All now use specific exception types.",
+        "test_file": "packages/civic/tests/test_integration_codebase_audit.py"
+      },
+      "storage_retrieval_symmetry": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Verify all update_* and get_* method pairs have symmetric data handling",
+        "note": "Session 181: Verified 5 entity types (initiatives, voices, subscriptions, outcomes, meetings) have symmetric create/update and get methods. JSON fields (notification_prefs, vote_breakdown, full_data) correctly serialized/deserialized. Empty dict {} stored as NULL is intentional.",
+        "test_file": "packages/civic/tests/test_integration_codebase_audit.py::TestStorageRetrievalSymmetry"
+      },
+      "redundant_data_paths": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Identify fields stored in both columns AND full_data JSON, consolidate",
+        "note": "Session 182: Audited meetings and agenda_items tables. Full_data JSON is source of truth; columns are extracted for query efficiency. 8 tests verify: column-full_data sync, topic-to-project_type mapping, relational preference, original structure preservation, no data drift on updates.",
+        "test_file": "packages/civic/tests/test_integration_codebase_audit.py::TestRedundantDataPaths"
+      }
+    }
+  },
+  "city_state_rag": {
+    "description": "RAG system for city meeting history - enables what_happened() semantic search",
+    "note": "ACCELERATED: Using Merrydale shelter scenario as bounded test corpus. See data/pilot/merrydale_scenario.json",
+    "test_scenario": {
+      "name": "merrydale_shelter",
+      "description": "350 Merrydale Road homeless shelter project - bounded corpus for RAG development",
+      "scenario_file": "data/pilot/merrydale_scenario.json",
+      "corpus": {
+        "primary_document": "Nov 17, 2025 agenda packet (34.9MB, ~500 pages)",
+        "supporting_documents": [
+          "Staff report",
+          "Minutes",
+          "Ordinances"
+        ],
+        "meetings": [
+          "2025-11-17 Council",
+          "2025-12-01 Council",
+          "2025-12-09 Community",
+          "2025-01-14 Community"
+        ]
+      },
+      "validation_queries": [
+        "what_happened('merrydale shelter')",
+        "what_happened('shelter crisis declaration')",
+        "what_happened('350 merrydale purchase')"
+      ],
+      "deadline": "2025-12-09 (first community meeting)"
+    },
+    "merrydale_extraction": {
+      "description": "Extract Merrydale-specific documents as RAG test corpus",
+      "nov17_packet_download": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Download Nov 17 agenda packet PDF (34.9MB)",
+        "test_file": "packages/civic/tests/test_integration_rag_merrydale.py::TestMerrydaleExtraction::test_nov17_packet_download",
+        "note": "Session 183: Downloaded 35MB/594 pages. Stored at data/pilot/rag_corpus/merrydale/nov17_agenda_packet.pdf. Author: Lindsay Lara (City Clerk), created Nov 14, 2025."
+      },
+      "nov17_packet_parse": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Parse PDF into text chunks by agenda item",
+        "test_file": "packages/civic/tests/test_integration_rag_merrydale.py::TestNov17PacketParsing",
+        "note": "Session 184: Created AgendaPacketParser in civic._internal.meetings.pdf_parser. Generates 724 chunks from 594 pages. Item 6.a has 530 chunks (73%). 268 chunks mention Merrydale. Chunks stored at data/pilot/rag_corpus/merrydale/nov17_chunks.json"
+      },
+      "staff_report_extract": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Extract Item 6.a staff report with metadata",
+        "test_file": "packages/civic/tests/test_integration_rag_merrydale.py::TestStaffReportExtraction",
+        "note": "Session 185: Created StaffReportExtractor in civic._internal.meetings.staff_report. Extracts department, authors, topic, recommendation, executive_summary, property_address, APNs, financial_amount. Item 6.a report at data/pilot/rag_corpus/merrydale/item_6a_staff_report.json."
+      },
+      "ordinance_text_extract": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Extract shelter standards ordinance full text",
+        "test_file": "packages/civic/tests/test_integration_rag_merrydale.py::TestOrdinanceExtraction",
+        "note": "Session 186: Created OrdinanceExtractor in civic._internal.meetings.ordinance. Extracts ordinance_type (urgency/uncodified), title, purpose, legal_authority (Gov Code citations), whereas_clauses, sections (divisions with titles and text), effective_date_provision. Both shelter ordinances extracted at data/pilot/rag_corpus/merrydale/shelter_ordinances.json."
+      },
+      "minutes_extract": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Extract Nov 17 minutes for comparison"
+      }
+    },
+    "migration_checklist": {
+      "description": "Items currently using keyword matching that should migrate to semantic search when infrastructure is ready",
+      "what_applies_relevance": {
+        "status": "tested",
+        "priority": 3,
+        "test": "what_applies() uses embedding similarity instead of keyword matching for topic-regulation relevance",
+        "test_file": "packages/civic/tests/test_integration_san_rafael.py::TestWhatAppliesEmbeddingRelevance",
+        "current_impl": "context_accuracy.regulatory_context_relevant uses keyword lists",
+        "note": "Session 214: Added TestWhatAppliesEmbeddingRelevance with 5 tests demonstrating that embedding similarity correctly ranks regulations by topic. Tests validate: (1) housing queries rank housing bills higher than transport bills, (2) transport queries rank transport bills higher, (3) semantic queries match beyond exact keywords, (4) embedding rankings align with keyword assignments, (5) similarity scores are meaningful. Embeddings use all-MiniLM-L6-v2 model (same as CivicEmbeddings). Ready for migration when needed."
+      },
+      "topic_classification": {
+        "status": "tested",
+        "priority": 3,
+        "test": "Agenda items mapped to topics via embeddings instead of keyword/rule-based matching",
+        "test_file": "packages/civic/tests/test_integration_san_rafael.py::TestTopicClassificationEmbeddings",
+        "note": "Session 215: Added CivicEmbeddings.classify_topics() method with 10 topic categories (housing, homelessness, transportation, environment, public_safety, budget, land_use, development, community, governance). Each topic has a canonical description for embedding and a bias adjustment in range [-1.0, 1.0] to tune classification. Bias boosts priority topics (homelessness +0.05) and penalizes broad/procedural topics (governance -0.10). 11 tests validate: basic classification, multi-topic items, bias effects, semantic matching beyond keywords, caching, real agenda item classification."
+      },
+      "whos_with_me_semantic": {
+        "status": "tested",
+        "priority": 3,
+        "test": "whos_with_me() finds related issues via semantic similarity, not just exact type match",
+        "current_impl": "Uses CivicEmbeddings.find_similar_issue_types() with semantic=True (default)",
+        "test_file": "test_integration_san_rafael.py::TestWhosWithMeSemanticMatching"
+      }
+    },
+    "data_preparation": {
+      "decision_extraction": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Extract decisions from Merrydale corpus with full metadata",
+        "test_file": "packages/civic/tests/test_integration_rag_merrydale.py::TestDecisionExtraction",
+        "note": "Session 187: Created DecisionExtractor in civic._internal.meetings.decision. Consolidates minutes (votes), staff reports (recommendations), and ordinances (legal instruments) into unified Decision records. 8 decisions extracted from Nov 17 meeting. Item 6.a has: staff recommendation ($8M), 78 public speakers, 3 legal instruments (resolution 15478, urgency ordinance, uncodified ordinance), housing/homelessness topics. 19 new tests."
+      },
+      "text_chunking": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Meeting content chunked appropriately for embedding (~500-1000 chunks from Nov 17 packet)",
+        "test_file": "packages/civic/tests/test_integration_rag_merrydale.py::TestNov17PacketParsing::test_chunk_sizes_reasonable",
+        "note": "Session 184: 724 chunks generated (within 500-1000 estimate). Max chunk size 1500 chars with 200 char overlap. Average ~1200 chars per chunk."
+      }
+    },
+    "vector_infrastructure": {
+      "embedding_generation": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Generate embeddings for Merrydale corpus using SentenceTransformer",
+        "test_file": "packages/civic/tests/test_integration_rag_merrydale.py::TestEmbeddingGeneration",
+        "note": "Session 189: Created MerrydaleEmbeddings class in civic._internal.meetings.embeddings. Uses all-MiniLM-L6-v2 model (384 dimensions, local, no API cost). Generates embeddings for decisions (8) and chunks (724) from Merrydale corpus. 7 tests for embedding generation."
+      },
+      "vector_index_creation": {
+        "status": "tested",
+        "priority": 2,
+        "test": "ChromaDB index created for Merrydale corpus",
+        "test_file": "packages/civic/tests/test_integration_rag_merrydale.py::TestVectorIndexCreation",
+        "note": "Session 189: ChromaDB persistent storage at data/pilot/merrydale_vectors/. Two collections: merrydale_decisions (8 docs) and merrydale_chunks (724 docs). Index persists to disk and can be reloaded. 3 tests for index creation."
+      },
+      "index_query_latency": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Vector search returns results < 500ms",
+        "test_file": "packages/civic/tests/test_integration_rag_merrydale.py::TestIndexQueryLatency",
+        "note": "Session 189: After model warmup, decision search ~30-50ms, chunk search ~50-100ms. 3 tests verify latency requirements. Average latency < 200ms across 5 queries."
+      },
+      "embedding_provider_interface": {
+        "status": "tested",
+        "priority": 3,
+        "test": "Abstract EmbeddingProvider interface supports both SentenceTransformer and OpenAI",
+        "rationale": "Current MerrydaleEmbeddings is test-corpus specific. Production needs unified interface.",
+        "implementation": "Create EmbeddingProvider protocol with encode() method. Implement SentenceTransformerProvider and OpenAIProvider.",
+        "test_file": "packages/civic/tests/test_embedding_provider.py",
+        "note": "Session 217: Created EmbeddingProvider ABC with encode(), embedding_dimension, model_name. Implemented SentenceTransformerProvider (local, all-MiniLM-L6-v2, 384 dims) and OpenAIProvider (API, text-embedding-3-small, 1536 dims). Factory function get_embedding_provider() supports env var config. 34 tests cover both providers."
+      },
+      "unified_vector_store": {
+        "status": "tested",
+        "priority": 3,
+        "test": "Single VectorStore class works with any EmbeddingProvider",
+        "rationale": "Currently have MerrydaleEmbeddings (SentenceTransformer) and legal/embeddings/store.py (OpenAI). Should consolidate.",
+        "implementation": "Refactor to VectorStore that accepts EmbeddingProvider, handles ChromaDB operations generically.",
+        "test_file": "packages/civic/tests/test_unified_vector_store.py",
+        "note": "Session 218: Refactored VectorStore to accept EmbeddingProvider via dependency injection. Default provider is local SentenceTransformer (no API key required). OpenAI provider available via configuration. Collection metadata tracks embedding_model and embedding_dimension. Dimension validation prevents mismatched providers from corrupting indexes. Updated LegalIndexer and LegalSearch to accept provider parameter. 18 new tests cover: default provider, explicit provider injection, add/search operations, metadata filtering, dimension mismatch detection, batch processing, persistence, semantic search quality."
+      },
+      "provider_configuration": {
+        "status": "tested",
+        "priority": 3,
+        "test": "Embedding provider selected via configuration (env var or config file)",
+        "rationale": "Local dev uses SentenceTransformer (free), production can use OpenAI if budget allows.",
+        "implementation": "CIVIC_EMBEDDING_PROVIDER env var: 'local' (SentenceTransformer) or 'openai' (text-embedding-3-small)",
+        "test_file": "packages/civic/tests/test_embedding_provider.py::TestGetEmbeddingProvider",
+        "note": "Session 217: get_embedding_provider() factory function reads CIVIC_EMBEDDING_PROVIDER (default: 'local') and CIVIC_EMBEDDING_MODEL env vars. Tests verify env var selection, explicit provider selection, case insensitivity."
+      }
+    },
+    "search_integration": {
+      "what_happened_merrydale": {
+        "status": "tested",
+        "priority": 2,
+        "test": "what_happened('merrydale') returns timeline from Nov 17 decisions",
+        "test_file": "packages/civic/tests/test_integration_rag_merrydale.py::TestWhatHappenedMerrydale",
+        "note": "Session 190: Integrated MerrydaleEmbeddings vector search into what_happened() via history.py. Queries containing 'merrydale' trigger semantic search over the Nov 17 decisions corpus. Returns all 8 decisions sorted by relevance. 8 new integration tests verify: returns Decision objects, correct structure, homeless shelter ranked first, transportation ranked appropriately, vote information preserved, outcome values, timeline order, non-merrydale queries unaffected."
+      },
+      "what_happened_semantic": {
+        "status": "tested",
+        "priority": 3,
+        "test": "what_happened() uses vector search for semantic queries (general)",
+        "test_file": "packages/civic/tests/test_integration_rag_san_rafael.py::TestWhatHappenedSemantic",
+        "note": "Session 219: Added 8 tests validating general semantic search in what_happened(). Tests include: semantic queries without keyword match (homeless services), housing assistance queries, relevance ranking (shelter item in top 3), Decision interface preservation, vocabulary mismatch handling (unhoused vs homeless), public safety queries, result sorting, and complex paraphrased queries."
+      },
+      "hybrid_queries": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Combine date filter (Oct-Dec 2025) with semantic search on Merrydale corpus",
+        "depends_on": [
+          "rename_embeddings_class",
+          "rename_data_directories",
+          "numeric_date_metadata"
+        ],
+        "note": "Session 196: Added test_hybrid_query_semantic_plus_date_filter - validates both semantic relevance (Item 6.a for homeless shelter) AND date range filtering (Oct-Dec 2025) work together."
+      },
+      "numeric_date_metadata": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Store meeting_date as numeric timestamp in ChromaDB metadata for date range filtering",
+        "rationale": "ChromaDB $gte/$lte operators only work on numeric types, not strings. ISO date strings (e.g. '2025-11-17') cannot be used for range queries. Solution: store meeting_date_ts as Unix timestamp alongside meeting_date string.",
+        "implementation": [
+          "1. Add meeting_date_ts (Unix timestamp) to _decision_to_metadata() in embeddings.py",
+          "2. Update search_decisions() to build where clause using {meeting_date_ts: {$gte: timestamp}}",
+          "3. Regenerate vector index with new metadata",
+          "4. Update history.py _search_semantic_decisions() to convert ISO date to timestamp for filtering"
+        ],
+        "blocks": [
+          "hybrid_queries"
+        ],
+        "test_file": "packages/civic/tests/test_integration_rag_merrydale.py",
+        "note": "Session 195: Implemented. ChromaDB requires $and for combining $gte/$lte. Tests: test_search_with_date_range_filter_in_range, test_search_with_date_range_filter_out_of_range, test_search_with_since_only"
+      },
+      "cross_meeting_patterns": {
+        "status": "tested",
+        "priority": 3,
+        "test": "Find similar decisions across multiple meetings",
+        "test_file": "packages/civic/tests/test_integration_rag_san_rafael.py",
+        "note": "Session 220: Added TestCrossMeetingPatterns class with 6 tests. Uses synthetic multi-meeting data fixture (3 meetings: Nov 17, Dec 1, Dec 9) to validate cross-meeting pattern detection. Tests: query returns multiple meetings, grouping by date, same topic across meetings, interface preservation, chronological patterns, broad query coverage."
+      }
+    },
+    "architecture_cleanup": {
+      "description": "TECH DEBT: Remove topic-specific (Merrydale) naming from infrastructure. Merrydale is a street in San Rafael, not a data source.",
+      "audit_note": "Session 191: Audited ~230 Merrydale references across source, tests, and data directories. Infrastructure was built using test data naming instead of proper jurisdiction-based abstraction.",
+      "vector_rag_schema_doc": {
+        "status": "tested",
+        "priority": 1,
+        "test": "Create schema documentation for vector DB / RAG data system",
+        "rationale": "BLOCKER for architecture cleanup. Need to define: (1) organizing principle (by jurisdiction vs corpus vs dataset), (2) collection naming conventions, (3) metadata schema for decisions/chunks, (4) directory structure for multi-jurisdiction scaling, (5) relationship to existing civic-state schemas.",
+        "artifact": "docs/critical/VECTOR_RAG_SCHEMA.md",
+        "blocks": [
+          "rename_embeddings_class",
+          "rename_data_directories",
+          "regenerate_vector_index"
+        ],
+        "context_needed": [
+          "Review existing schemas in civic-state (meetings, agenda_items tables)",
+          "Understand pilot target (San Rafael) vs test data (Merrydale corpus)",
+          "Consider multi-city expansion (26 cities mentioned in strategy docs)",
+          "Align with HYBRID_EXTRACTION_RAG_STRATEGY.md architecture"
+        ],
+        "note": "Session 191: Created VECTOR_RAG_SCHEMA.md defining jurisdiction-first organizing principle, collection naming ({jurisdiction_id}_{type}), metadata schemas for decisions/chunks, directory structure (data/pilot/vectors/{jurisdiction_id}/), and relationship to civic-state SQLite."
+      },
+      "rename_embeddings_class": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Rename MerrydaleEmbeddings to CivicEmbeddings with jurisdiction parameter",
+        "files": [
+          "packages/civic/src/civic/_internal/meetings/embeddings.py",
+          "packages/civic/src/civic/_internal/meetings/__init__.py"
+        ],
+        "changes": "Class accepts jurisdiction param, collection names become {jurisdiction}_decisions, persist_directory becomes data/pilot/{jurisdiction}_vectors",
+        "note": "Session 193: CivicEmbeddings class implemented with jurisdiction_id parameter. Collection names: {jurisdiction_id}_decisions, {jurisdiction_id}_chunks. Directory: data/pilot/vectors/{jurisdiction_id}/. MerrydaleEmbeddings retained as deprecated alias with DeprecationWarning."
+      },
+      "remove_query_detection": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Remove 'merrydale' string detection in history.py search_decisions()",
+        "files": [
+          "packages/civic/src/civic/history.py",
+          "packages/civic/src/civic/_internal/jurisdiction.py",
+          "packages/civic/src/civic/civic.py"
+        ],
+        "changes": "Vector search triggered by jurisdiction having embeddings, not by query content",
+        "note": "Session 197: Removed query detection. Added centralized jurisdiction normalization (_internal/jurisdiction.py) to fix san-rafael vs city-san-rafael mismatch. Civic class now normalizes jurisdiction in __post_init__."
+      },
+      "rename_data_directories": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Rename data/pilot/rag_corpus/merrydale/ to data/pilot/rag_corpus/city-san-rafael/",
+        "files": [
+          "data/pilot/rag_corpus/city-san-rafael/",
+          "data/pilot/vectors/city-san-rafael/",
+          "data/pilot/vectors_test/city-san-rafael/",
+          "data/pilot/san_rafael_shelter_scenario.json"
+        ],
+        "changes": "Renamed directories to jurisdiction-based naming, updated all hardcoded paths in source and tests",
+        "note": "Session 198: Renamed rag_corpus/merrydale/ -> rag_corpus/city-san-rafael/, merrydale_vectors/ -> vectors/city-san-rafael/, merrydale_vectors_test/ -> vectors_test/city-san-rafael/, merrydale_scenario.json -> san_rafael_shelter_scenario.json. Updated history.py, embeddings.py, test files, and documentation."
+      },
+      "update_test_references": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Update test file references from Merrydale to San Rafael RAG",
+        "files": [
+          "packages/civic/tests/test_integration_rag_san_rafael.py",
+          "packages/civic/tests/test_integration_san_rafael.py"
+        ],
+        "changes": "Renamed test_integration_rag_merrydale.py -> test_integration_rag_san_rafael.py. Updated class names (TestMerrydaleExtraction -> TestSanRafaelRAGExtraction, TestWhatHappenedMerrydale -> TestWhatHappenedSanRafael). Renamed fixture civic_with_merrydale -> civic_with_shelter_scenario.",
+        "note": "Session 198: Completed as part of rename_data_directories task."
+      },
+      "regenerate_vector_index": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Regenerate vector index with new naming after refactor",
+        "depends_on": [
+          "rename_embeddings_class",
+          "rename_data_directories"
+        ],
+        "note": "Session 199: Verified vector index regenerated in Session 198 (Dec 7 20:36:45). Collections: city-san-rafael_decisions (8 docs), city-san-rafael_chunks (724 docs). Removed legacy merrydale_decisions and merrydale_chunks collections. Search via Civic API verified working. 113 RAG tests pass."
+      }
+    }
+  },
+  "video_transcript_rag": {
+    "description": "RAG over city council video transcripts - critical because official minutes are incomplete summaries",
+    "rationale": {
+      "problem": "City staff admitted minutes are not detailed transcriptions - just summaries of key points",
+      "solution": "Full transcripts from YouTube videos capture what was actually said",
+      "value": "Speaker identification, full testimony quotes, timestamps for verification"
+    },
+    "existing_infrastructure": {
+      "audio_downloads": {
+        "status": "tested",
+        "priority": 1,
+        "test": "YouTube audio download pipeline works",
+        "note": "12 meetings downloaded (~1.5GB, 1600+ minutes). Files in data/youtube_audio/. Pipeline: yt-dlp via scripts/"
+      },
+      "transcription_pipeline": {
+        "status": "tested",
+        "priority": 1,
+        "test": "AssemblyAI transcription with speaker diarization",
+        "note": "17 transcripts generated with speaker labels. Cost: $0.37/hour. Files in data/testimony/testimony_*.json"
+      },
+      "speaker_diarization": {
+        "status": "tested",
+        "priority": 1,
+        "test": "Speakers correctly separated in transcripts",
+        "note": "AssemblyAI speaker_labels=True. Typical meeting has 10-30 speakers."
+      }
+    },
+    "transcript_to_chunks": {
+      "description": "Convert diarized transcripts into RAG-ready chunks (similar to PDF chunking)",
+      "utterance_chunking": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Group utterances into semantic chunks preserving speaker attribution",
+        "test_file": "packages/civic/tests/test_transcript_chunking.py",
+        "note": "TranscriptChunker class in transcript.py. Groups by speaker, splits at max_chunk_size, preserves timestamps."
+      },
+      "timestamp_preservation": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Chunks include start/end timestamps for video linking",
+        "note": "TranscriptChunk dataclass includes start_ms, end_ms, start_timestamp, end_timestamp properties"
+      },
+      "speaker_metadata": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Chunks tagged with speaker ID and inferred role (council/staff/public)",
+        "note": "SpeakerRoleDetector class parses roll call, detects self-introductions, and uses frequency heuristics",
+        "test_file": "packages/civic/tests/test_transcript_chunking.py::TestSpeakerMetadataWithRealData"
+      },
+      "agenda_item_alignment": {
+        "status": "tested",
+        "priority": 3,
+        "test": "Align transcript chunks with agenda items by timestamp",
+        "note": "AgendaItemAligner class detects item transitions via regex patterns, integrates with TranscriptChunker to add agenda_item metadata to chunks, supports consent calendar, public hearings, and numbered items (5A, 5.a). 25 tests covering span detection, normalization, chunker integration, and real San Rafael patterns.",
+        "test_file": "packages/civic/tests/test_agenda_item_alignment.py"
+      }
+    },
+    "speaker_identification": {
+      "description": "Map speaker IDs to actual names (council members, staff, public)",
+      "council_member_detection": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Identify council members by voice/roll call patterns",
+        "note": "Roll call parsing detects Mayor Kate, Vice Mayor Bushy, Council Members Hill and Kurtz with 0.90 confidence. Verified against official San Rafael roster.",
+        "test_file": "packages/civic/tests/test_transcript_chunking.py::TestSpeakerMetadataWithRealData::test_real_transcript_council_names_detected"
+      },
+      "staff_detection": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Identify city staff (City Manager, City Clerk, department heads)",
+        "note": "Session 203: Implemented LLM-based staff detection. SpeakerRoleDetector accepts optional llm_provider parameter for enhanced detection. LLM analyzes first 30 utterances to identify: City Manager, City Attorney, City Clerk, department heads. Falls back to pattern-based detection when LLM unavailable. Verified on Nov 3 meeting: Mayor Kate, City Clerk, Vice Mayor Bushy, Council Member Hill correctly identified with 0.80-0.90 confidence.",
+        "test_file": "packages/civic/tests/test_transcript_chunking.py::TestStaffDetection"
+      },
+      "public_comment_detection": {
+        "status": "tested",
+        "priority": 2,
+        "test": "Detect public comment sections and speaker names when stated",
+        "note": "Session 204: Implemented public comment section detection. SpeakerRoleDetector.detect_public_comment_sections() identifies open/close markers (e.g., 'I'll open public comment', 'I'll close the public comment'). Sections have confidence scores (0.9 explicit close, 0.5 unclosed). Speaker name extraction uses LLM when llm_provider available. TranscriptChunker adds is_public_comment and public_comment_section_id to chunk metadata. Verified on Nov 3 meeting: 4 sections detected, 66 public comment chunks identified.",
+        "test_file": "packages/civic/tests/test_transcript_chunking.py::TestPublicCommentDetection"
+      },
+      "speaker_consistency": {
+        "status": "tested",
+        "priority": 3,
+        "test": "Same speaker gets same ID across meeting (diarization quality check)",
+        "test_file": "packages/civic/tests/test_speaker_consistency.py",
+        "note": "Session 222: Added 23 tests validating speaker consistency within meetings. Tests cover: intra-meeting role consistency (council/staff/public roles stable), name resolution consistency (detected names don't change), confidence stability (scores don't degrade), chunk metadata sync (chunk metadata matches SpeakerInfo), diarization quality checks on real transcripts (Nov 17, Nov 3), and edge cases (single speaker, empty text, late roll call)."
+      }
+    },
+    "retrieval_integration": {
+      "description": "Integrate video transcript search with existing query methods",
+      "what_happened_transcript": {
+        "status": "passing",
+        "priority": 2,
+        "test": "what_was_said() searches video transcripts when available",
+        "note": "Implemented as separate what_was_said() method returning TranscriptExcerpt objects",
+        "test_file": "packages/civic/tests/test_integration_rag_san_rafael.py::TestWhatWasSaidTranscripts"
+      },
+      "testimony_retrieval": {
+        "status": "passing",
+        "priority": 2,
+        "test": "Retrieve public testimony on specific topics with speaker attribution",
+        "note": "Implemented as get_public_testimony() method using public_comment_only filter",
+        "test_file": "packages/civic/tests/test_integration_rag_san_rafael.py::TestPublicTestimonyRetrieval"
+      },
+      "quote_extraction": {
+        "status": "passing",
+        "priority": 2,
+        "test": "Return exact quotes with timestamps for verification",
+        "note": "TranscriptExcerpt provides text, timestamps (ms and HH:MM:SS), video_url for verification",
+        "test_file": "packages/civic/tests/test_integration_rag_san_rafael.py::TestQuoteExtraction"
+      },
+      "hybrid_pdf_video": {
+        "status": "tested",
+        "priority": 3,
+        "test": "Combine PDF staff report + video discussion for complete picture",
+        "test_file": "packages/civic/tests/test_hybrid_pdf_video.py",
+        "note": "search_hybrid() and Civic.what_happened_with_discussion() combine PDF chunks + transcript chunks"
+      }
+    },
+    "merrydale_video_corpus": {
+      "description": "Apply video transcript RAG to Merrydale scenario as test case",
+      "nov17_video_download": {
+        "status": "passing",
+        "priority": 2,
+        "test": "Download Nov 17 council meeting video audio",
+        "note": "Session 208: Downloaded via yt-dlp. Video ID: h6ey-0sY03g, Duration: 313 min (~5.2 hours), Size: 287.2 MB. File: data/youtube_audio/h6ey-0sY03g.mp3"
+      },
+      "nov17_video_transcribe": {
+        "status": "passing",
+        "priority": 2,
+        "test": "Generate transcript with speaker diarization for Nov 17 meeting",
+        "note": "Session 209: Generated via AssemblyAI. Video ID: h6ey-0sY03g. Duration: 313.7 min, 5 speakers, 704 utterances, 41,594 words. 122 utterances mention shelter/merrydale/homeless (15min-311min). Cost: $6.27. Transcript: data/testimony/testimony_h6ey-0sY03g.json"
+      },
+      "nov17_video_chunks": {
+        "status": "passing",
+        "priority": 2,
+        "test": "Chunk Nov 17 transcript for RAG (~300-500 chunks expected for 3+ hour meeting)",
+        "note": "Session 210: Generated 285 chunks from 704 utterances. Avg chunk size: 835 chars. Time coverage: 00:02:59 to 05:12:58. 27 public comment chunks across 3 sections. 134 shelter-related chunks. Output: data/pilot/rag_corpus/city-san-rafael/nov17_transcript_chunks.json"
+      },
+      "merrydale_discussion_extract": {
+        "status": "passing",
+        "priority": 2,
+        "test": "Extract Item 6.a discussion segment with council deliberation and public testimony",
+        "note": "Session 211: Extracted Item 6.a (shelter crisis) discussion from Nov 17 transcript. 247 chunks spanning 4.4 hours: opening (2 chunks, 1.5 min), staff_presentation (38 chunks, 49 min), public_testimony (168 chunks, 147 min, 78 speakers), staff_qa (19 chunks, 39 min), council_deliberation (17 chunks, 22 min), vote (3 chunks, 4 min). Linked to decision_id: 20251117-item-6-a. Output: data/pilot/rag_corpus/city-san-rafael/item_6a_discussion.json"
+      },
+      "compare_minutes_transcript": {
+        "status": "tested",
+        "priority": 3,
+        "test": "Compare official minutes to full transcript - document information loss",
+        "test_file": "packages/civic/tests/test_integration_rag_san_rafael.py::TestMinutesTranscriptComparison",
+        "note": "Session 224: Added 9 tests documenting information loss between minutes and transcripts. Tests quantify: speaker count (78 names vs 168 testimony chunks), content depth (minutes ~1% of transcript chars), council Q&A (38+ min missing from minutes), deliberation (22+ min missing), vote context (deliberation+vote 25+ min), timestamp precision (milliseconds vs meeting start/end), video linking capability (YouTube URL construction). Key metric: transcript has 100x+ more content than minutes for Item 6.a."
+      }
+    },
+    "cost_tracking": {
+      "transcription_cost": "$0.37/hour (AssemblyAI) - ~$1.50 per 4-hour meeting",
+      "storage_cost": "~100KB per hour of transcript JSON",
+      "embedding_cost": "TBD based on chunk count",
+      "budget_note": "Within $7/month operational target if processing ~4-5 meetings/month"
+    }
+  },
+  "generalized_extraction": {
+    "description": "LLM-based document extraction for multi-city scaling",
+    "rationale": {
+      "problem": "Current regex-based extraction is San Rafael-specific - patterns assume specific section headers, vote formats, and title conventions",
+      "solution": "Use LLM (Gemini/Claude) for semantic extraction that handles format variations naturally",
+      "cost_estimate": "$0.01-0.02 per 7-page PDF, well within $7/month budget",
+      "timing": "Implement after pilot validation, before multi-city expansion"
+    },
+    "llm_minutes_extraction": {
+      "description": "Replace regex patterns with LLM-based extraction",
+      "structured_output": {
+        "status": "not_tested",
+        "priority": 4,
+        "test": "LLM extracts attendance, agenda items, votes, speakers into structured JSON"
+      },
+      "format_agnostic": {
+        "status": "not_tested",
+        "priority": 4,
+        "test": "Same prompt works for minutes from 3+ different California cities"
+      },
+      "cost_validation": {
+        "status": "not_tested",
+        "priority": 4,
+        "test": "Extraction cost stays under $0.05 per document"
+      }
+    },
+    "llm_staff_report_extraction": {
+      "description": "Semantic extraction of staff report content",
+      "recommendation_extract": {
+        "status": "not_tested",
+        "priority": 4,
+        "test": "LLM identifies staff recommendation regardless of document format"
+      },
+      "fiscal_impact_extract": {
+        "status": "not_tested",
+        "priority": 4,
+        "test": "LLM extracts fiscal impact section with dollar amounts"
+      }
+    }
+  }
+}

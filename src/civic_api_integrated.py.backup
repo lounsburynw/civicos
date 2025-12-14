@@ -1,0 +1,1618 @@
+#!/usr/bin/env python3
+"""
+Integrated Civic API with Authentication and Schema Compliance
+Bridges civic_digest.py → data/events/*.json → Conversational Interface
+
+Addresses Priority 1 + TECHNICAL_DEBT issues #1 (Auth) and #5 (Integration Testing)
+"""
+
+import json
+import os
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from datetime import datetime, timedelta
+from pathlib import Path
+import sys
+import hashlib
+import time
+import uuid
+import logging
+from urllib.parse import parse_qs, urlparse
+from collections import defaultdict
+from typing import Dict, List, Optional
+# Handle both direct execution and module execution
+try:
+    from .config import config
+    from .rate_limiter import rate_limiter
+    from .civic_input_validator import CivicInputValidator, ValidationResult
+    from .legistar_client import create_client as create_legistar_client
+except ImportError:
+    # Direct execution - use absolute imports
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent))
+    from config import config
+    from rate_limiter import rate_limiter
+    from civic_input_validator import CivicInputValidator, ValidationResult
+    from legistar_client import create_client as create_legistar_client
+
+# OpenAI integration for conversation API
+try:
+    import openai
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    print("[civic_api] WARNING: OpenAI not installed. Conversation API will use fallback responses.")
+    print("[civic_api] Install with: pip install openai")
+
+# Conversation management
+class ConversationManager:
+    """Manages conversation history and context for AI interactions"""
+    
+    def __init__(self, max_history: int = 10):
+        self.conversations: Dict[str, List[dict]] = defaultdict(list)
+        self.max_history = max_history
+        self.validator = CivicInputValidator()
+    
+    def add_message(self, conversation_id: str, role: str, content: str) -> None:
+        """Add a message to conversation history"""
+        self.conversations[conversation_id].append({
+            "role": role,
+            "content": content,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        # Trim history to prevent memory issues
+        if len(self.conversations[conversation_id]) > self.max_history * 2:
+            # Keep system message and recent history
+            system_msgs = [m for m in self.conversations[conversation_id] if m["role"] == "system"][:1]
+            recent_msgs = self.conversations[conversation_id][-(self.max_history * 2 - 1):]
+            self.conversations[conversation_id] = system_msgs + recent_msgs
+    
+    def get_context(self, conversation_id: str) -> List[dict]:
+        """Get conversation context for AI model"""
+        return self.conversations[conversation_id][-self.max_history:]
+    
+    def validate_input(self, user_input: str) -> ValidationResult:
+        """Validate and sanitize user input for conversation"""
+        import html
+        
+        # Length validation - 2000 chars max for conversation messages
+        if len(user_input) > 2000:
+            return ValidationResult(
+                is_valid=False,
+                sanitized_value="",
+                error_message=f"Message too long ({len(user_input)} characters). Please keep messages under 2000 characters.",
+                severity="ERROR"
+            )
+        
+        if len(user_input.strip()) < 1:
+            return ValidationResult(
+                is_valid=False,
+                sanitized_value="",
+                error_message="Message cannot be empty",
+                severity="ERROR"
+            )
+        
+        # Basic validation - allow most content but sanitize HTML entities
+        # This is more permissive than validate_key_points which is too strict
+        sanitized = html.escape(user_input)
+        
+        # Check for obvious attack patterns
+        dangerous_patterns = [
+            r'javascript:',
+            r'data:text/html',
+            r'vbscript:',
+            r'on\w+\s*=',  # Event handlers
+            r'<iframe',
+            r'<embed',
+            r'<object'
+        ]
+        
+        import re
+        for pattern in dangerous_patterns:
+            if re.search(pattern, user_input.lower()):
+                return ValidationResult(
+                    is_valid=False,
+                    sanitized_value="",
+                    error_message="Input contains potentially dangerous content",
+                    severity="WARNING"
+                )
+        
+        return ValidationResult(
+            is_valid=True,
+            sanitized_value=sanitized,
+            error_message=None,
+            severity="INFO"
+        )
+    
+    def clear_old_conversations(self, hours: int = 24) -> None:
+        """Clear conversations older than specified hours"""
+        cutoff = datetime.now().timestamp() - (hours * 3600)
+        for conv_id in list(self.conversations.keys()):
+            if self.conversations[conv_id]:
+                last_msg = self.conversations[conv_id][-1]
+                msg_time = datetime.fromisoformat(last_msg["timestamp"]).timestamp()
+                if msg_time < cutoff:
+                    del self.conversations[conv_id]
+
+# Initialize conversation manager globally
+conversation_manager = ConversationManager()
+
+# Data Freshness Management for Crisis Resolution
+class DataFreshnessManager:
+    """LLM-driven data freshness management balancing UX needs with cost constraints"""
+
+    def __init__(self):
+        self.ux_trust_threshold = 7  # UX requirement: never >7 days for future-focused queries
+        self.engineering_cost_limit = 50  # Engineering constraint: <$50/month
+        if OPENAI_AVAILABLE:
+            self.openai_client = openai.OpenAI()  # For LLM-based intent analysis
+        else:
+            self.openai_client = None
+
+    def assess_data_freshness(self, user_query: str = None) -> dict:
+        """Joint assessment considering both UX needs and engineering constraints"""
+        import glob
+        import os
+        import time
+
+        schema_files = glob.glob('data/events/events_*.json')
+        if not schema_files:
+            return {"status": "no_data", "action": "emergency_refresh", "user_message": "Loading current civic data..."}
+
+        latest_file = max(schema_files, key=os.path.getmtime)
+        age_days = (time.time() - os.path.getmtime(latest_file)) / 86400
+
+        # Use LLM to analyze user intent instead of keyword matching
+        if user_query and self.openai_client:
+            intent_analysis = self.analyze_user_intent(user_query)
+            user_needs_current = intent_analysis.get("needs_current_data", False)
+            temporal_focus = intent_analysis.get("temporal_focus", "current_active")
+        else:
+            user_needs_current = False
+            temporal_focus = "current_active"
+
+        # UX-Engineering decision matrix
+        if age_days > 14:
+            return {"status": "critical", "action": "immediate_refresh", "user_message": "⚠️ Updating civic data - please wait"}
+        elif age_days > 7 and user_needs_current:
+            return {"status": "refresh_needed", "action": "background_refresh", "user_message": "📅 Refreshing current meetings..."}
+        elif age_days > 7:
+            return {"status": "stale", "action": "schedule_refresh", "user_message": f"⚠️ Data from {age_days:.0f} days ago"}
+        elif age_days > 3:
+            return {"status": "aging", "action": "monitor", "user_message": f"📅 Updated {age_days:.0f} days ago"}
+        else:
+            return {"status": "fresh", "action": "none", "user_message": "✅ Current data"}
+
+    def apply_ux_freshness_indicators(self, opportunities: List[dict], freshness_status: dict) -> List[dict]:
+        """Apply UX-appropriate freshness indicators to opportunities"""
+        if freshness_status["status"] in ["stale", "critical"]:
+            user_message = freshness_status["user_message"]
+            for opp in opportunities:
+                # Prepend freshness warning to existing description
+                original_desc = opp.get('description', '')
+                opp['description'] = f"{user_message}\n\n{original_desc}"
+                # Add refresh action for stale data
+                if 'actions' not in opp:
+                    opp['actions'] = []
+                opp['actions'].append({
+                    "type": "refresh_data",
+                    "label": "Refresh Current Data",
+                    "priority": "high"
+                })
+        return opportunities
+
+    def analyze_user_intent(self, user_query: str) -> dict:
+        """Analyze user query intent using LLM for smart refresh decisions"""
+        if not self.openai_client:
+            # Conservative fallback when OpenAI not available
+            return {
+                "temporal_focus": "current_active",
+                "needs_current_data": True,
+                "urgency_level": "general",
+                "confidence": 0.5
+            }
+
+        intent_prompt = f"""
+        Analyze this civic engagement query for data freshness requirements:
+
+        Query: "{user_query}"
+
+        Determine:
+        1. temporal_focus: "future_only" (upcoming meetings/events), "current_active" (ongoing opportunities), "recent_past" (past 6 months), "historical" (older than 6 months)
+        2. needs_current_data: true if user needs up-to-date information, false if historical/procedural
+        3. urgency_level: "immediate", "this_week", "this_month", "general"
+        4. confidence: 0.0-1.0
+
+        Examples:
+        - "When's the next city council meeting?" → {{"temporal_focus": "future_only", "needs_current_data": true, "urgency_level": "this_week", "confidence": 0.95}}
+        - "How do I submit public comments?" → {{"temporal_focus": "current_active", "needs_current_data": false, "urgency_level": "general", "confidence": 0.9}}
+        - "What housing projects were discussed last month?" → {{"temporal_focus": "recent_past", "needs_current_data": false, "urgency_level": "general", "confidence": 0.85}}
+
+        Return only valid JSON.
+        """
+
+        try:
+            response = self.openai_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": intent_prompt}],
+                max_tokens=200,
+                temperature=0.1
+            )
+
+            import json
+            return json.loads(response.choices[0].message.content)
+        except Exception as e:
+            print(f"[DataFreshnessManager] LLM intent analysis failed: {e}")
+            # Conservative fallback
+            return {
+                "temporal_focus": "current_active",
+                "needs_current_data": True,
+                "urgency_level": "general",
+                "confidence": 0.5
+            }
+
+# Initialize data freshness manager globally
+data_freshness_manager = DataFreshnessManager()
+
+# Configure audit logging
+audit_logger = logging.getLogger('civic_audit')
+audit_logger.setLevel(logging.INFO)
+
+# Create logs directory if it doesn't exist
+logs_dir = Path('logs')
+logs_dir.mkdir(exist_ok=True)
+
+# File handler for audit logs
+audit_handler = logging.FileHandler(logs_dir / 'civic_audit.log')
+audit_handler.setLevel(logging.INFO)
+audit_formatter = logging.Formatter(
+    '%(asctime)s | %(levelname)s | %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+audit_handler.setFormatter(audit_formatter)
+audit_logger.addHandler(audit_handler)
+
+# Console handler for development
+if config.env == 'development':
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(audit_formatter)
+    audit_logger.addHandler(console_handler)
+
+class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
+    """Authenticated HTTP handler for civic data API with schema integration"""
+    
+    # Load API keys from centralized config
+    def get_api_keys(self):
+        """Load API keys from centralized configuration"""
+        return config.get_api_keys()
+    
+    def authenticate_request(self):
+        """Check API key authentication"""
+        # Allow public endpoints
+        if self.path in ['/api/status', '/health']:
+            return True
+            
+        auth_header = self.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return False
+        
+        api_key = auth_header.replace('Bearer ', '')
+        return api_key in self.get_api_keys()
+    
+    def send_auth_error(self):
+        """Send authentication required response"""
+        self.send_response(401)
+        self.send_header('Content-Type', 'application/json')
+        # Use proper CORS from config
+        origin = self.headers.get('Origin', '*')
+        allowed_origins = config.get_cors_origins()
+        if '*' in allowed_origins or origin in allowed_origins:
+            self.send_header('Access-Control-Allow-Origin', origin)
+        else:
+            self.send_header('Access-Control-Allow-Origin', allowed_origins[0] if allowed_origins else '*')
+        self.end_headers()
+        error_response = {
+            'error': 'Authentication required', 
+            'message': 'Include Bearer token in Authorization header',
+            'example': 'Authorization: Bearer <your_api_key>'
+        }
+        self.wfile.write(json.dumps(error_response, indent=2).encode())
+    
+    def send_rate_limit_error(self, limit_info):
+        """Send rate limit exceeded response"""
+        self.send_response(429)  # Too Many Requests
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Retry-After', str(limit_info['retry_after']))
+        
+        # Use proper CORS from config
+        origin = self.headers.get('Origin', '*')
+        allowed_origins = config.get_cors_origins()
+        if '*' in allowed_origins or origin in allowed_origins:
+            self.send_header('Access-Control-Allow-Origin', origin)
+        else:
+            self.send_header('Access-Control-Allow-Origin', allowed_origins[0] if allowed_origins else '*')
+        
+        self.end_headers()
+        
+        error_response = {
+            'error': 'Rate limit exceeded',
+            'message': f"Too many requests. Limit: {limit_info['limit_value']} per {limit_info['limit']}",
+            'retry_after': limit_info['retry_after']
+        }
+        self.wfile.write(json.dumps(error_response, indent=2).encode())
+    
+    def do_OPTIONS(self):
+        """Handle CORS preflight"""
+        self.send_response(200)
+        # Use proper CORS from config
+        origin = self.headers.get('Origin', '*')
+        allowed_origins = config.get_cors_origins()
+        if '*' in allowed_origins or origin in allowed_origins:
+            self.send_header('Access-Control-Allow-Origin', origin)
+        else:
+            self.send_header('Access-Control-Allow-Origin', allowed_origins[0] if allowed_origins else '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        self.send_header('Access-Control-Max-Age', '3600')
+        self.end_headers()
+    
+    def do_GET(self):
+        """Handle GET requests with authentication and rate limiting"""
+        # Check rate limit first
+        client_id = rate_limiter.get_client_id(self)
+        allowed, limit_info = rate_limiter.check_rate_limit(client_id)
+        
+        if not allowed:
+            self.send_rate_limit_error(limit_info)
+            return
+        
+        # Authenticate all requests
+        if not self.authenticate_request():
+            self.send_auth_error()
+            return
+            
+        if self.path == '/api/opportunities':
+            self.serve_opportunities()
+        elif self.path.startswith('/api/opportunities/'):
+            # Extract opportunity ID from path
+            opp_id = self.path.split('/')[-1]
+            self.serve_single_opportunity(opp_id)
+        elif self.path.startswith('/api/legistar/'):
+            # Handle Legistar API endpoints: /api/legistar/{city}/events
+            path_parts = self.path.split('/')
+            if len(path_parts) >= 5 and path_parts[4] == 'events':
+                city = path_parts[3]
+                self.serve_legistar_events(city)
+            else:
+                self.send_error(404)
+        elif self.path == '/api/refresh':
+            self.refresh_data()
+        elif self.path in ['/api/status', '/health']:
+            self.serve_status()
+        else:
+            self.send_error(404)
+    
+    def do_POST(self):
+        """Handle POST requests with authentication and rate limiting"""
+        # Check rate limit first
+        client_id = rate_limiter.get_client_id(self)
+        allowed, limit_info = rate_limiter.check_rate_limit(client_id)
+        
+        if not allowed:
+            self.send_rate_limit_error(limit_info)
+            return
+        
+        # Authenticate all requests
+        if not self.authenticate_request():
+            self.send_auth_error()
+            return
+            
+        if self.path == '/api/conversation':
+            self.handle_conversation()
+        elif self.path == '/api/refresh-data':
+            self.handle_manual_refresh()
+        else:
+            self.send_error(404)
+    
+    def serve_opportunities(self):
+        """Serve latest civic opportunities from schema-compliant files with freshness assessment"""
+        try:
+            # Capture user query for freshness assessment
+            from urllib.parse import parse_qs, urlparse
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+            user_query = query_params.get('query', [''])[0]  # Extract 'query' parameter if present
+
+            # Assess data freshness using LLM-driven analysis
+            freshness_status = data_freshness_manager.assess_data_freshness(user_query)
+
+            # Find the most recent schema-compliant newsletter file
+            schema_dir = Path('data/events')
+            if not schema_dir.exists():
+                self.send_json({
+                    'opportunities': [],
+                    'message': 'No schema-compliant data available yet. Run civic_digest.py first.',
+                    'help': 'Try: python civic_digest.py test',
+                    'data_freshness': freshness_status
+                })
+                return
+
+            # Get most recent newsletter JSON file
+            json_files = sorted(schema_dir.glob('newsletter_*.json'), key=os.path.getmtime, reverse=True)
+            if not json_files:
+                self.send_json({
+                    'opportunities': [],
+                    'message': 'No newsletter data found. Run civic_digest.py first.',
+                    'help': 'Try: python civic_digest.py test',
+                    'data_freshness': freshness_status
+                })
+                return
+            
+            # Load schema-compliant newsletter data
+            with open(json_files[0], 'r') as f:
+                newsletter_data = json.load(f)
+            
+            # Extract opportunities from schema structure
+            opportunities = []
+            
+            # Process schema opportunities (direct from root level)
+            for schema_opp in newsletter_data.get('opportunities', []):
+                opportunity = {
+                    'opportunity_id': schema_opp.get('id', 'unknown'),
+                    'title': schema_opp.get('title', 'Untitled Opportunity'),
+                    'description': schema_opp.get('description', ''),
+                    'meeting_date': schema_opp.get('when', newsletter_data.get('created_at')),
+                    'location': {
+                        'city': newsletter_data.get('jurisdiction', {}).get('name', 'Unknown'),
+                        'state': 'CA',  # Default for now
+                        'venue': schema_opp.get('location', 'City Hall')
+                    },
+                    'participation_methods': self.extract_participation_methods_from_schema_engagement(schema_opp.get('engagement_info', '')),
+                    'impact_summary': schema_opp.get('impact_summary', ''),
+                    'source_url': schema_opp.get('source_url', ''),
+                    'created_at': newsletter_data.get('created_at'),
+                    'deadline': schema_opp.get('deadline'),
+                    'category': self.categorize_from_project_type(schema_opp.get('project_type', 'general')),
+                    'tags': self.extract_tags_from_schema_opportunity(schema_opp)
+                }
+                opportunities.append(opportunity)
+
+            # Apply UX-appropriate freshness indicators
+            opportunities = data_freshness_manager.apply_ux_freshness_indicators(opportunities, freshness_status)
+
+            response = {
+                'opportunities': opportunities,
+                'metadata': {
+                    'count': len(opportunities),
+                    'last_updated': newsletter_data.get('created_at'),
+                    'source_file': json_files[0].name,
+                    'city': newsletter_data.get('jurisdiction', {}).get('name'),
+                    'integration_status': 'schema_compliant'
+                },
+                'data_freshness': freshness_status,
+                'refresh_available': freshness_status["action"] != "none"
+            }
+
+            self.send_json(response)
+            
+        except Exception as e:
+            print(f"[civic_api] ERROR: {str(e)}")
+            self.send_error(500, f"Server error: {str(e)}")
+    
+    def serve_single_opportunity(self, opp_id):
+        """Serve a single opportunity by ID"""
+        try:
+            # Load opportunities and find the matching one
+            schema_dir = Path('data/events')
+            json_files = sorted(schema_dir.glob('newsletter_*.json'), key=os.path.getmtime, reverse=True)
+            
+            if not json_files:
+                self.send_error(404, "Opportunity not found - no data files available")
+                return
+                
+            with open(json_files[0], 'r') as f:
+                newsletter_data = json.load(f)
+            
+            # Find opportunity by ID
+            for item in newsletter_data.get('content', {}).get('items', []):
+                if self.generate_opportunity_id(item) == opp_id:
+                    opportunity = {
+                        'opportunity_id': opp_id,
+                        'title': item.get('title', 'Untitled Opportunity'),
+                        'description': f"{item.get('change', '')} - {item.get('impact', '')}".strip(' - '),
+                        'meeting_date': newsletter_data.get('metadata', {}).get('meeting_date'),
+                        'location': {
+                            'city': newsletter_data.get('metadata', {}).get('city', 'Unknown'),
+                            'state': newsletter_data.get('metadata', {}).get('state', 'CA'),
+                            'venue': item.get('location', 'City Hall')
+                        },
+                        'participation_methods': self.extract_participation_methods_from_schema(item),
+                        'impact_summary': item.get('impact', ''),
+                        'source_url': newsletter_data.get('metadata', {}).get('source_url', ''),
+                        'how_to_participate': item.get('how_to_participate', ''),
+                        'project_type': item.get('project_type', 'general'),
+                        'full_details': item
+                    }
+                    self.send_json(opportunity)
+                    return
+            
+            self.send_error(404, f"Opportunity {opp_id} not found")
+            
+        except Exception as e:
+            print(f"[civic_api] ERROR serving opportunity {opp_id}: {str(e)}")
+            self.send_error(500, f"Server error: {str(e)}")
+    
+    def detect_refresh_need(self, user_input: str) -> bool:
+        """Detect when users need current data"""
+        freshness_keywords = [
+            'this week', 'upcoming', 'next meeting', 'current',
+            'latest', 'recent', 'when is', 'scheduled'
+        ]
+
+        # Check if user is asking about current events
+        needs_fresh = any(keyword in user_input.lower() for keyword in freshness_keywords)
+
+        # Check data age
+        import glob, os, time
+        schema_files = glob.glob('data/events/events_*.json')
+        if schema_files:
+            latest_file = max(schema_files, key=os.path.getmtime)
+            age_days = (time.time() - os.path.getmtime(latest_file)) / 86400
+            return needs_fresh and age_days > 3
+
+        return False
+
+    def trigger_background_refresh(self, scope='current_active_only'):
+        """UX-aware background refresh with temporal filtering"""
+        import threading
+        import subprocess
+        import time
+        from datetime import datetime, timedelta
+
+        def refresh_worker():
+            """Background refresh with temporal scope filtering"""
+            try:
+                # Log refresh start for UX monitoring
+                print(f"🔄 Background refresh triggered ({scope}): {time.strftime('%Y-%m-%d %H:%M:%S')}")
+
+                # Determine temporal filtering based on scope
+                if scope == 'future_meetings_only':
+                    # Short-term strategy: Only future meetings
+                    cmd_args = ['--future-only']
+                elif scope == 'include_recent_past':
+                    # Long-term strategy: Include recent past (6 months) for context
+                    cmd_args = ['--include-recent-past']
+                else:  # current_active_only
+                    # Default: Current and upcoming only
+                    cmd_args = []
+
+                # Execute refresh with temporal filtering
+                cmd = ['python', 'src/automated_civic_refresh.py'] + cmd_args
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=300  # 5-minute timeout
+                )
+
+                if result.returncode == 0:
+                    print(f"✅ Background refresh completed successfully ({scope})")
+                    # Parse output to report filtering results
+                    output_lines = result.stdout.split('\n')
+                    for line in output_lines:
+                        if 'opportunities generated' in line.lower():
+                            print(f"📅 {line}")
+                else:
+                    print(f"❌ Background refresh failed: {result.stderr[:200]}")
+                    # Log failure for UX team to monitor user impact
+
+            except subprocess.TimeoutExpired:
+                print(f"⏰ Background refresh timed out ({scope}) - will retry in next cycle")
+            except Exception as e:
+                print(f"🚨 Background refresh error ({scope}): {e}")
+
+        # Start background refresh without blocking user experience
+        threading.Thread(target=refresh_worker, daemon=True).start()
+
+    def refresh_data(self):
+        """Trigger data refresh using direct module import (secure implementation)"""
+        try:
+            print("Refreshing civic data...")
+            
+            # Import civic_digest module directly instead of using subprocess
+            try:
+                from . import civic_digest
+            except ImportError:
+                import civic_digest
+            
+            # Create digest instance (same as civic_digest.py does)
+            digest = civic_digest.CivicDigest()
+            
+            # Use known working URL (same as test command)
+            test_url = "https://www.cityofsanrafael.org/meetings/planning-commission-may-27-2025/"
+            
+            # Run the scraping (without sending email)
+            opportunities = digest.scrape_meeting(test_url)
+            
+            self.send_json({
+                'status': 'success',
+                'message': 'Data refreshed successfully',
+                'opportunities_found': len(opportunities),
+                'test_url': test_url,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        except Exception as e:
+            print(f"[civic_api] ERROR refreshing data: {str(e)}")
+            self.send_error(500, f"Refresh error: {str(e)}")
+    
+    def handle_conversation(self):
+        """Handle AI conversation endpoint with civic context"""
+        try:
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length == 0:
+                audit_logger.warning(f"Conversation request with no body from {self.client_address[0]}")
+                self.send_json({'error': 'No message provided'}, 400)
+                return
+                
+            body = self.rfile.read(content_length)
+            data = json.loads(body)
+            
+            # Validate required fields
+            message = data.get('message', '').strip()
+            if not message:
+                audit_logger.warning(f"Conversation request with empty message from {self.client_address[0]}")
+                self.send_json({'error': 'Message is required'}, 400)
+                return
+            
+            # Validate and sanitize input
+            validation = conversation_manager.validate_input(message)
+            if not validation.is_valid:
+                audit_logger.warning(f"Invalid input detected from {self.client_address[0]}: {validation.error_message}")
+                self.send_json({
+                    'error': 'Invalid input',
+                    'message': validation.error_message
+                }, 400)
+                return
+            
+            # Use sanitized message
+            message = validation.sanitized_value
+
+            # Check if user query indicates need for fresh data and trigger background refresh
+            if self.detect_refresh_need(message):
+                print(f"🔄 User query indicates need for fresh data: '{message[:50]}...'")
+                # Analyze intent to determine optimal refresh scope
+                intent_analysis = data_freshness_manager.analyze_user_intent(message)
+                if intent_analysis['temporal_focus'] == 'future_only':
+                    refresh_scope = 'future_meetings_only'
+                elif intent_analysis['temporal_focus'] == 'recent_past':
+                    refresh_scope = 'include_recent_past'
+                else:
+                    refresh_scope = 'current_active_only'
+
+                # Trigger non-blocking background refresh
+                self.trigger_background_refresh(scope=refresh_scope)
+
+            # Extract context from request
+            conversation_id = data.get('conversation_id') or str(uuid.uuid4())
+            user_id = data.get('user_id')
+            city = data.get('city', 'San Rafael')
+            state = data.get('state', 'California')
+            county = data.get('county', 'Marin County')
+            interests = data.get('interests', [])
+            
+            # Log conversation attempt
+            audit_logger.info(f"Conversation request | IP: {self.client_address[0]} | User: {user_id or 'anonymous'} | City: {city} | ConvID: {conversation_id[:8]}... | Length: {len(message)} chars")
+            
+            # Generate AI response
+            ai_response = self.generate_ai_response(
+                message, conversation_id, city, state, county, interests
+            )
+            
+            # Extract action buttons from AI response and opportunities
+            action_result = self.extract_action_buttons(ai_response, city, interests)
+            
+            # Check data freshness and add warning if stale
+            freshness = self.get_data_freshness()
+            response_data = {
+                'response': ai_response,
+                'actions': action_result.get('legacy_actions', []),  # For backward compatibility
+                'grouped_actions': action_result.get('grouped_actions', []),  # New grouped structure
+                'conversation_id': conversation_id,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            if freshness and freshness['is_stale']:
+                response_data['data_warning'] = f"Note: Civic data is {freshness['age_days']} days old. Information may not reflect the most current meetings and opportunities."
+                response_data['data_freshness'] = {
+                    'age_days': freshness['age_days'],
+                    'last_updated': freshness['last_updated']
+                }
+            
+            # Log successful response
+            total_actions = sum(len(g.get('actions', [])) for g in action_result.get('grouped_actions', []))
+            audit_logger.info(f"Conversation response | ConvID: {conversation_id[:8]}... | Response length: {len(ai_response)} chars | Actions: {total_actions} | Data age: {freshness['age_days'] if freshness else 'unknown'} days | Success: true")
+            
+            # Send response with action buttons and freshness info
+            self.send_json(response_data)
+            
+        except json.JSONDecodeError:
+            audit_logger.warning(f"Invalid JSON in conversation request from {self.client_address[0]}")
+            self.send_json({'error': 'Invalid JSON'}, 400)
+        except Exception as e:
+            audit_logger.error(f"Conversation error | IP: {self.client_address[0]} | Error: {type(e).__name__}")
+            self.send_json({
+                'error': 'Internal server error',
+                'message': 'An error occurred processing your request'
+            }, 500)
+    
+    def generate_ai_response(self, message: str, conversation_id: str, 
+                            city: str, state: str, county: str, 
+                            interests: List[str]) -> str:
+        """Generate AI response with civic context"""
+        
+        # Check if OpenAI is available
+        if not OPENAI_AVAILABLE or not os.getenv('OPENAI_API_KEY'):
+            return self.generate_fallback_response(message, city)
+        
+        try:
+            # Initialize OpenAI client with new SDK pattern
+            from openai import OpenAI
+            from config import config
+            openai_config = config.get_openai_config()
+            client = OpenAI(api_key=openai_config['api_key'])
+            
+            # Load civic opportunities for context
+            opportunities = self.get_civic_context(city)
+            
+            # Build system prompt with civic context - filter by user interests
+            filtered_opportunities = self.filter_opportunities_by_interests(opportunities, interests)
+            system_prompt = self.build_civic_system_prompt(city, state, county, interests, filtered_opportunities)
+            
+            # Get conversation history
+            if not conversation_manager.get_context(conversation_id):
+                # Initialize conversation with system prompt ONLY on first message
+                conversation_manager.add_message(conversation_id, "system", system_prompt)
+            
+            # Add user message
+            conversation_manager.add_message(conversation_id, "user", message)
+            
+            # Get messages for API call
+            messages = conversation_manager.get_context(conversation_id)
+            
+            # Call OpenAI API with configurable parameters from config
+            response = client.chat.completions.create(
+                model=openai_config['model'],
+                messages=messages,
+                temperature=openai_config['temperature'],
+                max_tokens=openai_config['max_tokens'],
+                timeout=openai_config['timeout']
+            )
+            
+            ai_message = response.choices[0].message.content
+            
+            # Store AI response in history
+            conversation_manager.add_message(conversation_id, "assistant", ai_message)
+            
+            return ai_message
+            
+        except Exception as e:
+            print(f"[civic_api] OpenAI API error occurred")
+            return self.generate_fallback_response(message, city)
+    
+    def build_civic_system_prompt(self, city: str, state: str, county: str,
+                                 interests: List[str], opportunities: List[dict]) -> str:
+        """Build system prompt with civic context"""
+        prompt = f"""You are a helpful civic engagement assistant for {city}, {state}.
+        
+Your role is to help residents understand and participate in local government.
+Be conversational, friendly, and encouraging about civic participation.
+
+Current location: {city}, {county}, {state}
+User interests: {', '.join(interests) if interests else 'general civic engagement'}
+
+CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests):
+"""
+        
+        if opportunities:
+            for opp in opportunities[:5]:  # Include top 5 opportunities with full details
+                # Extract meeting details from the data
+                meeting_when = opp.get('when', '')
+                deadline = opp.get('deadline', '')
+                contact_info = opp.get('contact_info', {})
+                engagement_info = opp.get('engagement_info', '')
+                source_url = opp.get('source_url', '')
+                location = opp.get('location', city)
+                
+                # Make opportunities more prominent
+                prompt += f"\n{'='*60}\n"
+                prompt += f"📍 OPPORTUNITY: {opp.get('title', 'Untitled')}\n"
+                prompt += f"   Why Relevant: Matches your interest in {', '.join(interests) if interests else 'civic engagement'}\n"
+                prompt += f"   Description: {opp.get('description', 'No description available')}\n"
+                prompt += f"   Meeting Date: {meeting_when if meeting_when else 'Date TBD'}\n"
+                prompt += f"   Comment Deadline: {deadline if deadline else 'No specific deadline'}\n"
+                prompt += f"   Location: {location}\n"
+                
+                # Add contact information
+                if contact_info:
+                    email = contact_info.get('email', '')
+                    phone = contact_info.get('phone', '')
+                    if email:
+                        prompt += f"   Contact Email: {email}\n"
+                    if phone:
+                        prompt += f"   Contact Phone: {phone}\n"
+                
+                prompt += f"   How to Participate: {engagement_info}\n"
+                if source_url:
+                    prompt += f"   Meeting Details: {source_url}\n"
+                prompt += "\n"
+        else:
+            prompt += "\n- No current opportunities loaded\n"
+        
+        prompt += "\n🎯 RESPONSE GUIDELINES:\n"
+        prompt += "1. **Keep responses concise**: Action buttons show detailed opportunity info, so focus your text on guidance and context\n"
+        prompt += "2. **Avoid listing opportunity details**: Don't repeat titles, dates, locations that appear in action buttons\n"
+        prompt += "3. **Be conversational and strategic**: Provide value beyond what's in the buttons - offer insights, next steps, or helpful context\n"
+        prompt += "4. **When users ask about opportunities**: Reference them briefly, focus on what's your next step? or which interests you most?\n"
+        prompt += "5. **For discovery queries**: Lead with a short overview, then let action buttons provide the details\n"
+        prompt += "6. **End with engaging questions** when appropriate:\n"
+        prompt += "   - What specific aspects interest you?\n"
+        prompt += "   - What's your preferred way to participate?\n"
+        prompt += "   - Are you looking to advocate for a particular outcome?\n"
+        prompt += "7. **Guide strategy, not logistics**: Help users think through their approach rather than repeating meeting details\n"
+
+        prompt += "\nCRITICAL: Your responses will be displayed with action buttons that show opportunity titles, dates, locations, and contact details.\n"
+        prompt += "DO NOT repeat this information in your text. Focus on strategic guidance, context, and follow-up questions instead.\n"
+        
+        return prompt
+    
+    def filter_opportunities_by_interests(self, opportunities: List[dict], interests: List[str]) -> List[dict]:
+        """Filter opportunities by user interests with intelligent matching"""
+        if not interests or not opportunities:
+            return opportunities[:5]  # Return top 5 if no interests specified
+        
+        # Map interests to project types and related keywords
+        interest_mapping = {
+            'housing': ['housing', 'development', 'zoning', 'affordable', 'apartment', 'residential', 'tenant', 'rent', 'home', 'dwelling', 'construction', 'building'],
+            'transportation': ['transportation', 'transit', 'traffic', 'parking', 'bike', 'bicycle', 'pedestrian', 'road', 'street', 'mobility', 'vehicle', 'bus', 'train', 'commute'],
+            'environment': ['environment', 'climate', 'sustainability', 'park', 'tree', 'green', 'pollution', 'conservation', 'energy', 'solar', 'waste', 'recycling', 'water'],
+            'budget': ['budget', 'finance', 'tax', 'spending', 'revenue', 'fiscal', 'cost', 'funding', 'grant', 'fee', 'expense', 'appropriation'],
+            'safety': ['safety', 'police', 'fire', 'emergency', 'crime', 'security', 'public safety', 'enforcement', 'prevention', 'hazard', 'protection'],
+            'general': []  # General matches everything
+        }
+        
+        filtered = []
+        unmatched = []
+        
+        for opp in opportunities:
+            # Check if opportunity matches any user interests
+            matched = False
+            opp_text = f"{opp.get('title', '')} {opp.get('description', '')} {opp.get('project_type', '')}".lower()
+            
+            for interest in interests:
+                interest_lower = interest.lower()
+                if interest_lower == 'general':
+                    matched = True
+                    break
+                
+                # Check direct interest keywords
+                keywords = interest_mapping.get(interest_lower, [interest_lower])
+                if any(keyword in opp_text for keyword in keywords):
+                    matched = True
+                    break
+            
+            if matched:
+                filtered.append(opp)
+            else:
+                unmatched.append(opp)
+        
+        # If we have fewer than 3 matches, add some unmatched ones for context
+        if len(filtered) < 3:
+            to_add = min(3 - len(filtered), len(unmatched))
+            filtered.extend(unmatched[:to_add])
+        
+        return filtered[:5]  # Return top 5 relevant opportunities
+    
+    def get_data_freshness(self) -> Optional[dict]:
+        """Check age of schema data and return freshness info"""
+        try:
+            schema_dir = Path('data/events')
+            if not schema_dir.exists():
+                return None
+            
+            latest_file = max(schema_dir.glob('*.json'), key=os.path.getmtime, default=None)
+            if not latest_file:
+                return None
+                
+            file_age_days = (datetime.now() - datetime.fromtimestamp(
+                latest_file.stat().st_mtime)).days
+            
+            return {
+                "age_days": file_age_days,
+                "is_stale": file_age_days > 7,
+                "last_updated": datetime.fromtimestamp(latest_file.stat().st_mtime).isoformat(),
+                "filename": latest_file.name
+            }
+        except Exception as e:
+            print(f"[civic_api] Error checking data freshness: {e}")
+            return None
+
+    def get_civic_context(self, city: str) -> List[dict]:
+        """Load civic opportunities for context"""
+        try:
+            schema_dir = Path('data/events')
+            if not schema_dir.exists():
+                return []
+            
+            json_files = sorted(schema_dir.glob('newsletter_*.json'), 
+                              key=os.path.getmtime, reverse=True)
+            if not json_files:
+                return []
+            
+            with open(json_files[0], 'r') as f:
+                data = json.load(f)
+            
+            opportunities = []
+            for opp in data.get('opportunities', []):
+                opportunities.append({
+                    'title': opp.get('title', ''),
+                    'description': opp.get('description', ''),
+                    'meeting_date': opp.get('when', ''),
+                    'impact': opp.get('impact_summary', ''),
+                    'project_type': opp.get('project_type', ''),
+                    'contact_info': opp.get('contact_info', {}),
+                    'engagement_tier': opp.get('engagement_tier', ''),
+                    'deadline': opp.get('deadline', ''),
+                    'source_url': opp.get('source_url', ''),
+                    'when': opp.get('when', ''),
+                    'engagement_info': opp.get('engagement_info', ''),
+                    'location': opp.get('location', '')
+                })
+            
+            return opportunities[:5]  # Return top 5 for context
+            
+        except Exception as e:
+            print(f"[civic_api] Error loading context: {str(e)}")
+            return []
+    
+    def calculate_relevance_score(self, opp_title: str, ai_response: str) -> float:
+        """Calculate word overlap percentage between opportunity and response"""
+        title_words = set(word.lower() for word in opp_title.split() if len(word) > 2)  # Ignore short words
+        response_words = set(word.lower() for word in ai_response.split() if len(word) > 2)
+        
+        if not title_words:
+            return 0.0
+        
+        overlap = title_words.intersection(response_words)
+        return len(overlap) / len(title_words)
+
+    def extract_action_buttons(self, ai_response: str, city: str, interests: List[str]) -> dict:
+        """Extract grouped actionable buttons from AI response based on mentioned opportunities"""
+        grouped_actions = []
+        
+        # Configuration constants
+        MAX_OPPORTUNITIES = 10  # Max number of opportunities to show buttons for
+        MAX_BUTTONS_PER_OPP = 4  # Email, Calendar, Link, Learn More
+        ACTION_LABEL_MAX_LENGTH = 30
+        RELEVANCE_THRESHOLD = 0.3  # 30% word overlap minimum
+        DEFAULT_CITY_CLERK_EMAIL = os.getenv('DEFAULT_CLERK_EMAIL', 'city.clerk@cityofsanrafael.org')
+        
+        # Load current opportunities to find matches
+        opportunities = self.get_civic_context(city)
+        filtered_opps = self.filter_opportunities_by_interests(opportunities, interests)
+        
+        # Find opportunities mentioned in response using improved algorithm
+        response_lower = ai_response.lower()
+        relevant_opps = []
+        
+        for opp in filtered_opps:
+            title = opp.get('title', '')
+            if title:
+                score = self.calculate_relevance_score(title, ai_response)
+                if score > RELEVANCE_THRESHOLD:
+                    relevant_opps.append((score, opp))
+        
+        # Sort by relevance and take top opportunities
+        relevant_opps.sort(key=lambda x: x[0], reverse=True)
+
+        for score, opp in relevant_opps[:MAX_OPPORTUNITIES]:  # Process top relevant opportunities
+            opp_actions = []
+            opp_id = opp.get('id', '')
+            opp_title = opp.get('title', 'Civic Opportunity')
+            
+            # Extract contact info for email action
+            contact_info = opp.get('contact_info', {})
+            email = contact_info.get('email', DEFAULT_CITY_CLERK_EMAIL)
+            
+            if email:
+                # Create email action with icon
+                subject = f"Public Comment: {opp_title}"
+                opp_actions.append({
+                    'type': 'email',
+                    'label': 'Draft Email',
+                    'icon': '📧',
+                    'mailto': email,
+                    'subject': subject,
+                    'body': f"Dear {city} Officials,\n\nI am writing to comment on: {opp_title}.\n\n[Your comment here]\n\nThank you,\n[Your name]"
+                })
+            
+            # Extract source URL for use in calendar and link actions
+            source_url = opp.get('source_url', '')
+            
+            # Extract meeting date for calendar action with better validation
+            meeting_date = opp.get('when', '')
+            if meeting_date and 'T' in meeting_date:  # Check if ISO format date
+                try:
+                    # Validate the date format
+                    from datetime import datetime
+                    datetime.fromisoformat(meeting_date.replace('Z', '+00:00'))
+                    
+                    # Calculate end time (2 hours after start)
+                    start_dt = datetime.fromisoformat(meeting_date.replace('Z', '+00:00'))
+                    end_dt = start_dt + timedelta(hours=2)
+                    
+                    # Get comprehensive location details
+                    venue_name = opp.get('location', f'{city} City Hall')
+                    venue_address = self.get_venue_full_address(venue_name, city)
+                    
+                    # Build comprehensive description with all participation details
+                    description_parts = []
+                    if opp.get('description'):
+                        description_parts.append(f"Agenda Item: {opp.get('description')}")
+                    
+                    if opp.get('impact_summary'):
+                        description_parts.append(f"Impact: {opp.get('impact_summary')}")
+                    
+                    # Add participation methods
+                    engagement_info = opp.get('engagement_info', '')
+                    if engagement_info:
+                        description_parts.append(f"How to Participate:\n{engagement_info}")
+                    else:
+                        # Fallback participation info
+                        description_parts.append(f"""How to Participate:
+- In Person: {venue_address}
+- Email Comments: {email if 'email' in locals() else 'city.clerk@' + city.lower().replace(' ', '') + '.gov'}
+- Public Comment: Arrive early to sign up for public comment period""")
+                    
+                    if source_url:
+                        description_parts.append(f"Meeting Details: {source_url}")
+                    
+                    full_description = "\n\n".join(description_parts)
+                    
+                    opp_actions.append({
+                        'type': 'calendar',
+                        'label': 'Add to Calendar',
+                        'icon': '📅',
+                        'event': {
+                            'id': opp_id or f"civic-{hash(opp_title)}",
+                            'title': f"{opp_title} - {self.get_meeting_type_from_url(source_url)} Meeting",
+                            'start': meeting_date,
+                            'end': end_dt.isoformat(),
+                            'location': venue_address,
+                            'description': full_description,
+                            'url': source_url if source_url else None
+                        }
+                    })
+                except ValueError:
+                    # Skip invalid dates
+                    print(f"[civic_api] Warning: Invalid date format in opportunity: {meeting_date}")
+                    continue
+            
+            # Note: View Details button removed as unnecessary - users can access meeting details through consolidated meeting links
+            
+            # Add exactly one "Ask Questions" action for deeper engagement
+            opp_actions.append({
+                'type': 'learn_more',
+                'label': 'Ask Questions',
+                'icon': '💡',
+                'opportunity_id': opp_id or f"civic-{hash(opp_title)}",
+                'opportunity_title': opp_title,
+                'context': self.generateFollowUpPrompt(opp_title, opp)
+            })
+            
+            # Add this opportunity's grouped actions with additional metadata for frontend
+            if opp_actions:
+                grouped_actions.append({
+                    'opportunity_title': opp_title,
+                    'opportunity_id': opp_id or f"civic-{hash(opp_title)}",
+                    'opportunity_description': opp.get('description', ''),
+                    'opportunity_impact': opp.get('impact_summary', ''),
+                    'source_url': source_url,  # Add source_url for agenda links
+                    'actions': opp_actions
+                })
+        
+        # Return grouped actions structure
+        return {
+            'grouped_actions': grouped_actions,
+            'legacy_actions': self._convert_to_legacy_format(grouped_actions)  # For backward compatibility
+        }
+    
+    def get_venue_full_address(self, venue_name: str, city: str) -> str:
+        """Get full address for common civic venues"""
+        venue_addresses = {
+            'city hall': f"City Hall, {city}, CA",
+            'community center': f"Community Center, {city}, CA", 
+            'council chambers': f"Council Chambers, City Hall, {city}, CA",
+            'planning department': f"Planning Department, City Hall, {city}, CA"
+        }
+        
+        # Check for exact match first
+        venue_lower = venue_name.lower()
+        for key, address in venue_addresses.items():
+            if key in venue_lower:
+                return address
+        
+        # Default format for any venue
+        if venue_name and venue_name != f'{city} City Hall':
+            return f"{venue_name}, {city}, CA"
+        else:
+            return f"City Hall, {city}, CA"
+    
+    def get_meeting_type_from_url(self, url: str) -> str:
+        """Extract meeting type from URL for better calendar titles"""
+        if not url:
+            return "City"
+            
+        url_lower = url.lower()
+        if 'planning-commission' in url_lower or 'planning' in url_lower:
+            return "Planning Commission"
+        elif 'city-council' in url_lower or 'council' in url_lower:
+            return "City Council"
+        elif 'school-board' in url_lower or 'school' in url_lower:
+            return "School Board"
+        elif 'zoning' in url_lower:
+            return "Zoning Board"
+        elif 'parks' in url_lower:
+            return "Parks Commission"
+        else:
+            return "City"
+    
+    def generateFollowUpPrompt(self, opp_title: str, opp_data: dict) -> str:
+        """Generate contextual follow-up prompt for Learn More button"""
+        # Create a specific follow-up question based on the opportunity type
+        title_lower = opp_title.lower()
+        
+        if 'housing' in title_lower or 'building' in title_lower or 'development' in title_lower:
+            return f"What are the specific housing impacts and timeline for '{opp_title}'? How can residents get involved?"
+        elif 'budget' in title_lower or 'tax' in title_lower or 'finance' in title_lower:
+            return f"How will '{opp_title}' affect residents financially? What are the key budget details?"
+        elif 'traffic' in title_lower or 'transportation' in title_lower or 'parking' in title_lower:
+            return f"What are the traffic and transportation impacts of '{opp_title}'? How can I provide input?"
+        elif 'environment' in title_lower or 'climate' in title_lower or 'green' in title_lower:
+            return f"What are the environmental benefits and concerns regarding '{opp_title}'?"
+        else:
+            return f"Can you explain the community impact and participation options for '{opp_title}'?"
+    
+    def _convert_to_legacy_format(self, grouped_actions: List[dict]) -> List[dict]:
+        """Convert grouped actions to legacy flat format for backward compatibility"""
+        flat_actions = []
+        for group in grouped_actions[:1]:  # Take first group for legacy format
+            for action in group.get('actions', [])[:3]:  # Max 3 actions
+                flat_actions.append(action)
+        return flat_actions
+    
+    def generate_fallback_response(self, message: str, city: str) -> str:
+        """Generate fallback response when AI is not available"""
+        message_lower = message.lower()
+        
+        if any(word in message_lower for word in ['hello', 'hi', 'hey']):
+            return f"Hello! I'm here to help you engage with {city} local government. What would you like to know about civic participation?"
+        
+        elif any(word in message_lower for word in ['meeting', 'when', 'schedule']):
+            return f"City meetings in {city} are typically held monthly. You can find the full schedule on the city website. Would you like to know about specific upcoming opportunities?"
+        
+        elif any(word in message_lower for word in ['participate', 'involved', 'help']):
+            return f"There are many ways to participate in {city} government: attend meetings, submit public comments, join committees, or contact your representatives. What interests you most?"
+        
+        elif any(word in message_lower for word in ['housing', 'development', 'planning']):
+            return f"Housing and development are important topics in {city}. The Planning Commission meets monthly to review projects. Would you like to know about current proposals?"
+        
+        else:
+            return f"I can help you learn about {city} government and how to participate. Try asking about meetings, how to get involved, or specific topics like housing or transportation."
+
+    def serve_legistar_events(self, city: str):
+        """Serve Legistar API events for a specific city"""
+        try:
+            # Validate city parameter
+            if not city or not city.replace('-', '').isalpha():
+                self.send_json({
+                    'error': 'Invalid city parameter',
+                    'available_cities': ['oakland', 'santa-rosa', 'sonoma-county']
+                }, status=400)
+                return
+
+            # Create and test Legistar client
+            client = create_legistar_client(city)
+            if not client:
+                self.send_json({
+                    'error': f'No Legistar client available for {city}',
+                    'available_cities': ['oakland', 'santa-rosa', 'sonoma-county']
+                }, status=404)
+                return
+
+            # Probe client capabilities
+            capabilities = client.probe_capabilities()
+            if not capabilities.get('api_accessible'):
+                self.send_json({
+                    'error': f'Legistar API not accessible for {city}',
+                    'city': city,
+                    'capabilities': capabilities
+                }, status=503)
+                return
+
+            # Get recent events (last 7 days + next 30 days)
+            events = client.get_recent_events(days_back=7, days_forward=30)
+
+            # Transform events to civic opportunities format
+            civic_opportunities = []
+            for event in events:
+                opportunity = {
+                    'opportunity_id': f"legistar_{city}_{event.get('event_id', 'unknown')}",
+                    'title': f"{event.get('title', 'Unknown Meeting')} - {city.replace('-', ' ').title()}",
+                    'date': event.get('date', ''),
+                    'location': event.get('location', 'See agenda for details'),
+                    'meeting_type': event.get('meeting_type', 'Meeting'),
+                    'body_name': event.get('body_name', ''),
+                    'engagement_info': {
+                        'how_to_participate': 'Public comment typically allowed - check agenda',
+                        'registration_required': False,
+                        'contact_info': f'Contact {city.replace("-", " ").title()} clerk for details'
+                    },
+                    'urls': {
+                        'agenda': event.get('agenda_url', ''),
+                        'video': event.get('video_url', ''),
+                        'minutes': event.get('minutes_url', '')
+                    },
+                    'source': 'legistar_api',
+                    'municipality': city.replace('-', ' ').title(),
+                    'data_updated': datetime.now().isoformat()
+                }
+
+                # Only include events with meaningful content
+                if opportunity['title'] and opportunity['date']:
+                    civic_opportunities.append(opportunity)
+
+            response_data = {
+                'city': city,
+                'total_events': len(civic_opportunities),
+                'opportunities': civic_opportunities,
+                'api_capabilities': capabilities,
+                'data_source': 'legistar_api',
+                'last_updated': datetime.now().isoformat()
+            }
+
+            self.send_json(response_data)
+
+        except Exception as e:
+            print(f"❌ Legistar API error for {city}: {str(e)}")
+            self.send_json({
+                'error': f'Internal server error getting {city} events',
+                'details': str(e)[:200] if str(e) else 'Unknown error'
+            }, status=500)
+
+    def serve_status(self):
+        """Serve API status and health check"""
+        schema_dir = Path('data/events')
+        schema_files = list(schema_dir.glob('newsletter_*.json')) if schema_dir.exists() else []
+        
+        # Check if civic_digest.py is available
+        digest_available = Path(__file__).parent / 'civic_digest.py'
+        digest_available = digest_available.exists()
+        
+        status = {
+            'status': 'operational',
+            'version': '0.4.0',
+            'authentication': 'Bearer token required for protected endpoints',
+            'endpoints': {
+                'public': ['/api/status', '/health'],
+                'authenticated': [
+                    '/api/opportunities (GET - list all)',
+                    '/api/opportunities/{id} (GET - single opportunity)',
+                    '/api/refresh (GET - refresh data)',
+                    '/api/conversation (POST - AI conversation)',
+                    '/api/legistar/{city}/events (GET - Legistar API events)',
+                    'Available cities: oakland, santa-rosa, sonoma-county'
+                ]
+            },
+            'data_status': {
+                'schema_files_available': len(schema_files),
+                'latest_data': schema_files[-1].name if schema_files else 'None',
+                'last_updated': datetime.fromtimestamp(schema_files[-1].stat().st_mtime).isoformat() if schema_files else None
+            },
+            'integration_status': {
+                'civic_digest_available': digest_available,
+                'schema_data_available': len(schema_files) > 0,
+                'pipeline_ready': digest_available and len(schema_files) > 0,
+                'openai_available': OPENAI_AVAILABLE and bool(os.getenv('OPENAI_API_KEY')),
+                'conversation_api': 'ready' if OPENAI_AVAILABLE else 'fallback_mode',
+                'mcp_enabled': True  # MCP conversational intelligence is enabled
+            }
+        }
+        
+        # Add sample API key for testing (development only)
+        if self.path == '/health' and config.env == 'development':
+            status['test_credentials'] = {
+                'sample_header': 'Authorization: Bearer <your_api_key>',
+                'note': 'See INTEGRATION_GUIDE.md for API key setup'
+            }
+        
+        self.send_json(status)
+
+    def handle_manual_refresh(self):
+        """Handle user-triggered data refresh with LLM intent analysis"""
+        try:
+            # Parse request body for user query
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length > 0:
+                post_data = self.rfile.read(content_length)
+                request_data = json.loads(post_data.decode('utf-8'))
+                user_query = request_data.get('query', '')
+            else:
+                user_query = ''
+
+            # Analyze user intent to determine refresh scope
+            if user_query:
+                intent_analysis = data_freshness_manager.analyze_user_intent(user_query)
+
+                # Determine refresh strategy based on temporal focus
+                if intent_analysis['temporal_focus'] == 'future_only':
+                    refresh_scope = 'future_meetings_only'
+                elif intent_analysis['temporal_focus'] == 'recent_past':
+                    refresh_scope = 'include_recent_past'
+                else:
+                    refresh_scope = 'current_active_only'
+            else:
+                refresh_scope = 'current_active_only'
+                intent_analysis = {}
+
+            # Trigger targeted background refresh
+            self.trigger_background_refresh(scope=refresh_scope)
+
+            response = {
+                "success": True,
+                "message": f"Refreshing {refresh_scope.replace('_', ' ')} data",
+                "estimated_completion": "2-3 minutes",
+                "intent_analysis": intent_analysis,
+                "refresh_scope": refresh_scope,
+                "status_endpoint": "/api/status",
+                "user_message": "Data refresh initiated - please check back in a few minutes"
+            }
+
+            self.send_json(response)
+
+        except json.JSONDecodeError:
+            self.send_json({
+                "success": False,
+                "error": "Invalid JSON in request body",
+                "user_message": "Please provide valid request data"
+            }, 400)
+        except Exception as e:
+            print(f"[civic_api] Manual refresh error: {e}")
+            self.send_json({
+                "success": False,
+                "error": str(e),
+                "user_message": "Refresh failed - please try again or contact support"
+            }, 500)
+
+    def generate_opportunity_id(self, item):
+        """Generate consistent opportunity ID from item data"""
+        title = item.get('title', 'untitled')
+        # Create short hash from title for consistent IDs
+        return f"opp_{hashlib.md5(title.encode()).hexdigest()[:8]}"
+    
+    def extract_participation_methods_from_schema(self, item):
+        """Extract participation methods from schema-compliant item"""
+        methods = []
+        how = item.get('how_to_participate', '').lower()
+        
+        if 'email' in how or '@' in how:
+            methods.append('email_comment')
+        if 'online' in how or 'zoom' in how or 'virtual' in how:
+            methods.append('virtual_attendance')
+        if 'attend' in how or 'person' in how or 'meeting' in how:
+            methods.append('in_person_attendance')
+        if 'comment' in how:
+            methods.append('public_comment')
+        if 'write' in how or 'letter' in how:
+            methods.append('written_comment')
+        
+        return methods if methods else ['public_comment']
+    
+    def extract_participation_methods_from_schema_engagement(self, engagement_info):
+        """Extract participation methods from schema engagement_info field"""
+        methods = []
+        how = engagement_info.lower()
+        
+        if 'email' in how or '@' in how:
+            methods.append('email_comment')
+        if 'online' in how or 'zoom' in how or 'virtual' in how:
+            methods.append('virtual_attendance')
+        if 'attend' in how or 'person' in how or 'meeting' in how:
+            methods.append('in_person_attendance')
+        if 'comment' in how:
+            methods.append('public_comment')
+        if 'write' in how or 'letter' in how:
+            methods.append('written_comment')
+        
+        return methods if methods else ['public_comment']
+    
+    def extract_deadline_from_participation(self, participation_text):
+        """Extract deadline date from participation instructions"""
+        import re
+        # Look for common date patterns in participation text
+        date_patterns = [
+            r'by ([A-Za-z]+ \d{1,2})',
+            r'before ([A-Za-z]+ \d{1,2})',
+            r'deadline.*?(\d{1,2}/\d{1,2}/\d{2,4})'
+        ]
+        
+        for pattern in date_patterns:
+            match = re.search(pattern, participation_text, re.IGNORECASE)
+            if match:
+                return match.group(1)
+        return None
+    
+    def categorize_from_project_type(self, project_type):
+        """Map schema project_type to API categories"""
+        type_mapping = {
+            'housing': 'housing',
+            'development': 'housing', 
+            'transportation': 'transportation',
+            'budget': 'budget',
+            'environment': 'environment',
+            'safety': 'public_safety',
+            'planning': 'planning'
+        }
+        return type_mapping.get(project_type.lower(), 'general')
+    
+    def extract_tags_from_schema_item(self, item):
+        """Extract relevant tags from schema-compliant item"""
+        tags = []
+        title = item.get('title', '').lower()
+        project_type = item.get('project_type', '').lower()
+        
+        # Add project type as tag
+        if project_type:
+            tags.append(project_type)
+            
+        # Add common civic tags based on content
+        if 'hearing' in title:
+            tags.append('public_hearing')
+        if 'comment' in title or 'comment' in item.get('how_to_participate', '').lower():
+            tags.append('public_comment')
+        if 'budget' in title:
+            tags.append('budget')
+        if 'plan' in title:
+            tags.append('planning')
+        if 'development' in title:
+            tags.append('development')
+        
+        return list(set(tags))  # Remove duplicates
+    
+    def extract_tags_from_schema_opportunity(self, opportunity):
+        """Extract relevant tags from schema opportunity"""
+        tags = []
+        title = opportunity.get('title', '').lower()
+        project_type = opportunity.get('project_type', '').lower()
+        
+        # Add project type as tag
+        if project_type:
+            tags.append(project_type)
+            
+        # Add common civic tags based on content
+        if 'hearing' in title:
+            tags.append('public_hearing')
+        if 'comment' in title or 'comment' in opportunity.get('engagement_info', '').lower():
+            tags.append('public_comment')
+        if 'budget' in title:
+            tags.append('budget')
+        if 'plan' in title:
+            tags.append('planning')
+        if 'development' in title:
+            tags.append('development')
+        if 'permit' in title:
+            tags.append('permit')
+        if 'environmental' in title:
+            tags.append('environmental')
+        
+        return list(set(tags))  # Remove duplicates
+    
+    def send_json(self, data, status_code=200):
+        """Send JSON response with CORS headers, rate limit info, and standardized format"""
+        self.send_response(status_code)
+        self.send_header('Content-Type', 'application/json')
+        
+        # Add rate limit headers if available
+        client_id = rate_limiter.get_client_id(self)
+        _, limit_headers = rate_limiter.check_rate_limit(client_id)
+        if limit_headers and isinstance(limit_headers, dict):
+            for header, value in limit_headers.items():
+                if header.startswith('X-RateLimit'):
+                    self.send_header(header, value)
+        
+        # Use proper CORS from config
+        origin = self.headers.get('Origin', '*')
+        allowed_origins = config.get_cors_origins()
+        if '*' in allowed_origins or origin in allowed_origins:
+            self.send_header('Access-Control-Allow-Origin', origin)
+        else:
+            self.send_header('Access-Control-Allow-Origin', allowed_origins[0] if allowed_origins else '*')
+        self.send_header('X-API-Version', '0.3.0')
+        self.send_header('X-Integration-Status', 'schema-compliant')
+        self.end_headers()
+        self.wfile.write(json.dumps(data, indent=2).encode())
+    
+    def log_message(self, format, *args):
+        """Custom logging with component name"""
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print(f"[civic_api] {timestamp} - {format % args}")
+
+def run_authenticated_server(port=8001):
+    """Run the authenticated API server"""
+    # Validate environment configuration on startup
+    try:
+        config.validate_environment()
+        print("✅ Environment validation passed")
+    except RuntimeError as e:
+        print(f"❌ Environment validation failed: {e}")
+        return
+    
+    # Clean up old conversations periodically
+    conversation_manager.clear_old_conversations(24)
+    
+    server = HTTPServer(('localhost', port), AuthenticatedCivicAPIHandler)
+    print(f"🚀 Authenticated Civic API running on http://localhost:{port}")
+    print(f"\n📋 Endpoints:")
+    print(f"  Public:")
+    print(f"    - http://localhost:{port}/health")
+    print(f"    - http://localhost:{port}/api/status")
+    print(f"  Authenticated (require Bearer token):")
+    print(f"    - http://localhost:{port}/api/opportunities (GET)")
+    print(f"    - http://localhost:{port}/api/opportunities/{{id}} (GET)")
+    print(f"    - http://localhost:{port}/api/refresh (GET)")
+    print(f"    - http://localhost:{port}/api/conversation (POST) 🆕")
+    print(f"\n🤖 AI Conversation:")
+    if OPENAI_AVAILABLE and os.getenv('OPENAI_API_KEY'):
+        print(f"    ✅ OpenAI integration active")
+    else:
+        print(f"    ⚠️  Using fallback responses (set OPENAI_API_KEY for AI)")
+    print(f"\n🔑 Authentication:")
+    print(f"    Header: Authorization: Bearer <your_api_key>")
+    print(f"    Setup: export CIVIC_WEB_KEY=your_secure_key")
+    print(f"    Test: curl -H 'Authorization: Bearer $CIVIC_WEB_KEY' http://localhost:{port}/api/opportunities")
+    print(f"\n🔄 Data Pipeline:")
+    print(f"    civic_digest.py schema → data/events/ → API → Frontend")
+    print(f"\nPress Ctrl+C to stop")
+    
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print(f"\n[civic_api] Shutting down server...")
+        server.shutdown()
+
+if __name__ == '__main__':
+    # Check for refresh flag
+    if len(sys.argv) > 1 and sys.argv[1] == '--refresh':
+        print("🔄 Refreshing civic data before starting server...")
+        try:
+            # Import civic_digest module directly instead of using subprocess
+            try:
+                from . import civic_digest
+            except ImportError:
+                import civic_digest
+            
+            # Create digest instance and refresh data
+            digest = civic_digest.CivicDigest()
+            test_url = "https://www.cityofsanrafael.org/meetings/planning-commission-may-27-2025/"
+            opportunities = digest.scrape_meeting(test_url)
+            
+            print(f"✅ Data refresh complete! Found {len(opportunities)} opportunities")
+        except Exception as e:
+            print(f"⚠️  Data refresh failed: {e}, but starting server anyway...")
+    
+    # Use port from config system (respects CIVIC_API_PORT environment variable)
+    port = config.get_api_port()
+    run_authenticated_server(port=port)

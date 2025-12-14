@@ -1,0 +1,60 @@
+{
+  "jurisdiction": "federal",
+  "topic": "budget",
+  "last_updated": "2025-10-07T18:30:00.000000",
+  "data_sources": [
+    "Perplexity Sonar Pro API",
+    "HUD.gov (cited by Perplexity)",
+    "HUDExchange.info (cited by Perplexity)"
+  ],
+  "verification_status": "Perplexity-sourced, pending verification",
+  "perplexity_citations": [
+    "http://www.hud.gov/hud-partners/community-cdbg",
+    "https://www.epa.gov/fedfunds/hud-community-grants-and-loans",
+    "https://www.hcd.ca.gov/grants-and-funding/programs-active/community-development-block-grant",
+    "https://en.wikipedia.org/wiki/Community_Development_Block_Grant",
+    "https://www.hud.gov/hud-partners/community-cdbg-dr",
+    "https://www.hudexchange.info/programs/cdbg/",
+    "https://www.hudexchange.info/programs/cdbg-entitlement/",
+    "https://www.huduser.gov/portal/oup/files/cdbgguide.pdf",
+    "http://www.hud.gov/hud-partners/community-programs",
+    "https://www.congress.gov/crs-product/R46733"
+  ],
+  "programs": {
+    "cdbg_budget": {
+      "program_name": "Community Development Block Grant (CDBG) Program",
+      "administering_agency": "U.S. Department of Housing and Urban Development (HUD)",
+      "description": "Local governments receive CDBG funds either directly (as entitlement communities) or via state allocation (for non-entitlement areas) and have broad discretion to design and implement community development strategies that address local needs, with a focus on benefiting low- and moderate-income residents. Key activities include public infrastructure improvements, capital improvement projects, and fiscal planning.",
+      "eligible_activities": [
+        "Public infrastructure improvements (e.g., water, sewer, and street upgrades)",
+        "Acquisition or rehabilitation of public facilities (such as community centers, fire stations, or libraries)",
+        "Housing rehabilitation and development (including single-family and multifamily housing for low- and moderate-income residents)",
+        "Economic development projects (such as loans or grants to businesses to create jobs)",
+        "Public services (limited to 15% of the grant, such as job training, childcare, or health services)",
+        "Planning and capacity building (including comprehensive planning, fiscal planning, and studies to improve local government operations)",
+        "Capital improvement projects (such as sidewalk construction, park improvements, and accessibility upgrades)"
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Public hearings: At least two public hearings must be held annually to obtain citizen views on community development and housing needs and to review proposed uses of funds (24 CFR Part 91)",
+        "Public comment periods: Draft plans (such as the Consolidated Plan and Annual Action Plan) must be made available for public review and comment, typically for at least 30 days",
+        "Community needs assessment: Local governments must assess community needs, often through surveys, focus groups, or public meetings, to inform funding priorities",
+        "Resident advisory committees/councils: Many jurisdictions establish advisory bodies or task forces composed of residents, especially from low- and moderate-income neighborhoods",
+        "Annual planning/reporting: The Consolidated Plan (every 3-5 years) and Annual Action Plan require public input and describe how citizen feedback shaped funding decisions"
+      ],
+      "leverage_point": "Residents can influence CDBG funding decisions by: (1) Participating in public hearings to express priorities and concerns, (2) Submitting written comments during public comment periods on draft plans or proposed projects, (3) Serving on advisory committees that help set priorities and review applications, (4) Engaging in needs assessments through surveys, focus groups, or neighborhood meetings, (5) Contacting local officials such as the city or county CDBG program manager, the community development or planning department, or the city/county clerk's office",
+      "official_url": "https://www.hud.gov/hud-partners/community-cdbg",
+      "keywords": [
+        "community development",
+        "infrastructure",
+        "capital improvement",
+        "fiscal planning",
+        "public facilities",
+        "budget",
+        "municipal finance",
+        "economic development"
+      ]
+    }
+  }
+}

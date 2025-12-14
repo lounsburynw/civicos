@@ -1,0 +1,581 @@
+[
+  {
+    "id": "scf-17770779",
+    "external_id": 17770779,
+    "source": "seeclickfix",
+    "issue_type": "operational",
+    "title": "To report a parking violation ( red zone, fire lane etc) / Para reportar una infracci\u00f3n de estacionamiento (En rojo, l\u00ednea de incendio, etc.)",
+    "description": "Parking at an intersection under a sign prohibiting parking. The driver of this car caused a significant obstruction for the parcel delivery drivers, making it extremely difficult for them to navigate and drive through the area. License plate: 5FTG336.",
+    "status": "open",
+    "location": {
+      "address": "Fremont Rd & Trost Rd San Rafael, CA, 94901, USA",
+      "lat": 37.97222534028051,
+      "lng": -122.54110714306137,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.54110714306137,
+          37.97222534028051
+        ]
+      }
+    },
+    "category": "To report a parking violation ( red zone, fire lane etc) / Para reportar una infracci\u00f3n de estacionamiento (En rojo, l\u00ednea de incendio, etc.)",
+    "category_id": 39021,
+    "organization": "Parking Services / Servcio de Estacionamiento",
+    "created_at": "2024-10-24T20:43:10-04:00",
+    "updated_at": "2025-02-25T08:11:09-05:00",
+    "acknowledged_at": null,
+    "closed_at": null,
+    "reopened_at": null,
+    "reporter": {
+      "id": 0,
+      "name": "An anonymous SeeClickFix user",
+      "role": "Registered User",
+      "avatar": "https://seeclickfix.com/assets/no-avatar-100-4c3cf895b7ee80b7e97c54d1c7ee80ef9e8d176702efb9a7dcf02abb38ffa5b8.png",
+      "civic_points": 0
+    },
+    "media": {
+      "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjY3NDM4MzEsInB1ciI6ImJsb2JfaWQifX0=--e3f00e95779e0bfb961df8a8534603edbd298d86/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJKUEciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--a2c14a5879a9a55176257f8523473d9c50ff7410/IMG_3293.JPG",
+      "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjY3NDM4MzEsInB1ciI6ImJsb2JfaWQifX0=--e3f00e95779e0bfb961df8a8534603edbd298d86/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJKUEciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--7d856c755c2156df9ad9a798f68a7dfdbe82451e/IMG_3293.JPG",
+      "video_url": null
+    },
+    "rating": 1,
+    "comment_count": 0,
+    "html_url": "https://seeclickfix.com/issues/17770779",
+    "api_url": "https://seeclickfix.com/api/v2/issues/17770779",
+    "comment_url": "https://seeclickfix.com/api/v2/issues/17770779/comments",
+    "_seeclickfix_metadata": {
+      "transitions": {
+        "close_url": "https://seeclickfix.com/api/v2/issues/17770779/close"
+      },
+      "private_visibility": false,
+      "show_blocked_issue_text": false
+    }
+  },
+  {
+    "id": "scf-17717462",
+    "external_id": 17717462,
+    "source": "seeclickfix",
+    "issue_type": "operational",
+    "title": "To report a parking violation ( red zone, fire lane etc) / Para reportar una infracci\u00f3n de estacionamiento (En rojo, l\u00ednea de incendio, etc.)",
+    "description": "",
+    "status": "open",
+    "location": {
+      "address": "441 Bahia Way San Rafael CA 94901, United States",
+      "lat": 37.96414537234498,
+      "lng": -122.49968355197323,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.49968355197323,
+          37.96414537234498
+        ]
+      }
+    },
+    "category": "To report a parking violation ( red zone, fire lane etc) / Para reportar una infracci\u00f3n de estacionamiento (En rojo, l\u00ednea de incendio, etc.)",
+    "category_id": 39021,
+    "organization": "Parking Services / Servcio de Estacionamiento",
+    "created_at": "2024-10-16T14:28:34-04:00",
+    "updated_at": "2024-10-16T14:28:51-04:00",
+    "acknowledged_at": null,
+    "closed_at": null,
+    "reopened_at": null,
+    "reporter": {
+      "id": 3176233,
+      "name": "YH",
+      "role": "Registered User",
+      "avatar": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjYzMDg4ODQsInB1ciI6ImJsb2JfaWQifX0=--0e114f245fbe5872c0e75187939bf0204ed9b0ff/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiIxMDB4MTAwXiIsImdyYXZpdHkiOiJjZW50ZXIiLCJleHRlbnQiOiIxMDB4MTAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--05cc00cdc285a6131729ac978390fa7276ce7221/720DB230-BF1E-4A20-AF11-36F4115CA346.jpeg",
+      "civic_points": 0
+    },
+    "media": {
+      "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjY1NTgwNTksInB1ciI6ImJsb2JfaWQifX0=--f98369af4550eb1d83cfeb9f72283b1fd2332465/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--242b3e94addeeae50b5fd8df8a0a8fbcf02bf33c/image.jpg",
+      "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjY1NTgwNTksInB1ciI6ImJsb2JfaWQifX0=--f98369af4550eb1d83cfeb9f72283b1fd2332465/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/image.jpg",
+      "video_url": null
+    },
+    "rating": 1,
+    "comment_count": 0,
+    "html_url": "https://seeclickfix.com/issues/17717462",
+    "api_url": "https://seeclickfix.com/api/v2/issues/17717462",
+    "comment_url": "https://seeclickfix.com/api/v2/issues/17717462/comments",
+    "_seeclickfix_metadata": {
+      "transitions": {
+        "close_url": "https://seeclickfix.com/api/v2/issues/17717462/close"
+      },
+      "private_visibility": false,
+      "show_blocked_issue_text": false
+    }
+  },
+  {
+    "id": "scf-17679302",
+    "external_id": 17679302,
+    "source": "seeclickfix",
+    "issue_type": "operational",
+    "title": "Report a Broken Parking Meter / Reportar un Parqu\u00edmetro Roto",
+    "description": "These have been broken for a while. ",
+    "status": "open",
+    "location": {
+      "address": "1701-1797 4th St San Rafael, CA, 94901, USA",
+      "lat": 37.974086500488774,
+      "lng": -122.53787915564253,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.53787915564253,
+          37.974086500488774
+        ]
+      }
+    },
+    "category": "Report a Broken Parking Meter / Reportar un Parqu\u00edmetro Roto",
+    "category_id": 39010,
+    "organization": "Parking Services / Servcio de Estacionamiento",
+    "created_at": "2024-10-10T13:57:43-04:00",
+    "updated_at": "2024-10-10T13:57:57-04:00",
+    "acknowledged_at": null,
+    "closed_at": null,
+    "reopened_at": null,
+    "reporter": {
+      "id": 2454259,
+      "name": "San Rafael, CA  Neighbor",
+      "role": "Guest",
+      "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+      "civic_points": 0
+    },
+    "media": {
+      "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjY0Mjc3ODgsInB1ciI6ImJsb2JfaWQifX0=--e98701b349de5da8b00f335d15094eb33e322fb1/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJwbmciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--57f85c85093db4303fe6b4e7261d952e5d1fef3e/img_7421_720.png",
+      "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjY0Mjc3ODgsInB1ciI6ImJsb2JfaWQifX0=--e98701b349de5da8b00f335d15094eb33e322fb1/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJwbmciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--8a8d0aa5681efd735abc391b83016b612fc2482f/img_7421_720.png",
+      "video_url": null
+    },
+    "rating": 1,
+    "comment_count": 0,
+    "html_url": "https://seeclickfix.com/issues/17679302",
+    "api_url": "https://seeclickfix.com/api/v2/issues/17679302",
+    "comment_url": "https://seeclickfix.com/api/v2/issues/17679302/comments",
+    "_seeclickfix_metadata": {
+      "transitions": {
+        "close_url": "https://seeclickfix.com/api/v2/issues/17679302/close"
+      },
+      "private_visibility": false,
+      "show_blocked_issue_text": false
+    }
+  },
+  {
+    "id": "scf-17648881",
+    "external_id": 17648881,
+    "source": "seeclickfix",
+    "issue_type": "operational",
+    "title": "To report a parking violation ( red zone, fire lane etc) / Para reportar una infracci\u00f3n de estacionamiento (En rojo, l\u00ednea de incendio, etc.)",
+    "description": "Red zone parking",
+    "status": "open",
+    "location": {
+      "address": "441 Bahia Way San Rafael CA 94901, United States",
+      "lat": 37.964152734671046,
+      "lng": -122.49967980035193,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.49967980035193,
+          37.964152734671046
+        ]
+      }
+    },
+    "category": "To report a parking violation ( red zone, fire lane etc) / Para reportar una infracci\u00f3n de estacionamiento (En rojo, l\u00ednea de incendio, etc.)",
+    "category_id": 39021,
+    "organization": "Parking Services / Servcio de Estacionamiento",
+    "created_at": "2024-10-05T22:54:17-04:00",
+    "updated_at": "2024-10-05T22:54:35-04:00",
+    "acknowledged_at": null,
+    "closed_at": null,
+    "reopened_at": null,
+    "reporter": {
+      "id": 3176233,
+      "name": "YH",
+      "role": "Registered User",
+      "avatar": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjYzMDg4ODQsInB1ciI6ImJsb2JfaWQifX0=--0e114f245fbe5872c0e75187939bf0204ed9b0ff/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiIxMDB4MTAwXiIsImdyYXZpdHkiOiJjZW50ZXIiLCJleHRlbnQiOiIxMDB4MTAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--05cc00cdc285a6131729ac978390fa7276ce7221/720DB230-BF1E-4A20-AF11-36F4115CA346.jpeg",
+      "civic_points": 0
+    },
+    "media": {
+      "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjYzMDg4NDIsInB1ciI6ImJsb2JfaWQifX0=--9d38e9ae9339e08073b358f424970cc6db85aa17/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--242b3e94addeeae50b5fd8df8a0a8fbcf02bf33c/image.jpg",
+      "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjYzMDg4NDIsInB1ciI6ImJsb2JfaWQifX0=--9d38e9ae9339e08073b358f424970cc6db85aa17/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/image.jpg",
+      "video_url": null
+    },
+    "rating": 1,
+    "comment_count": 0,
+    "html_url": "https://seeclickfix.com/issues/17648881",
+    "api_url": "https://seeclickfix.com/api/v2/issues/17648881",
+    "comment_url": "https://seeclickfix.com/api/v2/issues/17648881/comments",
+    "_seeclickfix_metadata": {
+      "transitions": {
+        "close_url": "https://seeclickfix.com/api/v2/issues/17648881/close"
+      },
+      "private_visibility": false,
+      "show_blocked_issue_text": false
+    }
+  },
+  {
+    "id": "scf-17621701",
+    "external_id": 17621701,
+    "source": "seeclickfix",
+    "issue_type": "operational",
+    "title": "Report a Broken Parking Meter / Reportar un Parqu\u00edmetro Roto",
+    "description": "In front of laos kitchen",
+    "status": "open",
+    "location": {
+      "address": "881 4th St San Rafael, CA, 94901, USA",
+      "lat": 37.97286504782351,
+      "lng": -122.52577043187742,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.52577043187742,
+          37.97286504782351
+        ]
+      }
+    },
+    "category": "Report a Broken Parking Meter / Reportar un Parqu\u00edmetro Roto",
+    "category_id": 39010,
+    "organization": "Parking Services / Servcio de Estacionamiento",
+    "created_at": "2024-10-01T18:03:47-04:00",
+    "updated_at": "2024-10-01T18:03:54-04:00",
+    "acknowledged_at": null,
+    "closed_at": null,
+    "reopened_at": null,
+    "reporter": {
+      "id": 2454259,
+      "name": "San Rafael, CA  Neighbor",
+      "role": "Guest",
+      "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+      "civic_points": 0
+    },
+    "media": {
+      "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjYxOTM2NDEsInB1ciI6ImJsb2JfaWQifX0=--32cb46ce35bee0252f9171741a678283a9f8d17b/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiI4MDB4NjAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--a24cd3b9f26082c533845b9cc150d8421a819967/IMG_9179.jpeg",
+      "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjYxOTM2NDEsInB1ciI6ImJsb2JfaWQifX0=--32cb46ce35bee0252f9171741a678283a9f8d17b/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiIxMDB4MTAwXiIsImdyYXZpdHkiOiJjZW50ZXIiLCJleHRlbnQiOiIxMDB4MTAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--05cc00cdc285a6131729ac978390fa7276ce7221/IMG_9179.jpeg",
+      "video_url": null
+    },
+    "rating": 1,
+    "comment_count": 0,
+    "html_url": "https://seeclickfix.com/issues/17621701",
+    "api_url": "https://seeclickfix.com/api/v2/issues/17621701",
+    "comment_url": "https://seeclickfix.com/api/v2/issues/17621701/comments",
+    "_seeclickfix_metadata": {
+      "transitions": {
+        "close_url": "https://seeclickfix.com/api/v2/issues/17621701/close"
+      },
+      "private_visibility": false,
+      "show_blocked_issue_text": false
+    }
+  },
+  {
+    "id": "scf-17613272",
+    "external_id": 17613272,
+    "source": "seeclickfix",
+    "issue_type": "operational",
+    "title": "Volunteer Trash Pickup / Recogida voluntaria de basura",
+    "description": "Garbage strewn across entrance to Walgreens ",
+    "status": "open",
+    "location": {
+      "address": "Walgreens",
+      "lat": 37.97217000681123,
+      "lng": -122.525448,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.525448,
+          37.97217000681123
+        ]
+      }
+    },
+    "category": "Volunteer Trash Pickup / Recogida voluntaria de basura",
+    "category_id": 46022,
+    "organization": "Department of Public Works",
+    "created_at": "2024-09-30T17:38:22-04:00",
+    "updated_at": "2024-10-01T15:08:36-04:00",
+    "acknowledged_at": null,
+    "closed_at": null,
+    "reopened_at": null,
+    "reporter": {
+      "id": 3171873,
+      "name": "Jennifer Skinner",
+      "role": "Registered User",
+      "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+      "civic_points": 0
+    },
+    "media": {
+      "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjYxNjAwMjAsInB1ciI6ImJsb2JfaWQifX0=--ca4ae13478bddde310255bcf2410c6bcab3e0676/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiI4MDB4NjAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--a24cd3b9f26082c533845b9cc150d8421a819967/IMG_9323.jpeg",
+      "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjYxNjAwMjAsInB1ciI6ImJsb2JfaWQifX0=--ca4ae13478bddde310255bcf2410c6bcab3e0676/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiIxMDB4MTAwXiIsImdyYXZpdHkiOiJjZW50ZXIiLCJleHRlbnQiOiIxMDB4MTAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--05cc00cdc285a6131729ac978390fa7276ce7221/IMG_9323.jpeg",
+      "video_url": null
+    },
+    "rating": 1,
+    "comment_count": 0,
+    "html_url": "https://seeclickfix.com/issues/17613272",
+    "api_url": "https://seeclickfix.com/api/v2/issues/17613272",
+    "comment_url": "https://seeclickfix.com/api/v2/issues/17613272/comments",
+    "_seeclickfix_metadata": {
+      "transitions": {},
+      "private_visibility": false,
+      "show_blocked_issue_text": false
+    }
+  },
+  {
+    "id": "scf-17612209",
+    "external_id": 17612209,
+    "source": "seeclickfix",
+    "issue_type": "operational",
+    "title": "Report a Broken Parking Meter / Reportar un Parqu\u00edmetro Roto",
+    "description": "won't process credit card; won't take change as alternative",
+    "status": "open",
+    "location": {
+      "address": "1101 5th Ave San Rafael, CA, 94901, USA",
+      "lat": 37.97422918635615,
+      "lng": -122.52899450592099,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.52899450592099,
+          37.97422918635615
+        ]
+      }
+    },
+    "category": "Report a Broken Parking Meter / Reportar un Parqu\u00edmetro Roto",
+    "category_id": 39010,
+    "organization": "Parking Services / Servcio de Estacionamiento",
+    "created_at": "2024-09-30T15:46:58-04:00",
+    "updated_at": "2024-09-30T15:47:05-04:00",
+    "acknowledged_at": null,
+    "closed_at": null,
+    "reopened_at": null,
+    "reporter": {
+      "id": 2454259,
+      "name": "San Rafael, CA  Neighbor",
+      "role": "Guest",
+      "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+      "civic_points": 0
+    },
+    "media": {
+      "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjYxNTYwNDAsInB1ciI6ImJsb2JfaWQifX0=--b8e4e15acb742249fec1c36785f3fa2b5142997c/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiI4MDB4NjAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--a24cd3b9f26082c533845b9cc150d8421a819967/IMG_3842.jpeg",
+      "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjYxNTYwNDAsInB1ciI6ImJsb2JfaWQifX0=--b8e4e15acb742249fec1c36785f3fa2b5142997c/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiIxMDB4MTAwXiIsImdyYXZpdHkiOiJjZW50ZXIiLCJleHRlbnQiOiIxMDB4MTAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--05cc00cdc285a6131729ac978390fa7276ce7221/IMG_3842.jpeg",
+      "video_url": null
+    },
+    "rating": 1,
+    "comment_count": 0,
+    "html_url": "https://seeclickfix.com/issues/17612209",
+    "api_url": "https://seeclickfix.com/api/v2/issues/17612209",
+    "comment_url": "https://seeclickfix.com/api/v2/issues/17612209/comments",
+    "_seeclickfix_metadata": {
+      "transitions": {
+        "close_url": "https://seeclickfix.com/api/v2/issues/17612209/close"
+      },
+      "private_visibility": false,
+      "show_blocked_issue_text": false
+    }
+  },
+  {
+    "id": "scf-17598488",
+    "external_id": 17598488,
+    "source": "seeclickfix",
+    "issue_type": "operational",
+    "title": "Report a Broken Parking Meter / Reportar un Parqu\u00edmetro Roto",
+    "description": "",
+    "status": "open",
+    "location": {
+      "address": "1305 4th St San Rafael, California, 94901",
+      "lat": 37.97342122565259,
+      "lng": -122.53111526487908,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.53111526487908,
+          37.97342122565259
+        ]
+      }
+    },
+    "category": "Report a Broken Parking Meter / Reportar un Parqu\u00edmetro Roto",
+    "category_id": 39010,
+    "organization": "Parking Services / Servcio de Estacionamiento",
+    "created_at": "2024-09-27T20:38:26-04:00",
+    "updated_at": "2024-11-27T16:16:07-05:00",
+    "acknowledged_at": null,
+    "closed_at": null,
+    "reopened_at": null,
+    "reporter": {
+      "id": 2454259,
+      "name": "San Rafael, CA  Neighbor",
+      "role": "Guest",
+      "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+      "civic_points": 0
+    },
+    "media": {
+      "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjYxMDY1MTAsInB1ciI6ImJsb2JfaWQifX0=--2fe9d9f4c779ec684dd21650073f9e1b5c07c63c/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiI4MDB4NjAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--a24cd3b9f26082c533845b9cc150d8421a819967/IMG_5669.jpeg",
+      "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjYxMDY1MTAsInB1ciI6ImJsb2JfaWQifX0=--2fe9d9f4c779ec684dd21650073f9e1b5c07c63c/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGVnIiwiYXV0b19vcmllbnQiOnRydWUsInN0cmlwIjp0cnVlLCJyZXNpemUiOiIxMDB4MTAwXiIsImdyYXZpdHkiOiJjZW50ZXIiLCJleHRlbnQiOiIxMDB4MTAwIn0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--05cc00cdc285a6131729ac978390fa7276ce7221/IMG_5669.jpeg",
+      "video_url": null
+    },
+    "rating": 2,
+    "comment_count": 0,
+    "html_url": "https://seeclickfix.com/issues/17598488",
+    "api_url": "https://seeclickfix.com/api/v2/issues/17598488",
+    "comment_url": "https://seeclickfix.com/api/v2/issues/17598488/comments",
+    "_seeclickfix_metadata": {
+      "transitions": {
+        "close_url": "https://seeclickfix.com/api/v2/issues/17598488/close"
+      },
+      "private_visibility": false,
+      "show_blocked_issue_text": false
+    }
+  },
+  {
+    "id": "scf-17597655",
+    "external_id": 17597655,
+    "source": "seeclickfix",
+    "issue_type": "operational",
+    "title": "Report a Broken Parking Meter / Reportar un Parqu\u00edmetro Roto",
+    "description": "",
+    "status": "open",
+    "location": {
+      "address": "823 4th St San Rafael, CA, 94901, USA",
+      "lat": 37.97266868671402,
+      "lng": -122.52443017411389,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.52443017411389,
+          37.97266868671402
+        ]
+      }
+    },
+    "category": "Report a Broken Parking Meter / Reportar un Parqu\u00edmetro Roto",
+    "category_id": 39010,
+    "organization": "Parking Services / Servcio de Estacionamiento",
+    "created_at": "2024-09-27T17:48:03-04:00",
+    "updated_at": "2024-09-27T17:48:04-04:00",
+    "acknowledged_at": null,
+    "closed_at": null,
+    "reopened_at": null,
+    "reporter": {
+      "id": 2454259,
+      "name": "San Rafael, CA  Neighbor",
+      "role": "Guest",
+      "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+      "civic_points": 0
+    },
+    "media": {
+      "image_url": null,
+      "image_thumbnail": null,
+      "video_url": null
+    },
+    "rating": 1,
+    "comment_count": 0,
+    "html_url": "https://seeclickfix.com/issues/17597655",
+    "api_url": "https://seeclickfix.com/api/v2/issues/17597655",
+    "comment_url": "https://seeclickfix.com/api/v2/issues/17597655/comments",
+    "_seeclickfix_metadata": {
+      "transitions": {
+        "close_url": "https://seeclickfix.com/api/v2/issues/17597655/close"
+      },
+      "private_visibility": false,
+      "show_blocked_issue_text": false
+    }
+  },
+  {
+    "id": "scf-17590958",
+    "external_id": 17590958,
+    "source": "seeclickfix",
+    "issue_type": "operational",
+    "title": "Sidewalks / Banquetas",
+    "description": "Electrified scooter that sells cut fruit and food with loud horn, on sidewalk restricting access.  Vendor has no health or business license.  ",
+    "status": "open",
+    "location": {
+      "address": "201 Marin St San Rafael CA 94901, United States",
+      "lat": 37.96904300000001,
+      "lng": -122.535205,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.535205,
+          37.96904300000001
+        ]
+      }
+    },
+    "category": "Sidewalks / Banquetas",
+    "category_id": 39026,
+    "organization": "Department of Public Works",
+    "created_at": "2024-09-26T22:33:44-04:00",
+    "updated_at": "2024-09-27T12:25:37-04:00",
+    "acknowledged_at": null,
+    "closed_at": null,
+    "reopened_at": null,
+    "reporter": {
+      "id": 0,
+      "name": "An anonymous SeeClickFix user",
+      "role": "Registered User",
+      "avatar": "https://seeclickfix.com/assets/no-avatar-100-4c3cf895b7ee80b7e97c54d1c7ee80ef9e8d176702efb9a7dcf02abb38ffa5b8.png",
+      "civic_points": 0
+    },
+    "media": {
+      "image_url": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjYwODEwMTIsInB1ciI6ImJsb2JfaWQifX0=--21a567b2ad07a61de1565d8f61d2b5fa97120b17/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjgwMHg2MDAifSwicHVyIjoidmFyaWF0aW9uIn19--242b3e94addeeae50b5fd8df8a0a8fbcf02bf33c/image.jpg",
+      "image_thumbnail": "https://seeclickfix.com/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MjYwODEwMTIsInB1ciI6ImJsb2JfaWQifX0=--21a567b2ad07a61de1565d8f61d2b5fa97120b17/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJqcGciLCJhdXRvX29yaWVudCI6dHJ1ZSwic3RyaXAiOnRydWUsInJlc2l6ZSI6IjEwMHgxMDBeIiwiZ3Jhdml0eSI6ImNlbnRlciIsImV4dGVudCI6IjEwMHgxMDAifSwicHVyIjoidmFyaWF0aW9uIn19--65761edc0e4051a20b5d81cec2bec201d6c43dee/image.jpg",
+      "video_url": null
+    },
+    "rating": 1,
+    "comment_count": 0,
+    "html_url": "https://seeclickfix.com/issues/17590958",
+    "api_url": "https://seeclickfix.com/api/v2/issues/17590958",
+    "comment_url": "https://seeclickfix.com/api/v2/issues/17590958/comments",
+    "_seeclickfix_metadata": {
+      "transitions": {},
+      "private_visibility": false,
+      "show_blocked_issue_text": false
+    }
+  },
+  {
+    "id": "scf-17581045",
+    "external_id": 17581045,
+    "source": "seeclickfix",
+    "issue_type": "operational",
+    "title": "Report a Broken Parking Meter / Reportar un Parqu\u00edmetro Roto",
+    "description": "Meter isn't working right  I paid for time and it never registered for what I paid  ",
+    "status": "open",
+    "location": {
+      "address": "1611 4th St San Rafael CA 94901, United States",
+      "lat": 37.97397179499955,
+      "lng": -122.53706404874092,
+      "point": {
+        "type": "Point",
+        "coordinates": [
+          -122.53706404874092,
+          37.97397179499955
+        ]
+      }
+    },
+    "category": "Report a Broken Parking Meter / Reportar un Parqu\u00edmetro Roto",
+    "category_id": 39010,
+    "organization": "Parking Services / Servcio de Estacionamiento",
+    "created_at": "2024-09-25T14:40:19-04:00",
+    "updated_at": "2024-09-25T14:40:21-04:00",
+    "acknowledged_at": null,
+    "closed_at": null,
+    "reopened_at": null,
+    "reporter": {
+      "id": 2872575,
+      "name": "Annie Terstegge",
+      "role": "Registered User",
+      "avatar": "https://seeclickfix.com/assets/no-avatar-100-609149880925b3d896d051d3983092f419737fc85ab3d559f22996eda23c1ac7.png",
+      "civic_points": 0
+    },
+    "media": {
+      "image_url": null,
+      "image_thumbnail": null,
+      "video_url": null
+    },
+    "rating": 1,
+    "comment_count": 0,
+    "html_url": "https://seeclickfix.com/issues/17581045",
+    "api_url": "https://seeclickfix.com/api/v2/issues/17581045",
+    "comment_url": "https://seeclickfix.com/api/v2/issues/17581045/comments",
+    "_seeclickfix_metadata": {
+      "transitions": {
+        "close_url": "https://seeclickfix.com/api/v2/issues/17581045/close"
+      },
+      "private_visibility": false,
+      "show_blocked_issue_text": false
+    }
+  }
+]

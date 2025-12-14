@@ -1,0 +1,29 @@
+{
+  "jurisdiction_id": "city-berkeley",
+  "jurisdiction_name": "Berkeley, CA",
+  "last_updated": "2025-10-07T16:03:00.000000",
+  "federal_programs": {
+    "cdbg": {
+      "program_name": "Community Development Block Grant",
+      "fy2025_allocation": 2672110,
+      "allocation_source": "HUD FY2025 CDBG Allocations",
+      "allocation_url": "https://www.hudexchange.info/GRANTEES/ALLOCATIONS-AWARDS/?na=32180&start=1610",
+      "application_process": {
+        "status": "FY2025 applications closed",
+        "small_projects": "Under $200,000 - City Manager approval",
+        "large_projects": "Over $200,000 - City Council approval (additional 2-3 months)",
+        "review_schedule": "Monthly until funds exhausted"
+      },
+      "compliance_requirements": [
+        "24 CFR Part 570 (federal CDBG regulations)",
+        "HUD guidelines",
+        "City of Berkeley Consolidated Plan priorities",
+        "Funds must principally benefit low- and moderate-income persons"
+      ],
+      "key_contacts": {
+        "department": "Community Development",
+        "planning_contact": "Check city website for current Community Development Director"
+      }
+    }
+  }
+}

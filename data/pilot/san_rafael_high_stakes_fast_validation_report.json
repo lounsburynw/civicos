@@ -1,0 +1,87 @@
+{
+  "timestamp": "2025-11-13T16:53:07.501011",
+  "jurisdiction": "san-rafael",
+  "validation_stats": {
+    "layer1_filtered": 4,
+    "layer3_validated": 0,
+    "layer3_rejected": 0,
+    "layer4_duplicates": 62,
+    "layer5_flagged": 0
+  },
+  "summary": {
+    "total_decisions": 651,
+    "budget_decisions": 223,
+    "total_budget_tracked": 309449004.47,
+    "average_budget": 1387663.697174888
+  },
+  "flags": [
+    {
+      "severity": "low",
+      "message": "21 budget amounts appear 3+ times",
+      "amounts": [
+        {
+          "amount": 100000,
+          "count": 16
+        },
+        {
+          "amount": 500000,
+          "count": 8
+        },
+        {
+          "amount": 200000,
+          "count": 8
+        },
+        {
+          "amount": 250000,
+          "count": 5
+        },
+        {
+          "amount": 1264034,
+          "count": 5
+        }
+      ]
+    }
+  ],
+  "top_budgets": [
+    {
+      "title": "Collaboration Agreement with Marin County Transit District",
+      "amount": 31500000
+    },
+    {
+      "title": "Collaboration Agreement for Electric Bus Charging Facility",
+      "amount": 31000000
+    },
+    {
+      "title": "BioMarin Development Agreement Annual Report",
+      "amount": 16000000
+    },
+    {
+      "title": "San Quentin Pump Station Reconstruction",
+      "amount": 15958204
+    },
+    {
+      "title": "San Quentin Pump Station Reconstruction",
+      "amount": 15419204
+    },
+    {
+      "title": "Budget Amendments for Fiscal Year 2024-25 and Carry-Over Appropriations",
+      "amount": 14262684
+    },
+    {
+      "title": "Authorization of Significant Fund Transfers",
+      "amount": 11175910
+    },
+    {
+      "title": "Canal Neighborhood Bellam Gateway Local Access Improvement Project",
+      "amount": 6840000
+    },
+    {
+      "title": "Measure P - Parcel Tax for Library and Community Center",
+      "amount": 6370000
+    },
+    {
+      "title": "Housing Development and Business Support Initiatives",
+      "amount": 6000000
+    }
+  ]
+}

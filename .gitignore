@@ -1,0 +1,121 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+civic-env/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific
+logs/
+backup/
+*.log
+api.log
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# OpenAI API keys and secrets
+.env.local
+.env.production
+.env.development
+
+# Data ingestion outputs (avoid repo bloat)
+data/events/events_*.json
+data/schema/newsletter_*.json
+data/newsletters/civic_newsletter_*.md
+data/archive/
+
+# Test artifacts and validation results
+*_validation_results.json
+*_results.json
+
+# macOS system files
+.DS_Store
+
+# Debug and test scripts
+debug_*.py
+diagnose_*.py
+test_*_chat.py
+*_API_SETUP.md
+# RAG corpus (large PDF files - download via URL from merrydale_scenario.json)
+data/pilot/rag_corpus/
+
+# Database backups (large binary files - managed by scripts/backup.py)
+data/backups/
+
+# Runtime data (regenerated locally, too large for git)
+data/*.db
+data/pilot/vectors/
+data/pilot/vectors_test/
+data/pilot/minutes_cache/
+data/youtube_audio/
+legal_index/

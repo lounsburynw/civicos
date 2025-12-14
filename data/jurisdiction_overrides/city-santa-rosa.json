@@ -1,0 +1,29 @@
+{
+  "jurisdiction_id": "city-santa-rosa",
+  "jurisdiction_name": "Santa Rosa, CA",
+  "last_updated": "2025-10-07T18:30:00.000000",
+  "federal_programs": {
+    "cdbg": {
+      "program_name": "Community Development Block Grant",
+      "fy2025_allocation": 1350000,
+      "allocation_note": "Approximate annual allocation from FY 2024-2027 Consolidated Plan",
+      "allocation_source": "City of Santa Rosa FY 2024-2027 Consolidated Plan",
+      "allocation_url": "https://www.srcity.org/3933/FY-2024-2027-Consolidated-Plan",
+      "application_process": {
+        "status": "Check city website for current application cycle",
+        "allocation_recommendations": "Published by city planning department",
+        "requirements": "Follow HUD and local guidelines"
+      },
+      "compliance_requirements": [
+        "24 CFR Part 570 (federal CDBG regulations)",
+        "HUD guidelines",
+        "City of Santa Rosa Consolidated Plan priorities",
+        "Funds must principally benefit low- and moderate-income persons"
+      ],
+      "key_contacts": {
+        "department": "Community Development",
+        "planning_contact": "Check city website for current Community Development Director"
+      }
+    }
+  }
+}

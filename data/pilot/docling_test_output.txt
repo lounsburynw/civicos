@@ -1,0 +1,21 @@
+🔍 Testing Docling Retrospective Analyzer
+Processing 1 meeting(s)
+
+
+======================================================================
+Meeting 1/1: City Council – October 6, 2025 (Wildfire Prevention Fund)
+======================================================================
+   📄 Converting PDF with Docling...
+   ❌ Error: FileNotFoundError: [Errno 2] No such file or directory: 'file:/Users/nicolaslounsbury/projects/civic/data/test_agenda_packet_oct6.pdf'
+
+✅ Found 0 high-stakes decisions:
+
+======================================================================
+📊 SUMMARY
+======================================================================
+Meetings processed: 1
+Total high-stakes decisions: 0
+
+📄 Results saved to: data/pilot/docling_test_results.json
+
+✅ Test complete!

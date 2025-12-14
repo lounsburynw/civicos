@@ -1,0 +1,108 @@
+{
+  "version": "1.0",
+  "phase": "hardening",
+  "derived_from": "docs/VERIFICATION_TUTORIAL.md",
+  "last_updated": "2025-11-30",
+
+  "e2e_tests": {
+    "description": "Convert manual verification steps to automated end-to-end tests",
+    "python_api": {
+      "civic_instantiation": {"status": "verified", "priority": 1, "manual_step": "Civic('san-rafael') instantiates", "test": "test_e2e_verification.py::TestPythonApiE2E::test_civic_instantiation"},
+      "query_whats_next": {"status": "verified", "priority": 1, "manual_step": "whats_next() returns list", "test": "test_e2e_verification.py::TestPythonApiE2E::test_query_whats_next"},
+      "query_what_applies": {"status": "verified", "priority": 1, "manual_step": "what_applies('housing') returns context", "test": "test_e2e_verification.py::TestPythonApiE2E::test_query_what_applies"},
+      "query_what_happened": {"status": "verified", "priority": 2, "manual_step": "what_happened('traffic') returns history", "test": "test_e2e_verification.py::TestPythonApiE2E::test_query_what_happened"},
+      "query_whos_with_me": {"status": "verified", "priority": 2, "manual_step": "whos_with_me('topic') returns community", "test": "test_e2e_verification.py::TestPythonApiE2E::test_query_whos_with_me"},
+      "action_start_something": {"status": "verified", "priority": 1, "manual_step": "start_something() creates initiative", "test": "test_e2e_verification.py::TestPythonApiE2E::test_action_start_something"},
+      "action_add_voice": {"status": "verified", "priority": 1, "manual_step": "add_voice() records stance", "test": "test_e2e_verification.py::TestPythonApiE2E::test_action_add_voice"},
+      "action_follow": {"status": "verified", "priority": 1, "manual_step": "follow() creates subscription", "test": "test_e2e_verification.py::TestPythonApiE2E::test_action_follow"},
+      "orchestration_suggestions": {"status": "verified", "priority": 2, "manual_step": "suggestions() returns recommendations", "test": "test_e2e_verification.py::TestPythonApiE2E::test_orchestration_suggestions"},
+      "orchestration_report_outcome": {"status": "verified", "priority": 2, "manual_step": "report_outcome() records outcome", "test": "test_e2e_verification.py::TestPythonApiE2E::test_orchestration_report_outcome"}
+    },
+    "rest_api": {
+      "server_starts": {"status": "verified", "priority": 1, "manual_step": "Server starts on configurable port", "test": "test_e2e_verification.py::TestRestApiE2E::test_server_starts"},
+      "get_whats_next": {"status": "verified", "priority": 1, "manual_step": "GET /api/events returns event list", "test": "test_e2e_verification.py::TestRestApiE2E::test_get_events"},
+      "get_what_applies": {"status": "verified", "priority": 1, "manual_step": "GET /api/legislative/state?topic=housing returns context", "test": "test_e2e_verification.py::TestRestApiE2E::test_get_what_applies"},
+      "get_what_happened": {"status": "verified", "priority": 2, "manual_step": "GET /api/issues?user_id=xxx returns issues", "test": "test_e2e_verification.py::TestRestApiE2E::test_get_what_happened"},
+      "post_start_something": {"status": "verified", "priority": 1, "manual_step": "POST /api/issues creates record", "test": "test_e2e_verification.py::TestRestApiE2E::test_post_start_something"},
+      "post_add_voice": {"status": "verified", "priority": 1, "manual_step": "POST /api/follows creates record", "test": "test_e2e_verification.py::TestRestApiE2E::test_post_add_voice"}
+    },
+    "mcp_server": {
+      "tools_list": {"status": "verified", "priority": 1, "manual_step": "MCP tools list correctly", "test": "test_e2e_verification.py::TestMcpServerE2E::test_tools_list"},
+      "query_tools_execute": {"status": "verified", "priority": 1, "manual_step": "Query tool calls execute", "test": "test_e2e_verification.py::TestMcpServerE2E::test_query_tools_execute"},
+      "action_tools_execute": {"status": "verified", "priority": 1, "manual_step": "Action tool calls execute", "test": "test_e2e_verification.py::TestMcpServerE2E::test_action_tools_execute"},
+      "orchestration_tools_execute": {"status": "verified", "priority": 2, "manual_step": "Orchestration tool calls execute", "test": "test_e2e_verification.py::TestMcpServerE2E::test_orchestration_tools_execute"}
+    },
+    "database": {
+      "tables_exist": {"status": "verified", "priority": 1, "manual_step": "All required tables exist", "test": "test_e2e_verification.py::TestDatabaseE2E::test_tables_exist"},
+      "records_persist": {"status": "verified", "priority": 1, "manual_step": "Records survive restart", "test": "test_e2e_verification.py::TestDatabaseE2E::test_records_persist"}
+    },
+    "frontend_browser": {
+      "description": "Browser automation tests (Puppeteer/Playwright)",
+      "app_loads": {"status": "verified", "priority": 1, "manual_step": "Frontend loads without console errors", "test": "test_e2e_verification.py::TestFrontendBrowserE2E::test_app_loads"},
+      "event_browsing": {"status": "verified", "priority": 1, "manual_step": "Can browse upcoming events list", "test": "test_e2e_verification.py::TestFrontendBrowserE2E::test_event_browsing"},
+      "legislative_panel": {"status": "verified", "priority": 1, "manual_step": "Legislative context panel displays", "test": "test_e2e_verification.py::TestFrontendBrowserE2E::test_legislative_panel"},
+      "issue_creation": {"status": "verified", "priority": 2, "manual_step": "Can create new issue via UI", "test": "test_e2e_verification.py::TestFrontendBrowserE2E::test_issue_creation"},
+      "comment_drafting": {"status": "verified", "priority": 2, "manual_step": "Comment drafting workflow completes", "test": "test_e2e_verification.py::TestFrontendBrowserE2E::test_comment_drafting"},
+      "coordination_chat": {"status": "verified", "priority": 2, "manual_step": "Coordination chat sends/receives messages", "test": "test_e2e_verification.py::TestFrontendBrowserE2E::test_coordination_chat"},
+      "responsive_layout": {"status": "verified", "priority": 2, "manual_step": "UI works on mobile viewport", "test": "test_e2e_verification.py::TestFrontendBrowserE2E::test_responsive_layout"}
+    }
+  },
+
+  "edge_cases": {
+    "description": "Handle boundary conditions gracefully",
+    "empty_results": {
+      "no_meetings": {"status": "verified", "priority": 1, "test": "test_e2e_verification.py::TestEdgeCasesEmptyResults::test_no_meetings"},
+      "no_context": {"status": "verified", "priority": 1, "test": "test_e2e_verification.py::TestEdgeCasesEmptyResults::test_no_context"},
+      "no_history": {"status": "verified", "priority": 2, "test": "test_e2e_verification.py::TestEdgeCasesEmptyResults::test_no_history"},
+      "no_community": {"status": "verified", "priority": 2, "test": "test_e2e_verification.py::TestEdgeCasesEmptyResults::test_no_community"}
+    },
+    "invalid_input": {
+      "unknown_jurisdiction": {"status": "verified", "priority": 1, "test": "test_e2e_verification.py::TestEdgeCasesInvalidInput::test_unknown_jurisdiction"},
+      "empty_topic": {"status": "verified", "priority": 1, "test": "test_e2e_verification.py::TestEdgeCasesInvalidInput::test_empty_topic"},
+      "invalid_item_type": {"status": "verified", "priority": 1, "test": "test_e2e_verification.py::TestEdgeCasesInvalidInput::test_invalid_item_type"},
+      "invalid_stance": {"status": "verified", "priority": 1, "test": "test_e2e_verification.py::TestEdgeCasesInvalidInput::test_invalid_stance"},
+      "missing_required_fields": {"status": "verified", "priority": 1, "test": "test_e2e_verification.py::TestEdgeCasesInvalidInput::test_missing_required_fields"}
+    },
+    "data_limits": {
+      "long_comment": {"status": "verified", "priority": 2, "test": "test_e2e_verification.py::TestEdgeCasesDataLimits::test_long_comment"},
+      "many_voices": {"status": "verified", "priority": 2, "test": "test_e2e_verification.py::TestEdgeCasesDataLimits::test_many_voices"},
+      "many_subscriptions": {"status": "verified", "priority": 2, "test": "test_e2e_verification.py::TestEdgeCasesDataLimits::test_many_subscriptions"}
+    }
+  },
+
+  "error_handling": {
+    "description": "Verify graceful degradation and informative errors",
+    "database_errors": {
+      "connection_failure": {"status": "verified", "priority": 1, "test": "test_e2e_verification.py::TestErrorHandlingDatabaseErrors::test_connection_failure_*"},
+      "write_failure": {"status": "verified", "priority": 2, "test": "test_e2e_verification.py::TestErrorHandlingDatabaseErrors::test_write_failure_*"}
+    },
+    "api_errors": {
+      "malformed_json": {"status": "verified", "priority": 1, "test": "test_e2e_verification.py::TestErrorHandlingApiErrors::test_malformed_json_*"},
+      "missing_params": {"status": "verified", "priority": 1, "test": "test_e2e_verification.py::TestErrorHandlingApiErrors::test_missing_params_*"}
+    },
+    "mcp_errors": {
+      "invalid_tool": {"status": "verified", "priority": 2, "test": "test_e2e_verification.py::TestErrorHandlingMcpErrors::test_invalid_tool_*"},
+      "invalid_params": {"status": "verified", "priority": 2, "test": "test_e2e_verification.py::TestErrorHandlingMcpErrors::test_invalid_params_*"}
+    }
+  },
+
+  "security_review": {
+    "description": "Basic security posture check",
+    "input_validation": {
+      "sql_injection": {"status": "verified", "priority": 1, "test": "test_e2e_verification.py::TestSecuritySqlInjection::*"},
+      "xss_prevention": {"status": "verified", "priority": 1, "test": "test_e2e_verification.py::TestSecurityXssPrevention::*"}
+    },
+    "data_exposure": {
+      "no_secrets_in_logs": {"status": "verified", "priority": 1, "test": "test_e2e_verification.py::TestSecurityNoSecretsInLogs::*"},
+      "error_messages_safe": {"status": "verified", "priority": 1, "test": "test_e2e_verification.py::TestSecurityErrorMessagesSafe::*"}
+    }
+  },
+
+  "code_audit": {
+    "description": "Independent review of implementation quality",
+    "architecture_review": {"status": "verified", "priority": 1, "auditor": "expert_agent", "test": "test_e2e_verification.py::TestCodeAuditArchitecture::*"},
+    "test_coverage_review": {"status": "verified", "priority": 1, "auditor": "expert_agent", "test": "test_e2e_verification.py::TestCodeAuditTestCoverage::*"},
+    "dependency_audit": {"status": "verified", "priority": 2, "auditor": "expert_agent", "test": "test_e2e_verification.py::TestCodeAuditDependencies::*"},
+    "documentation_completeness": {"status": "verified", "priority": 2, "auditor": "expert_agent", "test": "test_e2e_verification.py::TestCodeAuditDocumentation::*"}
+  }
+}

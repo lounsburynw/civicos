@@ -1,0 +1,43 @@
+"""
+civic-extraction: Platform clients for extracting civic meeting data
+
+Provides clients for municipal meeting platforms:
+- Legistar (6+ cities)
+- CivicClerk (11+ cities)
+- ProudCity (San Rafael and others)
+
+Usage:
+    from civic_extraction import LegistarClient, CivicClerkClient, ProudCityClient
+
+    # Legistar
+    legistar = LegistarClient("berkeley")
+    events = legistar.get_events(days_ahead=30)
+
+    # CivicClerk
+    civicclerk = CivicClerkClient("elcerritoca")
+    events = civicclerk.get_events(days_ahead=30)
+
+    # ProudCity (San Rafael)
+    from civic_extraction import create_san_rafael_client
+    proudcity = create_san_rafael_client()
+    events = proudcity.get_events(days_ahead=30, days_past=30)
+
+All clients implement a common interface:
+- get_events(days_ahead, ...) -> List[Dict]
+- normalize_event(event) -> Meeting
+"""
+
+from civic_extraction.clients.legistar import LegistarClient
+from civic_extraction.clients.civicclerk import CivicClerkClient
+from civic_extraction.clients.proudcity import ProudCityClient, create_san_rafael_client
+from civic_extraction.clients.base import BaseExtractor, Meeting
+
+__version__ = "0.1.0"
+__all__ = [
+    "LegistarClient",
+    "CivicClerkClient",
+    "ProudCityClient",
+    "create_san_rafael_client",
+    "BaseExtractor",
+    "Meeting",
+]

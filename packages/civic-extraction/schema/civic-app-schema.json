@@ -1,0 +1,833 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Civic Conversational OS - Unifying App Schema",
+  "description": "Comprehensive schema for LLM co-pilot context management in civic engagement platform development. Supports both static UI responses and MCP (Model Context Protocol) conversational intelligence without requiring separate schemas.",
+  "version": "2.0.0",
+  "type": "object",
+  "definitions": {
+    "User": {
+      "type": "object",
+      "description": "Citizen user with progressive experience levels",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "email": { "type": "string", "format": "email" },
+        "experience_level": {
+          "type": "string",
+          "enum": ["new", "returning", "expert"],
+          "description": "User experience progression in earned complexity architecture"
+        },
+        "location": {
+          "$ref": "#/definitions/Location"
+        },
+        "civic_profile": {
+          "$ref": "#/definitions/CivicProfile"
+        },
+        "preferences": {
+          "$ref": "#/definitions/UserPreferences"
+        },
+        "created_at": { "type": "string", "format": "date-time" },
+        "last_active": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "email", "experience_level", "location", "civic_profile"]
+    },
+    "CivicProfile": {
+      "type": "object",
+      "description": "User's civic engagement history and preferences",
+      "properties": {
+        "visits": { "type": "integer", "minimum": 0 },
+        "interactions": { "type": "integer", "minimum": 0 },
+        "comments_submitted": { "type": "integer", "minimum": 0 },
+        "meetings_attended": { "type": "integer", "minimum": 0 },
+        "neighbors_connected": { "type": "integer", "minimum": 0 },
+        "issues_followed": { "type": "array", "items": { "type": "string" } },
+        "civic_interests": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["housing", "traffic", "environment", "education", "budget", "development", "public_safety", "community"]
+          },
+          "maxItems": 10
+        },
+        "notification_preferences": {
+          "type": "object",
+          "properties": {
+            "newsletter": { "type": "boolean", "default": true },
+            "meeting_reminders": { "type": "boolean", "default": false },
+            "neighbor_updates": { "type": "boolean", "default": false },
+            "government_responses": { "type": "boolean", "default": true }
+          }
+        }
+      },
+      "required": ["visits", "interactions", "comments_submitted", "meetings_attended", "neighbors_connected", "civic_interests"]
+    },
+    "Location": {
+      "type": "object",
+      "description": "Hierarchical civic jurisdiction system",
+      "properties": {
+        "street_address": { 
+          "type": "string",
+          "pattern": "^[\\w\\s.,#-]+$",
+          "maxLength": 200
+        },
+        "city": { "type": "string" },
+        "county": { "type": "string" },
+        "state": { "type": "string" },
+        "postal_code": { "type": "string" },
+        "jurisdiction_ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "All relevant civic jurisdictions (city, county, school district, etc.)"
+        },
+        "coordinates": {
+          "type": "object",
+          "properties": {
+            "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+            "longitude": { "type": "number", "minimum": -180, "maximum": 180 }
+          }
+        }
+      },
+      "required": ["city", "county", "state"]
+    },
+    "UserPreferences": {
+      "type": "object",
+      "properties": {
+        "interface_mode": {
+          "type": "string",
+          "enum": ["simple", "expert"],
+          "default": "simple"
+        },
+        "conversation_style": {
+          "type": "string",
+          "enum": ["casual", "informative", "action_oriented"],
+          "default": "casual"
+        },
+        "privacy_level": {
+          "type": "string",
+          "enum": ["private", "neighbors_only", "public"],
+          "default": "private"
+        }
+      }
+    },
+    "CivicEvent": {
+      "type": "object",
+      "description": "Single civic event (meeting, hearing, etc.) with engagement opportunities",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "title": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string" },
+        "when": { "type": "string", "format": "date-time" },
+        "deadline": { "type": "string", "format": "date-time" },
+        "engagement_info": { "type": "string", "description": "How to participate" },
+        "impact_summary": { "type": "string", "description": "What this means for residents" },
+        "source_url": { "type": "string", "format": "uri" },
+        "location": { "type": "string" },
+        "meeting_type": {
+          "type": "string",
+          "enum": ["city_council", "planning_commission", "public_hearing", "community_meeting", "committee"]
+        },
+        "project_type": {
+          "type": "string",
+          "enum": ["housing", "traffic", "environment", "education", "budget", "development", "public_safety", "community"]
+        },
+        "engagement_tier": {
+          "type": "string",
+          "enum": ["quick_action", "full_engagement", "expert_level"],
+          "description": "Complexity level from wiki intelligence"
+        },
+        "jurisdiction": { "$ref": "#/definitions/Jurisdiction" },
+        "contact_info": {
+          "$ref": "#/definitions/ContactInfo"
+        },
+        "wiki_enhancement": {
+          "$ref": "#/definitions/WikiEnhancement"
+        },
+        "legislative_context": {
+          "$ref": "#/definitions/LegislativeContext"
+        },
+        "created_at": { "type": "string", "format": "date-time" },
+        "scraped_from": { "type": "string", "format": "uri" }
+      },
+      "required": ["id", "title", "description", "when", "deadline", "engagement_info", "impact_summary", "source_url", "jurisdiction"]
+    },
+    "ContactInfo": {
+      "type": "object",
+      "description": "Government contact information for civic event",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "title": { "type": "string" },
+        "phone": { 
+          "type": "string",
+          "pattern": "^\\+?[1-9]\\d{1,14}$"
+        },
+        "office": { "type": "string" }
+      },
+      "required": ["email"]
+    },
+    "WikiEnhancement": {
+      "type": "object",
+      "description": "AI-enhanced civic intelligence from wiki knowledge base",
+      "properties": {
+        "success_strategy": { "type": "string" },
+        "precedent_examples": { "type": "array", "items": { "type": "string" } },
+        "recommended_approach": { "type": "string" },
+        "related_events": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["success_strategy"]
+    },
+    "LegislativeContext": {
+      "type": "object",
+      "description": "Federal/state context when locally relevant (null for 70% of opportunities)",
+      "properties": {
+        "state_legislation_refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Reference IDs to state bills (e.g., ['ca-sb-9', 'ca-ab-2011'])"
+        },
+        "federal_program_refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Reference IDs to federal programs (e.g., ['hud-cdbg'])"
+        },
+        "jurisdiction_specific": {
+          "type": "object",
+          "description": "City-specific overrides (funding amounts, deadlines)",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "amount": { "type": "string" },
+              "allocation_deadline": { "type": "string", "format": "date-time" }
+            }
+          }
+        },
+        "relevance_summary": {
+          "type": "string",
+          "description": "AI-generated 1-2 sentence summary of local leverage points"
+        }
+      }
+    },
+    "Jurisdiction": {
+      "type": "object",
+      "description": "Government entity with civic engagement events",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["city", "county", "school_district", "special_district", "state", "federal"]
+        },
+        "website": { "type": "string", "format": "uri" },
+        "meeting_calendar_url": { "type": "string", "format": "uri" },
+        "contact_info": { "$ref": "#/definitions/ContactInfo" },
+        "jurisdiction_area": {
+          "type": "object",
+          "description": "Geographic boundaries"
+        }
+      },
+      "required": ["id", "name", "type"]
+    },
+    "Conversation": {
+      "type": "object",
+      "description": "Adaptive conversational interface state",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "user_id": { "type": "string", "format": "uuid" },
+        "session_id": { "type": "string", "format": "uuid" },
+        "messages": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Message" }
+        },
+        "context": { "$ref": "#/definitions/ConversationContext" },
+        "ui_state": { "$ref": "#/definitions/UIState" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "user_id", "messages", "context", "ui_state"]
+    },
+    "Message": {
+      "type": "object",
+      "description": "Single conversational message with adaptive actions",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "role": {
+          "type": "string",
+          "enum": ["user", "assistant", "system"]
+        },
+        "content": { "type": "string", "maxLength": 10000, "minLength": 1 },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/MessageAction" }
+        },
+        "context_triggers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["show_sidebar", "reveal_feature", "suggest_neighbor", "offer_expert_mode"]
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "civic_keywords": { "type": "array", "items": { "type": "string" } },
+            "detected_issues": { "type": "array", "items": { "type": "string" } },
+            "user_experience_signals": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      },
+      "required": ["id", "role", "content", "timestamp"]
+    },
+    "MessageAction": {
+      "type": "object",
+      "description": "Contextual action button in conversational interface",
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "action_type": {
+          "type": "string",
+          "enum": ["quick_start", "join_discussion", "draft_comment", "schedule_meeting", "connect_neighbors", "view_impact", "mcp_tool_call"]
+        },
+        "mcp_tool": {
+          "type": "string",
+          "description": "MCP tool name for conversational intelligence (e.g., 'compose_public_comment')",
+          "examples": ["compose_public_comment", "get_comment_guidelines"]
+        },
+        "mcp_parameters": {
+          "type": "object",
+          "description": "Parameters to pass to MCP tool, typically derived from CivicEvent or ConversationContext"
+        },
+        "parameters": { "type": "object" },
+        "experience_gate": {
+          "type": "string",
+          "enum": ["new", "returning", "expert"],
+          "description": "Minimum experience level to show this action"
+        },
+        "style": {
+          "type": "string",
+          "enum": ["primary", "secondary", "expert"],
+          "default": "secondary"
+        }
+      },
+      "required": ["id", "label", "action_type"]
+    },
+    "ConversationContext": {
+      "type": "object",
+      "description": "Contextual state for adaptive AI responses",
+      "properties": {
+        "current_topic": { "type": "string" },
+        "civic_issues_mentioned": { "type": "array", "items": { "type": "string" } },
+        "user_goals": { "type": "array", "items": { "type": "string" } },
+        "related_events": { "type": "array", "items": { "type": "string" } },
+        "neighbor_mentions": { "type": "array", "items": { "type": "string" } },
+        "suggested_actions": { "type": "array", "items": { "type": "string" } },
+        "conversation_phase": {
+          "type": "string",
+          "enum": ["discovery", "education", "action_planning", "community_building", "expert_mode"],
+          "description": "Current phase in civic engagement progression"
+        }
+      }
+    },
+    "UIState": {
+      "type": "object",
+      "description": "Current state of adaptive user interface",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["simple", "expert"],
+          "default": "simple"
+        },
+        "visible_components": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["sidebar", "quick_access", "expert_shortcuts", "user_context", "action_buttons"]
+          }
+        },
+        "sidebar_sections": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["community", "actions", "impact", "progress"]
+          }
+        },
+        "feature_revelations": {
+          "type": "object",
+          "description": "Track which features have been revealed through curiosity triggers",
+          "additionalProperties": { "type": "boolean" }
+        },
+        "personalization": {
+          "type": "object",
+          "properties": {
+            "header_style": { "type": "string" },
+            "quick_actions": { "type": "array", "items": { "type": "string" } },
+            "default_suggestions": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      },
+      "required": ["mode", "visible_components"]
+    },
+    "CommunityConnection": {
+      "type": "object",
+      "description": "Neighbor-to-neighbor civic connection",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "users": {
+          "type": "array",
+          "items": { "type": "string", "format": "uuid" },
+          "minItems": 2
+        },
+        "shared_interests": { "type": "array", "items": { "type": "string" } },
+        "shared_location": { "$ref": "#/definitions/Location" },
+        "connection_type": {
+          "type": "string",
+          "enum": ["issue_based", "geographic", "meeting_coordination", "comment_collaboration"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["suggested", "connected", "active", "inactive"],
+          "default": "suggested"
+        },
+        "created_at": { "type": "string", "format": "date-time" },
+        "last_interaction": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "users", "shared_interests", "connection_type", "status"]
+    },
+    "CivicAction": {
+      "type": "object",
+      "description": "Civic engagement action taken by user",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "user_id": { "type": "string", "format": "uuid" },
+        "event_id": { "type": "string", "format": "uuid" },
+        "action_type": {
+          "type": "string",
+          "enum": ["comment_submitted", "meeting_attended", "petition_signed", "neighbor_connected", "discussion_joined"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["planned", "completed", "responded_to"],
+          "default": "planned"
+        },
+        "content": { "type": "string", "description": "Comment text, meeting notes, etc." },
+        "government_response": { "type": "string" },
+        "impact_measured": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "completed_at": { "type": "string", "format": "date-time" },
+        "response_received_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "user_id", "action_type", "status"]
+    },
+    "Newsletter": {
+      "type": "object",
+      "description": "Generated civic digest newsletter",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "jurisdiction": { "$ref": "#/definitions/Jurisdiction" },
+        "events": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/CivicEvent" }
+        },
+        "generation_metadata": {
+          "type": "object",
+          "properties": {
+            "scrape_urls": { "type": "array", "items": { "type": "string", "format": "uri" } },
+            "ai_model_used": { "type": "string" },
+            "wiki_files_loaded": { "type": "array", "items": { "type": "string" } },
+            "generation_cost": { "type": "number" },
+            "processing_time": { "type": "number" }
+          }
+        },
+        "html_content": { "type": "string" },
+        "text_content": { "type": "string" },
+        "subject_line": { "type": "string" },
+        "send_date": { "type": "string", "format": "date-time" },
+        "recipients": {
+          "type": "array",
+          "items": { "type": "string", "format": "email" }
+        },
+        "analytics": {
+          "type": "object",
+          "properties": {
+            "sent_count": { "type": "integer" },
+            "open_rate": { "type": "number" },
+            "click_rate": { "type": "number" },
+            "action_conversion_rate": { "type": "number" }
+          }
+        },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "jurisdiction", "events", "html_content", "text_content", "subject_line", "created_at"]
+    },
+    "WikiKnowledge": {
+      "type": "object",
+      "description": "Structured civic knowledge from wiki system",
+      "properties": {
+        "id": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["jurisdiction", "strategy", "law", "government_structure", "template"]
+        },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "jurisdiction_scope": { "type": "array", "items": { "type": "string" } },
+        "topic_tags": { "type": "array", "items": { "type": "string" } },
+        "last_updated": { "type": "string", "format": "date-time" },
+        "file_path": { "type": "string" }
+      },
+      "required": ["id", "type", "title", "content", "file_path"]
+    },
+    "AppSession": {
+      "type": "object",
+      "description": "User session for context continuity",
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "user_id": { "type": "string", "format": "uuid" },
+        "conversation_id": { "type": "string", "format": "uuid" },
+        "device_info": {
+          "type": "object",
+          "properties": {
+            "user_agent": { "type": "string" },
+            "screen_size": { "type": "string" },
+            "mobile": { "type": "boolean" }
+          }
+        },
+        "feature_usage": {
+          "type": "object",
+          "description": "Track which features user has engaged with",
+          "additionalProperties": { "type": "integer" }
+        },
+        "civic_progression": {
+          "type": "object",
+          "properties": {
+            "experience_signals": { "type": "array", "items": { "type": "string" } },
+            "readiness_for_expert_mode": { "type": "boolean" },
+            "feature_unlock_history": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "started_at": { "type": "string", "format": "date-time" },
+        "last_activity": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "user_id", "started_at", "last_activity"]
+    },
+    "Complaint": {
+      "type": "object",
+      "description": "User-generated civic concern (ephemeral focal point)",
+      "required": ["id", "user_id", "description", "jurisdiction_id", "created_at", "status"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "user_id": { "type": "string" },
+        "description": { "type": "string", "maxLength": 2000 },
+        "issue_type": {
+          "type": "string",
+          "enum": ["housing", "transportation", "environment", "public_safety", "infrastructure", "other"]
+        },
+        "jurisdiction_id": { "type": "string" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "address": { "type": "string" },
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" }
+          }
+        },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "status": {
+          "type": "string",
+          "enum": ["open", "closed"],
+          "description": "Lifecycle status: open (active) or closed (no longer active). Connection status (has matches) is computed from matched_events.length > 0."
+        },
+        "closed_reason": {
+          "type": "string",
+          "enum": ["resolved", "duplicate", "not-actionable", "abandoned"],
+          "description": "Reason for closing (required when status='closed'). Distinguishes different closure types: resolved (fixed), duplicate (merged), not-actionable (cannot be addressed), abandoned (no follow-up)."
+        },
+        "closed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when issue was closed"
+        },
+        "closed_note": {
+          "type": "string",
+          "description": "Optional note about closure (e.g., resolution details, duplicate issue ID)"
+        },
+        "matched_events": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/EventReference" },
+          "description": "Links to CivicEvent focal points (disk)"
+        },
+        "related_complaints": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Similar complaints from neighbors (clustering)"
+        },
+        "discussion_group_id": {
+          "type": "string",
+          "description": "External messaging group (Slack/Discord)"
+        },
+        "ai_analysis": {
+          "type": "object",
+          "description": "Reserved for Phase 2+ AI features (null for Phase 1)",
+          "properties": {
+            "match_confidence": { "type": "number" },
+            "suggested_actions": { "type": "array", "items": { "type": "string" } },
+            "escalation_probability": { "type": "number" }
+          }
+        }
+      }
+    },
+    "EventReference": {
+      "type": "object",
+      "description": "Lightweight pointer to CivicEvent (avoid duplication)",
+      "required": ["event_id", "match_score"],
+      "properties": {
+        "event_id": { "type": "string" },
+        "match_score": { "type": "number", "minimum": 0, "maximum": 100 },
+        "match_reason": { "type": "string" }
+      }
+    },
+    "ProposedAgendaItem": {
+      "type": "object",
+      "description": "Community proposal for official agenda (escalation path)",
+      "required": ["id", "title", "description", "supporting_users", "target_event"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "source_complaints": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Complaints that led to this proposal"
+        },
+        "supporting_users": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "target_event": { "type": "string", "description": "Which meeting to submit to" },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "submitted", "accepted", "rejected"]
+        }
+      }
+    },
+    "DiscussionGroup": {
+      "type": "object",
+      "description": "External messaging group around focal point",
+      "required": ["id", "platform", "focal_point_type", "focal_point_id"],
+      "properties": {
+        "id": { "type": "string" },
+        "platform": { "type": "string", "enum": ["slack", "discord", "signal"] },
+        "platform_url": { "type": "string", "format": "uri" },
+        "focal_point_type": {
+          "type": "string",
+          "enum": ["CivicEvent", "Complaint", "ProposedAgendaItem"]
+        },
+        "focal_point_id": { "type": "string" },
+        "member_count": { "type": "integer" },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Initiative": {
+      "type": "object",
+      "description": "User-created initiative that others can support. Core entity from FINAL_PACKAGE_ARCHITECTURE.",
+      "required": ["id", "topic", "title", "description", "creator_id", "jurisdiction", "status", "created_at"],
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier (e.g., 'init_a1b2c3d4')" },
+        "topic": { "type": "string", "description": "Topic category (e.g., 'traffic safety', 'housing')" },
+        "title": { "type": "string", "maxLength": 200, "description": "Initiative title (e.g., 'Protected bike lane on 4th St')" },
+        "description": { "type": "string", "description": "Full description of the initiative" },
+        "creator_id": { "type": "string", "description": "ID of the user who created this initiative" },
+        "jurisdiction": { "type": "string", "description": "Jurisdiction ID (e.g., 'san-rafael-ca')" },
+        "location": { "type": "string", "description": "Optional location reference (e.g., '4th St & B St')" },
+        "status": {
+          "type": "string",
+          "enum": ["active", "coordinating", "succeeded", "failed", "dormant"],
+          "default": "active",
+          "description": "Initiative lifecycle status"
+        },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "related_agenda_items": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "IDs of related agenda items"
+        },
+        "related_decisions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "IDs of related decisions"
+        }
+      }
+    },
+    "Voice": {
+      "type": "object",
+      "description": "User voice on an item (support, oppose, question). Core entity from FINAL_PACKAGE_ARCHITECTURE.",
+      "required": ["id", "user_id", "item_type", "item_id", "stance", "created_at"],
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier (e.g., 'voice_a1b2c3d4')" },
+        "user_id": { "type": "string", "description": "ID of the user expressing their voice" },
+        "item_type": {
+          "type": "string",
+          "enum": ["initiative", "agenda_item", "decision"],
+          "description": "Type of item this voice is about"
+        },
+        "item_id": { "type": "string", "description": "ID of the item" },
+        "stance": {
+          "type": "string",
+          "enum": ["support", "oppose", "question"],
+          "description": "User's stance on the item"
+        },
+        "comment": { "type": "string", "description": "Optional comment explaining the stance" },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Subscription": {
+      "type": "object",
+      "description": "User subscription to an item for updates. Core entity from FINAL_PACKAGE_ARCHITECTURE.",
+      "required": ["id", "user_id", "item_type", "item_id", "created_at"],
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier (e.g., 'sub_a1b2c3d4')" },
+        "user_id": { "type": "string", "description": "ID of the subscribing user" },
+        "item_type": {
+          "type": "string",
+          "enum": ["meeting", "initiative", "topic", "decision"],
+          "description": "Type of item being followed"
+        },
+        "item_id": { "type": "string", "description": "ID of the item" },
+        "notification_prefs": {
+          "type": "object",
+          "description": "Notification preferences for this subscription",
+          "properties": {
+            "email": { "type": "boolean", "default": true },
+            "sms": { "type": "boolean", "default": false },
+            "push": { "type": "boolean", "default": false }
+          }
+        },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Outcome": {
+      "type": "object",
+      "description": "Recorded outcome of an item. Closes the feedback loop. Core entity from FINAL_PACKAGE_ARCHITECTURE.",
+      "required": ["id", "item_type", "item_id", "outcome", "recorded_by", "recorded_at"],
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier (e.g., 'out_a1b2c3d4')" },
+        "item_type": {
+          "type": "string",
+          "enum": ["initiative", "agenda_item", "decision"],
+          "description": "Type of item this outcome is for"
+        },
+        "item_id": { "type": "string", "description": "ID of the item" },
+        "outcome": {
+          "type": "string",
+          "enum": ["passed", "failed", "continued", "modified"],
+          "description": "The outcome result"
+        },
+        "notes": { "type": "string", "description": "Optional notes (e.g., 'Passed 4-1, implementation starts Q2')" },
+        "vote_breakdown": {
+          "type": "object",
+          "description": "Optional vote breakdown",
+          "properties": {
+            "yes": { "type": "integer" },
+            "no": { "type": "integer" },
+            "abstain": { "type": "integer" }
+          }
+        },
+        "recorded_by": {
+          "type": "string",
+          "description": "Who recorded this outcome (user_id or 'system')"
+        },
+        "recorded_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "CoordinationPlan": {
+      "type": "object",
+      "description": "Plan for collective action. Created by coordinate() method. Core entity from FINAL_PACKAGE_ARCHITECTURE.",
+      "required": ["action", "initiative_id", "status"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": ["plan_testimony", "draft_letter", "schedule_meeting", "notify_supporters"],
+          "description": "Type of coordination action"
+        },
+        "initiative_id": { "type": "string", "description": "ID of the initiative being coordinated" },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "description": { "type": "string" },
+              "status": { "type": "string", "enum": ["pending", "in_progress", "completed"] }
+            }
+          },
+          "description": "Steps in the coordination plan"
+        },
+        "participants": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "User IDs of participants"
+        },
+        "deadline": { "type": "string", "format": "date-time", "description": "Optional deadline for the action" },
+        "status": {
+          "type": "string",
+          "enum": ["planning", "active", "completed", "cancelled"],
+          "default": "planning",
+          "description": "Status of the coordination plan"
+        }
+      }
+    }
+  },
+  "properties": {
+    "app_context": {
+      "type": "object",
+      "description": "Complete application state for LLM co-pilot context",
+      "properties": {
+        "current_user": { "$ref": "#/definitions/User" },
+        "active_session": { "$ref": "#/definitions/AppSession" },
+        "current_conversation": { "$ref": "#/definitions/Conversation" },
+        "available_events": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/CivicEvent" }
+        },
+        "user_communities": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/CommunityConnection" }
+        },
+        "user_actions_history": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/CivicAction" }
+        },
+        "relevant_wiki_knowledge": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/WikiKnowledge" }
+        },
+        "app_configuration": {
+          "type": "object",
+          "properties": {
+            "feature_flags": {
+              "type": "object",
+              "additionalProperties": { "type": "boolean" }
+            },
+            "ai_model_settings": {
+              "type": "object",
+              "properties": {
+                "primary_model": { "type": "string", "default": "gpt-4o" },
+                "temperature": { "type": "number", "default": 0.7 },
+                "max_tokens": { "type": "integer", "default": 1500 }
+              }
+            },
+            "ui_customization": {
+              "type": "object",
+              "properties": {
+                "theme": { "type": "string", "default": "civic" },
+                "progressive_disclosure_speed": { "type": "string", "enum": ["slow", "medium", "fast"], "default": "medium" }
+              }
+            }
+          }
+        }
+      },
+      "required": ["current_user", "current_conversation", "available_events"]
+    }
+  }
+}

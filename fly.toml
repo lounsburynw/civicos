@@ -1,0 +1,45 @@
+# Civic API - Fly.io Configuration
+# Primary REST API server for Civic platform
+# See docs/critical/HOSTING_DECISION.md for deployment details
+
+app = "civic-api"
+primary_region = "sjc"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  CIVIC_ENV = "production"
+  CIVIC_API_PORT = "8001"
+  PYTHONUNBUFFERED = "1"
+
+[http_service]
+  internal_port = 8001
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 100
+    soft_limit = 80
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256
+
+[mounts]
+  source = "civic_data"
+  destination = "/app/data"
+
+[checks]
+  [checks.health]
+    type = "http"
+    port = 8001
+    path = "/health"
+    interval = "30s"
+    timeout = "10s"
+    grace_period = "10s"

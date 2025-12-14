@@ -1,0 +1,35 @@
+{
+  "jurisdiction_id": "city-hayward",
+  "jurisdiction_name": "Hayward, CA",
+  "last_updated": "2025-10-07T22:30:00.000000",
+  "federal_programs": {
+    "cdbg": {
+      "program_name": "Community Development Block Grant",
+      "allocation_status": "pending_data_access",
+      "allocation_note": "Hayward is a CDBG entitlement city (population ~150-162K). FY2025 allocation amount pending - HUD.gov access impacted by government shutdown. City has active CDBG program per Annual Action Plan.",
+      "allocation_source": "HUD FY2025 Allocations (pending access)",
+      "allocation_url": "https://www.hud.gov/hud-partners/community-budget-25",
+      "city_program_info": {
+        "annual_action_plan": "https://www.hayward-ca.gov/sites/default/files/pdf/FY%2024-25%20Action%20Plan_For_Public_Comment_FINAL_03272024.pdf",
+        "cdbg_page": "https://hayward-ca.gov/your-government/departments/library-community-services/programs/community-development-block-grant-cdbg",
+        "administering_department": "Library & Community Services Department"
+      },
+      "application_process": {
+        "status": "City administers own CDBG program",
+        "funding_cycle": "Community Agency Funding Program awards federal CDBG funds to eligible community and economic development activities",
+        "requirements": "Follow HUD and City of Hayward guidelines"
+      },
+      "compliance_requirements": [
+        "24 CFR Part 570 (federal CDBG regulations)",
+        "HUD guidelines",
+        "City of Hayward Consolidated Plan priorities",
+        "Funds must principally benefit low- and moderate-income persons"
+      ],
+      "key_contacts": {
+        "department": "Library & Community Services Department",
+        "website": "https://www.hayward-ca.gov"
+      },
+      "data_notes": "Allocation amount to be updated when HUD.gov access restored or via City budget documents"
+    }
+  }
+}

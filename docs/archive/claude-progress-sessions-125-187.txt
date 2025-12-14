@@ -1,0 +1,1358 @@
+Session 125: Documentation consistency and repo cleanup.
+- Updated all critical docs timeline: Jan 2025 → Jan 2026
+- Created /start slash command for session initialization
+- Cleaned root: archived CHANGELOG.md, moved schema to packages/
+- Restructured features.json to align with FINAL_PACKAGE_ARCHITECTURE phases
+- 44 tests passing
+
+Next: Implement start_something() action method (Phase 1, Priority 1).
+
+Session 126: Implement start_something() action method.
+- Added initiatives table to StateManager schema
+- Implemented create_initiative(), get_initiative(), query_initiatives() in StateManager
+- Wired start_initiative() to persist to database with unique ID generation
+- Connected Civic.start_something() to actions.initiatives module
+- Added 5 new tests for initiative creation and persistence
+- 47 tests passing
+
+Next: Implement add_voice() action method (Phase 1, Priority 2).
+
+Session 127: Implement add_voice() action method.
+- Added voices table to StateManager schema with item_type, item_id, stance, comment fields
+- Implemented create_voice(), get_voice(), query_voices(), count_voices() in StateManager
+- Wired voices.py to persist to database with unique ID generation
+- Connected Civic.add_voice() to actions.voices module
+- Added 7 new tests for voice creation, validation, and persistence
+- 54 tests passing
+
+Next: Implement follow() action method (Phase 1, Priority 3).
+
+Session 128: Implement follow() action method.
+- Added subscriptions table to StateManager schema with user_id, item_type, item_id, notification_prefs
+- Implemented create_subscription(), get_subscription(), query_subscriptions(), count_subscriptions(), delete_subscription() in StateManager
+- Updated subscriptions.py with follow_item() and unfollow_item() to persist to database
+- Connected Civic.follow() to actions.subscriptions module
+- Added 9 new tests for subscription creation, validation, persistence, and deletion
+- 63 tests passing
+
+Next: Implement MCP server query_tools (Phase 1, Priority 4).
+
+Session 129: Add tests for MCP server query_tools.
+- MCP server implementation already exists in packages/civic/src/civic/mcp.py
+- CivicServer exposes all query tools: what_applies, what_happened, whats_next, whos_with_me
+- Added 18 unit tests for MCP server in packages/civic/tests/test_mcp.py
+- Tests cover imports, availability, server creation, tool registration, tool execution
+- 81 tests passing
+
+Next: Implement MCP server action_tools (Phase 1, Priority 5).
+
+Session 130: Add MCP server action_tools tests.
+- MCP server already implements action tools (start_something, add_voice, follow, prepare)
+- Added 16 new tests for action tools in packages/civic/tests/test_mcp.py
+- Tests cover: tool execution, input validation, error handling, integration scenarios
+- TestMCPActionTools: 14 tests for individual tool functionality
+- TestMCPActionToolIntegration: 3 tests for realistic multi-tool workflows
+- 97 tests passing (34 MCP tests total: 18 query + 16 action)
+
+Next: Phase 1 complete! Move to Phase 2: prepare() action method.
+
+
+Session 131: Implement prepare() action method.
+- Implemented prepare_for_meeting() in packages/civic/src/civic/actions/preparation.py
+- prepare() aggregates: agenda item lookup, regulatory context, talking points, allies, logistics
+- _get_agenda_item() searches agenda_items table and meeting.full_data.agenda_items
+- _extract_topic_from_item() maps item titles to topics for context lookup
+- _generate_talking_points() creates talking points from item and regulatory context
+- _find_allies() finds users who have voiced on or follow related items
+- _compile_logistics() compiles meeting location, time, tips based on meeting type
+- Connected Civic.prepare() to actions.preparation module
+- Added 8 new tests for prepare: agenda item lookup, talking points, logistics, allies, topic extraction
+- Updated 3 tests that were checking for NotImplementedError (now expects ValueError/Preparation)
+- 104 tests passing
+
+Next: Implement report_outcome() orchestration method (Phase 2).
+
+Session 132: Implement report_outcome() orchestration method.
+- Added outcome methods to StateManager: create_outcome(), get_outcome(), get_outcome_for_item(), query_outcomes(), get_outcome_stats()
+- Outcomes table already existed in schema (lines 274-294 of manager.py)
+- Implemented report_outcome() in packages/civic/src/civic/orchestrator/outcomes.py
+- report_outcome() validates outcome/item_type, stores to DB, updates initiative status if applicable
+- Connected Civic.report_outcome() to orchestrator.outcomes module
+- Added 6 new tests for report_outcome: basic, with notes, invalid outcome, invalid item_type, initiative status update, vote breakdown
+- Updated features.json: report_outcome passing (6 tests), outcome_storage passing
+- 109 tests passing
+
+Next: Implement MCP orchestration_tools (Phase 2) or suggestions() (Phase 3).
+
+Session 133: Add MCP orchestration_tools tests.
+- Added 9 tests for MCP orchestration tools in test_mcp.py
+- Tests for report_outcome MCP tool: basic, vote_breakdown, failed_outcome, invalid_outcome_raises
+- Tests for coordinate MCP tool: basic plan_testimony, draft_letter action
+- Tests for get_suggestions MCP tool: verifies NotImplementedError (Phase 3)
+- Integration tests: initiative_coordinate_and_report, report_outcome_updates_initiative_status
+- Updated features.json: orchestration_tools passing (9 tests)
+- 118 tests passing
+
+Next: Phase 2 complete! Implement suggestions() (Phase 3) or schema_update (data_layer).
+
+Session 134: Implement suggestions() orchestration method (Phase 3).
+- Implemented get_suggestions() in packages/civic/src/civic/orchestrator/suggestions.py
+- Four suggestion types: upcoming_meeting, trending_initiative, coordination_ready, outcome_pending
+- Priority-based ranking with personalization via user_id
+- Suggests meetings matching user interests (from subscriptions/voices)
+- Suggests trending initiatives with 2+ supporters/voices
+- Suggests coordination for user's initiatives with 5+ supporters
+- Suggests outcome reporting for recently-passed meetings user followed
+- Connected Civic.suggestions() to orchestrator module
+- Updated 7 tests: 4 in test_civic.py, 3 in test_mcp.py
+- Updated features.json: suggestions passing (7 tests)
+- 123 tests passing
+
+Next: Implement suggestion_workflow (Phase 3) or preparation_workflow (Phase 3).
+
+Session 135: Implement suggestion_workflow LangGraph workflow (Phase 3).
+- Created LangGraph suggestion workflow in packages/civic/src/civic/_internal/coordination/
+- New files: suggestion_state.py (SuggestionState TypedDict), suggestion_nodes.py (5 workflow nodes), suggestion_graph.py (SuggestionApp class)
+- Five-node workflow: gather_context → generate_candidates → rank → filter → format → END
+- SuggestionState tracks: user context, candidates, ranked/filtered suggestions
+- Nodes: gather_context (user interests, subscriptions, initiatives), generate_candidates (4 types), rank_suggestions, filter_suggestions, format_suggestions
+- SuggestionApp provides clean interface with checkpointing support
+- Exported run_suggestion_workflow(), get_suggestion_state() from _internal.coordination
+- Added 9 tests in test_mcp.py::TestSuggestionWorkflow
+- Tests cover: imports, workflow execution, user personalization, context gathering, candidate generation, ranking, data integration, app class
+- Updated features.json: suggestion_workflow passing (9 tests)
+- 132 tests passing
+
+Next: Implement preparation_workflow (Phase 3) or pattern_learner (Phase 3).
+
+Session 136: Implement preparation_workflow LangGraph workflow (Phase 3).
+- Created LangGraph preparation workflow in packages/civic/src/civic/_internal/coordination/
+- New files: preparation_state.py (PreparationState TypedDict), preparation_nodes.py (6 workflow nodes), preparation_graph.py (PreparationApp class)
+- Six-node workflow: load_item → gather_context → find_allies → generate_points → compile_logistics → format → END
+- PreparationState tracks: agenda item, meeting, topic, regulatory context, allies, talking points, logistics
+- Nodes: load_agenda_item, gather_regulatory_context, find_allies, generate_talking_points, compile_logistics, format_preparation
+- PreparationApp provides clean interface with checkpointing support
+- Exported run_preparation_workflow(), get_preparation_state() from _internal.coordination
+- Added 8 tests in test_mcp.py::TestPreparationWorkflow
+- Tests cover: imports, workflow execution, user personalization, talking points, logistics, allies, app class, workflow creation
+- Updated features.json: preparation_workflow passing (8 tests)
+- 140 tests passing
+
+Next: Implement pattern_learner (Phase 3) or strategy_suggestions (Phase 3).
+
+Session 137: Implement pattern_learner LangGraph workflow (Phase 3).
+- Created LangGraph pattern learning workflow in packages/civic/src/civic/_internal/coordination/
+- New files: pattern_state.py (PatternState, Pattern, Strategy dataclasses), pattern_nodes.py (9 workflow nodes), pattern_graph.py (PatternLearner class)
+- Two workflows:
+  - Learning: load_outcome → gather_preceding_actions → extract_context → create_pattern → store_pattern → END
+  - Strategy: load_initiative → query_patterns → analyze_patterns → generate_strategy → END
+- PatternLearner class provides:
+  - learn_from_outcome(): Extract patterns from successful/failed outcomes
+  - get_success_patterns(): Query patterns that led to success
+  - suggest_strategy(): Generate recommendations based on learned patterns
+- Pattern dataclass tracks: topic, jurisdiction, outcome, actions, participant_count, coordination_used, context
+- Strategy dataclass provides: confidence level, suggestion text, coordination recommendation, average supporters
+- Exported PatternLearner, Pattern, Strategy, run_pattern_learning, get_success_patterns, suggest_strategy from _internal.coordination
+- Added 9 tests in test_mcp.py::TestPatternLearnerWorkflow
+- Tests cover: imports, class creation, learning workflow, strategy workflow, success patterns, data classes, workflow creation
+- Updated features.json: pattern_learner passing (9 tests)
+- 149 tests passing
+
+Next: Implement strategy_suggestions (Phase 3) to complete feedback_system.
+
+Session 138: Implement strategy_suggestions LangGraph workflow (Phase 3).
+- Created LangGraph strategy suggestions workflow in packages/civic/src/civic/_internal/coordination/
+- New files: strategy_state.py (StrategyState, StrategySuggestion, PatternAnalysis dataclasses), strategy_nodes.py (6 workflow nodes), strategy_graph.py (StrategySuggester class)
+- Workflow: load_context → query_topic_patterns → analyze_success_factors → generate_strategy_suggestions → prioritize_suggestions → format_output → END
+- StrategySuggester class provides:
+  - suggest(): Generate strategy suggestions for a topic (works without initiative_id)
+  - get_state(): Check workflow state
+- Suggestion types: build_support, coordinate_action, join_initiative, monitor_decision, avoid_pitfall
+- PatternAnalysis tracks: pattern_count, avg_supporters, coordination_rate, success_rate, common_actions
+- Exported StrategySuggester, StrategySuggestion, PatternAnalysis, run_strategy_suggestions, get_strategy_state from _internal.coordination
+- Added 9 tests in test_mcp.py::TestStrategySuggestionsWorkflow
+- Tests cover: imports, class creation, workflow execution, user personalization, dataclasses, workflow creation, no patterns case
+- Updated features.json: strategy_suggestions passing (9 tests)
+- 158 tests passing
+- feedback_system complete (pattern_learner + strategy_suggestions)
+
+Next: All Phase 3 feedback_system features complete. Remaining: schema_update in data_layer.
+
+Session 139: Reconcile civic-app-schema.json with FINAL_PACKAGE models.
+- Updated civic-app-schema.json to v2.0.0
+- Added 5 new definitions from FINAL_PACKAGE_ARCHITECTURE:
+  - Initiative: User-created initiative with topic, title, description, status
+  - Voice: User stance (support/oppose/question) on items
+  - Subscription: User following items for updates with notification_prefs
+  - Outcome: Recorded outcome (passed/failed/continued/modified) for feedback loop
+  - CoordinationPlan: Collective action plan with steps, participants, deadline
+- All definitions match implemented dataclasses in packages/civic/src/civic/actions/ and orchestrator/
+- Updated features.json: schema_update passing
+- 158 tests passing
+
+All features.json items now passing. Core Civic platform complete.
+
+Session 140: Implement phase-based development framework for post-implementation stages.
+- Created phase.json to track current development phase (hardening → integration → pilot)
+- Created verification.json checklist with 48 items derived from VERIFICATION_TUTORIAL.md
+  - e2e_tests: Python API, REST API, MCP server, database verification
+  - edge_cases: Empty results, invalid input, data limits
+  - error_handling: Database errors, API errors, MCP errors
+  - security_review: Input validation, data exposure
+  - code_audit: Architecture, test coverage, dependencies, documentation
+- Updated CLAUDE.md with phase-based development documentation
+- Updated .claude/commands/start.md to be phase-aware (detects current phase, loads appropriate checklist)
+- Updated init.sh to display current phase and progress (0/48 items)
+- 158 tests passing
+
+Framework ready. Next: Begin hardening phase - first item is civic_instantiation e2e test.
+
+Session 141: Complete phase-based development framework.
+- Created integration.json checklist (40 items):
+  - real_data_validation: San Rafael data extraction and query testing
+  - concurrent_users: Multi-user scenarios, database contention
+  - platform_extraction_failures: Graceful degradation when Legistar fails
+  - load_testing: API performance, database performance
+  - mcp_agent_sequences: Realistic AI agent tool call patterns
+  - websocket_integration: Real-time update verification
+- Created pilot.json checklist (53 items):
+  - deployment_artifacts: Docker, config, database, infrastructure
+  - monitoring_observability: Health checks, logging, alerting, metrics
+  - rollback_procedures: Deployment docs, data safety, version management
+  - user_documentation: End user, admin, MCP integration docs
+  - pilot_validation: Technical, operational, user readiness criteria
+- Added frontend_browser section to verification.json (+7 items, now 55 total)
+- Updated start.md with full phase support (integration/pilot item selection + context guides)
+- 158 tests passing
+
+Total framework: 148 items across 3 phases (55 + 40 + 53)
+Next: Run /start to begin hardening phase with civic_instantiation e2e test.
+
+Session 142: Begin hardening phase - civic_instantiation e2e test.
+- Created packages/civic/tests/test_e2e_verification.py for e2e verification tests
+- Implemented 12 automated tests mapping to verification.json items:
+  - test_civic_instantiation (+ 2 variants for custom db and StateManager)
+  - test_query_whats_next
+  - test_query_what_applies
+  - test_query_what_happened
+  - test_query_whos_with_me
+  - test_action_start_something
+  - test_action_add_voice
+  - test_action_follow
+  - test_orchestration_suggestions
+  - test_orchestration_report_outcome
+- Updated verification.json: civic_instantiation status -> verified
+- 170 tests passing (158 original + 12 new e2e tests)
+
+Hardening progress: 1/55 items verified
+Next: Continue with remaining python_api e2e tests (priority 1 items).
+
+Session 143: Complete python_api e2e verification.
+- All 12 python_api tests already implemented in Session 142 were verified passing
+- Updated verification.json: all 10 python_api items now status=verified
+  - civic_instantiation (already done in session 142)
+  - query_whats_next
+  - query_what_applies
+  - query_what_happened
+  - query_whos_with_me
+  - action_start_something
+  - action_add_voice
+  - action_follow
+  - orchestration_suggestions
+  - orchestration_report_outcome
+- 170 tests passing
+
+Hardening progress: 10/51 items verified (19%)
+Next: rest_api e2e tests (server_starts, GET/POST endpoints).
+
+Session 144: Complete REST API e2e verification tests.
+- Implemented 6 REST API e2e tests in TestRestApiE2E class:
+  - test_server_starts: Verifies server starts and health/status endpoints respond
+  - test_get_events: Tests GET /api/events with authentication
+  - test_get_what_applies: Tests GET /api/legislative/state?topic=housing
+  - test_get_what_happened: Tests GET /api/issues?user_id=xxx
+  - test_post_start_something: Tests POST /api/issues creates record
+  - test_post_add_voice: Tests POST /api/follows creates subscription
+- Uses dynamic port allocation to avoid conflicts during parallel test runs
+- Server started via subprocess with test API key
+- Updated verification.json: all 6 rest_api items now status=verified
+- 176 tests passing (170 original + 6 new REST API e2e tests)
+
+Hardening progress: 16/55 items verified (29%)
+Next: mcp_server e2e tests (tools_list, query/action/orchestration execution).
+
+Session 145: Complete MCP server e2e verification tests.
+- Implemented 5 MCP server e2e tests in TestMcpServerE2E class:
+  - test_tools_list: Verifies all 11 MCP tools are registered (4 query, 4 action, 3 orchestration)
+  - test_tools_have_descriptions: Verifies all tools have descriptions for AI understanding
+  - test_query_tools_execute: Tests what_applies, whats_next, what_happened, whos_with_me
+  - test_action_tools_execute: Tests start_something, add_voice, follow
+  - test_orchestration_tools_execute: Tests get_suggestions, coordinate, report_outcome
+- Tests use FastMCP's async list_tools() and call_tool() methods directly
+- Added _parse_tool_result() helper to extract JSON from MCP TextContent responses
+- Updated verification.json: all 4 mcp_server items now status=verified
+- 181 tests passing (176 original + 5 new MCP e2e tests)
+
+Hardening progress: 20/55 items verified (36%)
+Next: database e2e tests (tables_exist, records_persist).
+
+Session 146: Complete database e2e verification tests.
+- Implemented 7 database e2e tests in TestDatabaseE2E class:
+  - test_tables_exist: Verifies all 8 required tables are created by StateManager
+  - test_tables_have_expected_columns: Validates each table has expected key columns
+  - test_indexes_created: Confirms performance indexes exist (meetings, initiatives, etc.)
+  - test_records_persist: Verifies initiatives/voices survive StateManager restart
+  - test_meetings_persist_with_temporal_versioning: Tests temporal versioning persistence
+  - test_subscriptions_persist_with_unique_constraint: Tests unique constraint handling
+  - test_outcomes_persist: Verifies vote breakdown JSON persists correctly
+- Updated verification.json: database items (tables_exist, records_persist) now status=verified
+- 188 tests passing (181 original + 7 new database e2e tests)
+
+Hardening progress: 22/51 items verified (43%)
+Next: edge_cases tests or frontend_browser tests.
+
+Session 147: Complete frontend_browser e2e verification tests.
+- Implemented 8 frontend browser e2e tests in TestFrontendBrowserE2E class:
+  - test_app_loads: Verifies Vite dev server serves HTML with Vue mount point
+  - test_app_loads_with_assets: Verifies static assets (main.ts, CSS) are served
+  - test_event_browsing: Verifies events API returns list with expected structure
+  - test_legislative_panel: Verifies state and federal legislative endpoints
+  - test_issue_creation: Tests full issue creation flow (POST + GET verification)
+  - test_comment_drafting: Verifies draft comment API endpoints
+  - test_coordination_chat: Tests thread creation, message send/receive
+  - test_responsive_layout: Verifies viewport meta and media queries for mobile
+- Tests start both API server and Vite frontend server with dynamic ports
+- Updated verification.json: all 7 frontend_browser items now status=verified
+- 196 tests passing (188 original + 8 new frontend e2e tests)
+
+Hardening progress: 29/51 items verified (56%)
+Next: edge_cases tests (no_meetings, no_context, unknown_jurisdiction, etc.).
+
+Session 148: Complete edge_cases e2e verification tests.
+- Implemented 20 edge case tests in 3 new test classes:
+  - TestEdgeCasesEmptyResults (7 tests):
+    - test_no_meetings: whats_next() returns empty list for fresh DB
+    - test_no_meetings_with_topics_filter: empty list with topic filter
+    - test_no_context: what_applies() handles unknown topics gracefully
+    - test_no_context_empty_topic: handles empty string topic
+    - test_no_history: what_happened() returns empty list for new topics
+    - test_no_history_with_date_filter: empty list with date filter
+    - test_no_community: whos_with_me() returns zero counts for niche topics
+  - TestEdgeCasesInvalidInput (9 tests):
+    - test_unknown_jurisdiction: Civic('fake-city') works gracefully
+    - test_empty_topic: what_applies('') handles gracefully
+    - test_whitespace_only_topic: handles whitespace topics
+    - test_invalid_item_type: add_voice() raises ValueError for bad item_type
+    - test_valid_item_types: verifies all 3 valid types work
+    - test_invalid_stance: add_voice() raises ValueError for bad stance
+    - test_valid_stances: verifies all 3 valid stances work
+    - test_missing_required_fields: documents empty title behavior
+    - test_missing_description: documents empty description behavior
+  - TestEdgeCasesDataLimits (4 tests):
+    - test_long_comment: 10k character comment handled correctly
+    - test_unicode_comment: unicode/emoji characters stored properly
+    - test_many_voices: 100 voices created in <10s, queries in <2s
+    - test_many_subscriptions: 100 subscriptions per user handled
+- Updated verification.json: all 12 edge_cases items now status=verified
+- 216 tests passing (196 original + 20 new edge case tests)
+
+Hardening progress: 41/55 items verified (75%)
+Next: error_handling tests (connection_failure, malformed_json, etc.) or security_review.
+
+Session 149: Complete error_handling e2e verification tests.
+- Implemented 15 error handling tests in 3 new test classes:
+  - TestErrorHandlingDatabaseErrors (5 tests):
+    - test_connection_failure_invalid_path: graceful error for non-existent path
+    - test_connection_failure_readonly_location: graceful error for read-only dir
+    - test_connection_failure_corrupted_db_file: graceful handling of corrupt DB
+    - test_write_failure_transaction_rollback: state preserved after failed write
+    - test_write_failure_concurrent_access: concurrent writes don't corrupt state
+  - TestErrorHandlingApiErrors (5 tests):
+    - test_malformed_json_invalid_syntax: invalid JSON detected
+    - test_malformed_json_empty_body: empty POST body handled
+    - test_malformed_json_wrong_content_type: non-JSON content type handled
+    - test_missing_params_create_issue: missing fields handled
+    - test_missing_params_add_voice: invalid stance raises ValueError
+  - TestErrorHandlingMcpErrors (5 tests):
+    - test_invalid_tool_unknown_name: MCP server tools verified
+    - test_invalid_tool_graceful_mcp_missing: missing MCP handled
+    - test_invalid_params_wrong_type: invalid item_type raises ValueError
+    - test_invalid_params_missing_required: missing params handled
+    - test_invalid_params_sql_injection_attempt: SQL injection prevented
+- Updated verification.json: all 6 error_handling items now status=verified
+- 231 tests passing (216 previous + 15 new error handling tests)
+
+Hardening progress: 47/55 items verified (85%)
+Next: security_review tests (sql_injection, xss_prevention, no_secrets_in_logs, error_messages_safe).
+
+Session 150: Complete sql_injection security verification tests.
+- Implemented 14 comprehensive SQL injection security tests in TestSecuritySqlInjection class:
+  - test_state_manager_parameterized_queries_jurisdiction: Tests jurisdiction_id SQL injection
+  - test_state_manager_parameterized_queries_topic: Tests topic/issue_type SQL injection
+  - test_state_manager_parameterized_queries_item_fields: Tests item_id/item_type SQL injection
+  - test_civic_api_start_something_sql_injection: Tests Civic.start_something() injection protection
+  - test_civic_api_add_voice_sql_injection: Tests Civic.add_voice() injection protection
+  - test_civic_api_follow_sql_injection: Tests Civic.follow() injection protection
+  - test_civic_api_report_outcome_sql_injection: Tests Civic.report_outcome() injection protection
+  - test_input_validator_blocks_sql_injection: Tests CivicInputValidator pattern detection
+  - test_input_validator_allows_legitimate_sql_keywords: Tests false positive avoidance
+  - test_state_manager_like_clause_injection: Tests LIKE clause injection protection
+  - test_second_order_sql_injection: Tests second-order/stored injection protection
+  - test_blind_sql_injection_timing: Tests time-based blind injection protection
+  - test_error_based_sql_injection: Tests error-based injection protection
+  - test_verify_parameterized_queries_in_source: Static analysis of StateManager queries
+- Updated verification.json: sql_injection status=verified
+- 245 tests passing (231 previous + 14 new SQL injection security tests)
+
+Hardening progress: 48/55 items verified (87%)
+Next: xss_prevention tests (security_review > input_validation > xss_prevention).
+
+Session 151: Complete xss_prevention security verification tests.
+- Implemented 19 comprehensive XSS prevention security tests in TestSecurityXssPrevention class:
+  - test_input_validator_blocks_script_tags: Tests script tag XSS patterns
+  - test_input_validator_blocks_event_handlers: Tests event handler XSS (onclick, onerror, etc.)
+  - test_input_validator_blocks_javascript_urls: Tests javascript: URL XSS patterns
+  - test_input_validator_blocks_data_urls: Tests data: URL XSS patterns
+  - test_sanitize_text_escapes_html_entities: Tests HTML entity escaping (<, >, &, ", ')
+  - test_sanitize_text_removes_null_bytes: Tests null byte and control character removal
+  - test_input_validator_blocks_template_injection: Tests double-brace and dollar-brace injection
+  - test_civic_api_sanitizes_comments: Tests add_voice() XSS sanitization
+  - test_civic_api_sanitizes_initiative_description: Tests start_something() XSS sanitization
+  - test_state_manager_stores_safe_data: Tests database storage safety
+  - test_input_validator_blocks_dangerous_tags: Tests iframe/object/embed/link/meta tag blocking
+  - test_input_validator_blocks_encoded_xss: Tests HTML entity/hex/URL encoded XSS
+  - test_input_validator_blocks_svg_xss: Tests SVG-based XSS vectors
+  - test_input_validator_blocks_html_comments: Tests HTML comment XSS patterns
+  - test_input_validator_allows_legitimate_angle_brackets: Tests false positive avoidance
+  - test_xss_prevention_in_api_endpoints: Tests defense in depth across API entry points
+  - test_output_sanitization_concept: Tests DOMPurify-style whitelist alignment
+  - test_verify_html_escape_in_source: Static analysis of html.escape usage
+  - test_verify_xss_patterns_coverage: Static analysis of OWASP pattern coverage
+- Updated verification.json: xss_prevention status=verified
+- 264 tests passing (245 previous + 19 new XSS prevention tests)
+
+Hardening progress: 49/55 items verified (89%)
+Next: no_secrets_in_logs tests (security_review > data_exposure > no_secrets_in_logs).
+
+Session 152: Complete no_secrets_in_logs security verification tests.
+- Implemented 17 comprehensive security tests in TestSecurityNoSecretsInLogs class:
+  - test_no_api_key_in_logging_statements: Static analysis of logging for API key variables
+  - test_no_password_in_logging_statements: Static analysis for password variable logging
+  - test_no_bearer_token_in_logging_statements: Static analysis for token variable logging
+  - test_env_vars_not_logged_directly: Static analysis for os.environ/os.getenv logging
+  - test_openai_api_key_not_logged: Static analysis for OpenAI API key variable logging
+  - test_state_manager_logging_no_secrets: Runtime capture test for StateManager logs
+  - test_civic_api_logging_no_secrets: Runtime capture test for Civic API logs
+  - test_error_messages_dont_expose_api_keys: Static analysis of raise/error statements
+  - test_exception_handlers_dont_log_sensitive_context: Exception handling analysis
+  - test_config_files_not_logged: Static analysis for config logging
+  - test_database_connection_strings_not_logged: Static analysis for connection strings
+  - test_comprehensive_secret_pattern_scan: Scan for actual secret patterns (sk-, AIza, etc.)
+  - test_verify_safe_logging_patterns_in_state_manager: Verify StateManager uses safe patterns
+  - test_api_server_no_secret_logging: Verify API server safe logging
+  - test_input_validator_logging_truncates_sensitive_data: Verify data truncation in logs
+  - test_no_credentials_in_debug_mode_output: Debug logging safety check
+  - test_print_statements_no_secrets: Print statement security analysis
+- Key design decisions:
+  - Tests check for VARIABLE INTERPOLATION (actual values), not documentation text
+  - Acceptable: "Set OPENAI_API_KEY env var", "Bearer token required" (docs)
+  - Not acceptable: logger.info(f"Key: {api_key}") (actual value exposure)
+- Updated verification.json: no_secrets_in_logs status=verified
+- 281 tests passing (264 previous + 17 new no_secrets_in_logs tests)
+
+Hardening progress: 50/55 items verified (91%)
+Next: error_messages_safe tests (security_review > data_exposure > error_messages_safe).
+
+Session 153: Complete error_messages_safe security verification tests.
+- Implemented 15 comprehensive security tests in TestSecurityErrorMessagesSafe class:
+  - test_raise_statements_no_absolute_paths: Static analysis for absolute paths in raise
+  - test_error_responses_no_paths_in_api: Static analysis for paths in send_error calls
+  - test_str_exception_no_path_in_client_responses: Client-facing responses don't expose paths
+  - test_civic_api_exceptions_no_paths: Runtime test for Civic API error messages
+  - test_state_manager_exceptions_no_paths: Runtime test for StateManager error messages
+  - test_file_not_found_errors_no_paths: File errors don't expose internal project paths
+  - test_api_error_responses_safe: API error responses are path-safe
+  - test_traceback_not_in_api_responses: Tracebacks not sent to clients
+  - test_value_error_messages_are_generic: ValueErrors are user-friendly without paths
+  - test_import_error_messages_are_helpful: ImportErrors guide users without exposing paths
+  - test_error_logging_no_full_paths: Error logging doesn't contain hardcoded paths
+  - test_mcp_tool_errors_safe: MCP tool errors don't expose paths
+  - test_database_errors_hide_path: Database errors don't reveal file locations
+  - test_validation_errors_user_friendly: Validation errors guide users properly
+  - test_comprehensive_path_exposure_scan: Comprehensive scan for path exposure
+- Key design decisions:
+  - Server-side debugging (traceback.print_exc(), logger calls) is acceptable
+  - Client-facing errors (send_error, send_json, return) must not expose paths
+  - Tests focus on what's returned to API clients, not server console output
+- Updated verification.json: error_messages_safe status=verified
+- 296 tests passing (281 previous + 15 new error_messages_safe tests)
+
+Hardening progress: 51/55 items verified (93%)
+Next: code_audit items (architecture_review, test_coverage_review, dependency_audit, documentation_completeness).
+
+Session 154: Complete all code_audit verification tests.
+- Implemented 24 comprehensive code audit tests across 4 test classes:
+  - TestCodeAuditArchitecture (7 tests):
+    - test_public_api_methods_exist: All 11 API methods present on Civic class
+    - test_result_types_defined: All 11 result dataclasses defined
+    - test_package_structure_matches_architecture: Matches FINAL_PACKAGE_ARCHITECTURE.md
+    - test_mcp_tools_match_public_api: MCP server correctly wraps Civic API
+    - test_four_layer_architecture_implemented: Intelligence, Orchestration, Coordination layers exist
+    - test_query_centric_design: Methods use topic/topics not government_level
+    - test_graceful_degradation: Core functionality works without optional dependencies
+  - TestCodeAuditTestCoverage (6 tests):
+    - test_all_public_api_methods_have_tests: All API methods have test coverage
+    - test_mcp_tools_have_tests: MCP tools have test coverage
+    - test_action_modules_have_tests: Action modules have dedicated tests
+    - test_edge_cases_covered: Edge case test classes exist
+    - test_security_tests_exist: Security test classes exist
+    - test_minimum_test_count: 320+ tests exist (baseline quality gate)
+  - TestCodeAuditDependencies (4 tests):
+    - test_core_dependencies_minimal: Only 2 core deps (httpx, langgraph)
+    - test_optional_dependencies_categorized: mcp, embeddings, dev categories
+    - test_no_vulnerable_dependencies: No known vulnerable patterns
+    - test_python_version_requirement: Python 3.10+ required
+  - TestCodeAuditDocumentation (7 tests):
+    - test_critical_docs_exist: All 5 critical docs present
+    - test_verification_tutorial_exists: VERIFICATION_TUTORIAL.md exists
+    - test_claude_md_exists_and_valid: CLAUDE.md has required sections
+    - test_phase_tracking_files_exist: phase.json, verification.json valid
+    - test_readme_exists: packages/civic/README.md exists
+    - test_docstrings_on_public_api: All API methods have docstrings
+    - test_mcp_tools_have_descriptions: MCP tools have descriptions
+- Created packages/civic/README.md for documentation completeness
+- Updated verification.json: all 4 code_audit items status=verified
+- 320 tests passing (296 previous + 24 new code audit tests)
+
+HARDENING PHASE COMPLETE: 55/55 items verified (100%)
+All verification.json items are now verified. Ready to advance to integration phase.
+
+## Session 155: Phase Transition - Hardening to Integration
+
+PHASE TRANSITION COMPLETE: hardening → integration
+
+Hardening Phase Summary:
+- 55/55 verification items complete (100%)
+- 320 tests total
+- All categories verified:
+  - e2e_tests: Python API, REST API, MCP server tests
+  - edge_cases: Empty data, invalid input, boundary conditions
+  - error_handling: API errors, database errors, MCP errors, extraction errors
+  - security_review: SQL injection, XSS, secrets, safe error messages
+  - code_audit: Architecture, test coverage, dependencies, documentation
+
+Integration Phase Starting:
+- Active checklist: integration.json
+- 38 items to test across 6 categories:
+  1. real_data_validation (10 items): San Rafael Legistar extraction, query validation
+  2. concurrent_users (7 items): Simultaneous writes, database contention
+  3. platform_extraction_failures (6 items): Graceful degradation
+  4. load_testing (5 items): API performance, database optimization
+  5. mcp_agent_sequences (8 items): Realistic AI agent workflows
+  6. websocket_integration (4 items): Real-time event propagation
+
+Next item: legistar_san_rafael (priority 1) - Extract real meetings from San Rafael Legistar
+
+## Session 156: San Rafael Data Extraction Integration Tests
+
+Completed integration.json > real_data_validation > data_extraction (4 items):
+
+1. san_rafael_extraction: TESTED
+   - Verified SanRafaelArchiveScraper extracts meetings from ProudCity/WordPress site
+   - 236+ City Council meetings extracted from archives
+   - All meeting types supported: city_council, planning_commission, fire_commission,
+     tax_oversight, zoning_administrator, council_subcommittees
+   - Test: test_san_rafael_extraction_city_council, test_san_rafael_extraction_all_types
+
+2. meeting_data_quality: TESTED
+   - All meetings have required fields: title, date, meeting_url, meeting_type
+   - Date format validated (ISO format)
+   - No duplicate meetings in extraction
+   - Test: test_meeting_data_quality_required_fields, test_meeting_data_quality_no_duplicates
+
+3. agenda_items_present: TESTED
+   - PDF URLs extracted from meeting pages (agenda packets, minutes)
+   - Both agenda_packet_url and minutes_url successfully extracted
+   - Test: test_agenda_items_present_pdf_extraction, test_minutes_extraction
+
+4. historical_data_depth: TESTED
+   - 6+ months of historical data available
+   - 12-month comprehensive scrape tested (50+ meetings per year)
+   - Test: test_historical_data_depth, test_historical_data_12_months
+
+New test file: packages/civic/tests/test_integration_extraction.py
+- 9 new integration tests
+- 329 tests passing (320 previous + 9 new)
+
+Integration Progress: 4/38 items tested (10.5%)
+
+Next: query_with_real_data items (whats_next_real, what_applies_real)
+
+Session 157: Extraction consolidation - ProudCityClient in civic-extraction
+- Created packages/civic-extraction/src/civic_extraction/clients/proudcity.py
+  - ProudCityClient extends BaseExtractor with get_events(), normalize_event(), platform_name
+  - Includes all functionality from original SanRafaelArchiveScraper
+  - Added get_meeting_pdfs() method for PDF URL extraction
+  - Factory function create_san_rafael_client() for convenience
+- Updated packages/civic-extraction exports to include ProudCityClient
+- Added 11 new unit tests in test_clients.py:
+  - TestProudCityClient: initialization, archives, date parsing, normalization, filtering
+  - TestSanRafaelFactory: convenience factory
+  - TestExtractorProtocol: ProudCityClient implements Extractor protocol
+- Updated test_integration_extraction.py to use new ProudCityClient:
+  - Changed imports from scripts/scrape_sanrafael_archives to civic_extraction
+  - Updated all fixtures from scraper to client
+  - Method name changes: scrape_archive_page -> _scrape_archive_page, etc.
+- All 329 tests passing + 11 new tests = 340 tests
+
+Integration Progress: 5/38 items tested (13%)
+
+Next: query_with_real_data items (whats_next_real, what_applies_real)
+
+Session 158: Concurrent user integration tests
+- Created packages/civic/tests/test_integration_concurrent.py with 8 new tests:
+  - TestConcurrentVoices: test_concurrent_voices_10_users, test_concurrent_voices_mixed_stances
+  - TestConcurrentFollows: test_concurrent_follows_10_users
+  - TestVoiceCountAccuracy: test_voice_count_accurate
+  - TestNoDuplicateSubscriptions: test_no_duplicate_subscriptions, test_no_duplicate_subscriptions_concurrent
+  - TestDatabaseContention: test_write_conflicts
+  - TestReadDuringWrite: test_read_during_write
+- Uses ThreadPoolExecutor to simulate 10-20 concurrent users
+- Tests verify SQLite handles concurrent writes without database locks
+- Confirms voice_count counter remains accurate under concurrent writes
+- UNIQUE constraint on subscriptions prevents duplicate follows
+- Updated integration.json: 7 concurrent_users items now tested
+- All 337 tests passing (329 previous + 8 new)
+
+Integration Progress: 12/38 items tested (31.5%)
+
+Next: query_with_real_data items or platform_extraction_failures
+
+Session 159: Platform extraction failure integration tests
+- Created packages/civic/tests/test_integration_extraction_failures.py with 19 new tests:
+  - TestScraperTimeout: 5 tests for timeout handling
+    - test_scraper_timeout_single_request: verifies _make_request returns None on timeout
+    - test_scraper_timeout_archive_page: verifies empty list returned on timeout
+    - test_scraper_timeout_get_events: verifies empty list when all archives timeout
+    - test_scraper_timeout_partial_success: verifies partial data when some archives work
+    - test_scraper_timeout_pdf_extraction: verifies empty PDF structure on timeout
+  - TestScraper404: 4 tests for 404/500 error handling
+    - test_scraper_404_single_request, archive_page, pdf_extraction, 500_error
+  - TestHtmlStructureChange: 5 tests for HTML structure change detection
+    - no_meetings_pattern, different_link_pattern, empty_page, malformed_html, pdf_section_missing
+  - TestConnectionErrors: 3 tests for connection failures
+    - connection_refused, dns_resolution_failure, ssl_error
+  - TestRetryBehavior: 2 tests for retry logic
+    - retry_success_after_failures, all_retries_exhausted
+- Uses mocking to simulate failure scenarios without waiting for actual timeouts
+- Updated integration.json: 3 web_scraper_failures items now tested
+- All 356 tests passing (337 previous + 19 new)
+
+Integration Progress: 15/38 items tested (39.5%)
+
+Next: legistar_timeout (priority 1) or query_with_real_data items (priority 2)
+Session 160: Legistar failure integration tests
+- Added 13 new Legistar tests to packages/civic/tests/test_integration_extraction_failures.py:
+  - TestLegistarTimeout: 5 tests for timeout/connection handling
+    - test_legistar_timeout_single_request: verifies _make_request returns None on timeout
+    - test_legistar_timeout_get_events: verifies empty list returned on timeout
+    - test_legistar_timeout_get_bodies: verifies empty list returned on timeout
+    - test_legistar_connection_refused: verifies connection refused handled gracefully
+    - test_legistar_ssl_error: verifies SSL errors handled gracefully
+  - TestLegistarRateLimit: 4 tests for rate limiting and backoff
+    - test_legistar_rate_limit_429: verifies 429 triggers backoff and retry
+    - test_legistar_rate_limit_all_retries_exhausted: verifies graceful failure
+    - test_legistar_500_with_backoff: verifies 500 errors trigger retry
+    - test_legistar_502_503_backoff: verifies 502/503 errors trigger retry
+  - TestLegistarErrorResponses: 4 tests for error responses
+    - test_legistar_404_returns_none: verifies 404 returns None (no retry)
+    - test_legistar_401_returns_none: verifies 401 returns None (no retry)
+    - test_legistar_empty_json_response: verifies empty JSON handled
+    - test_legistar_malformed_json: verifies malformed JSON handled gracefully
+- Uses mocking to simulate Legistar API failure scenarios
+- Updated integration.json: 2 legistar_failures items now tested
+- All 369 tests passing (356 previous + 13 new)
+
+Integration Progress: 17/38 items tested (44.7%)
+
+Next: cached_data_used (priority 1) or query_with_real_data items (priority 2)
+Session 161: Cached data fallback integration tests
+- Added 8 new cached data fallback tests to packages/civic/tests/test_integration_extraction_failures.py:
+  - TestCachedDataFallback: 8 tests for cached data serving when extraction fails
+    - test_cached_meetings_served_when_extraction_fails: pre-populated StateManager data accessible via Civic API
+    - test_cached_data_persists_across_instances: data survives StateManager restarts
+    - test_cached_data_survives_failed_extraction_update: existing data preserved when extraction fails
+    - test_civic_whats_next_uses_cached_data: end-to-end Civic API -> StateManager -> SQLite
+    - test_multiple_jurisdictions_cached_independently: San Rafael/Berkeley isolated caches
+    - test_temporal_versioning_preserves_history: historical data queryable via as_of parameter
+    - test_empty_extraction_does_not_delete_cache: documents protection at extraction layer
+    - test_extraction_failure_returns_gracefully: ProudCityClient returns empty list (not exception)
+- Fixed bug in StateManager.update_meetings(): valid_to used raw datetime while valid_from used isoformat()
+  - This caused temporal queries to fail due to inconsistent string comparison in SQLite
+  - Fix: Use as_of.isoformat() for valid_to as well (line 338 in manager.py)
+- Updated integration.json: cached_data_used now tested
+- All 377 tests passing (369 previous + 8 new)
+
+Integration Progress: 18/38 items tested (47.4%)
+
+Next: partial_extraction (priority 2) or query_with_real_data items (priority 2)
+Session 162: Load testing integration tests
+- Added 10 new load testing tests to packages/civic/tests/test_integration_load.py:
+  - TestQueryLatencyP95: 5 tests for query method performance
+    - test_whats_next_p95_under_500ms: verifies whats_next() p95 < 500ms
+    - test_what_applies_p95_under_500ms: verifies what_applies() p95 < 500ms
+    - test_what_happened_p95_under_500ms: verifies what_happened() p95 < 500ms
+    - test_whos_with_me_p95_under_500ms: verifies whos_with_me() p95 < 500ms
+    - test_all_query_methods_p95_combined: mixed workload performance test
+  - TestActionLatencyP95: 3 tests for action method performance
+    - test_start_something_p95_under_1s: verifies start_something() p95 < 1s
+    - test_add_voice_p95_under_1s: verifies add_voice() p95 < 1s
+    - test_follow_p95_under_1s: verifies follow() p95 < 1s
+  - TestConcurrentRequests: 2 tests for concurrent request handling
+    - test_50_concurrent_query_requests: 50 concurrent query requests
+    - test_50_concurrent_mixed_requests: 50 concurrent mixed read/write requests
+- Updated integration.json: 3 load_testing items now tested
+- All 387 tests passing (377 previous + 10 new)
+
+Integration Progress: 21/38 items tested (55.3%)
+
+Next: browse_then_filter (priority 1) - MCP agent sequences
+Session 163: MCP agent sequence integration tests
+- Added 12 new MCP agent sequence tests in packages/civic/tests/test_integration_mcp_sequences.py:
+  - TestDiscoverySequence: 4 tests for browse_then_filter
+    - test_browse_then_filter_sequence_basic: whats_next → what_applies basic flow
+    - test_browse_then_filter_multiple_topics: multiple meetings, multiple topics
+    - test_browse_then_filter_with_location: location parameter support
+    - test_browse_then_filter_empty_results: handles no meetings gracefully
+  - TestResearchWorkflow: 4 tests for research workflow
+    - test_research_workflow_basic: what_happened → whos_with_me → prepare
+    - test_research_workflow_with_existing_initiative: workflow with community activity
+    - test_research_workflow_prepare_not_found: error handling for missing agenda
+    - test_research_workflow_full_with_user_context: user personalization
+  - TestSequenceDataConsistency: 2 tests for data consistency
+  - TestSequenceErrorHandling: 2 tests for error recovery
+- Discovered data model issue: whats_next() doesn't extract agenda_items from nested full_data
+  - prepare() handles it correctly via double-check logic
+  - Root cause: update_meetings() stores entire meeting dict as full_data JSON
+  - Added data_model_consistency section to integration.json with 6 new items to fix
+- Updated integration.json: browse_then_filter, research_workflow marked tested
+- All 399 tests passing (387 previous + 12 new)
+
+Integration Progress: 22/57 items tested (38.6%)
+Note: Added 6 new data_model_consistency items for future work
+
+Next: create_and_voice (priority 1) - MCP action sequences
+Session 164: MCP action sequence integration tests
+- Added 15 new tests for MCP action sequences in packages/civic/tests/test_integration_mcp_sequences.py:
+  - TestActionSequence: 4 tests for create_and_voice
+    - test_create_and_voice_basic: start_something → add_voice → follow sequence
+    - test_create_and_voice_multiple_users: multiple users support an initiative
+    - test_create_and_voice_with_opposition: mixed support/oppose/question stances
+    - test_create_and_voice_then_community_check: initiative visible after creation
+  - TestCoordinateWorkflow: 4 tests for coordinate_workflow
+    - test_coordinate_workflow_basic: full initiative lifecycle with outcome
+    - test_coordinate_workflow_with_vote_breakdown: outcome with vote details
+    - test_coordinate_workflow_failed_outcome: handling failed initiatives
+    - test_coordinate_workflow_agenda_item_outcome: outcomes for agenda items
+  - TestActionSequenceDataConsistency: 3 tests for data persistence
+    - test_initiative_visible_after_creation: initiative stored in state
+    - test_voices_accumulate_correctly: multiple voices stored correctly
+    - test_subscriptions_stored_correctly: subscriptions persisted
+  - TestActionSequenceErrorHandling: 4 tests for error handling
+    - test_invalid_stance_raises_error: invalid stance validation
+    - test_invalid_item_type_raises_error: invalid item_type validation
+    - test_invalid_follow_item_type_raises_error: follow item_type validation
+    - test_workflow_continues_after_voice_error: error recovery
+- Updated integration.json: create_and_voice, coordinate_workflow marked tested
+- All 414 tests passing (399 previous + 15 new)
+
+Integration Progress: 24/57 items tested (42.1%)
+
+Next: read_after_write (priority 1) - MCP state consistency
+Session 165: MCP state consistency integration tests
+- Added 13 new tests for MCP state consistency in packages/civic/tests/test_integration_mcp_sequences.py:
+  - TestReadAfterWrite: 6 tests verifying writes are immediately visible in reads
+    - test_initiative_visible_in_whats_next_after_creation
+    - test_initiative_visible_in_query_immediately
+    - test_voice_visible_after_add
+    - test_subscription_visible_after_follow
+    - test_outcome_visible_after_report
+    - test_multiple_writes_all_visible (complete workflow)
+  - TestCrossToolConsistency: 7 tests verifying data consistency across tools
+    - test_initiative_consistent_across_civic_and_state_manager
+    - test_meeting_consistent_across_query_methods
+    - test_voice_counts_consistent
+    - test_whos_with_me_reflects_community_activity
+    - test_prepare_uses_consistent_data
+    - test_multiple_tools_see_same_initiative_state
+    - test_sequential_operations_maintain_consistency (complete workflow)
+- Updated integration.json: read_after_write, cross_tool_consistency marked tested
+- All 427 tests passing (414 previous + 13 new)
+
+Integration Progress: 26/57 items tested (45.6%)
+
+Next: retry_after_error (priority 2) - MCP error recovery
+Session 166: WebSocket integration tests
+- Added 23 new tests for WebSocket integration in packages/civic/tests/test_integration_websocket.py:
+  - TestConnectionHandling: 6 tests for connection lifecycle
+    - test_connect_with_valid_auth: verifies auth and session tracking
+    - test_connect_without_auth_rejected: verifies auth required
+    - test_connect_without_user_id_rejected: verifies user_id required
+    - test_connect_with_invalid_user_id_rejected: verifies valid user_id
+    - test_disconnect_cleans_up_session: verifies cleanup on disconnect
+    - test_disconnect_without_thread_membership: graceful disconnect without thread
+  - TestReconnection: 2 tests for reconnection handling
+    - test_reconnection_restores_session: reconnect creates new session
+    - test_multiple_connections_same_user: multiple devices supported
+  - TestThreadOperations: 4 tests for thread join/leave
+    - test_join_thread_authorized, test_join_thread_unauthorized
+    - test_join_thread_not_authenticated, test_leave_thread
+  - TestMessaging: 4 tests for message sending
+    - test_send_message_success, test_send_message_rate_limited
+    - test_send_message_not_authenticated, test_send_message_missing_content
+  - TestTypingIndicators: 2 tests for typing events
+    - test_typing_broadcast, test_stop_typing_broadcast
+  - TestRateLimiting: 3 tests for rate limiting
+    - test_rate_limit_allows_within_window
+    - test_rate_limit_blocks_excess
+    - test_rate_limit_expires
+  - TestUserVerification: 2 tests for thread authorization
+    - test_verify_user_in_thread_with_participants
+    - test_verify_user_in_thread_empty
+- Updated integration.json: all 4 websocket_integration items now tested
+- All 450 tests passing (427 previous + 23 new)
+
+Integration Progress: 30/57 items tested (52.6%)
+
+Next: retry_after_error (priority 2) - MCP error recovery
+
+## Session 167 - December 3, 2025
+
+### Focus: whats_next_real integration test
+
+### Completed:
+- Added TestWhatsNextWithRealData class with 5 tests:
+  - test_whats_next_queries_real_san_rafael_meetings: validates query mechanism
+  - test_whats_next_meeting_structure_when_data_exists: verifies schema
+  - test_whats_next_extracts_agenda_items: checks full_data extraction
+  - test_whats_next_date_filtering: validates future-only filtering
+  - test_whats_next_real_san_rafael_data_quality: checks data quality
+- Updated integration.json: whats_next_real marked as tested
+- All 455 tests passing (450 previous + 5 new)
+
+Integration Progress: 31/57 items tested (54.4%)
+
+Next: what_applies_real (priority 2) - Real data regulatory context
+
+## Session 168 - December 3, 2025
+
+### Focus: what_applies_real integration test
+
+### Completed:
+- Added TestWhatAppliesWithRealData class with 8 tests:
+  - test_what_applies_returns_real_california_housing_legislation: verifies known CA bills (SB9, AB2011, SB35, etc.)
+  - test_what_applies_returns_federal_housing_programs: verifies federal programs (CDBG, HOME, Section 8, LIHTC)
+  - test_what_applies_state_bill_structure: validates required fields for civic advocacy
+  - test_what_applies_federal_program_structure: validates federal program structure
+  - test_what_applies_topic_mapping_zoning_to_housing: verifies alias resolution
+  - test_what_applies_multiple_topics_with_real_data: tests all 5 supported topics
+  - test_what_applies_unknown_jurisdiction_graceful_handling: tests error handling
+  - test_what_applies_leverage_points_actionable: verifies civic guidance quality
+- Updated integration.json: what_applies_real marked as tested
+- All 463 tests passing (455 previous + 8 new)
+
+Integration Progress: 32/57 items tested (56.1%)
+
+Next: what_happened_real (priority 2) - Historical decision queries
+
+## Session 169 - December 3, 2025
+
+### Focus: whos_with_me_real integration test
+
+### Completed:
+- Deferred what_happened_real (priority 2 → 3): BLOCKED by city_state_rag infrastructure
+  - what_happened() requires vector DB and embeddings for semantic search
+  - Updated integration.json with explicit dependency note
+- Added TestWhosWithMeWithRealData class with 8 tests:
+  - test_whos_with_me_queries_real_issue_data: verifies StateManager issue data (1340 issues)
+  - test_whos_with_me_exact_issue_type_match: validates exact type matching with query limit (100)
+  - test_whos_with_me_traffic_related_issues: verifies traffic issues return significant community
+  - test_whos_with_me_unknown_topic_returns_zero: handles unknown topics gracefully
+  - test_whos_with_me_community_structure: validates Community object structure
+  - test_whos_with_me_multiple_issue_types: tests first 5 issue types from database
+  - test_whos_with_me_case_sensitivity: verifies SQL exact match behavior
+  - test_whos_with_me_issue_stats_coverage: validates issue stats accuracy
+- Updated integration.json: whos_with_me_real marked as tested
+- All 471 tests passing (463 previous + 8 new)
+
+Integration Progress: 33/57 items tested (57.9%)
+
+Next: regulatory_context_relevant (priority 2) - Context accuracy tests
+
+## Session 170 - December 3, 2025
+
+### Focus: regulatory_context_relevant integration test
+
+### Completed:
+- Added TestRegulatoryContextRelevant class with 8 tests:
+  - test_housing_regulations_contain_housing_keywords: verifies housing bills have housing-relevant keywords
+  - test_transportation_regulations_contain_transportation_keywords: verifies transport bills have transport keywords
+  - test_environment_regulations_contain_environment_keywords: verifies env bills have env keywords
+  - test_different_topics_return_different_regulations: confirms no overlap between topic bill sets
+  - test_federal_programs_match_topic_domain: validates federal programs match their topic domain
+  - test_topic_alias_returns_same_regulations: verifies zoning->housing, transit->transportation, climate->environment
+  - test_leverage_points_reference_appropriate_civic_actions: validates actionable civic guidance
+  - test_no_cross_topic_contamination_in_keywords: confirms housing bills lack transit keywords and vice versa
+- Updated integration.json: regulatory_context_relevant marked as tested
+- All 479 tests passing (471 previous + 8 new)
+
+Integration Progress: 34/57 items tested (59.6%)
+
+Next: topic_extraction_accurate (priority 2) - Agenda items correctly mapped to topics
+
+## Session 171 - December 3, 2025
+
+### Focus: topic_extraction_accurate integration test
+
+### Completed:
+- Added TestTopicExtractionAccurate class with 12 tests:
+  - test_housing_keywords_extract_housing_topic: verifies housing/residential/apartment/zoning/development keywords
+  - test_transportation_keywords_extract_transportation_topic: verifies transit/transportation/bike/traffic/parking/sidewalk keywords
+  - test_environment_keywords_extract_environment_topic: verifies environment/climate/sustainability/green/energy keywords
+  - test_budget_keywords_extract_budget_topic: verifies budget/finance/tax/revenue/appropriation keywords
+  - test_education_keywords_extract_education_topic: verifies school/education/student/teacher keywords
+  - test_project_type_takes_precedence_over_title_keywords: confirms project_type overrides title matching
+  - test_no_keywords_defaults_to_general: validates fallback to "general" topic
+  - test_keyword_matching_is_case_insensitive: confirms lowercase conversion works
+  - test_first_matching_keyword_wins: validates iteration order determines match
+  - test_empty_title_defaults_to_general: handles edge cases gracefully
+  - test_real_san_rafael_agenda_items_extract_topics: validates extraction on actual meeting data
+  - test_topic_extraction_consistency: verifies deterministic behavior
+- Updated integration.json: topic_extraction_accurate marked as tested
+- All 491 tests passing (479 previous + 12 new)
+
+Integration Progress: 35/57 items tested (61.4%)
+
+Next: transaction_isolation (priority 2) - Partial writes don't become visible
+
+## Session 172 - December 3, 2025
+
+### Focus: transaction_isolation integration test
+
+### Completed:
+- Added TestTransactionIsolation class with 5 tests:
+  - test_partial_writes_not_visible_on_rollback: verifies uncommitted writes from other transactions are not visible
+  - test_committed_writes_visible_after_commit: confirms committed data is visible to readers
+  - test_multiple_concurrent_transactions_isolated: validates each transaction sees its own uncommitted changes
+  - test_voice_count_consistent_during_transaction: ensures counts don't include uncommitted data
+  - test_atomic_multi_table_updates: confirms multi-table operations rollback together
+- Updated integration.json: transaction_isolation marked as tested
+- All 496 tests passing (491 previous + 5 new)
+
+Integration Progress: 36/57 items tested (63.2%)
+
+Next: partial_extraction (priority 2) - Partial extraction doesn't corrupt existing data
+
+## Session 173 - December 3, 2025
+
+### Focus: partial_extraction integration test
+
+### Completed:
+- Added TestPartialExtraction class with 6 tests:
+  - test_partial_extraction_preserves_unextracted_meeting_types: verifies temporal versioning behavior when partial data is extracted
+  - test_extraction_layer_merges_partial_with_cache: demonstrates the correct merge pattern for partial extractions
+  - test_database_transaction_rollback_on_error: confirms transaction atomicity on failures
+  - test_concurrent_partial_extractions: validates concurrent workers don't corrupt data
+  - test_partial_extraction_with_proudcity_client: end-to-end test with mocked partial failures
+  - test_state_manager_handles_mixed_update_and_insert: verifies update/insert/delete behavior in updates
+- Updated integration.json: partial_extraction marked as tested
+- All 502 tests passing (496 previous + 6 new)
+
+Integration Progress: 37/57 items tested (64.9%)
+
+Next: error_logged (priority 2) - Extraction failures logged with context
+
+## Session 174 - December 3, 2025
+
+### Focus: error_logged integration test
+
+### Completed:
+- Added logging to extraction clients (ProudCityClient and LegistarClient):
+  - Added logger setup with `logging.getLogger(__name__)`
+  - Updated `_make_request` methods to log failures with context
+  - Logs include: URL, error type, attempt number, max retries, jurisdiction_id, platform
+  - WARNING logs for each retry attempt
+  - ERROR logs when all retries exhausted
+- Added TestErrorLogging class with 9 tests:
+  - test_timeout_logged_with_context_proudcity: verifies timeout errors logged with context
+  - test_connection_error_logged_with_context_proudcity: verifies connection errors logged
+  - test_http_error_logged_with_status_code_proudcity: verifies HTTP errors include status code
+  - test_timeout_logged_with_context_legistar: verifies Legistar client logging
+  - test_rate_limit_logged_legistar: verifies 429 rate limit responses are logged
+  - test_log_contains_jurisdiction_and_platform: verifies contextual fields in log records
+  - test_get_events_logs_archive_failures: verifies multi-archive failure logging
+  - test_partial_extraction_logs_failed_archives: verifies partial success scenarios
+  - test_ssl_error_logged_proudcity: verifies SSL errors are logged
+- Updated integration.json: error_logged marked as tested
+- All 511 tests passing (502 previous + 9 new)
+
+Integration Progress: 38/57 items tested (66.7%)
+
+Next: large_result_sets (priority 2) - Queries with 1000+ results perform acceptably
+
+## Session 175 - December 3, 2025
+
+### Focus: what_happened_real integration test
+
+### Completed:
+- Connected what_happened() in civic.py to use search_decisions() from history module
+  - Previously returned empty list (stub implementation)
+  - Now calls search_decisions() with state_manager, jurisdiction, query, since parameters
+- Enhanced search_decisions() in history.py:
+  - Added proper JSON parsing for agenda items from full_data
+  - Handles nested full_data structure from StateManager
+  - Searches both title and description text (case-insensitive)
+  - Applies date filtering with 'since' parameter
+  - Returns decisions sorted by date descending
+- Added TestWhatHappenedWithRealData class with 10 tests:
+  - test_what_happened_merrydale_returns_shelter_decisions: verifies >= 4 decisions found
+  - test_what_happened_shelter_crisis_returns_declaration: tests alternative query
+  - test_what_happened_350_merrydale_returns_purchase: tests address-based search
+  - test_what_happened_decision_structure: verifies Decision dataclass fields
+  - test_what_happened_decision_includes_outcome: verifies outcome field
+  - test_what_happened_decision_includes_votes: verifies vote breakdown
+  - test_what_happened_returns_correct_date: verifies Nov 17, 2025 date
+  - test_what_happened_empty_query_returns_empty: verifies empty results
+  - test_what_happened_case_insensitive: verifies case-insensitive search
+  - test_what_happened_searches_description: verifies description matching
+- Test fixture seeds database with Nov 17, 2025 Merrydale shelter meeting data
+- Updated integration.json: what_happened_real marked as tested
+- All 521 tests passing (511 previous + 10 new)
+
+### Note:
+Basic keyword matching implementation. Semantic search upgrade via embeddings/ChromaDB
+is tracked in city_state_rag section of integration.json.
+
+Integration Progress: 39/57 items tested (68.4%)
+
+Next: large_result_sets (priority 2) - Queries with 1000+ results perform acceptably
+
+Session 176: large_result_sets integration tests
+- Added TestLargeResultSets class to test_integration_load.py with 6 tests
+- setup_large_dataset() helper creates 100+ meetings with 15 agenda items each (1500+ items)
+  and 200 initiatives for comprehensive load testing
+- Tests verify < 500ms p95 latency for:
+  - test_whats_next_with_1000_items: whats_next() with 1500 agenda items (p95: 3.20ms)
+  - test_what_happened_with_1000_items: what_happened() searching 1500 items (p95: 5.15ms)
+  - test_whos_with_me_with_many_initiatives: whos_with_me() with 200 initiatives (p95: 0.22ms)
+  - test_query_meetings_with_large_result_set: StateManager.query_meetings() with 200 meetings (p95: 4.68ms)
+  - test_query_initiatives_with_large_result_set: StateManager.query_initiatives() with 200 results (p95: 1.00ms)
+  - test_combined_workload_with_large_dataset: mixed workload across all methods (p95: 3.36ms)
+- All performance well under 500ms threshold (max observed: ~5ms)
+- Updated integration.json: large_result_sets marked as tested
+- All 527 tests passing (521 previous + 6 new)
+
+Integration Progress: 40/57 items tested (70.2%)
+
+Next: index_effectiveness (priority 2) - Common queries use indexes (EXPLAIN QUERY PLAN)
+
+Session 177: index_effectiveness integration tests
+- Added TestIndexEffectiveness class to test_integration_load.py with 13 tests
+- Verifies all 24 database indexes are created via test_all_indexes_exist
+- Tests EXPLAIN QUERY PLAN output for common query patterns to confirm index usage:
+  - test_meetings_jurisdiction_index: meetings filtered by jurisdiction_id
+  - test_meetings_datetime_index: meetings filtered by meeting_datetime
+  - test_meetings_current_version_index: current versions (valid_to IS NULL)
+  - test_agenda_items_meeting_index: agenda_items filtered by meeting_id
+  - test_initiatives_jurisdiction_topic_index: initiatives filtered by jurisdiction/topic/status
+  - test_voices_item_index: voices filtered by item_type and item_id
+  - test_subscriptions_user_index: subscriptions filtered by user_id
+  - test_issues_jurisdiction_status_index: issues filtered by jurisdiction and status
+  - test_outcomes_item_index: outcomes filtered by item_type and item_id
+  - test_query_meetings_uses_index: StateManager.query_meetings() uses indexes
+  - test_query_initiatives_uses_index: StateManager.query_initiatives() uses indexes
+  - test_query_issues_uses_index: StateManager.query_issues() uses indexes
+- All queries confirmed to use SEARCH (indexed access) instead of SCAN (full table scan)
+- Updated integration.json: index_effectiveness marked as tested
+- All 540 tests passing (527 previous + 13 new)
+
+Integration Progress: 41/57 items tested (71.9%)
+
+Next: retry_after_error (priority 2) - Agent can retry failed tool call
+
+Session 178: retry_after_error and partial_workflow integration tests
+- Added TestErrorRecovery class to test_integration_mcp_sequences.py with 6 tests:
+  - test_retry_after_error_validation_failure: Agent retries add_voice after invalid stance
+  - test_retry_after_error_missing_item: Agent retries prepare() after item not found
+  - test_retry_after_error_invalid_item_type: Agent retries follow() after invalid item_type
+  - test_retry_multiple_attempts: Agent makes multiple incorrect attempts before succeeding
+  - test_retry_preserves_state: Failed tool calls don't corrupt existing state
+  - test_retry_after_report_outcome_error: Agent retries report_outcome after invalid outcome
+- Added TestPartialWorkflow class with 5 tests:
+  - test_workflow_survives_middle_failure: Workflow continues after middle step fails
+  - test_workflow_survives_action_failure: Action workflow survives single failure
+  - test_workflow_survives_prepare_failure: Research workflow survives prepare() failure
+  - test_workflow_handles_multiple_failures: Workflow handles multiple failures across steps
+  - test_workflow_state_consistent_after_failures: State remains consistent after workflow with failures
+- Updated integration.json: retry_after_error and partial_workflow marked as tested
+- All 551 tests passing (540 previous + 11 new)
+
+Integration Progress: 43/57 items tested (75.4%)
+
+Next: agenda_items_relational (priority 2) - Agenda items stored in agenda_items table
+
+Session 179: agenda_items_relational hybrid sync implementation
+- Implemented hybrid sync for agenda_items storage:
+  - update_meetings() now populates agenda_items table (relational) IN ADDITION to full_data JSON
+  - JSON blob remains source of truth for schema flexibility
+  - Relational table enables queries, indexes, and FK relationships
+- Updated get_city_state() to:
+  - Query agenda_items from relational table
+  - Attach agenda_items to their parent meetings for easy access
+- Fixed civic.py whats_next() to:
+  - Prefer relational agenda_items over embedded full_data
+  - Implement topic filtering (was marked TODO)
+  - Support both 'topic' (JSON) and 'project_type' (relational) field names
+- Fixed calendar.py to:
+  - Use 'meeting_datetime' column (not 'date')
+  - Support both 'topic' and 'project_type' for filtering
+- Created test_integration_data_model.py with 10 tests:
+  - TestAgendaItemsRelational: 5 tests for hybrid sync storage
+  - TestWhatsNextUsesRelational: 2 tests for whats_next() with relational data
+  - TestExtractorsStoreRelationally: 3 tests for edge cases
+- Updated integration.json: 3 items marked as tested
+  - agenda_items_relational
+  - whats_next_uses_relational
+  - extractors_store_relationally
+- All 561 tests passing (551 previous + 10 new)
+
+Integration Progress: 46/57 items tested (80.7%)
+
+Next: json_extraction_patterns (priority 2) - Scan codebase for inconsistent JSON field extraction patterns
+
+Session 180: json_extraction_patterns codebase audit
+- Scanned codebase for JSON extraction pattern inconsistencies
+- Found and fixed 12 bare except handlers:
+  - 9 in manager.py (full_data, notification_prefs, vote_breakdown parsing)
+  - 2 in history.py (full_data JSON parsing)
+  - 1 in civic.py (full_data JSON parsing)
+- All bare except: replaced with except (json.JSONDecodeError, TypeError):
+- All JSON parse failures now return empty {} instead of silent pass
+- Documented field naming variations:
+  - meeting_datetime/date for meeting dates
+  - project_type/topic for agenda item topics
+  - issue_type/category/request_type.title for issues
+- Created test_integration_codebase_audit.py with 8 tests:
+  - TestJsonExtractionPatterns: 3 tests verifying no bare except handlers
+  - TestFieldNamingConventions: 2 tests for field naming consistency
+  - TestJsonParsingDefaults: 1 test for JSON parse failure handling
+  - TestCodebaseAuditDocumentation: 2 tests documenting patterns
+- Updated integration.json: json_extraction_patterns marked as tested
+- All 569 tests passing (561 previous + 8 new)
+
+Integration Progress: 47/57 items tested (82.5%)
+
+Next: storage_retrieval_symmetry (priority 2) - Verify all update_* and get_* method pairs have symmetric data handling
+
+Session 181: storage_retrieval_symmetry codebase audit
+- Audited all create_*/update_* and get_* method pairs in StateManager:
+  - Initiatives: create_initiative() / get_initiative() - SYMMETRIC
+  - Voices: create_voice() / get_voice() - SYMMETRIC
+  - Subscriptions: create_subscription() / get_subscription() - SYMMETRIC (JSON notification_prefs)
+  - Outcomes: create_outcome() / get_outcome() - SYMMETRIC (JSON vote_breakdown)
+  - Meetings: update_meetings() / get_city_state() - SYMMETRIC (JSON full_data, agenda_items)
+- All JSON fields correctly serialized (json.dumps) and deserialized (json.loads)
+- All retrieval methods properly parse JSON fields back to Python dicts
+- Documented intentional behavior: empty dict {} stored as NULL (falsy value)
+- Added 10 tests to TestStorageRetrievalSymmetry class:
+  - test_initiative_create_get_symmetry
+  - test_voice_create_get_symmetry
+  - test_subscription_create_get_symmetry (with JSON notification_prefs)
+  - test_outcome_create_get_symmetry (with JSON vote_breakdown)
+  - test_meeting_update_get_symmetry
+  - test_agenda_items_update_get_symmetry
+  - test_null_json_fields_symmetry
+  - test_empty_json_fields_symmetry
+  - test_query_method_returns_same_structure_as_get
+  - test_meeting_query_returns_parsed_json
+- Updated integration.json: storage_retrieval_symmetry marked as tested
+- All 579 tests passing (569 previous + 10 new)
+
+Integration Progress: 48/57 items tested (84.2%)
+
+Next: redundant_data_paths (priority 2) - Identify fields stored in both columns AND full_data JSON, consolidate
+
+Session 182: redundant_data_paths codebase audit
+- Audited database schema for redundant data paths (columns + full_data JSON):
+  
+  FINDINGS:
+  - StateManager (civic_state.db) uses hybrid storage pattern:
+    - meetings table: 19 columns + full_data JSON blob containing entire meeting
+    - agenda_items table: 22 columns + full_data JSON blob containing entire item
+  - Production database (civic_participation.db) uses clean relational design:
+    - civic_events table: No full_data column
+    - decisions, issues tables: No full_data column
+  
+  REDUNDANT FIELDS in StateManager:
+  - meetings: id, title, meeting_datetime, meeting_type, status, location,
+              virtual_url, agenda_url, minutes_url, video_url, source_platform
+              (all stored in BOTH column AND full_data JSON)
+  - agenda_items: id, item_number, title, description, project_type/topic
+                  (all stored in BOTH column AND full_data JSON)
+  
+  AUTHORITATIVE PATH:
+  - full_data JSON is SOURCE OF TRUTH for flexibility and forward compatibility
+  - Relational columns are EXTRACTED for query efficiency
+  - Code pattern: prefer relational for queries, fall back to full_data for compatibility
+  
+  IMPLEMENTATION:
+  - At insert: json.dumps(meeting) stores entire dict in full_data
+  - At retrieve: full_data parsed back to dict, attached to meeting object
+  - Civic API (civic.py:298-310): Prefers m.get("agenda_items") over full_data
+  - StateManager (manager.py:384): Documents "JSON blob remains source of truth"
+
+- Added 8 tests to TestRedundantDataPaths class:
+  - test_meeting_column_matches_full_data
+  - test_agenda_item_column_matches_full_data
+  - test_topic_field_maps_to_project_type
+  - test_relational_agenda_items_preferred_over_full_data
+  - test_full_data_preserves_original_structure
+  - test_no_data_drift_on_update
+  - test_authoritative_path_documentation
+  - test_civic_api_prefers_relational_for_queries
+
+- Updated integration.json: redundant_data_paths marked as tested
+- All 587 tests passing (579 previous + 8 new)
+
+Integration Progress: 49/57 items tested (86.0%)
+
+Next: nov17_packet_download (priority 2) - Download Nov 17 agenda packet PDF for RAG test corpus
+
+Session 183: nov17_packet_download RAG corpus setup
+- Downloaded Nov 17 City Council agenda packet (34.9MB, 594 pages)
+- Source URL: https://storage.googleapis.com/proudcity/sanrafaelca/2025/11/5e2fbbbf-agenda-packet-2025-11-17-rev-3.pdf
+- Stored at: data/pilot/rag_corpus/merrydale/nov17_agenda_packet.pdf
+- PDF metadata confirms: Author Lindsay Lara (City Clerk), created Nov 14, 2025
+- Created RAG corpus directory structure: data/pilot/rag_corpus/merrydale/
+- Created test_integration_rag_merrydale.py with 5 tests:
+  - test_nov17_packet_download: validates file exists, size (~35MB), PDF format
+  - test_nov17_packet_page_count: validates 500-700 pages (confirms "500+ pages" claim)
+  - test_nov17_packet_metadata: validates author and creation date
+  - test_merrydale_scenario_file_exists: validates scenario JSON structure
+  - test_corpus_directory_structure: validates directory setup
+- Updated integration.json: nov17_packet_download marked as tested
+- All 592 tests passing (587 previous + 5 new)
+
+Integration Progress: 50/66 items tested (75.8%)
+
+Next: nov17_packet_parse (priority 2) - Parse PDF into text chunks by agenda item
+
+Session 184: nov17_packet_parse PDF chunking for RAG
+- Created AgendaPacketParser in packages/civic/src/civic/_internal/meetings/pdf_parser.py
+  - Uses PDF bookmarks/TOC to identify agenda item boundaries
+  - Extracts text per agenda item with page ranges
+  - Chunks large sections into RAG-friendly sizes (1500 chars max, 200 overlap)
+- Key classes: AgendaPacketParser, AgendaChunk, AgendaSection
+- Generated 724 chunks from Nov 17 agenda packet:
+  - Item 6.a (Merrydale shelter): 530 chunks (73% of total)
+  - Item 4.f (101/580 project): 64 chunks
+  - Item 4.e (Investment report): 53 chunks
+  - Item 5.a (Brown Act): 34 chunks
+  - Plus consent calendar items (4.a-4.d, 4.g)
+- 268 chunks contain "merrydale" keyword
+- Chunks saved to: data/pilot/rag_corpus/merrydale/nov17_chunks.json (1.3MB)
+- Updated data/pilot/merrydale_scenario.json with parsing statistics
+- Added 9 new tests in test_integration_rag_merrydale.py:
+  - TestNov17PacketParsing (6 tests): validates chunks file, structure, content
+  - TestAgendaPacketParser (3 tests): validates parser imports, sections, chunk generation
+- Updated integration.json: nov17_packet_parse and text_chunking marked as tested
+- All 601 tests passing (592 previous + 9 new)
+
+Integration Progress: 52/66 items tested (78.8%)
+
+Next: staff_report_extract (priority 2) - Extract Item 6.a staff report with metadata
+
+
+Session 185: staff_report_extract Staff report metadata extraction
+- Created StaffReportExtractor class in packages/civic/src/civic/_internal/meetings/staff_report.py
+  - Extracts metadata from city council staff report chunks
+  - Fields: department, prepared_by, topic, recommendation, executive_summary
+  - Also extracts: property_address, property_apns, financial_amount
+  - Uses regex patterns for San Rafael staff report format
+- Extracted Item 6.a staff report from Nov 17 chunks:
+  - Department: City Manager
+  - Prepared by: John Stefanski, Greg Minor, Daniel Cooperman
+  - Property: 350 Merrydale Road (APNs: 179-041-27, 179-041-28)
+  - Financial: $8 Million County grant
+  - 530 chunks spanning pages 207-594
+- Output saved to: data/pilot/rag_corpus/merrydale/item_6a_staff_report.json
+- Added 15 new tests in TestStaffReportExtraction and TestStaffReportExtractor
+- Updated integration.json: staff_report_extract marked as tested
+- Updated merrydale_scenario.json with staff_report_metadata section
+- All 616 tests passing (601 previous + 15 new)
+
+Integration Progress: 53/66 items tested (80.3%)
+
+Next: ordinance_text_extract (priority 2) - Extract shelter standards ordinance full text
+
+Session 186: ordinance_text_extract Shelter standards ordinance extraction
+- Created OrdinanceExtractor class in packages/civic/src/civic/_internal/meetings/ordinance.py
+  - Extracts structured data from city council ordinances
+  - Fields: ordinance_number, ordinance_type (urgency/uncodified/regular), title, purpose
+  - Legal citations: legal_authority (Government Code sections)
+  - Content: whereas_clauses, sections (divisions with number, title, text)
+  - Metadata: effective_date_provision, ceqa_determination, related_resolution
+- Extracted both shelter standards ordinances from Nov 17 packet:
+  - Urgency Ordinance: Takes effect immediately with 4/5 vote
+    - 6 divisions: Findings, Local Standards, HCD Filing, CEQA, Severability, Effective Date
+    - 23 WHEREAS clauses documenting housing crisis and homelessness data
+    - Cites Government Code Section 8698 (Shelter Crisis Act)
+  - Uncodified Ordinance: Standard two-reading process
+    - Same 6-division structure
+    - 20 WHEREAS clauses
+- Output saved to: data/pilot/rag_corpus/merrydale/shelter_ordinances.json
+- Added 13 new tests in TestOrdinanceExtraction and TestOrdinanceExtractor classes:
+  - 8 data validation tests: file exists, count, urgency/uncodified present, legal authority, whereas clauses, sections, effective date
+  - 5 unit tests: imports, find_ordinances, extract, metadata_to_dict, convenience function
+- Updated integration.json: ordinance_text_extract marked as tested
+- All 629 tests passing (616 previous + 13 new)
+
+Integration Progress: 54/66 items tested (81.8%)
+
+Next: minutes_extract (priority 2) - Extract Nov 17 minutes for comparison
+
+Session 187: minutes_extract Meeting minutes extraction from PDF
+- Downloaded Nov 17 minutes PDF from San Rafael city website (256KB, 7 pages)
+  - Source: https://storage.googleapis.com/proudcity/sanrafaelca/2025/11/db86519a-4.a-minutes-2025-11-17.pdf
+  - Saved to: data/pilot/rag_corpus/merrydale/nov17_minutes.pdf
+- Created MinutesExtractor class in packages/civic/src/civic/_internal/meetings/minutes.py
+  - Extracts: meeting_date, meeting_time, meeting_type (regular/special)
+  - Attendance: present, absent, also_present (staff)
+  - Time markers: called_to_order, adjourned, recesses
+  - Agenda items with: title, description, presenters, public_speakers, votes
+  - VoteRecord: motion_by, second_by, ayes, noes, absent, resolution_number, ordinance_number
+  - NOTE: Implementation is San Rafael-specific (patterns assume their section headers, vote formats)
+- Extracted Nov 17 meeting minutes:
+  - 9 agenda items parsed (Consent: 4.a-g, Other: 5.a, Public Hearing: 6.a)
+  - Item 6.a (Merrydale): 78 public speakers, 3 votes, Resolution 15478
+  - Presenters: City Manager Cristine Alilovich, Police Department
+  - Vote results: 4-0 (Bushey, Kertz, Llorens Gulati, Mayor Kate) with Hill absent
+  - Meeting duration: 5 hours (6:02pm - 11:06pm)
+- Output saved to: data/pilot/rag_corpus/merrydale/nov17_minutes.json
+- Added 15 new tests in TestMinutesExtraction and TestMinutesExtractor classes:
+  - 10 data validation tests: file exists, structure, date, attendance, item 6.a content
+  - 5 unit tests: imports, instance creation, extract method, to_dict, convenience function
+- Added generalized_extraction section to integration.json:
+  - Rationale: Current regex patterns won't scale to other cities
+  - Planned: LLM-based extraction (Gemini/Claude) for multi-city support
+  - Cost estimate: $0.01-0.02 per PDF (within $7/month budget)
+  - Priority 4: Implement after pilot validation, before multi-city expansion
+- Updated integration.json: minutes_extract marked as tested
+- All 644 tests passing (629 previous + 15 new)
+
+Integration Progress: 55/66 items tested (83.3%)
+
+Key insight from this session: Official minutes are sparse - they list WHO spoke but not WHAT was said. 78 speaker names recorded for Merrydale discussion, but zero quotes or testimony content. This validates the video transcript RAG approach (next on roadmap) for capturing actual meeting content.
+
+Next: video_transcript_rag section - utterance_chunking, timestamp_preservation, speaker_metadata
+

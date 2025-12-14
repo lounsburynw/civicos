@@ -1,0 +1,33 @@
+{
+  "total_complaints": 771,
+  "by_topic": {
+    "environment": 210,
+    "infrastructure": 212,
+    "other": 50,
+    "parks": 83,
+    "traffic_safety": 195,
+    "camping_homelessness": 16,
+    "wildfire_vegetation": 5
+  },
+  "category_mapping": {
+    "Report a Campsite Fire Hazard / Reporte un peligro de incendio en un campamento": "camping_homelessness",
+    "Vegetation Fire Hazard / Un Peligro de Incendio de Vegetaci\u00f3n": "wildfire_vegetation",
+    "Traffic/ Traffic Signal / Tr\u00e1nsito/Se\u00f1al": "traffic_safety",
+    "To report a parking violation ( red zone, fire lane etc) / Para reportar una infracci\u00f3n de estacionamiento (En rojo, l\u00ednea de incendio, etc.)": "traffic_safety",
+    "Report an Abandoned Vehicle / Reporte un Veh\u00edculo Abandonado": "traffic_safety",
+    "Report a Broken Parking Meter / Reportar un Parqu\u00edmetro Roto": "traffic_safety",
+    "Pothole/Road Condition / Bache (hoyo)/Condici\u00f3n de Carreteras": "infrastructure",
+    "Street Sign and Markings / Se\u00f1ales y marcas viales": "infrastructure",
+    "Street Light / Luz de la Calle": "infrastructure",
+    "Sidewalks / Banquetas": "infrastructure",
+    "Stormwater Drainage / Drenaje de Aguas Pluviales": "infrastructure",
+    "Street Sweeping / Barrida de Calle": "infrastructure",
+    "Trees / \u00e1rboles": "environment",
+    "Illegal Dumping / Desecho ilegal": "environment",
+    "Roadside Vegetation / Vegetaci\u00f3n en borde de carretera": "environment",
+    "Open Space / Espacio Abierto": "environment",
+    "Medians / Isla Central": "environment",
+    "Graffiti/Grafiti": "environment",
+    "Parks and Playgrounds / Parques y \u00e1reas de Juego": "parks"
+  }
+}

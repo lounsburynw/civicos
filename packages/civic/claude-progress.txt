@@ -1,0 +1,20 @@
+
+## Session 199: regenerate_vector_index (2025-12-07)
+
+### Completed
+- Verified vector index regenerated during Session 198 (Dec 7 20:36:45)
+- Collections confirmed: city-san-rafael_decisions (8 docs), city-san-rafael_chunks (724 docs)
+- Cleaned up legacy merrydale_decisions and merrydale_chunks collections
+- Tested semantic search via Civic API - what_happened('homeless shelter') returns 8 decisions
+- All 113 RAG integration tests pass
+- Marked regenerate_vector_index as tested in integration.json
+
+### Key Verifications
+- CivicEmbeddings initializes correctly with jurisdiction_id='city-san-rafael'
+- ChromaDB database at data/pilot/vectors/city-san-rafael/ (60.4 MB)
+- Search latency within acceptable range (~30-100ms after model warmup)
+- Deprecation warnings properly emitted for legacy MerrydaleEmbeddings usage
+
+### Next
+- architecture_cleanup section complete
+- Consider: profile_slow_tests (priority 3), test_markers (priority 3), or video_transcript_rag items

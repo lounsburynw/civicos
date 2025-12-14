@@ -1,0 +1,107 @@
+{
+  "jurisdiction": "california",
+  "topic": "environment",
+  "last_updated": "2025-10-07T14:48:45.646754",
+  "data_sources": [
+    "Perplexity Sonar Pro API",
+    "leginfo.legislature.ca.gov (cited by Perplexity)",
+    "Trusted Perplexity sources (~90-95% precision)"
+  ],
+  "perplexity_citations": [
+    "https://www.waste360.com/waste-legislation/california-passes-three-landmark-environmental-bills",
+    "https://www.planningreport.com/2025/09/05/new-damaging-state-law-erases-decades-community-environmental-protections",
+    "https://envirovoters.org/2025-priorities/",
+    "https://www.alston.com/en/insights/publications/2025/07/california-ceqa-housing-development-reform-laws",
+    "https://en.wikipedia.org/wiki/California_Environmental_Quality_Act",
+    "https://calmatters.org/environment/2025/06/california-budget-sweeping-environmental-law-rollbacks-manufacturing/",
+    "https://calmatters.org/explainers/california-gavin-newsom-bills-signing/",
+    "https://www.law.berkeley.edu/research/clee/research/climate/climate-policy-dashboard/"
+  ],
+  "state_legislation": {
+    "ca-sb100": {
+      "bill": "The 100 Percent Clean Energy Act of 2018",
+      "status": "Active",
+      "enacted": "2018-09-10",
+      "local_implementation_required": true,
+      "local_deadline": "2045-12-31",
+      "leverage_point": "Residents can advocate for local renewable energy projects, monitor utility compliance, and participate in city council or utility board meetings to push for faster adoption of clean energy.",
+      "official_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=201720180SB100",
+      "summary": "SB 100 requires California to achieve 100% clean, zero-carbon electricity by 2045, mandating utilities and local governments to plan for and implement renewable energy procurement and grid integration.",
+      "keywords": [
+        "climate",
+        "clean energy",
+        "emissions",
+        "sustainability",
+        "environment"
+      ]
+    },
+    "ca-ab1279": {
+      "bill": "The California Climate Crisis Act",
+      "status": "Active",
+      "enacted": "2022-09-16",
+      "local_implementation_required": true,
+      "local_deadline": "2045-12-31",
+      "leverage_point": "Residents can use this law to demand local climate action plans align with state targets and to advocate for emissions reduction measures in city and county planning processes.",
+      "official_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202120220AB1279",
+      "summary": "AB 1279 establishes a statewide goal for California to achieve net zero greenhouse gas emissions as soon as possible, but no later than 2045, and to achieve and maintain net negative emissions thereafter.",
+      "keywords": [
+        "climate",
+        "emissions",
+        "sustainability",
+        "environment"
+      ]
+    },
+    "ca-sb1053": {
+      "bill": "Plastic Checkout Bag Ban",
+      "status": "Pending Governor Signature",
+      "enacted": "2024-09-04",
+      "local_implementation_required": true,
+      "local_deadline": "2025-01-01",
+      "leverage_point": "Residents can report non-compliant retailers to local authorities and participate in city meetings to ensure robust enforcement and public outreach.",
+      "official_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202320240SB1053",
+      "summary": "SB 1053 bans all plastic bags at retail checkout, allowing only paper bags with a fee, and requires local governments to enforce the ban and educate retailers and the public.",
+      "keywords": [
+        "environment",
+        "sustainability",
+        "waste",
+        "emissions",
+        "conservation"
+      ]
+    },
+    "ca-ab130": {
+      "bill": "CEQA Infill Housing and Streamlining Reform",
+      "status": "Active",
+      "enacted": "2025-07-01",
+      "local_implementation_required": true,
+      "local_deadline": "2026-01-01",
+      "leverage_point": "Residents can participate in local hearings to ensure transparency, advocate for equitable infill development, and monitor the use of CEQA exemptions in their neighborhoods.",
+      "official_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202520260AB130",
+      "summary": "AB 130 creates a CEQA exemption for qualifying infill housing and expands streamlining provisions, requiring local governments to update permitting processes and provide public notice for eligible projects.",
+      "keywords": [
+        "CEQA",
+        "environment",
+        "housing",
+        "sustainability",
+        "local government"
+      ]
+    },
+    "ca-sb131": {
+      "bill": "CEQA Exemptions for Infrastructure and Climate Resilience Projects",
+      "status": "Active",
+      "enacted": "2025-07-01",
+      "local_implementation_required": true,
+      "local_deadline": "2026-01-01",
+      "leverage_point": "Residents can monitor local project proposals, demand public notice and transparency, and advocate for environmental justice in the application of exemptions.",
+      "official_url": "https://leginfo.legislature.ca.gov/faces/billTextClient.xhtml?bill_id=202520260SB131",
+      "summary": "SB 131 introduces broad CEQA exemptions for infrastructure, community-serving facilities, and climate resilience projects, requiring local governments to implement new review procedures and limiting public hearings.",
+      "keywords": [
+        "CEQA",
+        "environment",
+        "climate",
+        "infrastructure",
+        "local government"
+      ]
+    }
+  },
+  "federal_programs": {}
+}

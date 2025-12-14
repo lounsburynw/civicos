@@ -1,0 +1,180 @@
+{
+  "issues": [
+    {
+      "file": "california_transportation.json",
+      "bill_id": "ca-sb1",
+      "type": "invalid_deadline",
+      "message": "Invalid deadline format: Ongoing"
+    },
+    {
+      "file": "california_transportation.json",
+      "bill_id": "ca-sb71",
+      "type": "invalid_deadline",
+      "message": "Invalid deadline format: N/A"
+    },
+    {
+      "file": "california_transportation.json",
+      "bill_id": "ca-sb237",
+      "type": "invalid_deadline",
+      "message": "Invalid deadline format: N/A"
+    },
+    {
+      "file": "california_transportation.json",
+      "bill_id": "ca-ab1147",
+      "type": "invalid_deadline",
+      "message": "Invalid deadline format: Ongoing"
+    },
+    {
+      "file": "california_transportation.json",
+      "bill_id": "ca-ab2097",
+      "type": "invalid_deadline",
+      "message": "Invalid deadline format: Ongoing"
+    },
+    {
+      "file": "california_budget.json",
+      "bill_id": "ca-prop13-1978",
+      "type": "broken_url",
+      "message": "404 Not Found: https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures/proposition-13"
+    },
+    {
+      "file": "california_budget.json",
+      "bill_id": "ca-prop19-2020",
+      "type": "broken_url",
+      "message": "404 Not Found: https://www.sos.ca.gov/elections/ballot-measures/qualified-ballot-measures/proposition-19"
+    },
+    {
+      "file": "california_education.json",
+      "bill_id": "ca-ab705",
+      "type": "invalid_deadline",
+      "message": "Invalid deadline format: Ongoing"
+    },
+    {
+      "file": "california_education.json",
+      "bill_id": "ca-ab1705",
+      "type": "invalid_deadline",
+      "message": "Invalid deadline format: Ongoing"
+    },
+    {
+      "file": "california_education.json",
+      "bill_id": "ca-ab1122",
+      "type": "invalid_deadline",
+      "message": "Invalid deadline format: Pending enactment"
+    },
+    {
+      "file": "california_education.json",
+      "bill_id": "ca-sb438",
+      "type": "invalid_deadline",
+      "message": "Invalid deadline format: Pending enactment"
+    },
+    {
+      "file": "california_education.json",
+      "bill_id": "ca-sb305",
+      "type": "invalid_deadline",
+      "message": "Invalid deadline format: Pending enactment"
+    },
+    {
+      "file": "california_education.json",
+      "bill_id": "ca-sb790",
+      "type": "invalid_deadline",
+      "message": "Invalid deadline format: Pending enactment"
+    },
+    {
+      "file": "housing.json",
+      "program_id": "low_income_housing_tax_credit_lihtc_program",
+      "type": "broken_url",
+      "message": "404 Not Found: https://www.irs.gov/businesses/small-businesses-self-employed/low-income-housing-credit](https://www.irs.gov/businesses/small-businesses-self-employed/low-income-housing-credit"
+    }
+  ],
+  "warnings": [
+    {
+      "file": "california_transportation.json",
+      "bill_id": "ca-sb71",
+      "type": "url_error",
+      "message": "Error checking Not yet available: unknown url type: 'Not yet available'"
+    },
+    {
+      "file": "california_transportation.json",
+      "bill_id": "ca-sb237",
+      "type": "url_error",
+      "message": "Error checking Not yet available: unknown url type: 'Not yet available'"
+    },
+    {
+      "file": "california_housing.json",
+      "type": "unverified_data",
+      "message": "Verification status: DRAFT - NOT VERIFIED"
+    },
+    {
+      "file": "california_housing.json",
+      "bill_id": "ca-sb9",
+      "type": "expired_deadline",
+      "message": "ca-sb9 deadline expired 1375 days ago (2022-01-01)"
+    },
+    {
+      "file": "california_housing.json",
+      "bill_id": "ca-ab2011",
+      "type": "expired_deadline",
+      "message": "ca-ab2011 deadline expired 829 days ago (2023-07-01)"
+    },
+    {
+      "file": "california_housing.json",
+      "bill_id": "ca-sb35",
+      "type": "expired_deadline",
+      "message": "ca-sb35 deadline expired 2836 days ago (2018-01-01)"
+    },
+    {
+      "file": "california_housing.json",
+      "bill_id": "ca-sb330",
+      "type": "expired_deadline",
+      "message": "ca-sb330 deadline expired 2106 days ago (2020-01-01)"
+    },
+    {
+      "file": "california_housing.json",
+      "bill_id": "ca-ab1287",
+      "type": "expired_deadline",
+      "message": "ca-ab1287 deadline expired 645 days ago (2024-01-01)"
+    },
+    {
+      "file": "california_budget.json",
+      "bill_id": "ca-ab1484-2022",
+      "type": "expired_deadline",
+      "message": "ca-ab1484-2022 deadline expired 829 days ago (2023-07-01)"
+    },
+    {
+      "file": "transportation.json",
+      "program_id": "transportation_alternatives_program_tap",
+      "type": "incomplete_data",
+      "message": "Missing program description"
+    },
+    {
+      "file": "housing.json",
+      "type": "unverified_data",
+      "message": "Verification status: DRAFT - NOT VERIFIED"
+    },
+    {
+      "file": "housing.json",
+      "program_id": "home",
+      "type": "missing_leverage_point",
+      "message": "Missing or incomplete leverage point"
+    },
+    {
+      "file": "housing.json",
+      "program_id": "home_investment_partnerships_program",
+      "type": "incomplete_data",
+      "message": "Missing program description"
+    },
+    {
+      "file": "housing.json",
+      "program_id": "section_8_housing_choice_voucher_program",
+      "type": "missing_leverage_point",
+      "message": "Missing or incomplete leverage point"
+    },
+    {
+      "file": "environment.json",
+      "program_id": "environmental_protection_agency_epa_environmental_justice_grants",
+      "type": "incomplete_data",
+      "message": "Missing program description"
+    }
+  ],
+  "total_issues": 14,
+  "total_warnings": 15
+}

@@ -1,0 +1,80 @@
+{
+  "version": "2.0",
+  "aligned_with": "docs/critical/FINAL_PACKAGE_ARCHITECTURE.md",
+  "last_updated": "2025-11-30",
+
+  "phase_1_pilot": {
+    "target": "Jan 2026",
+    "query_methods": {
+      "whats_next": {"status": "passing", "tests": 1},
+      "what_happened": {"status": "passing", "tests": 1},
+      "what_applies": {"status": "passing", "tests": 4},
+      "whos_with_me": {"status": "passing", "tests": 1}
+    },
+    "action_methods": {
+      "start_something": {"status": "passing", "tests": 5, "priority": 1},
+      "add_voice": {"status": "passing", "tests": 7, "priority": 2},
+      "follow": {"status": "passing", "tests": 9, "priority": 3}
+    },
+    "mcp_server": {
+      "query_tools": {"status": "passing", "tests": 18, "priority": 4},
+      "action_tools": {"status": "passing", "tests": 16, "priority": 5}
+    }
+  },
+
+  "phase_2_coordination": {
+    "target": "Mar 2026",
+    "action_methods": {
+      "prepare": {"status": "passing", "tests": 8}
+    },
+    "orchestration_methods": {
+      "coordinate": {"status": "passing", "tests": 3},
+      "report_outcome": {"status": "passing", "tests": 6}
+    },
+    "mcp_server": {
+      "orchestration_tools": {"status": "passing", "tests": 9}
+    }
+  },
+
+  "phase_3_learning": {
+    "target": "Jun 2026",
+    "orchestration_methods": {
+      "suggestions": {"status": "passing", "tests": 7}
+    },
+    "langgraph_workflows": {
+      "coordination_workflow": {"status": "passing", "tests": 3},
+      "suggestion_workflow": {"status": "passing", "tests": 9},
+      "preparation_workflow": {"status": "passing", "tests": 8}
+    },
+    "feedback_system": {
+      "pattern_learner": {"status": "passing", "tests": 9},
+      "strategy_suggestions": {"status": "passing", "tests": 9}
+    }
+  },
+
+  "data_layer": {
+    "issue_storage": {"status": "passing"},
+    "meeting_storage": {"status": "passing"},
+    "legislative_context": {"status": "passing"},
+    "initiative_storage": {"status": "passing"},
+    "voice_storage": {"status": "passing"},
+    "subscription_storage": {"status": "passing"},
+    "outcome_storage": {"status": "passing"},
+    "schema_update": {"status": "passing", "note": "Added Initiative, Voice, Subscription, Outcome, CoordinationPlan to civic-app-schema.json v2.0.0"}
+  },
+
+  "extraction": {
+    "legistar": {"status": "passing", "cities": 6},
+    "civicclerk": {"status": "passing", "cities": 11},
+    "granicus": {"status": "passing", "cities": 2},
+    "seeclickfix": {"status": "passing", "cities": 1}
+  },
+
+  "frontend": {
+    "event_browsing": {"status": "passing"},
+    "legislative_panel": {"status": "passing"},
+    "issue_system": {"status": "passing"},
+    "comment_drafting": {"status": "passing"},
+    "coordination_chat": {"status": "passing"}
+  }
+}

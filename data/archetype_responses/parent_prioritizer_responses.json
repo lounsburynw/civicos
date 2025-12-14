@@ -1,0 +1,334 @@
+{
+  "archetype_id": "parent_prioritizer",
+  "archetype_name": "Parent Prioritizer",
+  "scenario_count": 54,
+  "successful_responses": 54,
+  "errors": 0,
+  "api_used": "openai",
+  "responses": [
+    {
+      "scenario_id": "housing_001",
+      "position": "support",
+      "confidence": 80,
+      "reasoning": "The proposed apartment building includes affordable housing units, which can help families access better housing options in a central location. While the height variance might be a concern, the project's contribution to increasing housing availability, particularly affordable units, aligns with the need for more family-friendly living spaces. Additionally, the downtown location could offer proximity to services and opportunities for families, supporting work-life balance. However, it is important to ensure that the development includes family-friendly amenities and considers traffic safety, especially if it is near schools or parks."
+    },
+    {
+      "scenario_id": "housing_002",
+      "position": "support",
+      "confidence": 65,
+      "reasoning": "As a Parent Prioritizer, ensuring that families have access to affordable housing is important for family well-being. This policy could allow more families, including those with children, to live in safe and stable environments. However, the potential reduction in overall housing supply might lead to fewer housing options and possibly higher overall prices, which creates some internal conflict regarding accessibility and affordability for all families."
+    },
+    {
+      "scenario_id": "housing_003",
+      "position": "support",
+      "confidence": 80,
+      "reasoning": "The Parent Prioritizer would support the community land trust as it aligns with the value of ensuring family well-being and stability, especially in the face of gentrification that can displace families. Affordable housing is crucial for maintaining community ties and access to local schools, which benefits child development. While the cost is significant, the long-term security it provides for families justifies the investment, though there may be some concern about the ongoing subsidies and how they might impact funding for other family services."
+    },
+    {
+      "scenario_id": "housing_004",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "Allowing fourplexes by-right on single-family lots can provide more housing options, which may help alleviate housing costs and make neighborhoods more accessible to families. However, there is some concern about changing neighborhood character and the potential impact on local schools and infrastructure. While supporting increased housing density aligns with the need for affordable family housing options, it is important to ensure that the city's infrastructure, including schools and parks, can accommodate this growth without compromising quality."
+    },
+    {
+      "scenario_id": "housing_005",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "Expanding rent control can help stabilize housing costs for families, which is crucial for family well-being and child development. However, I am concerned that it might reduce investment in rental housing, potentially impacting the availability of family-sized units. Balancing affordability with adequate housing options is important for ensuring families have access to safe and stable homes."
+    },
+    {
+      "scenario_id": "transportation_001",
+      "position": "neutral",
+      "confidence": 60,
+      "reasoning": "While improved public transit can benefit families by enhancing access to employment and reducing traffic congestion, the increase in property taxes may strain family budgets. Additionally, the direct impact on family services and school funding is not immediately clear, leading to a cautious stance. The Parent Prioritizer would likely seek assurance that the light rail extension would incorporate safety features for children and improve access to family-friendly spaces before fully supporting the measure."
+    },
+    {
+      "scenario_id": "transportation_002",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "The addition of protected bike lanes aligns with the Parent Prioritizer's value of ensuring safe streets for children, as it provides a safer option for kids and families to bike. However, there is concern about the increased traffic delays affecting parents' commutes and the potential difficulty in finding parking near schools or childcare facilities. Balancing these factors, the plan is supported as it promotes safety and alternative transportation modes, but with some reservations about the potential impact on daily family routines."
+    },
+    {
+      "scenario_id": "transportation_003",
+      "position": "support",
+      "confidence": 65,
+      "reasoning": "The Parent Prioritizer archetype supports eliminating parking minimums near BART stations because it can lead to more affordable housing options for families, potentially easing the burden of high living costs. However, there is some concern about the impact on parking availability, which could affect parents who rely on cars for transporting children. Balancing increased housing with sufficient parking and public transportation access is key to maintaining family convenience and accessibility."
+    },
+    {
+      "scenario_id": "transportation_004",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "The Parent Prioritizer archetype would support this congestion pricing scheme because it aligns with values of creating safer, less congested streets, which can enhance child safety. Additionally, the revenue generated is aimed at supporting low-income families with transit access, indirectly aiding family well-being. However, there might be some concern about the potential impact on families who drive into the city for work, necessitating a balanced view."
+    },
+    {
+      "scenario_id": "transportation_005",
+      "position": "neutral",
+      "confidence": 60,
+      "reasoning": "The Parent Prioritizer archetype is likely to be conflicted about the CalTrain project. On one hand, the electrification and high-speed rail upgrades could potentially enhance public transportation, making commutes easier for working parents and improving air quality, which benefits children\u2019s health. On the other hand, the displacement of families due to property acquisitions is a significant concern, as stability and community support are crucial for family well-being. Balancing these benefits and drawbacks makes this a complex decision for the archetype."
+    },
+    {
+      "scenario_id": "environment_001",
+      "position": "neutral",
+      "confidence": 60,
+      "reasoning": "While the Parent Prioritizer values environmental sustainability for the future well-being of children, the significant retrofit costs could strain family budgets, potentially affecting access to other critical needs like childcare and education. Balancing environmental goals with affordable living is crucial, and without assurances of financial support or subsidies, this proposal may present a challenge for families trying to maintain economic stability."
+    },
+    {
+      "scenario_id": "environment_002",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "While the removal of mature oak trees is regrettable, the Parent Prioritizer archetype recognizes the critical need for affordable housing to support families, which can enhance family well-being and stability. The commitment to plant replacement trees shows a long-term environmental consideration. However, there is a concern about the immediate loss of green space and its impact on children's play environments, leading to a moderate level of support."
+    },
+    {
+      "scenario_id": "environment_003",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "The Parent Prioritizer archetype values long-term sustainability and lower energy costs, which can ultimately benefit family well-being and financial stability. However, the immediate cost may strain already tight family budgets, creating some hesitation. Despite this, the prospect of future savings and contributing to a cleaner environment for children makes the overall proposal appealing."
+    },
+    {
+      "scenario_id": "environment_004",
+      "position": "neutral",
+      "confidence": 60,
+      "reasoning": "While the Parent Prioritizer archetype values environmental sustainability as it affects family well-being and children's futures, there is concern about the economic impact on small businesses, which could lead to higher prices for families. Additionally, the potential cost increases might strain family budgets and local economies. Balancing environmental benefits with economic stability for families leads to a nuanced, less certain stance."
+    },
+    {
+      "scenario_id": "environment_005",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "The Parent Prioritizer values environmental sustainability as it directly impacts the well-being and future of children. Supporting climate adaptation projects in disadvantaged communities is important as it contributes to safer and healthier environments for all families. However, there is a concern about the potential financial burden on families, especially those already struggling with affordability issues, which slightly tempers the enthusiasm for this initiative."
+    },
+    {
+      "scenario_id": "budget_001",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "As a Parent Prioritizer, supporting services that help stabilize families and communities aligns with core values, especially if it can indirectly improve safety and resources for children. However, there is a concern that tax increases might affect family budgets, making it crucial to balance immediate family needs with long-term community benefits. The confidence is moderate due to the potential impact on household finances, but the potential for improved community wellbeing and safety is significant."
+    },
+    {
+      "scenario_id": "budget_002",
+      "position": "oppose",
+      "confidence": 70,
+      "reasoning": "While increasing property taxes is not ideal, cutting library services significantly hampers access to valuable educational resources for children. Libraries provide free enrichment opportunities and safe spaces, which are crucial for family well-being and child development. However, the financial burden on families due to increased taxes is a concern, leading to some internal conflict."
+    },
+    {
+      "scenario_id": "budget_003",
+      "position": "support",
+      "confidence": 85,
+      "reasoning": "Parent Prioritizer values align with increasing access to affordable childcare and pre-K programs, which are crucial for family well-being and early child development. While there is some concern about the potential for businesses to relocate, the long-term benefits of investing in early childhood education outweigh these risks. Ensuring that families have the support they need is a priority, and this tax provides a viable funding solution for essential family services."
+    },
+    {
+      "scenario_id": "budget_004",
+      "position": "neutral",
+      "confidence": 65,
+      "reasoning": "As a Parent Prioritizer, maintaining and improving infrastructure is important since it affects the overall safety and functionality of the city, which indirectly impacts family life and child development. However, the increase in property taxes could strain family budgets, potentially limiting resources available for other child-focused needs. Given the mixed implications, while we see the value in infrastructure improvements, the financial burden on families tempers our support."
+    },
+    {
+      "scenario_id": "budget_005",
+      "position": "strongly_support",
+      "confidence": 90,
+      "reasoning": "Expanding after-school programs to serve 2,000 more youth aligns closely with the Parent Prioritizer's core values of family well-being and child development. These programs provide safe, structured environments for children while supporting working parents with childcare needs. Although street safety is also a concern, the immediate benefits of after-school programs in enhancing child development and supporting working families make it the top priority."
+    },
+    {
+      "scenario_id": "public_safety_001",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "Parent Prioritizers value safe streets and neighborhoods, which can be achieved through both traditional policing and proactive community support measures. While there is concern about reduced police presence potentially impacting immediate safety, the investment in mental health crisis response and prevention aligns with long-term goals of creating safer environments for children. However, the confidence is not maximal due to potential worries about immediate safety implications from reducing police numbers."
+    },
+    {
+      "scenario_id": "public_safety_002",
+      "position": "support",
+      "confidence": 80,
+      "reasoning": "As a Parent Prioritizer, ensuring safe streets and communities for children is paramount. An independent oversight commission could promote accountability and transparency in policing, potentially leading to safer neighborhoods. While there may be concerns about the relationship between the police and the community, the priority is creating an environment where families feel secure and children's safety is enhanced."
+    },
+    {
+      "scenario_id": "public_safety_003",
+      "position": "oppose",
+      "confidence": 65,
+      "reasoning": "The Parent Prioritizer archetype values safety, particularly near schools and areas frequented by children, which might initially suggest support for measures that could enhance security. However, the use of facial recognition technology raises concerns about privacy and the potential for misuse, particularly affecting families and children. Additionally, the significant cost of $12M could be redirected towards more direct investments in community safety, such as traffic calming measures or improvements in parks and playgrounds, which align more closely with this archetype's priorities."
+    },
+    {
+      "scenario_id": "public_safety_004",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "As a Parent Prioritizer, the safety of children and families is paramount, and quicker emergency response times can significantly enhance community safety. However, there is a concern about the allocation of funds, as $35M could also improve schools or childcare services. Balancing these priorities is essential, but the potential for saving lives makes this proposal generally supportable."
+    },
+    {
+      "scenario_id": "public_safety_005",
+      "position": "support",
+      "confidence": 80,
+      "reasoning": "The Parent Prioritizer archetype values child safety as a top priority, and a program that could reduce violence by 20-40% aligns well with creating safer streets and communities for children. The use of community outreach and mentors can also foster a more connected and supportive environment, benefiting family well-being. However, the cost may raise concerns about potential trade-offs with funding for schools and childcare, leading to slightly tempered confidence."
+    },
+    {
+      "scenario_id": "education_001",
+      "position": "support",
+      "confidence": 85,
+      "reasoning": "As a Parent Prioritizer, I value a well-rounded education that includes art, music, and physical education, which are critical for holistic child development. While there are concerns about the additional financial burden on families, the availability of senior exemptions helps mitigate some of these worries. The long-term benefits of enriched educational programs outweigh the cost, contributing positively to school quality and child well-being."
+    },
+    {
+      "scenario_id": "education_002",
+      "position": "oppose",
+      "confidence": 80,
+      "reasoning": "The Parent Prioritizer values smaller class sizes for enhanced learning and individual attention for children, which are crucial for child development. Increasing class sizes to 28 students would compromise the quality of education across the district. While school closures are undesirable, especially affecting lower-income neighborhoods, the archetype would likely advocate for alternative solutions such as district rezoning or seeking additional funding to maintain both school accessibility and manageable class sizes."
+    },
+    {
+      "scenario_id": "education_003",
+      "position": "support",
+      "confidence": 80,
+      "reasoning": "Expanding library services to include 7-day access and homework help centers aligns with the Parent Prioritizer's values of supporting child development and educational success. Access to additional digital resources can enhance learning opportunities for children outside of school hours, which is especially valuable for working families. While the budget increase is significant, the potential benefits for family and educational support justify the investment, although there may be concerns about the impact on other family-focused services if resources are reallocated."
+    },
+    {
+      "scenario_id": "education_004",
+      "position": "strongly_support",
+      "confidence": 95,
+      "reasoning": "Universal pre-K aligns with the Parent Prioritizer's core values of enhancing family well-being and child development by providing equitable early education opportunities. It supports work-life balance by allowing parents to engage in employment while ensuring their children receive quality care and learning. The program's bilingual aspect also enriches cultural and linguistic diversity, which is beneficial for children's development. The funding through commercial property tax is a reasonable trade-off, as it doesn't directly burden families while addressing a critical community need."
+    },
+    {
+      "scenario_id": "education_005",
+      "position": "support",
+      "confidence": 80,
+      "reasoning": "As a Parent Prioritizer, the focus is on ensuring all children have access to quality education, which is crucial for their development and future opportunities. Reallocating funds to underperforming schools in low-income areas can help address disparities that affect children's educational outcomes. While there is concern about potential impacts on high-performing schools, the ability of those schools to supplement resources through private fundraising suggests that this reallocation could help achieve a more equitable education system without severely impacting the quality of education at high-performing schools."
+    },
+    {
+      "scenario_id": "governance_001",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "The Parent Prioritizer archetype values transparency, especially in areas where city spending impacts family services and education. While the $2M/year cost is a consideration given limited budgets, the increased accountability could lead to better allocation of resources for schools and childcare. However, there is a need to ensure that this expenditure does not detract from direct investments in family and child services, which creates some internal conflict."
+    },
+    {
+      "scenario_id": "governance_002",
+      "position": "support",
+      "confidence": 80,
+      "reasoning": "The Parent Prioritizer archetype would likely support participatory budgeting as it empowers families and communities to have a direct say in how funds are allocated, potentially directing more resources towards family and child-friendly projects such as parks, playgrounds, and school safety initiatives. While there might be concerns about the potential delay in project implementation, the opportunity for community input aligns with core values of family well-being and children's development. The slower process is a trade-off for ensuring that the spending reflects the community's priorities, including those that directly impact children and families."
+    },
+    {
+      "scenario_id": "governance_003",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "As a Parent Prioritizer, increasing voter turnout is beneficial for ensuring that issues affecting families and children are more widely represented and addressed in local elections. Higher participation can lead to more community-focused decision-making, which aligns with the archetype's priorities for improved family services and education. However, there is some concern about national partisanship overshadowing local issues, which tempers the confidence slightly."
+    },
+    {
+      "scenario_id": "governance_004",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "Term limits can bring fresh perspectives to the city council, which can be beneficial for introducing new ideas and policies that support families and children's services. However, there is a concern that experienced members who have been strong advocates for family priorities may be lost. Balancing the need for innovation with the experience of seasoned council members is important, which is why the confidence is not absolute."
+    },
+    {
+      "scenario_id": "governance_005",
+      "position": "support",
+      "confidence": 65,
+      "reasoning": "While the Parent Prioritizer archetype may not have a direct focus on government ethics, they understand that ethical governance is crucial for ensuring that public resources are allocated effectively toward family services and education. An independent ethics commission could help prevent corruption, ensuring that funds are used to enhance school quality and childcare access. However, there is some concern about the potential for excessive bureaucracy or political motivation, which tempers the confidence in fully supporting this measure."
+    },
+    {
+      "scenario_id": "development_001",
+      "position": "oppose",
+      "confidence": 80,
+      "reasoning": "The development would displace 12 small businesses, which may include family-friendly spaces like cafes and bookstores that contribute to community well-being and provide local parents with accessible services. While mixed-use projects can offer opportunities for new amenities, the loss of existing community hubs could negatively impact families. Additionally, without assurances that the new development will include family-oriented spaces or affordable housing, this proposal does not align sufficiently with the priorities of ensuring a supportive environment for families and children."
+    },
+    {
+      "scenario_id": "development_002",
+      "position": "oppose",
+      "confidence": 80,
+      "reasoning": "As a Parent Prioritizer, the focus is on quality jobs that provide adequate income for families and contribute to community well-being. While job creation is important, the proposed deal subsidizes low-wage positions that might not support a decent standard of living for families. Additionally, the tax break could divert funds away from critical public services like schools and childcare, which are crucial for child development and family support."
+    },
+    {
+      "scenario_id": "development_003",
+      "position": "neutral",
+      "confidence": 55,
+      "reasoning": "As a Parent Prioritizer, the potential for high-wage jobs is appealing, as it could improve family well-being by increasing local employment opportunities. However, concerns about chemical storage and increased truck traffic pose risks to child safety and community health, which are paramount. Balancing economic benefits with environmental and safety concerns makes this decision complex, leading to a neutral stance with a focus on insisting on strong safety measures and community involvement in planning."
+    },
+    {
+      "scenario_id": "development_004",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "The conversion of downtown streets to pedestrian-only zones aligns with the Parent Prioritizer's value of creating safe environments for children, as it reduces traffic and enhances pedestrian safety. The increase in foot traffic suggests a more family-friendly atmosphere with likely benefits to local businesses. However, there's concern over the impact on suburban families who rely on car access, highlighting a need for improved public transportation options to balance accessibility and safety."
+    },
+    {
+      "scenario_id": "development_005",
+      "position": "support",
+      "confidence": 80,
+      "reasoning": "While the historic value of the theater is recognized, the 15-year vacancy and high restoration cost present significant barriers to its revitalization. Building a 200-unit residential development could provide much-needed housing for families, potentially alleviating some pressure on the local housing market. This development could also incorporate family-friendly amenities, aligning with priorities for safe, accessible living spaces for children and families."
+    },
+    {
+      "scenario_id": "community_001",
+      "position": "strongly_support",
+      "confidence": 90,
+      "reasoning": "The conversion of a golf course into a regional park aligns with the Parent Prioritizer's core values of creating family-friendly public spaces and promoting outdoor activities for children. The proposed trails, picnic areas, and community gardens provide diverse opportunities for family engagement and child development. While the loss of a public golf course may be a concern for some, the benefits to families and children by providing a safe, accessible environment for recreation and learning are significant."
+    },
+    {
+      "scenario_id": "community_002",
+      "position": "oppose",
+      "confidence": 70,
+      "reasoning": "While the Parent Prioritizer archetype is compassionate towards finding solutions for homelessness, the proximity of the proposed navigation center to an elementary school raises concerns about child safety and the potential impact on the school environment. The lack of a sobriety requirement adds to worries about unpredictable behavior that could jeopardize the safety of children walking to and from school. This archetype would likely advocate for a more suitable location that balances the needs of the homeless population with the safety and well-being of schoolchildren."
+    },
+    {
+      "scenario_id": "community_003",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "While the primary focus of the Parent Prioritizer archetype is on family services and child-related initiatives, supporting arts and culture can indirectly benefit children by enhancing educational opportunities and community engagement. However, the direct impact on family well-being is not as strong as with initiatives like childcare or school funding, leading to moderate support. The archetype would hope that some of these cultural programs include family-friendly and educational components."
+    },
+    {
+      "scenario_id": "community_004",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "The 'parklet' program aligns with the Parent Prioritizer's value of creating family-friendly public spaces by enhancing community areas with greenery and gathering spots. While there may be concerns about reduced parking affecting accessibility for families with young children, the benefits of having more spaces designed for safe, outdoor family activities outweigh the drawbacks. The program contributes to safer and more engaging environments for children and families, though careful consideration should be given to the impact on parking near essential family services."
+    },
+    {
+      "scenario_id": "community_005",
+      "position": "strongly_support",
+      "confidence": 85,
+      "reasoning": "As a Parent Prioritizer, I believe that investing in a youth center in a high-poverty neighborhood aligns with our core values of fostering child development and family well-being. The center's facilities, such as a gym, computer lab, art studios, and counseling services, provide essential resources and safe environments for children and families. Although there are trade-offs, like delaying other infrastructure projects, the long-term benefits for children\u2019s development and community safety make this investment worthwhile."
+    },
+    {
+      "scenario_id": "housing_006",
+      "position": "support",
+      "confidence": 85,
+      "reasoning": "The Parent Prioritizer archetype supports this proposal because affordable housing is crucial for family stability and well-being, which directly impacts children's development. By ensuring families have access to affordable housing, resources can be redirected towards quality childcare and education. However, there is a mild concern about ensuring that the new developments include family-friendly amenities and are located in safe neighborhoods, which slightly tempers full confidence."
+    },
+    {
+      "scenario_id": "transportation_006",
+      "position": "strongly_support",
+      "confidence": 90,
+      "reasoning": "As a Parent Prioritizer, ensuring the safety of children is a top priority. Reducing speed limits and using automated speed cameras can significantly decrease the risk of accidents, creating safer streets for children walking or biking to school. While the fines might be burdensome for some families, the overall benefit of preventing potential tragedies and creating a safer environment for children outweighs this concern."
+    },
+    {
+      "scenario_id": "environment_006",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "As a Parent Prioritizer, ensuring access to water is crucial for family well-being and healthy child development. While water restrictions may seem inconvenient, they are necessary to safeguard resources for future generations. However, the confidence is not higher because water restrictions may impact the ability to maintain family-friendly outdoor spaces like lawns and gardens, which are important for children's play and family activities."
+    },
+    {
+      "scenario_id": "budget_006",
+      "position": "neutral",
+      "confidence": 60,
+      "reasoning": "As a Parent Prioritizer, balancing the city's financial stability with the need to maintain quality public services, especially those that impact families, is crucial. While reducing benefits and increasing contributions might help address the pension liabilities, it could also affect the morale and retention of public sector employees, including teachers and childcare workers, potentially impacting the quality of services provided to families. The issuance of pension obligation bonds might offer a temporary relief, but the long-term implications on public services require careful consideration, making this a complex issue with no clear-cut stance."
+    },
+    {
+      "scenario_id": "public_safety_006",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "While the primary focus of the Parent Prioritizer archetype is on family and child welfare, the potential to significantly reduce overdose deaths is compelling. A decrease in drug-related casualties could contribute to safer communities overall, which aligns with the safety priorities for children. However, the proximity of such sites to schools and family areas could raise concerns, which tempers the level of support."
+    },
+    {
+      "scenario_id": "education_006",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "As a Parent Prioritizer, supporting the well-being and development of all children is paramount. Differentiated instruction in mixed-ability classrooms can foster inclusivity and reduce achievement gaps, which aligns with the value of equitable education for all children. However, there's a concern about whether high-achievers will receive the necessary challenges to thrive, indicating a need for strong teacher training and resources to successfully implement this approach."
+    },
+    {
+      "scenario_id": "governance_006",
+      "position": "support",
+      "confidence": 70,
+      "reasoning": "As a Parent Prioritizer, ranked-choice voting can be beneficial because it encourages a more positive and diverse electoral process, potentially leading to policy outcomes that align more closely with family-focused needs. However, there might be some concern about the complexity of the system and whether it would be easily understandable to all voters, which can impact participation. Balancing the potential benefits for family-friendly governance with the accessibility of the voting process is crucial."
+    },
+    {
+      "scenario_id": "development_006",
+      "position": "neutral",
+      "confidence": 60,
+      "reasoning": "While the project includes housing, the limited transit options could increase traffic and reduce safety near schools. However, if the development includes family-friendly spaces like parks and ensures safe routes for children, it could benefit families. The Parent Prioritizer would want to carefully evaluate the project's impact on family well-being and child safety, leading to a balanced view."
+    },
+    {
+      "scenario_id": "community_006",
+      "position": "neutral",
+      "confidence": 60,
+      "reasoning": "As a Parent Prioritizer, I understand the importance of addressing historical injustices and the potential positive impact on family stability and community cohesion, which indirectly benefits children. However, I'm concerned that funding such a program through a property transfer tax might strain housing affordability and limit resources available for immediate family-centric services like childcare and school funding. Balancing reparative justice with direct investments in family support and child development creates a complex decision-making scenario."
+    }
+  ]
+}

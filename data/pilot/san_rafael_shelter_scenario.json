@@ -1,0 +1,171 @@
+{
+  "scenario": "merrydale_shelter",
+  "version": "1.0",
+  "created": "2025-12-03",
+  "description": "Pilot scenario using 350 Merrydale Road homeless shelter project as RAG test case",
+
+  "context": {
+    "summary": "San Rafael announced plans on Oct 15, 2025 to build an interim homeless shelter at 350 Merrydale Road. Residents allege the city approved plans in secrecy, releasing 500+ pages 72 hours before a Nov 17 vote. Community meetings scheduled for Dec 9 and Jan 14 to collect input on 'good neighbor policy'.",
+    "source_article": "Marin Independent Journal, December 2, 2025",
+    "key_dates": {
+      "announcement": "2025-10-15",
+      "council_vote": "2025-11-17",
+      "property_closing": "2025-11-26",
+      "dec_community_meeting": "2025-12-09",
+      "jan_community_meeting": "2025-01-14",
+      "shelter_operational": "early 2026"
+    },
+    "key_actors": {
+      "city_officials": ["Mayor (unnamed)", "City Manager Cristine Alilovich", "City Attorney Rob Epstein", "City Clerk Lindsay Lara"],
+      "community_groups": ["Marin Citizens for Solutions Not Secrecy"],
+      "named_residents": ["Ken Dickinson", "Marianne Nannestad", "Jennifer Wallace", "Frank Mason", "Gregory Andrews"]
+    }
+  },
+
+  "source_materials": {
+    "nov_17_meeting": {
+      "description": "The key City Council meeting where shelter decisions were made",
+      "materials": {
+        "agenda": {
+          "url": "https://storage.googleapis.com/proudcity/sanrafaelca/2025/11/2d4a5f84-cc-agenda-2025-11-17.pdf",
+          "size": "0.2MB",
+          "status": "to_extract"
+        },
+        "full_packet": {
+          "url": "https://storage.googleapis.com/proudcity/sanrafaelca/2025/11/5e2fbbbf-agenda-packet-2025-11-17-rev-3.pdf",
+          "size_bytes": 36611377,
+          "size_display": "34.9MB",
+          "pages": 594,
+          "note": "The '500+ pages' that residents cite as impossible to review in 72 hours",
+          "author": "Lindsay Lara",
+          "created": "2025-11-14",
+          "status": "extracted",
+          "local_path": "data/pilot/rag_corpus/merrydale/nov17_agenda_packet.pdf",
+          "chunks_path": "data/pilot/rag_corpus/merrydale/nov17_chunks.json"
+        },
+        "minutes": {
+          "url": "https://storage.googleapis.com/proudcity/sanrafaelca/2025/12/d2ca1a56-cc-minutes-2025-11-17.pdf",
+          "size": "0.2MB",
+          "note": "Abbreviated minutes that residents say don't reflect community sentiment",
+          "status": "to_extract"
+        },
+        "staff_report": {
+          "url": "https://storage.googleapis.com/proudcity/sanrafaelca/2025/11/84d3410c-6.a-declaration-of-shelter-crisis-and-approval-of-related-actions-and-aquisition-of-the-property-at-350-merrydale-road-rev.pdf",
+          "note": "Primary staff report for Item 6.a",
+          "status": "to_extract"
+        },
+        "video": {
+          "platform": "YouTube",
+          "youtube_url": "https://www.youtube.com/watch?v=h6ey-0sY03g",
+          "video_id": "h6ey-0sY03g",
+          "duration_minutes": 313,
+          "local_audio": "data/youtube_audio/h6ey-0sY03g.mp3",
+          "file_size_mb": 287.2,
+          "note": "Video recording referenced by City Attorney as permanent record",
+          "status": "downloaded"
+        }
+      },
+      "decisions_made": [
+        {"item": "6.a.1", "title": "Declaration of Shelter Crisis", "type": "resolution"},
+        {"item": "6.a.2", "title": "Urgency Ordinance - Homeless Shelter Standards", "type": "urgency_ordinance"},
+        {"item": "6.a.3", "title": "Uncodified Ordinance - Companion Measure", "type": "ordinance"},
+        {"item": "6.a.4", "title": "Grant Agreement - $8M from County of Marin", "type": "agreement", "amount": 8000000},
+        {"item": "6.a.5", "title": "Purchase Agreement - 350 Merrydale Road", "type": "purchase", "amount": 6700000}
+      ]
+    },
+    "dec_1_meeting": {
+      "description": "Meeting from article where residents spoke about minutes and process",
+      "url": "https://www.cityofsanrafael.org/meetings/city-council-december-1-2025/",
+      "status": "to_extract"
+    },
+    "dec_9_community_meeting": {
+      "description": "Community engagement session for good neighbor policy",
+      "date": "2025-12-09",
+      "time": "6:00 PM - 7:30 PM",
+      "location": "Venetia Valley School",
+      "status": "upcoming",
+      "platform_use_case": "prepare() and coordinate()"
+    },
+    "jan_14_community_meeting": {
+      "description": "Second community engagement session",
+      "date": "2025-01-14",
+      "status": "upcoming",
+      "platform_use_case": "prepare() and follow-up tracking"
+    }
+  },
+
+  "platform_use_cases": {
+    "option_a_forward_looking": {
+      "name": "Good Neighbor Policy Preparation",
+      "description": "Help residents prepare informed input for Dec 9 and Jan 14 meetings",
+      "methods": ["whats_next()", "prepare()", "what_applies('homeless shelter')", "whos_with_me()", "add_voice()"],
+      "complexity": "low",
+      "data_needed": "Dec 9 meeting details, shelter ordinance text",
+      "timeline": "Ready for Dec 9 with minimal extraction"
+    },
+    "option_b_rag_reconstruction": {
+      "name": "What Actually Happened Timeline",
+      "description": "Enable semantic search over meeting materials to reconstruct decision timeline",
+      "methods": ["what_happened('merrydale')", "what_applies()", "prepare()"],
+      "complexity": "medium",
+      "data_needed": "Nov 17 packet extraction, embeddings, ChromaDB index",
+      "timeline": "Accelerates city_state_rag infrastructure work"
+    }
+  },
+
+  "rag_test_case": {
+    "description": "Use Merrydale corpus as bounded test case for city_state_rag infrastructure",
+    "corpus_scope": {
+      "meetings": ["2025-11-17 City Council", "2025-12-01 City Council", "2025-12-09 Community", "2025-01-14 Community"],
+      "documents": ["Nov 17 agenda packet (34.9MB)", "Staff reports", "Ordinances", "Minutes"],
+      "estimated_chunks": "~500-1000 (based on 500+ pages)",
+      "actual_chunks": 724,
+      "merrydale_related_chunks": 268
+    },
+    "parsing_statistics": {
+      "total_chunks": 724,
+      "chunk_size_max": 1500,
+      "chunk_overlap": 200,
+      "chunks_by_agenda_item": {
+        "6.a": 530,
+        "4.f": 64,
+        "4.e": 53,
+        "5.a": 34,
+        "4.d": 12,
+        "4.c": 9,
+        "toc_0": 8,
+        "4.b": 7,
+        "4.a": 5,
+        "4.g": 2
+      },
+      "item_6a_note": "530 chunks (73%) are from Item 6.a - the Merrydale shelter decision"
+    },
+    "staff_report_metadata": {
+      "agenda_item": "6.a",
+      "meeting_date": "November 17, 2025",
+      "department": "City Manager",
+      "prepared_by": [
+        "John Stefanski, Assistant City Manager",
+        "Greg Minor, Assistant Director Community & Economic Development",
+        "Daniel Cooperman, Community Services Division Director"
+      ],
+      "property_address": "350 MERRYDALE ROAD",
+      "property_apns": ["179-041-27", "179-041-28"],
+      "financial_amount": "$8 MILLION (County grant)",
+      "page_range": "207-594",
+      "output_file": "data/pilot/rag_corpus/merrydale/item_6a_staff_report.json"
+    },
+    "validation_queries": [
+      {"query": "what_happened('merrydale shelter')", "expected": "Timeline of Oct 15 → Nov 26 decisions"},
+      {"query": "what_happened('shelter crisis declaration')", "expected": "Nov 17 resolution details"},
+      {"query": "what_happened('350 merrydale purchase')", "expected": "$6.7M purchase, Nov 26 close"},
+      {"query": "what_applies('homeless shelter standards')", "expected": "Urgency ordinance provisions"}
+    ],
+    "success_criteria": [
+      "Semantic search returns relevant chunks from Nov 17 packet",
+      "Timeline reconstruction matches article facts",
+      "Query latency < 500ms",
+      "Residents can answer 'what was decided vs what's still open'"
+    ]
+  }
+}

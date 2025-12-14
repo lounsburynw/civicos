@@ -1,0 +1,205 @@
+{
+  "id": "aa6a940c-cfd3-4f31-ac91-4a1fa2344f01",
+  "jurisdiction": {
+    "id": "city-san-rafael",
+    "name": "San Rafael",
+    "type": "city",
+    "website": "https://www.cityofsanrafael.org",
+    "meeting_calendar_url": "https://www.cityofsanrafael.org/departments/public-meetings/"
+  },
+  "generation_metadata": {
+    "scrape_urls": [
+      "https://www.cityofsanrafael.org/meetings"
+    ],
+    "ai_model_used": "gpt-5-mini",
+    "wiki_files_loaded": [],
+    "generation_cost": 0.0,
+    "processing_time": 0.0,
+    "unparseable_urls": null
+  },
+  "html_content": "Subject: City Council Meeting\n\n# \u2709\ufe0f City Council Meeting\n*Your quick guide to what's on the city council agenda \u2014 October 1, 2025*\n\n## \ud83d\udde3\ufe0f How to Participate\n- **Meeting:** [Wednesday, October 1 at 10:00 AM](https://calendar.google.com/calendar/render?action=TEMPLATE&text=San%20Rafael%20City%20Council%20Meeting&dates=20251001T170000Z/20251001T190000Z&location=1400%20Fifth%20Ave.%2C%20Rm.%20209%2C%20San%20Rafael%2C%20CA%2094901&details=City%20Council%20meeting%20to%20discuss%20various%20community%20issues) \ud83d\udcc5\n- **Where:** 1400 Fifth Ave., Rm. 209, San Rafael, CA 94901\n- **Watch Online:** Not specified.\n- **Call In:** Not specified.\n- **Email Comments:** Not specified. \u2014 **deadline:** Not specified.\n- **Attend & Speak:** Check meeting agenda for public comment rules\n- **Full Agenda:** [View original meeting agenda](https://www.cityofsanrafael.org/meetings)\n\n## \ud83d\udea8 What's on the Agenda\n### Zoning Administrator Hearing\n- **Change:** Review of zoning proposals\n- **Impact:** Potential changes to zoning regulations affecting local development. Cost not specified.\n- **Action:** Attend the meeting at the specified location or check agenda for remote participation options\n\n### Bicycle & Pedestrian Advisory Committee\n- **Change:** Discussion on bicycle and pedestrian infrastructure improvements\n- **Impact:** Enhancements to local transportation options and safety. Cost not specified.\n- **Action:** Attend the meeting at the specified location or check agenda for remote participation options\n\n### Pickleweed Advisory Committee\n- **Change:** Community engagement and facility updates\n- **Impact:** Improvements to community facilities and services. Cost not specified.\n- **Action:** Attend the meeting at the specified location or check agenda for remote participation options\n\n## \u2705 Bottom Line\nThe upcoming meetings in San Rafael on October 1, 2025, provide opportunities for public engagement in zoning, transportation, and community facilities. Residents are encouraged to participate and provide input.\n\n\u26a1 *Independent and nonpartisan summary. Facts only; no spin.*",
+  "text_content": "Subject: City Council Meeting\n\n# \u2709\ufe0f City Council Meeting\n*Your quick guide to what's on the city council agenda \u2014 October 1, 2025*\n\n## \ud83d\udde3\ufe0f How to Participate\n- **Meeting:** [Wednesday, October 1 at 10:00 AM](https://calendar.google.com/calendar/render?action=TEMPLATE&text=San%20Rafael%20City%20Council%20Meeting&dates=20251001T170000Z/20251001T190000Z&location=1400%20Fifth%20Ave.%2C%20Rm.%20209%2C%20San%20Rafael%2C%20CA%2094901&details=City%20Council%20meeting%20to%20discuss%20various%20community%20issues) \ud83d\udcc5\n- **Where:** 1400 Fifth Ave., Rm. 209, San Rafael, CA 94901\n- **Watch Online:** Not specified.\n- **Call In:** Not specified.\n- **Email Comments:** Not specified. \u2014 **deadline:** Not specified.\n- **Attend & Speak:** Check meeting agenda for public comment rules\n- **Full Agenda:** [View original meeting agenda](https://www.cityofsanrafael.org/meetings)\n\n## \ud83d\udea8 What's on the Agenda\n### Zoning Administrator Hearing\n- **Change:** Review of zoning proposals\n- **Impact:** Potential changes to zoning regulations affecting local development. Cost not specified.\n- **Action:** Attend the meeting at the specified location or check agenda for remote participation options\n\n### Bicycle & Pedestrian Advisory Committee\n- **Change:** Discussion on bicycle and pedestrian infrastructure improvements\n- **Impact:** Enhancements to local transportation options and safety. Cost not specified.\n- **Action:** Attend the meeting at the specified location or check agenda for remote participation options\n\n### Pickleweed Advisory Committee\n- **Change:** Community engagement and facility updates\n- **Impact:** Improvements to community facilities and services. Cost not specified.\n- **Action:** Attend the meeting at the specified location or check agenda for remote participation options\n\n## \u2705 Bottom Line\nThe upcoming meetings in San Rafael on October 1, 2025, provide opportunities for public engagement in zoning, transportation, and community facilities. Residents are encouraged to participate and provide input.\n\n\u26a1 *Independent and nonpartisan summary. Facts only; no spin.*",
+  "subject_line": "City Council Meeting",
+  "send_date": "2025-09-29T00:23:56.902559+00:00",
+  "recipients": [],
+  "analytics": {
+    "sent_count": 0,
+    "open_rate": 0.0,
+    "click_rate": 0.0,
+    "action_conversion_rate": 0.0
+  },
+  "created_at": "2025-09-29T00:23:56.902562+00:00",
+  "events": [
+    {
+      "id": "f8fd15a4-0c5f-4413-af89-d395af61d636",
+      "title": "Zoning Administrator Hearing",
+      "original_title": "Zoning Administrator Hearing",
+      "description": "Review of zoning proposals",
+      "when": "2025-10-01T00:00:00-07:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Potential changes to zoning regulations affecting local development",
+      "source_url": "https://www.cityofsanrafael.org/meetings",
+      "location": "1400 Fifth Ave., Rm. 209, San Rafael, CA 94901",
+      "meeting_type": "city_council",
+      "project_type": "community",
+      "engagement_tier": "public_hearing",
+      "jurisdiction": {
+        "id": "city-san-rafael",
+        "name": "San Rafael",
+        "type": "city",
+        "website": "https://www.cityofsanrafael.org",
+        "meeting_calendar_url": "https://www.cityofsanrafael.org/departments/public-meetings/"
+      },
+      "contact_info": {
+        "email": "planning@cityofsanrafael.org",
+        "name": null,
+        "title": null,
+        "phone": "Not specified",
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:23:56.901600+00:00",
+      "scraped_from": "https://www.cityofsanrafael.org/meetings",
+      "action_type": "planning_action",
+      "when_human": "Wed Oct 1, 2025 \u2022 12:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": "America/Los_Angeles",
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "planning@cityofsanrafael.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "1400 Fifth Ave., Rm. 209, San Rafael, CA 94901",
+          "when": "2025-10-01T00:00:00-07:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "0c311408-a58d-4800-8c5d-adbdd2e145e4",
+      "title": "Bicycle & Pedestrian Advisory Committee",
+      "original_title": "Bicycle & Pedestrian Advisory Committee",
+      "description": "Discussion on bicycle and pedestrian infrastructure improvements",
+      "when": "2025-10-01T00:00:00-07:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Enhancements to local transportation options and safety",
+      "source_url": "https://www.cityofsanrafael.org/meetings",
+      "location": "1400 Fifth Ave., Rm. 209, San Rafael, CA 94901",
+      "meeting_type": "city_council",
+      "project_type": "transportation",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-san-rafael",
+        "name": "San Rafael",
+        "type": "city",
+        "website": "https://www.cityofsanrafael.org",
+        "meeting_calendar_url": "https://www.cityofsanrafael.org/departments/public-meetings/"
+      },
+      "contact_info": {
+        "email": "planning@cityofsanrafael.org",
+        "name": null,
+        "title": null,
+        "phone": "Not specified",
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:23:56.901867+00:00",
+      "scraped_from": "https://www.cityofsanrafael.org/meetings",
+      "action_type": "action",
+      "when_human": "Wed Oct 1, 2025 \u2022 12:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": "America/Los_Angeles",
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "planning@cityofsanrafael.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "1400 Fifth Ave., Rm. 209, San Rafael, CA 94901",
+          "when": "2025-10-01T00:00:00-07:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    },
+    {
+      "id": "436aa92e-5290-4024-a280-398de9d366ca",
+      "title": "Pickleweed Advisory Committee",
+      "original_title": "Pickleweed Advisory Committee",
+      "description": "Community engagement and facility updates",
+      "when": "2025-10-01T00:00:00-07:00",
+      "deadline": null,
+      "engagement_info": null,
+      "impact_summary": "Improvements to community facilities and services",
+      "source_url": "https://www.cityofsanrafael.org/meetings",
+      "location": "1400 Fifth Ave., Rm. 209, San Rafael, CA 94901",
+      "meeting_type": "city_council",
+      "project_type": "community",
+      "engagement_tier": "quick_action",
+      "jurisdiction": {
+        "id": "city-san-rafael",
+        "name": "San Rafael",
+        "type": "city",
+        "website": "https://www.cityofsanrafael.org",
+        "meeting_calendar_url": "https://www.cityofsanrafael.org/departments/public-meetings/"
+      },
+      "contact_info": {
+        "email": "planning@cityofsanrafael.org",
+        "name": null,
+        "title": null,
+        "phone": "Not specified",
+        "office": null
+      },
+      "wiki_enhancement": {
+        "success_strategy": "Standard public comment procedures apply",
+        "precedent_examples": [],
+        "recommended_approach": null,
+        "related_opportunities": []
+      },
+      "created_at": "2025-09-29T00:23:56.901986+00:00",
+      "scraped_from": "https://www.cityofsanrafael.org/meetings",
+      "action_type": "action",
+      "when_human": "Wed Oct 1, 2025 \u2022 12:00 AM PT",
+      "deadline_reason": null,
+      "agenda_item_number": null,
+      "engagement": null,
+      "agenda_page": null,
+      "timezone": "America/Los_Angeles",
+      "participation_mechanisms": [
+        {
+          "type": "email",
+          "contact": "planning@cityofsanrafael.org",
+          "description": "Send written comment"
+        },
+        {
+          "type": "attend",
+          "location": "1400 Fifth Ave., Rm. 209, San Rafael, CA 94901",
+          "when": "2025-10-01T00:00:00-07:00",
+          "description": "Attend meeting for public comment"
+        }
+      ]
+    }
+  ]
+}

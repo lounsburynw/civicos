@@ -1,0 +1,167 @@
+{
+  "timestamp": "2025-12-11T00:29:41.571575",
+  "mode": "hybrid",
+  "total_decisions": 186,
+  "meetings_processed": 26,
+  "meetings_failed": 0,
+  "processed": [
+    {
+      "date": "2025-11-12",
+      "items": 3,
+      "decisions": 3,
+      "method": "simple"
+    },
+    {
+      "date": "2025-11-03",
+      "items": 10,
+      "decisions": 7,
+      "method": "standard"
+    },
+    {
+      "date": "2025-10-20",
+      "items": 9,
+      "decisions": 8,
+      "method": "standard"
+    },
+    {
+      "date": "2025-10-06",
+      "items": 10,
+      "decisions": 9,
+      "method": "standard"
+    },
+    {
+      "date": "2025-09-15",
+      "items": 8,
+      "decisions": 6,
+      "method": "standard"
+    },
+    {
+      "date": "2025-09-02",
+      "items": 13,
+      "decisions": 7,
+      "method": "standard"
+    },
+    {
+      "date": "2025-08-18",
+      "items": 11,
+      "decisions": 8,
+      "method": "standard"
+    },
+    {
+      "date": "2025-07-21",
+      "items": 10,
+      "decisions": 10,
+      "method": "standard"
+    },
+    {
+      "date": "2025-06-23",
+      "items": 15,
+      "decisions": 14,
+      "method": "standard"
+    },
+    {
+      "date": "2025-06-02",
+      "items": 14,
+      "decisions": 12,
+      "method": "standard"
+    },
+    {
+      "date": "2025-05-19",
+      "items": 7,
+      "decisions": 4,
+      "method": "standard"
+    },
+    {
+      "date": "2025-05-05",
+      "items": 10,
+      "decisions": 10,
+      "method": "standard"
+    },
+    {
+      "date": "2025-05-05",
+      "items": 10,
+      "decisions": 10,
+      "method": "standard"
+    },
+    {
+      "date": "2025-04-21",
+      "items": 9,
+      "decisions": 5,
+      "method": "standard"
+    },
+    {
+      "date": "2025-04-07",
+      "items": 15,
+      "decisions": 5,
+      "method": "standard"
+    },
+    {
+      "date": "2025-03-17",
+      "items": 11,
+      "decisions": 11,
+      "method": "standard"
+    },
+    {
+      "date": "2025-03-17",
+      "items": 11,
+      "decisions": 11,
+      "method": "standard"
+    },
+    {
+      "date": "2025-03-03",
+      "items": 9,
+      "decisions": 7,
+      "method": "standard"
+    },
+    {
+      "date": "2025-03-03",
+      "items": 9,
+      "decisions": 7,
+      "method": "standard"
+    },
+    {
+      "date": "2025-02-18",
+      "items": 8,
+      "decisions": 6,
+      "method": "standard"
+    },
+    {
+      "date": "2025-02-03",
+      "items": 6,
+      "decisions": 4,
+      "method": "standard"
+    },
+    {
+      "date": "2025-01-21",
+      "items": 8,
+      "decisions": 4,
+      "method": "standard"
+    },
+    {
+      "date": "2024-12-16",
+      "items": 4,
+      "decisions": 4,
+      "method": "standard"
+    },
+    {
+      "date": "2024-12-02",
+      "items": 8,
+      "decisions": 5,
+      "method": "standard"
+    },
+    {
+      "date": "2024-11-18",
+      "items": 7,
+      "decisions": 4,
+      "method": "standard"
+    },
+    {
+      "date": "2024-11-04",
+      "items": 12,
+      "decisions": 5,
+      "method": "standard"
+    }
+  ],
+  "failed": [],
+  "output_file": "/Users/nicolaslounsbury/projects/civic/data/pilot/rag_corpus/city-san-rafael/city-san-rafael_decisions.json"
+}
