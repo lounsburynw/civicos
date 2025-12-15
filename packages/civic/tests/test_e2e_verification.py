@@ -3691,9 +3691,7 @@ class TestSecuritySqlInjection:
         """
         Verify CivicInputValidator detects and blocks SQL injection patterns.
         """
-        import sys
-        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
-        from civic_input_validator import CivicInputValidator
+        from civic_services.processing.civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
 
@@ -3723,9 +3721,7 @@ class TestSecuritySqlInjection:
         """
         Verify CivicInputValidator doesn't block legitimate text with SQL keywords.
         """
-        import sys
-        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
-        from civic_input_validator import CivicInputValidator
+        from civic_services.processing.civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
 
@@ -3994,9 +3990,7 @@ class TestSecurityXssPrevention:
         """
         Verify CivicInputValidator blocks script tag XSS patterns.
         """
-        import sys
-        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
-        from civic_input_validator import CivicInputValidator
+        from civic_services.processing.civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
 
@@ -4022,9 +4016,7 @@ class TestSecurityXssPrevention:
         """
         Verify CivicInputValidator blocks event handler XSS patterns.
         """
-        import sys
-        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
-        from civic_input_validator import CivicInputValidator
+        from civic_services.processing.civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
 
@@ -4051,9 +4043,7 @@ class TestSecurityXssPrevention:
         """
         Verify CivicInputValidator blocks javascript: URL XSS patterns.
         """
-        import sys
-        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
-        from civic_input_validator import CivicInputValidator
+        from civic_services.processing.civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
 
@@ -4078,9 +4068,7 @@ class TestSecurityXssPrevention:
         """
         Verify CivicInputValidator blocks data: URL XSS patterns.
         """
-        import sys
-        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
-        from civic_input_validator import CivicInputValidator
+        from civic_services.processing.civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
 
@@ -4105,9 +4093,7 @@ class TestSecurityXssPrevention:
         """
         Verify _sanitize_text properly escapes HTML special characters.
         """
-        import sys
-        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
-        from civic_input_validator import CivicInputValidator
+        from civic_services.processing.civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
 
@@ -4131,9 +4117,7 @@ class TestSecurityXssPrevention:
         """
         Verify _sanitize_text removes null bytes and control characters.
         """
-        import sys
-        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
-        from civic_input_validator import CivicInputValidator
+        from civic_services.processing.civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
 
@@ -4160,9 +4144,7 @@ class TestSecurityXssPrevention:
         """
         Verify CivicInputValidator blocks template injection patterns.
         """
-        import sys
-        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
-        from civic_input_validator import CivicInputValidator
+        from civic_services.processing.civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
 
@@ -4305,9 +4287,7 @@ class TestSecurityXssPrevention:
         Tags that are explicitly in DANGEROUS_PATTERNS are rejected.
         Other potentially dangerous tags are HTML-escaped during sanitization.
         """
-        import sys
-        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
-        from civic_input_validator import CivicInputValidator
+        from civic_services.processing.civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
 
@@ -4347,9 +4327,7 @@ class TestSecurityXssPrevention:
         """
         Verify CivicInputValidator blocks encoded/obfuscated XSS attempts.
         """
-        import sys
-        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
-        from civic_input_validator import CivicInputValidator
+        from civic_services.processing.civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
 
@@ -4377,9 +4355,7 @@ class TestSecurityXssPrevention:
         """
         Verify CivicInputValidator blocks SVG-based XSS vectors.
         """
-        import sys
-        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
-        from civic_input_validator import CivicInputValidator
+        from civic_services.processing.civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
 
@@ -4405,9 +4381,7 @@ class TestSecurityXssPrevention:
         """
         Verify CivicInputValidator blocks HTML comments (can hide payloads).
         """
-        import sys
-        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
-        from civic_input_validator import CivicInputValidator
+        from civic_services.processing.civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
 
@@ -4432,9 +4406,7 @@ class TestSecurityXssPrevention:
         """
         Verify CivicInputValidator doesn't block legitimate uses of < and >.
         """
-        import sys
-        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
-        from civic_input_validator import CivicInputValidator
+        from civic_services.processing.civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
 
@@ -4520,9 +4492,7 @@ class TestSecurityXssPrevention:
         The frontend uses DOMPurify with a whitelist. This test verifies
         the backend sanitization aligns with this approach.
         """
-        import sys
-        sys.path.insert(0, str(PROJECT_ROOT / 'src'))
-        from civic_input_validator import CivicInputValidator
+        from civic_services.processing.civic_input_validator import CivicInputValidator
 
         validator = CivicInputValidator()
 
@@ -4552,7 +4522,7 @@ class TestSecurityXssPrevention:
         import re
 
         # Read the input validator source
-        validator_path = str(PROJECT_ROOT / 'src/civic_input_validator.py')
+        validator_path = str(PROJECT_ROOT / 'packages/civic-services/src/civic_services/processing/civic_input_validator.py')
         with open(validator_path, 'r') as f:
             source_code = f.read()
 
@@ -4577,7 +4547,7 @@ class TestSecurityXssPrevention:
         """
         import re
 
-        validator_path = str(PROJECT_ROOT / 'src/civic_input_validator.py')
+        validator_path = str(PROJECT_ROOT / 'packages/civic-services/src/civic_services/processing/civic_input_validator.py')
         with open(validator_path, 'r') as f:
             source_code = f.read()
 
@@ -5406,7 +5376,7 @@ class TestSecurityNoSecretsInLogs:
         """
         import os
 
-        validator_path = str(PROJECT_ROOT / 'src/civic_input_validator.py')
+        validator_path = str(PROJECT_ROOT / 'packages/civic-services/src/civic_services/processing/civic_input_validator.py')
 
         if not os.path.exists(validator_path):
             pytest.skip("Input validator not found")

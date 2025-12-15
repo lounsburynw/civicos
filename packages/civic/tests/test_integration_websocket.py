@@ -31,7 +31,6 @@ pytestmark = [pytest.mark.integration, pytest.mark.websocket]
 # Get absolute path to project root
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.absolute()
 sys.path.insert(0, str(PROJECT_ROOT / "packages/civic/src"))
-sys.path.insert(0, str(PROJECT_ROOT / "src"))
 os.chdir(str(PROJECT_ROOT))
 
 
@@ -53,7 +52,7 @@ class TestConnectionHandling:
         - Welcome message sent to client
         """
         # Import server module - creates sio and handlers
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         # Reset global state
         ws.user_sessions.clear()
@@ -99,7 +98,7 @@ class TestConnectionHandling:
         """
         Verify connection is rejected when no auth provided.
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         ws.user_sessions.clear()
 
@@ -118,7 +117,7 @@ class TestConnectionHandling:
         """
         Verify connection is rejected when auth dict has no user_id.
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         ws.user_sessions.clear()
 
@@ -135,7 +134,7 @@ class TestConnectionHandling:
         """
         Verify connection is rejected when user_id is invalid.
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         ws.user_sessions.clear()
 
@@ -158,7 +157,7 @@ class TestConnectionHandling:
         - Thread membership cleaned up
         - Other participants notified
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         # Setup: user connected and in a thread
         ws.user_sessions.clear()
@@ -213,7 +212,7 @@ class TestConnectionHandling:
         """
         Verify disconnect works when user wasn't in any thread.
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         ws.user_sessions.clear()
         ws.thread_sessions.clear()
@@ -249,7 +248,7 @@ class TestReconnection:
         - Same user can reconnect with same user_id
         - Old session doesn't interfere
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         ws.user_sessions.clear()
         ws.thread_sessions.clear()
@@ -284,7 +283,7 @@ class TestReconnection:
         """
         Verify same user can have multiple concurrent connections (different devices).
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         ws.user_sessions.clear()
 
@@ -313,7 +312,7 @@ class TestThreadOperations:
         """
         Verify user can join thread they're authorized for.
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         ws.user_sessions.clear()
         ws.thread_sessions.clear()
@@ -344,7 +343,7 @@ class TestThreadOperations:
         """
         Verify user cannot join thread they're not authorized for.
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         ws.user_sessions.clear()
         ws.thread_sessions.clear()
@@ -363,7 +362,7 @@ class TestThreadOperations:
         """
         Verify join fails when user not authenticated.
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         ws.user_sessions.clear()
 
@@ -376,7 +375,7 @@ class TestThreadOperations:
         """
         Verify user can leave thread.
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         ws.user_sessions.clear()
         ws.thread_sessions.clear()
@@ -409,7 +408,7 @@ class TestMessaging:
         """
         Verify authorized user can send message.
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         ws.user_sessions.clear()
         ws.message_rate_limiter.clear()
@@ -450,7 +449,7 @@ class TestMessaging:
         """
         Verify rate limiting works for messages.
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         ws.user_sessions.clear()
         ws.message_rate_limiter.clear()
@@ -476,7 +475,7 @@ class TestMessaging:
         """
         Verify message fails when not authenticated.
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         ws.user_sessions.clear()
 
@@ -492,7 +491,7 @@ class TestMessaging:
         """
         Verify message fails when content missing.
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         ws.user_sessions.clear()
         sid = "content_test_sid"
@@ -513,7 +512,7 @@ class TestTypingIndicators:
         """
         Verify typing indicator is broadcast to room.
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         ws.user_sessions.clear()
 
@@ -539,7 +538,7 @@ class TestTypingIndicators:
         """
         Verify stop typing indicator is broadcast.
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         ws.user_sessions.clear()
 
@@ -565,7 +564,7 @@ class TestRateLimiting:
         """
         Verify messages allowed within rate limit.
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         ws.message_rate_limiter.clear()
 
@@ -580,7 +579,7 @@ class TestRateLimiting:
         """
         Verify message blocked when limit exceeded.
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         ws.message_rate_limiter.clear()
 
@@ -598,7 +597,7 @@ class TestRateLimiting:
         """
         Verify rate limit resets after window expires.
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         ws.message_rate_limiter.clear()
 
@@ -622,7 +621,7 @@ class TestUserVerification:
         """
         Verify user check works when user is a participant.
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         mock_participants = [
             {"user_id": "participant_1", "joined_at": "2025-01-01"},
@@ -643,7 +642,7 @@ class TestUserVerification:
         """
         Verify returns False when no participants.
         """
-        import civic_socketio_server as ws
+        from civic_services.servers import civic_socketio_server as ws
 
         with patch.object(ws.storage, 'get_thread_participants', return_value=[]):
             result = ws.verify_user_in_thread("any_user", "empty_thread")
