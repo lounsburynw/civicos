@@ -9,13 +9,13 @@ Validation gates:
 
 import pytest
 import uuid
-from civic_app.issue_fallback import (
+from civic_services.issue_fallback import (
     handle_no_match,
     _find_similar_complaints,
     _generate_no_match_message,
     _generate_fallback_actions
 )
-from civic_app.issue_storage import IssueStorage as ComplaintStorage
+from civic_services.issue_storage import IssueStorage as ComplaintStorage
 
 
 class TestComplaintFallback:

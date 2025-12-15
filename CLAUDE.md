@@ -64,7 +64,7 @@ claude-progress.txt         # Session state (append-only)
 init.sh                     # Verification script
 packages/civic/             # Core API package
 packages/civic-extraction/  # Platform parsers
-packages/civic-app/         # Application layer (API server, chat, websocket)
+packages/civic-services/         # Application layer (API server, chat, websocket)
 frontend/civic-workspace/   # Vue frontend
 data/                       # Extracted events, issues, legislative context
 docs/critical/              # Essential architecture docs
@@ -136,8 +136,8 @@ Task(subagent_type="Explore", prompt="Explore [area] for [item]...")
 ## Key Commands
 
 ```bash
-python -m civic_app.civic_api_integrated     # REST API (8001)
-python -m civic_app.civic_socketio_server    # WebSocket (8002)
+python -m civic_services.civic_api_integrated     # REST API (8001)
+python -m civic_services.civic_socketio_server    # WebSocket (8002)
 cd frontend/civic-workspace && npm run dev   # Frontend
 ```
 

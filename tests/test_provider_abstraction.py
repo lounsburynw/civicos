@@ -15,8 +15,8 @@ load_dotenv()
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from civic_app.llm_provider import get_provider, list_available_providers, get_provider_for_task
-from civic_app.providers.base import CompletionResponse
+from civic_services.llm_provider import get_provider, list_available_providers, get_provider_for_task
+from civic_services.providers.base import CompletionResponse
 
 
 class TestProviderAbstraction(unittest.TestCase):
