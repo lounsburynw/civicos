@@ -26,10 +26,10 @@ COPY packages/civic/pyproject.toml packages/civic/README.md /tmp/civic/
 COPY packages/civic/src /tmp/civic/src
 RUN pip install --no-cache-dir /tmp/civic[embeddings]
 
-# Install civic-app package (application layer)
-COPY packages/civic-app/pyproject.toml /tmp/civic-app/
-COPY packages/civic-app/src /tmp/civic-app/src
-RUN pip install --no-cache-dir /tmp/civic-app
+# Install civic-services package (application layer)
+COPY packages/civic-services/pyproject.toml /tmp/civic-services/
+COPY packages/civic-services/src /tmp/civic-services/src
+RUN pip install --no-cache-dir /tmp/civic-services
 
 # Stage 2: Runtime image
 FROM python:3.11-slim AS runtime
@@ -71,4 +71,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8001/health || exit 1
 
 # Default command: REST API server
-CMD ["python", "-m", "civic_app.civic_api_integrated"]
+CMD ["python", "-m", "civic_services.civic_api_integrated"]

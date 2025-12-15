@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "civic-app"
+name = "civic-services"
 version = "0.1.0"
-description = "Civic application layer - API servers, websocket, and services"
+description = "Civic services layer - API servers, websocket, platform clients, and services"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 
@@ -16,4 +16,4 @@ dependencies = []
 where = ["src"]
 
 [tool.setuptools.package-data]
-civic_app = ["py.typed"]
+civic_services = ["py.typed"]

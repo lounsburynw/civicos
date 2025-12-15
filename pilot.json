@@ -103,7 +103,7 @@
         "status": "ready",
         "priority": 2,
         "artifact": "Move src/ to packages/civic-app/ with proper structure",
-        "note": "Moved src/ to packages/civic-app/src/civic_app/. Updated all imports from src.* to civic_app.*. Updated CI, Dockerfile, docker-compose.yml, and CLAUDE.md."
+        "note": "Moved src/ to packages/civic-services/src/civic_services/. Package renamed from civic-app to civic-services for clarity."
       }
     }
   },

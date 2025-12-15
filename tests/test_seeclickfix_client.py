@@ -6,7 +6,7 @@ Tests operational complaint fetching and normalization
 
 import unittest
 from unittest.mock import Mock, patch
-from civic_app.seeclickfix_client import SeeClickFixClient
+from civic_services.seeclickfix_client import SeeClickFixClient
 
 
 class TestSeeClickFixClient(unittest.TestCase):
@@ -21,7 +21,7 @@ class TestSeeClickFixClient(unittest.TestCase):
         self.assertIn('User-Agent', self.client.session.headers)
         self.assertIn('Accept', self.client.session.headers)
 
-    @patch('civic_app.seeclickfix_client.requests.Session.get')
+    @patch('civic_services.seeclickfix_client.requests.Session.get')
     def test_get_issues_with_place_url(self, mock_get):
         """Test fetching issues by place_url"""
         mock_response = Mock()
@@ -79,7 +79,7 @@ class TestSeeClickFixClient(unittest.TestCase):
         self.assertEqual(issue['title'], 'Test Issue')
         self.assertEqual(issue['status'], 'open')
 
-    @patch('civic_app.seeclickfix_client.requests.Session.get')
+    @patch('civic_services.seeclickfix_client.requests.Session.get')
     def test_get_issues_with_lat_lng(self, mock_get):
         """Test fetching issues by lat/lng"""
         mock_response = Mock()
@@ -98,7 +98,7 @@ class TestSeeClickFixClient(unittest.TestCase):
         self.assertEqual(params['lat'], 37.96)
         self.assertEqual(params['lng'], -122.51)
 
-    @patch('civic_app.seeclickfix_client.requests.Session.get')
+    @patch('civic_services.seeclickfix_client.requests.Session.get')
     def test_get_issues_with_status_filter(self, mock_get):
         """Test filtering by status"""
         mock_response = Mock()
@@ -112,7 +112,7 @@ class TestSeeClickFixClient(unittest.TestCase):
         call_args = mock_get.call_args
         self.assertEqual(call_args[1]['params']['status'], 'closed')
 
-    @patch('civic_app.seeclickfix_client.requests.Session.get')
+    @patch('civic_services.seeclickfix_client.requests.Session.get')
     def test_get_issues_pagination(self, mock_get):
         """Test pagination parameters"""
         mock_response = Mock()
@@ -128,7 +128,7 @@ class TestSeeClickFixClient(unittest.TestCase):
         self.assertEqual(params['per_page'], 50)
         self.assertEqual(params['page'], 2)
 
-    @patch('civic_app.seeclickfix_client.requests.Session.get')
+    @patch('civic_services.seeclickfix_client.requests.Session.get')
     def test_get_issue_by_id(self, mock_get):
         """Test fetching single issue by ID"""
         mock_response = Mock()
@@ -157,7 +157,7 @@ class TestSeeClickFixClient(unittest.TestCase):
         self.assertEqual(issue['id'], 'scf-456')
         self.assertEqual(issue['title'], 'Single Issue')
 
-    @patch('civic_app.seeclickfix_client.requests.Session.get')
+    @patch('civic_services.seeclickfix_client.requests.Session.get')
     def test_error_handling_404(self, mock_get):
         """Test handling of 404 errors"""
         mock_response = Mock()
@@ -169,7 +169,7 @@ class TestSeeClickFixClient(unittest.TestCase):
 
         self.assertIsNone(issue)
 
-    @patch('civic_app.seeclickfix_client.requests.Session.get')
+    @patch('civic_services.seeclickfix_client.requests.Session.get')
     def test_error_handling_rate_limit(self, mock_get):
         """Test handling of rate limit errors with retry"""
         # First call: 429, second call: 200
