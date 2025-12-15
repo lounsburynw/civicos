@@ -104,6 +104,12 @@
         "priority": 2,
         "artifact": "Move src/ to packages/civic-app/ with proper structure",
         "note": "Moved src/ to packages/civic-services/src/civic_services/. Package renamed from civic-app to civic-services for clarity."
+      },
+      "civic_services_subpackages": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Organize civic-services into sub-packages for library publication",
+        "note": "Structure: servers/, clients/, providers/, processing/, storage/, legislative/, utils/. Enables clean imports for external developers."
       }
     }
   },
