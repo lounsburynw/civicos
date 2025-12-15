@@ -3,7 +3,7 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2025-12-11",
+  "last_updated": "2025-12-15",
   "category_order": [
     "test_infrastructure",
     "data_architecture",
@@ -31,8 +31,33 @@
       "embedding_model_caching": {"status": "ready", "priority": 2, "artifact": "Share SentenceTransformer model across workers via fixture", "completed": "2025-12-11", "note": "Added session-scoped sentence_transformer_model and embedding_provider_cached fixtures in conftest.py"}
     },
     "test_categorization": {
-      "slow_test_markers": {"status": "not_ready", "priority": 2, "artifact": "Mark integration tests with @pytest.mark.slow"},
-      "ci_test_profile": {"status": "not_ready", "priority": 2, "artifact": "CI runs fast tests by default, full suite on main branch"}
+      "requires_real_data_marker": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "@pytest.mark.requires_real_data marker auto-skips in CI",
+        "completed": "2025-12-15",
+        "note": "conftest.py hook checks CI/GITHUB_ACTIONS env vars; 25+ test classes marked in test_integration_*.py files"
+      },
+      "ci_test_profile": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "CI runs synthetic data tests, skips real data tests",
+        "completed": "2025-12-15",
+        "note": "100% CI pass rate (10/10 jobs). Tests using gitignored data auto-skip. Tests with synthetic fixtures run."
+      },
+      "synthetic_test_fixtures": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Create minimal test corpus for CI integration tests",
+        "note": "Some synthetic fixtures (TestIndexQueryLatency, TestCrossMeetingPatterns) have bugs. Need representative sample_decisions.json, sample_chunks.json."
+      },
+      "scheduled_data_tests": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Weekly CI workflow for heavy data tests",
+        "note": "GitHub Actions workflow for full corpus tests on schedule (35MB PDFs, real transcripts)"
+      },
+      "slow_test_markers": {"status": "not_ready", "priority": 3, "artifact": "Mark performance/load tests with @pytest.mark.slow"}
     },
     "code_packaging": {
       "src_as_package": {"status": "not_ready", "priority": 1, "artifact": "Package src/ as installable module for CI", "note": "API server e2e tests currently skip in CI because src/ imports fail. Need to either: (1) create src/pyproject.toml, (2) merge src/ into packages/civic, or (3) add src/ to PYTHONPATH in CI"}
@@ -274,14 +299,14 @@
   },
 
   "summary": {
-    "total_items": 130,
+    "total_items": 133,
     "by_priority": {
-      "p1": 54,
+      "p1": 56,
       "p2": 64,
-      "p3": 12
+      "p3": 13
     },
     "by_category": {
-      "test_infrastructure": 7,
+      "test_infrastructure": 10,
       "deployment_artifacts": 13,
       "monitoring_observability": 14,
       "ingestion_visibility": 9,
@@ -294,6 +319,6 @@
       "frontend_refinement": 3,
       "pilot_validation": 10
     },
-    "notes": "Updated 2025-12-11: Added test_infrastructure category (P1) for test parallelization - 40min suite -> target 10-15min"
+    "notes": "Updated 2025-12-15: CI test infrastructure complete (100% pass rate). Added requires_real_data marker system, synthetic fixture and scheduled test items."
   }
 }
