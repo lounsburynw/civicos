@@ -737,9 +737,10 @@
     "description": "Enable pilot users to succeed",
     "end_user_docs": {
       "getting_started": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
-        "artifact": "Quick start guide for citizens"
+        "artifact": "Quick start guide for citizens",
+        "location": "docs/user_guides/GETTING_STARTED.md"
       },
       "feature_guide": {
         "status": "not_ready",
