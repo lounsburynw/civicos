@@ -15,9 +15,7 @@ import re
 import sys
 import os
 
-# Add src directory to path for CMS detector imports
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from cms_platform_detector import CMSPlatformDetector, detect_drupal_cities_batch
+from .cms_platform_detector import CMSPlatformDetector, detect_drupal_cities_batch
 
 
 # Expanded Bay Area CivicPlus Target Cities - High Priority

@@ -33,21 +33,21 @@ Usage:
 
 import os
 from typing import Optional, List
-from providers.base import LLMProvider
-from providers.openai_provider import OpenAIProvider
-from providers.openai_compatible_provider import (
+from ..providers.base import LLMProvider
+from ..providers.openai_provider import OpenAIProvider
+from ..providers.openai_compatible_provider import (
     GroqProvider,
     OllamaProvider,
     PerplexityProvider,
     OpenRouterProvider
 )
-from providers.google_provider import GoogleProvider
-from providers.groq_responses_provider import GroqResponsesProvider
+from ..providers.google_provider import GoogleProvider
+from ..providers.groq_responses_provider import GroqResponsesProvider
 # Lazy import for optional providers that require extra dependencies
-# from providers.anthropic_provider import AnthropicProvider  # Only import when needed
+# from ..providers.anthropic_provider import AnthropicProvider  # Only import when needed
 
 # Import model registry for model-first architecture (Session 74)
-from model_registry import (
+from .model_registry import (
     MODEL_REGISTRY,
     get_model_info,
     find_models_by_capabilities,

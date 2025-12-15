@@ -21,7 +21,7 @@ from pathlib import Path
 
 # Import our civic data clients with optional CDP support
 try:
-    from cdp_client import CDPClient, create_cdp_client, KNOWN_CDP_JURISDICTIONS
+    from ..clients.cdp_client import CDPClient, create_cdp_client, KNOWN_CDP_JURISDICTIONS
     CDP_AVAILABLE = True
 except ImportError:
     print("⚠️ CDP client not available - CDP features disabled")
@@ -29,7 +29,7 @@ except ImportError:
     CDPClient = None
     KNOWN_CDP_JURISDICTIONS = {}
 
-from legistar_client import LegistarClient, KNOWN_LEGISTAR_CLIENTS
+from ..clients.legistar_client import LegistarClient, KNOWN_LEGISTAR_CLIENTS
 
 
 @dataclass
