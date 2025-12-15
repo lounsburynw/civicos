@@ -82,6 +82,7 @@ Read only when needed for architectural decisions:
 - `docs/critical/FOUNDATION_FUNDING_THESIS.md` - Business model
 - `docs/critical/PILOT_ROADMAP.md` - Jan 2026 validation plan
 - `docs/VERIFICATION_TUTORIAL.md` - Hands-on platform verification guide
+- `docs/TESTING_STRATEGY.md` - Test tiers, markers, fixtures, and CI strategy
 
 ## Session Protocol
 
