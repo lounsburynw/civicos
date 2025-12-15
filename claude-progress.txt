@@ -1646,3 +1646,28 @@ Updated documentation to reflect packages/ and apps/ reorganization:
 - docs/archive/* files left unchanged as they document state at specific times
 
 ---
+
+## Session 259 - 2025-12-15
+
+### Getting Started Guide for Citizens
+
+Created `docs/user_guides/GETTING_STARTED.md` - citizen-facing quick start guide for the San Rafael pilot.
+
+**Guide structure:**
+- Why Civic? (motivation framing)
+- What You Can Do (5 core capabilities)
+- Your First Five Minutes (step-by-step walkthrough)
+- Common Questions (FAQ)
+- Tips and keyboard shortcuts
+- About the San Rafael Pilot (context)
+
+**Design decisions:**
+- Written for non-technical audience (citizens ages 25-65)
+- Uses natural language examples ("Ask the Civic Assistant...")
+- Focuses on upcoming decisions (actionable) not past history
+- Emphasizes community ("find neighbors who care")
+- Includes placeholder contact info for support
+
+**Updated:** pilot.json `user_documentation.end_user_docs.getting_started` → ready
+
+---
