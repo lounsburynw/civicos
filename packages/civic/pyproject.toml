@@ -84,6 +84,7 @@ markers = [
     "concurrent: Tests for concurrent access patterns",
     "rag: RAG infrastructure tests (embeddings, vector search)",
     "websocket: Real-time WebSocket integration tests",
+    "requires_real_data: Tests requiring gitignored real data files (skip in CI)",
 ]
 
 [tool.coverage.run]
