@@ -2,7 +2,7 @@ import unittest
 import os
 import tempfile
 from datetime import datetime, timedelta
-from civic_app.personalization_service import PersonalizationService
+from civic_services.personalization_service import PersonalizationService
 
 class TestPersonalizationService(unittest.TestCase):
 

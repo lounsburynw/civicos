@@ -4,8 +4,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from civic_app.research_service import ResearchService
-from civic_app.llm_provider import get_provider_for_task
+from civic_services.research_service import ResearchService
+from civic_services.llm_provider import get_provider_for_task
 
 
 class TestResearchService(unittest.TestCase):
@@ -25,7 +25,7 @@ class TestResearchService(unittest.TestCase):
 
         service = ResearchService()
         # Override with OpenAI if Google isn't working
-        from civic_app.llm_provider import get_provider
+        from civic_services.llm_provider import get_provider
         service.provider = get_provider('openai')
 
         result = service.query("test question", search_scope="all")
@@ -43,7 +43,7 @@ class TestResearchService(unittest.TestCase):
 
         service = ResearchService()
         # Override with OpenAI if Google isn't working
-        from civic_app.llm_provider import get_provider
+        from civic_services.llm_provider import get_provider
         service.provider = get_provider('openai')
 
         result = service.query("Berkeley CDBG", search_scope="allocations")

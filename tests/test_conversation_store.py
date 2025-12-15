@@ -20,7 +20,7 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 
-from civic_app.conversation_store import ConversationStore
+from civic_services.conversation_store import ConversationStore
 
 
 class TestConversationStore(unittest.TestCase):

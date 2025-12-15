@@ -16,7 +16,7 @@ load_dotenv()
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from civic_app.llm_provider import get_provider, get_provider_for_task, list_available_providers
+from civic_services.llm_provider import get_provider, get_provider_for_task, list_available_providers
 
 
 def main():
