@@ -1671,3 +1671,32 @@ Created `docs/user_guides/GETTING_STARTED.md` - citizen-facing quick start guide
 **Updated:** pilot.json `user_documentation.end_user_docs.getting_started` → ready
 
 ---
+
+## Session 260 - 2025-12-15
+
+**Task:** Admin setup guide for new jurisdictions
+
+Created `docs/user_guides/ADMIN_SETUP_GUIDE.md` - comprehensive guide for deploying Civic to a new city or county.
+
+**Guide structure (10 sections):**
+1. Pre-Setup Checklist - research, credentials, contacts
+2. Environment Configuration - clone, venv, .env setup
+3. Jurisdiction Configuration - override files, aliases
+4. Data Source Connection - Legistar, CivicClerk, YouTube, SeeClickFix
+5. Database Setup - migrations, initial data load
+6. Vector Database & RAG - directory structure, document indexing
+7. Deployment - local test and Fly.io production
+8. Operational Readiness - monitoring, backups, data refresh
+9. Verification Checklist - API, features, WebSocket, RAG tests
+10. Troubleshooting - common issues and solutions
+
+**Design decisions:**
+- Written for technical admins (city IT, civic tech orgs)
+- Step-by-step with code examples throughout
+- Links to critical docs for deeper information
+- Includes cost estimation (~$7/month target)
+- Platform discovery guidance (Legistar vs CivicClerk)
+
+**Updated:** pilot.json `user_documentation.admin_docs.setup_guide` → ready
+
+---

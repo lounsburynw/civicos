@@ -755,9 +755,11 @@
     },
     "admin_docs": {
       "setup_guide": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
-        "artifact": "How to set up for a new jurisdiction"
+        "artifact": "How to set up for a new jurisdiction",
+        "completed": "2025-12-15",
+        "note": "Created docs/user_guides/ADMIN_SETUP_GUIDE.md - comprehensive 10-section guide covering pre-setup research, env config, jurisdiction setup, data source connection, database setup, vector/RAG, deployment, monitoring, verification checklist, and troubleshooting"
       },
       "troubleshooting": {
         "status": "not_ready",
