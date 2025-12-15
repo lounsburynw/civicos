@@ -774,19 +774,25 @@
     },
     "mcp_integration_docs": {
       "mcp_setup": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
-        "artifact": "How to connect MCP server to Claude"
+        "artifact": "How to connect MCP server to Claude",
+        "completed": "2025-12-15",
+        "note": "docs/user_guides/MCP_SETUP_GUIDE.md - Claude Desktop config, both servers, tool reference, example prompts, troubleshooting"
       },
       "tool_reference": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
-        "artifact": "Reference for all MCP tools"
+        "artifact": "Reference for all MCP tools",
+        "completed": "2025-12-15",
+        "note": "Included in MCP_SETUP_GUIDE.md 'Available Tools' section with tables for both servers"
       },
       "example_prompts": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Example prompts for common tasks"
+        "artifact": "Example prompts for common tasks",
+        "completed": "2025-12-15",
+        "note": "Included in MCP_SETUP_GUIDE.md 'Example Prompts' section with categorized examples"
       }
     }
   },
