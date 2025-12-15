@@ -720,9 +720,11 @@
     },
     "version_management": {
       "tagged_releases": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
-        "artifact": "Git tags for each deployment"
+        "artifact": "Git tags for each deployment",
+        "completed": "2025-12-14",
+        "note": "Created v0.2.0-pilot-20251214 tag. Format: v{major}.{minor}.{patch}-pilot-{YYYYMMDD}. See VERSIONING_STRATEGY.md."
       },
       "changelog_maintained": {
         "status": "not_ready",
