@@ -72,6 +72,7 @@ jobs:
           pip install -e packages/civic[all]
           pip install -e packages/civic-extraction
           pip install -r requirements.txt
+          pip install -e src/  # Application layer (API servers, etc.)
           pip install pytest-split
 
       - name: Run test group ${{ matrix.group }}

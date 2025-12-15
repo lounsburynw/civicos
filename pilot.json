@@ -18,17 +18,46 @@
     "frontend_refinement",
     "pilot_validation"
   ],
-
   "test_infrastructure": {
     "description": "Fast, reliable test suite for confident iteration",
     "parallelization": {
-      "pytest_xdist_setup": {"status": "ready", "priority": 1, "artifact": "Add pytest-xdist to dev dependencies", "completed": "2025-12-11", "note": "Added pytest-xdist>=3.0.0 to pyproject.toml dev dependencies"},
-      "parallel_safe_fixtures": {"status": "ready", "priority": 1, "artifact": "Tests use isolated temp databases, not shared civic_state.db", "completed": "2025-12-11", "note": "Created conftest.py with isolated_db_path and isolated_vector_dir fixtures using tmp_path"},
-      "loadscope_distribution": {"status": "ready", "priority": 1, "artifact": "pytest -n auto --dist loadscope keeps test classes together", "completed": "2025-12-11", "note": "Verified: 31 smoke tests pass with 10 workers in ~75s"}
+      "pytest_xdist_setup": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Add pytest-xdist to dev dependencies",
+        "completed": "2025-12-11",
+        "note": "Added pytest-xdist>=3.0.0 to pyproject.toml dev dependencies"
+      },
+      "parallel_safe_fixtures": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Tests use isolated temp databases, not shared civic_state.db",
+        "completed": "2025-12-11",
+        "note": "Created conftest.py with isolated_db_path and isolated_vector_dir fixtures using tmp_path"
+      },
+      "loadscope_distribution": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "pytest -n auto --dist loadscope keeps test classes together",
+        "completed": "2025-12-11",
+        "note": "Verified: 31 smoke tests pass with 10 workers in ~75s"
+      }
     },
     "test_isolation": {
-      "chroma_test_isolation": {"status": "ready", "priority": 1, "artifact": "Tests use unique collection names or temp directories", "completed": "2025-12-11", "note": "Added collection_suffix parameter to CivicEmbeddings. New fixtures: collection_suffix (unique per test), isolated_chroma_config (persist_dir + suffix). Tests can now use isolated collections via CivicEmbeddings(collection_suffix=...). Existing tests using tmp_path already isolated."},
-      "embedding_model_caching": {"status": "ready", "priority": 2, "artifact": "Share SentenceTransformer model across workers via fixture", "completed": "2025-12-11", "note": "Added session-scoped sentence_transformer_model and embedding_provider_cached fixtures in conftest.py"}
+      "chroma_test_isolation": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Tests use unique collection names or temp directories",
+        "completed": "2025-12-11",
+        "note": "Added collection_suffix parameter to CivicEmbeddings. New fixtures: collection_suffix (unique per test), isolated_chroma_config (persist_dir + suffix). Tests can now use isolated collections via CivicEmbeddings(collection_suffix=...). Existing tests using tmp_path already isolated."
+      },
+      "embedding_model_caching": {
+        "status": "ready",
+        "priority": 2,
+        "artifact": "Share SentenceTransformer model across workers via fixture",
+        "completed": "2025-12-11",
+        "note": "Added session-scoped sentence_transformer_model and embedding_provider_cached fixtures in conftest.py"
+      }
     },
     "test_categorization": {
       "requires_real_data_marker": {
@@ -57,247 +86,771 @@
         "artifact": "Weekly CI workflow for heavy data tests",
         "note": "GitHub Actions workflow for full corpus tests on schedule (35MB PDFs, real transcripts)"
       },
-      "slow_test_markers": {"status": "not_ready", "priority": 3, "artifact": "Mark performance/load tests with @pytest.mark.slow"}
+      "slow_test_markers": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Mark performance/load tests with @pytest.mark.slow"
+      }
     },
     "code_packaging": {
-      "src_as_package": {"status": "not_ready", "priority": 1, "artifact": "Package src/ as installable module for CI", "note": "API server e2e tests currently skip in CI because src/ imports fail. Need to either: (1) create src/pyproject.toml, (2) merge src/ into packages/civic, or (3) add src/ to PYTHONPATH in CI"}
+      "src_as_package": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Package src/ as installable module for CI",
+        "note": "Created src/pyproject.toml (civic-app package) and updated CI workflow to install it. API server module now importable in CI."
+      },
+      "src_to_packages_refactor": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Move src/ to packages/civic-app/ with proper structure",
+        "note": "Full refactor: (1) Create packages/civic-app/ with src/civic_app/ layout, (2) Move all modules, (3) Update imports to 'from civic_app import ...', (4) Update CI/tests/scripts, (5) Remove old src/"
+      }
     }
   },
-
   "deployment_artifacts": {
     "description": "Production-ready deployment configuration",
     "containerization": {
-      "dockerfile_exists": {"status": "ready", "priority": 1, "artifact": "Dockerfile for API server"},
-      "docker_compose": {"status": "ready", "priority": 1, "artifact": "docker-compose.yml for full stack"},
-      "image_builds": {"status": "ready", "priority": 1, "artifact": "Docker images build successfully"},
-      "image_size_reasonable": {"status": "not_ready", "priority": 2, "artifact": "Images < 500MB"}
+      "dockerfile_exists": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Dockerfile for API server"
+      },
+      "docker_compose": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "docker-compose.yml for full stack"
+      },
+      "image_builds": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Docker images build successfully"
+      },
+      "image_size_reasonable": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Images < 500MB"
+      }
     },
     "configuration": {
-      "env_template": {"status": "ready", "priority": 1, "artifact": ".env.example with all required vars", "completed": "2025-12-11", "note": "Comprehensive template with 50+ vars covering: auth, CORS, rate limiting, sessions, LLM providers (7 options), embeddings, location, legislative, PDF parsing, email, transcription"},
-      "secrets_documented": {"status": "ready", "priority": 1, "artifact": "List of required secrets/API keys", "completed": "2025-12-11", "note": "Comprehensive SECRETS_MANAGEMENT.md covering: quick reference table, all 20+ secrets with obtainment links, environment-specific configs (dev/staging/prod), security best practices, key rotation schedule, cost estimation, validation commands"},
-      "config_validation": {"status": "not_ready", "priority": 2, "artifact": "Startup validates required config"}
+      "env_template": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": ".env.example with all required vars",
+        "completed": "2025-12-11",
+        "note": "Comprehensive template with 50+ vars covering: auth, CORS, rate limiting, sessions, LLM providers (7 options), embeddings, location, legislative, PDF parsing, email, transcription"
+      },
+      "secrets_documented": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "List of required secrets/API keys",
+        "completed": "2025-12-11",
+        "note": "Comprehensive SECRETS_MANAGEMENT.md covering: quick reference table, all 20+ secrets with obtainment links, environment-specific configs (dev/staging/prod), security best practices, key rotation schedule, cost estimation, validation commands"
+      },
+      "config_validation": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Startup validates required config"
+      }
     },
     "database": {
-      "migration_scripts": {"status": "ready", "priority": 1, "artifact": "Schema migration scripts", "completed": "2025-12-11", "note": "scripts/migrate.py runner with version tracking (schema_versions table), dry-run mode, status check, mark-applied option. All 24 existing migrations applied successfully. Handles duplicate version numbers, idempotent migrations."},
-      "seed_data": {"status": "not_ready", "priority": 2, "artifact": "Initial San Rafael data seed"},
-      "backup_script": {"status": "ready", "priority": 1, "artifact": "Database backup procedure", "completed": "2025-12-11", "note": "scripts/backup.py with: backup/restore, compression (gzip), checksum verification (SHA256), SQLite integrity check, retention policy (7 daily + 4 weekly), status/list/clean commands, dry-run mode"}
+      "migration_scripts": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Schema migration scripts",
+        "completed": "2025-12-11",
+        "note": "scripts/migrate.py runner with version tracking (schema_versions table), dry-run mode, status check, mark-applied option. All 24 existing migrations applied successfully. Handles duplicate version numbers, idempotent migrations."
+      },
+      "seed_data": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Initial San Rafael data seed"
+      },
+      "backup_script": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Database backup procedure",
+        "completed": "2025-12-11",
+        "note": "scripts/backup.py with: backup/restore, compression (gzip), checksum verification (SHA256), SQLite integrity check, retention policy (7 daily + 4 weekly), status/list/clean commands, dry-run mode"
+      }
     },
     "infrastructure": {
-      "hosting_decision": {"status": "ready", "priority": 1, "artifact": "Documented hosting choice (fly.io, railway, etc.)", "completed": "2025-12-11", "note": "Fly.io selected: ~$4.73/month est. (shared-cpu-1x instances, 3GB volume, SJC region). Includes HOSTING_DECISION.md with architecture diagram, deployment steps, fly.toml configs, scaling strategy, backup integration"},
-      "cost_estimate": {"status": "ready", "priority": 1, "artifact": "Monthly cost estimate < $7", "completed": "2025-12-11", "note": "Documented in HOSTING_DECISION.md: ~$4.73/month total (civic-api $1.94, civic-websocket $1.94, 3GB volume $0.45, egress $0.40). ~$2.27 buffer under $7 limit"},
-      "domain_setup": {"status": "not_ready", "priority": 2, "artifact": "Domain/subdomain configured"}
+      "hosting_decision": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Documented hosting choice (fly.io, railway, etc.)",
+        "completed": "2025-12-11",
+        "note": "Fly.io selected: ~$4.73/month est. (shared-cpu-1x instances, 3GB volume, SJC region). Includes HOSTING_DECISION.md with architecture diagram, deployment steps, fly.toml configs, scaling strategy, backup integration"
+      },
+      "cost_estimate": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Monthly cost estimate < $7",
+        "completed": "2025-12-11",
+        "note": "Documented in HOSTING_DECISION.md: ~$4.73/month total (civic-api $1.94, civic-websocket $1.94, 3GB volume $0.45, egress $0.40). ~$2.27 buffer under $7 limit"
+      },
+      "domain_setup": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Domain/subdomain configured"
+      }
     }
   },
-
   "monitoring_observability": {
     "description": "Know when things break",
     "health_checks": {
-      "api_health_endpoint": {"status": "ready", "priority": 1, "artifact": "/health endpoint returns system status"},
-      "db_connectivity_check": {"status": "ready", "priority": 1, "artifact": "Health check verifies DB connection"},
-      "chromadb_check": {"status": "ready", "priority": 1, "artifact": "Health check verifies ChromaDB availability"},
-      "external_service_check": {"status": "ready", "priority": 2, "artifact": "Health check verifies Legistar reachability"}
+      "api_health_endpoint": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "/health endpoint returns system status"
+      },
+      "db_connectivity_check": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Health check verifies DB connection"
+      },
+      "chromadb_check": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Health check verifies ChromaDB availability"
+      },
+      "external_service_check": {
+        "status": "ready",
+        "priority": 2,
+        "artifact": "Health check verifies Legistar reachability"
+      }
     },
     "logging": {
-      "structured_logging": {"status": "ready", "priority": 1, "artifact": "src/logging_config.py - JSON output to logs/civic.json.log with correlation IDs"},
-      "log_levels_appropriate": {"status": "not_ready", "priority": 2, "artifact": "INFO/WARN/ERROR used appropriately"},
-      "request_logging": {"status": "ready", "priority": 1, "artifact": "Request start/complete logged in do_GET/do_POST with method, path, client_ip, correlation_id"},
-      "error_context": {"status": "ready", "priority": 1, "artifact": "JSONFormatter captures exception type, message, and full stack trace"}
+      "structured_logging": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "src/logging_config.py - JSON output to logs/civic.json.log with correlation IDs"
+      },
+      "log_levels_appropriate": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "INFO/WARN/ERROR used appropriately"
+      },
+      "request_logging": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Request start/complete logged in do_GET/do_POST with method, path, client_ip, correlation_id"
+      },
+      "error_context": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "JSONFormatter captures exception type, message, and full stack trace"
+      }
     },
     "alerting": {
-      "uptime_monitoring": {"status": "ready", "priority": 1, "artifact": "External uptime monitor configured", "completed": "2025-12-11", "note": "docs/critical/UPTIME_MONITORING.md with UptimeRobot setup guide for /health endpoints on both REST API and WebSocket server"},
-      "error_alerts": {"status": "not_ready", "priority": 2, "artifact": "Alert on elevated error rates"},
-      "alert_channel": {"status": "not_ready", "priority": 2, "artifact": "Email/Slack notification configured"}
+      "uptime_monitoring": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "External uptime monitor configured",
+        "completed": "2025-12-11",
+        "note": "docs/critical/UPTIME_MONITORING.md with UptimeRobot setup guide for /health endpoints on both REST API and WebSocket server"
+      },
+      "error_alerts": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Alert on elevated error rates"
+      },
+      "alert_channel": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Email/Slack notification configured"
+      }
     },
     "metrics": {
-      "request_count": {"status": "not_ready", "priority": 2, "artifact": "Track API request volume"},
-      "response_times": {"status": "not_ready", "priority": 2, "artifact": "Track response time distribution"},
-      "active_users": {"status": "not_ready", "priority": 2, "artifact": "Track unique users per day"}
+      "request_count": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Track API request volume"
+      },
+      "response_times": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Track response time distribution"
+      },
+      "active_users": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Track unique users per day"
+      }
     }
   },
-
   "ingestion_visibility": {
     "description": "Operational visibility into data pipeline state",
     "cli_status": {
-      "civic_status_command": {"status": "ready", "priority": 1, "artifact": "civic status CLI command showing pipeline health"},
-      "freshness_warnings": {"status": "ready", "priority": 1, "artifact": "Visual indicators for stale data (yellow >7 days, red >30 days)"},
-      "gap_detection": {"status": "not_ready", "priority": 2, "artifact": "Compare ingested count vs source count"}
+      "civic_status_command": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "civic status CLI command showing pipeline health"
+      },
+      "freshness_warnings": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Visual indicators for stale data (yellow >7 days, red >30 days)"
+      },
+      "gap_detection": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Compare ingested count vs source count"
+      }
     },
     "api_status": {
-      "admin_status_endpoint": {"status": "not_ready", "priority": 2, "artifact": "GET /admin/status returns JSON pipeline health"},
-      "database_stats": {"status": "not_ready", "priority": 2, "artifact": "Include row counts, last modified timestamps per table"},
-      "chromadb_stats": {"status": "not_ready", "priority": 2, "artifact": "Include collection counts, document counts"}
+      "admin_status_endpoint": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "GET /admin/status returns JSON pipeline health"
+      },
+      "database_stats": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Include row counts, last modified timestamps per table"
+      },
+      "chromadb_stats": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Include collection counts, document counts"
+      }
     },
     "frontend_dashboard": {
-      "status_page": {"status": "not_ready", "priority": 2, "artifact": "Admin page showing ingestion status table view"},
-      "visual_indicators": {"status": "not_ready", "priority": 2, "artifact": "Green/yellow/red health indicators per pipeline"},
-      "time_ago_formatting": {"status": "not_ready", "priority": 3, "artifact": "Show '2 hours ago' instead of timestamps"}
+      "status_page": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Admin page showing ingestion status table view"
+      },
+      "visual_indicators": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Green/yellow/red health indicators per pipeline"
+      },
+      "time_ago_formatting": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Show '2 hours ago' instead of timestamps"
+      }
     }
   },
-
   "admin_operations": {
     "description": "Operational tools for admin support and automation",
     "manual_triggers": {
-      "fetch_meetings_button": {"status": "not_ready", "priority": 2, "artifact": "Button: Fetch New Meetings (ProudCity scraper)"},
-      "discover_videos_button": {"status": "not_ready", "priority": 2, "artifact": "Button: Discover YouTube Videos"},
-      "download_audio_button": {"status": "not_ready", "priority": 2, "artifact": "Button: Download Pending Audio"},
-      "transcribe_button": {"status": "not_ready", "priority": 2, "artifact": "Button: Transcribe Pending Videos"},
-      "refresh_seeclickfix_button": {"status": "not_ready", "priority": 2, "artifact": "Button: Refresh SeeClickFix"},
-      "update_legislative_button": {"status": "not_ready", "priority": 3, "artifact": "Button: Update Legislative Context"}
+      "fetch_meetings_button": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Button: Fetch New Meetings (ProudCity scraper)"
+      },
+      "discover_videos_button": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Button: Discover YouTube Videos"
+      },
+      "download_audio_button": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Button: Download Pending Audio"
+      },
+      "transcribe_button": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Button: Transcribe Pending Videos"
+      },
+      "refresh_seeclickfix_button": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Button: Refresh SeeClickFix"
+      },
+      "update_legislative_button": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Button: Update Legislative Context"
+      }
     },
     "operation_status": {
-      "running_operations": {"status": "not_ready", "priority": 2, "artifact": "Show running operations with progress indicator"},
-      "operation_history": {"status": "not_ready", "priority": 3, "artifact": "Show last 10 runs per pipeline with success/failure"},
-      "error_logs": {"status": "not_ready", "priority": 3, "artifact": "Show errors/failures with log output"}
+      "running_operations": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Show running operations with progress indicator"
+      },
+      "operation_history": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Show last 10 runs per pipeline with success/failure"
+      },
+      "error_logs": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Show errors/failures with log output"
+      }
     },
     "configuration": {
-      "api_key_status": {"status": "not_ready", "priority": 3, "artifact": "Show API key status for AssemblyAI, LegiScan"},
-      "cost_tracking": {"status": "not_ready", "priority": 3, "artifact": "Show AssemblyAI usage/cost this month"}
+      "api_key_status": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Show API key status for AssemblyAI, LegiScan"
+      },
+      "cost_tracking": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Show AssemblyAI usage/cost this month"
+      }
     }
   },
-
   "pipeline_automation": {
     "description": "Automated scheduling for data pipelines",
     "scheduling": {
-      "meeting_discovery_cron": {"status": "not_ready", "priority": 2, "artifact": "Cron job: Meeting discovery daily 6am"},
-      "youtube_discovery_cron": {"status": "not_ready", "priority": 2, "artifact": "Cron job: YouTube video discovery daily 6am"},
-      "audio_download_cron": {"status": "not_ready", "priority": 2, "artifact": "Cron job: Audio download daily 7am"},
-      "transcription_cron": {"status": "not_ready", "priority": 2, "artifact": "Cron job: Transcription batch weekly"},
-      "seeclickfix_cron": {"status": "not_ready", "priority": 2, "artifact": "Cron job: SeeClickFix refresh daily 8am"},
-      "legislative_cron": {"status": "not_ready", "priority": 3, "artifact": "Cron job: Legislative context weekly"}
+      "meeting_discovery_cron": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Cron job: Meeting discovery daily 6am"
+      },
+      "youtube_discovery_cron": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Cron job: YouTube video discovery daily 6am"
+      },
+      "audio_download_cron": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Cron job: Audio download daily 7am"
+      },
+      "transcription_cron": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Cron job: Transcription batch weekly"
+      },
+      "seeclickfix_cron": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Cron job: SeeClickFix refresh daily 8am"
+      },
+      "legislative_cron": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Cron job: Legislative context weekly"
+      }
     },
     "incremental_processing": {
-      "last_processed_tracking": {"status": "not_ready", "priority": 2, "artifact": "Track last processed timestamp per pipeline"},
-      "skip_already_processed": {"status": "not_ready", "priority": 2, "artifact": "Skip items already in database"},
-      "failure_handling": {"status": "not_ready", "priority": 2, "artifact": "Retry failed items, skip after N failures"}
+      "last_processed_tracking": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Track last processed timestamp per pipeline"
+      },
+      "skip_already_processed": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Skip items already in database"
+      },
+      "failure_handling": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Retry failed items, skip after N failures"
+      }
     },
     "heartbeat_monitoring": {
-      "success_logging": {"status": "not_ready", "priority": 2, "artifact": "Log successful runs with timestamp and counts"},
-      "missed_run_alerts": {"status": "not_ready", "priority": 2, "artifact": "Alert when scheduled run doesn't complete"}
+      "success_logging": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Log successful runs with timestamp and counts"
+      },
+      "missed_run_alerts": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Alert when scheduled run doesn't complete"
+      }
     }
   },
-
   "data_architecture": {
     "description": "Schema and infrastructure for multi-corpus querying",
     "embedding_infrastructure": {
-      "embedding_model_migration": {"status": "not_ready", "priority": 2, "artifact": "Migrate from all-MiniLM-L6-v2 to nomic-embed-text-v1.5", "note": "8192 token context, better retrieval quality, same local inference"},
-      "reindex_existing_collections": {"status": "not_ready", "priority": 2, "artifact": "Re-embed all ChromaDB collections with new model", "depends_on": "embedding_model_migration"},
-      "ab_test_retrieval_quality": {"status": "not_ready", "priority": 3, "artifact": "Compare retrieval quality on sample queries before/after"}
+      "embedding_model_migration": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Migrate from all-MiniLM-L6-v2 to nomic-embed-text-v1.5",
+        "note": "8192 token context, better retrieval quality, same local inference"
+      },
+      "reindex_existing_collections": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Re-embed all ChromaDB collections with new model",
+        "depends_on": "embedding_model_migration"
+      },
+      "ab_test_retrieval_quality": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Compare retrieval quality on sample queries before/after"
+      }
     },
     "schema_documentation": {
-      "collection_naming_convention": {"status": "ready", "priority": 1, "artifact": "Document collection naming in VECTOR_RAG_SCHEMA.md ({scope}_{corpus_type})"},
-      "municipal_code_schema": {"status": "ready", "priority": 1, "artifact": "Define municipal code document schema (fields, ID format, metadata)"},
-      "unified_result_schema": {"status": "not_ready", "priority": 2, "artifact": "Define UnifiedSearchResult dataclass for cross-corpus queries"},
-      "sqlite_vector_join_patterns": {"status": "not_ready", "priority": 2, "artifact": "Document ID patterns enabling SQLite-ChromaDB joins"}
+      "collection_naming_convention": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Document collection naming in VECTOR_RAG_SCHEMA.md ({scope}_{corpus_type})"
+      },
+      "municipal_code_schema": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Define municipal code document schema (fields, ID format, metadata)"
+      },
+      "unified_result_schema": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Define UnifiedSearchResult dataclass for cross-corpus queries"
+      },
+      "sqlite_vector_join_patterns": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Document ID patterns enabling SQLite-ChromaDB joins"
+      }
     },
     "multi_corpus_search": {
-      "unified_search_interface": {"status": "not_ready", "priority": 2, "artifact": "UnifiedSearch class querying multiple corpora"},
-      "result_merging": {"status": "not_ready", "priority": 2, "artifact": "Merge and rank results from different corpora"},
-      "corpus_registry": {"status": "not_ready", "priority": 2, "artifact": "Registry of available corpora per jurisdiction"}
+      "unified_search_interface": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "UnifiedSearch class querying multiple corpora"
+      },
+      "result_merging": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Merge and rank results from different corpora"
+      },
+      "corpus_registry": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Registry of available corpora per jurisdiction"
+      }
     },
     "decision_transcript_linking": {
-      "agenda_item_detection": {"status": "ready", "priority": 2, "artifact": "Transcript chunks tagged with agenda_item metadata", "completed": "2025-12-11", "note": "AgendaItemAligner detects item transitions; chunk_file() now passes detect_agenda_items"},
-      "reconciliation_module": {"status": "ready", "priority": 2, "artifact": "DecisionTranscriptReconciler with consensus approach", "completed": "2025-12-11", "note": "Combines structural (agenda_item) + semantic (embeddings) signals; agreement bonus when both align"},
-      "transcript_reindexing": {"status": "not_ready", "priority": 2, "artifact": "Re-index all transcripts with agenda detection + meeting_date"},
-      "query_layer_integration": {"status": "not_ready", "priority": 2, "artifact": "what_happened_full_context() returns decisions + linked transcript excerpts"}
+      "agenda_item_detection": {
+        "status": "ready",
+        "priority": 2,
+        "artifact": "Transcript chunks tagged with agenda_item metadata",
+        "completed": "2025-12-11",
+        "note": "AgendaItemAligner detects item transitions; chunk_file() now passes detect_agenda_items"
+      },
+      "reconciliation_module": {
+        "status": "ready",
+        "priority": 2,
+        "artifact": "DecisionTranscriptReconciler with consensus approach",
+        "completed": "2025-12-11",
+        "note": "Combines structural (agenda_item) + semantic (embeddings) signals; agreement bonus when both align"
+      },
+      "transcript_reindexing": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Re-index all transcripts with agenda detection + meeting_date"
+      },
+      "query_layer_integration": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "what_happened_full_context() returns decisions + linked transcript excerpts"
+      }
     }
   },
-
   "data_readiness": {
     "description": "Pre-pilot data quality requirements",
     "seeclickfix": {
-      "fresh_pull": {"status": "ready", "priority": 1, "artifact": "Pull current SeeClickFix data for San Rafael", "note": "Last pulled Dec 10, 2025 (1,347 issues, 97 new)"},
-      "vector_indexing": {"status": "ready", "priority": 1, "artifact": "Index issues in ChromaDB for semantic search", "note": "1,340 issues indexed in city-san-rafael_issues collection (Dec 10, 2025)"}
+      "fresh_pull": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Pull current SeeClickFix data for San Rafael",
+        "note": "Last pulled Dec 10, 2025 (1,347 issues, 97 new)"
+      },
+      "vector_indexing": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Index issues in ChromaDB for semantic search",
+        "note": "1,340 issues indexed in city-san-rafael_issues collection (Dec 10, 2025)"
+      }
     },
     "municipal_code": {
-      "municode_corpus_class": {"status": "ready", "priority": 1, "artifact": "MunicipalCodeCorpus class to fetch San Rafael code from Municode", "note": "Uses Municode API (not PDF parsing) for reliable structured access"},
-      "code_indexing": {"status": "ready", "priority": 1, "artifact": "Index municipal code chapters in ChromaDB", "note": "1,949 sections indexed in city-san-rafael_municipal_code collection (Dec 10, 2025)"},
-      "what_applies_integration": {"status": "ready", "priority": 1, "artifact": "Wire municipal code search into what_applies() method", "note": "Returns top 5 relevant ordinances with relevance scores"}
+      "municode_corpus_class": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "MunicipalCodeCorpus class to fetch San Rafael code from Municode",
+        "note": "Uses Municode API (not PDF parsing) for reliable structured access"
+      },
+      "code_indexing": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Index municipal code chapters in ChromaDB",
+        "note": "1,949 sections indexed in city-san-rafael_municipal_code collection (Dec 10, 2025)"
+      },
+      "what_applies_integration": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Wire municipal code search into what_applies() method",
+        "note": "Returns top 5 relevant ordinances with relevance scores"
+      }
     },
     "legislative_context": {
-      "state_bills_indexed": {"status": "not_ready", "priority": 2, "artifact": "Index CA housing/homelessness/environment bills in ChromaDB"},
-      "federal_programs_indexed": {"status": "not_ready", "priority": 2, "artifact": "Index federal grant programs in ChromaDB"}
+      "state_bills_indexed": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Index CA housing/homelessness/environment bills in ChromaDB"
+      },
+      "federal_programs_indexed": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Index federal grant programs in ChromaDB"
+      }
     },
     "transcript_backlog": {
-      "batch_transcription": {"status": "ready", "priority": 1, "artifact": "All 11 videos transcribed", "cost": "$6 (only 2 needed)", "test_file": "test_integration_rag_san_rafael.py"}
+      "batch_transcription": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "All 11 videos transcribed",
+        "cost": "$6 (only 2 needed)",
+        "test_file": "test_integration_rag_san_rafael.py"
+      }
     },
     "meetings_corpus": {
-      "decisions_current": {"status": "ready", "priority": 1, "artifact": "All 2024-2025 council decisions indexed in ChromaDB", "completed": "2025-12-11", "metrics": {"decisions": 186, "meetings": 26, "date_range": "2024-11-04 to 2025-11-12", "llm_validated": "60%", "with_topics": "75%"}},
-      "minutes_extracted": {"status": "ready", "priority": 2, "artifact": "Minutes parsed for all indexed meetings", "completed": "2025-12-11", "metrics": {"pdfs_downloaded": 26, "extraction_methods": {"standard": 25, "simple": 1}}}
+      "decisions_current": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "All 2024-2025 council decisions indexed in ChromaDB",
+        "completed": "2025-12-11",
+        "metrics": {
+          "decisions": 186,
+          "meetings": 26,
+          "date_range": "2024-11-04 to 2025-11-12",
+          "llm_validated": "60%",
+          "with_topics": "75%"
+        }
+      },
+      "minutes_extracted": {
+        "status": "ready",
+        "priority": 2,
+        "artifact": "Minutes parsed for all indexed meetings",
+        "completed": "2025-12-11",
+        "metrics": {
+          "pdfs_downloaded": 26,
+          "extraction_methods": {
+            "standard": 25,
+            "simple": 1
+          }
+        }
+      }
     },
     "county_context": {
-      "marin_housing_programs": {"status": "not_ready", "priority": 2, "artifact": "Index Marin Housing Authority programs and policies", "note": "Directly relevant to shelter coordination"},
-      "county_homelessness_services": {"status": "not_ready", "priority": 2, "artifact": "Index county homelessness/social services info", "note": "Services span city/county boundaries"},
-      "marin_county_code": {"status": "not_ready", "priority": 3, "artifact": "Index relevant Marin County code sections (housing, land use)"}
+      "marin_housing_programs": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Index Marin Housing Authority programs and policies",
+        "note": "Directly relevant to shelter coordination"
+      },
+      "county_homelessness_services": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Index county homelessness/social services info",
+        "note": "Services span city/county boundaries"
+      },
+      "marin_county_code": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Index relevant Marin County code sections (housing, land use)"
+      }
     }
   },
-
   "rollback_procedures": {
     "description": "Recover quickly from failed deployments",
     "deployment_process": {
-      "deployment_documented": {"status": "ready", "priority": 1, "artifact": "Step-by-step deployment guide", "completed": "2025-12-11", "note": "Comprehensive DEPLOYMENT_GUIDE.md covering: prerequisites, pre-deployment checklist, first-time deployment (5 steps), update process (5 steps), post-deployment verification, troubleshooting, quick reference commands"},
-      "rollback_documented": {"status": "ready", "priority": 1, "artifact": "Step-by-step rollback guide", "completed": "2025-12-11", "note": "Comprehensive ROLLBACK_PROCEDURES.md covering: quick reference, when to roll back, code-only rollback, full rollback (code+data), coordinated two-app rollback, data-only restore, post-rollback verification, common scenarios, prevention checklist"},
-      "rollback_tested": {"status": "ready", "priority": 1, "artifact": "Rollback procedure verified working", "completed": "2025-12-11", "note": "26 automated tests covering: backup creation with checksums, restore with integrity verification, checksum mismatch detection, compressed backup support, SQLite integrity verification, retention policy logic, full backup->modify->restore cycle, schema preservation"}
+      "deployment_documented": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Step-by-step deployment guide",
+        "completed": "2025-12-11",
+        "note": "Comprehensive DEPLOYMENT_GUIDE.md covering: prerequisites, pre-deployment checklist, first-time deployment (5 steps), update process (5 steps), post-deployment verification, troubleshooting, quick reference commands"
+      },
+      "rollback_documented": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Step-by-step rollback guide",
+        "completed": "2025-12-11",
+        "note": "Comprehensive ROLLBACK_PROCEDURES.md covering: quick reference, when to roll back, code-only rollback, full rollback (code+data), coordinated two-app rollback, data-only restore, post-rollback verification, common scenarios, prevention checklist"
+      },
+      "rollback_tested": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Rollback procedure verified working",
+        "completed": "2025-12-11",
+        "note": "26 automated tests covering: backup creation with checksums, restore with integrity verification, checksum mismatch detection, compressed backup support, SQLite integrity verification, retention policy logic, full backup->modify->restore cycle, schema preservation"
+      }
     },
     "data_safety": {
-      "backup_before_deploy": {"status": "ready", "priority": 1, "artifact": "Pre-deployment backup procedure", "completed": "2025-12-11", "note": "Comprehensive PRE_DEPLOYMENT_BACKUP.md with: 6-step procedure, pre-backup checks, backup creation, integrity verification, local download option, troubleshooting guide, verification checklist"},
-      "restore_tested": {"status": "ready", "priority": 1, "artifact": "Backup restore verified working", "completed": "2025-12-11", "note": "26 automated tests verify restore functionality: test_restore_from_backup (full cycle with data verification), test_restore_rejects_without_force (safety mechanism), test_restore_rejects_corrupted_checksum (integrity check), test_restore_compressed_backup (gzip support), test_restore_creates_pre_restore_backup (existing data preservation), test_full_backup_restore_cycle (end-to-end rollback simulation), test_rollback_preserves_schema (tables, indexes, views)"},
-      "backup_schedule": {"status": "ready", "priority": 1, "artifact": "Daily backup schedule", "completed": "2025-12-11", "note": "GitHub Actions workflow (.github/workflows/daily-backup.yml) runs daily at 2AM UTC. Creates compressed backups, applies retention (7 daily + 4 weekly), creates GitHub issue on failure. Documented in docs/critical/DAILY_BACKUP_SCHEDULE.md"},
-      "data_migration_reversible": {"status": "not_ready", "priority": 2, "artifact": "Schema changes can be rolled back"}
+      "backup_before_deploy": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Pre-deployment backup procedure",
+        "completed": "2025-12-11",
+        "note": "Comprehensive PRE_DEPLOYMENT_BACKUP.md with: 6-step procedure, pre-backup checks, backup creation, integrity verification, local download option, troubleshooting guide, verification checklist"
+      },
+      "restore_tested": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Backup restore verified working",
+        "completed": "2025-12-11",
+        "note": "26 automated tests verify restore functionality: test_restore_from_backup (full cycle with data verification), test_restore_rejects_without_force (safety mechanism), test_restore_rejects_corrupted_checksum (integrity check), test_restore_compressed_backup (gzip support), test_restore_creates_pre_restore_backup (existing data preservation), test_full_backup_restore_cycle (end-to-end rollback simulation), test_rollback_preserves_schema (tables, indexes, views)"
+      },
+      "backup_schedule": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Daily backup schedule",
+        "completed": "2025-12-11",
+        "note": "GitHub Actions workflow (.github/workflows/daily-backup.yml) runs daily at 2AM UTC. Creates compressed backups, applies retention (7 daily + 4 weekly), creates GitHub issue on failure. Documented in docs/critical/DAILY_BACKUP_SCHEDULE.md"
+      },
+      "data_migration_reversible": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Schema changes can be rolled back"
+      }
     },
     "version_management": {
-      "tagged_releases": {"status": "not_ready", "priority": 1, "artifact": "Git tags for each deployment"},
-      "changelog_maintained": {"status": "not_ready", "priority": 2, "artifact": "CHANGELOG.md updated for releases"}
+      "tagged_releases": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Git tags for each deployment"
+      },
+      "changelog_maintained": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "CHANGELOG.md updated for releases"
+      }
     }
   },
-
   "user_documentation": {
     "description": "Enable pilot users to succeed",
     "end_user_docs": {
-      "getting_started": {"status": "not_ready", "priority": 1, "artifact": "Quick start guide for citizens"},
-      "feature_guide": {"status": "not_ready", "priority": 2, "artifact": "How to use each feature"},
-      "faq": {"status": "not_ready", "priority": 2, "artifact": "Common questions answered"}
+      "getting_started": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Quick start guide for citizens"
+      },
+      "feature_guide": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "How to use each feature"
+      },
+      "faq": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Common questions answered"
+      }
     },
     "admin_docs": {
-      "setup_guide": {"status": "not_ready", "priority": 1, "artifact": "How to set up for a new jurisdiction"},
-      "troubleshooting": {"status": "not_ready", "priority": 2, "artifact": "Common issues and solutions"},
-      "data_management": {"status": "not_ready", "priority": 2, "artifact": "How to manage extracted data"}
+      "setup_guide": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "How to set up for a new jurisdiction"
+      },
+      "troubleshooting": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Common issues and solutions"
+      },
+      "data_management": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "How to manage extracted data"
+      }
     },
     "mcp_integration_docs": {
-      "mcp_setup": {"status": "not_ready", "priority": 1, "artifact": "How to connect MCP server to Claude"},
-      "tool_reference": {"status": "not_ready", "priority": 1, "artifact": "Reference for all MCP tools"},
-      "example_prompts": {"status": "not_ready", "priority": 2, "artifact": "Example prompts for common tasks"}
+      "mcp_setup": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "How to connect MCP server to Claude"
+      },
+      "tool_reference": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Reference for all MCP tools"
+      },
+      "example_prompts": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Example prompts for common tasks"
+      }
     }
   },
-
   "frontend_refinement": {
     "description": "Frontend polish for pilot quality",
     "social_features": {
-      "user_identity_in_messages": {"status": "not_ready", "priority": 2, "artifact": "Show user identity in coordination thread messages"},
-      "public_profiles": {"status": "not_ready", "priority": 3, "artifact": "Public user profiles"},
-      "notification_badges": {"status": "not_ready", "priority": 3, "artifact": "Notification badges for new activity"}
+      "user_identity_in_messages": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Show user identity in coordination thread messages"
+      },
+      "public_profiles": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Public user profiles"
+      },
+      "notification_badges": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Notification badges for new activity"
+      }
     }
   },
-
   "pilot_validation": {
     "description": "Criteria for successful pilot launch",
     "technical_readiness": {
-      "all_tests_pass": {"status": "not_ready", "priority": 1, "check": "158+ unit tests passing"},
-      "e2e_verified": {"status": "not_ready", "priority": 1, "check": "All verification.json items verified"},
-      "integration_tested": {"status": "not_ready", "priority": 1, "check": "All integration.json items tested"},
-      "no_critical_bugs": {"status": "not_ready", "priority": 1, "check": "No known P0/P1 bugs"}
+      "all_tests_pass": {
+        "status": "not_ready",
+        "priority": 1,
+        "check": "158+ unit tests passing"
+      },
+      "e2e_verified": {
+        "status": "not_ready",
+        "priority": 1,
+        "check": "All verification.json items verified"
+      },
+      "integration_tested": {
+        "status": "not_ready",
+        "priority": 1,
+        "check": "All integration.json items tested"
+      },
+      "no_critical_bugs": {
+        "status": "not_ready",
+        "priority": 1,
+        "check": "No known P0/P1 bugs"
+      }
     },
     "operational_readiness": {
-      "hosting_live": {"status": "not_ready", "priority": 1, "check": "Production environment running"},
-      "monitoring_active": {"status": "not_ready", "priority": 1, "check": "Health checks and alerts configured"},
-      "backup_scheduled": {"status": "not_ready", "priority": 1, "check": "Automated backups running"}
+      "hosting_live": {
+        "status": "not_ready",
+        "priority": 1,
+        "check": "Production environment running"
+      },
+      "monitoring_active": {
+        "status": "not_ready",
+        "priority": 1,
+        "check": "Health checks and alerts configured"
+      },
+      "backup_scheduled": {
+        "status": "not_ready",
+        "priority": 1,
+        "check": "Automated backups running"
+      }
     },
     "user_readiness": {
-      "docs_published": {"status": "not_ready", "priority": 1, "check": "User documentation accessible"},
-      "feedback_channel": {"status": "not_ready", "priority": 2, "check": "Way for users to report issues"},
-      "pilot_users_identified": {"status": "not_ready", "priority": 1, "check": "Initial pilot user group identified"}
+      "docs_published": {
+        "status": "not_ready",
+        "priority": 1,
+        "check": "User documentation accessible"
+      },
+      "feedback_channel": {
+        "status": "not_ready",
+        "priority": 2,
+        "check": "Way for users to report issues"
+      },
+      "pilot_users_identified": {
+        "status": "not_ready",
+        "priority": 1,
+        "check": "Initial pilot user group identified"
+      }
     }
   },
-
   "summary": {
     "total_items": 133,
     "by_priority": {
