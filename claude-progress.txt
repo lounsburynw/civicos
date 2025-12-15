@@ -1595,3 +1595,22 @@ packages/civic-services/src/civic_services/
 - 48/130 items ready (37%)
 
 ---
+
+### Documentation Update (same session)
+
+Updated documentation to reflect packages/ and apps/ reorganization:
+
+**README.md:**
+- File structure section now shows three-package architecture
+- Quick Start commands use `python -m civic_services` module syntax
+- Usage section shows Core API (Civic class) examples
+- Architecture section describes packages/civic, civic-extraction, civic-services
+- Contributing points to CLAUDE.md
+
+**docs/critical/UPTIME_MONITORING.md:**
+- Fixed path reference to civic_api_integrated.py
+
+**Skipped (historical docs):**
+- docs/archive/* files left unchanged as they document state at specific times
+
+---
