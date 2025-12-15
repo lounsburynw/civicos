@@ -35,6 +35,7 @@ SCENARIO_PATH = PROJECT_ROOT / "data/pilot/san_rafael_shelter_scenario.json"
 sys.path.insert(0, str(PROJECT_ROOT / "packages/civic/src"))
 
 
+@pytest.mark.requires_real_data
 class TestSanRafaelRAGExtraction:
     """Tests for San Rafael document extraction and corpus preparation."""
 
@@ -140,6 +141,7 @@ class TestSanRafaelRAGExtraction:
         )
 
 
+@pytest.mark.requires_real_data
 class TestNov17PacketParsing:
     """Tests for parsing Nov 17 agenda packet into RAG-ready chunks."""
 
@@ -225,6 +227,7 @@ class TestNov17PacketParsing:
         assert max_size <= 1600, f"Max chunk size {max_size} exceeds expected limit"
 
 
+@pytest.mark.requires_real_data
 class TestAgendaPacketParser:
     """Unit tests for the AgendaPacketParser class."""
 
@@ -279,6 +282,7 @@ class TestAgendaPacketParser:
 ITEM_6A_STAFF_REPORT_PATH = RAG_CORPUS_DIR / "item_6a_staff_report.json"
 
 
+@pytest.mark.requires_real_data
 class TestStaffReportExtraction:
     """Tests for staff report metadata extraction from chunks."""
 
@@ -408,6 +412,7 @@ class TestStaffReportExtraction:
         )
 
 
+@pytest.mark.requires_real_data
 class TestStaffReportExtractor:
     """Unit tests for the StaffReportExtractor class."""
 
@@ -464,6 +469,7 @@ class TestStaffReportExtractor:
         assert d["prepared_by"] == ["John Stefanski"]
 
 
+@pytest.mark.requires_real_data
 class TestOrdinanceExtraction:
     """Tests for shelter standards ordinance extraction."""
 
@@ -572,6 +578,7 @@ class TestOrdinanceExtraction:
         )
 
 
+@pytest.mark.requires_real_data
 class TestOrdinanceExtractor:
     """Unit tests for the OrdinanceExtractor class."""
 
@@ -661,6 +668,7 @@ NOV17_MINUTES_PDF = RAG_CORPUS_DIR / "nov17_minutes.pdf"
 NOV17_MINUTES_JSON = RAG_CORPUS_DIR / "nov17_minutes.json"
 
 
+@pytest.mark.requires_real_data
 class TestMinutesExtraction:
     """
     Tests for meeting minutes extraction.
@@ -799,6 +807,7 @@ class TestMinutesExtraction:
         assert "p.m." in minutes["adjourned"].lower() or "pm" in minutes["adjourned"].lower()
 
 
+@pytest.mark.requires_real_data
 class TestMinutesExtractor:
     """Unit tests for MinutesExtractor class."""
 
@@ -858,6 +867,7 @@ class TestMinutesExtractor:
 NOV17_DECISIONS_JSON = RAG_CORPUS_DIR / "nov17_decisions.json"
 
 
+@pytest.mark.requires_real_data
 class TestDecisionExtraction:
     """
     Tests for unified decision extraction.
@@ -1029,6 +1039,7 @@ class TestDecisionExtraction:
             )
 
 
+@pytest.mark.requires_real_data
 class TestDecisionExtractor:
     """Unit tests for DecisionExtractor class."""
 
@@ -1110,6 +1121,7 @@ class TestDecisionExtractor:
 TEST_VECTORS_DIR = PROJECT_ROOT / "data/pilot/vectors_test/city-san-rafael"
 
 
+@pytest.mark.requires_real_data
 class TestEmbeddingGeneration:
     """
     Tests for embedding generation using SentenceTransformer.
@@ -1214,6 +1226,7 @@ class TestEmbeddingGeneration:
         assert result["stats"]["model"] == "all-MiniLM-L6-v2"
 
 
+@pytest.mark.requires_real_data
 class TestVectorIndexCreation:
     """Tests for ChromaDB index creation and persistence."""
 
@@ -1271,6 +1284,7 @@ class TestVectorIndexCreation:
         assert "city-san-rafael_chunks" in stats["collections"]
 
 
+@pytest.mark.requires_real_data
 class TestSearchDecisions:
     """Tests for semantic search over decisions."""
 
@@ -1431,6 +1445,7 @@ class TestSearchDecisions:
         )
 
 
+@pytest.mark.requires_real_data
 class TestSearchChunks:
     """Tests for semantic search over text chunks."""
 
@@ -1599,6 +1614,7 @@ class TestIndexQueryLatency:
         assert avg_latency < 200, f"Average latency {avg_latency:.1f}ms (>200ms)"
 
 
+@pytest.mark.requires_real_data
 class TestConvenienceSearchFunction:
     """Tests for the search_merrydale convenience function."""
 
@@ -1644,6 +1660,7 @@ class TestConvenienceSearchFunction:
         assert all("metadata" in r for r in results)
 
 
+@pytest.mark.requires_real_data
 class TestWhatHappenedSanRafael:
     """
     Tests for what_happened('merrydale') integration.
@@ -2450,6 +2467,7 @@ class TestQuoteExtraction:
             assert len(unique_pairs) >= 1, "Should have at least one unique timestamp pair"
 
 
+@pytest.mark.requires_real_data
 class TestWhatHappenedSemantic:
     """
     Tests for what_happened() general semantic search.

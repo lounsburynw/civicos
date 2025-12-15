@@ -176,3 +176,22 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "websocket: Real-time WebSocket integration tests"
     )
+    config.addinivalue_line(
+        "markers", "requires_real_data: Tests requiring gitignored real data files (skip in CI)"
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """Auto-skip tests marked with requires_real_data when running in CI."""
+    # Check if running in CI environment
+    in_ci = os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true"
+
+    if not in_ci:
+        return
+
+    skip_real_data = pytest.mark.skip(
+        reason="Skipped in CI: requires gitignored real data files"
+    )
+    for item in items:
+        if "requires_real_data" in item.keywords:
+            item.add_marker(skip_real_data)
