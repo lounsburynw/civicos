@@ -35,6 +35,7 @@ from civic import Civic
 DB_PATH = str(PROJECT_ROOT / "data/civic_state.db")
 
 
+@pytest.mark.requires_real_data
 class TestCivicIntegration:
     """Integration tests using real San Rafael data."""
 
@@ -164,6 +165,7 @@ class TestCivicQueryChaining:
             assert len(result.state) > 0, f"{topic} should have state legislation"
 
 
+@pytest.mark.requires_real_data
 class TestCivicStateManager:
     """Test StateManager integration."""
 
