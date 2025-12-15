@@ -9,7 +9,7 @@ Tests:
 
 import json
 from unittest.mock import Mock, patch
-from src.civic_chat_router import ChatRouter
+from civic_app.civic_chat_router import ChatRouter
 
 def test_single_operation():
     """Test single operation (backward compatible)"""

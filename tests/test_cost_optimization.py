@@ -12,8 +12,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from src.civic_chat_router import ChatRouter
-from src.llm_provider import get_provider_for_task
+from civic_app.civic_chat_router import ChatRouter
+from civic_app.llm_provider import get_provider_for_task
 
 
 class TestCostOptimization(unittest.TestCase):

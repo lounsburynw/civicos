@@ -16,10 +16,7 @@ from typing import Optional, Dict, List
 from datetime import datetime, timezone
 import re
 
-try:
-    from src.legislative_context_cache import legislative_cache
-except ModuleNotFoundError:
-    from legislative_context_cache import legislative_cache
+from .legislative_context_cache import legislative_cache
 
 logger = logging.getLogger(__name__)
 

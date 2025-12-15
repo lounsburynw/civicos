@@ -8,10 +8,7 @@ Phase 2: Add clustering, 311 integration
 import logging
 from typing import Dict, List
 
-try:
-    from src.issue_storage import IssueStorage
-except ModuleNotFoundError:
-    from issue_storage import IssueStorage
+from .issue_storage import IssueStorage
 
 logger = logging.getLogger(__name__)
 
@@ -169,10 +166,7 @@ def check_banked_complaints_for_new_event(event: Dict) -> List[str]:
     Returns:
         List of complaint_ids that now match this event
     """
-    try:
-        from src.complaint_matcher import _score_event, MINIMUM_MATCH_SCORE
-    except ModuleNotFoundError:
-        from complaint_matcher import _score_event, MINIMUM_MATCH_SCORE
+    from .issue_matcher import _score_event, MINIMUM_MATCH_SCORE
 
     storage = IssueStorage()
     jurisdiction_id = event.get("jurisdiction", {}).get("id")
