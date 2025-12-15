@@ -47,20 +47,18 @@ source civic-env/bin/activate
 
 **Note**: Frontend `.env` is only needed for production deployment. Local dev uses defaults + Vite proxy.
 
-### 3. Start the Multi-Platform Interface
+### 3. Start the Platform
 ```bash
-# Test multi-platform event extraction (23+ municipalities)
-python src/civic_digest.py schema "https://www.ci.richmond.ca.us/Calendar.aspx"  # CivicPlus CMS
-python src/civic_digest.py schema "https://berkeleyca.gov/community-recreation/events?field_event_category_tid=104"  # Berkeley
-python src/legistar_client.py test oakland  # Legistar API
+# Start the API server (port 8001)
+python -m civic_services.civic_api_integrated
 
-# Check operational status across all platforms
-python src/municipal_registry.py
+# Start WebSocket server (port 8002) - optional, for real-time features
+python -m civic_services.civic_socketio_server
 
-# Start hybrid API server (serves unified event data)
-python src/civic_api_integrated.py
+# Start Vue frontend (port 5173)
+cd apps/civic-workspace && npm run dev
 
-# Open conversational interface
+# Or open the standalone conversational interface
 open apps/civic-mcp/civic-conversational-OS.html
 ```
 
@@ -68,26 +66,27 @@ open apps/civic-mcp/civic-conversational-OS.html
 
 ## 📖 Usage
 
-### Newsletter Generation
-```bash
-# Send immediate digest for any meeting URL
-python src/civic_digest.py scrape "meeting-url" recipient@email.com
+### Core API Usage
+```python
+from civic import Civic
 
-# Test with positive control (known working URL)
-python src/civic_digest.py test [recipient@email.com]
+c = Civic("san-rafael")
 
-# Start weekly automation (Monday 9 AM)
-python src/civic_digest.py weekly
+# Query methods
+c.whats_next()              # Upcoming meetings/decisions
+c.what_happened("housing")  # Historical decisions
+c.what_applies("housing")   # Relevant legislation
+c.whos_with_me("traffic")   # Community around issue
 
-# Generate schema-compliant data for API
-python src/civic_digest.py schema "meeting-url"
+# Action methods
+c.start_something(...)      # Create initiative
+c.add_voice(...)            # Add voice to item
+c.follow(...)               # Subscribe to updates
+c.prepare(...)              # Generate prep materials
 ```
 
-### Conversational API
+### REST API
 ```bash
-# Start the API server (default port 8001, configurable with CIVIC_API_PORT)
-python src/civic_api_integrated.py
-
 # Test conversation endpoint
 curl -X POST http://localhost:8001/api/conversation \
   -H "Authorization: Bearer civic_web_key" \
@@ -97,9 +96,6 @@ curl -X POST http://localhost:8001/api/conversation \
     "city": "San Rafael",
     "state": "California"
   }'
-
-# Access conversational interface
-open apps/civic-mcp/civic-conversational-OS.html
 ```
 
 ## 🧪 Testing
@@ -169,23 +165,24 @@ The system also generates professional HTML newsletters with:
 
 ## 🏗️ Architecture
 
-**Production Pipeline:**
+**Three-Package Design:**
 ```
-civic_digest.py → data/schema/*.json → civic_api_integrated.py → Frontend
+packages/civic/           → Core API (Civic class, query methods)
+packages/civic-extraction/ → Platform parsers (Legistar, CivicClerk, Granicus, etc.)
+packages/civic-services/   → Application layer (REST API, WebSocket, chat routing)
 ```
 
-**Core Components:**
-- **Data Pipeline**: `civic_digest.py` (1,356 lines) - Universal AI-powered civic data extraction
-- **API Server**: `civic_api_integrated.py` (1,247 lines) - Authenticated conversational endpoints  
-- **Frontend**: `civic-conversational-OS.html` (4,154 lines) - Conversational interface with action buttons
-- **Testing**: Comprehensive security and integration test suites (3 new files)
+**Client Applications:**
+```
+apps/civic-workspace/     → Vue.js web frontend (IDE-inspired workspace)
+apps/civic-mcp/           → MCP server for Claude Desktop and AI assistants
+```
 
-**Key Features:**
-- Schema-driven development with `civic-app-schema.json` compliance
-- OpenAI GPT-4 integration for natural language civic assistance
-- Bearer token authentication with environment variable security
-- XSS protection and input validation throughout
-- RFC 5545 compliant calendar file generation
+**Key Capabilities:**
+- **Multi-platform data collection**: 26 Bay Area municipalities via Legistar, CivicClerk, Granicus APIs
+- **Legislative context enrichment**: State bills + federal programs linked to local issues
+- **AI-powered conversation**: OpenAI/OpenRouter for natural language civic assistance
+- **Real-time coordination**: WebSocket server for live updates and group discussions
 
 ## 💰 Cost & Performance
 
@@ -220,32 +217,35 @@ civic_digest.py → data/schema/*.json → civic_api_integrated.py → Frontend
 
 ```
 civic/
-├── src/                                          # Python source code
-│   ├── civic_digest.py                          # Newsletter system (1,356 lines)
-│   ├── civic_api_integrated.py                  # API server with conversation endpoint (1,247 lines)
-│   ├── civic_schema_adapter.py                  # Schema integration layer (629 lines)
-│   ├── civic_input_validator.py                 # Security validation (556 lines)
-│   ├── config.py                                # Configuration management
-│   └── utils/
-│       ├── session_manager.py                   # Session management
-│       └── conversation_service.py              # Conversation service
-├── frontend/
-│   └── mcp-civic-server/
-│       ├── civic-conversational-OS.html         # Conversational interface (4,154 lines)
-│       └── simple_server.py                     # MCP server (1,295 lines)
-├── tests/                                       # All test files
-│   ├── test_conversation_api.py                 # Conversation API tests
-│   ├── test_integration_e2e.py                  # End-to-end tests
-│   └── test_data/                               # Test data
+├── packages/                                     # Python packages
+│   ├── civic/                                   # Core API package
+│   │   └── src/civic/                          # Civic class and query methods
+│   ├── civic-extraction/                        # Platform parsers (Legistar, CivicClerk, etc.)
+│   │   └── src/civic_extraction/
+│   └── civic-services/                          # Application layer
+│       └── src/civic_services/
+│           ├── servers/                         # API entry points (REST, WebSocket)
+│           ├── clients/                         # External API clients
+│           ├── providers/                       # LLM providers (OpenAI, OpenRouter)
+│           ├── processing/                      # Data pipelines
+│           ├── storage/                         # Persistence layer
+│           ├── legislative/                     # Legislative enrichment
+│           ├── issues/                          # Issue handling
+│           ├── chat/                            # Chat routing
+│           ├── monitoring/                      # Operations & metrics
+│           ├── core/                            # Infrastructure
+│           └── utils/                           # Utilities
+├── apps/                                        # Client applications
+│   ├── civic-workspace/                         # Vue.js web frontend
+│   └── civic-mcp/                              # MCP server for AI assistants
+├── data/                                        # Extracted civic data
+│   ├── schema/                                  # Schema-compliant JSON
+│   └── pilot/                                   # San Rafael pilot data
+├── tests/                                       # Test suites
 ├── docs/                                        # Documentation
-│   ├── INTEGRATION_GUIDE.md                     # Production deployment guide
-│   ├── TECHNICAL_DEBT.md                        # Development roadmap & priorities
-│   └── ENGAGEMENT_STRATEGY.md                   # Civic engagement strategy
-├── civic-app-schema.json                        # Schema reference
-├── requirements.txt                              # Dependencies
-├── README.md                                    # This file
-└── data/                                      # Generated digest files
-    └── schema/                                  # Schema-compliant JSON data
+│   ├── critical/                                # Essential architecture docs
+│   └── archive/                                 # Historical docs
+└── docker-compose.yml                           # Container orchestration
 ```
 
 ## 🛠️ Customization
@@ -282,7 +282,7 @@ recipients = [
 
 ## 🤝 Contributing
 
-This is a single-file MVP designed for simplicity. The entire system is in `civic_digest.py` - modify as needed for your city or use case.
+See `CLAUDE.md` for development workflow and session protocol. The codebase uses a package-based architecture - start with `packages/civic/` for the core API.
 
 ## 📄 License
 
