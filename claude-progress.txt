@@ -1508,6 +1508,6 @@ packages/civic-app/
 - After: `from civic_app.civic_api_integrated import ...`
 
 ### Commit:
-- (pending)
+- ca65415: Refactor: Move src/ to packages/civic-app/
 
 ---
