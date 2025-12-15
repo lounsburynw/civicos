@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "civic-app"
+version = "0.1.0"
+description = "Civic application layer - API servers, websocket, and services"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+
+# Minimal dependencies - most come from civic package and requirements.txt
+dependencies = []
+
+[tool.setuptools]
+# Flat layout: map root namespace to current directory
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["*"]
+exclude = ["__pycache__", "*.pyc"]
