@@ -1801,6 +1801,7 @@ class TestWhatHappenedSanRafael:
         assert isinstance(decisions, list)
 
 
+@pytest.mark.requires_real_data
 class TestWhatWasSaidTranscripts:
     """
     Tests for what_was_said() transcript search integration.
@@ -2654,6 +2655,7 @@ class TestWhatHappenedSemantic:
         )
 
 
+@pytest.mark.requires_real_data
 class TestCrossMeetingPatterns:
     """
     Tests for finding similar decisions across multiple meetings.
@@ -2974,6 +2976,7 @@ class TestCrossMeetingPatterns:
         )
 
 
+@pytest.mark.requires_real_data
 class TestMinutesTranscriptComparison:
     """
     Tests that compare official minutes to full video transcripts.
