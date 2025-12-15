@@ -61,7 +61,7 @@ python src/municipal_registry.py
 python src/civic_api_integrated.py
 
 # Open conversational interface
-open frontend/mcp-civic-server/civic-conversational-OS.html
+open apps/civic-mcp/civic-conversational-OS.html
 ```
 
 **Try asking**: "What housing meetings are happening in Richmond?" or "How can I comment on transportation planning in Berkeley?"
@@ -99,7 +99,7 @@ curl -X POST http://localhost:8001/api/conversation \
   }'
 
 # Access conversational interface
-open frontend/mcp-civic-server/civic-conversational-OS.html
+open apps/civic-mcp/civic-conversational-OS.html
 ```
 
 ## 🧪 Testing

@@ -65,7 +65,8 @@ init.sh                     # Verification script
 packages/civic/             # Core API package
 packages/civic-extraction/  # Platform parsers
 packages/civic-services/         # Application layer (API server, chat, websocket)
-frontend/civic-workspace/   # Vue frontend
+apps/civic-workspace/       # Vue frontend
+apps/civic-mcp/             # MCP server
 data/                       # Extracted events, issues, legislative context
 docs/critical/              # Essential architecture docs
 docs/archive/               # Historical docs (recoverable)
@@ -138,7 +139,7 @@ Task(subagent_type="Explore", prompt="Explore [area] for [item]...")
 ```bash
 python -m civic_services.civic_api_integrated     # REST API (8001)
 python -m civic_services.civic_socketio_server    # WebSocket (8002)
-cd frontend/civic-workspace && npm run dev   # Frontend
+cd apps/civic-workspace && npm run dev   # Frontend
 ```
 
 ## Testing Strategy

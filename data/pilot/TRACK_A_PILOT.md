@@ -181,7 +181,7 @@ This enables:
 
 ## Files Reference
 
-- `mcp_servers/civic_issues.py` - MCP server for issue queries
+- `apps/civic-mcp/civic_issues.py` - MCP server for issue queries
 - `src/state_manager.py` - StateManager with 1,340 issues
 - `src/coordination_graph.py` - LangGraph prototype (for Phase 2)
 - `data/civic_state.db` - SQLite database with SeeClickFix data

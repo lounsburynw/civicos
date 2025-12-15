@@ -172,7 +172,7 @@ python src/civic_api_integrated.py
 python src/civic_socketio_server.py
 
 # Terminal 3 - Frontend
-cd frontend/civic-workspace && npm run dev
+cd apps/civic-workspace && npm run dev
 ```
 
 ### 4.2 Manual Testing Checklist

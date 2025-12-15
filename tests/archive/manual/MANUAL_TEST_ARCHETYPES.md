@@ -3,7 +3,7 @@
 ## Setup Test Archetypes in Browser
 
 ### Step 1: Open Browser Console
-1. Start the frontend: `cd frontend/civic-workspace && npm run dev`
+1. Start the frontend: `cd apps/civic-workspace && npm run dev`
 2. Navigate to http://localhost:5173
 3. Open browser DevTools (F12) → Console tab
 
@@ -91,10 +91,10 @@ location.reload();
 - Line 2107-2120: Builds archetype context string
 - Line 2152-2175: System prompt includes archetype context with strong framing instructions
 
-✅ Frontend (`frontend/civic-workspace/src/services/api.ts`):
+✅ Frontend (`apps/civic-workspace/src/services/api.ts`):
 - Line 181: `archetypes` parameter in API interface
 
-✅ Frontend (`frontend/civic-workspace/src/components/workspace/CommentDraftArtifact.vue`):
+✅ Frontend (`apps/civic-workspace/src/components/workspace/CommentDraftArtifact.vue`):
 - Line 164: Passes `userStore.archetypes` to API
 
 ## Backend Logs
