@@ -1499,6 +1499,7 @@ class TestSearchChunks:
             assert r.metadata.get("agenda_item") == "6.a"
 
 
+@pytest.mark.requires_real_data
 class TestIndexQueryLatency:
     """Tests for query latency requirements."""
 

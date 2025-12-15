@@ -183,6 +183,7 @@ class TestCivicStateManager:
         assert stats["total_issues"] > 0, "Should have pre-loaded issues"
 
 
+@pytest.mark.requires_real_data
 class TestWhatsNextWithRealData:
     """
     Integration test: whats_next() returns actual upcoming San Rafael meetings.
@@ -347,6 +348,7 @@ class TestWhatsNextWithRealData:
                 assert len(location) > 10
 
 
+@pytest.mark.requires_real_data
 class TestWhatAppliesWithRealData:
     """
     Integration test: what_applies() returns real California housing/regulatory context.
@@ -553,6 +555,7 @@ class TestWhatAppliesWithRealData:
                     f"Leverage point not actionable for {bill.get('id')}: {leverage[:100]}"
 
 
+@pytest.mark.requires_real_data
 class TestWhosWithMeWithRealData:
     """
     Integration test: whos_with_me() works with seeded community data.
@@ -751,6 +754,7 @@ class TestWhosWithMeWithRealData:
 
 
 @pytest.mark.rag
+@pytest.mark.requires_real_data
 class TestWhosWithMeSemanticMatching:
     """
     Integration test: whos_with_me() finds issues via semantic similarity.
@@ -931,6 +935,7 @@ class TestWhosWithMeSemanticMatching:
         assert result.follower_count >= 0
 
 
+@pytest.mark.requires_real_data
 class TestRegulatoryContextRelevant:
     """
     Integration test: what_applies() returns contextually appropriate regulations.
@@ -1184,6 +1189,7 @@ class TestRegulatoryContextRelevant:
                     f"Transport bill {bill.get('id')} has housing keywords: {cross_contamination}"
 
 
+@pytest.mark.requires_real_data
 class TestTopicExtractionAccurate:
     """
     Integration test: Agenda items are correctly mapped to topics.
@@ -1457,6 +1463,7 @@ class TestTopicExtractionAccurate:
             f"Topic extraction should be deterministic, got: {set(results)}"
 
 
+@pytest.mark.requires_real_data
 class TestWhatHappenedWithRealData:
     """
     Integration test: what_happened('merrydale') returns Nov 17 shelter decisions.
@@ -1710,6 +1717,7 @@ class TestWhatHappenedWithRealData:
         assert len(decisions) >= 1, "Should find decisions mentioning 'homeless' in description"
 
 
+@pytest.mark.requires_real_data
 class TestWhatAppliesEmbeddingRelevance:
     """
     Integration test: what_applies() topic-regulation relevance via embedding similarity.
@@ -1944,6 +1952,7 @@ class TestWhatAppliesEmbeddingRelevance:
             f"Scores should have some variance: range={max_score - min_score:.3f}"
 
 
+@pytest.mark.requires_real_data
 class TestTopicClassificationEmbeddings:
     """
     Integration test: Agenda item topic classification via embedding similarity.
