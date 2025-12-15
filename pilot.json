@@ -106,10 +106,11 @@
         "note": "Moved src/ to packages/civic-services/src/civic_services/. Package renamed from civic-app to civic-services for clarity."
       },
       "civic_services_subpackages": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": "Organize civic-services into sub-packages for library publication",
-        "note": "Structure: servers/, clients/, providers/, processing/, storage/, legislative/, utils/. Enables clean imports for external developers."
+        "completed": "2025-12-15",
+        "note": "Organized 59 modules into 11 sub-packages: servers/, clients/, providers/, processing/, storage/, legislative/, issues/, chat/, monitoring/, core/, utils/. All imports updated to use relative paths. 31 smoke tests pass."
       }
     }
   },

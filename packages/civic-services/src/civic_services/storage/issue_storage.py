@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from openai import OpenAI
 
-from interfaces.participation_mechanism import ParticipationMechanism
+from ..interfaces.participation_mechanism import ParticipationMechanism
 
 DB_PATH = Path("data/civic_participation.db")
 

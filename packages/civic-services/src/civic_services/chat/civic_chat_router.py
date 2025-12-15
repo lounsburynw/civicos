@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 import instructor
 
 # Session 68: Import provider abstraction
-from llm_provider import get_provider_for_task, get_model_for_task
+from ..core.llm_provider import get_provider_for_task, get_model_for_task
 
 logger = logging.getLogger(__name__)
 

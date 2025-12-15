@@ -8,17 +8,10 @@ Orchestrates: detect → store → match → respond
 from typing import Dict, Any, Optional
 
 # Handle both module and standalone execution
-try:
-    from .issue_detector import IssueDetector
-    from .issue_storage import IssueStorage
-    from .issue_matcher import match_issue_to_events
-    from .issue_fallback import handle_no_match
-except ImportError:
-    # Standalone execution from src/ directory
-    from issue_detector import IssueDetector
-    from issue_storage import IssueStorage
-    from issue_matcher import match_issue_to_events
-    from issue_fallback import handle_no_match
+from .issue_detector import IssueDetector
+from ..storage.issue_storage import IssueStorage
+from .issue_matcher import match_issue_to_events
+from .issue_fallback import handle_no_match
 
 
 class ComplaintHandler:

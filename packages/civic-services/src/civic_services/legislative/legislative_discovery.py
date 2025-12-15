@@ -19,10 +19,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 from datetime import datetime
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent))
-
-from legiscan_client import LegiScanClient, TOPIC_KEYWORDS
+from ..clients.legiscan_client import LegiScanClient, TOPIC_KEYWORDS
 
 # OpenAI for LLM relevance filter
 try:

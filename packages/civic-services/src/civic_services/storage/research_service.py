@@ -14,7 +14,7 @@ import os
 import json
 import glob
 from typing import Dict, List, Optional
-from llm_provider import get_provider_for_task
+from ..core.llm_provider import get_provider_for_task
 
 
 class ResearchService:

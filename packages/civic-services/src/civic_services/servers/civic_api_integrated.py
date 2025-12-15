@@ -23,7 +23,7 @@ from typing import Dict, List, Optional, Any
 
 # Structured logging (Session 246)
 try:
-    from logging_config import (
+    from ..core.logging_config import (
         configure_logging, get_logger, with_correlation_id,
         set_correlation_id, clear_correlation_id, get_correlation_id,
         log_request_start, log_request_complete, log_error, log_audit
@@ -34,25 +34,16 @@ except ImportError:
     # Fallback if logging_config not available
     logger = logging.getLogger('civic_api')
     logging.basicConfig(level=logging.INFO)
-# Handle both direct execution and module execution
-try:
-    from .config import config
-    from .rate_limiter import rate_limiter
-    from .civic_input_validator import CivicInputValidator, ValidationResult
-    from .legistar_client import create_client as create_legistar_client
-except ImportError:
-    # Direct execution - use absolute imports
-    import sys
-    from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).parent))
-    from config import config
-    from rate_limiter import rate_limiter
-    from civic_input_validator import CivicInputValidator, ValidationResult
-    from legistar_client import create_client as create_legistar_client
+
+# Core imports
+from ..core.config import config
+from ..core.rate_limiter import rate_limiter
+from ..processing.civic_input_validator import CivicInputValidator, ValidationResult
+from ..clients.legistar_client import create_client as create_legistar_client
 
 # Agenda integration system
 try:
-    from agenda_integration import AgendaIntegrator
+    from ..processing.agenda_integration import AgendaIntegrator
     AGENDA_INTEGRATION_AVAILABLE = True
     logger.debug("module_loaded", extra={"module_name": "agenda_integration"})
 except ImportError:
@@ -61,8 +52,8 @@ except ImportError:
 
 # Legislative context enrichment
 try:
-    from legislative_enrichment import enrich_opportunities_batch
-    from legislative_context_cache import legislative_cache
+    from ..legislative.legislative_enrichment import enrich_opportunities_batch
+    from ..legislative.legislative_context_cache import legislative_cache
     LEGISLATIVE_ENRICHMENT_AVAILABLE = True
     logger.debug("module_loaded", extra={"module_name": "legislative_enrichment"})
 except ImportError:
@@ -71,7 +62,7 @@ except ImportError:
 
 # Complaint handling system (Phase 1 MVP)
 try:
-    from issue_handler import handle_message as handle_issue
+    from ..issues.issue_handler import handle_message as handle_issue
     COMPLAINT_HANDLER_AVAILABLE = True
     logger.debug("module_loaded", extra={"module_name": "issue_handler"})
 except ImportError as e:
@@ -89,7 +80,7 @@ def get_research_service():
     if not _research_service_checked:
         _research_service_checked = True
         try:
-            from research_service import ResearchService
+            from ..storage.research_service import ResearchService
             _research_service = ResearchService()
             logger.debug("module_loaded", extra={"module_name": "research_service"})
         except Exception as e:
@@ -108,7 +99,7 @@ except ImportError:
 
 # Session 68: LLM Provider abstraction for cost optimization
 try:
-    from llm_provider import get_provider_for_task
+    from ..core.llm_provider import get_provider_for_task
     LLM_PROVIDER_AVAILABLE = True
     logger.debug("module_loaded", extra={"module_name": "llm_provider"})
 except ImportError as e:
@@ -117,7 +108,7 @@ except ImportError as e:
 
 # Chat routing system (Session 27 - Chat-first navigation)
 try:
-    from civic_chat_router import get_router
+    from ..chat.civic_chat_router import get_router
     CHAT_ROUTING_AVAILABLE = True
     logger.debug("module_loaded", extra={"module_name": "civic_chat_router"})
 except ImportError as e:
@@ -126,7 +117,7 @@ except ImportError as e:
 
 # Personalization service (Phase 1 - Database & Service Foundation)
 try:
-    from personalization_service import PersonalizationService
+    from ..storage.personalization_service import PersonalizationService
     PERSONALIZATION_SERVICE_AVAILABLE = True
     logger.debug("module_loaded", extra={"module_name": "personalization_service"})
 except ImportError as e:
@@ -135,7 +126,7 @@ except ImportError as e:
 
 # Conversation store (Session 79 - Persistent conversation storage)
 try:
-    from conversation_store import ConversationStore
+    from ..storage.conversation_store import ConversationStore
     CONVERSATION_STORE_AVAILABLE = True
     logger.debug("module_loaded", extra={"module_name": "conversation_store"})
 except ImportError as e:
@@ -144,7 +135,7 @@ except ImportError as e:
 
 # SeeClickFix integration (Session 90 - Operational complaint→policy bridge)
 try:
-    from seeclickfix_client import SeeClickFixClient
+    from ..clients.seeclickfix_client import SeeClickFixClient
     SEECLICKFIX_AVAILABLE = True
     logger.debug("module_loaded", extra={"module_name": "seeclickfix_client"})
 except ImportError as e:
