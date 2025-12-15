@@ -8,7 +8,7 @@ Phase 2: Add clustering, 311 integration
 import logging
 from typing import Dict, List
 
-from .issue_storage import IssueStorage
+from ..storage.issue_storage import IssueStorage
 
 logger = logging.getLogger(__name__)
 

@@ -14,7 +14,7 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 import json
 
-from llm_provider import get_model_for_task
+from ..core.llm_provider import get_model_for_task
 
 
 @dataclass

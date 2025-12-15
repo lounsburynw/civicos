@@ -20,7 +20,7 @@ from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
 import re
 
-from agenda_integration import AgendaIntegrator, AgendaItem
+from .agenda_integration import AgendaIntegrator, AgendaItem
 
 
 @dataclass

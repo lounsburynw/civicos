@@ -21,17 +21,11 @@ from collections import defaultdict
 from time import time
 
 # Import storage layer
-try:
-    from issue_storage import CommunityStorage
-except ImportError:
-    import sys
-    from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).parent))
-    from issue_storage import CommunityStorage
+from ..storage.issue_storage import CommunityStorage
 
 # Session 246: Use structured logging from logging_config
 try:
-    from logging_config import (
+    from ..core.logging_config import (
         configure_logging, get_logger, with_correlation_id,
         set_correlation_id, log_error
     )
