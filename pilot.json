@@ -112,11 +112,11 @@
         "completed": "2025-12-15",
         "note": "Organized 59 modules into 11 sub-packages: servers/, clients/, providers/, processing/, storage/, legislative/, issues/, chat/, monitoring/, core/, utils/. All imports updated to use relative paths. 31 smoke tests pass."
       },
-      "clients_directory": {
+      "apps_directory": {
         "status": "not_ready",
         "priority": 1,
-        "artifact": "Consolidate frontend/ and mcp_servers/ into clients/ directory",
-        "note": "Makes multi-client architecture explicit. Structure: clients/civic-workspace/ (Vue), clients/civic-mcp/ (MCP servers). Prepares for future CLI, bot, widget clients."
+        "artifact": "Consolidate frontend/ and mcp_servers/ into apps/ directory",
+        "note": "Makes multi-app architecture explicit. Structure: apps/civic-workspace/ (Vue), apps/civic-mcp/ (MCP server). Prepares for future CLI, bot, widget apps. 'Apps' is neutral - each consumes Civic API regardless of protocol role."
       }
     }
   },
