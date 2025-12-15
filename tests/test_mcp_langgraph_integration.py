@@ -30,7 +30,7 @@ async def test_mcp_connection():
         "civic-issues": StdioConnection(
             transport="stdio",
             command="python",
-            args=["mcp_servers/civic_issues.py"],
+            args=["apps/civic-mcp/civic_issues.py"],
             cwd=str(Path(__file__).parent.parent)
         )
     }
@@ -127,7 +127,7 @@ async def test_langgraph_with_mcp_tools():
         "civic-issues": StdioConnection(
             transport="stdio",
             command="python",
-            args=["mcp_servers/civic_issues.py"],
+            args=["apps/civic-mcp/civic_issues.py"],
             cwd=str(Path(__file__).parent.parent)
         )
     }

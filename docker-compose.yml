@@ -51,7 +51,7 @@ services:
   # Frontend (optional - comment out if deploying separately)
   civic-frontend:
     build:
-      context: ./frontend/civic-workspace
+      context: ./apps/civic-workspace
       dockerfile: Dockerfile
     container_name: civic-frontend
     ports:

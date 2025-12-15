@@ -126,7 +126,7 @@ EXISTING (keep as-is):
 └── coordination_graph.py      # LangGraph workflows
 
 NEW WORK (MCP-native):
-├── mcp_servers/
+├── apps/civic-mcp/
 │   ├── civic_issues.py        # StateManager queries
 │   ├── civic_events.py        # Events/agendas
 │   ├── legislative.py         # Bills/programs
@@ -178,7 +178,7 @@ NEW WORK (MCP-native):
 ├────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
 │  ┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐   │
-│  │ mcp_servers/     │   │ mcp_servers/     │   │ mcp_servers/     │   │
+│  │ apps/civic-mcp/     │   │ apps/civic-mcp/     │   │ apps/civic-mcp/     │   │
 │  │ civic_issues.py  │   │ civic_events.py  │   │ legislative.py   │   │
 │  │                  │   │                  │   │                  │   │
 │  │ Tools:           │   │ Tools:           │   │ Tools:           │   │
@@ -237,7 +237,7 @@ LangGraph ────────┘           │                  │
 
 **Goal**: Expose StateManager queries via MCP
 
-**File**: `mcp_servers/civic_issues.py`
+**File**: `apps/civic-mcp/civic_issues.py`
 
 **Tools**:
 | Tool | Description | Parameters |
@@ -252,7 +252,7 @@ LangGraph ────────┘           │                  │
 
 **Goal**: Expose event and agenda data via MCP
 
-**File**: `mcp_servers/civic_events.py`
+**File**: `apps/civic-mcp/civic_events.py`
 
 **Tools**:
 | Tool | Description | Parameters |
@@ -265,7 +265,7 @@ LangGraph ────────┘           │                  │
 
 **Goal**: Expose legislative data via MCP
 
-**File**: `mcp_servers/legislative.py`
+**File**: `apps/civic-mcp/legislative.py`
 
 **Tools**:
 | Tool | Description | Parameters |
@@ -300,7 +300,7 @@ tools = toolkit.get_tools()
 ### 5.1 Civic Issues Server
 
 ```python
-# mcp_servers/civic_issues.py
+# apps/civic-mcp/civic_issues.py
 """
 MCP Server for Civic Issues (StateManager wrapper)
 
@@ -397,7 +397,7 @@ if __name__ == "__main__":
 **Local (stdio)**:
 ```bash
 # For Claude Desktop
-python mcp_servers/civic_issues.py
+python apps/civic-mcp/civic_issues.py
 ```
 
 **Remote (SSE)**:
@@ -414,7 +414,7 @@ uvicorn mcp_servers.civic_issues:app --host 0.0.0.0 --port 8080
   "mcpServers": {
     "civic-issues": {
       "command": "python",
-      "args": ["/path/to/civic/mcp_servers/civic_issues.py"]
+      "args": ["/path/to/civic/apps/civic-mcp/civic_issues.py"]
     }
   }
 }
@@ -885,7 +885,7 @@ if __name__ == "__main__":
 npx @anthropic-ai/mcp-inspector
 
 # Connect to local server
-# Enter: python mcp_servers/civic_issues.py
+# Enter: python apps/civic-mcp/civic_issues.py
 
 # Test tools interactively
 ```

@@ -6,10 +6,10 @@ to query San Rafael civic issues (SeeClickFix complaints).
 
 Usage:
     # Run as stdio server (for Claude Desktop, etc.)
-    python mcp_servers/civic_issues.py
+    python apps/civic-mcp/civic_issues.py
 
     # Run as HTTP server (for LangGraph, etc.)
-    python mcp_servers/civic_issues.py --http --port 8080
+    python apps/civic-mcp/civic_issues.py --http --port 8080
 """
 
 import sys

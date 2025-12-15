@@ -253,7 +253,7 @@ class EndToEndIntegrationTest:
         self.log("Testing Step 3: Frontend integration")
         
         # Check that the HTML file includes authentication headers
-        html_file = Path('frontend/mcp-civic-server/civic-conversational-OS.html')
+        html_file = Path('apps/civic-mcp/civic-conversational-OS.html')
         if not html_file.exists():
             self.assert_test(False, "Frontend HTML file exists", f"File not found: {html_file}")
             return False
