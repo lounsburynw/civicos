@@ -5,12 +5,12 @@ Combines vector search with optional reranking for best results.
 
 Usage:
     # Default: uses local SentenceTransformer embeddings
-    search = LegalSearch("./legal_index")
+    search = LegalSearch("./data/vectors/legal")
 
     # With custom embedding provider
     from civic._internal.embeddings import get_embedding_provider
     provider = get_embedding_provider("openai")
-    search = LegalSearch("./legal_index", provider=provider)
+    search = LegalSearch("./data/vectors/legal", provider=provider)
 """
 
 from dataclasses import dataclass
@@ -42,7 +42,7 @@ class LegalSearch:
     - Metadata filtering
 
     Usage:
-        search = LegalSearch("./legal_index")
+        search = LegalSearch("./data/vectors/legal")
         results = search.query(
             "wildfire prevention funding programs",
             top_k=10,
@@ -52,7 +52,7 @@ class LegalSearch:
 
     def __init__(
         self,
-        persist_directory: str = "./legal_index",
+        persist_directory: str = "./data/vectors/legal",
         provider: Optional["EmbeddingProvider"] = None,
         use_reranker: bool = False,
     ):

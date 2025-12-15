@@ -42,12 +42,12 @@ class VectorStore:
 
     Usage:
         # Default: uses local SentenceTransformer embeddings
-        store = VectorStore("./legal_index")
+        store = VectorStore("./data/vectors/legal")
 
         # With explicit provider
         from civic._internal.embeddings import get_embedding_provider
         provider = get_embedding_provider("openai")
-        store = VectorStore("./legal_index", provider=provider)
+        store = VectorStore("./data/vectors/legal", provider=provider)
 
         store.add_documents([...])
         results = store.search("wildfire prevention", top_k=5)
@@ -57,7 +57,7 @@ class VectorStore:
 
     def __init__(
         self,
-        persist_directory: str = "./legal_index",
+        persist_directory: str = "./data/vectors/legal",
         provider: Optional["EmbeddingProvider"] = None,
     ):
         """
