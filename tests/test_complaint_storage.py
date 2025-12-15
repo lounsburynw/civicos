@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 from datetime import datetime
 
-from src.complaint_storage import ComplaintStorage, Complaint
+from civic_app.issue_storage import IssueStorage as ComplaintStorage, Issue as Complaint
 
 
 @pytest.fixture

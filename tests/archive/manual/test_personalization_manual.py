@@ -4,7 +4,7 @@ Manual test script for PersonalizationService
 Run this before writing comprehensive unit tests to verify basic functionality
 """
 
-from src.personalization_service import PersonalizationService
+from civic_app.personalization_service import PersonalizationService
 import sqlite3
 
 service = PersonalizationService('data/civic_participation.db')
