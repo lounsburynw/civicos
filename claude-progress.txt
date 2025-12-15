@@ -1700,3 +1700,62 @@ Created `docs/user_guides/ADMIN_SETUP_GUIDE.md` - comprehensive guide for deploy
 **Updated:** pilot.json `user_documentation.admin_docs.setup_guide` → ready
 
 ---
+
+## Session 261 - MCP Setup Guide for Claude Desktop
+
+**Date:** 2025-12-15
+**Phase:** Pilot
+**Item:** mcp_setup, tool_reference, example_prompts (user_documentation > mcp_integration_docs)
+
+**Completed:**
+Created comprehensive MCP setup guide at `docs/user_guides/MCP_SETUP_GUIDE.md`:
+
+1. **Setup Instructions** - Step-by-step Claude Desktop configuration
+   - Cross-platform config file locations (macOS/Windows/Linux)
+   - Full JSON config examples for both MCP servers
+   - Virtual environment Python path usage
+
+2. **Tool Reference** - Tables documenting all available tools
+   - civic-issues: query_issues, get_issue_stats, get_street_issues_summary, list_jurisdictions
+   - civic-server: compose_public_comment, get_comment_guidelines
+
+3. **Example Prompts** - Real-world usage examples
+   - Finding and analyzing civic issues
+   - Preparing for public participation
+   - Drafting public comments
+
+4. **Troubleshooting** - Common issues and solutions
+   - Config syntax problems
+   - Path errors
+   - Missing data issues
+   - Template fallback explanation
+
+5. **Advanced Section** - HTTP mode for LangGraph integration
+
+**Updated:** pilot.json
+- `mcp_setup` → ready
+- `tool_reference` → ready
+- `example_prompts` → ready
+
+**Commit:** 7fcb276
+
+---
+
+## Session 262 (2025-12-15)
+
+**Item:** `all_tests_pass` (pilot_validation > technical_readiness)
+
+**Status:** not_ready → ready
+
+**Verification:**
+- Test suite has 1024 tests (requirement: 158+)
+- CI run 20224816509 shows all tests passing
+- 8-way parallel execution in CI (~4m30s)
+- Smoke tests verified locally (31/31 passing)
+
+**Updated:** pilot.json
+- `all_tests_pass` → ready
+
+**Commit:** (pending)
+
+---
