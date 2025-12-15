@@ -1459,3 +1459,55 @@ Date: 2025-12-11
 
 ---
 
+
+## Session: src_as_package (P1) - 2025-12-14
+
+### Completed:
+- Created `src/pyproject.toml` (civic-app package) for proper Python packaging
+- Updated `.github/workflows/tests.yml` to install civic-app in CI
+- Verified `civic_api_integrated` now imports successfully
+- Marked `src_as_package` as ready in pilot.json
+
+### Added:
+- `src_to_packages_refactor` (P2) - Full refactor to move src/ to packages/civic-app/
+
+### Commit:
+- 84840e1: Add civic-app package for src/ module imports in CI
+
+---
+
+---
+
+## Session: src_to_packages_refactor (P2) - 2025-12-14
+
+### Completed:
+- Moved src/ to packages/civic-app/src/civic_app/ following standard package structure
+- Updated all imports from `from src.*` to `from civic_app.*`
+- Updated internal package imports to use relative imports (e.g., `from .module import ...`)
+- Updated CI workflow (.github/workflows/tests.yml) to install packages/civic-app/
+- Updated Dockerfile to build and install civic-app package
+- Updated docker-compose.yml to use `python -m civic_app.*` commands
+- Updated CLAUDE.md project structure and key commands sections
+- Updated test files with @patch decorators to use new module paths
+- Ran smoke tests (31 passed) to verify refactor
+
+### Structure:
+```
+packages/civic-app/
+├── pyproject.toml
+└── src/
+    └── civic_app/
+        ├── __init__.py
+        ├── civic_api_integrated.py
+        ├── civic_socketio_server.py
+        └── [50+ other modules]
+```
+
+### Import Changes:
+- Before: `from src.civic_api_integrated import ...`
+- After: `from civic_app.civic_api_integrated import ...`
+
+### Commit:
+- (pending)
+
+---

@@ -22,7 +22,7 @@ from pathlib import Path
 
 # Add project root to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
-from src.civic_input_validator import validate_civic_input, CivicInputValidator
+from civic_app.civic_input_validator import validate_civic_input, CivicInputValidator
 
 class SecurityTestSuite:
     """Comprehensive security test suite for input validation"""

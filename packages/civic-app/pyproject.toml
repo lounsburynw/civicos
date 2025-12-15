@@ -12,11 +12,8 @@ license = {text = "MIT"}
 # Minimal dependencies - most come from civic package and requirements.txt
 dependencies = []
 
-[tool.setuptools]
-# Flat layout: map root namespace to current directory
-package-dir = {"" = "."}
-
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["*"]
-exclude = ["__pycache__", "*.pyc"]
+where = ["src"]
+
+[tool.setuptools.package-data]
+civic_app = ["py.typed"]

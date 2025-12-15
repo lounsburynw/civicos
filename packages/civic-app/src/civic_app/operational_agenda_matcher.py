@@ -56,18 +56,12 @@ class OperationalAgendaMatcher:
         # Try to load LLM provider if available
         if use_llm:
             try:
-                from src.llm_provider import get_provider_for_task
+                from .llm_provider import get_provider_for_task
                 self.llm_provider = get_provider_for_task
                 self.llm_available = True
             except ImportError:
-                try:
-                    # Try without src prefix (for direct script execution)
-                    from llm_provider import get_provider_for_task
-                    self.llm_provider = get_provider_for_task
-                    self.llm_available = True
-                except ImportError:
-                    self.llm_available = False
-                    print("[matcher] WARNING: LLM provider not available, using keyword matching only")
+                self.llm_available = False
+                print("[matcher] WARNING: LLM provider not available, using keyword matching only")
 
     def match_issue_to_agendas(
         self,

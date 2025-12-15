@@ -10,7 +10,7 @@ Validation gates:
 import pytest
 import time
 from datetime import datetime, timedelta, timezone
-from src.complaint_matcher import (
+from civic_app.issue_matcher import (
     match_complaint_to_events,
     _score_event,
     _load_jurisdiction_events,

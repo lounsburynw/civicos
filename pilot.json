@@ -100,10 +100,10 @@
         "note": "Created src/pyproject.toml (civic-app package) and updated CI workflow to install it. API server module now importable in CI."
       },
       "src_to_packages_refactor": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "Move src/ to packages/civic-app/ with proper structure",
-        "note": "Full refactor: (1) Create packages/civic-app/ with src/civic_app/ layout, (2) Move all modules, (3) Update imports to 'from civic_app import ...', (4) Update CI/tests/scripts, (5) Remove old src/"
+        "note": "Moved src/ to packages/civic-app/src/civic_app/. Updated all imports from src.* to civic_app.*. Updated CI, Dockerfile, docker-compose.yml, and CLAUDE.md."
       }
     }
   },
