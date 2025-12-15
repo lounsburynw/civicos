@@ -33,7 +33,7 @@ except ImportError:
 
 
 def create_mcp_server(
-    persist_directory: str = "./legal_index",
+    persist_directory: str = "./data/vectors/legal",
     openai_api_key: Optional[str] = None,
 ) -> "Server":
     """
@@ -283,7 +283,7 @@ def main():
     )
     parser.add_argument(
         "--persist-dir",
-        default="./legal_index",
+        default="./data/vectors/legal",
         help="Vector store directory"
     )
     args = parser.parse_args()

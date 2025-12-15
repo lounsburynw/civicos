@@ -31,13 +31,13 @@ class SemanticEnricher:
     3. Context building for relevance summaries
 
     Usage:
-        enricher = SemanticEnricher(persist_directory="./legal_index")
+        enricher = SemanticEnricher(persist_directory="./data/vectors/legal")
         context = enricher.enrich(opportunity)
     """
 
     def __init__(
         self,
-        persist_directory: str = "./legal_index",
+        persist_directory: str = "./data/vectors/legal",
         openai_api_key: Optional[str] = None,
         top_k: int = 5,
         use_reranker: bool = False,

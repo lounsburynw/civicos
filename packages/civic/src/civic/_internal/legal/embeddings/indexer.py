@@ -4,7 +4,7 @@ Legal document indexer.
 Builds and maintains the vector index from corpus data.
 
 Usage:
-    indexer = LegalIndexer("./legal_index")
+    indexer = LegalIndexer("./data/vectors/legal")
 
     # Index California bills
     corpus = CaliforniaCorpus()
@@ -16,7 +16,7 @@ Usage:
     # With custom embedding provider
     from civic._internal.embeddings import get_embedding_provider
     provider = get_embedding_provider("openai")
-    indexer = LegalIndexer("./legal_index", provider=provider)
+    indexer = LegalIndexer("./data/vectors/legal", provider=provider)
 """
 
 import asyncio
@@ -44,7 +44,7 @@ class LegalIndexer:
 
     def __init__(
         self,
-        persist_directory: str = "./legal_index",
+        persist_directory: str = "./data/vectors/legal",
         provider: Optional["EmbeddingProvider"] = None,
         chunk_size: int = 1000,
         chunk_overlap: int = 100,
@@ -180,7 +180,7 @@ def main():
     )
     parser.add_argument(
         "--persist-dir",
-        default="./legal_index",
+        default="./data/vectors/legal",
         help="Directory for vector store",
     )
     args = parser.parse_args()

@@ -105,7 +105,7 @@ Examples:
 | `{jurisdiction_id}_decisions` | decisions | Jurisdiction | Structured decision records | `data/pilot/vectors/{jurisdiction_id}/` |
 | `{jurisdiction_id}_chunks` | chunks | Jurisdiction | Raw document chunks from PDFs | `data/pilot/vectors/{jurisdiction_id}/` |
 | `{jurisdiction_id}_transcripts` | transcripts | Jurisdiction | Video meeting transcripts | `data/pilot/vectors/{jurisdiction_id}/` |
-| `legal_documents` | legal | Shared | California legislative corpus | `legal_index/` |
+| `legal_documents` | legal | Shared | California legislative corpus | `data/vectors/legal/` |
 
 **Future Collections** (pilot phase):
 | Collection Pattern | Corpus Type | Scope | Purpose | Schema Status |
