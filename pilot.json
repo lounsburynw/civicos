@@ -511,9 +511,11 @@
         "artifact": "Define municipal code document schema (fields, ID format, metadata)"
       },
       "unified_result_schema": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Define UnifiedSearchResult dataclass for cross-corpus queries"
+        "artifact": "Define UnifiedSearchResult dataclass for cross-corpus queries",
+        "completed": "2025-12-15",
+        "note": "UnifiedSearchResult in history.py supports all 5 corpus types (decision, pdf, transcript, issue, municipal_code). Has factory methods from_decision(), from_transcript_result(), from_embeddings_result(). HybridSearchResult.to_unified() for migration. 12 tests in test_hybrid_pdf_video.py."
       },
       "sqlite_vector_join_patterns": {
         "status": "not_ready",
