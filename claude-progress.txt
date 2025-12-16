@@ -1868,3 +1868,32 @@ Created comprehensive MCP setup guide at `docs/user_guides/MCP_SETUP_GUIDE.md`:
 **Commit:** (pending)
 
 ---
+
+## Session 268 - 2025-12-15
+
+**Item:** monitoring_active
+**Area:** pilot_validation > operational_readiness
+
+**Status:** not_ready → ready
+
+**Verification:**
+- Health endpoints live and responding:
+  - REST API: https://civic-api.fly.dev/health (status: degraded - some optional data services not populated, but core health checks working)
+  - WebSocket: https://civic-websocket.fly.dev/health (status: healthy)
+- Fly.io internal health checks configured:
+  - Both fly.toml and fly.websocket.toml have [checks] sections
+  - 30s interval, 10s timeout, auto-restart on failure
+- External monitoring documented:
+  - UptimeRobot setup guide in docs/critical/UPTIME_MONITORING.md
+  - 5-minute check interval, email alerts
+- Structured logging active:
+  - logs/civic.json.log (machine-parseable)
+  - logs/civic.log (human-readable)
+  - Correlation IDs for request tracing
+
+**Updated:** pilot.json
+- `monitoring_active` → ready
+
+**Commit:** (pending)
+
+---
