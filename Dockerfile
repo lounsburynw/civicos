@@ -1,6 +1,14 @@
 # Civic Platform - Docker Image
 # Multi-stage build for optimized image size
 # Targets: REST API (8001) and WebSocket (8002) servers
+#
+# DATA ARCHITECTURE:
+# - /app/bundled-data/ : Read-only reference data (vectors, events, legislative)
+#                        Baked into image, updated on each deploy
+# - /app/user-data/    : Persistent user data (participation DB, sessions)
+#                        Mounted as Fly.io volume, never overwritten
+#
+# See docs/critical/DEPLOYMENT_GUIDE.md for details
 
 # Stage 1: Build dependencies
 FROM python:3.11-slim AS builder
@@ -50,8 +58,15 @@ WORKDIR /app
 # Copy application code
 COPY packages/ ./packages/
 
-# Create data directories (will be mounted as volumes in production)
-RUN mkdir -p data/pilot/vectors data/events && \
+# Copy bundled data (events, vectors, legislative context)
+# This is read-only reference data updated on each deploy
+COPY data/pilot/ ./bundled-data/pilot/
+COPY data/events/ ./bundled-data/events/
+COPY data/legislative_context/ ./bundled-data/legislative_context/
+
+# Create user data directory (will be mounted as volume in production)
+# User data is persistent and never overwritten by deploys
+RUN mkdir -p user-data && \
     chown -R civic:civic /app
 
 # Switch to non-root user

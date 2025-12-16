@@ -161,11 +161,13 @@ class CivicAPIHandler(BaseHTTPRequestHandler):
 
 def run_server(port=8080):
     """Run the API server"""
-    server = HTTPServer(('localhost', port), CivicAPIHandler)
-    print(f"Civic API running on http://localhost:{port}")
+    # Bind to 0.0.0.0 to accept connections from outside the container (required for Fly.io)
+    host = '0.0.0.0'
+    server = HTTPServer((host, port), CivicAPIHandler)
+    print(f"Civic API running on http://{host}:{port}")
     print(f"Endpoints:")
-    print(f"  - http://localhost:{port}/api/events")
-    print(f"  - http://localhost:{port}/api/status")
+    print(f"  - http://{host}:{port}/api/events")
+    print(f"  - http://{host}:{port}/api/status")
     print(f"\nPress Ctrl+C to stop")
     
     try:

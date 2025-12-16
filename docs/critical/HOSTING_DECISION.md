@@ -53,26 +53,32 @@ This leaves ~$2.27/month buffer for traffic spikes and scaling.
 │  │  (shared-cpu-1x)    │    │  (shared-cpu-1x)    │            │
 │  │     Port 8001       │    │     Port 8002       │            │
 │  │                     │    │                     │            │
+│  │  /app/bundled-data  │    │  /app/bundled-data  │            │
+│  │  (read-only, in     │    │  (read-only, in     │            │
+│  │   Docker image)     │    │   Docker image)     │            │
 │  └──────────┬──────────┘    └──────────┬──────────┘            │
 │             │                          │                        │
 │             └──────────┬───────────────┘                        │
 │                        │                                        │
 │              ┌─────────▼─────────┐                              │
-│              │  Persistent Vol   │                              │
-│              │     (3GB)         │                              │
-│              │  ┌─────────────┐  │                              │
-│              │  │civic_state  │  │                              │
-│              │  │.db (SQLite) │  │                              │
-│              │  └─────────────┘  │                              │
+│              │  Fly Volume (3GB) │                              │
+│              │  /app/user-data   │                              │
 │              │  ┌─────────────┐  │                              │
 │              │  │civic_partic │  │                              │
 │              │  │ipation.db   │  │                              │
 │              │  └─────────────┘  │                              │
 │              │  ┌─────────────┐  │                              │
-│              │  │ChromaDB     │  │                              │
-│              │  │vectors/     │  │                              │
+│              │  │sessions/    │  │                              │
+│              │  └─────────────┘  │                              │
+│              │  ┌─────────────┐  │                              │
+│              │  │backups/     │  │                              │
 │              │  └─────────────┘  │                              │
 │              └───────────────────┘                              │
+│                                                                 │
+│  Bundled Data (in Docker image, updated on deploy):            │
+│  - /app/bundled-data/pilot/vectors/city-*/                     │
+│  - /app/bundled-data/events/                                    │
+│  - /app/bundled-data/legislative_context/                       │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -119,7 +125,7 @@ primary_region = "sjc"
 
 [mounts]
   source = "civic_data"
-  destination = "/app/data"
+  destination = "/app/user-data"  # Persistent user data only
 ```
 
 ### fly.toml (civic-websocket)
@@ -149,7 +155,7 @@ primary_region = "sjc"
 
 [mounts]
   source = "civic_data"
-  destination = "/app/data"
+  destination = "/app/user-data"  # Persistent user data only
 ```
 
 ## Deployment Steps

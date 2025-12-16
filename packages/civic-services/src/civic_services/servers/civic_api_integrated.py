@@ -36,7 +36,7 @@ except ImportError:
     logging.basicConfig(level=logging.INFO)
 
 # Core imports
-from ..core.config import config
+from ..core.config import config, get_data_path, get_bundled_path, get_user_path
 from ..core.rate_limiter import rate_limiter
 from ..processing.civic_input_validator import CivicInputValidator, ValidationResult
 from ..clients.legistar_client import create_client as create_legistar_client
@@ -2523,7 +2523,7 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
         Returns dict with content, legislative_context, word_count, generated_at
         or None if not cached.
         """
-        db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'civic_participation.db')
+        db_path = get_user_path('civic_participation.db')
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
@@ -2550,7 +2550,7 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
         """
         Store generated item comment in cache (Session 47).
         """
-        db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'civic_participation.db')
+        db_path = get_user_path('civic_participation.db')
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
@@ -2569,7 +2569,7 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
         Non-blocking - failures won't crash generation.
         """
         try:
-            db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'civic_participation.db')
+            db_path = get_user_path('civic_participation.db')
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
 
@@ -2923,7 +2923,7 @@ Sincerely,
 
                 # SAVE STOCK TEMPLATE TO comment_drafts TABLE (Session 45)
                 draft_id = str(uuid.uuid4())
-                db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'civic_participation.db')
+                db_path = get_user_path('civic_participation.db')
                 conn = sqlite3.connect(db_path)
                 cursor = conn.cursor()
 
@@ -3474,7 +3474,7 @@ Key Topics (choose up to 3 from):
             import uuid
             from datetime import datetime
 
-            db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'civic_participation.db')
+            db_path = get_user_path('civic_participation.db')
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
 
@@ -3745,7 +3745,7 @@ Key Topics (choose up to 3 from):
         query_params = parse_qs(parsed_url.query)
         user_id = query_params.get('user_id', ['anonymous'])[0]
 
-        db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'civic_participation.db')
+        db_path = get_user_path('civic_participation.db')
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
@@ -3811,7 +3811,7 @@ Key Topics (choose up to 3 from):
             tags = data.get('tags')  # Optional array like ["housing", "transportation"]
             tags_json = json.dumps(tags) if tags is not None else None
 
-            db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'civic_participation.db')
+            db_path = get_user_path('civic_participation.db')
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
 
@@ -3855,7 +3855,7 @@ Key Topics (choose up to 3 from):
         Marks draft as submitted after user emails to clerk.
         """
         try:
-            db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'civic_participation.db')
+            db_path = get_user_path('civic_participation.db')
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
 
@@ -3889,7 +3889,7 @@ Key Topics (choose up to 3 from):
         Permanently delete a draft (no undo). SESSION 48
         """
         try:
-            db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'civic_participation.db')
+            db_path = get_user_path('civic_participation.db')
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
 
@@ -3926,7 +3926,7 @@ Key Topics (choose up to 3 from):
         query_params = parse_qs(parsed_url.query)
         user_id = query_params.get('user_id', ['anonymous'])[0]
 
-        db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'civic_participation.db')
+        db_path = get_user_path('civic_participation.db')
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
@@ -3968,7 +3968,7 @@ Key Topics (choose up to 3 from):
         Returns cache hit rate statistics (Session 48).
         """
         try:
-            db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'civic_participation.db')
+            db_path = get_user_path('civic_participation.db')
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
 
@@ -4118,7 +4118,7 @@ Key Topics (choose up to 3 from):
             import sqlite3
 
             # Connect to database
-            db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'civic_participation.db')
+            db_path = get_user_path('civic_participation.db')
             conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
@@ -7220,7 +7220,8 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
 
     def _check_database_health(self) -> dict:
         """Check SQLite database connectivity"""
-        db_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'civic_participation.db')
+        # Use config-based data directory (supports /app/data in production)
+        db_path = get_user_path('civic_participation.db')
         result = {
             'status': 'healthy',
             'civic_participation_db': {'status': 'unknown'}
@@ -7261,48 +7262,73 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
         return result
 
     def _check_chromadb_health(self) -> dict:
-        """Check ChromaDB vector store availability"""
+        """Check ChromaDB vector store availability for all cities"""
         result = {
             'status': 'healthy',
-            'details': {}
+            'details': {
+                'cities': {}
+            }
         }
 
-        vector_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'pilot', 'vectors', 'city-san-rafael')
+        # Use config-based data directory (supports /app/data in production)
+        vectors_base = get_bundled_path('pilot', 'vectors')
 
         try:
-            if not os.path.exists(vector_path):
+            if not os.path.exists(vectors_base):
                 result['status'] = 'degraded'
                 result['details'] = {
                     'status': 'missing',
-                    'path': vector_path
+                    'path': vectors_base,
+                    'cities': {}
                 }
                 return result
 
-            # Check for chroma.sqlite3 file (ChromaDB v0.4+ storage)
-            chroma_db = os.path.join(vector_path, 'chroma.sqlite3')
-            if os.path.exists(chroma_db):
-                result['details'] = {
-                    'status': 'available',
-                    'path': vector_path,
-                    'storage_file': 'chroma.sqlite3',
-                    'size_bytes': os.path.getsize(chroma_db)
-                }
+            # Scan for all city-* directories
+            city_dirs = []
+            for entry in os.listdir(vectors_base):
+                if entry.startswith('city-') and os.path.isdir(os.path.join(vectors_base, entry)):
+                    city_dirs.append(entry)
 
-                # Try to get collection count (optional, may fail in some configs)
-                try:
-                    import chromadb
-                    client = chromadb.PersistentClient(path=vector_path)
-                    collections = client.list_collections()
-                    result['details']['collections'] = len(collections)
-                except Exception:
-                    # ChromaDB import or access failed - still degraded healthy
-                    result['details']['collections'] = 'unknown'
-            else:
+            if not city_dirs:
                 result['status'] = 'degraded'
                 result['details'] = {
-                    'status': 'no_storage',
-                    'path': vector_path
+                    'status': 'no_cities',
+                    'path': vectors_base,
+                    'cities': {}
                 }
+                return result
+
+            # Check each city's vector store
+            cities_healthy = 0
+            for city_dir in sorted(city_dirs):
+                city_name = city_dir.replace('city-', '')
+                city_path = os.path.join(vectors_base, city_dir)
+                chroma_db = os.path.join(city_path, 'chroma.sqlite3')
+
+                if os.path.exists(chroma_db):
+                    city_info = {
+                        'status': 'available',
+                        'size_bytes': os.path.getsize(chroma_db)
+                    }
+                    # Try to get collection count
+                    try:
+                        import chromadb
+                        client = chromadb.PersistentClient(path=city_path)
+                        collections = client.list_collections()
+                        city_info['collections'] = len(collections)
+                    except Exception:
+                        city_info['collections'] = 'unknown'
+                    cities_healthy += 1
+                else:
+                    city_info = {'status': 'no_storage'}
+
+                result['details']['cities'][city_name] = city_info
+
+            result['details']['total_cities'] = len(city_dirs)
+            result['details']['healthy_cities'] = cities_healthy
+
+            if cities_healthy == 0:
+                result['status'] = 'degraded'
         except Exception as e:
             result['status'] = 'unhealthy'
             result['details'] = {
@@ -7810,17 +7836,19 @@ def run_authenticated_server(port=8001):
     # Clean up old conversations periodically
     conversation_manager.clear_old_conversations(24)
 
-    server = HTTPServer(('localhost', port), AuthenticatedCivicAPIHandler)
+    # Bind to 0.0.0.0 to accept connections from outside the container (required for Fly.io)
+    host = '0.0.0.0'
+    server = HTTPServer((host, port), AuthenticatedCivicAPIHandler)
 
     # Log server startup
     logger.info("server_started", extra={
         "port": port,
-        "host": "localhost",
+        "host": host,
         "openai_available": OPENAI_AVAILABLE and bool(os.getenv('OPENAI_API_KEY'))
     })
 
     # Console output for human-readable startup info (kept for operators)
-    print(f"Civic API running on http://localhost:{port}")
+    print(f"Civic API running on http://{host}:{port}")
     print(f"Health: /health | Status: /api/status | Press Ctrl+C to stop")
 
     try:
