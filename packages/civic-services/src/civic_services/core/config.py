@@ -51,6 +51,51 @@ class CivicConfig:
             
         return keys
     
+    def get_bundled_data_dir(self) -> Path:
+        """Get bundled data directory path (read-only reference data)
+
+        Contains: events, vectors, legislative context
+        Updated on each deploy (baked into Docker image)
+
+        In production: /app/bundled-data
+        In development: data/
+        """
+        data_dir = os.getenv('CIVIC_BUNDLED_DATA_DIR')
+        if data_dir:
+            return Path(data_dir)
+
+        if self.env == 'production':
+            return Path('/app/bundled-data')
+        else:
+            return Path('data')
+
+    def get_user_data_dir(self) -> Path:
+        """Get user data directory path (persistent user data)
+
+        Contains: participation database, sessions, user preferences
+        Never overwritten by deploys (Fly.io persistent volume)
+
+        In production: /app/user-data
+        In development: data/
+        """
+        data_dir = os.getenv('CIVIC_USER_DATA_DIR')
+        if data_dir:
+            return Path(data_dir)
+
+        if self.env == 'production':
+            return Path('/app/user-data')
+        else:
+            # Development: same as bundled for simplicity
+            return Path('data')
+
+    def get_data_dir(self) -> Path:
+        """Get data directory path (legacy compatibility)
+
+        DEPRECATED: Use get_bundled_data_dir() or get_user_data_dir() instead.
+        This method returns bundled data dir for backwards compatibility.
+        """
+        return self.get_bundled_data_dir()
+
     def get_api_port(self) -> int:
         """Get API server port from environment or default"""
         port = os.getenv('CIVIC_API_PORT')
@@ -161,3 +206,54 @@ class CivicConfig:
 
 # Global config instance
 config = CivicConfig()
+
+
+def get_bundled_path(*path_parts: str) -> str:
+    """Get absolute path to a file in the bundled data directory.
+
+    Bundled data is read-only reference data baked into the Docker image.
+    Contains: events, vectors, legislative context
+
+    Args:
+        *path_parts: Path components relative to bundled data directory
+
+    Returns:
+        Absolute path string
+
+    Example:
+        get_bundled_path('pilot', 'vectors', 'city-san-rafael')
+        # Production: /app/bundled-data/pilot/vectors/city-san-rafael
+        # Development: data/pilot/vectors/city-san-rafael
+    """
+    data_dir = config.get_bundled_data_dir()
+    return str(data_dir.joinpath(*path_parts))
+
+
+def get_user_path(*path_parts: str) -> str:
+    """Get absolute path to a file in the user data directory.
+
+    User data is persistent data stored on Fly.io volume.
+    Contains: participation database, sessions, user preferences
+
+    Args:
+        *path_parts: Path components relative to user data directory
+
+    Returns:
+        Absolute path string
+
+    Example:
+        get_user_path('civic_participation.db')
+        # Production: /app/user-data/civic_participation.db
+        # Development: data/civic_participation.db
+    """
+    data_dir = config.get_user_data_dir()
+    return str(data_dir.joinpath(*path_parts))
+
+
+def get_data_path(*path_parts: str) -> str:
+    """Get absolute path to a file in the data directory (legacy compatibility).
+
+    DEPRECATED: Use get_bundled_path() or get_user_path() instead.
+    This function returns bundled data path for backwards compatibility.
+    """
+    return get_bundled_path(*path_parts)
