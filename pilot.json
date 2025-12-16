@@ -486,10 +486,12 @@
         "note": "8192 token context, better retrieval quality, same local inference"
       },
       "reindex_existing_collections": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "Re-embed all ChromaDB collections with new model",
-        "depends_on": "embedding_model_migration"
+        "depends_on": "embedding_model_migration",
+        "completed": "2025-12-16",
+        "note": "All 3 collections re-indexed: chunks (724), issues (1340), municipal_code (1949 sections -> 2121 chunks). Added text chunking for long municipal code sections."
       },
       "ab_test_retrieval_quality": {
         "status": "not_ready",

@@ -243,8 +243,8 @@ def main():
                         help='Directory for ChromaDB database (default: data/pilot)')
     parser.add_argument('--collection', default='high_stakes_decisions',
                         help='Collection name (default: high_stakes_decisions)')
-    parser.add_argument('--model', default='all-MiniLM-L6-v2',
-                        help='Sentence transformer model (default: all-MiniLM-L6-v2)')
+    parser.add_argument('--model', default='nomic-ai/nomic-embed-text-v1.5',
+                        help='Sentence transformer model (default: nomic-ai/nomic-embed-text-v1.5)')
     parser.add_argument('--test', action='store_true',
                         help='Run test queries after building index')
 
