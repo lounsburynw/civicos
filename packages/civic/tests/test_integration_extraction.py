@@ -230,14 +230,18 @@ class TestAgendaItemsPresent:
         past_30_days = (datetime.now() - timedelta(days=60)).strftime('%Y-%m-%d')
         recent_past = client._filter_by_date_range(meetings, past_30_days, today)
 
-        # Get the most recent past meeting (skip future/cancelled)
+        # Get the most recent past meeting (skip future/cancelled/closed sessions)
         test_meeting = None
         for m in recent_past:
             if m.get('date_parsed', '9999') < today:
+                # Skip closed session meetings - they often don't have public agendas
+                title = m.get('title', '').lower()
+                if 'closed session' in title:
+                    continue
                 test_meeting = m
                 break
 
-        assert test_meeting, "Should find at least one recent past meeting"
+        assert test_meeting, "Should find at least one recent past meeting (excluding closed sessions)"
 
         # Extract PDFs
         pdf_urls = client.get_meeting_pdfs(test_meeting['meeting_url'])
