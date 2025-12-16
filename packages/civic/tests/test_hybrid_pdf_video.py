@@ -11,8 +11,15 @@ by combining both written documentation and spoken content.
 
 import os
 import pytest
+from datetime import datetime
 from civic import Civic
-from civic.history import search_hybrid, HybridSearchResult
+from civic.history import (
+    search_hybrid,
+    HybridSearchResult,
+    UnifiedSearchResult,
+    Decision,
+    TranscriptSearchResult,
+)
 
 
 # Skip if no vector index exists
@@ -21,6 +28,224 @@ requires_vector_index = pytest.mark.skipif(
     not os.path.exists(VECTOR_DIR),
     reason="Vector index not available"
 )
+
+
+class TestUnifiedSearchResult:
+    """Test the UnifiedSearchResult dataclass for cross-corpus queries."""
+
+    def test_unified_result_core_fields(self):
+        """UnifiedSearchResult has required core fields."""
+        result = UnifiedSearchResult(
+            id="test-1",
+            text="Sample content",
+            source_type="decision",
+            score=0.95,
+        )
+        assert result.id == "test-1"
+        assert result.text == "Sample content"
+        assert result.source_type == "decision"
+        assert result.score == 0.95
+
+    def test_unified_result_decision_fields(self):
+        """UnifiedSearchResult stores decision-specific fields."""
+        result = UnifiedSearchResult(
+            id="decision-1",
+            text="Resolution approving homeless shelter",
+            source_type="decision",
+            score=0.92,
+            title="Resolution 15289 - Homeless Shelter",
+            date="2024-10-21",
+            outcome="approved",
+            body="City Council",
+            votes={"vote_count": "4-1", "passed": True, "unanimous": False},
+        )
+        assert result.source_type == "decision"
+        assert result.title == "Resolution 15289 - Homeless Shelter"
+        assert result.date == "2024-10-21"
+        assert result.outcome == "approved"
+        assert result.body == "City Council"
+        assert result.votes["passed"] is True
+
+    def test_unified_result_pdf_fields(self):
+        """UnifiedSearchResult stores PDF chunk-specific fields."""
+        result = UnifiedSearchResult(
+            id="chunk-1",
+            text="Staff report content about funding",
+            source_type="pdf",
+            score=0.85,
+            agenda_item="6.a",
+            page_start=100,
+            page_end=105,
+        )
+        assert result.source_type == "pdf"
+        assert result.agenda_item == "6.a"
+        assert result.page_start == 100
+        assert result.page_end == 105
+
+    def test_unified_result_transcript_fields(self):
+        """UnifiedSearchResult stores transcript-specific fields."""
+        result = UnifiedSearchResult(
+            id="transcript-1",
+            text="I support this proposal for the shelter.",
+            source_type="transcript",
+            score=0.78,
+            speaker="Speaker A",
+            speaker_role="public",
+            speaker_name="Jane Doe",
+            video_id="abc123",
+            start_timestamp="01:23:45",
+            end_timestamp="01:24:30",
+            start_ms=5025000,
+            end_ms=5070000,
+            is_public_comment=True,
+        )
+        assert result.source_type == "transcript"
+        assert result.speaker == "Speaker A"
+        assert result.speaker_role == "public"
+        assert result.speaker_name == "Jane Doe"
+        assert result.is_public_comment is True
+        assert result.video_id == "abc123"
+
+    def test_unified_result_issue_fields(self):
+        """UnifiedSearchResult stores SeeClickFix issue-specific fields."""
+        result = UnifiedSearchResult(
+            id="scf-20575290",
+            text="Pothole on 4th Street needs repair",
+            source_type="issue",
+            score=0.72,
+            title="Pothole on 4th Street",
+            issue_type="pothole",
+            address="123 4th Street, San Rafael, CA",
+            latitude=37.9735,
+            longitude=-122.5311,
+            status="open",
+        )
+        assert result.source_type == "issue"
+        assert result.issue_type == "pothole"
+        assert result.address == "123 4th Street, San Rafael, CA"
+        assert result.latitude == 37.9735
+        assert result.longitude == -122.5311
+        assert result.status == "open"
+
+    def test_unified_result_municipal_code_fields(self):
+        """UnifiedSearchResult stores municipal code-specific fields."""
+        result = UnifiedSearchResult(
+            id="muni-14.04.020",
+            text="Zoning districts established for residential use",
+            source_type="municipal_code",
+            score=0.88,
+            title="Establishment of Districts",
+            section_number="14.04.020",
+            chapter="14.04",
+            title_number="14",
+        )
+        assert result.source_type == "municipal_code"
+        assert result.section_number == "14.04.020"
+        assert result.chapter == "14.04"
+        assert result.title_number == "14"
+
+    def test_unified_result_video_url_property(self):
+        """UnifiedSearchResult generates video URL for transcript results."""
+        result = UnifiedSearchResult(
+            id="transcript-1",
+            text="Content",
+            source_type="transcript",
+            score=0.75,
+            video_id="abc123",
+            start_ms=5025000,
+        )
+        assert result.video_url == "https://www.youtube.com/watch?v=abc123&t=5025s"
+
+    def test_unified_result_video_url_none_without_video_id(self):
+        """UnifiedSearchResult returns None for video_url without video_id."""
+        result = UnifiedSearchResult(
+            id="decision-1",
+            text="Content",
+            source_type="decision",
+            score=0.85,
+        )
+        assert result.video_url is None
+
+    def test_unified_result_from_decision(self):
+        """UnifiedSearchResult.from_decision() creates result from Decision."""
+        decision = Decision(
+            id="decision-123",
+            title="Resolution 15289",
+            date=datetime(2024, 10, 21, 18, 0, 0),
+            outcome="approved",
+            body="City Council",
+            votes={"yes": 4, "no": 1},
+        )
+        result = UnifiedSearchResult.from_decision(decision, score=0.9)
+
+        assert result.id == "decision-123"
+        assert result.text == "Resolution 15289"
+        assert result.source_type == "decision"
+        assert result.score == 0.9
+        assert result.title == "Resolution 15289"
+        assert result.date == "2024-10-21T18:00:00"
+        assert result.outcome == "approved"
+        assert result.body == "City Council"
+
+    def test_unified_result_from_transcript_result(self):
+        """UnifiedSearchResult.from_transcript_result() creates result from TranscriptSearchResult."""
+        transcript = TranscriptSearchResult(
+            id="chunk-45",
+            text="This shelter will help our community.",
+            speaker="Speaker C",
+            speaker_role="public",
+            speaker_name="John Smith",
+            video_id="xyz789",
+            start_timestamp="00:45:30",
+            end_timestamp="00:46:15",
+            start_ms=2730000,
+            end_ms=2775000,
+            is_public_comment=True,
+            score=0.82,
+        )
+        result = UnifiedSearchResult.from_transcript_result(transcript)
+
+        assert result.id == "chunk-45"
+        assert result.text == "This shelter will help our community."
+        assert result.source_type == "transcript"
+        assert result.score == 0.82
+        assert result.speaker == "Speaker C"
+        assert result.speaker_role == "public"
+        assert result.speaker_name == "John Smith"
+        assert result.is_public_comment is True
+        assert result.video_url == "https://www.youtube.com/watch?v=xyz789&t=2730s"
+
+    def test_hybrid_result_to_unified(self):
+        """HybridSearchResult.to_unified() converts to UnifiedSearchResult."""
+        hybrid = HybridSearchResult(
+            id="chunk-1",
+            text="Staff report content",
+            source_type="pdf",
+            score=0.85,
+            agenda_item="6.a",
+            page_start=100,
+            page_end=105,
+        )
+        unified = hybrid.to_unified()
+
+        assert isinstance(unified, UnifiedSearchResult)
+        assert unified.id == "chunk-1"
+        assert unified.source_type == "pdf"
+        assert unified.score == 0.85
+        assert unified.agenda_item == "6.a"
+        assert unified.page_start == 100
+
+    def test_unified_result_all_source_types(self):
+        """UnifiedSearchResult can represent all valid source types."""
+        valid_types = ["decision", "pdf", "transcript", "issue", "municipal_code"]
+        for source_type in valid_types:
+            result = UnifiedSearchResult(
+                id=f"test-{source_type}",
+                text="Sample content",
+                source_type=source_type,
+                score=0.5,
+            )
+            assert result.source_type == source_type
 
 
 class TestHybridSearchResult:

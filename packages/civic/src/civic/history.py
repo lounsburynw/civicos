@@ -44,12 +44,201 @@ class TranscriptSearchResult:
 
 
 @dataclass
+class UnifiedSearchResult:
+    """
+    A unified search result that can represent content from any corpus.
+
+    This is the canonical result type for cross-corpus queries, supporting
+    results from: decisions, chunks (PDF), transcripts (video), issues
+    (SeeClickFix), and municipal_code.
+
+    The source_type field indicates which corpus the result came from, and
+    source-specific fields are populated accordingly (others are None/default).
+
+    Source Types:
+        - "decision": City council decision/agenda item
+        - "pdf": PDF chunk from agenda packet or staff report
+        - "transcript": Video transcript chunk from meeting recording
+        - "issue": SeeClickFix community issue report
+        - "municipal_code": Municipal code section
+
+    Example:
+        >>> results = civic.search_all("homeless shelter")
+        >>> for r in results:
+        ...     if r.source_type == "decision":
+        ...         print(f"Decision: {r.title} ({r.outcome})")
+        ...     elif r.source_type == "transcript":
+        ...         print(f"Video @{r.start_timestamp}: {r.speaker}: {r.text[:50]}")
+        ...     elif r.source_type == "issue":
+        ...         print(f"Issue: {r.title} at {r.address}")
+    """
+    # Core fields (present for all source types)
+    id: str
+    text: str
+    source_type: str  # "decision", "pdf", "transcript", "issue", "municipal_code"
+    score: float
+
+    # Decision-specific fields
+    title: Optional[str] = None
+    date: Optional[str] = None  # ISO format date
+    outcome: Optional[str] = None
+    body: Optional[str] = None  # Meeting body (e.g., "City Council")
+    votes: Optional[dict] = None
+
+    # PDF chunk-specific fields
+    agenda_item: Optional[str] = None
+    page_start: Optional[int] = None
+    page_end: Optional[int] = None
+
+    # Transcript-specific fields
+    speaker: Optional[str] = None
+    speaker_role: Optional[str] = None  # "council", "staff", "public"
+    speaker_name: Optional[str] = None
+    video_id: Optional[str] = None
+    start_timestamp: Optional[str] = None  # HH:MM:SS format
+    end_timestamp: Optional[str] = None
+    start_ms: Optional[int] = None
+    end_ms: Optional[int] = None
+    is_public_comment: bool = False
+
+    # Issue-specific fields (SeeClickFix)
+    issue_type: Optional[str] = None
+    address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    status: Optional[str] = None  # "open", "acknowledged", "closed"
+
+    # Municipal code-specific fields
+    section_number: Optional[str] = None
+    chapter: Optional[str] = None
+    title_number: Optional[str] = None
+
+    @property
+    def video_url(self) -> Optional[str]:
+        """Generate YouTube URL with timestamp if video_id is available."""
+        if not self.video_id or not self.start_ms:
+            return None
+        seconds = self.start_ms // 1000
+        return f"https://www.youtube.com/watch?v={self.video_id}&t={seconds}s"
+
+    @classmethod
+    def from_decision(cls, decision: "Decision", score: float = 1.0) -> "UnifiedSearchResult":
+        """Create UnifiedSearchResult from a Decision object."""
+        return cls(
+            id=decision.id,
+            text=decision.title,
+            source_type="decision",
+            score=score,
+            title=decision.title,
+            date=decision.date.isoformat() if decision.date else None,
+            outcome=decision.outcome,
+            body=decision.body,
+            votes=decision.votes,
+        )
+
+    @classmethod
+    def from_transcript_result(
+        cls, result: "TranscriptSearchResult"
+    ) -> "UnifiedSearchResult":
+        """Create UnifiedSearchResult from a TranscriptSearchResult."""
+        return cls(
+            id=result.id,
+            text=result.text,
+            source_type="transcript",
+            score=result.score,
+            speaker=result.speaker,
+            speaker_role=result.speaker_role,
+            speaker_name=result.speaker_name,
+            video_id=result.video_id,
+            start_timestamp=result.start_timestamp,
+            end_timestamp=result.end_timestamp,
+            start_ms=result.start_ms,
+            end_ms=result.end_ms,
+            is_public_comment=result.is_public_comment,
+        )
+
+    @classmethod
+    def from_embeddings_result(
+        cls, result, source_type: str
+    ) -> "UnifiedSearchResult":
+        """
+        Create UnifiedSearchResult from a CivicEmbeddings SearchResult.
+
+        Args:
+            result: SearchResult from CivicEmbeddings.search_*()
+            source_type: One of "decision", "pdf", "transcript", "issue", "municipal_code"
+
+        Returns:
+            UnifiedSearchResult with appropriate fields populated
+        """
+        metadata = result.metadata or {}
+
+        base_kwargs = {
+            "id": result.document_id,
+            "text": result.text,
+            "source_type": source_type,
+            "score": result.score,
+        }
+
+        if source_type == "decision":
+            base_kwargs.update({
+                "title": metadata.get("title"),
+                "date": metadata.get("meeting_date"),
+                "outcome": metadata.get("outcome"),
+                "votes": {
+                    "vote_count": metadata.get("vote_count"),
+                    "passed": metadata.get("vote_passed"),
+                    "unanimous": metadata.get("vote_unanimous"),
+                } if metadata.get("vote_count") else None,
+            })
+        elif source_type == "pdf":
+            base_kwargs.update({
+                "agenda_item": metadata.get("agenda_item"),
+                "page_start": metadata.get("page_start"),
+                "page_end": metadata.get("page_end"),
+            })
+        elif source_type == "transcript":
+            base_kwargs.update({
+                "speaker": metadata.get("speaker"),
+                "speaker_role": metadata.get("speaker_role"),
+                "speaker_name": metadata.get("speaker_name"),
+                "video_id": metadata.get("video_id"),
+                "start_timestamp": metadata.get("start_timestamp"),
+                "end_timestamp": metadata.get("end_timestamp"),
+                "start_ms": metadata.get("start_ms"),
+                "end_ms": metadata.get("end_ms"),
+                "is_public_comment": metadata.get("is_public_comment", False),
+            })
+        elif source_type == "issue":
+            base_kwargs.update({
+                "title": metadata.get("title"),
+                "issue_type": metadata.get("issue_type"),
+                "address": metadata.get("address"),
+                "latitude": metadata.get("latitude"),
+                "longitude": metadata.get("longitude"),
+                "status": metadata.get("status"),
+            })
+        elif source_type == "municipal_code":
+            base_kwargs.update({
+                "title": metadata.get("title"),
+                "section_number": metadata.get("section_number"),
+                "chapter": metadata.get("chapter"),
+                "title_number": metadata.get("title_number"),
+            })
+
+        return cls(**base_kwargs)
+
+
+@dataclass
 class HybridSearchResult:
     """
     A combined search result from both PDF and video transcript sources.
 
     Links official documents (staff reports, agenda packets) with meeting
     discussion (public testimony, council deliberation) for complete context.
+
+    Note: Consider using UnifiedSearchResult for new code. HybridSearchResult
+    is maintained for backward compatibility with existing what_happened_with_discussion().
     """
     id: str
     text: str
@@ -79,6 +268,27 @@ class HybridSearchResult:
             return None
         seconds = self.start_ms // 1000
         return f"https://www.youtube.com/watch?v={self.video_id}&t={seconds}s"
+
+    def to_unified(self) -> UnifiedSearchResult:
+        """Convert to UnifiedSearchResult for cross-corpus compatibility."""
+        return UnifiedSearchResult(
+            id=self.id,
+            text=self.text,
+            source_type=self.source_type,
+            score=self.score,
+            agenda_item=self.agenda_item,
+            page_start=self.page_start,
+            page_end=self.page_end,
+            speaker=self.speaker,
+            speaker_role=self.speaker_role,
+            speaker_name=self.speaker_name,
+            video_id=self.video_id,
+            start_timestamp=self.start_timestamp,
+            end_timestamp=self.end_timestamp,
+            start_ms=self.start_ms,
+            end_ms=self.end_ms,
+            is_public_comment=self.is_public_comment,
+        )
 
 
 def _jurisdiction_has_embeddings(jurisdiction: str) -> bool:
