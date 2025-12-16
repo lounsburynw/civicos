@@ -875,7 +875,7 @@
     },
     "user_readiness": {
       "docs_published": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "check": "User documentation accessible"
       },
