@@ -1981,3 +1981,32 @@ Created comprehensive MCP setup guide at `docs/user_guides/MCP_SETUP_GUIDE.md`:
 **Progress:** 63/130 items ready (48%)
 
 **Commit:** (pending)
+
+## Session 271: Pilot user identification guide
+Date: 2025-12-15
+
+### Work Done
+1. **Created pilot user identification guide**
+   - Comprehensive documentation for identifying pilot users
+   - Target: 5-10 San Rafael residents for January 2026 pilot
+
+2. **Documented user recruitment criteria and sources**
+   - Primary: SeeClickFix complaints (1,437 available)
+   - Secondary: Geographic proximity, issue type matching
+   - Includes scoring/ranking factors
+
+3. **Created outreach templates**
+   - 4 templates: SeeClickFix comment, initial email, follow-up, confirmation
+   - Privacy and ethics guidelines included
+
+4. **Sample identification workflow**
+   - Python scripts for filtering complaints by topic/location
+   - Integration with `whos_with_me()` API
+
+### Files Changed
+- `docs/user_guides/PILOT_USER_IDENTIFICATION.md` (new)
+- `pilot.json` (`pilot_users_identified`: not_ready → ready)
+
+**Progress:** 64/130 items ready (49%)
+
+**Commit:** Session 271: Add pilot user identification guide
