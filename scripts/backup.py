@@ -30,16 +30,37 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
-# Project root
-PROJECT_ROOT = Path(__file__).parent.parent
-DATA_DIR = PROJECT_ROOT / "data"
-BACKUP_DIR = DATA_DIR / "backups"
+# Environment detection
+import os
+CIVIC_ENV = os.getenv('CIVIC_ENV', 'development').lower()
+IS_PRODUCTION = CIVIC_ENV == 'production'
 
-# Database configurations
-DATABASES = {
-    "civic_state": DATA_DIR / "civic_state.db",
-    "civic_participation": DATA_DIR / "civic_participation.db",
-}
+# Project root and data paths (environment-aware)
+PROJECT_ROOT = Path(__file__).parent.parent
+
+if IS_PRODUCTION:
+    # Production: Fly.io deployment with mounted volumes
+    # - /app/user-data/ = persistent user data (what we back up)
+    # - /app/bundled-data/ = read-only reference data (bundled with deploys)
+    # - /app/data/ = mounted volume for backups
+    USER_DATA_DIR = Path("/app/user-data")
+    BUNDLED_DATA_DIR = Path("/app/bundled-data")
+    BACKUP_DIR = Path("/app/data/backups")
+
+    # In production, we only back up user data (participation database)
+    # State data is bundled with deploys and refreshed automatically
+    DATABASES = {
+        "civic_participation": USER_DATA_DIR / "civic_participation.db",
+    }
+else:
+    # Development: local paths relative to project root
+    DATA_DIR = PROJECT_ROOT / "data"
+    BACKUP_DIR = DATA_DIR / "backups"
+
+    DATABASES = {
+        "civic_state": DATA_DIR / "civic_state.db",
+        "civic_participation": DATA_DIR / "civic_participation.db",
+    }
 
 # Retention policy: keep last N daily backups + last M weekly backups
 RETENTION_DAILY = 7

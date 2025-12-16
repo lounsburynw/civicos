@@ -45,13 +45,14 @@ jobs:
           # Run backup script on production server
           flyctl ssh console -a $APP_NAME -C "python scripts/backup.py --compress" 2>&1 | tee backup_output.txt
 
-          # Check if backup succeeded
-          if grep -q "Backup complete: 2 succeeded, 0 failed" backup_output.txt; then
+          # Check if backup succeeded (1 database in production: civic_participation)
+          if grep -q "Backup complete: 1 succeeded, 0 failed" backup_output.txt; then
             echo "backup_status=success" >> $GITHUB_OUTPUT
             echo "Backup completed successfully"
           else
             echo "backup_status=failed" >> $GITHUB_OUTPUT
             echo "Backup may have failed - check output"
+            cat backup_output.txt
             exit 1
           fi
 
