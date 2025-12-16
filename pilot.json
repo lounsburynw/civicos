@@ -866,11 +866,11 @@
         "note": "Health checks: Fly.io internal (30s interval) + UptimeRobot external (5min). REST API /health: database, ChromaDB, services. WebSocket /health: simple status. Alerts via email. Structured logging to logs/civic.json.log. See docs/critical/UPTIME_MONITORING.md."
       },
       "backup_scheduled": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "check": "Automated backups running",
-        "blocker": "FLY_API_TOKEN secret not configured in GitHub",
-        "note": "Workflow exists (.github/workflows/daily-backup.yml), runs daily at 2 AM UTC. Fixed permissions for issue creation. Manual step: run 'fly tokens create deploy -a civic-api' and add to GitHub secrets as FLY_API_TOKEN. See docs/critical/DAILY_BACKUP_SCHEDULE.md."
+        "completed": "2025-12-16",
+        "note": "GitHub Actions workflow runs daily at 2 AM UTC. Backs up civic_participation.db (user data) from /app/user-data/. Retention: 7 daily + 4 weekly. First successful run: 2025-12-16T03:44:32Z. See docs/critical/DAILY_BACKUP_SCHEDULE.md."
       }
     },
     "user_readiness": {
