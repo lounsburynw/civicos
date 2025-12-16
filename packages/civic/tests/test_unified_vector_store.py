@@ -79,14 +79,14 @@ class TestVectorStoreWithLocalProvider:
 
         assert store.provider is not None
         assert isinstance(store.provider, SentenceTransformerProvider)
-        assert store.provider.embedding_dimension == 384
+        assert store.provider.embedding_dimension == 768
 
     def test_create_store_with_explicit_provider(self, temp_store_dir, local_provider):
         """VectorStore accepts explicit provider."""
         store = VectorStore(persist_directory=temp_store_dir, provider=local_provider)
 
         assert store.provider is local_provider
-        assert store.provider.embedding_dimension == 384
+        assert store.provider.embedding_dimension == 768
 
     def test_add_and_search_documents(self, temp_store_dir, local_provider):
         """Store can add documents and search them."""
@@ -184,7 +184,7 @@ class TestDimensionValidation:
 
     def test_dimension_mismatch_raises_error(self, temp_store_dir, local_provider, mock_openai_provider):
         """Opening store with mismatched dimensions raises error."""
-        # Create store with local provider (384 dims)
+        # Create store with local provider (768 dims)
         store1 = VectorStore(persist_directory=temp_store_dir, provider=local_provider)
         store1.add_documents([{"id": "doc1", "text": "test"}])
         del store1

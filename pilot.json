@@ -480,7 +480,7 @@
     "description": "Schema and infrastructure for multi-corpus querying",
     "embedding_infrastructure": {
       "embedding_model_migration": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "Migrate from all-MiniLM-L6-v2 to nomic-embed-text-v1.5",
         "note": "8192 token context, better retrieval quality, same local inference"

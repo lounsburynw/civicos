@@ -25,12 +25,13 @@ def sentence_transformer_model():
     Session-scoped SentenceTransformer model to avoid reloading for each test.
 
     This fixture loads the model once per worker process and reuses it.
-    The model is ~90MB and takes ~2-3s to load, so caching significantly
+    The model is ~274MB and takes ~3-4s to load, so caching significantly
     speeds up tests that use embeddings.
     """
     try:
         from sentence_transformers import SentenceTransformer
-        return SentenceTransformer("all-MiniLM-L6-v2")
+        # trust_remote_code=True required for models with custom code (e.g., nomic)
+        return SentenceTransformer("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
     except ImportError:
         pytest.skip("sentence-transformers not installed")
 

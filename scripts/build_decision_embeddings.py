@@ -23,7 +23,7 @@ def build_vector_index(
     decisions_file: str,
     output_dir: str = "data/pilot",
     collection_name: str = "high_stakes_decisions",
-    model_name: str = "all-MiniLM-L6-v2"
+    model_name: str = "nomic-ai/nomic-embed-text-v1.5"
 ) -> chromadb.Collection:
     """
     Build vector index from high-stakes decisions
@@ -54,7 +54,8 @@ def build_vector_index(
 
     # Initialize sentence transformer
     print("📥 Loading sentence transformer model...")
-    model = SentenceTransformer(model_name)
+    # trust_remote_code=True required for models with custom code (e.g., nomic)
+    model = SentenceTransformer(model_name, trust_remote_code=True)
     print(f"   ✅ Model loaded ({model_name})")
     print(f"   Embedding dimensions: {model.get_sentence_embedding_dimension()}")
 
