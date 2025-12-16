@@ -859,9 +859,11 @@
         "note": "Deployed to Fly.io SJC region. API: https://civic-api.fly.dev (healthy), WebSocket: https://civic-websocket.fly.dev (healthy). Hybrid data architecture: bundled reference data in image, user data on persistent volume."
       },
       "monitoring_active": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
-        "check": "Health checks and alerts configured"
+        "check": "Health checks and alerts configured",
+        "completed": "2025-12-16",
+        "note": "Health checks: Fly.io internal (30s interval) + UptimeRobot external (5min). REST API /health: database, ChromaDB, services. WebSocket /health: simple status. Alerts via email. Structured logging to logs/civic.json.log. See docs/critical/UPTIME_MONITORING.md."
       },
       "backup_scheduled": {
         "status": "not_ready",
