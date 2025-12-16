@@ -587,16 +587,21 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
         if not allowed:
             self.send_rate_limit_error(limit_info)
             return
-        
-        # Authenticate all requests
-        if not self.authenticate_request():
-            self.send_auth_error()
-            return
 
-        # Parse path to handle query parameters
+        # Parse path early for public endpoint check
         from urllib.parse import urlparse
         parsed_path = urlparse(self.path)
         base_path = parsed_path.path
+
+        # Session 270: /help is public (no auth required)
+        if base_path == '/help':
+            self.serve_help()
+            return
+
+        # Authenticate all other requests
+        if not self.authenticate_request():
+            self.send_auth_error()
+            return
 
         if base_path == '/api/events/search':
             self.serve_events_search()
@@ -7815,7 +7820,237 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
         self.send_header('X-Integration-Status', 'schema-compliant')
         self.end_headers()
         self.wfile.write(json.dumps(data, indent=2).encode())
-    
+
+    def serve_help(self):
+        """
+        Session 270: Serve user documentation as styled HTML.
+
+        Reads GETTING_STARTED.md and renders it client-side using marked.js.
+        This endpoint is public (no auth required) to make docs accessible.
+        """
+        # Find the docs directory
+        # In production: /app/docs/user_guides/GETTING_STARTED.md
+        # In development: ../../docs/user_guides/GETTING_STARTED.md (relative to packages/civic-services)
+        docs_paths = [
+            Path('/app/docs/user_guides/GETTING_STARTED.md'),  # Production (Docker)
+            Path(__file__).parent.parent.parent.parent.parent.parent / 'docs' / 'user_guides' / 'GETTING_STARTED.md',  # Development
+        ]
+
+        markdown_content = None
+        for docs_path in docs_paths:
+            if docs_path.exists():
+                try:
+                    markdown_content = docs_path.read_text(encoding='utf-8')
+                    break
+                except Exception as e:
+                    logger.warning("help_docs_read_error", extra={"path": str(docs_path), "error": str(e)})
+
+        if not markdown_content:
+            # Fallback content if docs not found
+            markdown_content = """# Civic Help
+
+Welcome to Civic! Documentation is being set up.
+
+For help, contact the Civic team.
+"""
+
+        # HTML template with marked.js for client-side rendering
+        html_template = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Civic - Getting Started</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --primary: #2196F3;
+            --text-primary: #1a1a2e;
+            --text-secondary: #666;
+            --background: #fefefe;
+            --background-secondary: #f8f9fa;
+            --border: #e0e0e0;
+            --accent-green: #859900;
+            --accent-cyan: #2aa198;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background: var(--background);
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header h1 {
+            color: var(--primary);
+            font-size: 28px;
+            margin: 0 0 8px 0;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        #content h1 {
+            font-size: 32px;
+            color: var(--primary);
+            margin-top: 0;
+        }
+
+        #content h2 {
+            font-size: 24px;
+            color: var(--text-primary);
+            margin-top: 40px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        #content h3 {
+            font-size: 18px;
+            color: var(--text-primary);
+            margin-top: 32px;
+        }
+
+        #content p {
+            color: var(--text-primary);
+            margin: 16px 0;
+        }
+
+        #content ul, #content ol {
+            padding-left: 24px;
+        }
+
+        #content li {
+            margin: 8px 0;
+        }
+
+        #content strong {
+            color: var(--text-primary);
+        }
+
+        #content em {
+            color: var(--text-secondary);
+            background: var(--background-secondary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-style: normal;
+        }
+
+        #content code {
+            background: var(--background-secondary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 14px;
+        }
+
+        #content hr {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 32px 0;
+        }
+
+        #content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+
+        #content th, #content td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid var(--border);
+        }
+
+        #content th {
+            background: var(--background-secondary);
+            font-weight: 600;
+        }
+
+        #content a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        #content a:hover {
+            text-decoration: underline;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 24px;
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 24px 16px;
+            }
+
+            #content h1 {
+                font-size: 24px;
+            }
+
+            #content h2 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">&larr; Back to Civic</a>
+        <div id="content"></div>
+    </div>
+    <script>
+        const markdown = MARKDOWN_CONTENT_PLACEHOLDER;
+        document.getElementById('content').innerHTML = marked.parse(markdown);
+    </script>
+</body>
+</html>'''
+
+        # Escape the markdown content for embedding in JavaScript
+        import json as json_module
+        escaped_content = json_module.dumps(markdown_content)
+
+        # Replace placeholder with actual content
+        html_output = html_template.replace('MARKDOWN_CONTENT_PLACEHOLDER', escaped_content)
+
+        # Send response
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Cache-Control', 'public, max-age=3600')  # Cache for 1 hour
+        self.end_headers()
+        self.wfile.write(html_output.encode('utf-8'))
+
+        logger.info("help_served", extra={"status": "success"})
+
     def log_message(self, format, *args):
         """Custom logging with structured logging (Session 246)"""
         # Parse the standard HTTP request log format to extract details
