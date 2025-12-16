@@ -2090,3 +2090,47 @@ Date: 2025-12-15
 **Progress:** 66/130 items ready (51%)
 
 **Commit:** Session 273: Migrate embedding model to nomic-embed-text-v1.5
+
+
+Session 274: reindex_existing_collections - Re-embed all ChromaDB collections
+
+### Summary
+Re-indexed all 3 San Rafael ChromaDB collections with the new nomic-embed-text-v1.5 
+model (768 dimensions), completing the embedding model migration.
+
+### Collections Re-indexed
+| Collection | Before | After | Notes |
+|------------|--------|-------|-------|
+| city-san-rafael_chunks | 724 (384d) | 724 (768d) | Direct re-embed |
+| city-san-rafael_issues | 1340 (384d) | 1340 (768d) | Direct re-embed |
+| city-san-rafael_municipal_code | 1949 (384d) | 2121 (768d) | Added text chunking |
+
+### Key Changes
+1. **Added text chunking for municipal code** (embeddings.py)
+   - Long code sections (>20K chars) caused OOM with nomic model's attention
+   - Added _chunk_text() function: 1500 char chunks with 200 char overlap
+   - Preserves paragraph/sentence boundaries when possible
+   - Chunk metadata includes: chunk_index, total_chunks, parent_section
+
+2. **Fixed build_decision_embeddings.py CLI default**
+   - Updated --model default from all-MiniLM-L6-v2 to nomic-embed-text-v1.5
+
+3. **Created scripts/reindex_collections.py**
+   - Orchestrator for re-indexing multiple collections
+   - Supports --dry-run, --verify, --jurisdiction flags
+   - Shows before/after stats for each collection
+
+### Files Changed
+- `packages/civic/src/civic/_internal/meetings/embeddings.py` (added _chunk_text, updated build_municipal_code_index)
+- `scripts/build_decision_embeddings.py` (fixed CLI default)
+- `scripts/reindex_collections.py` (new)
+- `pilot.json` (`reindex_existing_collections`: not_ready → ready)
+
+### Tests
+- Smoke tests: 31 passed
+- Embedding provider tests: 34 passed
+- Search verification: All 3 collections returning relevant results
+
+**Progress:** 67/130 items ready (52%)
+
+**Commit:** Session 274: Re-index collections with nomic-embed-text-v1.5
