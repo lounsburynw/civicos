@@ -139,9 +139,11 @@
         "artifact": "Docker images build successfully"
       },
       "image_size_reasonable": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Images < 500MB"
+        "artifact": "Images < 500MB",
+        "completed": "2025-12-15",
+        "note": "355MB with fastembed (vs 3.5GB with PyTorch/sentence-transformers). 10x size reduction."
       }
     },
     "configuration": {

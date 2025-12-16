@@ -71,4 +71,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8001/health || exit 1
 
 # Default command: REST API server
-CMD ["python", "-m", "civic_services.civic_api_integrated"]
+CMD ["python", "-m", "civic_services.servers.civic_api_integrated"]

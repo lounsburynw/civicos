@@ -11,6 +11,7 @@ primary_region = "sjc"
 [env]
   CIVIC_ENV = "production"
   CIVIC_API_PORT = "8001"
+  CIVIC_EMBEDDING_PROVIDER = "fastembed"
   PYTHONUNBUFFERED = "1"
 
 [http_service]
@@ -29,7 +30,7 @@ primary_region = "sjc"
 [[vm]]
   cpu_kind = "shared"
   cpus = 1
-  memory_mb = 256
+  memory_mb = 512
 
 [mounts]
   source = "civic_data"
