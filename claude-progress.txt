@@ -2168,3 +2168,45 @@ Built the city-san-rafael_decisions ChromaDB collection for semantic search over
 **Progress:** 68/131 items ready (52%)
 
 **Commit:** Session 275: Build decisions vector index
+
+---
+
+## Session 276: Define UnifiedSearchResult dataclass
+**Date:** 2025-12-15
+**Item:** unified_result_schema (data_architecture > schema_documentation)
+
+### Summary
+Defined `UnifiedSearchResult` dataclass for cross-corpus queries, supporting results from all 5 corpus types.
+
+### Changes
+- Created `UnifiedSearchResult` dataclass in `packages/civic/src/civic/history.py` (lines 46-229)
+  - Core fields: id, text, source_type, score
+  - Decision fields: title, date, outcome, body, votes
+  - PDF chunk fields: agenda_item, page_start, page_end
+  - Transcript fields: speaker, speaker_role, speaker_name, video_id, timestamps, is_public_comment
+  - Issue fields: issue_type, address, latitude, longitude, status
+  - Municipal code fields: section_number, chapter, title_number
+  - Factory methods: from_decision(), from_transcript_result(), from_embeddings_result()
+  - video_url property for YouTube timestamp URLs
+
+- Added `HybridSearchResult.to_unified()` conversion method for migration path
+
+- Exported from `packages/civic/src/civic/__init__.py`:
+  - Added `UnifiedSearchResult` and `HybridSearchResult` to public API
+
+- Added 12 tests in `packages/civic/tests/test_hybrid_pdf_video.py`:
+  - TestUnifiedSearchResult class covering all source types and factory methods
+
+### Tests
+- 12 new UnifiedSearchResult tests: All passed
+- 31 smoke tests: All passed
+
+### Files Changed
+- `packages/civic/src/civic/history.py` (UnifiedSearchResult dataclass)
+- `packages/civic/src/civic/__init__.py` (exports)
+- `packages/civic/tests/test_hybrid_pdf_video.py` (+12 tests)
+- `pilot.json` (`unified_result_schema`: not_ready → ready)
+
+**Progress:** 69/131 items ready (53%)
+
+**Commit:** Session 276: Define UnifiedSearchResult dataclass

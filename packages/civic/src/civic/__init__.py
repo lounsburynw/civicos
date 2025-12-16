@@ -41,6 +41,9 @@ from civic.civic import (
     Outcome,
 )
 
+# Cross-corpus search result type
+from civic.history import UnifiedSearchResult, HybridSearchResult
+
 # Optional MCP support - lazy import to avoid circular dependencies
 MCP_AVAILABLE = False
 mcp_server = None
@@ -77,6 +80,9 @@ __all__ = [
     "Suggestion",
     "CoordinationPlan",
     "Outcome",
+    # Cross-corpus search result types
+    "UnifiedSearchResult",
+    "HybridSearchResult",
     # MCP
     "MCP_AVAILABLE",
     "mcp_server",
