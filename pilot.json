@@ -527,19 +527,25 @@
     },
     "multi_corpus_search": {
       "unified_search_interface": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "UnifiedSearch class querying multiple corpora"
+        "artifact": "UnifiedSearch class querying multiple corpora",
+        "completed": "2025-12-15",
+        "note": "UnifiedSearch class in _internal/search/unified.py. Methods: search_all() for multi-corpus queries, search_corpus() for single-corpus with filters, get_available_corpora() for registry, get_stats() for statistics. Returns UnifiedSearchResult objects. 26 tests in test_unified_search.py."
       },
       "result_merging": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Merge and rank results from different corpora"
+        "artifact": "Merge and rank results from different corpora",
+        "completed": "2025-12-15",
+        "note": "Implemented in UnifiedSearch.search_all(). Queries available corpora, converts to UnifiedSearchResult via from_embeddings_result(), sorts by cosine similarity score (highest first), limits to top_k."
       },
       "corpus_registry": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Registry of available corpora per jurisdiction"
+        "artifact": "Registry of available corpora per jurisdiction",
+        "completed": "2025-12-15",
+        "note": "Implemented via UnifiedSearch.get_available_corpora(). Returns Dict[str, CorpusInfo] with availability and document count per corpus. Supports caching with refresh option."
       }
     },
     "decision_transcript_linking": {

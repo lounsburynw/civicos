@@ -566,6 +566,7 @@ class CivicEmbeddings:
         collection = self._client.create_collection(
             name=self.decisions_collection_name,
             metadata={
+                "hnsw:space": "cosine",
                 "description": f"{self.jurisdiction_id} decisions for RAG",
                 "jurisdiction_id": self.jurisdiction_id,
                 "embedding_model": self.model_name,
@@ -657,6 +658,7 @@ class CivicEmbeddings:
         collection = self._client.create_collection(
             name=self.chunks_collection_name,
             metadata={
+                "hnsw:space": "cosine",
                 "description": f"{self.jurisdiction_id} text chunks for RAG",
                 "jurisdiction_id": self.jurisdiction_id,
                 "embedding_model": self.model_name,
@@ -726,6 +728,7 @@ class CivicEmbeddings:
         collection = self._client.create_collection(
             name=self.transcripts_collection_name,
             metadata={
+                "hnsw:space": "cosine",
                 "description": f"{self.jurisdiction_id} video transcripts for RAG",
                 "jurisdiction_id": self.jurisdiction_id,
                 "embedding_model": self.model_name,
@@ -961,6 +964,7 @@ class CivicEmbeddings:
         collection = self._client.create_collection(
             name=self.issues_collection_name,
             metadata={
+                "hnsw:space": "cosine",
                 "description": f"{self.jurisdiction_id} SeeClickFix issues for RAG",
                 "jurisdiction_id": self.jurisdiction_id,
                 "embedding_model": self.model_name,
@@ -1123,6 +1127,7 @@ class CivicEmbeddings:
         collection = self._client.create_collection(
             name=self.municipal_code_collection_name,
             metadata={
+                "hnsw:space": "cosine",
                 "description": f"{self.jurisdiction_id} municipal code for RAG",
                 "jurisdiction_id": self.jurisdiction_id,
                 "embedding_model": self.model_name,
