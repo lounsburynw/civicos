@@ -623,10 +623,10 @@
       }
     },
     "meetings_corpus": {
-      "decisions_current": {
+      "decisions_extracted": {
         "status": "ready",
         "priority": 1,
-        "artifact": "All 2024-2025 council decisions indexed in ChromaDB",
+        "artifact": "All 2024-2025 council decisions extracted to JSON",
         "completed": "2025-12-11",
         "metrics": {
           "decisions": 186,
@@ -635,6 +635,13 @@
           "llm_validated": "60%",
           "with_topics": "75%"
         }
+      },
+      "decisions_vector_index": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Build city-san-rafael_decisions ChromaDB collection",
+        "depends_on": "decisions_extracted",
+        "note": "Powers what_happened() semantic search over council decisions"
       },
       "minutes_extracted": {
         "status": "ready",
