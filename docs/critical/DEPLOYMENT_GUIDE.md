@@ -1,6 +1,6 @@
 # Deployment Guide
 
-**Last Updated:** 2025-12-11
+**Last Updated:** 2025-12-16
 **Platform:** Fly.io
 **Region:** SJC (San Jose - closest to San Rafael pilot)
 
@@ -8,13 +8,58 @@ This guide provides step-by-step instructions for deploying the Civic platform. 
 
 ## Table of Contents
 
-1. [Prerequisites](#prerequisites)
-2. [Pre-Deployment Checklist](#pre-deployment-checklist)
-3. [First-Time Deployment](#first-time-deployment)
-4. [Updating an Existing Deployment](#updating-an-existing-deployment)
-5. [Post-Deployment Verification](#post-deployment-verification)
-6. [Troubleshooting](#troubleshooting)
-7. [Related Documentation](#related-documentation)
+1. [Data Architecture](#data-architecture)
+2. [Prerequisites](#prerequisites)
+3. [Pre-Deployment Checklist](#pre-deployment-checklist)
+4. [First-Time Deployment](#first-time-deployment)
+5. [Updating an Existing Deployment](#updating-an-existing-deployment)
+6. [Updating Data](#updating-data)
+7. [Post-Deployment Verification](#post-deployment-verification)
+8. [Troubleshooting](#troubleshooting)
+9. [Related Documentation](#related-documentation)
+
+---
+
+## Data Architecture
+
+The platform uses a **hybrid data model** that separates read-only reference data from persistent user data:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     PRODUCTION DATA LAYOUT                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Docker Image (rebuilt on deploy)     Fly Volume (persistent)   │
+│  ────────────────────────────────     ───────────────────────   │
+│                                                                  │
+│  /app/bundled-data/                   /app/user-data/           │
+│  ├── pilot/                           ├── civic_participation.db│
+│  │   └── vectors/                     ├── sessions/             │
+│  │       └── city-{name}/             └── backups/              │
+│  ├── events/                                                     │
+│  └── legislative_context/             (Never overwritten)       │
+│                                                                  │
+│  (Updated each deploy)                                           │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Data Types
+
+| Data | Location | Updates | Persistence |
+|------|----------|---------|-------------|
+| **Events/Meetings** | `/app/bundled-data/events/` | Each deploy | Baked into image |
+| **Vector Embeddings** | `/app/bundled-data/pilot/vectors/` | Each deploy | Baked into image |
+| **Legislative Context** | `/app/bundled-data/legislative_context/` | Each deploy | Baked into image |
+| **User Participation** | `/app/user-data/civic_participation.db` | Runtime | Fly.io volume |
+| **Sessions** | `/app/user-data/sessions/` | Runtime | Fly.io volume |
+
+### Benefits
+
+- ✅ **Simple updates**: Just deploy to update reference data
+- ✅ **User data preserved**: Never overwritten by deploys
+- ✅ **Rollback-safe**: Old images contain old reference data
+- ✅ **No runtime complexity**: No data fetching or syncing needed
 
 ---
 
@@ -72,7 +117,7 @@ Complete these steps before every deployment:
   fly ssh console -a civic-api -C "python scripts/backup.py"
 
   # Download backup locally
-  fly ssh sftp get /app/data/backups/latest.tar.gz ./backups/
+  fly ssh sftp get /app/user-data/backups/latest.tar.gz ./backups/
   ```
 
 ### Secrets Verification
@@ -269,6 +314,73 @@ See [Post-Deployment Verification](#post-deployment-verification).
 
 ---
 
+## Updating Data
+
+Reference data (events, vectors, legislative context) is bundled into the Docker image. To update it:
+
+### Weekly Data Refresh
+
+```bash
+# 1. Refresh events from civic data sources
+python -m civic.extraction.scraper
+
+# 2. Regenerate vector embeddings (if events changed significantly)
+python -m civic.rag.vectorize
+
+# 3. Commit updated data
+git add data/
+git commit -m "Weekly data refresh"
+
+# 4. Deploy (data is bundled into image)
+fly deploy -a civic-api
+fly deploy -a civic-websocket --config fly.websocket.toml
+```
+
+### Quarterly Legislative Refresh
+
+```bash
+# Run the legislative verification script
+./scripts/quarterly_legislative_refresh.sh
+
+# Review and update legislative context files
+# Edit files in data/legislative_context/
+
+# Commit and deploy
+git add data/legislative_context/
+git commit -m "Quarterly legislative context update"
+fly deploy -a civic-api
+```
+
+### Adding a New City
+
+```bash
+# 1. Extract events for the new city
+python -m civic.extraction.scraper --city new-city-name
+
+# 2. Generate vectors for the new city
+python -m civic.rag.vectorize --city new-city-name
+
+# 3. Verify locally
+pytest packages/civic/tests/test_integration_rag.py -k new_city
+
+# 4. Commit and deploy
+git add data/
+git commit -m "Add new-city-name to platform"
+fly deploy -a civic-api
+```
+
+### What NOT to Update via Deploy
+
+User data is stored on the persistent volume and should **never** be included in deploys:
+
+- `civic_participation.db` - User preferences, participation history
+- Session data - Active user sessions
+- Backups - Created by backup.py script
+
+These are managed via the backup/restore scripts, not deployments.
+
+---
+
 ## Post-Deployment Verification
 
 Run these checks after every deployment.
@@ -331,11 +443,14 @@ fly logs -a civic-api | grep -i error
 ### Verify Data Persistence
 
 ```bash
-# Check database files exist
-fly ssh console -a civic-api -C "ls -la /app/data/*.db"
+# Check user data on persistent volume
+fly ssh console -a civic-api -C "ls -la /app/user-data/"
 
-# Check vector store
-fly ssh console -a civic-api -C "ls -la /app/data/pilot/vectors/"
+# Check bundled reference data (baked into image)
+fly ssh console -a civic-api -C "ls -la /app/bundled-data/pilot/vectors/"
+
+# Verify vector stores for each city
+fly ssh console -a civic-api -C "ls -la /app/bundled-data/pilot/vectors/city-*"
 ```
 
 ### External Monitoring Check
@@ -386,11 +501,11 @@ fly status -a civic-api
 
 **Solutions:**
 ```bash
-# Check volume is mounted
-fly ssh console -a civic-api -C "df -h /app/data"
+# Check volume is mounted (user data)
+fly ssh console -a civic-api -C "df -h /app/user-data"
 
 # Check database permissions
-fly ssh console -a civic-api -C "ls -la /app/data/*.db"
+fly ssh console -a civic-api -C "ls -la /app/user-data/*.db"
 
 # Verify SQLite integrity
 fly ssh console -a civic-api -C "python scripts/backup.py --status"
@@ -431,8 +546,8 @@ fly scale memory 512 -a civic-api
 
 **Solutions:**
 ```bash
-# Check disk usage
-fly ssh console -a civic-api -C "df -h /app/data"
+# Check disk usage (user data volume)
+fly ssh console -a civic-api -C "df -h /app/user-data"
 
 # Clean old backups
 fly ssh console -a civic-api -C "python scripts/backup.py --clean"
@@ -440,6 +555,9 @@ fly ssh console -a civic-api -C "python scripts/backup.py --clean"
 # Expand volume (requires downtime)
 fly volumes extend vol_xxxxx --size 5 -a civic-api
 ```
+
+**Note:** Reference data (vectors, events) is in the Docker image, not the volume.
+If the image is too large, clean up old/test city data locally before deploying.
 
 ### Rollback to Previous Version
 
@@ -496,5 +614,8 @@ For detailed rollback procedures including data restore and coordinated two-app 
 |------|----------|-----------|
 | 2025-12-11 | Use Fly.io | Best cost/feature balance (<$7/mo budget) |
 | 2025-12-11 | SJC region | Closest to San Rafael pilot |
-| 2025-12-11 | 3GB volumes | Sufficient for SQLite + ChromaDB + growth |
+| 2025-12-11 | 3GB volumes | Sufficient for user data + backups + growth |
 | 2025-12-11 | Separate apps | Independent scaling, clearer health checks |
+| 2025-12-16 | Hybrid data model | Bundle reference data in image, user data on volume |
+| 2025-12-16 | `/app/bundled-data` | Read-only reference data (vectors, events, legislative) |
+| 2025-12-16 | `/app/user-data` | Persistent user data (participation DB, sessions) |

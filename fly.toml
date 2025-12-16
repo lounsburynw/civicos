@@ -34,7 +34,7 @@ primary_region = "sjc"
 
 [mounts]
   source = "civic_data"
-  destination = "/app/data"
+  destination = "/app/user-data"
 
 [checks]
   [checks.health]
