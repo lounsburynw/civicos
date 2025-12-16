@@ -1897,3 +1897,33 @@ Created comprehensive MCP setup guide at `docs/user_guides/MCP_SETUP_GUIDE.md`:
 **Commit:** (pending)
 
 ---
+
+## Session 269 - 2025-12-15
+
+**Item:** `backup_scheduled` (pilot_validation > operational_readiness)
+**Phase:** PILOT
+**Priority:** 1
+
+**Investigation:**
+- GitHub Actions workflow running daily at 2 AM UTC (failing)
+- Root cause: `FLY_API_TOKEN` secret not configured in GitHub
+- Secondary issue: workflow missing permissions for issue creation
+
+**Changes Made:**
+1. Fixed `.github/workflows/daily-backup.yml`:
+   - Added `permissions: issues: write, contents: read` for failure notifications
+2. Updated `pilot.json`:
+   - Added `blocker` field explaining missing secret
+   - Added `note` with setup instructions
+
+**Status:** BLOCKED - requires manual user action
+- User must run: `fly tokens create deploy -a civic-api`
+- User must add token to GitHub Settings > Secrets as `FLY_API_TOKEN`
+- Once configured, trigger workflow manually to verify
+- Then update status to "ready"
+
+**Documentation Reference:** docs/critical/DAILY_BACKUP_SCHEDULE.md
+
+**Commit:** (pending)
+
+---

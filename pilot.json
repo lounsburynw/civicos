@@ -868,7 +868,9 @@
       "backup_scheduled": {
         "status": "not_ready",
         "priority": 1,
-        "check": "Automated backups running"
+        "check": "Automated backups running",
+        "blocker": "FLY_API_TOKEN secret not configured in GitHub",
+        "note": "Workflow exists (.github/workflows/daily-backup.yml), runs daily at 2 AM UTC. Fixed permissions for issue creation. Manual step: run 'fly tokens create deploy -a civic-api' and add to GitHub secrets as FLY_API_TOKEN. See docs/critical/DAILY_BACKUP_SCHEDULE.md."
       }
     },
     "user_readiness": {
