@@ -1927,3 +1927,20 @@ Created comprehensive MCP setup guide at `docs/user_guides/MCP_SETUP_GUIDE.md`:
 **Commit:** (pending)
 
 ---
+
+**Additional work completed:**
+
+1. Added scripts/backup.py and scripts/migrate.py to Dockerfile
+2. Fixed backup script to be environment-aware:
+   - In production: backs up only civic_participation.db from /app/user-data/
+   - State database is bundled with deploys (read-only reference data)
+3. Updated workflow to expect 1 database in production
+4. Deployed changes and verified backup workflow succeeds
+
+**First successful backup:** 2025-12-16T03:44:32Z
+**Backups created:** 2 (civic_participation_20251216_034442.db.gz, etc.)
+
+**Updated:** pilot.json
+- `backup_scheduled` → ready
+
+**Commit:** Session 269 complete
