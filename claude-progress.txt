@@ -2246,3 +2246,41 @@ Created `docs/critical/SQLITE_CHROMADB_JOIN_PATTERNS.md` documenting the ID patt
 **Progress:** 70/131 items ready (53%)
 
 **Commit:** Session 277: Document SQLite-ChromaDB join patterns
+
+## Session 278: UnifiedSearch class + cosine distance fix
+Date: 2025-12-15
+
+### Work Done
+1. **Created UnifiedSearch class** (`packages/civic/src/civic/_internal/search/unified.py`):
+   - `search_all()`: Multi-corpus semantic search across decisions, pdf, transcript, issue, municipal_code
+   - `search_corpus()`: Single-corpus search with corpus-specific filters
+   - `get_available_corpora()`: Registry returning CorpusInfo with availability and doc counts
+   - `get_stats()`: Comprehensive statistics for all corpora
+   - Returns `UnifiedSearchResult` objects (defined in Session 276)
+
+2. **Fixed ChromaDB distance metric bug**:
+   - Root cause: Collections were created without specifying distance metric
+   - ChromaDB defaults to L2 (Euclidean), but code assumed cosine in `_results_to_search_results()`
+   - Fix: Added `"hnsw:space": "cosine"` to all 5 `create_collection()` calls
+   - Re-indexed all collections (decisions, chunks, issues, municipal_code)
+   - Scores now correctly in [-1, 1] range (were -300+ before)
+
+3. **Added search module**:
+   - New `_internal/search/` directory with `__init__.py` and `unified.py`
+   - Exports: `UnifiedSearch`, `CorpusInfo`, `CORPUS_TYPES`
+
+4. **Wrote comprehensive tests** (`test_unified_search.py`):
+   - 26 tests covering unit and integration scenarios
+   - Tests for: corpus types, init, get_available_corpora, search_all, search_corpus, get_stats
+   - Integration tests with real San Rafael vector index
+
+### Files Changed
+- `packages/civic/src/civic/_internal/search/__init__.py` (new)
+- `packages/civic/src/civic/_internal/search/unified.py` (new - UnifiedSearch class)
+- `packages/civic/src/civic/_internal/meetings/embeddings.py` (added hnsw:space cosine to 5 collections)
+- `packages/civic/tests/test_unified_search.py` (new - 26 tests)
+- `pilot.json` (3 items: unified_search_interface, result_merging, corpus_registry → ready)
+
+**Progress:** 73/131 items ready (55%)
+
+**Commit:** Session 278: UnifiedSearch class + cosine distance fix
