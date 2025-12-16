@@ -1163,15 +1163,27 @@ class CivicEmbeddings:
 
         result = {}
 
-        # Build decisions index if file exists
-        decisions_path = corpus_path / "nov17_decisions.json"
-        if decisions_path.exists():
-            result["decisions"] = self.build_decisions_index(corpus_dir)
+        # Build decisions index if any decisions file exists
+        # Check jurisdiction-based naming first, then legacy
+        decisions_candidates = [
+            f"{self.jurisdiction_id}_decisions.json",
+            "nov17_decisions.json",  # Legacy for backward compatibility
+        ]
+        for candidate in decisions_candidates:
+            if (corpus_path / candidate).exists():
+                result["decisions"] = self.build_decisions_index(corpus_dir)
+                break
 
-        # Build chunks index if file exists
-        chunks_path = corpus_path / "nov17_chunks.json"
-        if chunks_path.exists():
-            result["chunks"] = self.build_chunks_index(corpus_dir)
+        # Build chunks index if any chunks file exists
+        # Check jurisdiction-based naming first, then legacy
+        chunks_candidates = [
+            f"{self.jurisdiction_id}_chunks.json",
+            "nov17_chunks.json",  # Legacy for backward compatibility
+        ]
+        for candidate in chunks_candidates:
+            if (corpus_path / candidate).exists():
+                result["chunks"] = self.build_chunks_index(corpus_dir)
+                break
 
         return result
 
