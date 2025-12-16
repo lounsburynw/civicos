@@ -1,3 +1,40 @@
+## Session 266: Fly.io deployment - FastEmbed migration
+Date: 2025-12-15
+
+### Work Done
+1. **Switched embedding provider from SentenceTransformer to FastEmbed**:
+   - Created `FastEmbedProvider` class in `provider.py` (ONNX-based, ~500MB vs ~3GB PyTorch)
+   - Updated `get_embedding_provider()` factory function to default to 'fastembed'
+   - Added support for three providers: 'fastembed' (default), 'local' (SentenceTransformer), 'openai'
+
+2. **Updated package dependencies**:
+   - `pyproject.toml`: `[embeddings]` now uses fastembed, `[embeddings-local]` for SentenceTransformer, `[embeddings-api]` for OpenAI
+   - `requirements.txt`: Uses fastembed for production
+   - `fly.toml`: Added `CIVIC_EMBEDDING_PROVIDER=fastembed`, increased memory to 512MB
+
+3. **Fixed Dockerfile module path**:
+   - Changed CMD from `civic_services.civic_api_integrated` to `civic_services.servers.civic_api_integrated`
+
+4. **Deployed to Fly.io**:
+   - Image size: **355MB** (down from 3.5GB - 10x reduction!)
+   - API starts successfully with fastembed
+   - Health checks passing
+   - Stopped after 5 min due to trial mode (needs credit card for longer runtime)
+
+### Files Changed
+- `packages/civic/src/civic/_internal/embeddings/provider.py` (FastEmbedProvider class, updated factory)
+- `packages/civic/pyproject.toml` (embeddings dependency groups)
+- `requirements.txt` (fastembed instead of sentence-transformers)
+- `fly.toml` (CIVIC_EMBEDDING_PROVIDER, memory 512MB)
+- `Dockerfile` (fixed module path)
+- `pilot.json` (image_size_reasonable: not_ready → ready)
+
+### Progress
+- Items completed: `image_size_reasonable` (355MB < 500MB target)
+- Next: Add credit card to Fly.io for `hosting_live`
+
+---
+
 ## Session 258: tagged_releases - Git tagging infrastructure
 Date: 2025-12-14
 
