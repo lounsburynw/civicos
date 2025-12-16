@@ -20,6 +20,7 @@ Configuration:
 from .provider import (
     EmbeddingProvider,
     SentenceTransformerProvider,
+    FastEmbedProvider,
     OpenAIProvider,
     get_embedding_provider,
 )
@@ -27,6 +28,7 @@ from .provider import (
 __all__ = [
     "EmbeddingProvider",
     "SentenceTransformerProvider",
+    "FastEmbedProvider",
     "OpenAIProvider",
     "get_embedding_provider",
 ]

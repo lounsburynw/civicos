@@ -80,14 +80,14 @@ class SentenceTransformerProvider(EmbeddingProvider):
     Local embedding provider using SentenceTransformer.
 
     No API costs, runs entirely locally. Good balance of quality and speed.
-    Default model: all-MiniLM-L6-v2 (384 dimensions)
+    Default model: nomic-ai/nomic-embed-text-v1.5 (768 dimensions)
 
     Usage:
         provider = SentenceTransformerProvider()
         embeddings = provider.encode(["hello world", "goodbye world"])
     """
 
-    DEFAULT_MODEL = "all-MiniLM-L6-v2"
+    DEFAULT_MODEL = "nomic-ai/nomic-embed-text-v1.5"
 
     def __init__(self, model_name: Optional[str] = None):
         """
@@ -95,7 +95,7 @@ class SentenceTransformerProvider(EmbeddingProvider):
 
         Args:
             model_name: SentenceTransformer model name.
-                       Defaults to CIVIC_EMBEDDING_MODEL env var or 'all-MiniLM-L6-v2'
+                       Defaults to CIVIC_EMBEDDING_MODEL env var or 'nomic-ai/nomic-embed-text-v1.5'
         """
         try:
             from sentence_transformers import SentenceTransformer
@@ -125,7 +125,8 @@ class SentenceTransformerProvider(EmbeddingProvider):
         self._ensure_available()
         if self._model is None:
             from sentence_transformers import SentenceTransformer
-            self._model = SentenceTransformer(self._model_name)
+            # trust_remote_code=True required for models with custom code (e.g., nomic)
+            self._model = SentenceTransformer(self._model_name, trust_remote_code=True)
             self._dimension = self._model.get_sentence_embedding_dimension()
         return self._model
 
@@ -142,7 +143,7 @@ class SentenceTransformerProvider(EmbeddingProvider):
             batch_size: Batch size for encoding (default 100)
 
         Returns:
-            numpy array of embeddings, shape (n_texts, 384) for default model
+            numpy array of embeddings, shape (n_texts, 768) for default model
         """
         # Handle single text input
         if isinstance(texts, str):
@@ -160,7 +161,7 @@ class SentenceTransformerProvider(EmbeddingProvider):
 
     @property
     def embedding_dimension(self) -> int:
-        """Return embedding dimension (384 for default model)."""
+        """Return embedding dimension (768 for default model)."""
         if self._dimension is None:
             # Force model load to get dimension
             _ = self._sentence_transformer
@@ -178,20 +179,21 @@ class FastEmbedProvider(EmbeddingProvider):
 
     No PyTorch dependency, uses ONNX Runtime instead. Significantly smaller
     footprint (~500MB vs ~3GB for sentence-transformers/PyTorch).
-    Default model: BAAI/bge-small-en-v1.5 (384 dimensions)
+    Default model: nomic-ai/nomic-embed-text-v1.5 (768 dimensions)
 
     Usage:
         provider = FastEmbedProvider()
         embeddings = provider.encode(["hello world", "goodbye world"])
     """
 
-    DEFAULT_MODEL = "BAAI/bge-small-en-v1.5"
+    DEFAULT_MODEL = "nomic-ai/nomic-embed-text-v1.5"
     # Dimension by model
     MODEL_DIMENSIONS = {
         "BAAI/bge-small-en-v1.5": 384,
         "BAAI/bge-base-en-v1.5": 768,
         "BAAI/bge-large-en-v1.5": 1024,
         "sentence-transformers/all-MiniLM-L6-v2": 384,
+        "nomic-ai/nomic-embed-text-v1.5": 768,
     }
 
     def __init__(self, model_name: Optional[str] = None):
@@ -200,7 +202,7 @@ class FastEmbedProvider(EmbeddingProvider):
 
         Args:
             model_name: FastEmbed model name.
-                       Defaults to CIVIC_EMBEDDING_MODEL env var or 'BAAI/bge-small-en-v1.5'
+                       Defaults to CIVIC_EMBEDDING_MODEL env var or 'nomic-ai/nomic-embed-text-v1.5'
         """
         try:
             from fastembed import TextEmbedding

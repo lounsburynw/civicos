@@ -103,7 +103,7 @@ class CivicEmbeddings:
     - Storage directory: data/pilot/vectors/{jurisdiction_id}/
 
     Features:
-    - Local embedding model (all-MiniLM-L6-v2) - fast, small, effective
+    - Local embedding model (nomic-ai/nomic-embed-text-v1.5) - 8192 token context, high quality
     - Persistent ChromaDB storage per jurisdiction
     - Semantic search over decisions and chunks
     - Topic classification via embedding similarity
@@ -119,9 +119,9 @@ class CivicEmbeddings:
         # Returns: [("housing", 0.72), ("transportation", 0.45), ...]
     """
 
-    # Default embedding model - good balance of quality and speed
-    # Alternatives: all-mpnet-base-v2 (higher quality), paraphrase-MiniLM-L3-v2 (faster)
-    DEFAULT_MODEL = "all-MiniLM-L6-v2"
+    # Default embedding model - high quality with 8192 token context
+    # Alternatives: all-MiniLM-L6-v2 (smaller/faster), all-mpnet-base-v2 (PyTorch)
+    DEFAULT_MODEL = "nomic-ai/nomic-embed-text-v1.5"
 
     # Canonical topic configurations for semantic classification
     # Each topic has: description (for embedding), bias (additive adjustment)
@@ -276,7 +276,8 @@ class CivicEmbeddings:
     def model(self) -> SentenceTransformer:
         """Lazy-load the embedding model."""
         if self._model is None:
-            self._model = SentenceTransformer(self.model_name)
+            # trust_remote_code=True required for models with custom code (e.g., nomic)
+            self._model = SentenceTransformer(self.model_name, trust_remote_code=True)
         return self._model
 
     @property

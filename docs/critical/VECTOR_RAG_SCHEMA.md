@@ -121,8 +121,8 @@ Each collection includes metadata for traceability:
 {
   "description": "City of San Rafael council decisions for RAG",
   "jurisdiction_id": "city-san-rafael",
-  "embedding_model": "all-MiniLM-L6-v2",
-  "embedding_dimension": 384,
+  "embedding_model": "nomic-embed-text-v1.5",
+  "embedding_dimension": 768,
   "created_at": "2025-12-05T10:00:00Z",
   "source_corpus": "data/pilot/rag_corpus/city-san-rafael",
   "civic_version": "0.1.0"
@@ -299,8 +299,8 @@ Examples:
 {
   "description": "San Rafael Municipal Code for RAG",
   "jurisdiction_id": "city-san-rafael",
-  "embedding_model": "all-MiniLM-L6-v2",
-  "embedding_dimension": 384,
+  "embedding_model": "nomic-embed-text-v1.5",
+  "embedding_dimension": 768,
   "source": "municode.com or local PDF",
   "created_at": "2025-12-10T00:00:00Z",
   "total_sections": 523,
@@ -402,8 +402,8 @@ Examples:
 {
   "description": "San Rafael SeeClickFix issues for RAG",
   "jurisdiction_id": "city-san-rafael",
-  "embedding_model": "all-MiniLM-L6-v2",
-  "embedding_dimension": 384,
+  "embedding_model": "nomic-embed-text-v1.5",
+  "embedding_dimension": 768,
   "source": "seeclickfix.com API",
   "created_at": "2025-12-10T00:00:00Z",
   "total_issues": 1340,
@@ -425,11 +425,11 @@ Examples:
 
 ### Primary Model: SentenceTransformer (Local)
 
-| Model | Dimensions | Size | Latency | Cost |
-|-------|------------|------|---------|------|
-| `all-MiniLM-L6-v2` | 384 | 80MB | ~30ms | $0 |
+| Model | Dimensions | Size | Context | Latency | Cost |
+|-------|------------|------|---------|---------|------|
+| `nomic-embed-text-v1.5` | 768 | 274MB | 8192 tokens | ~40ms | $0 |
 
-**Rationale**: Foundation funding constraint (<$7/month operational). Local model meets latency requirements (<500ms) while incurring zero API costs.
+**Rationale**: Foundation funding constraint (<$7/month operational). Local model meets latency requirements (<500ms) while incurring zero API costs. The 8192 token context supports longer documents without truncation.
 
 ### Alternative: OpenAI (Future)
 
@@ -446,7 +446,7 @@ Examples:
 CIVIC_EMBEDDING_PROVIDER = "local"  # or "openai"
 
 # Provider-specific settings
-CIVIC_EMBEDDING_MODEL = "all-MiniLM-L6-v2"  # or "text-embedding-3-small"
+CIVIC_EMBEDDING_MODEL = "nomic-embed-text-v1.5"  # or "text-embedding-3-small"
 ```
 
 ---
