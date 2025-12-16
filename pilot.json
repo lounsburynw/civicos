@@ -75,10 +75,11 @@
         "note": "100% CI pass rate (10/10 jobs). Tests using gitignored data auto-skip. Tests with synthetic fixtures run."
       },
       "synthetic_test_fixtures": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "Create minimal test corpus for CI integration tests",
-        "note": "Some synthetic fixtures (TestIndexQueryLatency, TestCrossMeetingPatterns) have bugs. Need representative sample_decisions.json, sample_chunks.json."
+        "note": "Fixed build_index() to use consistent file naming (jurisdiction-based first, then legacy). TestIndexQueryLatency (3 tests) and TestCrossMeetingPatterns (6 tests) now pass with synthetic data.",
+        "completed": "2025-12-15"
       },
       "scheduled_data_tests": {
         "status": "not_ready",
