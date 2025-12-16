@@ -885,9 +885,12 @@
         "check": "Way for users to report issues"
       },
       "pilot_users_identified": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
-        "check": "Initial pilot user group identified"
+        "check": "Initial pilot user group identified",
+        "artifact": "docs/user_guides/PILOT_USER_IDENTIFICATION.md",
+        "completed": "2025-12-15",
+        "note": "Identification guide with criteria (SeeClickFix, geographic), process, and outreach templates"
       }
     }
   },
