@@ -27,6 +27,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "packages/civic/src"))
 from civic._internal.embeddings import (
     EmbeddingProvider,
     SentenceTransformerProvider,
+    FastEmbedProvider,
     OpenAIProvider,
     get_embedding_provider,
 )
@@ -53,29 +54,34 @@ class TestSentenceTransformerProvider:
         assert embeddings.shape == (3, provider.embedding_dimension)
 
     def test_embedding_dimension(self):
-        """Default model has 384 dimensions."""
+        """Default model has 768 dimensions."""
         provider = SentenceTransformerProvider()
-        assert provider.embedding_dimension == 384
+        assert provider.embedding_dimension == 768
 
     def test_model_name_default(self):
-        """Default model is all-MiniLM-L6-v2."""
+        """Default model is nomic-ai/nomic-embed-text-v1.5."""
         provider = SentenceTransformerProvider()
-        assert provider.model_name == "all-MiniLM-L6-v2"
+        assert provider.model_name == "nomic-ai/nomic-embed-text-v1.5"
 
     def test_model_name_custom(self):
         """Custom model name is respected."""
         provider = SentenceTransformerProvider(model_name="all-mpnet-base-v2")
         assert provider.model_name == "all-mpnet-base-v2"
 
-    def test_embeddings_are_normalized(self):
-        """Embeddings should be roughly unit length (normalized)."""
+    def test_embeddings_have_consistent_magnitude(self):
+        """Embeddings should have consistent magnitude for similar length texts."""
         provider = SentenceTransformerProvider()
-        embeddings = provider.encode("test text")
+        embeddings = provider.encode([
+            "test text one",
+            "another test phrase",
+            "short sample sentence",
+        ])
 
-        # Compute L2 norm
-        norm = np.linalg.norm(embeddings[0])
-        # SentenceTransformer default models produce normalized embeddings
-        assert 0.9 <= norm <= 1.1, f"Embedding norm {norm} not close to 1.0"
+        # Compute L2 norms
+        norms = [np.linalg.norm(e) for e in embeddings]
+        # Norms should be relatively consistent (within 50% of each other)
+        # Note: nomic-embed-text-v1.5 produces unnormalized embeddings (~20-30 norm)
+        assert max(norms) / min(norms) < 1.5, f"Norms vary too much: {norms}"
 
     def test_similar_texts_have_high_similarity(self):
         """Semantically similar texts should have high cosine similarity."""
@@ -237,13 +243,13 @@ class TestOpenAIProvider:
 class TestGetEmbeddingProvider:
     """Tests for the factory function."""
 
-    def test_default_is_local(self):
-        """Default provider is SentenceTransformer (local)."""
+    def test_default_is_fastembed(self):
+        """Default provider is FastEmbed (lightweight ONNX-based)."""
         # Clear env var if set
         with patch.dict(os.environ, {}, clear=True):
             os.environ.pop("CIVIC_EMBEDDING_PROVIDER", None)
             provider = get_embedding_provider()
-            assert isinstance(provider, SentenceTransformerProvider)
+            assert isinstance(provider, FastEmbedProvider)
 
     def test_explicit_local(self):
         """Explicit 'local' returns SentenceTransformerProvider."""

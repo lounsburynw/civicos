@@ -1744,7 +1744,8 @@ class TestWhatAppliesEmbeddingRelevance:
         """Provide SentenceTransformer for embedding comparisons."""
         try:
             from sentence_transformers import SentenceTransformer
-            return SentenceTransformer("all-MiniLM-L6-v2")
+            # trust_remote_code=True required for models with custom code (e.g., nomic)
+            return SentenceTransformer("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
         except ImportError:
             pytest.skip("sentence-transformers not installed")
 

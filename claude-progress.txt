@@ -2037,3 +2037,56 @@ Date: 2025-12-15
 **Progress:** 65/130 items ready (50%)
 
 **Commit:** Session 272: Fix synthetic test fixtures
+
+## Session 273: Embedding model migration to nomic-embed-text-v1.5
+Date: 2025-12-15
+
+### Work Done
+1. **Migrated default embedding model from all-MiniLM-L6-v2 to nomic-ai/nomic-embed-text-v1.5**:
+   - Updated `DEFAULT_MODEL` in `embeddings.py` and `provider.py`
+   - Changed embedding dimensions from 384 to 768
+   - Added `trust_remote_code=True` parameter for models with custom code
+
+2. **Updated FastEmbedProvider for nomic model**:
+   - Changed FastEmbedProvider.DEFAULT_MODEL to `nomic-ai/nomic-embed-text-v1.5`
+   - Added nomic model to MODEL_DIMENSIONS dict (768 dims)
+   - Exported FastEmbedProvider from embeddings __init__.py
+
+3. **Updated all test files**:
+   - `test_embedding_provider.py`: Updated dimension assertions (384→768), model name assertions
+   - `test_integration_rag_san_rafael.py`: Updated all embedding model/dimension assertions
+   - `test_unified_vector_store.py`: Updated dimension assertions
+   - `conftest.py`: Updated cached model fixture
+   - `test_integration_san_rafael.py`: Updated embedder fixture
+
+4. **Updated documentation**:
+   - `VECTOR_RAG_SCHEMA.md`: Updated all embedding model references and dimensions
+
+5. **Updated scripts**:
+   - `scripts/build_decision_embeddings.py`: Updated default model and added trust_remote_code
+
+### Model Benefits
+- **8192 token context** (vs 128 tokens for MiniLM) - supports longer documents
+- **768 dimensions** (vs 384) - better semantic precision
+- **Same local inference** - no API costs
+
+### Files Changed
+- `packages/civic/src/civic/_internal/meetings/embeddings.py`
+- `packages/civic/src/civic/_internal/embeddings/provider.py`
+- `packages/civic/src/civic/_internal/embeddings/__init__.py`
+- `packages/civic/tests/test_embedding_provider.py`
+- `packages/civic/tests/test_integration_rag_san_rafael.py`
+- `packages/civic/tests/test_unified_vector_store.py`
+- `packages/civic/tests/test_integration_san_rafael.py`
+- `packages/civic/tests/conftest.py`
+- `scripts/build_decision_embeddings.py`
+- `docs/critical/VECTOR_RAG_SCHEMA.md`
+- `pilot.json` (`embedding_model_migration`: not_ready → ready)
+
+### Tests
+- Embedding provider tests: 34 passed
+- Smoke tests: 31 passed
+
+**Progress:** 66/130 items ready (51%)
+
+**Commit:** Session 273: Migrate embedding model to nomic-embed-text-v1.5

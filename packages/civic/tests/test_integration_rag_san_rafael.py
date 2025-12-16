@@ -1153,7 +1153,7 @@ class TestEmbeddingGeneration:
             persist_directory=str(TEST_VECTORS_DIR)
         )
 
-        assert embedder.model_name == "all-MiniLM-L6-v2"
+        assert embedder.model_name == "nomic-ai/nomic-embed-text-v1.5"
         assert embedder.persist_directory == str(TEST_VECTORS_DIR)
 
     def test_embedding_dimension(self):
@@ -1164,8 +1164,8 @@ class TestEmbeddingGeneration:
             persist_directory=str(TEST_VECTORS_DIR)
         )
 
-        # all-MiniLM-L6-v2 produces 384-dimensional embeddings
-        assert embedder.embedding_dimension == 384
+        # nomic-embed-text-v1.5 produces 768-dimensional embeddings
+        assert embedder.embedding_dimension == 768
 
     def test_build_decisions_index(self):
         """Validate decisions index can be built."""
@@ -1182,8 +1182,8 @@ class TestEmbeddingGeneration:
         assert collection.count() <= 20  # Reasonable upper bound
 
         # Collection metadata should be set
-        assert collection.metadata.get("embedding_model") == "all-MiniLM-L6-v2"
-        assert collection.metadata.get("embedding_dimension") == 384
+        assert collection.metadata.get("embedding_model") == "nomic-ai/nomic-embed-text-v1.5"
+        assert collection.metadata.get("embedding_dimension") == 768
 
     def test_build_chunks_index(self):
         """Validate chunks index can be built."""
@@ -1223,7 +1223,7 @@ class TestEmbeddingGeneration:
 
         assert "decisions" in result["collections"]
         assert "chunks" in result["collections"]
-        assert result["stats"]["model"] == "all-MiniLM-L6-v2"
+        assert result["stats"]["model"] == "nomic-ai/nomic-embed-text-v1.5"
 
 
 @pytest.mark.requires_real_data
@@ -1276,8 +1276,8 @@ class TestVectorIndexCreation:
 
         stats = embedder.get_stats()
 
-        assert stats["model"] == "all-MiniLM-L6-v2"
-        assert stats["embedding_dimension"] == 384
+        assert stats["model"] == "nomic-ai/nomic-embed-text-v1.5"
+        assert stats["embedding_dimension"] == 768
         assert stats["jurisdiction_id"] == "city-san-rafael"
         # Collection names follow jurisdiction pattern: {jurisdiction_id}_decisions
         assert "city-san-rafael_decisions" in stats["collections"]
