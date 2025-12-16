@@ -13,7 +13,7 @@ primary_region = "sjc"
   PYTHONUNBUFFERED = "1"
 
 [processes]
-  app = "python src/civic_socketio_server.py 8002"
+  app = "python -m civic_services.servers.civic_socketio_server 8002"
 
 [http_service]
   internal_port = 8002
