@@ -2010,3 +2010,30 @@ Date: 2025-12-15
 **Progress:** 64/130 items ready (49%)
 
 **Commit:** Session 271: Add pilot user identification guide
+
+## Session 272: Fix synthetic test fixtures
+Date: 2025-12-15
+
+### Work Done
+1. **Fixed bug in `build_index()` wrapper method**:
+   - The wrapper at `embeddings.py:1149` was hardcoding legacy file names (`nov17_decisions.json`, `nov17_chunks.json`)
+   - The direct methods (`build_decisions_index()`, `build_chunks_index()`) correctly tried jurisdiction-based naming first
+   - Test fixtures created jurisdiction-based files but `build_index()` could not find them
+
+2. **Updated `build_index()` to use consistent file naming logic**:
+   - Now checks jurisdiction-based naming first (`{jurisdiction_id}_decisions.json`, `{jurisdiction_id}_chunks.json`)
+   - Falls back to legacy naming for backward compatibility
+   - Consistent with `build_decisions_index()` and `build_chunks_index()` behavior
+
+3. **Verified all synthetic test fixtures now pass**:
+   - `TestIndexQueryLatency`: 3 tests passing (decision search, chunk search, multiple queries)
+   - `TestCrossMeetingPatterns`: 6 tests passing (cross-meeting queries, grouping, patterns)
+   - Smoke tests: 31 tests passing (no regressions)
+
+### Files Changed
+- `packages/civic/src/civic/_internal/meetings/embeddings.py` (fix `build_index()` file discovery)
+- `pilot.json` (`synthetic_test_fixtures`: not_ready → ready)
+
+**Progress:** 65/130 items ready (50%)
+
+**Commit:** Session 272: Fix synthetic test fixtures
