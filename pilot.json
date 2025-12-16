@@ -637,7 +637,7 @@
         }
       },
       "decisions_vector_index": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": "Build city-san-rafael_decisions ChromaDB collection",
         "depends_on": "decisions_extracted",
