@@ -2210,3 +2210,39 @@ Defined `UnifiedSearchResult` dataclass for cross-corpus queries, supporting res
 **Progress:** 69/131 items ready (53%)
 
 **Commit:** Session 276: Define UnifiedSearchResult dataclass
+
+## Session 277: Document SQLite-ChromaDB join patterns
+Date: 2025-12-15
+
+### Work Done
+Created `docs/critical/SQLITE_CHROMADB_JOIN_PATTERNS.md` documenting the ID patterns and join strategies enabling correlation between SQLite and ChromaDB data stores.
+
+### Key Findings
+1. **Decision IDs**: Actual format `20251117-item-6a` differs from documented `city-san-rafael-2025-11-17-6a`
+   - Join via metadata: `meeting_date` + `agenda_item`
+
+2. **Chunk IDs**: Positional (`chunk-42`), not globally unique
+   - Join via metadata: `agenda_item` field
+
+3. **Transcript IDs**: Format `transcript-{video_id}-{chunk_index}`
+   - Join via `video_url` LIKE or metadata
+
+4. **Issue IDs**: Format `{jurisdiction}-scf-{source_id}` 
+   - **Direct ID join** with SQLite `issues.id` (most reliable pattern)
+
+5. **Municipal Code IDs**: Format `{jurisdiction}-muni-{chapter}-{section}` (future)
+
+### Document Contents
+- ID patterns with code locations for all 5 corpus types
+- SQLite join SQL examples
+- Cross-corpus join patterns (decision↔transcript, decision↔chunk)
+- SQLite schema reference
+- Design vs. actual format differences noted
+
+### Files Changed
+- `docs/critical/SQLITE_CHROMADB_JOIN_PATTERNS.md` (new)
+- `pilot.json` (`sqlite_vector_join_patterns`: not_ready → ready)
+
+**Progress:** 70/131 items ready (53%)
+
+**Commit:** Session 277: Document SQLite-ChromaDB join patterns
