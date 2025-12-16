@@ -3,7 +3,7 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2025-12-15",
+  "last_updated": "2025-12-16",
   "category_order": [
     "test_infrastructure",
     "data_architecture",
@@ -852,9 +852,11 @@
     },
     "operational_readiness": {
       "hosting_live": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
-        "check": "Production environment running"
+        "check": "Production environment running",
+        "completed": "2025-12-16",
+        "note": "Deployed to Fly.io SJC region. API: https://civic-api.fly.dev (healthy), WebSocket: https://civic-websocket.fly.dev (healthy). Hybrid data architecture: bundled reference data in image, user data on persistent volume."
       },
       "monitoring_active": {
         "status": "not_ready",
