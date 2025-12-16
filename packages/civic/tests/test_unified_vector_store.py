@@ -28,6 +28,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "packages/civic/src"))
 
 from civic._internal.embeddings import (
     SentenceTransformerProvider,
+    FastEmbedProvider,
     OpenAIProvider,
     get_embedding_provider,
 )
@@ -74,11 +75,11 @@ class TestVectorStoreWithLocalProvider:
     """Tests for VectorStore with local SentenceTransformer provider."""
 
     def test_create_store_with_default_provider(self, temp_store_dir):
-        """VectorStore uses local provider by default."""
+        """VectorStore uses FastEmbed provider by default."""
         store = VectorStore(persist_directory=temp_store_dir)
 
         assert store.provider is not None
-        assert isinstance(store.provider, SentenceTransformerProvider)
+        assert isinstance(store.provider, FastEmbedProvider)
         assert store.provider.embedding_dimension == 768
 
     def test_create_store_with_explicit_provider(self, temp_store_dir, local_provider):
