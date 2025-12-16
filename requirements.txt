@@ -10,9 +10,11 @@ schedule>=1.2.0
 PyYAML>=5.4.1
 python-dotenv>=1.0.0
 
-# Vector Search and Embeddings
+# Vector Search and Embeddings (fastembed for lightweight production)
 chromadb>=0.4.0
-sentence-transformers>=2.2.0
+fastembed>=0.3.0
+# Note: For local dev with sentence-transformers, install separately:
+# pip install sentence-transformers
 
 # WebSocket Server
 eventlet>=0.33.0

@@ -172,6 +172,102 @@ class SentenceTransformerProvider(EmbeddingProvider):
         return self._model_name
 
 
+class FastEmbedProvider(EmbeddingProvider):
+    """
+    Lightweight embedding provider using FastEmbed (ONNX-based).
+
+    No PyTorch dependency, uses ONNX Runtime instead. Significantly smaller
+    footprint (~500MB vs ~3GB for sentence-transformers/PyTorch).
+    Default model: BAAI/bge-small-en-v1.5 (384 dimensions)
+
+    Usage:
+        provider = FastEmbedProvider()
+        embeddings = provider.encode(["hello world", "goodbye world"])
+    """
+
+    DEFAULT_MODEL = "BAAI/bge-small-en-v1.5"
+    # Dimension by model
+    MODEL_DIMENSIONS = {
+        "BAAI/bge-small-en-v1.5": 384,
+        "BAAI/bge-base-en-v1.5": 768,
+        "BAAI/bge-large-en-v1.5": 1024,
+        "sentence-transformers/all-MiniLM-L6-v2": 384,
+    }
+
+    def __init__(self, model_name: Optional[str] = None):
+        """
+        Initialize FastEmbed provider.
+
+        Args:
+            model_name: FastEmbed model name.
+                       Defaults to CIVIC_EMBEDDING_MODEL env var or 'BAAI/bge-small-en-v1.5'
+        """
+        try:
+            from fastembed import TextEmbedding
+            self._fastembed_available = True
+        except ImportError:
+            self._fastembed_available = False
+
+        self._model_name = model_name or os.environ.get(
+            "CIVIC_EMBEDDING_MODEL", self.DEFAULT_MODEL
+        )
+
+        # Lazy load model
+        self._model = None
+
+    def _ensure_available(self):
+        """Check that fastembed is available."""
+        if not self._fastembed_available:
+            raise ImportError(
+                "fastembed is required for FastEmbed embeddings. "
+                "Install with: pip install fastembed"
+            )
+
+    @property
+    def _text_embedding(self):
+        """Lazy-load the TextEmbedding model."""
+        self._ensure_available()
+        if self._model is None:
+            from fastembed import TextEmbedding
+            self._model = TextEmbedding(model_name=self._model_name)
+        return self._model
+
+    def encode(
+        self,
+        texts: Union[str, List[str]],
+        batch_size: int = 100,
+    ) -> np.ndarray:
+        """
+        Encode texts using FastEmbed.
+
+        Args:
+            texts: Text or list of texts to encode
+            batch_size: Batch size for encoding (default 100)
+
+        Returns:
+            numpy array of embeddings, shape (n_texts, 384) for default model
+        """
+        # Handle single text input
+        if isinstance(texts, str):
+            texts = [texts]
+
+        # FastEmbed returns a generator, convert to list then array
+        embeddings_gen = self._text_embedding.embed(texts, batch_size=batch_size)
+        embeddings_list = list(embeddings_gen)
+
+        return np.array(embeddings_list)
+
+    @property
+    def embedding_dimension(self) -> int:
+        """Return embedding dimension (384 for default model)."""
+        return self.MODEL_DIMENSIONS.get(self._model_name, 384)
+
+    @property
+    def model_name(self) -> str:
+        """Return the model name."""
+        return self._model_name
+
+
 class OpenAIProvider(EmbeddingProvider):
     """
     API-based embedding provider using OpenAI.
@@ -297,8 +393,11 @@ def get_embedding_provider(
     Factory function to get the configured embedding provider.
 
     Args:
-        provider_type: 'local' (SentenceTransformer) or 'openai'.
-                      Defaults to CIVIC_EMBEDDING_PROVIDER env var or 'local'.
+        provider_type: Provider to use:
+                      - 'fastembed': FastEmbed (ONNX-based, lightweight, recommended for production)
+                      - 'local': SentenceTransformer (PyTorch-based, larger footprint)
+                      - 'openai': OpenAI API (requires API key, has per-token costs)
+                      Defaults to CIVIC_EMBEDDING_PROVIDER env var or 'fastembed'.
         model_name: Model name override. Defaults to CIVIC_EMBEDDING_MODEL env var.
         **kwargs: Additional arguments passed to the provider constructor.
 
@@ -306,25 +405,27 @@ def get_embedding_provider(
         EmbeddingProvider instance
 
     Examples:
-        # Use default (local SentenceTransformer)
+        # Use default (FastEmbed, lightweight ONNX-based)
         provider = get_embedding_provider()
 
         # Explicitly use OpenAI
         provider = get_embedding_provider('openai')
 
-        # Use specific model
+        # Use SentenceTransformer (larger, requires PyTorch)
         provider = get_embedding_provider('local', model_name='all-mpnet-base-v2')
     """
     provider_type = provider_type or os.environ.get(
-        "CIVIC_EMBEDDING_PROVIDER", "local"
+        "CIVIC_EMBEDDING_PROVIDER", "fastembed"
     )
 
-    if provider_type.lower() == "local":
+    if provider_type.lower() == "fastembed":
+        return FastEmbedProvider(model_name=model_name, **kwargs)
+    elif provider_type.lower() == "local":
         return SentenceTransformerProvider(model_name=model_name, **kwargs)
     elif provider_type.lower() == "openai":
         return OpenAIProvider(model_name=model_name, **kwargs)
     else:
         raise ValueError(
             f"Unknown embedding provider: {provider_type}. "
-            "Use 'local' (SentenceTransformer) or 'openai'."
+            "Use 'fastembed', 'local' (SentenceTransformer), or 'openai'."
         )
