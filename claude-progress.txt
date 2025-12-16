@@ -2134,3 +2134,37 @@ model (768 dimensions), completing the embedding model migration.
 **Progress:** 67/130 items ready (52%)
 
 **Commit:** Session 274: Re-index collections with nomic-embed-text-v1.5
+
+## Session 275 - Build decisions vector index
+
+### Summary
+Built the city-san-rafael_decisions ChromaDB collection for semantic search over council decisions.
+
+### Changes
+1. **Built decisions vector index**
+   - 186 decisions indexed from city-san-rafael_decisions.json
+   - Using nomic-embed-text-v1.5 (768 dimensions)
+   - Stored in data/pilot/vectors/city-san-rafael/
+
+2. **Verified what_happened() integration**
+   - Semantic search returns relevant results for queries like "homeless shelter", "housing", "budget"
+   - Results sorted by date (most recent first)
+
+### Current ChromaDB Collections
+| Collection | Documents | Model |
+|------------|-----------|-------|
+| city-san-rafael_decisions | 186 | nomic-embed-text-v1.5 |
+| city-san-rafael_chunks | 724 | nomic-embed-text-v1.5 |
+| city-san-rafael_issues | 1,340 | nomic-embed-text-v1.5 |
+| city-san-rafael_municipal_code | 2,121 | nomic-embed-text-v1.5 |
+
+### Files Changed
+- `pilot.json` (`decisions_vector_index`: not_ready → ready)
+
+### Tests
+- Smoke tests: 31 passed
+- Semantic search: Verified via CivicEmbeddings.search_decisions() and Civic.what_happened()
+
+**Progress:** 68/131 items ready (52%)
+
+**Commit:** Session 275: Build decisions vector index
