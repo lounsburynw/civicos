@@ -30,6 +30,60 @@ from typing import List, Optional, Dict, Any, Union
 
 from civic._internal.jurisdiction import normalize_jurisdiction
 
+
+def _chunk_text(text: str, max_chars: int = 1500, overlap: int = 200) -> List[str]:
+    """
+    Split text into overlapping chunks for embedding.
+
+    Preserves complete words and maintains overlap for context continuity.
+    Used for municipal code sections that exceed embedding model limits.
+
+    Args:
+        text: Text to chunk
+        max_chars: Maximum characters per chunk (default 1500 ≈ 375 tokens)
+        overlap: Characters to overlap between chunks
+
+    Returns:
+        List of text chunks
+    """
+    if len(text) <= max_chars:
+        return [text]
+
+    chunks = []
+    start = 0
+
+    while start < len(text):
+        # Find end position
+        end = start + max_chars
+
+        if end >= len(text):
+            # Last chunk
+            chunks.append(text[start:])
+            break
+
+        # Try to break at a paragraph boundary
+        para_break = text.rfind("\n\n", start, end)
+        if para_break > start + max_chars // 2:
+            end = para_break
+
+        # Try to break at a sentence boundary
+        elif text.rfind(". ", start, end) > start + max_chars // 2:
+            end = text.rfind(". ", start, end) + 1
+
+        # Try to break at a word boundary
+        elif text.rfind(" ", start, end) > start + max_chars // 2:
+            end = text.rfind(" ", start, end)
+
+        chunks.append(text[start:end])
+
+        # Move start with overlap
+        start = end - overlap
+        if start >= len(text):
+            break
+
+    return chunks
+
+
 try:
     import chromadb
     from chromadb.config import Settings
@@ -1032,6 +1086,27 @@ class CivicEmbeddings:
                 f"No municipal code sections found for {self.jurisdiction_id}"
             )
 
+        # Chunk long documents for embedding BEFORE collection creation
+        # Municipal code sections can be very long (>20K chars), but we need
+        # chunks under ~1500 chars for efficient embedding with nomic-embed-text-v1.5
+        chunked_docs = []
+        for doc in documents:
+            text = doc["text"]
+            chunks = _chunk_text(text, max_chars=1500, overlap=200)
+
+            for chunk_idx, chunk in enumerate(chunks):
+                chunk_id = doc["id"] if len(chunks) == 1 else f"{doc['id']}-chunk-{chunk_idx}"
+                chunk_metadata = doc["metadata"].copy()
+                chunk_metadata["chunk_index"] = chunk_idx
+                chunk_metadata["total_chunks"] = len(chunks)
+                chunk_metadata["parent_section"] = doc["id"]
+
+                chunked_docs.append({
+                    "id": chunk_id,
+                    "text": chunk,
+                    "metadata": chunk_metadata,
+                })
+
         # Create collection (delete existing if present)
         try:
             self._client.delete_collection(self.municipal_code_collection_name)
@@ -1056,13 +1131,14 @@ class CivicEmbeddings:
                 "source": "municode.com API",
                 "publish_date": meta.get("publish_date", ""),
                 "total_sections": len(documents),
+                "total_chunks": len(chunked_docs),
             }
         )
 
         # Process in batches for memory efficiency
-        batch_size = 100
-        for i in range(0, len(documents), batch_size):
-            batch = documents[i:i + batch_size]
+        batch_size = 50
+        for i in range(0, len(chunked_docs), batch_size):
+            batch = chunked_docs[i:i + batch_size]
 
             texts = [doc["text"] for doc in batch]
             ids = [doc["id"] for doc in batch]
