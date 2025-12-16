@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, provide } from 'vue';
-import { MapPin, Calendar, MessageCircle, FileText, Scale, CircleAlert, Plus, User } from 'lucide-vue-next';
+import { MapPin, Calendar, MessageCircle, FileText, Scale, CircleAlert, Plus, User, HelpCircle } from 'lucide-vue-next';
 import JurisdictionTree from '@/components/sidebar/JurisdictionTree.vue';
 import LegislativePanel from '@/components/sidebar/LegislativePanel.vue';
 import IssueList from '@/components/workspace/IssueList.vue';
@@ -346,6 +346,15 @@ function stopResizeSidebar() {
       <aside class="workspace-sidebar" :style="{ width: `${sidebarWidth}px` }">
         <div class="sidebar-header">
           <h1 class="logo-text">{{ userStore.displayName }}</h1>
+          <a
+            href="/help"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="help-link"
+            title="Getting Started Guide"
+          >
+            <HelpCircle :size="20" />
+          </a>
         </div>
 
         <!-- Sidebar Content (collapsible sections) -->
@@ -579,6 +588,15 @@ function stopResizeSidebar() {
       <aside class="workspace-sidebar" :style="{ width: `${sidebarWidth}px` }">
         <div class="sidebar-header">
           <h1 class="logo-text">{{ userStore.displayName }}</h1>
+          <a
+            href="/help"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="help-link"
+            title="Getting Started Guide"
+          >
+            <HelpCircle :size="20" />
+          </a>
         </div>
 
         <!-- Sidebar Content (collapsible sections) -->
@@ -848,6 +866,9 @@ function stopResizeSidebar() {
   padding: var(--space-lg);
   border-bottom: 1px solid var(--border);
   background: var(--background); /* Light background for header */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .logo-text {
@@ -856,6 +877,21 @@ function stopResizeSidebar() {
   color: var(--primary);
   margin: 0;
   letter-spacing: -0.02em;
+}
+
+.help-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  padding: 6px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.help-link:hover {
+  color: var(--primary);
+  background: rgba(33, 150, 243, 0.1);
 }
 
 /* Progressive Disclosure Animations */

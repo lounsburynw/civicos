@@ -1944,3 +1944,40 @@ Created comprehensive MCP setup guide at `docs/user_guides/MCP_SETUP_GUIDE.md`:
 - `backup_scheduled` → ready
 
 **Commit:** Session 269 complete
+
+---
+
+## Session 270 - December 15, 2025
+
+**Item:** docs_published (pilot_validation > user_readiness)
+**Status:** ready
+
+**Work completed:**
+
+1. Added `/help` public endpoint to civic_api_integrated.py
+   - Serves GETTING_STARTED.md as styled HTML
+   - Uses marked.js (CDN) for client-side markdown rendering
+   - No authentication required (public endpoint)
+   - Caches for 1 hour
+
+2. Added help icon to frontend sidebar header (App.vue)
+   - HelpCircle icon from lucide-vue-next
+   - Opens /help in new tab
+   - Added to both chat-first and workspace-first layouts
+
+3. Updated GETTING_STARTED.md placeholders
+   - Added GitHub Issues link for bug reports
+   - Added GitHub Discussions link for questions
+
+**Files changed:**
+- packages/civic-services/src/civic_services/servers/civic_api_integrated.py
+- apps/civic-workspace/src/App.vue
+- docs/user_guides/GETTING_STARTED.md
+- pilot.json
+
+**Updated:** pilot.json
+- `docs_published` → ready
+
+**Progress:** 63/130 items ready (48%)
+
+**Commit:** (pending)

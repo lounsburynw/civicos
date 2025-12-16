@@ -175,8 +175,8 @@ Public comments to city council are part of the public record and typically incl
 
 Having trouble? Have feedback?
 
-- **Email:** [support contact]
-- **Report an issue:** [feedback link]
+- **Report an issue:** [GitHub Issues](https://github.com/lounsburynw/civic/issues)
+- **Questions:** Start a [GitHub Discussion](https://github.com/lounsburynw/civic/discussions)
 
 ---
 
