@@ -58,6 +58,10 @@ WORKDIR /app
 # Copy application code
 COPY packages/ ./packages/
 
+# Copy production scripts only (backup, migrations)
+COPY scripts/backup.py ./scripts/
+COPY scripts/migrate.py ./scripts/
+
 # Copy bundled data (events, vectors, legislative context)
 # This is read-only reference data updated on each deploy
 COPY data/pilot/ ./bundled-data/pilot/
@@ -66,6 +70,7 @@ COPY data/legislative_context/ ./bundled-data/legislative_context/
 
 # Create user data directory (will be mounted as volume in production)
 # User data is persistent and never overwritten by deploys
+# Ensure all app files are owned by civic user
 RUN mkdir -p user-data && \
     chown -R civic:civic /app
 
