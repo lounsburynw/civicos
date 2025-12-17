@@ -2284,3 +2284,33 @@ Date: 2025-12-15
 **Progress:** 73/131 items ready (55%)
 
 **Commit:** Session 278: UnifiedSearch class + cosine distance fix
+
+---
+## Session 279: Transcript Reindexing with Agenda Detection + Meeting Date (2025-12-16)
+
+### Work Item
+`transcript_reindexing` (data_architecture > decision_transcript_linking)
+
+### What Was Done
+1. **Verified infrastructure already in place**:
+   - `build_transcripts_index()` already accepts `detect_agenda_items` and `video_meeting_map` params
+   - `load_video_meeting_map()` loads manifest correctly (12 video_id -> date mappings)
+
+2. **Built ChromaDB transcripts index**:
+   - Location: `data/pilot/rag_corpus/city-san-rafael/chroma_transcripts/`
+   - Collection: `city-san-rafael_transcripts`
+   - Total chunks: 7,750
+
+3. **Metadata coverage**:
+   - `agenda_item`: 92.7% (7,188/7,750 chunks)
+   - `meeting_date`: 49.5% (3,839/7,750 chunks) - expected since only 12 of 25 testimony files have manifest mappings
+
+4. **Updated pilot.json**: `transcript_reindexing` → ready
+
+### Files Changed
+- `data/pilot/rag_corpus/city-san-rafael/chroma_transcripts/` (new ChromaDB index)
+- `pilot.json` (transcript_reindexing status → ready)
+
+**Progress:** 74/131 items ready (56%)
+
+**Commit:** Session 279: Transcript reindexing with agenda detection + meeting_date
