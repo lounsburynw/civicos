@@ -2532,3 +2532,36 @@ Implemented ChromaDB vector indexing for federal grant programs:
 **Progress:** 80/135 items ready (59%)
 
 **Commit:** Session 285: federal_programs_vector_indexed - ChromaDB indexing for federal programs
+
+---
+
+## Session 285 (continued) - 2025-12-16
+
+**Item:** Data directory restructure (legislation/ + funding/)
+
+### Summary
+Restructured data directories for cleaner taxonomy:
+
+**Old structure:**
+- `data/legislative_context/california_{topic}.json` (state bills)
+- `data/federal_programs/{topic}.json` (federal programs)
+
+**New structure:**
+- `data/legislation/state/california/{topic}.json` (state bills)
+- `data/funding/federal/{topic}.json` (federal programs)
+
+This separates "laws" (legislation/) from "money" (funding/) - matching user mental models.
+
+### Files Changed
+- `packages/civic-services/src/civic_services/legislative/legislative_context_cache.py` - updated paths
+- `packages/civic/src/civic/_internal/meetings/embeddings.py` - updated default paths
+- `packages/civic/tests/test_integration_rag_san_rafael.py` - updated test paths
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py` - updated API paths
+- Data files moved to new locations
+
+### Testing
+- 7/7 legislation vector search tests pass
+- 7/7 federal programs vector search tests pass
+- 34/34 smoke tests pass
+
+**Commit:** Session 285: Restructure data directories (legislation/ + funding/)

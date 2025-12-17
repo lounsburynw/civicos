@@ -29,12 +29,12 @@ class LegislativeContextCache:
     - Memory efficient (only loads used contexts)
     """
 
-    def __init__(self, ttl_seconds: int = 3600, base_path: str = "data/legislative_context", federal_programs_path: str = "data/federal_programs"):
+    def __init__(self, ttl_seconds: int = 3600, legislation_path: str = "data/legislation", funding_path: str = "data/funding"):
         self.cache: Dict[str, dict] = {}
         self.timestamps: Dict[str, float] = {}
         self.ttl = ttl_seconds
-        self.base_path = Path(base_path)
-        self.federal_programs_path = Path(federal_programs_path)
+        self.legislation_path = Path(legislation_path)
+        self.funding_path = Path(funding_path)
 
         logger.info(f"Legislative context cache initialized (TTL: {ttl_seconds}s)")
 
@@ -60,15 +60,24 @@ class LegislativeContextCache:
         return self.cache.get(key)
 
     def _load(self, key: str) -> None:
-        """Load legislative context from disk, merging state legislation and federal programs"""
-        state_file_path = self.base_path / f"{key}.json"
+        """Load legislative context from disk, merging state legislation and federal funding"""
+        # Extract state and topic from key (e.g., "california_housing" -> state="california", topic="housing")
+        parts = key.split('_', 1)
+        if len(parts) != 2:
+            logger.debug(f"Invalid key format: {key}")
+            self.cache[key] = None
+            return
 
-        # Extract topic from key (e.g., "california_housing" -> "housing")
-        topic = key.split('_', 1)[1] if '_' in key else None
-        federal_file_path = self.federal_programs_path / f"{topic}.json" if topic else None
+        state, topic = parts
+
+        # New path structure: data/legislation/state/{state}/{topic}.json
+        state_file_path = self.legislation_path / "state" / state / f"{topic}.json"
+
+        # Federal funding: data/funding/federal/{topic}.json
+        federal_file_path = self.funding_path / "federal" / f"{topic}.json"
 
         # Check if either file exists
-        if not state_file_path.exists() and not (federal_file_path and federal_file_path.exists()):
+        if not state_file_path.exists() and not federal_file_path.exists():
             logger.debug(f"No legislative context file for {key}")
             self.cache[key] = None
             return
@@ -80,9 +89,9 @@ class LegislativeContextCache:
                 with open(state_file_path, 'r') as f:
                     state_data = json.load(f)
 
-            # Load federal programs
+            # Load federal funding programs
             federal_data = None
-            if federal_file_path and federal_file_path.exists():
+            if federal_file_path.exists():
                 with open(federal_file_path, 'r') as f:
                     federal_data = json.load(f)
 
@@ -96,7 +105,7 @@ class LegislativeContextCache:
             self.timestamps[key] = time.time()
 
             size_kb = (state_file_path.stat().st_size if state_file_path.exists() else 0) + \
-                      (federal_file_path.stat().st_size if federal_file_path and federal_file_path.exists() else 0)
+                      (federal_file_path.stat().st_size if federal_file_path.exists() else 0)
             logger.info(f"Loaded legislative context: {key} ({size_kb} bytes, state+federal)")
 
         except Exception as e:
@@ -136,6 +145,6 @@ class LegislativeContextCache:
 # TTL can be configured via environment variable (default: 1 hour)
 legislative_cache = LegislativeContextCache(
     ttl_seconds=int(os.getenv('LEGISLATIVE_CACHE_TTL', '3600')),
-    base_path=os.getenv('LEGISLATIVE_CONTEXT_PATH', 'data/legislative_context'),
-    federal_programs_path=os.getenv('FEDERAL_PROGRAMS_PATH', 'data/federal_programs')
+    legislation_path=os.getenv('LEGISLATION_PATH', 'data/legislation'),
+    funding_path=os.getenv('FUNDING_PATH', 'data/funding')
 )
