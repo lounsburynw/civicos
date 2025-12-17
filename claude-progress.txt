@@ -3059,3 +3059,50 @@ Extended ErrorAlertManager to support both email and Slack notification channels
 - `packages/civic/tests/test_error_alerting.py`
 
 **Commit:** Session 295: alert_channel - Add Slack webhook support for error alerts
+
+## Session 296: request_count + response_times - Request metrics monitoring
+**Date:** 2025-12-17
+**Item:** request_count, response_times (monitoring_observability > metrics)
+**Priority:** P2
+
+### Summary
+Implemented request volume and response time tracking to monitor API health.
+The RequestMetricsManager reads structured JSON logs and calculates:
+- Total request counts and requests per minute
+- Response time percentiles (p50, p95, p99) and averages
+- Breakdown by HTTP method and endpoint
+- Status code distribution (2xx/3xx/4xx/5xx)
+
+### Implementation
+
+1. **RequestMetricsCollector** (`request_metrics.py`)
+   - Reads `request_complete` events from `logs/civic.json.log`
+   - Configurable time windows (default 5 minutes)
+   - Path normalization for aggregation (removes query strings, replaces IDs)
+   - Efficient log parsing with time-windowed filtering
+
+2. **Request completion logging** (`civic_api_integrated.py`)
+   - Added `_request_start_time` and `_request_method` instance vars to do_GET/POST/PUT/DELETE
+   - Added `_log_request_complete()` helper method
+   - Calls `log_request_complete()` from send_json, send_auth_error, send_rate_limit_error
+   - Logs method, path, status_code, duration_ms for every response
+
+3. **Health endpoint integration**
+   - Added `get_request_metrics_manager()` lazy singleton
+   - Added `_check_request_metrics()` health check method
+   - Exposed at `/health` and `/api/status` under `checks.request_metrics`
+   - Shows: total_requests, requests_per_minute, response times, top endpoints
+
+4. **Tests** (`test_request_metrics.py`)
+   - 12 tests covering collector, manager, singleton, and health integration
+   - Tests path normalization, percentile calculation, endpoint aggregation
+
+### Files Created
+- `packages/civic-services/src/civic_services/monitoring/request_metrics.py`
+- `packages/civic/tests/test_request_metrics.py`
+
+### Files Modified
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py`
+- `pilot.json`
+
+**Commit:** Session 296: request_count + response_times - Request metrics monitoring
