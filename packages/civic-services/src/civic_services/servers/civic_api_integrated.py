@@ -685,6 +685,9 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
         elif base_path == '/api/admin/cost-estimate':
             # SESSION 68: Cost estimation endpoint
             self.handle_cost_estimate()
+        elif base_path == '/admin/status':
+            # SESSION 299: Admin status endpoint for pipeline health
+            self.serve_admin_status()
         elif base_path.startswith('/api/operational-issues/'):
             # SESSION 90: SeeClickFix operational complaints
             # GET /api/operational-issues/{jurisdiction_id}?per_page=20&page=1&status=open
@@ -7311,6 +7314,201 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             }
 
         self.send_json(status)
+
+    def serve_admin_status(self):
+        """SESSION 299: Serve admin pipeline health status with detailed database and collection stats.
+
+        GET /admin/status returns comprehensive JSON including:
+        - Database table row counts and timestamps (meetings, issues, agenda_items, initiatives)
+        - ChromaDB collection document counts
+        - Overall pipeline health
+        """
+        from urllib.parse import parse_qs, urlparse
+        import sqlite3
+
+        parsed_url = urlparse(self.path)
+        params = parse_qs(parsed_url.query)
+        jurisdiction_id = params.get('jurisdiction', ['san-rafael'])[0]
+
+        result = {
+            'status': 'healthy',
+            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'jurisdiction': jurisdiction_id,
+            'database': {},
+            'chromadb': {},
+            'files': {}
+        }
+
+        # 1. State database stats (meetings, agenda_items, issues, initiatives)
+        state_db_path = get_user_path('civic_state.db')
+        if os.path.exists(state_db_path):
+            try:
+                conn = sqlite3.connect(state_db_path, timeout=5)
+                cursor = conn.cursor()
+
+                # Meetings
+                try:
+                    cursor.execute("""
+                        SELECT COUNT(*), MIN(meeting_datetime), MAX(meeting_datetime), MAX(updated_at)
+                        FROM meetings
+                        WHERE jurisdiction_id = ? AND valid_to IS NULL
+                    """, (jurisdiction_id,))
+                    row = cursor.fetchone()
+                    result['database']['meetings'] = {
+                        'count': row[0] or 0,
+                        'earliest': row[1],
+                        'latest': row[2],
+                        'last_updated': row[3]
+                    }
+                except sqlite3.OperationalError:
+                    result['database']['meetings'] = {'count': 0, 'error': 'table_missing'}
+
+                # Agenda items
+                try:
+                    cursor.execute("""
+                        SELECT COUNT(*), MAX(enriched_at)
+                        FROM agenda_items
+                        WHERE valid_to IS NULL
+                          AND meeting_id IN (
+                              SELECT id FROM meetings
+                              WHERE jurisdiction_id = ? AND valid_to IS NULL
+                          )
+                    """, (jurisdiction_id,))
+                    row = cursor.fetchone()
+                    result['database']['agenda_items'] = {
+                        'count': row[0] or 0,
+                        'last_enriched': row[1]
+                    }
+                except sqlite3.OperationalError:
+                    result['database']['agenda_items'] = {'count': 0, 'error': 'table_missing'}
+
+                # Issues
+                try:
+                    cursor.execute("""
+                        SELECT COUNT(*), MAX(updated_at)
+                        FROM issues
+                        WHERE jurisdiction_id = ?
+                    """, (jurisdiction_id,))
+                    row = cursor.fetchone()
+                    result['database']['issues'] = {
+                        'count': row[0] or 0,
+                        'last_updated': row[1]
+                    }
+
+                    # By status breakdown
+                    cursor.execute("""
+                        SELECT status, COUNT(*)
+                        FROM issues
+                        WHERE jurisdiction_id = ?
+                        GROUP BY status
+                    """, (jurisdiction_id,))
+                    result['database']['issues']['by_status'] = {
+                        r[0]: r[1] for r in cursor.fetchall()
+                    }
+                except sqlite3.OperationalError:
+                    result['database']['issues'] = {'count': 0, 'error': 'table_missing'}
+
+                # Initiatives
+                try:
+                    cursor.execute("""
+                        SELECT COUNT(*), MAX(updated_at)
+                        FROM initiatives
+                        WHERE jurisdiction_id = ?
+                    """, (jurisdiction_id,))
+                    row = cursor.fetchone()
+                    result['database']['initiatives'] = {
+                        'count': row[0] or 0,
+                        'last_updated': row[1]
+                    }
+                except sqlite3.OperationalError:
+                    result['database']['initiatives'] = {'count': 0, 'error': 'table_missing'}
+
+                conn.close()
+                result['database']['status'] = 'connected'
+                result['database']['path'] = str(state_db_path)
+                result['database']['size_bytes'] = os.path.getsize(state_db_path)
+            except Exception as e:
+                result['database']['status'] = 'error'
+                result['database']['error'] = str(e)
+                result['status'] = 'degraded'
+        else:
+            result['database']['status'] = 'missing'
+            result['database']['path'] = str(state_db_path)
+            result['status'] = 'degraded'
+
+        # 2. ChromaDB collection stats
+        vectors_dir = Path(get_user_path('')) / 'pilot' / 'vectors'
+        persist_dir = vectors_dir / jurisdiction_id
+
+        if persist_dir.exists():
+            result['chromadb']['path'] = str(persist_dir)
+            chroma_db = persist_dir / 'chroma.sqlite3'
+            if chroma_db.exists():
+                result['chromadb']['size_bytes'] = chroma_db.stat().st_size
+
+            try:
+                import chromadb
+                from chromadb.config import Settings
+
+                client = chromadb.PersistentClient(
+                    path=str(persist_dir),
+                    settings=Settings(anonymized_telemetry=False)
+                )
+
+                # Expected collections
+                collection_names = [
+                    f'{jurisdiction_id}_decisions',
+                    f'{jurisdiction_id}_chunks',
+                    f'{jurisdiction_id}_transcripts',
+                    f'{jurisdiction_id}_issues',
+                    f'{jurisdiction_id}_municipal_code',
+                ]
+
+                result['chromadb']['collections'] = {}
+                total_docs = 0
+
+                for name in collection_names:
+                    corpus_type = name.replace(f'{jurisdiction_id}_', '')
+                    try:
+                        collection = client.get_collection(name)
+                        count = collection.count()
+                        metadata = collection.metadata or {}
+                        result['chromadb']['collections'][corpus_type] = {
+                            'name': name,
+                            'count': count,
+                            'created_at': metadata.get('created_at'),
+                            'metadata': metadata
+                        }
+                        total_docs += count
+                    except Exception:
+                        result['chromadb']['collections'][corpus_type] = None
+
+                result['chromadb']['total_documents'] = total_docs
+                result['chromadb']['status'] = 'connected'
+            except ImportError:
+                result['chromadb']['status'] = 'chromadb_not_installed'
+            except Exception as e:
+                result['chromadb']['status'] = 'error'
+                result['chromadb']['error'] = str(e)
+        else:
+            result['chromadb']['status'] = 'no_storage'
+            result['chromadb']['path'] = str(persist_dir)
+
+        # 3. File stats
+        participation_db_path = get_user_path('civic_participation.db')
+        if os.path.exists(participation_db_path):
+            result['files']['participation_db_size_bytes'] = os.path.getsize(participation_db_path)
+
+        if os.path.exists(state_db_path):
+            result['files']['state_db_size_bytes'] = os.path.getsize(state_db_path)
+
+        # 4. Determine overall status
+        if result['database'].get('status') == 'error' or result['chromadb'].get('status') == 'error':
+            result['status'] = 'unhealthy'
+        elif result['database'].get('status') == 'missing' or result['chromadb'].get('status') == 'no_storage':
+            result['status'] = 'degraded'
+
+        self.send_json(result)
 
     def _check_database_health(self) -> dict:
         """Check SQLite database connectivity"""

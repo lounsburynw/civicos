@@ -3200,3 +3200,51 @@ Gap Analysis (ingested vs source):
 - All 40 CLI status tests passing
 
 **Commit:** Session 298: gap_detection - Compare ingested count vs source count
+
+---
+
+## Session 299: admin_status_endpoint
+
+**Goal:** GET /admin/status returns JSON pipeline health
+
+### Implementation
+- Added `/admin/status` route to `do_GET` in civic_api_integrated.py:688-690
+- Implemented `serve_admin_status()` method (civic_api_integrated.py:7318-7511)
+- Returns comprehensive JSON including:
+  - Database table stats (meetings, agenda_items, issues, initiatives) with counts and timestamps
+  - ChromaDB collection stats (document counts per collection)
+  - File size stats (state_db, participation_db)
+  - Overall pipeline health status (healthy/degraded/unhealthy)
+- Supports `?jurisdiction=` query parameter (default: san-rafael)
+
+### Example Response
+```json
+{
+  "status": "healthy",
+  "timestamp": "2024-12-17T21:53:00.000000Z",
+  "jurisdiction": "san-rafael",
+  "database": {
+    "meetings": {"count": 2, "earliest": "...", "latest": "...", "last_updated": "..."},
+    "agenda_items": {"count": 1, "last_enriched": "..."},
+    "issues": {"count": 2, "by_status": {"open": 1, "closed": 1}},
+    "initiatives": {"count": 1, "last_updated": "..."},
+    "status": "connected"
+  },
+  "chromadb": {
+    "collections": {"decisions": {...}, "chunks": {...}, ...},
+    "total_documents": 1000,
+    "status": "connected"
+  }
+}
+```
+
+### Files Changed
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py` - Added route and handler
+- `packages/civic/tests/test_admin_status.py` - 10 new tests (NEW)
+- `pilot.json` - Updated admin_status_endpoint status to "ready"
+
+### Tests
+- 10 new tests covering endpoint, database stats, jurisdiction param, missing database, chromadb status
+- All 10 tests passing
+
+**Commit:** Session 299: admin_status_endpoint - GET /admin/status returns JSON pipeline health
