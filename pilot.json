@@ -182,9 +182,12 @@
         "note": "scripts/migrate.py runner with version tracking (schema_versions table), dry-run mode, status check, mark-applied option. All 24 existing migrations applied successfully. Handles duplicate version numbers, idempotent migrations."
       },
       "seed_data": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Initial San Rafael data seed"
+        "artifact": "Initial San Rafael data seed",
+        "completed": "2025-12-17",
+        "test_file": "packages/civic/tests/test_seed_san_rafael.py",
+        "note": "scripts/seed_san_rafael.py seeds city_states, meetings (114), and issues (1,340). Supports --dry-run, --status, --force, --only. 13 tests verify seeding logic, idempotency, and report generation."
       },
       "backup_script": {
         "status": "ready",
