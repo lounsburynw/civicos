@@ -312,6 +312,7 @@ class CivicEmbeddings:
         self.municipal_code_collection_name = f"{self.jurisdiction_id}_municipal_code{collection_suffix}"
         self.legislation_collection_name = f"{self.jurisdiction_id}_legislation{collection_suffix}"
         self.federal_programs_collection_name = f"{self.jurisdiction_id}_federal_programs{collection_suffix}"
+        self.county_housing_collection_name = f"{self.jurisdiction_id}_county_housing{collection_suffix}"
 
         # Persist directory follows schema: data/pilot/vectors/{jurisdiction_id}/
         if persist_directory is None:
@@ -1647,6 +1648,217 @@ class CivicEmbeddings:
         try:
             collection = self._client.get_collection(
                 self.federal_programs_collection_name
+            )
+            return collection.count() > 0
+        except Exception:
+            return False
+
+    def build_county_housing_index(
+        self,
+        county_name: str = "marin",
+        county_housing_path: str = "data/funding/county",
+    ) -> Any:  # Returns chromadb.Collection
+        """
+        Build vector index for county housing programs from JSON files.
+
+        Loads county housing programs from JSON files and indexes them
+        in ChromaDB for semantic search. This enables queries like
+        "section 8 voucher" or "BMR homeownership" to find relevant
+        county housing programs.
+
+        Args:
+            county_name: County name (e.g., "marin")
+            county_housing_path: Base path to county housing programs JSON files
+
+        Returns:
+            ChromaDB collection with embedded county housing programs
+
+        Example:
+            >>> embedder = CivicEmbeddings("city-san-rafael")
+            >>> collection = embedder.build_county_housing_index("marin")
+            >>> # Collection contains Marin Housing Authority programs
+        """
+        programs_path = Path(county_housing_path) / county_name / "housing_programs.json"
+
+        if not programs_path.exists():
+            raise ValueError(
+                f"County housing programs file not found: {programs_path}"
+            )
+
+        with open(programs_path, 'r') as f:
+            data = json.load(f)
+
+        documents = []
+        programs = data.get("programs", {})
+
+        for program_id, program_info in programs.items():
+            # Build searchable text combining program info
+            text_parts = [
+                f"Program: {program_info.get('program_name', program_id)}",
+                f"Agency: {program_info.get('administering_agency', '')}",
+                f"Description: {program_info.get('description', '')}",
+                f"Leverage Point: {program_info.get('leverage_point', '')}",
+            ]
+
+            # Include eligible activities if present
+            eligible_activities = program_info.get('eligible_activities', [])
+            if eligible_activities:
+                text_parts.append(f"Eligible Activities: {', '.join(str(a) for a in eligible_activities)}")
+
+            # Include resident input opportunities if present
+            resident_input = program_info.get('resident_input_opportunities', [])
+            if resident_input:
+                text_parts.append(f"Resident Input Opportunities: {', '.join(str(r) for r in resident_input)}")
+
+            if program_info.get('keywords'):
+                text_parts.append(f"Keywords: {', '.join(program_info['keywords'])}")
+
+            # Include eligibility requirements if present
+            eligibility = program_info.get('eligibility_requirements', {})
+            if eligibility:
+                if isinstance(eligibility, dict):
+                    eligibility_text = ", ".join(f"{k}: {v}" for k, v in eligibility.items() if not isinstance(v, dict))
+                    if eligibility_text:
+                        text_parts.append(f"Eligibility: {eligibility_text}")
+
+            text = "\n".join(text_parts)
+
+            # Build metadata, filtering out None values (ChromaDB requires non-null)
+            metadata = {
+                "program_id": program_id,
+                "program_name": program_info.get("program_name") or "",
+                "county": county_name,
+                "administering_agency": program_info.get("administering_agency") or "",
+                "local_compliance_required": bool(program_info.get("local_compliance_required", False)),
+                "annual_reporting": bool(program_info.get("annual_reporting", False)),
+                "official_url": program_info.get("official_url") or "",
+                "source_type": "county_housing_program",
+                "jurisdiction": f"county-{county_name}",
+            }
+
+            documents.append({
+                "id": f"county-{county_name}-{program_id}",
+                "text": text,
+                "metadata": metadata,
+            })
+
+        if not documents:
+            raise ValueError(
+                f"No county housing programs found in {programs_path}"
+            )
+
+        # Create collection (delete existing if present)
+        try:
+            self._client.delete_collection(self.county_housing_collection_name)
+        except Exception:
+            pass
+
+        collection = self._client.create_collection(
+            name=self.county_housing_collection_name,
+            metadata={
+                "hnsw:space": "cosine",
+                "description": f"{self.jurisdiction_id} county housing programs for RAG",
+                "jurisdiction_id": self.jurisdiction_id,
+                "county": county_name,
+                "embedding_model": self.model_name,
+                "embedding_dimension": self.embedding_dimension,
+                "created_at": datetime.now().isoformat(),
+                "source": "county_housing_programs JSON file",
+                "total_programs": len(documents),
+            }
+        )
+
+        # Process in batches for memory efficiency
+        batch_size = 50
+        for i in range(0, len(documents), batch_size):
+            batch = documents[i:i + batch_size]
+
+            texts = [doc["text"] for doc in batch]
+            ids = [doc["id"] for doc in batch]
+            metadatas = [doc["metadata"] for doc in batch]
+
+            embeddings = self.model.encode(texts, show_progress_bar=False)
+
+            collection.add(
+                ids=ids,
+                documents=texts,
+                embeddings=embeddings.tolist(),
+                metadatas=metadatas,
+            )
+
+        return collection
+
+    def search_county_housing(
+        self,
+        query: str,
+        top_k: int = 10,
+        where: Optional[Dict] = None,
+        county: Optional[str] = None,
+        agency: Optional[str] = None,
+    ) -> List[SearchResult]:
+        """
+        Search county housing programs using semantic search.
+
+        Args:
+            query: Search query text (e.g., "section 8 rental assistance")
+            top_k: Number of results to return
+            where: Optional ChromaDB filter
+            county: Filter by county (e.g., "marin")
+            agency: Filter by administering agency (e.g., "Marin Housing Authority")
+
+        Returns:
+            List of SearchResult objects
+
+        Example:
+            >>> embedder = CivicEmbeddings("city-san-rafael")
+            >>> results = embedder.search_county_housing("first time homebuyer")
+            >>> for r in results:
+            ...     print(f"{r.metadata['program_id']}: {r.score:.3f}")
+            county-marin-below_market_rate_homeownership: 0.812
+            county-marin-hcv_homeownership: 0.756
+        """
+        try:
+            collection = self._client.get_collection(
+                self.county_housing_collection_name
+            )
+        except Exception:
+            # Collection doesn't exist
+            return []
+
+        # Build filter
+        effective_where = where.copy() if where else None
+
+        filters = []
+        if county:
+            filters.append({"county": county})
+        if agency:
+            filters.append({"administering_agency": agency})
+
+        if filters:
+            if effective_where:
+                filters.insert(0, effective_where)
+            if len(filters) == 1:
+                effective_where = filters[0]
+            else:
+                effective_where = {"$and": filters}
+
+        # Generate query embedding
+        query_embedding = self.model.encode([query])[0]
+
+        # Search
+        results = collection.query(
+            query_embeddings=[query_embedding.tolist()],
+            n_results=top_k,
+            where=effective_where,
+        )
+
+        return self._results_to_search_results(results)
+
+    def has_county_housing(self) -> bool:
+        """Check if county housing programs collection exists and has documents."""
+        try:
+            collection = self._client.get_collection(
+                self.county_housing_collection_name
             )
             return collection.count() > 0
         except Exception:

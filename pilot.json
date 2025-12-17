@@ -712,10 +712,12 @@
     },
     "county_context": {
       "marin_housing_programs": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "Index Marin Housing Authority programs and policies",
-        "note": "Directly relevant to shelter coordination"
+        "note": "Directly relevant to shelter coordination",
+        "test_file": "packages/civic/tests/test_integration_rag_san_rafael.py::TestCountyHousingVectorSearch",
+        "data_file": "data/funding/county/marin/housing_programs.json"
       },
       "county_homelessness_services": {
         "status": "not_ready",

@@ -1,0 +1,371 @@
+{
+  "jurisdiction": "county-marin",
+  "jurisdiction_type": "county",
+  "topic": "housing",
+  "last_updated": "2025-12-16T00:00:00.000000",
+  "data_sources": [
+    "marinhousing.org",
+    "marincounty.gov",
+    "Web search (2025)",
+    "NEEDS HUMAN VERIFICATION"
+  ],
+  "verification_status": "DRAFT - NOT VERIFIED",
+  "source_citations": [
+    "https://www.marinhousing.org/",
+    "https://www.marinhousing.org/housing-choice-voucher",
+    "https://www.marinhousing.org/below-market-rate-program",
+    "https://www.marinhousing.org/public-housing-program",
+    "https://www.marinhousing.org/homeownership",
+    "https://www.marincounty.gov/departments/cda/housing-and-grants/funding-projects/cdbg-and-home-guidelines",
+    "https://www.marincounty.gov/departments/cda/housing-and-grants/funding-projects/notice-funding-availability-nofa"
+  ],
+  "programs": {
+    "housing_choice_voucher": {
+      "program_name": "Housing Choice Voucher Program (Section 8)",
+      "administering_agency": "Marin Housing Authority",
+      "description": "Provides rental assistance to very low-income families, seniors, and disabled individuals to afford decent, safe housing in the private rental market. Participants pay approximately 30% of their income towards rent, with the program subsidizing the remainder. HUD provides funding and oversight while Marin Housing Authority handles local implementation including eligibility determination, voucher issuance, unit inspections, and landlord payments.",
+      "eligible_activities": [
+        "Tenant-based rental vouchers for private market housing",
+        "Mobility counseling to access opportunity neighborhoods",
+        "Homelessness prevention through priority vouchers",
+        "Landlord outreach and education"
+      ],
+      "eligibility_requirements": {
+        "income_limit": "Very low income (50% AMI or below)",
+        "citizenship": "US citizen or eligible immigration status",
+        "rental_history": "Must pass tenant screening"
+      },
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Public Housing Authority Plan public hearings",
+        "Resident advisory board participation",
+        "Comment periods for plan updates"
+      ],
+      "leverage_point": "Residents can participate in Public Housing Authority Plan public hearings and comment periods. Contact the Housing Authority to join resident advisory committees or provide input on program priorities and policies.",
+      "official_url": "https://www.marinhousing.org/housing-choice-voucher",
+      "contact": {
+        "phone": "415-491-2525",
+        "address": "4020 Civic Center Drive, San Rafael, CA 94903",
+        "hours": "Monday-Thursday 10am-4:30pm, by appointment"
+      },
+      "keywords": [
+        "section 8",
+        "rental assistance",
+        "housing voucher",
+        "affordable housing",
+        "low income housing",
+        "marin housing authority"
+      ],
+      "special_categories": {
+        "domestic_violence_victims": "Up to 15 placements/year via CalWORKS or Center for Domestic Peace",
+        "natural_disaster_victims": "Up to 15 placements/year via American Red Cross",
+        "witness_protection": "Up to 5 placements/year",
+        "eminent_domain": "Up to 5 placements/year"
+      },
+      "program_statistics": {
+        "households_served": 2701,
+        "average_monthly_subsidy": 2740,
+        "average_annual_cost_per_household": 32880
+      }
+    },
+    "public_housing": {
+      "program_name": "Public Housing Program",
+      "administering_agency": "Marin Housing Authority",
+      "description": "Provides affordable rental housing directly owned and managed by Marin Housing Authority, offering safe, subsidized housing to eligible low-income individuals and families. The primary property is Golden Gate Village in Marin City with 296 units. Residents pay no more than 30% of their income for rent.",
+      "eligible_activities": [
+        "Directly managed rental housing",
+        "Community programming and services",
+        "Resident empowerment initiatives"
+      ],
+      "eligibility_requirements": {
+        "income_limit": "Up to 80% AMI (Area Median Income)",
+        "background_check": "No public housing evictions in past 3 years",
+        "criminal_history": "No felony drug convictions, not a registered sex offender"
+      },
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Resident council participation",
+        "Public hearings for redevelopment plans",
+        "Community meetings"
+      ],
+      "leverage_point": "Residents can participate in Golden Gate Village Resident Council and attend public hearings for redevelopment planning. The revitalization project has extensive community input requirements.",
+      "official_url": "https://www.marinhousing.org/public-housing-program",
+      "keywords": [
+        "public housing",
+        "golden gate village",
+        "marin city",
+        "affordable housing",
+        "subsidized housing"
+      ],
+      "properties": {
+        "golden_gate_village": {
+          "location": "Marin City, CA",
+          "total_units": 296,
+          "unit_breakdown": {
+            "one_bedroom": 44,
+            "two_bedroom": 132,
+            "three_bedroom": 111,
+            "four_bedroom": 9
+          },
+          "status": "Active - Phase 1 revitalization approved August 2025"
+        }
+      }
+    },
+    "below_market_rate_homeownership": {
+      "program_name": "Below Market Rate (BMR) Homeownership Program",
+      "administering_agency": "Marin Housing Authority",
+      "description": "Offers condominiums and townhomes for sale at below market rate prices to low and moderate-income first-time homebuyers who are priced out of the competitive housing market. MHA administers the program for multiple Marin jurisdictions including County of Marin, San Rafael, Tiburon, San Anselmo, Larkspur, Corte Madera, and Mill Valley.",
+      "eligible_activities": [
+        "Below market rate home purchases",
+        "Homebuyer education workshops",
+        "Lottery-based unit allocation"
+      ],
+      "eligibility_requirements": {
+        "first_time_buyer": "No ownership interest in principal residence in past 3 years",
+        "income_limits": {
+          "low_income_65_ami": "65% of Area Median Income",
+          "low_income_80_ami": "80% of Area Median Income",
+          "moderate_income_120_ami": "120% of Area Median Income"
+        },
+        "asset_limit": "Assets over $100,000 - 10% added to income calculation",
+        "citizenship": "US citizen or legal permanent resident",
+        "household_size": "Minimum one person per bedroom",
+        "education": "HUD-approved First Time Homebuyer Workshop certificate required",
+        "financing": "Must qualify through BMR Participating Lender"
+      },
+      "local_compliance_required": true,
+      "annual_reporting": false,
+      "resident_input_opportunities": [
+        "Program feedback through MHA",
+        "Jurisdictional housing element comment periods"
+      ],
+      "leverage_point": "Residents can apply through lottery system when units become available. Attend homebuyer workshops to obtain required certificate. Contact MHA for current availability and income limits.",
+      "official_url": "https://www.marinhousing.org/below-market-rate-program",
+      "resale_restrictions": "Affordability deed restrictions limit future resale profits based on median income increase, CPI, or fair market value (least of three)",
+      "keywords": [
+        "bmr",
+        "below market rate",
+        "first time homebuyer",
+        "affordable homeownership",
+        "lottery housing"
+      ],
+      "participating_jurisdictions": [
+        "County of Marin",
+        "City of San Rafael",
+        "Town of Tiburon",
+        "Town of San Anselmo",
+        "City of Larkspur",
+        "Town of Corte Madera",
+        "City of Mill Valley"
+      ]
+    },
+    "hcv_homeownership": {
+      "program_name": "Housing Choice Voucher Homeownership Program",
+      "administering_agency": "Marin Housing Authority",
+      "description": "Allows Housing Choice Voucher (Section 8) recipients to use their Housing Assistance Payment (HAP) subsidy toward mortgage payments instead of rental assistance, enabling transition from renting to homeownership.",
+      "eligible_activities": [
+        "Mortgage assistance using HAP subsidy",
+        "Homeownership counseling",
+        "Down payment accumulation support"
+      ],
+      "eligibility_requirements": {
+        "voucher_tenure": "Must have HCV Rental Voucher for at least 1 year",
+        "debt_status": "No debts owed to MHA",
+        "employment": "Head of household employed minimum 1 year at 30 hrs/week (unless elderly/disabled)",
+        "savings": "Minimum 6% of purchase price for down payment and closing costs (20% realistic)"
+      },
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Program orientation sessions",
+        "Counseling appointments"
+      ],
+      "leverage_point": "Current HCV voucher holders can contact MHA to explore homeownership pathway. Assistance lasts maximum 15 years.",
+      "official_url": "https://www.marinhousing.org/housing-choice-voucher-homeownership-program",
+      "assistance_duration_years": 15,
+      "keywords": [
+        "section 8 homeownership",
+        "voucher to ownership",
+        "mortgage assistance"
+      ]
+    },
+    "cdbg_housing": {
+      "program_name": "Community Development Block Grant - Housing",
+      "administering_agency": "Marin County Community Development Agency",
+      "description": "Federal block grant program providing financial assistance to affordable housing developers, nonprofits, and government entities to support housing development and rehabilitation projects aimed at benefiting low and moderate-income persons in Marin County.",
+      "eligible_activities": [
+        "Affordable housing development",
+        "Housing rehabilitation",
+        "Acquisition of properties for affordable housing",
+        "Public facility improvements supporting housing",
+        "Fair housing activities"
+      ],
+      "eligibility_requirements": {
+        "beneficiary_income": "Must benefit low and moderate-income persons",
+        "fair_housing": "Affirmatively Further Fair Housing and submit Affirmative Marketing Plan",
+        "green_building": "Meet Marin County Green Building Code",
+        "accessibility": "Comply with UFAS and Title III",
+        "procurement": "Build America, Buy America requirements",
+        "section_3": "Projects over $200,000 must provide local job opportunities to low-income individuals"
+      },
+      "annual_funding_available": 1500000,
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Consolidated Plan public hearings",
+        "Annual Action Plan comment periods",
+        "Community needs assessment surveys",
+        "Zoom office hours (1st and 3rd Thursdays, 1-2pm PST)"
+      ],
+      "leverage_point": "Residents can influence funding priorities through Consolidated Plan public hearings and Annual Action Plan comment periods. Nonprofits can apply during annual NOFA cycle (typically January-February). Community members can attend Zoom office hours for questions.",
+      "official_url": "https://www.marincounty.gov/departments/cda/housing-and-grants/funding-projects/cdbg-and-home-guidelines",
+      "application_cycle": "Annual NOFA typically January-February",
+      "minimum_grant": 15000,
+      "keywords": [
+        "cdbg",
+        "community development block grant",
+        "affordable housing development",
+        "housing rehabilitation",
+        "federal funding"
+      ]
+    },
+    "home_investment_partnerships": {
+      "program_name": "HOME Investment Partnerships Program",
+      "administering_agency": "Marin County Community Development Agency",
+      "description": "Federal formula grant program providing funding for affordable housing development, rehabilitation, and rental assistance. Funds support creation of affordable housing for low-income households in Marin County.",
+      "eligible_activities": [
+        "New construction of affordable rental housing",
+        "Rehabilitation of existing affordable units",
+        "Homebuyer assistance",
+        "Tenant-based rental assistance",
+        "Support for Community Housing Development Organizations (CHDOs)"
+      ],
+      "eligibility_requirements": {
+        "income_targeting": "Must serve households at or below 80% AMI, with emphasis on 50% AMI",
+        "affordability_period": "Long-term affordability restrictions required",
+        "fair_housing": "Affirmatively Further Fair Housing compliance"
+      },
+      "annual_funding_available": 700000,
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Consolidated Plan public hearings",
+        "Annual Action Plan comment periods",
+        "CAPER review and comment"
+      ],
+      "leverage_point": "Participate in Consolidated Plan development and Annual Action Plan public comment periods. Housing developers and CHDOs can apply during NOFA cycle.",
+      "official_url": "https://www.marincounty.gov/departments/cda/housing-and-grants/funding-projects/cdbg-and-home-guidelines",
+      "application_cycle": "Annual NOFA typically January-February",
+      "keywords": [
+        "home program",
+        "affordable housing construction",
+        "housing rehabilitation",
+        "chdo",
+        "federal housing funding"
+      ]
+    },
+    "plha": {
+      "program_name": "Permanent Local Housing Allocation (PLHA)",
+      "administering_agency": "Marin County Community Development Agency",
+      "description": "State of California program providing ongoing funding to local governments for affordable housing and homelessness prevention. Funded through Building Homes and Jobs Act recording fees on real estate transactions.",
+      "eligible_activities": [
+        "Affordable housing development",
+        "Homelessness prevention and rapid rehousing",
+        "Accessory dwelling unit development",
+        "Housing navigation services",
+        "Rental assistance"
+      ],
+      "eligibility_requirements": {
+        "income_targeting": "Must benefit low-income households",
+        "consistency": "Projects must be consistent with Housing Element"
+      },
+      "annual_funding_available": 900000,
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Housing Element public hearings",
+        "NOFA application review"
+      ],
+      "leverage_point": "Participate in Housing Element updates and public hearings. Nonprofits can apply during NOFA cycle for project funding.",
+      "official_url": "https://www.marincounty.gov/departments/cda/housing-and-grants/funding-projects/notice-funding-availability-nofa",
+      "keywords": [
+        "plha",
+        "state housing funding",
+        "homelessness prevention",
+        "affordable housing"
+      ]
+    },
+    "marin_affordable_housing_fund": {
+      "program_name": "Marin Affordable Housing Fund",
+      "administering_agency": "Marin County Community Development Agency",
+      "description": "County fund providing flexible financing for developers and nonprofits to support development and preservation of affordable housing units throughout Marin County. Applications accepted year-round.",
+      "eligible_activities": [
+        "Affordable housing development",
+        "Preservation of existing affordable units",
+        "Predevelopment costs",
+        "Gap financing"
+      ],
+      "eligibility_requirements": {
+        "project_type": "Must produce or preserve affordable housing units",
+        "developer_capacity": "Demonstrated organizational capacity"
+      },
+      "fund_balance": 10100000,
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Board of Supervisors public hearings on fund allocations",
+        "Community input on priority areas"
+      ],
+      "leverage_point": "Developers and nonprofits can apply year-round. Community members can attend Board of Supervisors meetings when funding allocations are discussed.",
+      "official_url": "https://www.marincounty.gov/departments/cda/housing-and-grants/funding-projects",
+      "application_cycle": "Rolling - applications accepted throughout the year",
+      "keywords": [
+        "affordable housing fund",
+        "housing trust fund",
+        "gap financing",
+        "housing development"
+      ]
+    }
+  },
+  "income_limits_2025": {
+    "area": "San Francisco HMFA (includes Marin County)",
+    "median_family_income_4person": 185000,
+    "limits": {
+      "extremely_low_30_ami": {
+        "1_person": 27750,
+        "2_person": 31700,
+        "3_person": 35650,
+        "4_person": 39600
+      },
+      "very_low_50_ami": {
+        "1_person": 65200,
+        "2_person": 74500,
+        "3_person": 83800,
+        "4_person": 93100
+      },
+      "low_80_ami": {
+        "1_person": 104350,
+        "2_person": 119250,
+        "3_person": 134150,
+        "4_person": 149050
+      }
+    },
+    "effective_date": "2025-04-01",
+    "note": "Income limits published by HUD. Very Low Income for 4-person household is $92,850/year."
+  },
+  "contact_information": {
+    "marin_housing_authority": {
+      "phone": "415-491-2525",
+      "address": "4020 Civic Center Drive, San Rafael, CA 94903",
+      "website": "https://www.marinhousing.org",
+      "hours": "Monday-Thursday 10am-4:30pm, by appointment only"
+    },
+    "marin_county_cda_housing_grants": {
+      "address": "3501 Civic Center Drive, Suite 308, San Rafael, CA 94903",
+      "website": "https://www.marincounty.gov/departments/cda/housing-and-grants",
+      "office_hours_zoom": "1st and 3rd Thursdays, 1-2pm PST"
+    }
+  }
+}
