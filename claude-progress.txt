@@ -2314,3 +2314,13 @@ Date: 2025-12-15
 **Progress:** 74/131 items ready (56%)
 
 **Commit:** Session 279: Transcript reindexing with agenda detection + meeting_date
+
+### Additional Work: DATA_INGESTION_OPERATIONS.md
+
+Created `docs/critical/DATA_INGESTION_OPERATIONS.md` - comprehensive operator manual covering:
+1. Initial ingestion (meetings, vectors, manifests)
+2. Ongoing refresh procedures (weekly meetings, when to re-index)
+3. Versioning strategy (SQLite temporal, manifest-based, collection metadata)
+4. Rollback procedures (SQLite backup/restore, schema rollback, vector rebuild)
+5. Verification commands
+6. Troubleshooting guide
