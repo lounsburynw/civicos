@@ -2474,3 +2474,27 @@ Integrated legislation corpus into UnifiedSearch to achieve pattern consistency 
 - Continue with remaining pilot items (federal_programs_json_loaded, etc.)
 
 **Commit:** Session 283: corpus_pattern_consistency - UnifiedSearch legislation integration
+
+---
+## Session 284 (2025-12-16)
+**Item:** federal_programs_json_loaded
+**Category:** data_readiness > legislative_context
+
+### Summary
+Verified federal grant programs are loaded correctly from `data/federal_programs/*.json`:
+- 5 JSON files exist: housing.json, transportation.json, environment.json, budget.json, education.json
+- 10 total federal programs across all topics
+- `legislative_context_cache` loads these files via lazy-loading with TTL
+- `what_applies()` API returns federal programs correctly
+
+### Files Changed
+- `packages/civic/src/civic/context.py` (fixed agency field mapping: `administering_agency` -> `agency`)
+- `pilot.json` (federal_programs_json_loaded status → ready)
+
+### Testing
+- All 34 smoke tests pass
+- Manual verification of API access to all 10 federal programs
+
+**Progress:** 79/135 items ready (58%)
+
+**Commit:** Session 284: federal_programs_json_loaded - verify federal grant programs loading

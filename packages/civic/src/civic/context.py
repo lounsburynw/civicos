@@ -126,7 +126,7 @@ def get_regulatory_context(
                     "type": "program",
                     "id": prog_id,
                     "program_name": prog_data.get("program_name", prog_id),
-                    "agency": prog_data.get("agency", ""),
+                    "agency": prog_data.get("administering_agency", prog_data.get("agency", "")),
                     "leverage_point": prog_data.get("leverage_point", ""),
                     "keywords": prog_data.get("keywords", []),
                 })
