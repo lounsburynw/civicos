@@ -7,7 +7,7 @@ This module provides unified search across all 6 corpus types:
 - transcript: Video transcript chunks from meeting recordings
 - issue: SeeClickFix community issue reports
 - municipal_code: Municipal code sections
-- legislation: State legislation (bills) affecting local jurisdictions
+- legislation: State legislation, federal programs, and county housing programs
 
 Results are returned as UnifiedSearchResult objects, ranked by relevance.
 """
@@ -181,7 +181,7 @@ class UnifiedSearch:
                     UnifiedSearchResult.from_embeddings_result(r, "municipal_code")
                 )
 
-        # Search legislation (state bills + federal programs)
+        # Search legislation (state bills + federal programs + county housing programs)
         if "legislation" in search_corpora:
             leg_available = available.get("legislation", CorpusInfo("legislation", 0, False)).available
             if leg_available:
@@ -199,6 +199,15 @@ class UnifiedSearch:
                     results = self._embeddings.search_federal_programs(query, top_k=per_corpus_k)
                     for r in results:
                         actual_source_type = r.metadata.get("source_type", "federal_program")
+                        all_results.append(
+                            UnifiedSearchResult.from_embeddings_result(r, actual_source_type)
+                        )
+
+                # Also search county housing programs (part of regulatory context)
+                if self._embeddings.has_county_housing():
+                    results = self._embeddings.search_county_housing(query, top_k=per_corpus_k)
+                    for r in results:
+                        actual_source_type = r.metadata.get("source_type", "county_housing_program")
                         all_results.append(
                             UnifiedSearchResult.from_embeddings_result(r, actual_source_type)
                         )
@@ -311,7 +320,7 @@ class UnifiedSearch:
                 )
 
         elif corpus_type == "legislation":
-            # Search both state legislation and federal programs
+            # Search state legislation, federal programs, and county housing programs
             if self._embeddings.has_legislation():
                 raw = self._embeddings.search_legislation(
                     query,
@@ -334,6 +343,19 @@ class UnifiedSearch:
                 )
                 for r in raw:
                     actual_source_type = r.metadata.get("source_type", "federal_program")
+                    results.append(
+                        UnifiedSearchResult.from_embeddings_result(r, actual_source_type)
+                    )
+
+            if self._embeddings.has_county_housing():
+                raw = self._embeddings.search_county_housing(
+                    query,
+                    top_k=top_k,
+                    where=filters.get("where"),
+                    county=filters.get("county"),
+                )
+                for r in raw:
+                    actual_source_type = r.metadata.get("source_type", "county_housing_program")
                     results.append(
                         UnifiedSearchResult.from_embeddings_result(r, actual_source_type)
                     )
@@ -397,14 +419,17 @@ class UnifiedSearch:
         )
         corpora["municipal_code"] = CorpusInfo("municipal_code", count, count > 0)
 
-        # Check legislation (state bills + federal programs combined)
+        # Check legislation (state bills + federal programs + county housing combined)
         legislation_count = self._get_collection_count(
             self._embeddings.legislation_collection_name
         )
         federal_count = self._get_collection_count(
             self._embeddings.federal_programs_collection_name
         )
-        total_legislation = legislation_count + federal_count
+        county_housing_count = self._get_collection_count(
+            self._embeddings.county_housing_collection_name
+        )
+        total_legislation = legislation_count + federal_count + county_housing_count
         corpora["legislation"] = CorpusInfo("legislation", total_legislation, total_legislation > 0)
 
         self._corpora_cache = corpora
