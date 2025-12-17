@@ -308,9 +308,11 @@
         "note": "Session 296: RequestMetrics includes p50/p95/p99/avg response times via /health endpoint"
       },
       "active_users": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Track unique users per day"
+        "artifact": "Track unique users per day",
+        "completed": "2025-12-17",
+        "note": "Session 297: ActiveUsersMetrics tracks unique users by IP and auth token via /health endpoint"
       }
     }
   },
