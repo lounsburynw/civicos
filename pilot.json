@@ -546,6 +546,13 @@
         "artifact": "Registry of available corpora per jurisdiction",
         "completed": "2025-12-15",
         "note": "Implemented via UnifiedSearch.get_available_corpora(). Returns Dict[str, CorpusInfo] with availability and document count per corpus. Supports caching with refresh option."
+      },
+      "corpus_pattern_consistency": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "All corpora follow ChromaDB + UnifiedSearch pattern",
+        "note": "Target: 6 corpus types (decision, pdf, transcript, issue, municipal_code, legislation) all use ChromaDB vector search and are queryable via UnifiedSearch.search_all(). Eliminates keyword-only paths.",
+        "depends_on": "legislative_unified_search"
       }
     },
     "decision_transcript_linking": {
@@ -616,16 +623,37 @@
       }
     },
     "legislative_context": {
-      "state_bills_indexed": {
+      "state_bills_json_loaded": {
         "status": "ready",
         "priority": 2,
         "artifact": "CA housing/transportation/environment/education/budget bills accessible via what_applies()",
-        "note": "6 housing bills, 5 transportation, 5 environment, 5 education, 5 budget bills in data/legislative_context/*.json; loaded via LegislativeContextCache with TTL-based refresh"
+        "note": "6 housing bills, 5 transportation, 5 environment, 5 education, 5 budget bills in data/legislative_context/*.json; loaded via LegislativeContextCache with TTL-based refresh",
+        "completed": "2025-12-16"
       },
-      "federal_programs_indexed": {
+      "state_bills_vector_indexed": {
         "status": "not_ready",
         "priority": 2,
-        "artifact": "Index federal grant programs in ChromaDB"
+        "artifact": "Index state bills in ChromaDB for semantic search",
+        "note": "Create {jurisdiction}_legislation collection following CivicEmbeddings pattern. Enables semantic queries like 'affordable housing funding' to find related bills beyond keyword matching.",
+        "depends_on": "state_bills_json_loaded"
+      },
+      "federal_programs_json_loaded": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Federal grant programs loaded from data/federal_programs/*.json"
+      },
+      "federal_programs_vector_indexed": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Index federal programs in ChromaDB for semantic search",
+        "depends_on": "federal_programs_json_loaded"
+      },
+      "legislative_unified_search": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Add 'legislation' corpus type to UnifiedSearch.search_all()",
+        "note": "Integrate state bills + federal programs into UnifiedSearch alongside decisions, transcripts, issues, municipal_code",
+        "depends_on": ["state_bills_vector_indexed", "federal_programs_vector_indexed"]
       }
     },
     "transcript_backlog": {
