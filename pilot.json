@@ -617,9 +617,10 @@
     },
     "legislative_context": {
       "state_bills_indexed": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Index CA housing/homelessness/environment bills in ChromaDB"
+        "artifact": "CA housing/transportation/environment/education/budget bills accessible via what_applies()",
+        "note": "6 housing bills, 5 transportation, 5 environment, 5 education, 5 budget bills in data/legislative_context/*.json; loaded via LegislativeContextCache with TTL-based refresh"
       },
       "federal_programs_indexed": {
         "status": "not_ready",
