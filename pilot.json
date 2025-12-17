@@ -571,9 +571,11 @@
         "note": "7750 chunks indexed; 92.7% have agenda_item, 49.5% have meeting_date (12/25 files mapped)"
       },
       "query_layer_integration": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "what_happened_full_context() returns decisions + linked transcript excerpts"
+        "artifact": "what_happened_full_context() returns decisions + linked transcript excerpts",
+        "completed": "2025-12-16",
+        "note": "Implemented what_happened_full_context() in Civic class. Returns DecisionWithContext objects with linked TranscriptLink excerpts. Uses semantic search to link decisions to transcript chunks from same meeting. 7 new tests (3 unit + 4 integration)."
       }
     }
   },

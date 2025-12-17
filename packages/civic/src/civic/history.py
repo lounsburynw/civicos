@@ -7,7 +7,7 @@ Supports semantic search via embeddings for jurisdictions with vector indexes.
 
 import json
 import os
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -742,3 +742,250 @@ def search_decisions(
     decisions.sort(key=lambda d: d.date, reverse=True)
 
     return decisions
+
+
+@dataclass
+class TranscriptLink:
+    """A link from a decision to a transcript excerpt."""
+    chunk_id: str
+    text: str
+    speaker: str
+    speaker_role: Optional[str] = None
+    speaker_name: Optional[str] = None
+    video_id: Optional[str] = None
+    start_timestamp: Optional[str] = None
+    end_timestamp: Optional[str] = None
+    start_ms: Optional[int] = None
+    end_ms: Optional[int] = None
+    is_public_comment: bool = False
+    agenda_item: Optional[str] = None
+    confidence: float = 0.0
+
+    @property
+    def video_url(self) -> Optional[str]:
+        """Generate YouTube URL with timestamp if video_id is available."""
+        if not self.video_id or not self.start_ms:
+            return None
+        seconds = self.start_ms // 1000
+        return f"https://www.youtube.com/watch?v={self.video_id}&t={seconds}s"
+
+
+@dataclass
+class DecisionWithContext:
+    """
+    A decision enriched with linked transcript excerpts.
+
+    Combines the official decision (from minutes) with relevant transcript
+    excerpts (from meeting video) showing what was said during discussion.
+
+    The transcript_links are ordered by relevance and include:
+    - Public testimony on the item
+    - Staff presentations
+    - Council deliberation
+
+    Example:
+        >>> results = civic.what_happened_full_context("bike lanes")
+        >>> for r in results:
+        ...     print(f"Decision: {r.decision.title} - {r.decision.outcome}")
+        ...     for link in r.transcript_links:
+        ...         print(f"  [{link.speaker_role}] {link.text[:80]}...")
+    """
+    decision: Decision
+    transcript_links: List[TranscriptLink]
+    link_confidence: float = 0.0  # Overall confidence of decision-transcript linking
+    link_type: str = ""  # "consensus", "structural_only", "semantic_only", "none"
+
+    @property
+    def has_transcript(self) -> bool:
+        """Whether any transcript excerpts were found."""
+        return len(self.transcript_links) > 0
+
+    @property
+    def public_comments(self) -> List[TranscriptLink]:
+        """Get only public comment excerpts."""
+        return [link for link in self.transcript_links if link.is_public_comment]
+
+    @property
+    def staff_discussion(self) -> List[TranscriptLink]:
+        """Get only staff presentation excerpts."""
+        return [link for link in self.transcript_links if link.speaker_role == "staff"]
+
+    @property
+    def council_discussion(self) -> List[TranscriptLink]:
+        """Get only council deliberation excerpts."""
+        return [link for link in self.transcript_links if link.speaker_role == "council"]
+
+
+def _search_decision_transcripts(
+    jurisdiction: str,
+    decision: Decision,
+    top_k: int = 3,
+) -> Tuple[List[TranscriptLink], float, str]:
+    """
+    Find transcript excerpts related to a specific decision.
+
+    Uses semantic search with the decision title + agenda item to find
+    relevant transcript chunks from the same meeting.
+
+    Args:
+        jurisdiction: Jurisdiction ID
+        decision: The decision to find transcripts for
+        top_k: Maximum number of transcript excerpts to return
+
+    Returns:
+        Tuple of (transcript_links, confidence, link_type)
+    """
+    try:
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+    except ImportError:
+        return [], 0.0, "none"
+
+    persist_directory = _get_embeddings_path(jurisdiction)
+    if persist_directory is None:
+        return [], 0.0, "none"
+
+    try:
+        embedder = CivicEmbeddings(
+            jurisdiction_id=jurisdiction,
+            persist_directory=persist_directory,
+        )
+
+        if not embedder.has_transcripts():
+            return [], 0.0, "none"
+
+        # Build query from decision title
+        query_text = decision.title
+
+        # Get meeting date for filtering
+        meeting_date = decision.date.strftime("%Y-%m-%d") if decision.date else None
+
+        # Search transcripts with meeting date filter if available
+        where_filter = {"meeting_date": meeting_date} if meeting_date else None
+
+        results = embedder.search_transcripts(
+            query=query_text,
+            top_k=top_k * 2,  # Get more, filter by quality
+            where=where_filter,
+        )
+
+        if not results:
+            return [], 0.0, "none"
+
+        # Convert to TranscriptLinks
+        links = []
+        total_score = 0.0
+
+        for r in results[:top_k]:
+            # Determine confidence from semantic score
+            # ChromaDB returns distance, lower is better
+            # Score is already converted to similarity (1 - distance) in embeddings.py
+            confidence = r.score
+
+            links.append(TranscriptLink(
+                chunk_id=r.document_id,
+                text=r.text,
+                speaker=r.metadata.get("speaker", "?"),
+                speaker_role=r.metadata.get("speaker_role"),
+                speaker_name=r.metadata.get("speaker_name"),
+                video_id=r.metadata.get("video_id"),
+                start_timestamp=r.metadata.get("start_timestamp"),
+                end_timestamp=r.metadata.get("end_timestamp"),
+                start_ms=r.metadata.get("start_ms"),
+                end_ms=r.metadata.get("end_ms"),
+                is_public_comment=r.metadata.get("is_public_comment", False),
+                agenda_item=r.metadata.get("agenda_item"),
+                confidence=confidence,
+            ))
+            total_score += confidence
+
+        if not links:
+            return [], 0.0, "none"
+
+        # Calculate overall confidence
+        avg_confidence = total_score / len(links)
+
+        # Determine link type based on confidence
+        link_type = "semantic_only"  # We're using semantic search
+        if avg_confidence >= 0.7:
+            link_type = "high_confidence"
+        elif avg_confidence >= 0.5:
+            link_type = "medium_confidence"
+        else:
+            link_type = "low_confidence"
+
+        return links, avg_confidence, link_type
+
+    except Exception:
+        return [], 0.0, "none"
+
+
+def search_decisions_with_context(
+    state_manager: "StateManager",
+    jurisdiction: str,
+    query: str,
+    since: str = None,
+    top_k: int = 5,
+    transcript_excerpts_per_decision: int = 3,
+) -> List[DecisionWithContext]:
+    """
+    Search past decisions with linked transcript excerpts.
+
+    This is the "full context" query that returns both the official decision
+    (from minutes) and what was actually said during the meeting (from video
+    transcript). Useful for understanding:
+    - What public testimony was given
+    - What staff recommended and why
+    - What council members discussed before voting
+
+    Args:
+        state_manager: StateManager instance
+        jurisdiction: City/jurisdiction ID
+        query: Search query (e.g., "bike lanes", "housing development")
+        since: Optional date filter (ISO format)
+        top_k: Maximum number of decisions to return
+        transcript_excerpts_per_decision: Max excerpts per decision (default 3)
+
+    Returns:
+        List of DecisionWithContext objects with decisions + transcript links
+
+    Example:
+        >>> from civic.history import search_decisions_with_context
+        >>> results = search_decisions_with_context(
+        ...     state_manager=state_mgr,
+        ...     jurisdiction="city-san-rafael",
+        ...     query="homeless shelter"
+        ... )
+        >>> for r in results:
+        ...     print(f"{r.decision.title}: {r.decision.outcome}")
+        ...     if r.has_transcript:
+        ...         for link in r.public_comments:
+        ...             print(f"  Public: {link.text[:60]}...")
+    """
+    # First, get matching decisions
+    decisions = search_decisions(
+        state_manager=state_manager,
+        jurisdiction=jurisdiction,
+        query=query,
+        since=since,
+    )
+
+    # Limit to top_k
+    decisions = decisions[:top_k]
+
+    # Enrich each decision with transcript context
+    results = []
+    for decision in decisions:
+        links, confidence, link_type = _search_decision_transcripts(
+            jurisdiction=jurisdiction,
+            decision=decision,
+            top_k=transcript_excerpts_per_decision,
+        )
+
+        results.append(DecisionWithContext(
+            decision=decision,
+            transcript_links=links,
+            link_confidence=confidence,
+            link_type=link_type,
+        ))
+
+    return results
