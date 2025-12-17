@@ -3150,3 +3150,53 @@ Implemented active users tracking to monitor unique users per time window and da
 13 tests covering collector, manager, singleton, and health integration
 
 **Commit:** Session 297: active_users - Track unique users per day
+
+## Session 298: gap_detection - Compare ingested count vs source count
+**Date:** 2025-12-17
+**Item:** gap_detection (ingestion_visibility > cli_status)
+**Priority:** P2
+
+### Summary
+Implemented gap detection for the `civic status` CLI to compare ingested counts against source API counts. This helps operators identify when data ingestion has fallen behind the source.
+
+### What Was Implemented
+1. **get_source_counts()** - Queries external APIs to get source counts:
+   - ProudCity for meetings (city-san-rafael specific)
+   - SeeClickFix for issues (paginated fetching with safety limit)
+   - Graceful error handling for offline sources
+
+2. **calculate_gaps()** - Compares ingested vs source counts:
+   - Returns gap (source - ingested)
+   - Calculates coverage percentage
+   - Handles errors gracefully (shows "source unavailable")
+   - Overall coverage aggregation
+
+3. **Gap Analysis CLI output** - Added new section to `civic status`:
+   - Shows ingested/source counts with coverage percentage
+   - Color-coded indicators: OK (>95%), GAP (80-95%), LOW (<80%)
+   - Handles >100% coverage (historical data) gracefully
+   - Overall coverage summary with "(includes historical)" note
+
+4. **--check-gaps CLI flag** - Optional flag to enable gap detection
+   - Disabled by default (queries external APIs)
+   - Works with both human-readable and --json output
+
+### Files Changed
+- `packages/civic/src/civic/cli.py` - Added gap detection functions and CLI flag
+- `packages/civic/tests/test_cli_status.py` - Added 10 new tests for gap detection
+- `pilot.json` - Updated gap_detection status to "ready"
+
+### Example Output
+```
+Gap Analysis (ingested vs source):
+  meetings        : 0/115 | 0.0% coverage | gap: 115 [LOW]
+  issues          : 1,340/100 | 100.0% coverage | (+1,240 extra) [OK]
+
+  Overall coverage: 100.0% (includes historical)
+```
+
+### Tests
+- 10 new tests covering calculate_gaps, get_source_counts, and print_status with gaps
+- All 40 CLI status tests passing
+
+**Commit:** Session 298: gap_detection - Compare ingested count vs source count
