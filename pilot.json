@@ -548,10 +548,11 @@
         "note": "Implemented via UnifiedSearch.get_available_corpora(). Returns Dict[str, CorpusInfo] with availability and document count per corpus. Supports caching with refresh option."
       },
       "corpus_pattern_consistency": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "All corpora follow ChromaDB + UnifiedSearch pattern",
-        "note": "Target: 6 corpus types (decision, pdf, transcript, issue, municipal_code, legislation) all use ChromaDB vector search and are queryable via UnifiedSearch.search_all(). Eliminates keyword-only paths.",
+        "completed": "2025-12-16",
+        "note": "All 6 corpus types (decision, pdf, transcript, issue, municipal_code, legislation) are now queryable via UnifiedSearch. Added legislation to CORPUS_TYPES, search_all(), search_corpus(), get_available_corpora(). Added has_decisions() and has_chunks() for API consistency. 27 tests pass.",
         "depends_on": "legislative_unified_search"
       }
     },
