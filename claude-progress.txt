@@ -1,3 +1,36 @@
+## Session 291: seed_data - San Rafael seed data script
+Date: 2025-12-17
+
+### Work Done
+1. **Created scripts/seed_san_rafael.py**:
+   - Seeds city_states with jurisdiction config (data sources, extraction version)
+   - Seeds meetings from san_rafael_meetings_enhanced.json (114 meetings across 6 types)
+   - Seeds issues from seeclickfix_sanrafael_fresh_20251210.json (1,340 issues)
+   - Supports --dry-run, --status, --force, --only modes
+   - Generates verification report with counts and date ranges
+
+2. **Data seeded to civic_state.db**:
+   - city_states: 1 entry (city-san-rafael) with proper data_sources
+   - meetings: 115 total (34 city_council, 23 planning, 22 zoning, etc.)
+   - issues: 1,340 (679 open, 590 acknowledged, 71 closed)
+
+3. **Created test_seed_san_rafael.py (13 tests)**:
+   - TestSeedCityState: create, update, dry-run
+   - TestSeedMeetings: insert, type preservation, skip existing, force
+   - TestSeedIssues: insert, status, location, dry-run
+   - TestGenerateReport: structure, counts
+
+### Files Changed
+- `scripts/seed_san_rafael.py` (new - 390 lines)
+- `packages/civic/tests/test_seed_san_rafael.py` (new - 340 lines)
+- `pilot.json` (seed_data status → ready)
+
+**Progress:** 85/153 items ready (55%)
+
+**Commit:** Session 291: seed_data - San Rafael seed data script
+
+---
+
 ## Session 281: Fix state_bills_indexed - legislative cache import
 Date: 2025-12-16
 
