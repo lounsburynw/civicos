@@ -984,6 +984,9 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
         elif self.path == '/api/research':
             # POST /api/research - Answer factual queries from cached data
             self.handle_research_query()
+        elif base_path == '/api/admin/trigger':
+            # SESSION 302: Admin manual trigger operations
+            self.handle_admin_trigger()
         else:
             self.send_error(404)
 
@@ -7509,6 +7512,145 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             result['status'] = 'degraded'
 
         self.send_json(result)
+
+    def handle_admin_trigger(self):
+        """SESSION 302: Handle admin manual trigger operations.
+
+        POST /api/admin/trigger
+        Body: { "operation": "fetch_meetings", "jurisdiction": "san-rafael" }
+
+        Supported operations:
+        - fetch_meetings: Trigger ProudCity scraper to fetch new meetings
+        """
+        try:
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(body) if body else {}
+
+            operation = data.get('operation')
+            jurisdiction = data.get('jurisdiction', 'san-rafael')
+
+            if not operation:
+                self.send_json({
+                    'status': 'error',
+                    'error': 'Missing required field: operation'
+                }, status=400)
+                return
+
+            if operation == 'fetch_meetings':
+                result = self._trigger_fetch_meetings(jurisdiction)
+                self.send_json(result)
+            else:
+                self.send_json({
+                    'status': 'error',
+                    'error': f'Unknown operation: {operation}',
+                    'supported_operations': ['fetch_meetings']
+                }, status=400)
+
+        except json.JSONDecodeError as e:
+            self.send_json({
+                'status': 'error',
+                'error': f'Invalid JSON: {str(e)}'
+            }, status=400)
+        except Exception as e:
+            logger.error(f"Admin trigger error: {e}", exc_info=True)
+            self.send_json({
+                'status': 'error',
+                'error': str(e)
+            }, status=500)
+
+    def _trigger_fetch_meetings(self, jurisdiction: str) -> dict:
+        """SESSION 302: Trigger ProudCity scraper to fetch meetings.
+
+        Args:
+            jurisdiction: Jurisdiction ID (e.g., 'san-rafael')
+
+        Returns:
+            Dict with operation result
+        """
+        from datetime import datetime
+        start_time = time.time()
+
+        result = {
+            'status': 'success',
+            'operation': 'fetch_meetings',
+            'jurisdiction': jurisdiction,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+
+        try:
+            # Import scraper
+            from civic_extraction.clients.proudcity import create_san_rafael_client
+
+            # Create client and fetch events
+            client = create_san_rafael_client()
+
+            # Fetch meetings for next 90 days, past 30 days
+            events = client.get_events(days_ahead=90, days_past=30)
+            result['count_fetched'] = len(events)
+
+            # Normalize to Meeting format
+            meetings = []
+            for event in events:
+                meeting = client.normalize_event(event)
+                if meeting:
+                    meetings.append({
+                        'id': meeting.id,
+                        'title': meeting.title,
+                        'meeting_datetime': meeting.meeting_datetime.isoformat() if meeting.meeting_datetime else None,
+                        'meeting_type': meeting.meeting_type,
+                        'status': meeting.status,
+                        'location': meeting.location,
+                        'virtual_url': meeting.virtual_url,
+                        'agenda_url': meeting.agenda_url,
+                        'minutes_url': meeting.minutes_url,
+                        'video_url': meeting.video_url,
+                        'source_platform': meeting.source_platform,
+                        'source_url': meeting.source_url,
+                    })
+
+            result['count_normalized'] = len(meetings)
+
+            if meetings:
+                # Store to database using StateManager
+                from ..storage.state_manager import StateManager
+
+                state_db_path = get_user_path('civic_state.db')
+                state_mgr = StateManager(str(state_db_path))
+
+                # Map jurisdiction to jurisdiction_id format
+                jurisdiction_id = f"city-{jurisdiction}" if not jurisdiction.startswith('city-') else jurisdiction
+
+                # Get existing meeting count before update
+                existing = state_mgr.query_meetings(jurisdiction_id=jurisdiction_id)
+                existing_ids = {m.get('id') for m in existing}
+
+                # Update meetings (this does temporal versioning)
+                updated = state_mgr.update_meetings(jurisdiction_id, meetings)
+                result['count_stored'] = updated
+
+                # Calculate new meetings
+                new_ids = {m['id'] for m in meetings}
+                truly_new = new_ids - existing_ids
+                result['count_new'] = len(truly_new)
+            else:
+                result['count_stored'] = 0
+                result['count_new'] = 0
+
+            result['duration_seconds'] = round(time.time() - start_time, 2)
+            logger.info(f"Fetch meetings completed: {result}")
+
+        except ImportError as e:
+            result['status'] = 'error'
+            result['error'] = f'Scraper module not available: {str(e)}'
+            logger.error(f"Fetch meetings import error: {e}")
+        except Exception as e:
+            result['status'] = 'error'
+            result['error'] = str(e)
+            logger.error(f"Fetch meetings error: {e}", exc_info=True)
+
+        return result
 
     def _check_database_health(self) -> dict:
         """Check SQLite database connectivity"""
