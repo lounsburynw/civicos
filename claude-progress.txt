@@ -2650,3 +2650,47 @@ Completed `marin_housing_programs` pilot item - added Marin Housing Authority ho
 - pilot.json (status: ready)
 
 **Commit:** Session 287: marin_housing_programs - County Housing Programs Integration
+
+---
+
+## Session 288: Refactor legislation corpus into legislation + programs
+Date: 2025-12-16
+
+### Work Done
+**Architectural Cleanup:** Split "legislation" corpus into separate "legislation" (laws/bills) and "programs" (funding/services) corpus types to enable clean addition of new program topics.
+
+#### 1. embeddings.py Changes
+- Renamed `county_housing_collection_name` → `county_programs_collection_name`
+- Renamed `build_county_housing_index()` → `build_county_programs_index()` with `topic` param
+- Renamed `search_county_housing()` → `search_county_programs()` with `topic` filter
+- Renamed `has_county_housing()` → `has_county_programs()`
+- Added "topic" to program metadata (e.g., "housing", "homelessness")
+- Changed `source_type` from "county_housing_program" to "county_program"
+- Document IDs now include topic: `county-{county}-{topic}-{program_id}`
+- Collection uses upsert (supports multiple topics in same collection)
+- Added backward-compatible wrapper methods for old API
+
+#### 2. unified.py Changes
+- Added "programs" to CORPUS_TYPES (now 7 types total)
+- Moved federal_programs + county_programs out of "legislation" into "programs"
+- Updated `search_all()` to search programs corpus separately
+- Updated `search_corpus()` with new "programs" corpus type
+- Updated `get_available_corpora()` to count legislation and programs separately
+- Updated docstrings to document new corpus type
+
+#### 3. Test Updates
+- `test_unified_search.py`: Updated mocks for 7 corpus types, renamed collection names
+- `test_integration_rag_san_rafael.py`: Renamed TestCountyHousingVectorSearch → TestCountyProgramsVectorSearch
+- Added backward compatibility test for deprecated methods
+- All tests passing (34 smoke, 27 unified search, 9 county programs)
+
+### Files Changed
+- `packages/civic/src/civic/_internal/meetings/embeddings.py`
+- `packages/civic/src/civic/_internal/search/unified.py`
+- `packages/civic/tests/test_unified_search.py`
+- `packages/civic/tests/test_integration_rag_san_rafael.py`
+
+### Next Item
+This enables clean addition of `county_homelessness_services` (P2 item) as just another topic in the programs corpus.
+
+**Commit:** Session 288: programs_corpus_refactor - Split legislation into legislation + programs

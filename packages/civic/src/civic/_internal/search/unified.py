@@ -1,13 +1,14 @@
 """
 UnifiedSearch: Cross-corpus semantic search for civic data.
 
-This module provides unified search across all 6 corpus types:
+This module provides unified search across all 7 corpus types:
 - decisions: City council decisions/agenda items
 - pdf: PDF chunks from agenda packets/staff reports
 - transcript: Video transcript chunks from meeting recordings
 - issue: SeeClickFix community issue reports
 - municipal_code: Municipal code sections
-- legislation: State legislation, federal programs, and county housing programs
+- legislation: State legislation (laws/bills)
+- programs: Federal and county funding/service programs
 
 Results are returned as UnifiedSearchResult objects, ranked by relevance.
 """
@@ -28,6 +29,7 @@ CORPUS_TYPES = frozenset({
     "issue",
     "municipal_code",
     "legislation",
+    "programs",
 })
 
 
@@ -181,11 +183,10 @@ class UnifiedSearch:
                     UnifiedSearchResult.from_embeddings_result(r, "municipal_code")
                 )
 
-        # Search legislation (state bills + federal programs + county housing programs)
+        # Search legislation (state bills only)
         if "legislation" in search_corpora:
             leg_available = available.get("legislation", CorpusInfo("legislation", 0, False)).available
             if leg_available:
-                # Search state legislation
                 if self._embeddings.has_legislation():
                     results = self._embeddings.search_legislation(query, top_k=per_corpus_k)
                     for r in results:
@@ -194,7 +195,11 @@ class UnifiedSearch:
                             UnifiedSearchResult.from_embeddings_result(r, actual_source_type)
                         )
 
-                # Also search federal programs (part of legislative context)
+        # Search programs (federal + county funding/service programs)
+        if "programs" in search_corpora:
+            prog_available = available.get("programs", CorpusInfo("programs", 0, False)).available
+            if prog_available:
+                # Search federal programs
                 if self._embeddings.has_federal_programs():
                     results = self._embeddings.search_federal_programs(query, top_k=per_corpus_k)
                     for r in results:
@@ -203,11 +208,11 @@ class UnifiedSearch:
                             UnifiedSearchResult.from_embeddings_result(r, actual_source_type)
                         )
 
-                # Also search county housing programs (part of regulatory context)
-                if self._embeddings.has_county_housing():
-                    results = self._embeddings.search_county_housing(query, top_k=per_corpus_k)
+                # Search county programs
+                if self._embeddings.has_county_programs():
+                    results = self._embeddings.search_county_programs(query, top_k=per_corpus_k)
                     for r in results:
-                        actual_source_type = r.metadata.get("source_type", "county_housing_program")
+                        actual_source_type = r.metadata.get("source_type", "county_program")
                         all_results.append(
                             UnifiedSearchResult.from_embeddings_result(r, actual_source_type)
                         )
@@ -228,14 +233,15 @@ class UnifiedSearch:
 
         Args:
             corpus_type: The corpus to search ("decision", "pdf", "transcript",
-                        "issue", "municipal_code", "legislation")
+                        "issue", "municipal_code", "legislation", "programs")
             query: Search query text
             top_k: Maximum number of results
             **filters: Corpus-specific filters:
                 - decisions: since_ts, until_ts, where
                 - transcripts: speaker_role, public_comment_only, where
                 - issues: status, issue_type, where
-                - legislation: state, topic, where
+                - legislation: topic, where
+                - programs: topic, county, where
                 - pdf/municipal_code: where
 
         Returns:
@@ -320,7 +326,7 @@ class UnifiedSearch:
                 )
 
         elif corpus_type == "legislation":
-            # Search state legislation, federal programs, and county housing programs
+            # Search state legislation only
             if self._embeddings.has_legislation():
                 raw = self._embeddings.search_legislation(
                     query,
@@ -334,6 +340,8 @@ class UnifiedSearch:
                         UnifiedSearchResult.from_embeddings_result(r, actual_source_type)
                     )
 
+        elif corpus_type == "programs":
+            # Search federal programs and county programs
             if self._embeddings.has_federal_programs():
                 raw = self._embeddings.search_federal_programs(
                     query,
@@ -347,15 +355,16 @@ class UnifiedSearch:
                         UnifiedSearchResult.from_embeddings_result(r, actual_source_type)
                     )
 
-            if self._embeddings.has_county_housing():
-                raw = self._embeddings.search_county_housing(
+            if self._embeddings.has_county_programs():
+                raw = self._embeddings.search_county_programs(
                     query,
                     top_k=top_k,
                     where=filters.get("where"),
+                    topic=filters.get("topic"),
                     county=filters.get("county"),
                 )
                 for r in raw:
-                    actual_source_type = r.metadata.get("source_type", "county_housing_program")
+                    actual_source_type = r.metadata.get("source_type", "county_program")
                     results.append(
                         UnifiedSearchResult.from_embeddings_result(r, actual_source_type)
                     )
@@ -419,18 +428,21 @@ class UnifiedSearch:
         )
         corpora["municipal_code"] = CorpusInfo("municipal_code", count, count > 0)
 
-        # Check legislation (state bills + federal programs + county housing combined)
+        # Check legislation (state bills only)
         legislation_count = self._get_collection_count(
             self._embeddings.legislation_collection_name
         )
+        corpora["legislation"] = CorpusInfo("legislation", legislation_count, legislation_count > 0)
+
+        # Check programs (federal + county programs combined)
         federal_count = self._get_collection_count(
             self._embeddings.federal_programs_collection_name
         )
-        county_housing_count = self._get_collection_count(
-            self._embeddings.county_housing_collection_name
+        county_programs_count = self._get_collection_count(
+            self._embeddings.county_programs_collection_name
         )
-        total_legislation = legislation_count + federal_count + county_housing_count
-        corpora["legislation"] = CorpusInfo("legislation", total_legislation, total_legislation > 0)
+        total_programs = federal_count + county_programs_count
+        corpora["programs"] = CorpusInfo("programs", total_programs, total_programs > 0)
 
         self._corpora_cache = corpora
         return corpora
