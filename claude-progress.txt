@@ -2815,3 +2815,56 @@ python -m civic_services.core.config [--json] [--strict]
 Next P2 item: Check `pilot.json` for next not_ready item
 
 **Commit:** Session 290: config_validation - Startup configuration validation with structured output
+
+---
+
+## Session 290 (continued): FAIR Data Standards & City Onboarding Roadmap
+**Date:** 2025-12-17
+**Phase:** Pilot
+
+### Summary
+Added two new pilot.json categories to track FAIR data practices and reproducible ETL infrastructure. All items marked P3 and "post-ingestion" to avoid premature standardization before pilot data is stable.
+
+### Discussion Context
+User requested reproducible backend ingestion for:
+1. Knowledge transfer to app admins
+2. Template for other cities
+
+Panel synthesis identified 5 perspectives:
+- Data Engineer: Pipeline reliability, orchestration (Dagster/Prefect)
+- Open Data Advocate: FAIR principles, DCAT metadata, provenance
+- Software Architect: Abstractions, plugin architecture
+- Civic Tech Practitioner: Non-technical admin usability
+- Research Data Manager: Reproducibility, DOIs, versioning
+
+### Audit Findings
+Before adding items, verified against existing implementations:
+- **EXISTS**: BaseExtractor protocol, Meeting/Decision/Issue dataclasses, civic-app-schema.json
+- **EXISTS**: Legistar, CivicClerk, ProudCity extraction clients
+- **PARTIAL**: batch_process_san_rafael_meetings.py (transcription only)
+- **PARTIAL**: Provenance in Meeting class (source_url, source_platform)
+- **MISSING**: Unified pipeline runner, city extraction config, ingestion manifest
+
+### New pilot.json Categories
+
+**data_standards** (7 items, all P3):
+- schema_validation: validate_meetings_on_ingest, validate_decisions_on_ingest
+- provenance: ingestion_manifest, extraction_audit_log
+- versioning: data_snapshot_releases
+- documentation: data_dictionary, extractor_protocol_docs
+
+**city_onboarding** (10 items, all P3):
+- configuration: extraction_config_schema, san_rafael_extraction_config, platform_detection_helper
+- orchestration: generalized_pipeline_runner, checkpoint_for_meetings, full_city_bootstrap
+- documentation: city_onboarding_guide, platform_specific_notes
+- validation: preflight_checks, post_ingestion_report
+
+### Rationale for P3/Post-Ingestion
+- Schemas should be finalized after battle-testing in pilot
+- Documentation should reflect what actually worked
+- Avoids premature abstraction before patterns emerge
+
+### Files Changed
+- `pilot.json` - Added 2 categories, 17 items (153 total, 84 ready/54%)
+
+**Commit:** Session 290: Add data_standards and city_onboarding categories to pilot.json
