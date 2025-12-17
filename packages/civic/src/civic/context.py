@@ -4,16 +4,9 @@ Context Module - what_applies() implementation
 Provides regulatory context for topics using legislative_context_cache.
 """
 
-import sys
-from pathlib import Path
 from typing import Optional, List
 from dataclasses import dataclass, field
 from datetime import datetime
-
-# Add src to path for legislative cache imports
-_src_path = Path(__file__).parent.parent.parent.parent.parent.parent / "src"
-if str(_src_path) not in sys.path:
-    sys.path.insert(0, str(_src_path))
 
 
 @dataclass
@@ -107,8 +100,8 @@ def get_regulatory_context(
         )
 
     try:
-        # Import the legislative cache
-        from legislative_context_cache import legislative_cache
+        # Import the legislative cache from civic_services
+        from civic_services.legislative.legislative_context_cache import legislative_cache
 
         # Load legislative data for this state/topic
         legislative_data = legislative_cache.get(state_name, state_key)
