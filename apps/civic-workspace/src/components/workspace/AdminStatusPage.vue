@@ -115,28 +115,33 @@
           <ChevronDown :size="16" :class="{ 'rotated': !expandedSections.chromadb }" />
         </div>
         <div v-if="expandedSections.chromadb" class="section-content">
-          <div class="total-documents">
-            <span class="total-label">Total Documents:</span>
-            <span class="total-value">{{ statusData.chromadb.total_documents.toLocaleString() }}</span>
-          </div>
-          <table class="status-table">
-            <thead>
-              <tr>
-                <th>Collection</th>
-                <th class="align-right">Documents</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(collection, key) in statusData.chromadb.collections" :key="key">
-                <td>{{ formatCollectionName(key) }}</td>
-                <td class="align-right">{{ collection.count.toLocaleString() }}</td>
-                <td>{{ formatTimeAgo(collection.created_at) }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="section-footer">
-            <span class="file-size">Size: {{ formatBytes(statusData.chromadb.size_bytes) }}</span>
+          <template v-if="statusData.chromadb.collections && Object.keys(statusData.chromadb.collections).length > 0">
+            <div class="total-documents">
+              <span class="total-label">Total Documents:</span>
+              <span class="total-value">{{ (statusData.chromadb.total_documents || 0).toLocaleString() }}</span>
+            </div>
+            <table class="status-table">
+              <thead>
+                <tr>
+                  <th>Collection</th>
+                  <th class="align-right">Documents</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(collection, key) in statusData.chromadb.collections" :key="key">
+                  <td>{{ formatCollectionName(String(key)) }}</td>
+                  <td class="align-right">{{ collection.count.toLocaleString() }}</td>
+                  <td>{{ formatTimeAgo(collection.created_at) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="section-footer">
+              <span class="file-size">Size: {{ formatBytes(statusData.chromadb.size_bytes || 0) }}</span>
+            </div>
+          </template>
+          <div v-else class="empty-section">
+            <p>No vector storage configured for this jurisdiction.</p>
           </div>
         </div>
       </section>
@@ -159,15 +164,15 @@
             <tbody>
               <tr>
                 <td>State Database</td>
-                <td class="align-right">{{ formatBytes(statusData.files.state_db_size_bytes) }}</td>
+                <td class="align-right">{{ formatBytes(statusData.files?.state_db_size_bytes || 0) }}</td>
               </tr>
               <tr>
                 <td>Participation Database</td>
-                <td class="align-right">{{ formatBytes(statusData.files.participation_db_size_bytes) }}</td>
+                <td class="align-right">{{ formatBytes(statusData.files?.participation_db_size_bytes || 0) }}</td>
               </tr>
               <tr>
                 <td>Vector Store</td>
-                <td class="align-right">{{ formatBytes(statusData.chromadb.size_bytes) }}</td>
+                <td class="align-right">{{ formatBytes(statusData.chromadb?.size_bytes || 0) }}</td>
               </tr>
               <tr class="total-row">
                 <td><strong>Total</strong></td>
@@ -219,9 +224,9 @@ const expandedSections = ref({
 const totalStorageBytes = computed(() => {
   if (!statusData.value) return 0;
   return (
-    statusData.value.files.state_db_size_bytes +
-    statusData.value.files.participation_db_size_bytes +
-    statusData.value.chromadb.size_bytes
+    (statusData.value.files?.state_db_size_bytes || 0) +
+    (statusData.value.files?.participation_db_size_bytes || 0) +
+    (statusData.value.chromadb?.size_bytes || 0)
   );
 });
 
@@ -624,5 +629,17 @@ onMounted(() => {
 .file-size {
   font-size: 12px;
   color: var(--color-text-secondary);
+}
+
+/* Empty Section */
+.empty-section {
+  padding: 24px;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.empty-section p {
+  margin: 0;
+  font-size: 13px;
 }
 </style>

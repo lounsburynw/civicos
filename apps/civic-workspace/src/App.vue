@@ -268,7 +268,7 @@ function openAdminStatus() {
     id: 'admin-status',
     type: 'admin-status',
     title: 'Pipeline Status',
-    data: { jurisdiction: userStore.jurisdictionId || 'san-rafael' }
+    data: { jurisdiction: 'san-rafael' }  // Hardcoded for pilot
   });
 }
 
