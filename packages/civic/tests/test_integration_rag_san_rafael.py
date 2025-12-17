@@ -3528,11 +3528,11 @@ class TestWhatHappenedFullContext:
             assert isinstance(r.link_type, str)
 
 
-# Path to legislative context files
-LEGISLATIVE_CONTEXT_DIR = PROJECT_ROOT / "data/legislative_context"
+# Path to state legislation files (new structure: data/legislation/state/{state}/)
+LEGISLATION_STATE_DIR = PROJECT_ROOT / "data/legislation/state"
 
-# Path to federal programs files
-FEDERAL_PROGRAMS_DIR = PROJECT_ROOT / "data/federal_programs"
+# Path to federal funding programs files (new structure: data/funding/federal/)
+FEDERAL_PROGRAMS_DIR = PROJECT_ROOT / "data/funding/federal"
 
 
 @pytest.mark.requires_real_data
@@ -3546,12 +3546,12 @@ class TestLegislationVectorSearch:
     - Topic filtering works correctly
     """
 
-    def test_legislative_context_files_exist(self):
-        """Validate legislative context JSON files exist."""
+    def test_legislation_files_exist(self):
+        """Validate state legislation JSON files exist."""
         topics = ["housing", "transportation", "environment", "education", "budget"]
         for topic in topics:
-            path = LEGISLATIVE_CONTEXT_DIR / f"california_{topic}.json"
-            assert path.exists(), f"Legislative context file not found: {path}"
+            path = LEGISLATION_STATE_DIR / "california" / f"{topic}.json"
+            assert path.exists(), f"Legislation file not found: {path}"
 
     def test_legislation_index_can_be_built(self):
         """Validate legislation can be indexed in ChromaDB."""
@@ -3568,7 +3568,7 @@ class TestLegislationVectorSearch:
             # Build legislation index
             collection = embedder.build_legislation_index(
                 state="california",
-                legislative_context_path=str(LEGISLATIVE_CONTEXT_DIR)
+                legislation_path=str(LEGISLATION_STATE_DIR)
             )
 
             # Should have indexed bills
@@ -3594,7 +3594,7 @@ class TestLegislationVectorSearch:
             # Build index
             embedder.build_legislation_index(
                 state="california",
-                legislative_context_path=str(LEGISLATIVE_CONTEXT_DIR)
+                legislation_path=str(LEGISLATION_STATE_DIR)
             )
 
             # Search for affordable housing
@@ -3628,7 +3628,7 @@ class TestLegislationVectorSearch:
             # Build index with all topics
             embedder.build_legislation_index(
                 state="california",
-                legislative_context_path=str(LEGISLATIVE_CONTEXT_DIR)
+                legislation_path=str(LEGISLATION_STATE_DIR)
             )
 
             # Search with topic filter
@@ -3661,7 +3661,7 @@ class TestLegislationVectorSearch:
             # After indexing
             embedder.build_legislation_index(
                 state="california",
-                legislative_context_path=str(LEGISLATIVE_CONTEXT_DIR)
+                legislation_path=str(LEGISLATION_STATE_DIR)
             )
             assert embedder.has_legislation(), "has_legislation() should be True after indexing"
 
@@ -3679,7 +3679,7 @@ class TestLegislationVectorSearch:
             embedder.build_legislation_index(
                 state="california",
                 topics=["housing"],  # Just housing for faster test
-                legislative_context_path=str(LEGISLATIVE_CONTEXT_DIR)
+                legislation_path=str(LEGISLATION_STATE_DIR)
             )
 
             results = embedder.search_legislation("housing", top_k=1)
@@ -3708,7 +3708,7 @@ class TestLegislationVectorSearch:
 
             embedder.build_legislation_index(
                 state="california",
-                legislative_context_path=str(LEGISLATIVE_CONTEXT_DIR)
+                legislation_path=str(LEGISLATION_STATE_DIR)
             )
 
             # Search for specific topic
