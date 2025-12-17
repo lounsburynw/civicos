@@ -311,6 +311,7 @@ class CivicEmbeddings:
         self.issues_collection_name = f"{self.jurisdiction_id}_issues{collection_suffix}"
         self.municipal_code_collection_name = f"{self.jurisdiction_id}_municipal_code{collection_suffix}"
         self.legislation_collection_name = f"{self.jurisdiction_id}_legislation{collection_suffix}"
+        self.federal_programs_collection_name = f"{self.jurisdiction_id}_federal_programs{collection_suffix}"
 
         # Persist directory follows schema: data/pilot/vectors/{jurisdiction_id}/
         if persist_directory is None:
@@ -1439,6 +1440,213 @@ class CivicEmbeddings:
         try:
             collection = self._client.get_collection(
                 self.legislation_collection_name
+            )
+            return collection.count() > 0
+        except Exception:
+            return False
+
+    def build_federal_programs_index(
+        self,
+        topics: Optional[List[str]] = None,
+        federal_programs_path: str = "data/federal_programs",
+    ) -> Any:  # Returns chromadb.Collection
+        """
+        Build vector index for federal programs from JSON files.
+
+        Loads federal grant programs from JSON files and indexes them
+        in ChromaDB for semantic search. This enables queries like
+        "housing assistance grants" to find relevant federal programs.
+
+        Args:
+            topics: Optional list of topics to index. If None, indexes all:
+                   ["housing", "transportation", "environment", "education", "budget"]
+            federal_programs_path: Path to federal programs JSON files
+
+        Returns:
+            ChromaDB collection with embedded federal programs
+
+        Example:
+            >>> embedder = CivicEmbeddings("city-san-rafael")
+            >>> collection = embedder.build_federal_programs_index()
+            >>> # Collection contains ~10 federal programs across 5 topics
+        """
+        if topics is None:
+            topics = ["housing", "transportation", "environment", "education", "budget"]
+
+        programs_path = Path(federal_programs_path)
+        documents = []
+        total_programs = 0
+
+        for topic in topics:
+            file_path = programs_path / f"{topic}.json"
+            if not file_path.exists():
+                continue
+
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+
+            programs = data.get("programs", {})
+            for program_id, program_info in programs.items():
+                # Build searchable text combining program info
+                text_parts = [
+                    f"Program: {program_info.get('program_name', program_id)}",
+                    f"Agency: {program_info.get('administering_agency', '')}",
+                    f"Description: {program_info.get('description', '')}",
+                    f"Leverage Point: {program_info.get('leverage_point', '')}",
+                ]
+
+                # Include eligible activities if present
+                eligible_activities = program_info.get('eligible_activities', [])
+                if eligible_activities:
+                    text_parts.append(f"Eligible Activities: {', '.join(str(a) for a in eligible_activities)}")
+
+                # Include resident input opportunities if present
+                resident_input = program_info.get('resident_input_opportunities', [])
+                if resident_input:
+                    text_parts.append(f"Resident Input Opportunities: {', '.join(str(r) for r in resident_input)}")
+
+                if program_info.get('keywords'):
+                    text_parts.append(f"Keywords: {', '.join(program_info['keywords'])}")
+
+                text = "\n".join(text_parts)
+
+                # Build metadata, filtering out None values (ChromaDB requires non-null)
+                metadata = {
+                    "program_id": program_id,
+                    "program_name": program_info.get("program_name") or "",
+                    "topic": topic,
+                    "administering_agency": program_info.get("administering_agency") or "",
+                    "local_compliance_required": bool(program_info.get("local_compliance_required", False)),
+                    "annual_reporting": bool(program_info.get("annual_reporting", False)),
+                    "official_url": program_info.get("official_url") or "",
+                    "source_type": "federal_program",
+                    "jurisdiction": "federal",
+                }
+
+                documents.append({
+                    "id": f"federal-{program_id}",
+                    "text": text,
+                    "metadata": metadata,
+                })
+                total_programs += 1
+
+        if not documents:
+            raise ValueError(
+                f"No federal programs found in {federal_programs_path} for topics={topics}"
+            )
+
+        # Create collection (delete existing if present)
+        try:
+            self._client.delete_collection(self.federal_programs_collection_name)
+        except Exception:
+            pass
+
+        collection = self._client.create_collection(
+            name=self.federal_programs_collection_name,
+            metadata={
+                "hnsw:space": "cosine",
+                "description": f"{self.jurisdiction_id} federal programs for RAG",
+                "jurisdiction_id": self.jurisdiction_id,
+                "embedding_model": self.model_name,
+                "embedding_dimension": self.embedding_dimension,
+                "created_at": datetime.now().isoformat(),
+                "source": "federal_programs JSON files",
+                "topics": ",".join(topics),
+                "total_programs": total_programs,
+            }
+        )
+
+        # Process in batches for memory efficiency
+        batch_size = 50
+        for i in range(0, len(documents), batch_size):
+            batch = documents[i:i + batch_size]
+
+            texts = [doc["text"] for doc in batch]
+            ids = [doc["id"] for doc in batch]
+            metadatas = [doc["metadata"] for doc in batch]
+
+            embeddings = self.model.encode(texts, show_progress_bar=False)
+
+            collection.add(
+                ids=ids,
+                documents=texts,
+                embeddings=embeddings.tolist(),
+                metadatas=metadatas,
+            )
+
+        return collection
+
+    def search_federal_programs(
+        self,
+        query: str,
+        top_k: int = 10,
+        where: Optional[Dict] = None,
+        topic: Optional[str] = None,
+        agency: Optional[str] = None,
+    ) -> List[SearchResult]:
+        """
+        Search federal programs using semantic search.
+
+        Args:
+            query: Search query text (e.g., "affordable housing grants")
+            top_k: Number of results to return
+            where: Optional ChromaDB filter
+            topic: Filter by topic (e.g., "housing", "transportation")
+            agency: Filter by administering agency (e.g., "HUD")
+
+        Returns:
+            List of SearchResult objects
+
+        Example:
+            >>> embedder = CivicEmbeddings("city-san-rafael")
+            >>> results = embedder.search_federal_programs("community development housing")
+            >>> for r in results:
+            ...     print(f"{r.metadata['program_id']}: {r.score:.3f}")
+            federal-cdbg: 0.812
+            federal-home_investment_partnerships_program: 0.756
+        """
+        try:
+            collection = self._client.get_collection(
+                self.federal_programs_collection_name
+            )
+        except Exception:
+            # Collection doesn't exist
+            return []
+
+        # Build filter
+        effective_where = where.copy() if where else None
+
+        filters = []
+        if topic:
+            filters.append({"topic": topic})
+        if agency:
+            filters.append({"administering_agency": agency})
+
+        if filters:
+            if effective_where:
+                filters.insert(0, effective_where)
+            if len(filters) == 1:
+                effective_where = filters[0]
+            else:
+                effective_where = {"$and": filters}
+
+        # Generate query embedding
+        query_embedding = self.model.encode([query])[0]
+
+        # Search
+        results = collection.query(
+            query_embeddings=[query_embedding.tolist()],
+            n_results=top_k,
+            where=effective_where,
+        )
+
+        return self._results_to_search_results(results)
+
+    def has_federal_programs(self) -> bool:
+        """Check if federal programs collection exists and has documents."""
+        try:
+            collection = self._client.get_collection(
+                self.federal_programs_collection_name
             )
             return collection.count() > 0
         except Exception:
