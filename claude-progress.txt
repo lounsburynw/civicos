@@ -2498,3 +2498,37 @@ Verified federal grant programs are loaded correctly from `data/federal_programs
 **Progress:** 79/135 items ready (58%)
 
 **Commit:** Session 284: federal_programs_json_loaded - verify federal grant programs loading
+
+---
+
+## Session 285 - 2025-12-16
+
+**Item:** federal_programs_vector_indexed
+**Category:** data_readiness > legislative_context
+
+### Summary
+Implemented ChromaDB vector indexing for federal grant programs:
+- Added `build_federal_programs_index()` method to `CivicEmbeddings` class
+- Added `search_federal_programs()` method for semantic search with topic/agency filtering
+- Added `has_federal_programs()` helper method for status checking
+- Added `federal_programs_collection_name` property for collection management
+- Follows same pattern as state bills (Session 282's `state_bills_vector_indexed`)
+
+### Files Changed
+- `packages/civic/src/civic/_internal/meetings/embeddings.py` (added 3 methods + collection name)
+- `packages/civic/tests/test_integration_rag_san_rafael.py` (added TestFederalProgramsVectorSearch class with 7 tests)
+- `pilot.json` (federal_programs_vector_indexed status → ready)
+
+### Testing
+- All 7 federal programs vector search tests pass
+- All 34 smoke tests pass
+
+### Key Implementation Details
+- Collection name: `{jurisdiction_id}_federal_programs`
+- Document IDs: `federal-{program_id}` (e.g., `federal-cdbg`)
+- Searchable text includes: program_name, agency, description, leverage_point, eligible_activities, resident_input_opportunities, keywords
+- Metadata: program_id, program_name, topic, administering_agency, local_compliance_required, annual_reporting, official_url, source_type, jurisdiction
+
+**Progress:** 80/135 items ready (59%)
+
+**Commit:** Session 285: federal_programs_vector_indexed - ChromaDB indexing for federal programs

@@ -647,10 +647,11 @@
         "verified": "2025-12-16"
       },
       "federal_programs_vector_indexed": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "Index federal programs in ChromaDB for semantic search",
-        "depends_on": "federal_programs_json_loaded"
+        "depends_on": "federal_programs_json_loaded",
+        "verified": "2025-12-16"
       },
       "legislative_unified_search": {
         "status": "not_ready",
