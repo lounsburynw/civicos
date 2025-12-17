@@ -631,11 +631,13 @@
         "completed": "2025-12-16"
       },
       "state_bills_vector_indexed": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "Index state bills in ChromaDB for semantic search",
-        "note": "Create {jurisdiction}_legislation collection following CivicEmbeddings pattern. Enables semantic queries like 'affordable housing funding' to find related bills beyond keyword matching.",
-        "depends_on": "state_bills_json_loaded"
+        "note": "CivicEmbeddings.build_legislation_index() creates {jurisdiction}_legislation collection. search_legislation() enables semantic queries like 'affordable housing funding' to find related bills.",
+        "depends_on": "state_bills_json_loaded",
+        "test_file": "test_integration_rag_san_rafael.py::TestLegislationVectorSearch",
+        "completed": "2025-12-16"
       },
       "federal_programs_json_loaded": {
         "status": "not_ready",

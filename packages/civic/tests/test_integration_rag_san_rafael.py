@@ -3526,3 +3526,200 @@ class TestWhatHappenedFullContext:
 
             # link_type should be a string
             assert isinstance(r.link_type, str)
+
+
+# Path to legislative context files
+LEGISLATIVE_CONTEXT_DIR = PROJECT_ROOT / "data/legislative_context"
+
+
+@pytest.mark.requires_real_data
+class TestLegislationVectorSearch:
+    """
+    Tests for legislation vector indexing and semantic search.
+
+    Validates state_bills_vector_indexed pilot item:
+    - State bills are indexed in ChromaDB
+    - Semantic search returns relevant bills
+    - Topic filtering works correctly
+    """
+
+    def test_legislative_context_files_exist(self):
+        """Validate legislative context JSON files exist."""
+        topics = ["housing", "transportation", "environment", "education", "budget"]
+        for topic in topics:
+            path = LEGISLATIVE_CONTEXT_DIR / f"california_{topic}.json"
+            assert path.exists(), f"Legislative context file not found: {path}"
+
+    def test_legislation_index_can_be_built(self):
+        """Validate legislation can be indexed in ChromaDB."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        # Use temp directory for test isolation
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            # Build legislation index
+            collection = embedder.build_legislation_index(
+                state="california",
+                legislative_context_path=str(LEGISLATIVE_CONTEXT_DIR)
+            )
+
+            # Should have indexed bills
+            count = collection.count()
+            assert count >= 20, f"Expected at least 20 bills indexed, got {count}"
+
+            # Verify collection metadata
+            metadata = collection.metadata
+            assert metadata["state"] == "california"
+            assert "housing" in metadata["topics"]
+
+    def test_legislation_semantic_search(self):
+        """Validate semantic search returns relevant bills."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            # Build index
+            embedder.build_legislation_index(
+                state="california",
+                legislative_context_path=str(LEGISLATIVE_CONTEXT_DIR)
+            )
+
+            # Search for affordable housing
+            results = embedder.search_legislation(
+                "affordable housing streamlined approval",
+                top_k=5
+            )
+
+            # Should return results
+            assert len(results) > 0, "No search results returned"
+
+            # Top results should include housing-related bills
+            bill_ids = [r.metadata["bill_id"] for r in results]
+            housing_bill_found = any(
+                "sb" in bid.lower() or "ab" in bid.lower()
+                for bid in bill_ids
+            )
+            assert housing_bill_found, f"Expected housing bills, got: {bill_ids}"
+
+    def test_legislation_topic_filter(self):
+        """Validate topic filtering works correctly."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            # Build index with all topics
+            embedder.build_legislation_index(
+                state="california",
+                legislative_context_path=str(LEGISLATIVE_CONTEXT_DIR)
+            )
+
+            # Search with topic filter
+            results = embedder.search_legislation(
+                "funding programs",
+                top_k=10,
+                topic="housing"
+            )
+
+            # All results should be housing topic
+            for r in results:
+                assert r.metadata["topic"] == "housing", (
+                    f"Expected housing topic, got {r.metadata['topic']}"
+                )
+
+    def test_has_legislation_method(self):
+        """Validate has_legislation() returns correct status."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            # Before indexing
+            assert not embedder.has_legislation(), "has_legislation() should be False before indexing"
+
+            # After indexing
+            embedder.build_legislation_index(
+                state="california",
+                legislative_context_path=str(LEGISLATIVE_CONTEXT_DIR)
+            )
+            assert embedder.has_legislation(), "has_legislation() should be True after indexing"
+
+    def test_legislation_metadata_fields(self):
+        """Validate indexed bills have expected metadata fields."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            embedder.build_legislation_index(
+                state="california",
+                topics=["housing"],  # Just housing for faster test
+                legislative_context_path=str(LEGISLATIVE_CONTEXT_DIR)
+            )
+
+            results = embedder.search_legislation("housing", top_k=1)
+            assert len(results) > 0
+
+            metadata = results[0].metadata
+            expected_fields = [
+                "bill_id", "bill_name", "topic", "status",
+                "source_type", "state"
+            ]
+            for field in expected_fields:
+                assert field in metadata, f"Missing metadata field: {field}"
+            assert metadata["source_type"] == "state_legislation"
+            assert metadata["state"] == "california"
+
+    def test_legislation_search_scores(self):
+        """Validate search results have meaningful scores."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            embedder.build_legislation_index(
+                state="california",
+                legislative_context_path=str(LEGISLATIVE_CONTEXT_DIR)
+            )
+
+            # Search for specific topic
+            results = embedder.search_legislation(
+                "lot split duplex single family zoning",  # Very specific to SB9
+                top_k=5
+            )
+
+            assert len(results) > 0
+
+            # Scores should be in valid range (0-1 for cosine distance converted to similarity)
+            for r in results:
+                assert 0 <= r.score <= 1, f"Score {r.score} outside valid range"
+
+            # Results should be sorted by score descending
+            scores = [r.score for r in results]
+            assert scores == sorted(scores, reverse=True), "Results not sorted by score"
