@@ -71,7 +71,7 @@ def match_issue_to_events(
     """
     jurisdiction_id = jurisdiction_id or complaint.get("jurisdiction_id")
     if not jurisdiction_id:
-        logger.warning("No jurisdiction_id provided for complaint matching")
+        logger.debug("No jurisdiction_id provided for complaint matching")
         return []
 
     # Load events for this jurisdiction
@@ -225,7 +225,7 @@ def _load_jurisdiction_events(jurisdiction_id: str) -> List[Dict]:
     events_dir = Path("data/events")
 
     if not events_dir.exists():
-        logger.warning(f"Events directory not found: {events_dir}")
+        logger.debug(f"Events directory not found: {events_dir}")
         return []
 
     # Find all event files for this jurisdiction

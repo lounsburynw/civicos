@@ -27,7 +27,7 @@ def gather_context(state: SuggestionState) -> SuggestionState:
     - User topics of interest (from subscriptions)
     - User initiatives (what they created)
     """
-    logger.info(f"Gathering context for user: {state.get('user_id', 'anonymous')}")
+    logger.debug(f"Gathering context for user: {state.get('user_id', 'anonymous')}")
 
     db_path = state.get("db_path", DEFAULT_DB_PATH)
     state_mgr = StateManager(db_path)
@@ -87,7 +87,7 @@ def generate_candidates(state: SuggestionState) -> SuggestionState:
     - Coordination opportunities (5+ supporters)
     - Pending outcomes to report
     """
-    logger.info("Generating suggestion candidates")
+    logger.debug("Generating suggestion candidates")
 
     db_path = state.get("db_path", DEFAULT_DB_PATH)
     state_mgr = StateManager(db_path)
@@ -363,7 +363,7 @@ def rank_suggestions(state: SuggestionState) -> SuggestionState:
 
     Sorts candidates by score descending.
     """
-    logger.info("Ranking suggestions")
+    logger.debug("Ranking suggestions")
 
     candidates = state.get("candidates", [])
     ranked = sorted(candidates, key=lambda x: -x.get("score", 0))
@@ -381,7 +381,7 @@ def filter_suggestions(state: SuggestionState) -> SuggestionState:
 
     Limits to reasonable number per type.
     """
-    logger.info("Filtering suggestions")
+    logger.debug("Filtering suggestions")
 
     ranked = state.get("ranked_suggestions", [])
 
@@ -422,7 +422,7 @@ def format_suggestions(state: SuggestionState) -> SuggestionState:
 
     Converts score to priority integer.
     """
-    logger.info("Formatting suggestions")
+    logger.debug("Formatting suggestions")
 
     filtered = state.get("filtered_suggestions", [])
 

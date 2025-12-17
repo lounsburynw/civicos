@@ -34,7 +34,7 @@ def load_outcome(state: PatternState) -> PatternState:
 
     First node in the learning workflow.
     """
-    logger.info(f"Loading outcome: {state.get('outcome_id')}")
+    logger.debug(f"Loading outcome: {state.get('outcome_id')}")
 
     db_path = state.get("db_path", DEFAULT_DB_PATH)
     state_mgr = StateManager(db_path)
@@ -88,7 +88,7 @@ def gather_preceding_actions(state: PatternState) -> PatternState:
     - Subscriptions (follows) on the item
     - Coordination events for initiatives
     """
-    logger.info(f"Gathering preceding actions for: {state.get('item_id')}")
+    logger.debug(f"Gathering preceding actions for: {state.get('item_id')}")
 
     db_path = state.get("db_path", DEFAULT_DB_PATH)
     state_mgr = StateManager(db_path)
@@ -152,7 +152,7 @@ def extract_context(state: PatternState) -> PatternState:
     - Number of participants
     - Whether coordination was used
     """
-    logger.info(f"Extracting context for: {state.get('item_id')}")
+    logger.debug(f"Extracting context for: {state.get('item_id')}")
 
     db_path = state.get("db_path", DEFAULT_DB_PATH)
     state_mgr = StateManager(db_path)
@@ -198,7 +198,7 @@ def create_pattern(state: PatternState) -> PatternState:
 
     Synthesizes actions and context into a reusable pattern.
     """
-    logger.info("Creating pattern from outcome data")
+    logger.debug("Creating pattern from outcome data")
 
     actions = state.get("preceding_actions", [])
     context = state.get("context_at_time", {})
@@ -232,7 +232,7 @@ def store_pattern(state: PatternState) -> PatternState:
     Patterns are stored in the outcomes table notes field as JSON
     for the MVP. In production, a dedicated patterns table would be used.
     """
-    logger.info("Storing pattern")
+    logger.debug("Storing pattern")
 
     db_path = state.get("db_path", DEFAULT_DB_PATH)
     state_mgr = StateManager(db_path)
@@ -250,7 +250,7 @@ def store_pattern(state: PatternState) -> PatternState:
     outcome_id = state.get("outcome_id")
     if outcome_id:
         # Pattern is already associated with the outcome
-        logger.info(f"Pattern {pattern.get('id')} associated with outcome {outcome_id}")
+        logger.debug(f"Pattern {pattern.get('id')} associated with outcome {outcome_id}")
 
     return {
         **state,
@@ -267,7 +267,7 @@ def load_initiative(state: PatternState) -> PatternState:
 
     First node in the strategy suggestion workflow.
     """
-    logger.info(f"Loading initiative: {state.get('initiative_id')}")
+    logger.debug(f"Loading initiative: {state.get('initiative_id')}")
 
     db_path = state.get("db_path", DEFAULT_DB_PATH)
     state_mgr = StateManager(db_path)
@@ -302,7 +302,7 @@ def query_patterns(state: PatternState) -> PatternState:
 
     Looks for successful patterns to learn from.
     """
-    logger.info(f"Querying patterns for topic: {state.get('initiative_topic')}")
+    logger.debug(f"Querying patterns for topic: {state.get('initiative_topic')}")
 
     db_path = state.get("db_path", DEFAULT_DB_PATH)
     state_mgr = StateManager(db_path)
@@ -385,7 +385,7 @@ def analyze_patterns(state: PatternState) -> PatternState:
     - Coordination usage rate
     - Confidence level based on pattern count
     """
-    logger.info("Analyzing patterns")
+    logger.debug("Analyzing patterns")
 
     patterns = state.get("stored_patterns", [])
 
@@ -426,7 +426,7 @@ def generate_strategy(state: PatternState) -> PatternState:
 
     Creates actionable recommendations for the initiative.
     """
-    logger.info("Generating strategy suggestion")
+    logger.debug("Generating strategy suggestion")
 
     patterns = state.get("stored_patterns", [])
     context = state.get("context_at_time", {})

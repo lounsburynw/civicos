@@ -30,7 +30,7 @@ def detect_decision(
     - Topic sensitivity (wildfire, housing = 20pts)
     - Complaint volume (>20 complaints = 40pts)
     """
-    logger.info(f"Detecting decision: {state['decision_type']} for {state['jurisdiction_id']}")
+    logger.debug(f"Detecting decision: {state['decision_type']} for {state['jurisdiction_id']}")
 
     score = 0
 
@@ -73,10 +73,10 @@ def detect_decision(
         elif complaint_count > 20:
             score += 20
 
-        logger.info(f"Found {complaint_count} complaints, score now: {score}")
+        logger.debug(f"Found {complaint_count} complaints, score now: {score}")
 
     except Exception as e:
-        logger.warning(f"Could not query complaints: {e}")
+        logger.debug(f"Could not query complaints: {e}")
 
     return {
         **state,
@@ -98,7 +98,7 @@ def discover_residents(
     2. Geographic proximity (PostGIS - future)
     3. Issue follows (future)
     """
-    logger.info(f"Discovering residents for {state['decision_type']} in {state['jurisdiction_id']}")
+    logger.debug(f"Discovering residents for {state['decision_type']} in {state['jurisdiction_id']}")
 
     residents = []
 
@@ -148,7 +148,7 @@ def discover_residents(
                 })
 
         conn.close()
-        logger.info(f"Discovered {len(residents)} affected residents/locations")
+        logger.debug(f"Discovered {len(residents)} affected residents/locations")
 
     except Exception as e:
         logger.error(f"Discovery failed: {e}")
