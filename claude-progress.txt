@@ -2443,3 +2443,34 @@ Implemented ChromaDB vector indexing for state legislation to enable semantic se
 - `legislative_unified_search` - integrate legislation into UnifiedSearch.search_all()
 
 **Commit:** Session 282: state_bills_vector_indexed - legislation ChromaDB indexing
+
+## Session 283: corpus_pattern_consistency - UnifiedSearch legislation integration
+Date: 2025-12-16
+
+### Summary
+Integrated legislation corpus into UnifiedSearch to achieve pattern consistency across all 6 corpus types.
+
+### What was done
+1. **Updated CORPUS_TYPES**: Added "legislation" to the frozenset (now 6 types)
+2. **Integrated into search_all()**: Legislation now included in multi-corpus searches
+3. **Integrated into search_corpus()**: Can search legislation directly with state/topic filters
+4. **Integrated into get_available_corpora()**: Legislation availability tracked like other corpora
+5. **Added has_decisions() and has_chunks()**: For API consistency (all corpora now have has_* methods)
+6. **Updated tests**: All mocks updated to include legislation_collection_name, added test_search_corpus_legislation_with_filters
+
+### Files Changed
+- `packages/civic/src/civic/_internal/search/unified.py` (CORPUS_TYPES, search_all, search_corpus, get_available_corpora, docstrings)
+- `packages/civic/src/civic/_internal/meetings/embeddings.py` (has_decisions, has_chunks)
+- `packages/civic/tests/test_unified_search.py` (updated all mocks for 6 corpora, added legislation test)
+- `pilot.json` (corpus_pattern_consistency status → ready)
+
+### Testing
+- All 27 UnifiedSearch tests pass
+- All 34 smoke tests pass
+
+**Progress:** 78/135 items ready (58%)
+
+**Next steps:** 
+- Continue with remaining pilot items (federal_programs_json_loaded, etc.)
+
+**Commit:** Session 283: corpus_pattern_consistency - UnifiedSearch legislation integration

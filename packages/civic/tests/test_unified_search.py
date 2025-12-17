@@ -2,8 +2,8 @@
 Tests for UnifiedSearch cross-corpus semantic search.
 
 This module validates the UnifiedSearch class that provides unified
-search across all 5 corpus types: decisions, pdf, transcript, issue,
-municipal_code.
+search across all 6 corpus types: decisions, pdf, transcript, issue,
+municipal_code, legislation.
 
 Run: pytest packages/civic/tests/test_unified_search.py -v
 """
@@ -32,13 +32,14 @@ class TestCorpusTypes:
     """Test corpus type constants."""
 
     def test_corpus_types_contains_all_types(self):
-        """CORPUS_TYPES includes all 5 corpus types."""
+        """CORPUS_TYPES includes all 6 corpus types."""
         assert "decision" in CORPUS_TYPES
         assert "pdf" in CORPUS_TYPES
         assert "transcript" in CORPUS_TYPES
         assert "issue" in CORPUS_TYPES
         assert "municipal_code" in CORPUS_TYPES
-        assert len(CORPUS_TYPES) == 5
+        assert "legislation" in CORPUS_TYPES
+        assert len(CORPUS_TYPES) == 6
 
     def test_corpus_types_is_frozen(self):
         """CORPUS_TYPES cannot be modified."""
@@ -106,6 +107,7 @@ class TestUnifiedSearchGetAvailableCorpora:
         mock_embeddings.transcripts_collection_name = "test_transcripts"
         mock_embeddings.issues_collection_name = "test_issues"
         mock_embeddings.municipal_code_collection_name = "test_muni"
+        mock_embeddings.legislation_collection_name = "test_legislation"
 
         # Mock collection with document counts
         mock_collection = Mock()
@@ -118,13 +120,14 @@ class TestUnifiedSearchGetAvailableCorpora:
         search = UnifiedSearch("city-san-rafael")
         corpora = search.get_available_corpora()
 
-        assert len(corpora) == 5
+        assert len(corpora) == 6
         assert corpora["decision"].available is True
         assert corpora["decision"].document_count == 50
         assert corpora["pdf"].available is True
         assert corpora["transcript"].available is True
         assert corpora["issue"].available is True
         assert corpora["municipal_code"].available is True
+        assert corpora["legislation"].available is True
 
     @patch("civic._internal.search.unified.CivicEmbeddings")
     def test_get_available_corpora_some_missing(self, mock_embeddings_cls):
@@ -135,6 +138,7 @@ class TestUnifiedSearchGetAvailableCorpora:
         mock_embeddings.transcripts_collection_name = "test_transcripts"
         mock_embeddings.issues_collection_name = "test_issues"
         mock_embeddings.municipal_code_collection_name = "test_muni"
+        mock_embeddings.legislation_collection_name = "test_legislation"
 
         # Mock client that raises for some collections
         def get_collection_side_effect(name):
@@ -159,6 +163,7 @@ class TestUnifiedSearchGetAvailableCorpora:
         assert corpora["transcript"].document_count == 0
         assert corpora["issue"].available is False
         assert corpora["municipal_code"].available is False
+        assert corpora["legislation"].available is False
 
     @patch("civic._internal.search.unified.CivicEmbeddings")
     def test_get_available_corpora_caches_result(self, mock_embeddings_cls):
@@ -169,6 +174,7 @@ class TestUnifiedSearchGetAvailableCorpora:
         mock_embeddings.transcripts_collection_name = "test_transcripts"
         mock_embeddings.issues_collection_name = "test_issues"
         mock_embeddings.municipal_code_collection_name = "test_muni"
+        mock_embeddings.legislation_collection_name = "test_legislation"
 
         mock_collection = Mock()
         mock_collection.count.return_value = 10
@@ -184,8 +190,8 @@ class TestUnifiedSearchGetAvailableCorpora:
         # Second call - should use cache
         corpora2 = search.get_available_corpora()
 
-        # Should only query collections once (5 collections)
-        assert mock_client.get_collection.call_count == 5
+        # Should only query collections once (6 collections)
+        assert mock_client.get_collection.call_count == 6
         assert corpora1 is corpora2
 
     @patch("civic._internal.search.unified.CivicEmbeddings")
@@ -197,6 +203,7 @@ class TestUnifiedSearchGetAvailableCorpora:
         mock_embeddings.transcripts_collection_name = "test_transcripts"
         mock_embeddings.issues_collection_name = "test_issues"
         mock_embeddings.municipal_code_collection_name = "test_muni"
+        mock_embeddings.legislation_collection_name = "test_legislation"
 
         mock_collection = Mock()
         mock_collection.count.return_value = 10
@@ -212,8 +219,8 @@ class TestUnifiedSearchGetAvailableCorpora:
         # Second call with refresh
         search.get_available_corpora(refresh=True)
 
-        # Should query collections twice (5 + 5)
-        assert mock_client.get_collection.call_count == 10
+        # Should query collections twice (6 + 6)
+        assert mock_client.get_collection.call_count == 12
 
 
 class TestUnifiedSearchSearchAll:
@@ -242,6 +249,7 @@ class TestUnifiedSearchSearchAll:
         mock_embeddings.transcripts_collection_name = "test_transcripts"
         mock_embeddings.issues_collection_name = "test_issues"
         mock_embeddings.municipal_code_collection_name = "test_muni"
+        mock_embeddings.legislation_collection_name = "test_legislation"
 
         # All collections raise (don't exist)
         mock_client = Mock()
@@ -263,6 +271,7 @@ class TestUnifiedSearchSearchAll:
         mock_embeddings.transcripts_collection_name = "test_transcripts"
         mock_embeddings.issues_collection_name = "test_issues"
         mock_embeddings.municipal_code_collection_name = "test_muni"
+        mock_embeddings.legislation_collection_name = "test_legislation"
 
         # Only decisions and chunks available
         def get_collection_side_effect(name):
@@ -303,6 +312,7 @@ class TestUnifiedSearchSearchAll:
         mock_embeddings.search_transcripts.assert_not_called()
         mock_embeddings.search_issues.assert_not_called()
         mock_embeddings.search_municipal_code.assert_not_called()
+        mock_embeddings.search_legislation.assert_not_called()
 
         # Should have 2 results
         assert len(results) == 2
@@ -316,6 +326,7 @@ class TestUnifiedSearchSearchAll:
         mock_embeddings.transcripts_collection_name = "test_transcripts"
         mock_embeddings.issues_collection_name = "test_issues"
         mock_embeddings.municipal_code_collection_name = "test_muni"
+        mock_embeddings.legislation_collection_name = "test_legislation"
 
         # All available
         mock_collection = Mock()
@@ -336,6 +347,7 @@ class TestUnifiedSearchSearchAll:
         mock_embeddings.search_transcripts.assert_not_called()
         mock_embeddings.search_issues.assert_not_called()
         mock_embeddings.search_municipal_code.assert_not_called()
+        mock_embeddings.search_legislation.assert_not_called()
 
     @patch("civic._internal.search.unified.CivicEmbeddings")
     def test_search_all_sorts_by_score(self, mock_embeddings_cls):
@@ -346,6 +358,7 @@ class TestUnifiedSearchSearchAll:
         mock_embeddings.transcripts_collection_name = "test_transcripts"
         mock_embeddings.issues_collection_name = "test_issues"
         mock_embeddings.municipal_code_collection_name = "test_muni"
+        mock_embeddings.legislation_collection_name = "test_legislation"
 
         # Only decisions available
         def get_collection_side_effect(name):
@@ -384,6 +397,7 @@ class TestUnifiedSearchSearchAll:
         mock_embeddings.transcripts_collection_name = "test_transcripts"
         mock_embeddings.issues_collection_name = "test_issues"
         mock_embeddings.municipal_code_collection_name = "test_muni"
+        mock_embeddings.legislation_collection_name = "test_legislation"
 
         def get_collection_side_effect(name):
             if name == "test_decisions":
@@ -418,6 +432,7 @@ class TestUnifiedSearchSearchAll:
         mock_embeddings.transcripts_collection_name = "test_transcripts"
         mock_embeddings.issues_collection_name = "test_issues"
         mock_embeddings.municipal_code_collection_name = "test_muni"
+        mock_embeddings.legislation_collection_name = "test_legislation"
 
         def get_collection_side_effect(name):
             if name == "test_decisions":
@@ -474,6 +489,7 @@ class TestUnifiedSearchSearchCorpus:
         mock_embeddings.transcripts_collection_name = "test_transcripts"
         mock_embeddings.issues_collection_name = "test_issues"
         mock_embeddings.municipal_code_collection_name = "test_muni"
+        mock_embeddings.legislation_collection_name = "test_legislation"
 
         # No collections available
         mock_client = Mock()
@@ -497,6 +513,7 @@ class TestUnifiedSearchSearchCorpus:
         mock_embeddings.transcripts_collection_name = "test_transcripts"
         mock_embeddings.issues_collection_name = "test_issues"
         mock_embeddings.municipal_code_collection_name = "test_muni"
+        mock_embeddings.legislation_collection_name = "test_legislation"
 
         def get_collection_side_effect(name):
             if name == "test_decisions":
@@ -538,6 +555,7 @@ class TestUnifiedSearchSearchCorpus:
         mock_embeddings.transcripts_collection_name = "test_transcripts"
         mock_embeddings.issues_collection_name = "test_issues"
         mock_embeddings.municipal_code_collection_name = "test_muni"
+        mock_embeddings.legislation_collection_name = "test_legislation"
 
         def get_collection_side_effect(name):
             if name == "test_transcripts":
@@ -569,6 +587,47 @@ class TestUnifiedSearchSearchCorpus:
             public_comment_only=True,
         )
 
+    @patch("civic._internal.search.unified.CivicEmbeddings")
+    def test_search_corpus_legislation_with_filters(self, mock_embeddings_cls):
+        """search_corpus passes filters to legislation search."""
+        mock_embeddings = Mock()
+        mock_embeddings.decisions_collection_name = "test_decisions"
+        mock_embeddings.chunks_collection_name = "test_chunks"
+        mock_embeddings.transcripts_collection_name = "test_transcripts"
+        mock_embeddings.issues_collection_name = "test_issues"
+        mock_embeddings.municipal_code_collection_name = "test_muni"
+        mock_embeddings.legislation_collection_name = "test_legislation"
+
+        def get_collection_side_effect(name):
+            if name == "test_legislation":
+                mock_col = Mock()
+                mock_col.count.return_value = 100
+                return mock_col
+            raise Exception("Not found")
+
+        mock_client = Mock()
+        mock_client.get_collection.side_effect = get_collection_side_effect
+        mock_embeddings._client = mock_client
+
+        mock_embeddings.search_legislation.return_value = []
+        mock_embeddings_cls.return_value = mock_embeddings
+
+        search = UnifiedSearch("city-san-rafael")
+        search.search_corpus(
+            "legislation",
+            "housing bills",
+            state="CA",
+            topic="housing",
+        )
+
+        mock_embeddings.search_legislation.assert_called_once_with(
+            "housing bills",
+            top_k=10,
+            where=None,
+            state="CA",
+            topic="housing",
+        )
+
 
 class TestUnifiedSearchGetStats:
     """Test get_stats method."""
@@ -582,6 +641,7 @@ class TestUnifiedSearchGetStats:
         mock_embeddings.transcripts_collection_name = "test_transcripts"
         mock_embeddings.issues_collection_name = "test_issues"
         mock_embeddings.municipal_code_collection_name = "test_muni"
+        mock_embeddings.legislation_collection_name = "test_legislation"
         mock_embeddings.model_name = "nomic-embed-text-v1.5"
         mock_embeddings.embedding_dimension = 768
 
