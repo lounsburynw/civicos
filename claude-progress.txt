@@ -3283,3 +3283,59 @@ Found that Session 299's admin_status_endpoint implementation already satisfies 
 All 12 tests passing.
 
 **Commit:** Session 300: database_stats + chromadb_stats - Verify existing implementation
+
+## Session 301: status_page + visual_indicators + time_ago_formatting
+
+**Items:** status_page, visual_indicators, time_ago_formatting (ingestion_visibility > frontend_dashboard)
+**Artifacts:**
+- status_page: "Admin page showing ingestion status table view"
+- visual_indicators: "Green/yellow/red health indicators per pipeline"
+- time_ago_formatting: "Show '2 hours ago' instead of timestamps"
+
+### Implementation
+
+**1. Type Definitions (civic.ts)**
+- Added `AdminStatusResponse` interface matching backend /admin/status JSON schema
+- Includes database, chromadb, and files sections with nested types
+
+**2. API Method (api.ts)**
+- Added `getAdminStatus(jurisdiction?: string)` to CivicAPI class
+- Fetches from `/admin/status?jurisdiction={jurisdiction}`
+
+**3. Workspace Store (workspace.ts)**
+- Added `'admin-status'` to `OpenArtifact.type` union
+
+**4. AdminStatusPage.vue Component**
+- Overall status banner with healthy/degraded/unhealthy states
+- Collapsible sections for Database, ChromaDB, and Storage
+- Table view with counts, timestamps, and health indicators
+- Green/yellow/red health dots based on data freshness:
+  - Green: <7 days old
+  - Yellow: 7-30 days old
+  - Red: >30 days old
+- Time-ago formatting using date-fns `formatDistanceToNow()`
+- File size formatting (B/KB/MB/GB)
+- Refresh button with loading spinner
+
+**5. App.vue Integration**
+- Added Activity icon button in sidebar header
+- AdminStatusPage renders in both chat-first and workspace-first modes
+- Styled header-icon-btn with hover effects
+
+**6. Vite Config**
+- Added `/admin` to proxy configuration
+
+### Files Changed
+- `apps/civic-workspace/src/types/civic.ts` - Added AdminStatusResponse interface
+- `apps/civic-workspace/src/services/api.ts` - Added getAdminStatus() method
+- `apps/civic-workspace/src/stores/workspace.ts` - Added admin-status artifact type
+- `apps/civic-workspace/src/components/workspace/AdminStatusPage.vue` - New component (350 lines)
+- `apps/civic-workspace/src/App.vue` - Integrated component and admin button
+- `apps/civic-workspace/vite.config.ts` - Added /admin proxy
+- `pilot.json` - Updated 3 items to "ready"
+
+### Tests
+- All 34 smoke tests passing
+- All 12 admin_status tests passing
+
+**Commit:** Session 301: status_page + visual_indicators + time_ago_formatting - Admin dashboard frontend
