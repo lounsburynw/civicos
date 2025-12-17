@@ -312,7 +312,7 @@ class CivicEmbeddings:
         self.municipal_code_collection_name = f"{self.jurisdiction_id}_municipal_code{collection_suffix}"
         self.legislation_collection_name = f"{self.jurisdiction_id}_legislation{collection_suffix}"
         self.federal_programs_collection_name = f"{self.jurisdiction_id}_federal_programs{collection_suffix}"
-        self.county_housing_collection_name = f"{self.jurisdiction_id}_county_housing{collection_suffix}"
+        self.county_programs_collection_name = f"{self.jurisdiction_id}_county_programs{collection_suffix}"
 
         # Persist directory follows schema: data/pilot/vectors/{jurisdiction_id}/
         if persist_directory is None:
@@ -1653,36 +1653,40 @@ class CivicEmbeddings:
         except Exception:
             return False
 
-    def build_county_housing_index(
+    def build_county_programs_index(
         self,
         county_name: str = "marin",
-        county_housing_path: str = "data/funding/county",
+        topic: str = "housing",
+        county_programs_path: str = "data/funding/county",
     ) -> Any:  # Returns chromadb.Collection
         """
-        Build vector index for county housing programs from JSON files.
+        Build vector index for county programs from JSON files.
 
-        Loads county housing programs from JSON files and indexes them
+        Loads county programs from JSON files and indexes them
         in ChromaDB for semantic search. This enables queries like
         "section 8 voucher" or "BMR homeownership" to find relevant
-        county housing programs.
+        county programs.
 
         Args:
             county_name: County name (e.g., "marin")
-            county_housing_path: Base path to county housing programs JSON files
+            topic: Program topic (e.g., "housing", "homelessness")
+            county_programs_path: Base path to county programs JSON files
 
         Returns:
-            ChromaDB collection with embedded county housing programs
+            ChromaDB collection with embedded county programs
 
         Example:
             >>> embedder = CivicEmbeddings("city-san-rafael")
-            >>> collection = embedder.build_county_housing_index("marin")
+            >>> collection = embedder.build_county_programs_index("marin", "housing")
             >>> # Collection contains Marin Housing Authority programs
         """
-        programs_path = Path(county_housing_path) / county_name / "housing_programs.json"
+        # Determine filename based on topic
+        filename = f"{topic}_programs.json"
+        programs_path = Path(county_programs_path) / county_name / filename
 
         if not programs_path.exists():
             raise ValueError(
-                f"County housing programs file not found: {programs_path}"
+                f"County programs file not found: {programs_path}"
             )
 
         with open(programs_path, 'r') as f:
@@ -1727,46 +1731,43 @@ class CivicEmbeddings:
             metadata = {
                 "program_id": program_id,
                 "program_name": program_info.get("program_name") or "",
+                "topic": topic,
                 "county": county_name,
                 "administering_agency": program_info.get("administering_agency") or "",
                 "local_compliance_required": bool(program_info.get("local_compliance_required", False)),
                 "annual_reporting": bool(program_info.get("annual_reporting", False)),
                 "official_url": program_info.get("official_url") or "",
-                "source_type": "county_housing_program",
+                "source_type": "county_program",
                 "jurisdiction": f"county-{county_name}",
             }
 
             documents.append({
-                "id": f"county-{county_name}-{program_id}",
+                "id": f"county-{county_name}-{topic}-{program_id}",
                 "text": text,
                 "metadata": metadata,
             })
 
         if not documents:
             raise ValueError(
-                f"No county housing programs found in {programs_path}"
+                f"No county programs found in {programs_path}"
             )
 
-        # Create collection (delete existing if present)
+        # Get or create collection (supports multiple topics)
         try:
-            self._client.delete_collection(self.county_housing_collection_name)
+            collection = self._client.get_collection(self.county_programs_collection_name)
         except Exception:
-            pass
-
-        collection = self._client.create_collection(
-            name=self.county_housing_collection_name,
-            metadata={
-                "hnsw:space": "cosine",
-                "description": f"{self.jurisdiction_id} county housing programs for RAG",
-                "jurisdiction_id": self.jurisdiction_id,
-                "county": county_name,
-                "embedding_model": self.model_name,
-                "embedding_dimension": self.embedding_dimension,
-                "created_at": datetime.now().isoformat(),
-                "source": "county_housing_programs JSON file",
-                "total_programs": len(documents),
-            }
-        )
+            collection = self._client.create_collection(
+                name=self.county_programs_collection_name,
+                metadata={
+                    "hnsw:space": "cosine",
+                    "description": f"{self.jurisdiction_id} county programs for RAG",
+                    "jurisdiction_id": self.jurisdiction_id,
+                    "embedding_model": self.model_name,
+                    "embedding_dimension": self.embedding_dimension,
+                    "created_at": datetime.now().isoformat(),
+                    "source": "county_programs JSON files",
+                }
+            )
 
         # Process in batches for memory efficiency
         batch_size = 50
@@ -1779,7 +1780,7 @@ class CivicEmbeddings:
 
             embeddings = self.model.encode(texts, show_progress_bar=False)
 
-            collection.add(
+            collection.upsert(
                 ids=ids,
                 documents=texts,
                 embeddings=embeddings.tolist(),
@@ -1788,21 +1789,39 @@ class CivicEmbeddings:
 
         return collection
 
-    def search_county_housing(
+    def build_county_housing_index(
+        self,
+        county_name: str = "marin",
+        county_housing_path: str = "data/funding/county",
+    ) -> Any:
+        """
+        DEPRECATED: Use build_county_programs_index(county_name, topic="housing") instead.
+
+        Backward-compatible wrapper for building county housing program index.
+        """
+        return self.build_county_programs_index(
+            county_name=county_name,
+            topic="housing",
+            county_programs_path=county_housing_path,
+        )
+
+    def search_county_programs(
         self,
         query: str,
         top_k: int = 10,
         where: Optional[Dict] = None,
+        topic: Optional[str] = None,
         county: Optional[str] = None,
         agency: Optional[str] = None,
     ) -> List[SearchResult]:
         """
-        Search county housing programs using semantic search.
+        Search county programs using semantic search.
 
         Args:
             query: Search query text (e.g., "section 8 rental assistance")
             top_k: Number of results to return
             where: Optional ChromaDB filter
+            topic: Filter by topic (e.g., "housing", "homelessness")
             county: Filter by county (e.g., "marin")
             agency: Filter by administering agency (e.g., "Marin Housing Authority")
 
@@ -1811,15 +1830,15 @@ class CivicEmbeddings:
 
         Example:
             >>> embedder = CivicEmbeddings("city-san-rafael")
-            >>> results = embedder.search_county_housing("first time homebuyer")
+            >>> results = embedder.search_county_programs("first time homebuyer", topic="housing")
             >>> for r in results:
             ...     print(f"{r.metadata['program_id']}: {r.score:.3f}")
-            county-marin-below_market_rate_homeownership: 0.812
-            county-marin-hcv_homeownership: 0.756
+            county-marin-housing-below_market_rate_homeownership: 0.812
+            county-marin-housing-hcv_homeownership: 0.756
         """
         try:
             collection = self._client.get_collection(
-                self.county_housing_collection_name
+                self.county_programs_collection_name
             )
         except Exception:
             # Collection doesn't exist
@@ -1829,6 +1848,8 @@ class CivicEmbeddings:
         effective_where = where.copy() if where else None
 
         filters = []
+        if topic:
+            filters.append({"topic": topic})
         if county:
             filters.append({"county": county})
         if agency:
@@ -1854,15 +1875,45 @@ class CivicEmbeddings:
 
         return self._results_to_search_results(results)
 
-    def has_county_housing(self) -> bool:
-        """Check if county housing programs collection exists and has documents."""
+    def search_county_housing(
+        self,
+        query: str,
+        top_k: int = 10,
+        where: Optional[Dict] = None,
+        county: Optional[str] = None,
+        agency: Optional[str] = None,
+    ) -> List[SearchResult]:
+        """
+        DEPRECATED: Use search_county_programs(query, topic="housing") instead.
+
+        Backward-compatible wrapper for searching county housing programs.
+        """
+        return self.search_county_programs(
+            query=query,
+            top_k=top_k,
+            where=where,
+            topic="housing",
+            county=county,
+            agency=agency,
+        )
+
+    def has_county_programs(self) -> bool:
+        """Check if county programs collection exists and has documents."""
         try:
             collection = self._client.get_collection(
-                self.county_housing_collection_name
+                self.county_programs_collection_name
             )
             return collection.count() > 0
         except Exception:
             return False
+
+    def has_county_housing(self) -> bool:
+        """
+        DEPRECATED: Use has_county_programs() instead.
+
+        Backward-compatible wrapper for checking county housing programs.
+        """
+        return self.has_county_programs()
 
     def build_index(
         self,
