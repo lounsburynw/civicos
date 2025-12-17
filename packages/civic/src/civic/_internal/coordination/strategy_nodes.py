@@ -32,7 +32,7 @@ def load_context(state: StrategyState) -> StrategyState:
     - Upcoming decisions on the topic
     - User's engagement history (if user_id provided)
     """
-    logger.info(f"Loading context for topic: {state.get('topic')}")
+    logger.debug(f"Loading context for topic: {state.get('topic')}")
 
     db_path = state.get("db_path", DEFAULT_DB_PATH)
     state_mgr = StateManager(db_path)
@@ -93,7 +93,7 @@ def query_topic_patterns(state: StrategyState) -> StrategyState:
 
     Finds both success and failure patterns to learn from.
     """
-    logger.info(f"Querying patterns for topic: {state.get('topic')}")
+    logger.debug(f"Querying patterns for topic: {state.get('topic')}")
 
     db_path = state.get("db_path", DEFAULT_DB_PATH)
     state_mgr = StateManager(db_path)
@@ -182,7 +182,7 @@ def analyze_success_factors(state: StrategyState) -> StrategyState:
     - Common actions in successes
     - Success rate overall
     """
-    logger.info("Analyzing success factors")
+    logger.debug("Analyzing success factors")
 
     success_patterns = state.get("success_patterns", [])
     failure_patterns = state.get("failure_patterns", [])
@@ -261,7 +261,7 @@ def generate_strategy_suggestions(state: StrategyState) -> StrategyState:
 
     Creates actionable recommendations for approaching the topic.
     """
-    logger.info("Generating strategy suggestions")
+    logger.debug("Generating strategy suggestions")
 
     analysis = state.get("pattern_analysis", {})
     success_patterns = state.get("success_patterns", [])
@@ -372,7 +372,7 @@ def prioritize_suggestions(state: StrategyState) -> StrategyState:
     2. Confidence (high > medium > low)
     3. Pattern count (more patterns = more reliable)
     """
-    logger.info("Prioritizing suggestions")
+    logger.debug("Prioritizing suggestions")
 
     raw_suggestions = state.get("raw_suggestions", [])
 
@@ -404,7 +404,7 @@ def format_output(state: StrategyState) -> StrategyState:
 
     Ensures consistent structure and adds metadata.
     """
-    logger.info("Formatting strategy suggestions output")
+    logger.debug("Formatting strategy suggestions output")
 
     prioritized = state.get("prioritized_suggestions", [])
     analysis = state.get("pattern_analysis", {})

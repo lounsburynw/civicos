@@ -86,7 +86,7 @@ class ConversationService:
         schema_dir = Path(__file__).parent / "output" / "schema"
         
         if not schema_dir.exists():
-            logger.warning("Schema directory not found - no civic events loaded")
+            logger.debug("Schema directory not found - no civic events loaded")
             return
         
         # Load all schema files

@@ -23,7 +23,7 @@ def load_agenda_item(state: PreparationState) -> PreparationState:
 
     Sets agenda_item, meeting fields in state.
     """
-    logger.info(f"Loading agenda item: {state.get('agenda_item_id')}")
+    logger.debug(f"Loading agenda item: {state.get('agenda_item_id')}")
 
     db_path = state.get("db_path", DEFAULT_DB_PATH)
     state_mgr = StateManager(db_path)
@@ -126,7 +126,7 @@ def gather_regulatory_context(state: PreparationState) -> PreparationState:
 
     Sets topic, regulatory_context, historical_decisions fields.
     """
-    logger.info("Gathering regulatory context")
+    logger.debug("Gathering regulatory context")
 
     agenda_item = state.get("agenda_item")
     if not agenda_item:
@@ -152,7 +152,7 @@ def gather_regulatory_context(state: PreparationState) -> PreparationState:
             "local": reg_stack.local,
         }
     except Exception as e:
-        logger.warning(f"Could not get regulatory context: {e}")
+        logger.debug(f"Could not get regulatory context: {e}")
         regulatory_context = {
             "topic": topic,
             "federal": [],
@@ -202,7 +202,7 @@ def find_allies(state: PreparationState) -> PreparationState:
 
     Sets allies field.
     """
-    logger.info("Finding allies")
+    logger.debug("Finding allies")
 
     db_path = state.get("db_path", DEFAULT_DB_PATH)
     state_mgr = StateManager(db_path)
@@ -247,7 +247,7 @@ def generate_talking_points(state: PreparationState) -> PreparationState:
 
     Sets talking_points field.
     """
-    logger.info("Generating talking points")
+    logger.debug("Generating talking points")
 
     agenda_item = state.get("agenda_item", {})
     regulatory_context = state.get("regulatory_context", {})
@@ -289,7 +289,7 @@ def compile_logistics(state: PreparationState) -> PreparationState:
 
     Sets logistics field.
     """
-    logger.info("Compiling logistics")
+    logger.debug("Compiling logistics")
 
     meeting = state.get("meeting") or {}
 
@@ -336,7 +336,7 @@ def format_preparation(state: PreparationState) -> PreparationState:
 
     Sets preparation field with complete materials.
     """
-    logger.info("Formatting preparation materials")
+    logger.debug("Formatting preparation materials")
 
     preparation = {
         "agenda_item_id": state.get("agenda_item_id"),

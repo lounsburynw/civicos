@@ -61,14 +61,14 @@ class SessionContentCache:
                 # Verify content is valid (not empty or corrupted)
                 if len(content) > 100:  # Minimum reasonable size
                     self.cache_hits += 1
-                    logger.info(f"📁 Cache hit for {url} ({len(content):,} bytes)")
+                    logger.debug(f"Cache hit for {url} ({len(content):,} bytes)")
                     return content, True
                 else:
                     # Remove corrupted cache file
                     os.remove(cache_path)
-                    logger.warning(f"🗑️ Removed corrupted cache file for {url}")
+                    logger.debug(f"Removed corrupted cache file for {url}")
             except Exception as e:
-                logger.warning(f"⚠️ Cache read failed for {url}: {e}")
+                logger.debug(f"Cache read failed for {url}: {e}")
                 # Continue to download fresh content
 
         # Download content
@@ -79,11 +79,11 @@ class SessionContentCache:
             self._save_to_cache(cache_path, content)
 
             self.cache_misses += 1
-            logger.info(f"⬇️ Downloaded and cached {url} ({len(content):,} bytes)")
+            logger.debug(f"Downloaded and cached {url} ({len(content):,} bytes)")
             return content, False
 
         except Exception as e:
-            logger.error(f"❌ Download failed for {url}: {e}")
+            logger.error(f"Download failed for {url}: {e}")
             raise
 
     def _generate_cache_key(self, url: str) -> str:
@@ -111,7 +111,7 @@ class SessionContentCache:
             with open(cache_path, 'wb') as f:
                 f.write(content)
         except Exception as e:
-            logger.warning(f"⚠️ Failed to save cache file {cache_path}: {e}")
+            logger.warning(f"Failed to save cache file {cache_path}: {e}")
 
     def cleanup_session_cache(self):
         """Clean up cache files from this session"""
@@ -127,13 +127,13 @@ class SessionContentCache:
                     total_size += file_size
                     os.remove(cache_path)
                 except Exception as e:
-                    logger.warning(f"⚠️ Failed to remove cache file {cache_file}: {e}")
+                    logger.warning(f"Failed to remove cache file {cache_file}: {e}")
 
             if cache_files:
-                logger.info(f"🗑️ Cleaned up {len(cache_files)} cache files ({total_size:,} bytes)")
+                logger.debug(f"Cleaned up {len(cache_files)} cache files ({total_size:,} bytes)")
 
         except Exception as e:
-            logger.warning(f"⚠️ Cache cleanup failed: {e}")
+            logger.warning(f"Cache cleanup failed: {e}")
 
     def get_cache_stats(self) -> dict:
         """Get cache performance statistics"""
@@ -155,7 +155,7 @@ class SessionContentCache:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit - cleanup cache"""
         stats = self.get_cache_stats()
-        logger.info(f"📊 Session cache stats: {stats['cache_hits']} hits, {stats['cache_misses']} misses, {stats['hit_rate_percent']}% hit rate")
+        logger.debug(f"Session cache stats: {stats['cache_hits']} hits, {stats['cache_misses']} misses, {stats['hit_rate_percent']}% hit rate")
         self.cleanup_session_cache()
 
 

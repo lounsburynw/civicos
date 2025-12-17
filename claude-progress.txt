@@ -1,3 +1,42 @@
+## Session 293: log_levels_appropriate - Standardize log levels
+**Date:** 2025-12-17
+**Item:** log_levels_appropriate (monitoring_observability > logging)
+**Priority:** P2
+
+### Summary
+Standardized log levels across the codebase to follow best practices:
+- **DEBUG**: Workflow steps, fallback conditions, routine operations
+- **INFO**: Significant events (workflow start, batch imports)
+- **WARNING**: Recoverable errors (failed cache save, cleanup failure)
+- **ERROR**: Actual errors affecting functionality
+
+### Changes Made
+1. **content_cache.py** - Removed emojis, changed routine logs to DEBUG (10 changes)
+2. **issue_matcher.py** - Changed fallback conditions to DEBUG (2 changes)
+3. **conversation_service.py** - Changed missing directory to DEBUG (1 change)
+4. **coordination/nodes.py** - Changed workflow steps to DEBUG (4 changes)
+5. **coordination/preparation_nodes.py** - Changed workflow steps to DEBUG (6 changes)
+6. **coordination/pattern_nodes.py** - Changed workflow steps to DEBUG (10 changes)
+7. **coordination/strategy_nodes.py** - Changed workflow steps to DEBUG (6 changes)
+8. **coordination/suggestion_nodes.py** - Changed workflow steps to DEBUG (5 changes)
+9. **meetings/reconciliation.py** - Changed fallback conditions to DEBUG (2 changes)
+
+### Files Changed
+- `packages/civic-services/src/civic_services/utils/content_cache.py`
+- `packages/civic-services/src/civic_services/issues/issue_matcher.py`
+- `packages/civic-services/src/civic_services/utils/conversation_service.py`
+- `packages/civic/src/civic/_internal/coordination/nodes.py`
+- `packages/civic/src/civic/_internal/coordination/preparation_nodes.py`
+- `packages/civic/src/civic/_internal/coordination/pattern_nodes.py`
+- `packages/civic/src/civic/_internal/coordination/strategy_nodes.py`
+- `packages/civic/src/civic/_internal/coordination/suggestion_nodes.py`
+- `packages/civic/src/civic/_internal/meetings/reconciliation.py`
+- `pilot.json` - log_levels_appropriate status → ready (87/153, 57%)
+
+**Commit:** Session 293: log_levels_appropriate - Standardize log levels
+
+---
+
 ## Session 291: seed_data - San Rafael seed data script
 Date: 2025-12-17
 
