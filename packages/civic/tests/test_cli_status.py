@@ -18,11 +18,13 @@ import pytest
 from civic.cli import (
     Colors,
     colorize,
+    calculate_gaps,
     format_bytes,
     format_relative_time,
     get_chroma_stats,
     get_file_stats,
     get_freshness_indicator,
+    get_source_counts,
     get_state_db_stats,
     print_status,
 )
@@ -391,3 +393,143 @@ class TestIntegration:
         # Should round-trip
         parsed = json.loads(json_str)
         assert parsed["jurisdiction_id"] == status["jurisdiction_id"]
+
+
+class TestCalculateGaps:
+    """Tests for calculate_gaps function."""
+
+    def test_perfect_coverage(self):
+        """Test 100% coverage calculation."""
+        ingested = {"meetings": 100, "issues": 500}
+        source = {
+            "meetings": {"count": 100, "source": "proudcity", "error": None},
+            "issues": {"count": 500, "source": "seeclickfix", "error": None},
+        }
+
+        gaps = calculate_gaps(ingested, source)
+
+        assert gaps["meetings"]["ingested"] == 100
+        assert gaps["meetings"]["source"] == 100
+        assert gaps["meetings"]["gap"] == 0
+        assert gaps["meetings"]["pct"] == 100.0
+        assert gaps["overall_coverage"] == 100.0
+
+    def test_partial_coverage(self):
+        """Test partial coverage calculation."""
+        ingested = {"meetings": 80, "issues": 400}
+        source = {
+            "meetings": {"count": 100, "source": "proudcity", "error": None},
+            "issues": {"count": 500, "source": "seeclickfix", "error": None},
+        }
+
+        gaps = calculate_gaps(ingested, source)
+
+        assert gaps["meetings"]["gap"] == 20
+        assert gaps["meetings"]["pct"] == 80.0
+        assert gaps["issues"]["gap"] == 100
+        assert gaps["issues"]["pct"] == 80.0
+        assert gaps["overall_coverage"] == 80.0
+
+    def test_source_error_handling(self):
+        """Test handling of source errors."""
+        ingested = {"meetings": 100, "issues": 500}
+        source = {
+            "meetings": {"count": 0, "source": "proudcity", "error": "Connection failed"},
+            "issues": {"count": 500, "source": "seeclickfix", "error": None},
+        }
+
+        gaps = calculate_gaps(ingested, source)
+
+        assert gaps["meetings"]["source"] is None
+        assert gaps["meetings"]["gap"] is None
+        assert gaps["meetings"]["error"] == "Connection failed"
+        assert gaps["issues"]["pct"] == 100.0
+
+    def test_zero_source_count(self):
+        """Test handling of zero source count."""
+        ingested = {"meetings": 50, "issues": 0}
+        source = {
+            "meetings": {"count": 0, "source": "proudcity", "error": None},
+            "issues": {"count": 0, "source": "seeclickfix", "error": None},
+        }
+
+        gaps = calculate_gaps(ingested, source)
+
+        # When source is 0, gap should be 0 and pct should be 100
+        assert gaps["meetings"]["gap"] == 0
+        assert gaps["meetings"]["pct"] == 100.0
+        assert gaps["overall_coverage"] == 100.0
+
+    def test_missing_data_types(self):
+        """Test handling of missing data types in input."""
+        ingested = {"meetings": 100}  # Missing issues
+        source = {
+            "meetings": {"count": 100, "source": "proudcity", "error": None},
+        }
+
+        gaps = calculate_gaps(ingested, source)
+
+        assert gaps["meetings"]["pct"] == 100.0
+        # Issues should have 0 ingested since not provided
+        assert gaps["issues"]["ingested"] == 0
+
+
+class TestGetSourceCounts:
+    """Tests for get_source_counts function."""
+
+    def test_returns_structure(self):
+        """Test that get_source_counts returns expected structure."""
+        # This test doesn't hit external APIs, just verifies structure
+        result = get_source_counts("unknown-jurisdiction")
+
+        assert "meetings" in result
+        assert "issues" in result
+        assert "queried_at" in result
+
+        assert "count" in result["meetings"]
+        assert "source" in result["meetings"]
+        assert "error" in result["meetings"]
+
+    def test_unknown_jurisdiction_graceful(self):
+        """Test that unknown jurisdiction returns gracefully."""
+        # For unknown jurisdictions, meetings should show error or 0
+        result = get_source_counts("city-unknown")
+
+        # Should not raise, just return structure with error or 0 count
+        assert isinstance(result["meetings"]["count"], int)
+
+
+class TestPrintStatusWithGaps:
+    """Tests for print_status with gap analysis enabled."""
+
+    def test_check_gaps_adds_gap_analysis(self):
+        """Test that check_gaps=True adds gap_analysis to status."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Without actual API calls, gap_analysis should still be added
+            # but may have errors for sources
+            status = print_status(
+                jurisdiction_id="city-test",
+                state_db_path="/nonexistent.db",
+                vectors_dir=tmpdir,
+                json_only=True,
+                check_gaps=True,
+            )
+
+            assert "gap_analysis" in status
+            assert "source_counts" in status
+            assert "meetings" in status["gap_analysis"]
+            assert "issues" in status["gap_analysis"]
+
+    def test_check_gaps_false_no_gap_analysis(self):
+        """Test that check_gaps=False does not add gap_analysis."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            status = print_status(
+                jurisdiction_id="city-test",
+                state_db_path="/nonexistent.db",
+                vectors_dir=tmpdir,
+                json_only=True,
+                check_gaps=False,
+            )
+
+            assert "gap_analysis" not in status
+            assert "source_counts" not in status
