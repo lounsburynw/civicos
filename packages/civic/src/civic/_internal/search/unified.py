@@ -1,12 +1,13 @@
 """
 UnifiedSearch: Cross-corpus semantic search for civic data.
 
-This module provides unified search across all 5 corpus types:
+This module provides unified search across all 6 corpus types:
 - decisions: City council decisions/agenda items
 - pdf: PDF chunks from agenda packets/staff reports
 - transcript: Video transcript chunks from meeting recordings
 - issue: SeeClickFix community issue reports
 - municipal_code: Municipal code sections
+- legislation: State legislation (bills) affecting local jurisdictions
 
 Results are returned as UnifiedSearchResult objects, ranked by relevance.
 """
@@ -26,6 +27,7 @@ CORPUS_TYPES = frozenset({
     "transcript",
     "issue",
     "municipal_code",
+    "legislation",
 })
 
 
@@ -101,7 +103,7 @@ class UnifiedSearch:
             top_k: Maximum number of results to return
             corpus_types: Optional list of corpus types to search.
                          Valid types: "decision", "pdf", "transcript",
-                         "issue", "municipal_code".
+                         "issue", "municipal_code", "legislation".
                          If None, searches all available corpora.
 
         Returns:
@@ -179,6 +181,14 @@ class UnifiedSearch:
                     UnifiedSearchResult.from_embeddings_result(r, "municipal_code")
                 )
 
+        # Search legislation
+        if "legislation" in search_corpora and available.get("legislation", CorpusInfo("legislation", 0, False)).available:
+            results = self._embeddings.search_legislation(query, top_k=per_corpus_k)
+            for r in results:
+                all_results.append(
+                    UnifiedSearchResult.from_embeddings_result(r, "legislation")
+                )
+
         # Sort by score (highest first) and limit
         all_results.sort(key=lambda r: r.score, reverse=True)
         return all_results[:top_k]
@@ -195,13 +205,14 @@ class UnifiedSearch:
 
         Args:
             corpus_type: The corpus to search ("decision", "pdf", "transcript",
-                        "issue", "municipal_code")
+                        "issue", "municipal_code", "legislation")
             query: Search query text
             top_k: Maximum number of results
             **filters: Corpus-specific filters:
                 - decisions: since_ts, until_ts, where
                 - transcripts: speaker_role, public_comment_only, where
                 - issues: status, issue_type, where
+                - legislation: state, topic, where
                 - pdf/municipal_code: where
 
         Returns:
@@ -285,6 +296,19 @@ class UnifiedSearch:
                     UnifiedSearchResult.from_embeddings_result(r, "municipal_code")
                 )
 
+        elif corpus_type == "legislation":
+            raw = self._embeddings.search_legislation(
+                query,
+                top_k=top_k,
+                where=filters.get("where"),
+                state=filters.get("state"),
+                topic=filters.get("topic"),
+            )
+            for r in raw:
+                results.append(
+                    UnifiedSearchResult.from_embeddings_result(r, "legislation")
+                )
+
         return results
 
     def get_available_corpora(self, refresh: bool = False) -> Dict[str, CorpusInfo]:
@@ -339,6 +363,12 @@ class UnifiedSearch:
             self._embeddings.municipal_code_collection_name
         )
         corpora["municipal_code"] = CorpusInfo("municipal_code", count, count > 0)
+
+        # Check legislation
+        count = self._get_collection_count(
+            self._embeddings.legislation_collection_name
+        )
+        corpora["legislation"] = CorpusInfo("legislation", count, count > 0)
 
         self._corpora_cache = corpora
         return corpora

@@ -608,6 +608,14 @@ class CivicEmbeddings:
 
         return collection
 
+    def has_decisions(self) -> bool:
+        """Check if decisions collection exists and has documents."""
+        try:
+            collection = self._client.get_collection(self.decisions_collection_name)
+            return collection.count() > 0
+        except Exception:
+            return False
+
     def build_chunks_index(
         self,
         corpus_dir: Union[str, Path],
@@ -688,6 +696,14 @@ class CivicEmbeddings:
             )
 
         return collection
+
+    def has_chunks(self) -> bool:
+        """Check if chunks collection exists and has documents."""
+        try:
+            collection = self._client.get_collection(self.chunks_collection_name)
+            return collection.count() > 0
+        except Exception:
+            return False
 
     def build_transcripts_index(
         self,
