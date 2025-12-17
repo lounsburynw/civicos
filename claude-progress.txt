@@ -2394,3 +2394,52 @@ Date: 2025-12-16
 **Progress:** 75/131 items ready (57%)
 
 **Commit:** Session 280: Query layer integration - what_happened_full_context()
+
+## Session 282 (2025-12-16)
+
+### Focus: state_bills_vector_indexed
+
+Implemented ChromaDB vector indexing for state legislation to enable semantic search.
+
+### Changes Made
+
+1. **Added legislation support to CivicEmbeddings** (`embeddings.py`):
+   - Added `legislation_collection_name` property following existing pattern
+   - Added `build_legislation_index()` method to load and index state bills from JSON
+   - Added `search_legislation()` method for semantic search with topic/status filtering
+   - Added `has_legislation()` method to check if index exists
+
+2. **Key implementation details**:
+   - Indexes bills from `data/legislative_context/california_{topic}.json` files
+   - Creates searchable text combining bill name, summary, leverage point, and keywords
+   - Stores metadata: bill_id, bill_name, topic, status, enacted, local_deadline, official_url
+   - ChromaDB requires non-null metadata values - used `or ""` pattern
+
+3. **Added tests** (7 tests in TestLegislationVectorSearch):
+   - `test_legislative_context_files_exist` - verifies source data
+   - `test_legislation_index_can_be_built` - validates indexing works
+   - `test_legislation_semantic_search` - verifies relevant results returned
+   - `test_legislation_topic_filter` - validates topic filtering
+   - `test_has_legislation_method` - verifies status checking
+   - `test_legislation_metadata_fields` - validates metadata structure
+   - `test_legislation_search_scores` - verifies score ordering
+
+4. **Updated pilot.json**: `state_bills_vector_indexed` → ready
+
+### Files Changed
+- `packages/civic/src/civic/_internal/meetings/embeddings.py` (legislation_collection_name, build_legislation_index, search_legislation, has_legislation)
+- `packages/civic/tests/test_integration_rag_san_rafael.py` (7 new tests in TestLegislationVectorSearch)
+- `pilot.json` (state_bills_vector_indexed status → ready)
+
+### Testing
+- All 7 legislation tests pass
+- All 34 smoke tests pass
+
+**Progress:** 77/135 items ready (57%)
+
+**Next steps:** 
+- `federal_programs_json_loaded` - load federal programs data
+- `federal_programs_vector_indexed` - index federal programs in ChromaDB
+- `legislative_unified_search` - integrate legislation into UnifiedSearch.search_all()
+
+**Commit:** Session 282: state_bills_vector_indexed - legislation ChromaDB indexing
