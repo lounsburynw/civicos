@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, provide } from 'vue';
-import { MapPin, Calendar, MessageCircle, FileText, Scale, CircleAlert, Plus, User, HelpCircle } from 'lucide-vue-next';
+import { MapPin, Calendar, MessageCircle, FileText, Scale, CircleAlert, Plus, User, HelpCircle, Activity } from 'lucide-vue-next';
 import JurisdictionTree from '@/components/sidebar/JurisdictionTree.vue';
 import LegislativePanel from '@/components/sidebar/LegislativePanel.vue';
 import IssueList from '@/components/workspace/IssueList.vue';
@@ -17,6 +17,7 @@ import CommentDraftArtifact from '@/components/workspace/CommentDraftArtifact.vu
 import IssueForm from '@/components/workspace/IssueForm.vue';
 import ProfileForm from '@/components/workspace/ProfileForm.vue';
 import ValuesExplorerArtifact from '@/components/workspace/ValuesExplorerArtifact.vue';
+import AdminStatusPage from '@/components/workspace/AdminStatusPage.vue';
 import LocationEntry from '@/components/LocationEntry.vue';
 import ChatPanel from '@/components/chat/ChatPanel.vue';
 import TabBar from '@/components/workspace/TabBar.vue';
@@ -261,6 +262,16 @@ function handleLocationSet() {
   showLocationEntry.value = false;
 }
 
+// Open Admin Status Page (Session 301 - Pilot status_page artifact)
+function openAdminStatus() {
+  workspaceStore.openArtifact({
+    id: 'admin-status',
+    type: 'admin-status',
+    title: 'Pipeline Status',
+    data: { jurisdiction: userStore.jurisdictionId || 'san-rafael' }
+  });
+}
+
 // Session 63: Handle sidebar section toggle (Pinia store as single source of truth)
 function handleSectionToggle(sectionName: 'profile' | 'jurisdictions' | 'events' | 'discussions' | 'myIssues' | 'legislative') {
   sidebarStore.toggleSection(sectionName);
@@ -346,15 +357,24 @@ function stopResizeSidebar() {
       <aside class="workspace-sidebar" :style="{ width: `${sidebarWidth}px` }">
         <div class="sidebar-header">
           <h1 class="logo-text">{{ userStore.displayName }}</h1>
-          <a
-            href="/help"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="help-link"
-            title="Getting Started Guide"
-          >
-            <HelpCircle :size="20" />
-          </a>
+          <div class="header-actions">
+            <button
+              class="header-icon-btn"
+              @click="openAdminStatus"
+              title="Pipeline Status"
+            >
+              <Activity :size="18" />
+            </button>
+            <a
+              href="/help"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="help-link"
+              title="Getting Started Guide"
+            >
+              <HelpCircle :size="20" />
+            </a>
+          </div>
         </div>
 
         <!-- Sidebar Content (collapsible sections) -->
@@ -569,6 +589,14 @@ function stopResizeSidebar() {
                   v-show="workspaceStore.activeArtifactIndex === index"
                   @close="workspaceStore.closeActiveArtifact"
                 />
+
+                <!-- AdminStatusPage (Session 301) -->
+                <AdminStatusPage
+                  v-else-if="artifact.type === 'admin-status'"
+                  v-show="workspaceStore.activeArtifactIndex === index"
+                  :jurisdiction="artifact.data?.jurisdiction"
+                  @close="workspaceStore.closeActiveArtifact"
+                />
               </template>
 
               <!-- Empty State: No Artifacts Open -->
@@ -588,15 +616,24 @@ function stopResizeSidebar() {
       <aside class="workspace-sidebar" :style="{ width: `${sidebarWidth}px` }">
         <div class="sidebar-header">
           <h1 class="logo-text">{{ userStore.displayName }}</h1>
-          <a
-            href="/help"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="help-link"
-            title="Getting Started Guide"
-          >
-            <HelpCircle :size="20" />
-          </a>
+          <div class="header-actions">
+            <button
+              class="header-icon-btn"
+              @click="openAdminStatus"
+              title="Pipeline Status"
+            >
+              <Activity :size="18" />
+            </button>
+            <a
+              href="/help"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="help-link"
+              title="Getting Started Guide"
+            >
+              <HelpCircle :size="20" />
+            </a>
+          </div>
         </div>
 
         <!-- Sidebar Content (collapsible sections) -->
@@ -780,6 +817,14 @@ function stopResizeSidebar() {
               v-show="workspaceStore.activeArtifactIndex === index"
               @close="workspaceStore.closeActiveArtifact"
             />
+
+            <!-- AdminStatusPage (Session 301) -->
+            <AdminStatusPage
+              v-else-if="artifact.type === 'admin-status'"
+              v-show="workspaceStore.activeArtifactIndex === index"
+              :jurisdiction="artifact.data?.jurisdiction"
+              @close="workspaceStore.closeActiveArtifact"
+            />
           </template>
 
           <!-- Empty State: No Artifacts Open -->
@@ -877,6 +922,32 @@ function stopResizeSidebar() {
   color: var(--primary);
   margin: 0;
   letter-spacing: -0.02em;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.header-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.header-icon-btn:hover {
+  color: var(--primary);
+  background: rgba(33, 150, 243, 0.1);
 }
 
 .help-link {

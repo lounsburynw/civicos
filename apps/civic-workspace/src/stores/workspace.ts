@@ -34,7 +34,7 @@ export interface ActiveQuery {
 
 export interface OpenArtifact {
   id: string
-  type: 'event' | 'bill' | 'program' | 'issue' | 'issue-form' | 'thread' | 'comment-draft' | 'profile-form' | 'values-explorer'
+  type: 'event' | 'bill' | 'program' | 'issue' | 'issue-form' | 'thread' | 'comment-draft' | 'profile-form' | 'values-explorer' | 'admin-status'
   title: string
   data: any
   initialTab?: string // Optional: specify which tab to open (e.g., 'discussion' for IssueArtifact)

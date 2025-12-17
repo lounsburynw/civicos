@@ -720,3 +720,58 @@ export interface SetLocationResponse {
   location: UserLocation;
   validation: LocationValidation;
 }
+
+// ============================================================================
+// Admin Status (Pilot Phase - Ingestion Visibility)
+// ============================================================================
+
+export interface AdminStatusResponse {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  timestamp: string;
+  jurisdiction: string;
+  database: {
+    status: 'connected' | 'missing' | 'error';
+    path: string;
+    size_bytes: number;
+    meetings: {
+      count: number;
+      earliest: string | null;
+      latest: string | null;
+      last_updated: string | null;
+    };
+    agenda_items: {
+      count: number;
+      last_enriched: string | null;
+    };
+    issues: {
+      count: number;
+      last_updated: string | null;
+      by_status: {
+        open: number;
+        closed: number;
+      };
+    };
+    initiatives: {
+      count: number;
+      last_updated: string | null;
+    };
+  };
+  chromadb: {
+    status: 'connected' | 'no_storage' | 'error' | 'chromadb_not_installed';
+    path: string;
+    size_bytes: number;
+    total_documents: number;
+    collections: {
+      [key: string]: {
+        name: string;
+        count: number;
+        created_at: string | null;
+        metadata: Record<string, any>;
+      };
+    };
+  };
+  files: {
+    participation_db_size_bytes: number;
+    state_db_size_bytes: number;
+  };
+}
