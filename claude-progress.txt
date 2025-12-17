@@ -2565,3 +2565,38 @@ This separates "laws" (legislation/) from "money" (funding/) - matching user men
 - 34/34 smoke tests pass
 
 **Commit:** Session 285: Restructure data directories (legislation/ + funding/)
+
+## Session 286: legislative_unified_search - UnifiedSearch legislation integration
+Date: 2025-12-16
+
+### Item Completed
+- **legislative_unified_search**: Add 'legislation' corpus type to UnifiedSearch.search_all()
+
+### Changes Made
+
+#### UnifiedSearchResult (history.py)
+- Added legislation-specific fields: topic, official_url, bill_id, enacted, local_deadline, local_implementation_required, program_id, administering_agency, local_compliance_required, annual_reporting
+- Updated docstring to document state_legislation and federal_program source types
+- Added handler in from_embeddings_result() for state_legislation and federal_program
+
+#### UnifiedSearch (unified.py)
+- Updated search_all() to search both state legislation AND federal programs when 'legislation' corpus requested
+- Updated search_corpus() with same logic
+- Updated get_available_corpora() to combine counts from both collections
+- Uses actual source_type from metadata (state_legislation or federal_program) instead of generic 'legislation'
+
+#### Tests
+- Added TestLegislativeUnifiedSearch class with 7 integration tests
+- Updated 3 unit tests to mock new federal_programs_collection_name
+- All 34 smoke tests pass
+- All 27 UnifiedSearch unit tests pass
+- All 21 legislation vector search integration tests pass
+
+### Files Changed
+- packages/civic/src/civic/history.py
+- packages/civic/src/civic/_internal/search/unified.py
+- packages/civic/tests/test_unified_search.py
+- packages/civic/tests/test_integration_rag_san_rafael.py
+- pilot.json
+
+**Commit:** Session 286: legislative_unified_search - UnifiedSearch legislation integration

@@ -50,7 +50,7 @@ class UnifiedSearchResult:
 
     This is the canonical result type for cross-corpus queries, supporting
     results from: decisions, chunks (PDF), transcripts (video), issues
-    (SeeClickFix), and municipal_code.
+    (SeeClickFix), municipal_code, and legislation.
 
     The source_type field indicates which corpus the result came from, and
     source-specific fields are populated accordingly (others are None/default).
@@ -61,6 +61,8 @@ class UnifiedSearchResult:
         - "transcript": Video transcript chunk from meeting recording
         - "issue": SeeClickFix community issue report
         - "municipal_code": Municipal code section
+        - "state_legislation": State bill (e.g., CA SB-35)
+        - "federal_program": Federal grant program (e.g., CDBG)
 
     Example:
         >>> results = civic.search_all("homeless shelter")
@@ -71,6 +73,10 @@ class UnifiedSearchResult:
         ...         print(f"Video @{r.start_timestamp}: {r.speaker}: {r.text[:50]}")
         ...     elif r.source_type == "issue":
         ...         print(f"Issue: {r.title} at {r.address}")
+        ...     elif r.source_type == "state_legislation":
+        ...         print(f"Bill: {r.bill_id} - {r.title} (topic: {r.topic})")
+        ...     elif r.source_type == "federal_program":
+        ...         print(f"Program: {r.program_id} - {r.title}")
     """
     # Core fields (present for all source types)
     id: str
@@ -112,6 +118,22 @@ class UnifiedSearchResult:
     section_number: Optional[str] = None
     chapter: Optional[str] = None
     title_number: Optional[str] = None
+
+    # Legislation-specific fields (state bills + federal programs)
+    topic: Optional[str] = None  # e.g., "housing", "transportation"
+    official_url: Optional[str] = None  # Link to official source
+
+    # State legislation fields
+    bill_id: Optional[str] = None  # e.g., "ca-sb-35"
+    enacted: Optional[str] = None  # e.g., "2017"
+    local_deadline: Optional[str] = None  # Compliance deadline
+    local_implementation_required: bool = False
+
+    # Federal program fields
+    program_id: Optional[str] = None  # e.g., "cdbg"
+    administering_agency: Optional[str] = None  # e.g., "HUD"
+    local_compliance_required: bool = False
+    annual_reporting: bool = False
 
     @property
     def video_url(self) -> Optional[str]:
@@ -166,7 +188,8 @@ class UnifiedSearchResult:
 
         Args:
             result: SearchResult from CivicEmbeddings.search_*()
-            source_type: One of "decision", "pdf", "transcript", "issue", "municipal_code"
+            source_type: One of "decision", "pdf", "transcript", "issue",
+                        "municipal_code", "state_legislation", "federal_program"
 
         Returns:
             UnifiedSearchResult with appropriate fields populated
@@ -224,6 +247,27 @@ class UnifiedSearchResult:
                 "section_number": metadata.get("section_number"),
                 "chapter": metadata.get("chapter"),
                 "title_number": metadata.get("title_number"),
+            })
+        elif source_type == "state_legislation":
+            base_kwargs.update({
+                "title": metadata.get("bill_name"),
+                "bill_id": metadata.get("bill_id"),
+                "topic": metadata.get("topic"),
+                "status": metadata.get("status"),
+                "enacted": metadata.get("enacted"),
+                "local_deadline": metadata.get("local_deadline"),
+                "local_implementation_required": metadata.get("local_implementation_required", False),
+                "official_url": metadata.get("official_url"),
+            })
+        elif source_type == "federal_program":
+            base_kwargs.update({
+                "title": metadata.get("program_name"),
+                "program_id": metadata.get("program_id"),
+                "topic": metadata.get("topic"),
+                "administering_agency": metadata.get("administering_agency"),
+                "local_compliance_required": metadata.get("local_compliance_required", False),
+                "annual_reporting": metadata.get("annual_reporting", False),
+                "official_url": metadata.get("official_url"),
             })
 
         return cls(**base_kwargs)
