@@ -337,7 +337,7 @@
     },
     "api_status": {
       "admin_status_endpoint": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "GET /admin/status returns JSON pipeline health"
       },
