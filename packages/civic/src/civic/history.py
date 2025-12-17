@@ -63,6 +63,7 @@ class UnifiedSearchResult:
         - "municipal_code": Municipal code section
         - "state_legislation": State bill (e.g., CA SB-35)
         - "federal_program": Federal grant program (e.g., CDBG)
+        - "county_program": County program/service (e.g., homeless services)
 
     Example:
         >>> results = civic.search_all("homeless shelter")
@@ -260,6 +261,16 @@ class UnifiedSearchResult:
                 "official_url": metadata.get("official_url"),
             })
         elif source_type == "federal_program":
+            base_kwargs.update({
+                "title": metadata.get("program_name"),
+                "program_id": metadata.get("program_id"),
+                "topic": metadata.get("topic"),
+                "administering_agency": metadata.get("administering_agency"),
+                "local_compliance_required": metadata.get("local_compliance_required", False),
+                "annual_reporting": metadata.get("annual_reporting", False),
+                "official_url": metadata.get("official_url"),
+            })
+        elif source_type == "county_program":
             base_kwargs.update({
                 "title": metadata.get("program_name"),
                 "program_id": metadata.get("program_id"),

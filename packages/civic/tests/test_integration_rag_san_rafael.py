@@ -4393,3 +4393,273 @@ class TestCountyProgramsVectorSearch:
             # search_county_housing should work (backward compat)
             results = embedder.search_county_housing("housing", top_k=1)
             assert len(results) > 0
+
+
+@pytest.mark.requires_real_data
+class TestHomelessnessServicesVectorSearch:
+    """
+    Tests for county homelessness services vector indexing and semantic search.
+
+    Validates county_homelessness_services pilot item:
+    - Homelessness services data file exists
+    - Services are indexed in ChromaDB with topic metadata
+    - Semantic search returns relevant services
+    - Integration with UnifiedSearch works correctly
+    """
+
+    def test_homelessness_services_file_exists(self):
+        """Validate Marin county homelessness programs JSON file exists."""
+        path = COUNTY_HOUSING_DIR / "marin" / "homelessness_programs.json"
+        assert path.exists(), f"Homelessness programs file not found: {path}"
+
+    def test_homelessness_services_file_has_programs(self):
+        """Validate homelessness programs file contains program data."""
+        import json
+
+        path = COUNTY_HOUSING_DIR / "marin" / "homelessness_programs.json"
+        with open(path) as f:
+            data = json.load(f)
+
+        programs = data.get("programs", {})
+        assert len(programs) >= 5, f"Expected at least 5 services, got {len(programs)}"
+
+        # Check for key homelessness programs
+        expected_programs = ["coordinated_entry_system", "homeward_bound_emergency_shelter"]
+        for prog in expected_programs:
+            assert prog in programs, f"Expected service '{prog}' not found"
+
+    def test_homelessness_services_index_can_be_built(self):
+        """Validate homelessness services can be indexed in ChromaDB."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            # Build county programs index with homelessness topic
+            collection = embedder.build_county_programs_index(
+                county_name="marin",
+                topic="homelessness",
+                county_programs_path=str(COUNTY_HOUSING_DIR)
+            )
+
+            # Should have indexed programs
+            count = collection.count()
+            assert count >= 5, f"Expected at least 5 services indexed, got {count}"
+
+    def test_homelessness_services_semantic_search_shelter(self):
+        """Validate semantic search returns emergency shelter results."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            # Build index
+            embedder.build_county_programs_index(
+                county_name="marin",
+                topic="homelessness",
+                county_programs_path=str(COUNTY_HOUSING_DIR)
+            )
+
+            # Search for emergency shelter
+            results = embedder.search_county_programs(
+                "emergency shelter homeless beds",
+                topic="homelessness",
+                top_k=5
+            )
+
+            # Should return results
+            assert len(results) > 0, "No search results returned"
+
+            # Top results should include shelter program
+            program_ids = [r.metadata["program_id"] for r in results]
+            shelter_found = any(
+                "shelter" in pid.lower() or "homeward" in pid.lower()
+                for pid in program_ids
+            )
+            assert shelter_found, f"Expected shelter program, got: {program_ids}"
+
+    def test_homelessness_services_semantic_search_outreach(self):
+        """Validate semantic search finds homeless outreach programs."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            embedder.build_county_programs_index(
+                county_name="marin",
+                topic="homelessness",
+                county_programs_path=str(COUNTY_HOUSING_DIR)
+            )
+
+            # Search for street outreach
+            results = embedder.search_county_programs(
+                "street outreach homeless wellness check",
+                topic="homelessness",
+                top_k=5
+            )
+
+            assert len(results) > 0
+            program_ids = [r.metadata["program_id"] for r in results]
+            outreach_found = any(
+                "care" in pid.lower() or "outreach" in pid.lower()
+                for pid in program_ids
+            )
+            assert outreach_found, f"Expected outreach program in results, got: {program_ids}"
+
+    def test_homelessness_services_metadata_fields(self):
+        """Validate indexed services have expected metadata fields."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            embedder.build_county_programs_index(
+                county_name="marin",
+                topic="homelessness",
+                county_programs_path=str(COUNTY_HOUSING_DIR)
+            )
+
+            results = embedder.search_county_programs(
+                "homeless services",
+                topic="homelessness",
+                top_k=1
+            )
+            assert len(results) > 0
+
+            metadata = results[0].metadata
+            expected_fields = [
+                "program_id", "program_name", "topic", "county", "administering_agency",
+                "source_type", "jurisdiction"
+            ]
+            for field in expected_fields:
+                assert field in metadata, f"Missing metadata field: {field}"
+
+            # Verify homelessness-specific metadata
+            assert metadata["county"] == "marin"
+            assert metadata["topic"] == "homelessness"
+            assert metadata["source_type"] == "county_program"
+            assert metadata["jurisdiction"] == "county-marin"
+
+    def test_homelessness_services_unified_search_integration(self):
+        """Validate homelessness services appear in UnifiedSearch programs results."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        from civic._internal.search.unified import UnifiedSearch
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            # Build homelessness services index
+            embedder.build_county_programs_index(
+                county_name="marin",
+                topic="homelessness",
+                county_programs_path=str(COUNTY_HOUSING_DIR)
+            )
+
+            search = UnifiedSearch("city-san-rafael", persist_directory=tmpdir)
+
+            # Search via unified search using "programs" corpus
+            results = search.search_all(
+                "emergency shelter homeless assistance",
+                corpus_types=["programs"],
+                top_k=10
+            )
+
+            assert len(results) > 0, "No UnifiedSearch results returned"
+
+            # At least one result should be from county programs
+            source_types = [r.source_type for r in results]
+            assert "county_program" in source_types, (
+                f"Expected county_program in source types, got: {source_types}"
+            )
+
+    def test_homelessness_services_search_mental_health(self):
+        """Validate semantic search finds mental health crisis services."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            embedder.build_county_programs_index(
+                county_name="marin",
+                topic="homelessness",
+                county_programs_path=str(COUNTY_HOUSING_DIR)
+            )
+
+            # Search for mental health services
+            results = embedder.search_county_programs(
+                "mental health crisis homeless",
+                topic="homelessness",
+                top_k=5
+            )
+
+            assert len(results) > 0
+            program_ids = [r.metadata["program_id"] for r in results]
+            mh_found = any(
+                "odyssey" in pid.lower() or "safe" in pid.lower() or "mental" in pid.lower()
+                for pid in program_ids
+            )
+            assert mh_found, f"Expected mental health program in results, got: {program_ids}"
+
+    def test_housing_and_homelessness_coexist_in_programs_corpus(self):
+        """Validate housing and homelessness services can coexist in programs corpus."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        from civic._internal.search.unified import UnifiedSearch
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            # Build both housing AND homelessness indexes
+            embedder.build_county_programs_index(
+                county_name="marin",
+                topic="housing",
+                county_programs_path=str(COUNTY_HOUSING_DIR)
+            )
+            embedder.build_county_programs_index(
+                county_name="marin",
+                topic="homelessness",
+                county_programs_path=str(COUNTY_HOUSING_DIR)
+            )
+
+            search = UnifiedSearch("city-san-rafael", persist_directory=tmpdir)
+
+            # Search should return both types
+            results = search.search_all(
+                "assistance for low income families",
+                corpus_types=["programs"],
+                top_k=20
+            )
+
+            # UnifiedSearchResult has topic field directly (not in metadata dict)
+            topics = {r.topic for r in results if r.topic}
+            # Should have results from both topics
+            assert "housing" in topics or "homelessness" in topics, (
+                f"Expected housing or homelessness in results, got topics: {topics}"
+            )

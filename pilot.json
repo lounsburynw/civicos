@@ -720,10 +720,12 @@
         "data_file": "data/funding/county/marin/housing_programs.json"
       },
       "county_homelessness_services": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "Index county homelessness/social services info",
-        "note": "Services span city/county boundaries"
+        "note": "Services span city/county boundaries",
+        "data_file": "data/funding/county/marin/homelessness_programs.json",
+        "test_file": "packages/civic/tests/test_integration_rag_san_rafael.py::TestHomelessnessServicesVectorSearch"
       },
       "marin_county_code": {
         "status": "not_ready",

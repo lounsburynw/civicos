@@ -1,0 +1,447 @@
+{
+  "jurisdiction": "county-marin",
+  "jurisdiction_type": "county",
+  "topic": "homelessness",
+  "last_updated": "2025-12-17T00:00:00.000000",
+  "data_sources": [
+    "hbofm.org",
+    "rittercenter.org",
+    "camarin.org",
+    "marinhhs.org",
+    "accountability.ca.gov",
+    "Web search (2025)",
+    "NEEDS HUMAN VERIFICATION"
+  ],
+  "verification_status": "DRAFT - NOT VERIFIED",
+  "source_citations": [
+    "https://hbofm.org/our-programs/help-for-adults/",
+    "https://rittercenter.org/",
+    "https://camarin.org/program/homeless-outreach/",
+    "https://housingfirst.marinhhs.org/",
+    "https://www.accountability.ca.gov/county/marin/homelessness/",
+    "https://www.marinhhs.org/odyssey-team-homeless-outreach-full-service-partnership-program",
+    "https://homelessshelterdirectory.org/shelter/ca_st-vincent-de-paul-homeless-help-desk"
+  ],
+  "programs": {
+    "coordinated_entry_system": {
+      "program_name": "Marin County Homeless Coordinated Entry System",
+      "administering_agency": "Marin County Health and Human Services - Homelessness and Coordinated Care Division",
+      "description": "Countywide system ensuring people experiencing homelessness receive services matched to their housing and support needs. The system prioritizes those with the most acute needs and connects them to appropriate interventions including emergency shelter, rapid rehousing, and permanent supportive housing. HUD-funded projects contract with nonprofit agencies as subrecipients to carry out activities.",
+      "eligible_activities": [
+        "Housing needs assessment and prioritization",
+        "Connection to emergency shelter",
+        "Referral to rapid rehousing programs",
+        "Referral to permanent supportive housing",
+        "Linkage to support services"
+      ],
+      "eligibility_requirements": {
+        "housing_status": "Literally homeless, imminent risk of homelessness, or fleeing domestic violence (HEARTH Act categories 1, 2, and 4)",
+        "geographic": "Marin County resident or homeless in Marin"
+      },
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Continuum of Care public meetings",
+        "Point-in-Time Count participation",
+        "Community input sessions on CoC funding priorities"
+      ],
+      "leverage_point": "Residents can participate in Continuum of Care public meetings where funding priorities are set. The CoC holds annual planning sessions where community input shapes program direction. Contact the Coordinated Entry line to provide feedback or volunteer for Point-in-Time Count.",
+      "official_url": "https://housingfirst.marinhhs.org/",
+      "contact": {
+        "phone_individuals": "415-473-4663",
+        "phone_families": "415-457-2115",
+        "email": "CE@marincounty.org",
+        "hours": "Monday-Friday 8:30 AM - 4:30 PM (individuals), 9 AM - 5 PM daily (families)"
+      },
+      "keywords": [
+        "coordinated entry",
+        "homeless services",
+        "housing assessment",
+        "shelter referral",
+        "housing first"
+      ],
+      "program_statistics": {
+        "total_homeless_2024": 1090,
+        "unsheltered_2024": 788,
+        "year_round_beds_2024": 1487,
+        "hhap_funding_received": 10700000,
+        "people_housed_jan2023_mar2025": 384
+      }
+    },
+    "homeward_bound_emergency_shelter": {
+      "program_name": "Homeward Bound Emergency Shelter Programs",
+      "administering_agency": "Homeward Bound of Marin",
+      "description": "Provides emergency shelter and housing-focused services through multiple facilities including Jonathan's Place (38 beds in San Rafael) and New Beginnings Center (80 beds in Novato). Shelters offer counseling, case management, meals, job search assistance, and connections to community resources. The program participates in the Coordinated Entry System to prioritize those with acute needs.",
+      "eligible_activities": [
+        "Emergency shelter for single adults",
+        "Housing-focused case management",
+        "Meals and basic needs",
+        "Job and housing search assistance",
+        "Benefits enrollment support",
+        "Veteran-specific services at New Beginnings (VA office onsite)"
+      ],
+      "eligibility_requirements": {
+        "housing_status": "Currently experiencing homelessness",
+        "referral": "Typically through Coordinated Entry System"
+      },
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Resident feedback sessions",
+        "Homeward Bound volunteer and donation programs",
+        "Community events at facilities"
+      ],
+      "leverage_point": "Community members can support shelter operations through volunteering and donations. Residents can provide feedback on services to case managers. Homeward Bound hosts community events and welcomes input on program improvements.",
+      "official_url": "https://hbofm.org/our-programs/help-for-adults/",
+      "contact": {
+        "main_phone": "415-457-9651",
+        "toll_free": "800-428-1488",
+        "email": "info@hbofm.org",
+        "jonathans_place_address": "190 Mill St., San Rafael, CA 94901",
+        "new_beginnings_address": "1399 N. Hamilton Parkway, Novato, CA 94949",
+        "new_beginnings_phone": "415-382-3363 x233"
+      },
+      "keywords": [
+        "emergency shelter",
+        "homeless shelter",
+        "jonathans place",
+        "new beginnings center",
+        "homeward bound"
+      ],
+      "program_statistics": {
+        "people_served_2023_24": 981,
+        "families_stable_housing_rate": 0.81,
+        "adults_stable_housing_rate": 0.63,
+        "total_programs": 18
+      }
+    },
+    "homeward_bound_permanent_supportive_housing": {
+      "program_name": "Homeward Bound Permanent Supportive Housing",
+      "administering_agency": "Homeward Bound of Marin",
+      "description": "Offers over 350 beds of permanent supportive housing for formerly homeless individuals, including single-room occupancy units, studio apartments, and transitional housing. Residents pay affordable rents and receive ongoing support services. Properties include La Casa Buena (18 studios in Corte Madera), Jonathan's Place Housing (16 units in San Rafael), King Street Senior Housing (12 rooms in Larkspur), Fourth Street Center (20 units in San Rafael), and Next Key Apartments (29 transitional studios in Novato).",
+      "eligible_activities": [
+        "Long-term affordable housing",
+        "Ongoing case management support",
+        "Employment assistance",
+        "Benefits maintenance",
+        "Community integration services"
+      ],
+      "eligibility_requirements": {
+        "housing_status": "Formerly homeless, typically chronic homeless or high acuity",
+        "referral": "Through Coordinated Entry System prioritization"
+      },
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Resident councils at housing sites",
+        "Program feedback to case managers",
+        "Community meetings"
+      ],
+      "leverage_point": "Residents of supportive housing can participate in site-based resident councils. Community members can support the program through donations and advocacy for affordable housing development.",
+      "official_url": "https://hbofm.org/our-programs/help-for-adults/",
+      "contact": {
+        "phone": "415-457-9651",
+        "email": "info@hbofm.org"
+      },
+      "keywords": [
+        "permanent supportive housing",
+        "affordable housing",
+        "transitional housing",
+        "la casa buena",
+        "fourth street center"
+      ],
+      "properties": {
+        "la_casa_buena": {"location": "Corte Madera", "units": 18, "type": "studio apartments"},
+        "jonathans_place_housing": {"location": "San Rafael", "units": 16, "type": "permanent supportive"},
+        "king_street_senior": {"location": "Larkspur", "units": 12, "type": "senior housing"},
+        "fourth_street_center": {"location": "San Rafael", "units": 20, "type": "single-room occupancy"},
+        "next_key_apartments": {"location": "Novato", "units": 29, "type": "transitional studios"}
+      }
+    },
+    "care_teams_homeless_outreach": {
+      "program_name": "CARE Teams - Community Alternative Response & Engagement",
+      "administering_agency": "Community Action Marin",
+      "description": "Mobile outreach teams staffed by trained Peer Outreach Specialists, including people with lived experience of homelessness, mental illness, substance abuse, or incarceration. Teams provide immediate assistance like wellness checks, food, clothing, and sleeping bags, build trust relationships over time, and connect clients to mental health services, housing programs, and permanent housing. Often the first point of contact for people experiencing homelessness.",
+      "eligible_activities": [
+        "Street outreach and wellness checks",
+        "Basic needs provision (food, clothing, sleeping bags)",
+        "Transportation to shelters, hospitals, or detox",
+        "Connection to mental health services",
+        "Linkage to housing programs",
+        "Long-term relationship building"
+      ],
+      "eligibility_requirements": {
+        "housing_status": "Experiencing homelessness or at risk",
+        "geographic": "Marin County (CARE Team One covers West Marin specifically)"
+      },
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Direct feedback to outreach workers",
+        "Community Action Marin community meetings",
+        "Volunteer opportunities"
+      ],
+      "leverage_point": "Community members can report homeless encampments or individuals needing assistance to CARE Teams. The program welcomes donations and volunteers. Input on outreach priorities can be provided through Community Action Marin.",
+      "official_url": "https://camarin.org/program/homeless-outreach/",
+      "contact": {
+        "phone": "415-526-7500",
+        "email": "careteam@camarin.org"
+      },
+      "keywords": [
+        "care team",
+        "homeless outreach",
+        "street outreach",
+        "peer outreach",
+        "community action marin"
+      ],
+      "coverage_areas": {
+        "care_team_one": "West Marin (Pt. Reyes, Tomales, Inverness, Stinson Beach, Bolinas)",
+        "care_team_general": "Countywide"
+      }
+    },
+    "odyssey_team_mental_health": {
+      "program_name": "Odyssey Team - Homeless Outreach Full Service Partnership",
+      "administering_agency": "Marin County Health and Human Services - Behavioral Health & Recovery Services",
+      "description": "Provides a comprehensive, integrated continuum of services to individuals who are seriously and persistently mentally ill and who are homeless. Services are guided by principles of recovery and consumer empowerment. While not a housing program, Odyssey supports clients to become self-sufficient in their housing goals through intensive case management and mental health treatment.",
+      "eligible_activities": [
+        "Intensive case management",
+        "Mental health treatment",
+        "Recovery-oriented services",
+        "Support for housing goals",
+        "Connection to community resources"
+      ],
+      "eligibility_requirements": {
+        "mental_health": "Chronic and persistent mental illness",
+        "housing_status": "Currently homeless"
+      },
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Mental Health Advisory Board meetings",
+        "BHRS stakeholder meetings",
+        "Direct feedback to case managers"
+      ],
+      "leverage_point": "Community members can attend Mental Health Advisory Board meetings where program priorities are discussed. Anyone can make a referral into the Odyssey Program. Input on behavioral health services can be provided through BHRS community meetings.",
+      "official_url": "https://www.marinhhs.org/odyssey-team-homeless-outreach-full-service-partnership-program",
+      "contact": {
+        "referral": "Anyone can make a referral into the Odyssey Program"
+      },
+      "keywords": [
+        "odyssey team",
+        "mental health",
+        "homeless mental health",
+        "full service partnership",
+        "behavioral health"
+      ]
+    },
+    "ritter_center_services": {
+      "program_name": "Ritter Center Integrated Support Services",
+      "administering_agency": "Ritter Center",
+      "description": "Prevents and resolves homelessness while improving health and dignity for people living in poverty in Marin County. Provides integrated support including primary medical care, behavioral health counseling, substance abuse treatment, dental care, rental assistance, case management, and operates the largest food pantry in Marin County (22,000+ grocery bags weekly to 375+ households).",
+      "eligible_activities": [
+        "Primary medical care",
+        "Behavioral health counseling",
+        "Outpatient substance abuse treatment",
+        "Dental care",
+        "Street medicine outreach",
+        "Housing case management",
+        "Rental assistance",
+        "Benefits enrollment",
+        "Food pantry services"
+      ],
+      "eligibility_requirements": {
+        "income": "Low-income individuals and families",
+        "housing_status": "Experiencing or at risk of homelessness"
+      },
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Patient feedback mechanisms",
+        "Community programs and events",
+        "Volunteer opportunities"
+      ],
+      "leverage_point": "Clients can provide feedback through patient portals and case managers. Community members can support through donations and volunteering. Ritter Center welcomes input on community needs through various programs.",
+      "official_url": "https://rittercenter.org/",
+      "contact": {
+        "phone": "415-457-8182",
+        "address": "P.O. Box 3517, San Rafael, CA 94912"
+      },
+      "keywords": [
+        "ritter center",
+        "homeless healthcare",
+        "food pantry",
+        "rental assistance",
+        "substance abuse treatment",
+        "medical care"
+      ],
+      "program_statistics": {
+        "weekly_grocery_bags": 22000,
+        "households_served_weekly": 375
+      }
+    },
+    "rapid_rehousing": {
+      "program_name": "Marin County Rapid Rehousing Programs",
+      "administering_agency": "Multiple agencies (Ritter Center, Community Action Marin, St. Vincent de Paul, Adopt A Family)",
+      "description": "Short-term rental assistance and supportive services lasting from a deposit to up to two years. Best suited for individuals and families who need support to get back on their feet after homelessness. Helps find new housing and provides short-term support once housed, including case management, financial assistance for rent and move-in costs, and connections to community resources.",
+      "eligible_activities": [
+        "Security deposit assistance",
+        "Short-term rental assistance (up to 2 years)",
+        "Housing-focused case management",
+        "Move-in financial assistance",
+        "Employment and income support",
+        "Connection to community resources"
+      ],
+      "eligibility_requirements": {
+        "housing_status": "Currently homeless",
+        "self_sufficiency": "Expected to become self-sufficient when program ends (no income requirement to enter)"
+      },
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Case management feedback",
+        "Agency community meetings",
+        "CoC public hearings on funding priorities"
+      ],
+      "leverage_point": "Residents can provide input on rapid rehousing program design through CoC public meetings. Individual feedback to case managers helps improve services. Community can advocate for increased rapid rehousing funding.",
+      "official_url": "https://housingfirst.marinhhs.org/rapid-rehousing",
+      "contact": {
+        "coordinated_entry_phone": "415-473-4663",
+        "coordinated_entry_email": "CE@marincounty.org"
+      },
+      "keywords": [
+        "rapid rehousing",
+        "rental assistance",
+        "housing assistance",
+        "homelessness prevention",
+        "case management"
+      ],
+      "program_statistics": {
+        "housing_retention_rate": 0.94,
+        "people_housed_since_2017": 700
+      }
+    },
+    "st_vincent_de_paul_services": {
+      "program_name": "St. Vincent de Paul Society of Marin County",
+      "administering_agency": "St. Vincent de Paul Society of Marin County",
+      "description": "Provides direct services to people experiencing homelessness and poverty since 1946. Operates a free dining room serving 200,000 warm meals annually, a Housing Help Desk for crisis assistance and case management, and a Housing Outreach Team. Offers rapid rehousing assistance and crisis assistance to prevent evictions through early intervention.",
+      "eligible_activities": [
+        "Free daily meals",
+        "Housing Help Desk services",
+        "Crisis financial assistance",
+        "Eviction prevention",
+        "Rapid rehousing assistance",
+        "Case management",
+        "Clothing and basic items"
+      ],
+      "eligibility_requirements": {
+        "income": "Low-income or experiencing poverty",
+        "housing_status": "Homeless or at risk of homelessness"
+      },
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Direct feedback at service locations",
+        "Parish-based volunteer networks",
+        "Community donation programs"
+      ],
+      "leverage_point": "Community members can volunteer through parish networks or donate directly. Clients can provide feedback on services at the dining room and help desk. The organization relies heavily on community involvement.",
+      "official_url": "https://homelessshelterdirectory.org/shelter/ca_st-vincent-de-paul-homeless-help-desk",
+      "contact": {
+        "phone": "415-454-3303",
+        "address": "822 B Street, San Rafael, CA 94901",
+        "hours": "Monday-Saturday 6:30 AM - 4:00 PM"
+      },
+      "keywords": [
+        "st vincent de paul",
+        "free meals",
+        "dining room",
+        "crisis assistance",
+        "eviction prevention"
+      ],
+      "program_statistics": {
+        "meals_served_annually": 200000
+      }
+    },
+    "safe_team_san_rafael": {
+      "program_name": "SAFE Team - Specialized Assistance For Everyone",
+      "administering_agency": "City of San Rafael (operated by Petaluma People Services Center)",
+      "description": "Mobile mental health crisis response team launched March 2023 as an alternative to police response for mental health crises. Responds to people under the influence of drugs or alcohol, in need of mental health treatment, or who need shelter. Provides counseling and transportation to appropriately staffed locations rather than jail or emergency rooms.",
+      "eligible_activities": [
+        "Mental health crisis response",
+        "Substance use crisis response",
+        "Counseling and de-escalation",
+        "Transportation to treatment facilities",
+        "Connection to shelter services",
+        "Non-police intervention for appropriate calls"
+      ],
+      "eligibility_requirements": {
+        "crisis_type": "Mental health or substance use crisis",
+        "geographic": "City of San Rafael"
+      },
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "City Council public comment",
+        "Police department community meetings",
+        "Feedback through 311"
+      ],
+      "leverage_point": "San Rafael residents can provide input on SAFE Team operations through City Council meetings and public comment periods. Community feedback on mental health crisis response helps shape program priorities.",
+      "official_url": "https://www.srpd.org/safe",
+      "contact": {
+        "dispatch": "Through San Rafael Police dispatch for appropriate calls"
+      },
+      "keywords": [
+        "safe team",
+        "mental health crisis",
+        "crisis response",
+        "san rafael",
+        "alternative response"
+      ]
+    }
+  },
+  "income_limits_2025": {
+    "area": "San Francisco HMFA (includes Marin County)",
+    "median_family_income_4person": 185000,
+    "limits": {
+      "extremely_low_30_ami": {
+        "1_person": 27750,
+        "2_person": 31700,
+        "3_person": 35650,
+        "4_person": 39600
+      },
+      "very_low_50_ami": {
+        "1_person": 65200,
+        "2_person": 74500,
+        "3_person": 83800,
+        "4_person": 93100
+      },
+      "low_80_ami": {
+        "1_person": 104350,
+        "2_person": 119250,
+        "3_person": 134150,
+        "4_person": 149050
+      }
+    },
+    "effective_date": "2025-04-01",
+    "note": "Income limits published by HUD. Most homelessness programs serve extremely low income (30% AMI) but may extend to very low income (50% AMI) for prevention services."
+  },
+  "contact_information": {
+    "coordinated_entry_individuals": {
+      "phone": "415-473-4663",
+      "email": "CE@marincounty.org",
+      "hours": "Monday-Friday 8:30 AM - 4:30 PM"
+    },
+    "coordinated_entry_families": {
+      "phone": "415-457-2115",
+      "hours": "Monday-Sunday 9:00 AM - 5:00 PM"
+    },
+    "211_marin": {
+      "phone": "211",
+      "note": "General information and referral for all social services"
+    },
+    "marin_county_hhs_homelessness": {
+      "website": "https://housingfirst.marinhhs.org/",
+      "note": "County Homelessness and Coordinated Care Division"
+    }
+  }
+}
