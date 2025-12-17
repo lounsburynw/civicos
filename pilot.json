@@ -285,9 +285,11 @@
         "note": "ErrorAlertManager in packages/civic-services/src/civic_services/monitoring/error_alerting.py. Monitors 5xx error rates (5%=elevated, 10%=critical), emails alerts with debouncing. Integrated into /health endpoint."
       },
       "alert_channel": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Email/Slack notification configured"
+        "artifact": "Email/Slack notification configured",
+        "completed": "2025-12-17",
+        "note": "ErrorAlertManager supports both email (SMTP) and Slack (webhook) notification channels. Configure via CIVIC_ALERT_EMAILS/SMTP_* for email, CIVIC_SLACK_WEBHOOK_URL for Slack. Alerts sent to all configured channels with debouncing. Tests in test_error_alerting.py."
       }
     },
     "metrics": {

@@ -3018,3 +3018,44 @@ Alerts use existing SMTP config from .env.example:
 Without email config, alerts are logged only (log_only mode).
 
 **Commit:** Session 294: error_alerts - Error rate monitoring and alerting
+
+## Session 295: alert_channel - Multi-channel alert support
+
+**Date:** 2025-12-17
+**Item:** alert_channel (monitoring_observability > alerting)
+**Status:** ready
+
+### Changes
+Extended ErrorAlertManager to support both email and Slack notification channels:
+
+1. **Slack webhook support** (`error_alerting.py`)
+   - Added `_send_slack_alert()` method using Slack Block Kit format
+   - Rich messages with severity, error rate, top endpoints, health link
+   - Critical alerts use :rotating_light:, elevated use :warning:
+   - Uses stdlib `urllib.request` (no new dependencies)
+
+2. **Multi-channel delivery**
+   - Updated `check_and_alert()` to try both email and Slack
+   - `notification_method` tracks which channels succeeded: "email", "slack", "email+slack", "log_only"
+   - Graceful fallback if one channel fails
+
+3. **Configuration**
+   - New env var: `CIVIC_SLACK_WEBHOOK_URL`
+   - Updated `.env.example` with Slack webhook documentation
+   - Updated CLI help text with Slack configuration
+
+4. **Tests** (`test_error_alerting.py`)
+   - 11 tests covering ErrorMetricsCollector, ErrorAlertManager, Slack channel, multi-channel
+   - Tests Slack Block Kit payload format
+   - Tests HTTP error handling
+   - Tests both-channels and single-channel scenarios
+
+### Files Modified
+- `packages/civic-services/src/civic_services/monitoring/error_alerting.py`
+- `.env.example`
+- `pilot.json`
+
+### Files Created
+- `packages/civic/tests/test_error_alerting.py`
+
+**Commit:** Session 295: alert_channel - Add Slack webhook support for error alerts
