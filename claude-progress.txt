@@ -2694,3 +2694,65 @@ Date: 2025-12-16
 This enables clean addition of `county_homelessness_services` (P2 item) as just another topic in the programs corpus.
 
 **Commit:** Session 288: programs_corpus_refactor - Split legislation into legislation + programs
+
+---
+## Session 289: county_homelessness_services
+**Date:** 2025-12-17
+**Phase:** PILOT (data_readiness > county_context)
+**Item:** county_homelessness_services (P2)
+**Status:** ✅ COMPLETE
+
+### Summary
+Added comprehensive Marin County homelessness services data to the programs corpus, enabling residents to find emergency shelter, outreach services, rapid rehousing, and mental health crisis support through semantic search.
+
+### Changes Made
+
+#### 1. New Data File
+- Created `data/funding/county/marin/homelessness_programs.json` (9 services)
+- Services include:
+  - Coordinated Entry System (County HHS)
+  - Homeward Bound Emergency Shelter (Jonathan's Place, New Beginnings)
+  - Homeward Bound Permanent Supportive Housing
+  - CARE Teams homeless outreach (Community Action Marin)
+  - Odyssey Team mental health outreach (County BHRS)
+  - Ritter Center integrated services (healthcare, food, housing)
+  - Rapid Rehousing programs (multi-agency)
+  - St. Vincent de Paul (meals, housing help desk)
+  - SAFE Team crisis response (San Rafael)
+
+#### 2. Code Enhancement
+- Added `county_program` source type support to `UnifiedSearchResult.from_embeddings_result()`
+- Updated docstring to document new source type
+- This ensures topic field is properly populated for county programs
+
+#### 3. Tests Added
+- `TestHomelessnessServicesVectorSearch` class with 9 tests:
+  - File existence and content validation
+  - ChromaDB indexing
+  - Semantic search (shelter, outreach, mental health)
+  - Metadata field validation
+  - UnifiedSearch integration
+  - Multi-topic coexistence test (housing + homelessness)
+
+### Files Changed
+- `data/funding/county/marin/homelessness_programs.json` (NEW)
+- `packages/civic/src/civic/history.py` (county_program support)
+- `packages/civic/tests/test_integration_rag_san_rafael.py` (9 new tests)
+- `pilot.json` (status: ready)
+
+### Test Results
+- 9/9 homelessness tests passing
+- 9/9 housing programs tests still passing
+- 34/34 smoke tests passing
+
+### Data Sources (require human verification)
+- hbofm.org (Homeward Bound of Marin)
+- rittercenter.org
+- camarin.org (Community Action Marin)
+- marinhhs.org
+- accountability.ca.gov (state homeless statistics)
+
+### Next Session
+Next P2 item: `marin_county_code` - Index relevant Marin County code sections (housing, land use)
+
+**Commit:** Session 289: county_homelessness_services - Marin County Homelessness Services Integration
