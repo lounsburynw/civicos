@@ -72,6 +72,25 @@ def get_request_metrics_manager():
             logger.warning("module_unavailable", extra={"module_name": "request_metrics", "error": str(e)})
     return _request_metrics_manager
 
+
+# Active users monitoring (Session 297)
+_active_users_manager = None
+_active_users_checked = False
+
+def get_active_users_manager():
+    """Lazily initialize and return the active users manager, or None if unavailable."""
+    global _active_users_manager, _active_users_checked
+    if not _active_users_checked:
+        _active_users_checked = True
+        try:
+            from ..monitoring.active_users import ActiveUsersManager
+            _active_users_manager = ActiveUsersManager()
+            logger.debug("module_loaded", extra={"module_name": "active_users"})
+        except Exception as e:
+            _active_users_manager = None
+            logger.warning("module_unavailable", extra={"module_name": "active_users", "error": str(e)})
+    return _active_users_manager
+
 # Core imports
 from ..core.config import config, get_data_path, get_bundled_path, get_user_path
 from ..core.rate_limiter import rate_limiter
@@ -7246,6 +7265,10 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
         request_metrics_check = self._check_request_metrics()
         checks['request_metrics'] = request_metrics_check
 
+        # 7. Active users check (Session 297)
+        active_users_check = self._check_active_users()
+        checks['active_users'] = active_users_check
+
         # Determine overall status
         if not overall_healthy:
             overall_status = 'unhealthy'
@@ -7509,6 +7532,40 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                 'response_time_p95': metrics.get('response_time_p95'),
                 'response_time_avg': metrics.get('response_time_avg'),
                 'top_endpoints': metrics.get('top_endpoints', [])[:5]
+            }
+
+        except Exception as e:
+            result['status'] = 'unknown'
+            result['details']['error'] = str(e)
+
+        return result
+
+    def _check_active_users(self) -> dict:
+        """Check active users metrics for usage monitoring (Session 297)"""
+        result = {
+            'status': 'healthy',
+            'details': {
+                'window_minutes': 5,
+                'unique_users': 0,
+                'daily_active_users': 0
+            }
+        }
+
+        try:
+            metrics_manager = get_active_users_manager()
+            if not metrics_manager:
+                result['details']['note'] = 'Active users metrics not available'
+                return result
+
+            metrics = metrics_manager.get_active_users()
+
+            result['details'] = {
+                'window_minutes': metrics.get('window_minutes', 5),
+                'unique_users': metrics.get('unique_users', 0),
+                'active_users_per_hour': metrics.get('active_users_per_hour', 0.0),
+                'authenticated_users': metrics.get('authenticated_users', 0),
+                'anonymous_users': metrics.get('anonymous_users', 0),
+                'daily_active_users': metrics.get('daily_active_users', 0)
             }
 
         except Exception as e:
