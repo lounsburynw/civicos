@@ -3106,3 +3106,47 @@ The RequestMetricsManager reads structured JSON logs and calculates:
 - `pilot.json`
 
 **Commit:** Session 296: request_count + response_times - Request metrics monitoring
+
+## Session 297: active_users - Track unique users per day
+**Date:** 2025-12-17
+**Item:** active_users (monitoring_observability > metrics)
+**Priority:** P2
+
+### Summary
+Implemented active users tracking to monitor unique users per time window and daily active users (DAU). The system tracks users by:
+- Authenticated user_id (from Bearer tokens) for authenticated requests
+- Client IP address for anonymous requests
+
+### Implementation Details
+1. **ActiveUsersMetrics dataclass** - Stores metrics including:
+   - unique_users: Total unique users in time window
+   - active_users_per_hour: Rate projection
+   - authenticated_users: Users with Bearer tokens
+   - anonymous_users: IP-only users
+   - daily_active_users: 24h unique users
+
+2. **ActiveUsersCollector** - Parses structured JSON logs for:
+   - request_start events (has client_ip)
+   - request_complete events (when client_ip is present)
+
+3. **ActiveUsersManager** - High-level interface with:
+   - get_active_users() for /health endpoint
+   - get_unique_users_count() convenience method
+   - get_daily_active_users() convenience method
+
+4. **Health endpoint integration** - Added `active_users` check to serve_status()
+   - Exposes at /health and /api/status under checks.active_users
+   - Shows: unique_users, active_users_per_hour, authenticated vs anonymous breakdown, daily_active_users
+
+### Files Created
+- `packages/civic-services/src/civic_services/monitoring/active_users.py`
+- `packages/civic/tests/test_active_users.py`
+
+### Files Modified
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py`
+- `pilot.json`
+
+### Tests
+13 tests covering collector, manager, singleton, and health integration
+
+**Commit:** Session 297: active_users - Track unique users per day
