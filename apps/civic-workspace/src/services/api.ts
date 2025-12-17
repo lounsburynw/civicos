@@ -18,7 +18,8 @@ import type {
   SendMessageRequest,
   ThreadMessage,
   SetLocationResponse,
-  AdminStatusResponse
+  AdminStatusResponse,
+  AdminTriggerResponse
 } from '@/types/civic';
 
 /**
@@ -1161,6 +1162,33 @@ class CivicAPI {
 
     if (!response.ok) {
       throw new Error(`Failed to fetch admin status: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Trigger fetch meetings operation
+   * POST /api/admin/trigger with operation: "fetch_meetings"
+   *
+   * Backend: src/civic_services/servers/civic_api_integrated.py:7516-7653
+   */
+  async triggerFetchMeetings(jurisdiction: string = 'san-rafael'): Promise<AdminTriggerResponse> {
+    const response = await fetch(
+      `${this.baseURL}/api/admin/trigger`,
+      {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({
+          operation: 'fetch_meetings',
+          jurisdiction: jurisdiction
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || `Failed to trigger fetch meetings: ${response.statusText}`);
     }
 
     return response.json();

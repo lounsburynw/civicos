@@ -182,6 +182,56 @@
           </table>
         </div>
       </section>
+
+      <!-- Manual Operations Section -->
+      <section class="status-section">
+        <div class="section-header" @click="toggleSection('operations')">
+          <Play :size="18" />
+          <h3>Manual Operations</h3>
+          <ChevronDown :size="16" :class="{ 'rotated': !expandedSections.operations }" />
+        </div>
+        <div v-if="expandedSections.operations" class="section-content">
+          <div class="operations-grid">
+            <div class="operation-card">
+              <div class="operation-info">
+                <Download :size="18" />
+                <div class="operation-text">
+                  <span class="operation-name">Fetch Meetings</span>
+                  <span class="operation-desc">Scrape ProudCity for new meetings</span>
+                </div>
+              </div>
+              <button
+                class="operation-btn"
+                @click="triggerFetchMeetings"
+                :disabled="!!operationInProgress"
+              >
+                <RefreshCw v-if="operationInProgress === 'fetch_meetings'" :size="14" class="spinning" />
+                <Play v-else :size="14" />
+                {{ operationInProgress === 'fetch_meetings' ? 'Running...' : 'Run' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Operation Result -->
+          <div v-if="operationResult" class="operation-result" :class="operationResult.status">
+            <div class="result-header">
+              <CheckCircle v-if="operationResult.status === 'success'" :size="16" />
+              <XCircle v-else :size="16" />
+              <span class="result-title">{{ operationResult.operation }}</span>
+            </div>
+            <div class="result-details">
+              <template v-if="operationResult.status === 'success'">
+                <span>Fetched: {{ operationResult.count_fetched }}</span>
+                <span>New: {{ operationResult.count_new }}</span>
+                <span>Duration: {{ operationResult.duration_seconds }}s</span>
+              </template>
+              <template v-else>
+                <span class="error-message">{{ operationResult.error }}</span>
+              </template>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </template>
@@ -199,10 +249,12 @@ import {
   Database,
   Layers,
   HardDrive,
-  ChevronDown
+  ChevronDown,
+  Play,
+  Download
 } from 'lucide-vue-next';
 import { api } from '@/services/api';
-import type { AdminStatusResponse } from '@/types/civic';
+import type { AdminStatusResponse, AdminTriggerResponse } from '@/types/civic';
 
 const props = defineProps<{
   jurisdiction?: string;
@@ -218,8 +270,11 @@ const statusData = ref<AdminStatusResponse | null>(null);
 const expandedSections = ref({
   database: true,
   chromadb: true,
-  files: false
+  files: false,
+  operations: true
 });
+const operationInProgress = ref<string | null>(null);
+const operationResult = ref<AdminTriggerResponse | null>(null);
 
 const totalStorageBytes = computed(() => {
   if (!statusData.value) return 0;
@@ -242,7 +297,7 @@ async function loadStatus() {
   }
 }
 
-function toggleSection(section: 'database' | 'chromadb' | 'files') {
+function toggleSection(section: 'database' | 'chromadb' | 'files' | 'operations') {
   expandedSections.value[section] = !expandedSections.value[section];
 }
 
@@ -278,6 +333,29 @@ function getHealthClass(timestamp: string | null): string {
   if (days < 7) return 'health-good';
   if (days < 30) return 'health-warning';
   return 'health-critical';
+}
+
+async function triggerFetchMeetings() {
+  operationInProgress.value = 'fetch_meetings';
+  operationResult.value = null;
+  try {
+    const result = await api.triggerFetchMeetings(props.jurisdiction || 'san-rafael');
+    operationResult.value = result;
+    // Refresh status to show updated counts
+    if (result.status === 'success') {
+      await loadStatus();
+    }
+  } catch (e) {
+    operationResult.value = {
+      status: 'error',
+      operation: 'fetch_meetings',
+      jurisdiction: props.jurisdiction || 'san-rafael',
+      timestamp: new Date().toISOString(),
+      error: e instanceof Error ? e.message : 'Operation failed'
+    };
+  } finally {
+    operationInProgress.value = null;
+  }
 }
 
 onMounted(() => {
@@ -641,5 +719,119 @@ onMounted(() => {
 .empty-section p {
   margin: 0;
   font-size: 13px;
+}
+
+/* Operations Section */
+.operations-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.operation-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--color-bg-tertiary);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-light);
+}
+
+.operation-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-text-secondary);
+}
+
+.operation-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.operation-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.operation-desc {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.operation-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--color-primary);
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: white;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.operation-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.operation-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Operation Result */
+.operation-result {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+}
+
+.operation-result.success {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.operation-result.error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.result-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.operation-result.success .result-header {
+  color: #22c55e;
+}
+
+.operation-result.error .result-header {
+  color: #ef4444;
+}
+
+.result-title {
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.result-details {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.result-details .error-message {
+  color: #ef4444;
 }
 </style>
