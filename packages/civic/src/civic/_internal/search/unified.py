@@ -181,13 +181,27 @@ class UnifiedSearch:
                     UnifiedSearchResult.from_embeddings_result(r, "municipal_code")
                 )
 
-        # Search legislation
-        if "legislation" in search_corpora and available.get("legislation", CorpusInfo("legislation", 0, False)).available:
-            results = self._embeddings.search_legislation(query, top_k=per_corpus_k)
-            for r in results:
-                all_results.append(
-                    UnifiedSearchResult.from_embeddings_result(r, "legislation")
-                )
+        # Search legislation (state bills + federal programs)
+        if "legislation" in search_corpora:
+            leg_available = available.get("legislation", CorpusInfo("legislation", 0, False)).available
+            if leg_available:
+                # Search state legislation
+                if self._embeddings.has_legislation():
+                    results = self._embeddings.search_legislation(query, top_k=per_corpus_k)
+                    for r in results:
+                        actual_source_type = r.metadata.get("source_type", "state_legislation")
+                        all_results.append(
+                            UnifiedSearchResult.from_embeddings_result(r, actual_source_type)
+                        )
+
+                # Also search federal programs (part of legislative context)
+                if self._embeddings.has_federal_programs():
+                    results = self._embeddings.search_federal_programs(query, top_k=per_corpus_k)
+                    for r in results:
+                        actual_source_type = r.metadata.get("source_type", "federal_program")
+                        all_results.append(
+                            UnifiedSearchResult.from_embeddings_result(r, actual_source_type)
+                        )
 
         # Sort by score (highest first) and limit
         all_results.sort(key=lambda r: r.score, reverse=True)
@@ -297,17 +311,36 @@ class UnifiedSearch:
                 )
 
         elif corpus_type == "legislation":
-            raw = self._embeddings.search_legislation(
-                query,
-                top_k=top_k,
-                where=filters.get("where"),
-                state=filters.get("state"),
-                topic=filters.get("topic"),
-            )
-            for r in raw:
-                results.append(
-                    UnifiedSearchResult.from_embeddings_result(r, "legislation")
+            # Search both state legislation and federal programs
+            if self._embeddings.has_legislation():
+                raw = self._embeddings.search_legislation(
+                    query,
+                    top_k=top_k,
+                    where=filters.get("where"),
+                    topic=filters.get("topic"),
                 )
+                for r in raw:
+                    actual_source_type = r.metadata.get("source_type", "state_legislation")
+                    results.append(
+                        UnifiedSearchResult.from_embeddings_result(r, actual_source_type)
+                    )
+
+            if self._embeddings.has_federal_programs():
+                raw = self._embeddings.search_federal_programs(
+                    query,
+                    top_k=top_k,
+                    where=filters.get("where"),
+                    topic=filters.get("topic"),
+                )
+                for r in raw:
+                    actual_source_type = r.metadata.get("source_type", "federal_program")
+                    results.append(
+                        UnifiedSearchResult.from_embeddings_result(r, actual_source_type)
+                    )
+
+            # Sort combined results by score and limit
+            results.sort(key=lambda r: r.score, reverse=True)
+            results = results[:top_k]
 
         return results
 
@@ -364,11 +397,15 @@ class UnifiedSearch:
         )
         corpora["municipal_code"] = CorpusInfo("municipal_code", count, count > 0)
 
-        # Check legislation
-        count = self._get_collection_count(
+        # Check legislation (state bills + federal programs combined)
+        legislation_count = self._get_collection_count(
             self._embeddings.legislation_collection_name
         )
-        corpora["legislation"] = CorpusInfo("legislation", count, count > 0)
+        federal_count = self._get_collection_count(
+            self._embeddings.federal_programs_collection_name
+        )
+        total_legislation = legislation_count + federal_count
+        corpora["legislation"] = CorpusInfo("legislation", total_legislation, total_legislation > 0)
 
         self._corpora_cache = corpora
         return corpora
