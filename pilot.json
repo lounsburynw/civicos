@@ -358,19 +358,25 @@
     },
     "frontend_dashboard": {
       "status_page": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Admin page showing ingestion status table view"
+        "artifact": "Admin page showing ingestion status table view",
+        "completed": "2025-12-17",
+        "note": "AdminStatusPage.vue component with collapsible sections for Database, ChromaDB, and Storage"
       },
       "visual_indicators": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Green/yellow/red health indicators per pipeline"
+        "artifact": "Green/yellow/red health indicators per pipeline",
+        "completed": "2025-12-17",
+        "note": "health-dot CSS classes with <7d green, 7-30d yellow, >30d red"
       },
       "time_ago_formatting": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 3,
-        "artifact": "Show '2 hours ago' instead of timestamps"
+        "artifact": "Show '2 hours ago' instead of timestamps",
+        "completed": "2025-12-17",
+        "note": "Using date-fns formatDistanceToNow for relative time display"
       }
     }
   },

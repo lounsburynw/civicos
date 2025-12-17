@@ -17,7 +17,8 @@ import type {
   ThreadMessagesResponse,
   SendMessageRequest,
   ThreadMessage,
-  SetLocationResponse
+  SetLocationResponse,
+  AdminStatusResponse
 } from '@/types/civic';
 
 /**
@@ -1138,6 +1139,31 @@ class CivicAPI {
     if (!response.ok) {
       throw new Error(`Failed to complete onboarding: ${response.statusText}`);
     }
+  }
+
+  // ============================================================================
+  // Admin (Pilot Phase - Ingestion Visibility)
+  // ============================================================================
+
+  /**
+   * Get admin status (pipeline health, database stats, ChromaDB stats)
+   * GET /admin/status?jurisdiction={jurisdiction}
+   *
+   * Backend: src/civic_services/servers/civic_api_integrated.py:7318-7511
+   */
+  async getAdminStatus(jurisdiction: string = 'san-rafael'): Promise<AdminStatusResponse> {
+    const response = await fetch(
+      `${this.baseURL}/admin/status?jurisdiction=${encodeURIComponent(jurisdiction)}`,
+      {
+        headers: this.getAuthHeaders()
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch admin status: ${response.statusText}`);
+    }
+
+    return response.json();
   }
 }
 
