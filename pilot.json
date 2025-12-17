@@ -732,6 +732,15 @@
         "priority": 3,
         "artifact": "Index relevant Marin County code sections (housing, land use)"
       }
+    },
+    "municipal_context": {
+      "san_rafael_municipal_funding": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Research and index San Rafael municipal funding programs",
+        "note": "City-specific programs: housing trust fund, inclusionary housing, general fund allocations, local tax measures",
+        "data_dir": "data/funding/municipal/san-rafael/"
+      }
     }
   },
   "rollback_procedures": {
