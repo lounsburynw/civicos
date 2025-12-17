@@ -3531,6 +3531,9 @@ class TestWhatHappenedFullContext:
 # Path to legislative context files
 LEGISLATIVE_CONTEXT_DIR = PROJECT_ROOT / "data/legislative_context"
 
+# Path to federal programs files
+FEDERAL_PROGRAMS_DIR = PROJECT_ROOT / "data/federal_programs"
+
 
 @pytest.mark.requires_real_data
 class TestLegislationVectorSearch:
@@ -3711,6 +3714,193 @@ class TestLegislationVectorSearch:
             # Search for specific topic
             results = embedder.search_legislation(
                 "lot split duplex single family zoning",  # Very specific to SB9
+                top_k=5
+            )
+
+            assert len(results) > 0
+
+            # Scores should be in valid range (0-1 for cosine distance converted to similarity)
+            for r in results:
+                assert 0 <= r.score <= 1, f"Score {r.score} outside valid range"
+
+            # Results should be sorted by score descending
+            scores = [r.score for r in results]
+            assert scores == sorted(scores, reverse=True), "Results not sorted by score"
+
+
+@pytest.mark.requires_real_data
+class TestFederalProgramsVectorSearch:
+    """
+    Tests for federal programs vector indexing and semantic search.
+
+    Validates federal_programs_vector_indexed pilot item:
+    - Federal programs are indexed in ChromaDB
+    - Semantic search returns relevant programs
+    - Topic filtering works correctly
+    """
+
+    def test_federal_programs_files_exist(self):
+        """Validate federal programs JSON files exist."""
+        topics = ["housing", "transportation", "environment", "education", "budget"]
+        for topic in topics:
+            path = FEDERAL_PROGRAMS_DIR / f"{topic}.json"
+            assert path.exists(), f"Federal programs file not found: {path}"
+
+    def test_federal_programs_index_can_be_built(self):
+        """Validate federal programs can be indexed in ChromaDB."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        # Use temp directory for test isolation
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            # Build federal programs index
+            collection = embedder.build_federal_programs_index(
+                federal_programs_path=str(FEDERAL_PROGRAMS_DIR)
+            )
+
+            # Should have indexed programs
+            count = collection.count()
+            assert count >= 5, f"Expected at least 5 programs indexed, got {count}"
+
+            # Verify collection metadata
+            metadata = collection.metadata
+            assert "housing" in metadata["topics"]
+            assert metadata["total_programs"] >= 5
+
+    def test_federal_programs_semantic_search(self):
+        """Validate semantic search returns relevant programs."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            # Build index
+            embedder.build_federal_programs_index(
+                federal_programs_path=str(FEDERAL_PROGRAMS_DIR)
+            )
+
+            # Search for community development housing
+            results = embedder.search_federal_programs(
+                "community development housing grants low income",
+                top_k=5
+            )
+
+            # Should return results
+            assert len(results) > 0, "No search results returned"
+
+            # Top results should include housing-related programs
+            program_ids = [r.metadata["program_id"] for r in results]
+            housing_program_found = any(
+                "cdbg" in pid.lower() or "home" in pid.lower()
+                for pid in program_ids
+            )
+            assert housing_program_found, f"Expected housing programs, got: {program_ids}"
+
+    def test_federal_programs_topic_filter(self):
+        """Validate topic filtering works correctly."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            # Build index with all topics
+            embedder.build_federal_programs_index(
+                federal_programs_path=str(FEDERAL_PROGRAMS_DIR)
+            )
+
+            # Search with topic filter
+            results = embedder.search_federal_programs(
+                "funding grants assistance",
+                top_k=10,
+                topic="housing"
+            )
+
+            # All results should be housing topic
+            for r in results:
+                assert r.metadata["topic"] == "housing", (
+                    f"Expected housing topic, got {r.metadata['topic']}"
+                )
+
+    def test_has_federal_programs_method(self):
+        """Validate has_federal_programs() returns correct status."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            # Before indexing
+            assert not embedder.has_federal_programs(), "has_federal_programs() should be False before indexing"
+
+            # After indexing
+            embedder.build_federal_programs_index(
+                federal_programs_path=str(FEDERAL_PROGRAMS_DIR)
+            )
+            assert embedder.has_federal_programs(), "has_federal_programs() should be True after indexing"
+
+    def test_federal_programs_metadata_fields(self):
+        """Validate indexed programs have expected metadata fields."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            embedder.build_federal_programs_index(
+                topics=["housing"],  # Just housing for faster test
+                federal_programs_path=str(FEDERAL_PROGRAMS_DIR)
+            )
+
+            results = embedder.search_federal_programs("housing", top_k=1)
+            assert len(results) > 0
+
+            metadata = results[0].metadata
+            expected_fields = [
+                "program_id", "program_name", "topic", "administering_agency",
+                "source_type", "jurisdiction"
+            ]
+            for field in expected_fields:
+                assert field in metadata, f"Missing metadata field: {field}"
+            assert metadata["source_type"] == "federal_program"
+            assert metadata["jurisdiction"] == "federal"
+
+    def test_federal_programs_search_scores(self):
+        """Validate search results have meaningful scores."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            embedder.build_federal_programs_index(
+                federal_programs_path=str(FEDERAL_PROGRAMS_DIR)
+            )
+
+            # Search for specific topic
+            results = embedder.search_federal_programs(
+                "block grant community development low moderate income",  # Very specific to CDBG
                 top_k=5
             )
 
