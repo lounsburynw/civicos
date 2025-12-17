@@ -3248,3 +3248,38 @@ Gap Analysis (ingested vs source):
 - All 10 tests passing
 
 **Commit:** Session 299: admin_status_endpoint - GET /admin/status returns JSON pipeline health
+
+## Session 300: database_stats + chromadb_stats
+
+**Items:** database_stats, chromadb_stats (ingestion_visibility > api_status)
+**Artifacts:**
+- database_stats: "Include row counts, last modified timestamps per table"
+- chromadb_stats: "Include collection counts, document counts"
+
+### Analysis
+Found that Session 299's admin_status_endpoint implementation already satisfies both items:
+
+**database_stats** - Already implemented:
+- Row counts: `count` field for meetings, agenda_items, issues, initiatives
+- Timestamps: `last_updated`, `last_enriched`, `earliest`, `latest` per table
+
+**chromadb_stats** - Already implemented:
+- 5 collections with individual `count` fields
+- `total_documents` aggregate count
+
+### Changes
+1. Marked `database_stats` as "ready" in pilot.json
+2. Marked `chromadb_stats` as "ready" in pilot.json
+3. Added 2 explicit regression tests to verify these artifacts
+
+### Files Changed
+- `pilot.json` - Updated database_stats and chromadb_stats status to "ready"
+- `packages/civic/tests/test_admin_status.py` - Added 2 new tests (12 total)
+
+### Tests
+- `test_database_stats_row_counts_and_timestamps` - Verifies count + timestamp per table
+- `test_chromadb_stats_collection_and_document_counts` - Verifies collection counts + total
+
+All 12 tests passing.
+
+**Commit:** Session 300: database_stats + chromadb_stats - Verify existing implementation

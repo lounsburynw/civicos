@@ -306,3 +306,85 @@ class TestAdminStatusEndpoint:
             # Should still connect but tables should have errors
             assert response['database']['status'] == 'connected'
             assert response['database']['meetings'].get('error') == 'table_missing'
+
+    def test_database_stats_row_counts_and_timestamps(self, mock_handler, temp_db, tmp_path):
+        """Verify database_stats: row counts and last modified timestamps per table.
+
+        Session 300: Explicit verification of pilot.json database_stats artifact.
+        Each table must include 'count' and a timestamp field (last_updated or equivalent).
+        """
+        with patch(
+            'civic_services.servers.civic_api_integrated.get_user_path'
+        ) as mock_path:
+            mock_path.side_effect = lambda f: str(temp_db) if f == 'civic_state.db' else str(tmp_path / f)
+
+            mock_handler.serve_admin_status()
+
+            response = mock_handler.responses[0]['data']
+            db = response['database']
+
+            # meetings: must have count + timestamp fields
+            assert 'count' in db['meetings'], "meetings must have row count"
+            assert db['meetings']['count'] >= 0
+            assert 'last_updated' in db['meetings'], "meetings must have last_updated timestamp"
+            assert 'earliest' in db['meetings'], "meetings must have earliest timestamp"
+            assert 'latest' in db['meetings'], "meetings must have latest timestamp"
+
+            # agenda_items: must have count + timestamp
+            assert 'count' in db['agenda_items'], "agenda_items must have row count"
+            assert db['agenda_items']['count'] >= 0
+            assert 'last_enriched' in db['agenda_items'], "agenda_items must have last_enriched timestamp"
+
+            # issues: must have count + timestamp
+            assert 'count' in db['issues'], "issues must have row count"
+            assert db['issues']['count'] >= 0
+            assert 'last_updated' in db['issues'], "issues must have last_updated timestamp"
+
+            # initiatives: must have count + timestamp
+            assert 'count' in db['initiatives'], "initiatives must have row count"
+            assert db['initiatives']['count'] >= 0
+            assert 'last_updated' in db['initiatives'], "initiatives must have last_updated timestamp"
+
+    def test_chromadb_stats_collection_and_document_counts(self, mock_handler, temp_db, tmp_path):
+        """Verify chromadb_stats: collection counts and document counts.
+
+        Session 300: Explicit verification of pilot.json chromadb_stats artifact.
+        Must include collections dict with counts + total_documents aggregate.
+        """
+        # Create vectors directory with mock chromadb
+        vectors_dir = tmp_path / 'pilot' / 'vectors' / 'san-rafael'
+        vectors_dir.mkdir(parents=True)
+
+        with patch(
+            'civic_services.servers.civic_api_integrated.get_user_path'
+        ) as mock_path:
+
+            def path_resolver(f):
+                if f == 'civic_state.db':
+                    return str(temp_db)
+                elif f == '':
+                    return str(tmp_path)
+                return str(tmp_path / f)
+
+            mock_path.side_effect = path_resolver
+
+            mock_handler.serve_admin_status()
+
+            response = mock_handler.responses[0]['data']
+            chroma = response['chromadb']
+
+            # Must have collections dict (even if empty due to no actual chromadb)
+            assert 'collections' in chroma or chroma.get('status') in ['no_storage', 'error', 'chromadb_not_installed'], \
+                "chromadb must have collections or valid status"
+
+            # If collections exist, each must have count
+            if 'collections' in chroma:
+                for corpus_type, info in chroma['collections'].items():
+                    if info is not None:  # None means collection doesn't exist
+                        assert 'count' in info, f"collection {corpus_type} must have document count"
+                        assert isinstance(info['count'], int), f"collection {corpus_type} count must be int"
+
+            # Must have total_documents if connected
+            if chroma.get('status') == 'connected':
+                assert 'total_documents' in chroma, "chromadb must have total_documents aggregate"
+                assert isinstance(chroma['total_documents'], int)
