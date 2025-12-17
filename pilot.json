@@ -564,9 +564,11 @@
         "note": "Combines structural (agenda_item) + semantic (embeddings) signals; agreement bonus when both align"
       },
       "transcript_reindexing": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Re-index all transcripts with agenda detection + meeting_date"
+        "artifact": "Re-index all transcripts with agenda detection + meeting_date",
+        "completed": "2025-12-16",
+        "note": "7750 chunks indexed; 92.7% have agenda_item, 49.5% have meeting_date (12/25 files mapped)"
       },
       "query_layer_integration": {
         "status": "not_ready",
