@@ -310,6 +310,7 @@ class CivicEmbeddings:
         self.transcripts_collection_name = f"{self.jurisdiction_id}_transcripts{collection_suffix}"
         self.issues_collection_name = f"{self.jurisdiction_id}_issues{collection_suffix}"
         self.municipal_code_collection_name = f"{self.jurisdiction_id}_municipal_code{collection_suffix}"
+        self.legislation_collection_name = f"{self.jurisdiction_id}_legislation{collection_suffix}"
 
         # Persist directory follows schema: data/pilot/vectors/{jurisdiction_id}/
         if persist_directory is None:
@@ -1223,6 +1224,205 @@ class CivicEmbeddings:
         try:
             collection = self._client.get_collection(
                 self.municipal_code_collection_name
+            )
+            return collection.count() > 0
+        except Exception:
+            return False
+
+    def build_legislation_index(
+        self,
+        state: str = "california",
+        topics: Optional[List[str]] = None,
+        legislative_context_path: str = "data/legislative_context",
+    ) -> Any:  # Returns chromadb.Collection
+        """
+        Build vector index for state legislation from JSON files.
+
+        Loads state bills from legislative context JSON files and indexes them
+        in ChromaDB for semantic search. This enables queries like
+        "affordable housing funding" to find relevant bills beyond keyword matching.
+
+        Args:
+            state: State identifier (e.g., "california")
+            topics: Optional list of topics to index. If None, indexes all:
+                   ["housing", "transportation", "environment", "education", "budget"]
+            legislative_context_path: Path to legislative context JSON files
+
+        Returns:
+            ChromaDB collection with embedded legislation
+
+        Example:
+            >>> embedder = CivicEmbeddings("city-san-rafael")
+            >>> collection = embedder.build_legislation_index()
+            >>> # Collection contains ~26 state bills across 5 topics
+        """
+        if topics is None:
+            topics = ["housing", "transportation", "environment", "education", "budget"]
+
+        context_path = Path(legislative_context_path)
+        documents = []
+        total_bills = 0
+
+        for topic in topics:
+            file_path = context_path / f"{state}_{topic}.json"
+            if not file_path.exists():
+                continue
+
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+
+            state_legislation = data.get("state_legislation", {})
+            for bill_id, bill_info in state_legislation.items():
+                # Build searchable text combining bill info
+                text_parts = [
+                    f"Bill: {bill_info.get('bill', bill_id)}",
+                    f"Summary: {bill_info.get('summary', '')}",
+                    f"Leverage Point: {bill_info.get('leverage_point', '')}",
+                ]
+                if bill_info.get('keywords'):
+                    text_parts.append(f"Keywords: {', '.join(bill_info['keywords'])}")
+
+                text = "\n".join(text_parts)
+
+                # Build metadata, filtering out None values (ChromaDB requires non-null)
+                metadata = {
+                    "bill_id": bill_id,
+                    "bill_name": bill_info.get("bill") or "",
+                    "topic": topic,
+                    "status": bill_info.get("status") or "",
+                    "enacted": bill_info.get("enacted") or "",
+                    "local_deadline": bill_info.get("local_deadline") or "",
+                    "local_implementation_required": bool(bill_info.get("local_implementation_required", False)),
+                    "official_url": bill_info.get("official_url") or "",
+                    "source_type": "state_legislation",
+                    "state": state,
+                }
+
+                documents.append({
+                    "id": bill_id,
+                    "text": text,
+                    "metadata": metadata,
+                })
+                total_bills += 1
+
+        if not documents:
+            raise ValueError(
+                f"No legislation found in {legislative_context_path} for state={state}, topics={topics}"
+            )
+
+        # Create collection (delete existing if present)
+        try:
+            self._client.delete_collection(self.legislation_collection_name)
+        except Exception:
+            pass
+
+        collection = self._client.create_collection(
+            name=self.legislation_collection_name,
+            metadata={
+                "hnsw:space": "cosine",
+                "description": f"{self.jurisdiction_id} legislation for RAG",
+                "jurisdiction_id": self.jurisdiction_id,
+                "embedding_model": self.model_name,
+                "embedding_dimension": self.embedding_dimension,
+                "created_at": datetime.now().isoformat(),
+                "source": "legislative_context JSON files",
+                "state": state,
+                "topics": ",".join(topics),
+                "total_bills": total_bills,
+            }
+        )
+
+        # Process in batches for memory efficiency
+        batch_size = 50
+        for i in range(0, len(documents), batch_size):
+            batch = documents[i:i + batch_size]
+
+            texts = [doc["text"] for doc in batch]
+            ids = [doc["id"] for doc in batch]
+            metadatas = [doc["metadata"] for doc in batch]
+
+            embeddings = self.model.encode(texts, show_progress_bar=False)
+
+            collection.add(
+                ids=ids,
+                documents=texts,
+                embeddings=embeddings.tolist(),
+                metadatas=metadatas,
+            )
+
+        return collection
+
+    def search_legislation(
+        self,
+        query: str,
+        top_k: int = 10,
+        where: Optional[Dict] = None,
+        topic: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> List[SearchResult]:
+        """
+        Search legislation using semantic search.
+
+        Args:
+            query: Search query text (e.g., "affordable housing funding")
+            top_k: Number of results to return
+            where: Optional ChromaDB filter
+            topic: Filter by topic (e.g., "housing", "transportation")
+            status: Filter by status (e.g., "Active")
+
+        Returns:
+            List of SearchResult objects
+
+        Example:
+            >>> embedder = CivicEmbeddings("city-san-rafael")
+            >>> results = embedder.search_legislation("affordable housing streamlined approval")
+            >>> for r in results:
+            ...     print(f"{r.metadata['bill_id']}: {r.score:.3f}")
+            ca-sb35: 0.782
+            ca-ab2011: 0.756
+        """
+        try:
+            collection = self._client.get_collection(
+                self.legislation_collection_name
+            )
+        except Exception:
+            # Collection doesn't exist
+            return []
+
+        # Build filter
+        effective_where = where.copy() if where else None
+
+        filters = []
+        if topic:
+            filters.append({"topic": topic})
+        if status:
+            filters.append({"status": status})
+
+        if filters:
+            if effective_where:
+                filters.insert(0, effective_where)
+            if len(filters) == 1:
+                effective_where = filters[0]
+            else:
+                effective_where = {"$and": filters}
+
+        # Generate query embedding
+        query_embedding = self.model.encode([query])[0]
+
+        # Search
+        results = collection.query(
+            query_embeddings=[query_embedding.tolist()],
+            n_results=top_k,
+            where=effective_where,
+        )
+
+        return self._results_to_search_results(results)
+
+    def has_legislation(self) -> bool:
+        """Check if legislation collection exists and has documents."""
+        try:
+            collection = self._client.get_collection(
+                self.legislation_collection_name
             )
             return collection.count() > 0
         except Exception:
