@@ -294,14 +294,18 @@
     },
     "metrics": {
       "request_count": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Track API request volume"
+        "artifact": "Track API request volume",
+        "completed": "2025-12-17",
+        "note": "Session 296: RequestMetricsManager tracks volume via /health endpoint"
       },
       "response_times": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Track response time distribution"
+        "artifact": "Track response time distribution",
+        "completed": "2025-12-17",
+        "note": "Session 296: RequestMetrics includes p50/p95/p99/avg response times via /health endpoint"
       },
       "active_users": {
         "status": "not_ready",

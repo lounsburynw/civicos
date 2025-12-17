@@ -53,6 +53,25 @@ def get_error_alert_manager():
             logger.warning("module_unavailable", extra={"module_name": "error_alerting", "error": str(e)})
     return _error_alert_manager
 
+
+# Request metrics monitoring (Session 296)
+_request_metrics_manager = None
+_request_metrics_checked = False
+
+def get_request_metrics_manager():
+    """Lazily initialize and return the request metrics manager, or None if unavailable."""
+    global _request_metrics_manager, _request_metrics_checked
+    if not _request_metrics_checked:
+        _request_metrics_checked = True
+        try:
+            from ..monitoring.request_metrics import RequestMetricsManager
+            _request_metrics_manager = RequestMetricsManager()
+            logger.debug("module_loaded", extra={"module_name": "request_metrics"})
+        except Exception as e:
+            _request_metrics_manager = None
+            logger.warning("module_unavailable", extra={"module_name": "request_metrics", "error": str(e)})
+    return _request_metrics_manager
+
 # Core imports
 from ..core.config import config, get_data_path, get_bundled_path, get_user_path
 from ..core.rate_limiter import rate_limiter
@@ -539,18 +558,20 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Origin', allowed_origins[0] if allowed_origins else '*')
         self.end_headers()
         error_response = {
-            'error': 'Authentication required', 
+            'error': 'Authentication required',
             'message': 'Include Bearer token in Authorization header',
             'example': 'Authorization: Bearer <your_api_key>'
         }
         self.wfile.write(json.dumps(error_response, indent=2).encode())
+        # Session 296: Log request completion for metrics
+        self._log_request_complete(401)
     
     def send_rate_limit_error(self, limit_info):
         """Send rate limit exceeded response"""
         self.send_response(429)  # Too Many Requests
         self.send_header('Content-Type', 'application/json')
         self.send_header('Retry-After', str(limit_info['retry_after']))
-        
+
         # Use proper CORS from config
         origin = self.headers.get('Origin', '*')
         allowed_origins = config.get_cors_origins()
@@ -558,15 +579,17 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Origin', origin)
         else:
             self.send_header('Access-Control-Allow-Origin', allowed_origins[0] if allowed_origins else '*')
-        
+
         self.end_headers()
-        
+
         error_response = {
             'error': 'Rate limit exceeded',
             'message': f"Too many requests. Limit: {limit_info['limit_value']} per {limit_info['limit']}",
             'retry_after': limit_info['retry_after']
         }
         self.wfile.write(json.dumps(error_response, indent=2).encode())
+        # Session 296: Log request completion for metrics
+        self._log_request_complete(429)
     
     def do_OPTIONS(self):
         """Handle CORS preflight"""
@@ -586,7 +609,9 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         """Handle GET requests with authentication and rate limiting"""
         # Session 246: Request logging with correlation ID
-        request_start_time = time.time()
+        # Session 296: Store as instance vars for request completion logging
+        self._request_start_time = time.time()
+        self._request_method = "GET"
         correlation_id = set_correlation_id() if 'set_correlation_id' in dir() else str(uuid.uuid4())[:8]
         client_ip = self.client_address[0] if self.client_address else None
 
@@ -833,7 +858,9 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         """Handle POST requests with authentication and rate limiting"""
         # Session 246: Request logging with correlation ID
-        request_start_time = time.time()
+        # Session 296: Store as instance vars for request completion logging
+        self._request_start_time = time.time()
+        self._request_method = "POST"
         correlation_id = set_correlation_id() if 'set_correlation_id' in dir() else str(uuid.uuid4())[:8]
         client_ip = self.client_address[0] if self.client_address else None
 
@@ -940,6 +967,10 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         """Handle PUT requests with authentication and rate limiting"""
+        # Session 296: Store as instance vars for request completion logging
+        self._request_start_time = time.time()
+        self._request_method = "PUT"
+
         # Check rate limit first
         client_id = rate_limiter.get_client_id(self)
         allowed, limit_info = rate_limiter.check_rate_limit(client_id)
@@ -978,6 +1009,10 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
 
     def do_DELETE(self):
         """Handle DELETE requests with authentication and rate limiting"""
+        # Session 296: Store as instance vars for request completion logging
+        self._request_start_time = time.time()
+        self._request_method = "DELETE"
+
         # Check rate limit first
         client_id = rate_limiter.get_client_id(self)
         allowed, limit_info = rate_limiter.check_rate_limit(client_id)
@@ -7207,6 +7242,10 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
         if error_metrics_check.get('status') == 'critical':
             overall_healthy = False
 
+        # 6. Request metrics check (Session 296)
+        request_metrics_check = self._check_request_metrics()
+        checks['request_metrics'] = request_metrics_check
+
         # Determine overall status
         if not overall_healthy:
             overall_status = 'unhealthy'
@@ -7433,6 +7472,44 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
 
             # Also trigger alert check (will debounce if needed)
             alert_manager.check_and_alert()
+
+        except Exception as e:
+            result['status'] = 'unknown'
+            result['details']['error'] = str(e)
+
+        return result
+
+    def _check_request_metrics(self) -> dict:
+        """Check request metrics for volume monitoring (Session 296)"""
+        result = {
+            'status': 'healthy',
+            'details': {
+                'window_minutes': 5,
+                'total_requests': 0,
+                'requests_per_minute': 0.0
+            }
+        }
+
+        try:
+            metrics_manager = get_request_metrics_manager()
+            if not metrics_manager:
+                result['details']['note'] = 'Request metrics not available'
+                return result
+
+            metrics = metrics_manager.get_request_metrics()
+
+            result['details'] = {
+                'window_minutes': metrics.get('window_minutes', 5),
+                'total_requests': metrics.get('total_requests', 0),
+                'requests_per_minute': metrics.get('requests_per_minute', 0.0),
+                'success_count': metrics.get('success_count', 0),
+                'client_error_count': metrics.get('client_error_count', 0),
+                'server_error_count': metrics.get('server_error_count', 0),
+                'response_time_p50': metrics.get('response_time_p50'),
+                'response_time_p95': metrics.get('response_time_p95'),
+                'response_time_avg': metrics.get('response_time_avg'),
+                'top_endpoints': metrics.get('top_endpoints', [])[:5]
+            }
 
         except Exception as e:
             result['status'] = 'unknown'
@@ -7869,12 +7946,34 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             tags.append('environmental')
         
         return list(set(tags))  # Remove duplicates
-    
+
+    def _log_request_complete(self, status_code: int):
+        """
+        Session 296: Log request completion for metrics tracking.
+        Uses instance variables set by do_GET/POST/PUT/DELETE.
+        """
+        start_time = getattr(self, '_request_start_time', None)
+        method = getattr(self, '_request_method', 'UNKNOWN')
+
+        if start_time is not None:
+            duration_ms = (time.time() - start_time) * 1000
+            try:
+                log_request_complete(
+                    logger,
+                    method=method,
+                    path=self.path,
+                    status_code=status_code,
+                    duration_ms=duration_ms
+                )
+            except Exception:
+                # Don't let logging failures break responses
+                pass
+
     def send_json(self, data, status_code=200):
         """Send JSON response with CORS headers, rate limit info, and standardized format"""
         self.send_response(status_code)
         self.send_header('Content-Type', 'application/json')
-        
+
         # Add rate limit headers if available
         client_id = rate_limiter.get_client_id(self)
         _, limit_headers = rate_limiter.check_rate_limit(client_id)
@@ -7882,7 +7981,7 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             for header, value in limit_headers.items():
                 if header.startswith('X-RateLimit'):
                     self.send_header(header, value)
-        
+
         # Use proper CORS from config
         origin = self.headers.get('Origin', '*')
         allowed_origins = config.get_cors_origins()
@@ -7894,6 +7993,9 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
         self.send_header('X-Integration-Status', 'schema-compliant')
         self.end_headers()
         self.wfile.write(json.dumps(data, indent=2).encode())
+
+        # Session 296: Log request completion for metrics
+        self._log_request_complete(status_code)
 
     def serve_help(self):
         """
