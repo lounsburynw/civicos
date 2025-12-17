@@ -1,3 +1,28 @@
+## Session 281: Fix state_bills_indexed - legislative cache import
+Date: 2025-12-16
+
+### Work Done
+1. **Fixed broken import in context.py**:
+   - Changed `from legislative_context_cache import legislative_cache` to `from civic_services.legislative.legislative_context_cache import legislative_cache`
+   - Removed obsolete sys.path manipulation (lines 13-16)
+   - what_applies() now correctly returns California state bills
+
+2. **Verified all what_applies tests pass**:
+   - 12 tests in test_integration_san_rafael.py (what_applies related)
+   - Confirms: 6 housing bills, proper structure, actionable leverage points
+
+3. **Updated pilot.json**: `state_bills_indexed` → ready
+
+### Files Changed
+- `packages/civic/src/civic/context.py` (fixed import path)
+- `pilot.json` (state_bills_indexed status → ready)
+
+**Progress:** 76/131 items ready (58%)
+
+**Commit:** Session 281: Fix state_bills_indexed - legislative cache import
+
+---
+
 ## Session 266: Fly.io deployment - FastEmbed migration
 Date: 2025-12-15
 
