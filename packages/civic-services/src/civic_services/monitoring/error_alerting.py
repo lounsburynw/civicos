@@ -7,7 +7,7 @@ Works with the structured JSON logs from logging_config.py.
 Features:
 - Reads error events from logs/civic.json.log
 - Calculates error rate over configurable time windows
-- Sends email alerts when error rate exceeds thresholds
+- Sends alerts via email and/or Slack when error rate exceeds thresholds
 - Debounces alerts to prevent notification storms
 - Logs alert history for audit
 
@@ -22,6 +22,7 @@ Usage:
     metrics = alert_manager.get_error_metrics()
 
 Session 294: Initial error alerting implementation
+Session 295: Added Slack webhook support (alert_channel)
 """
 
 import json
@@ -33,6 +34,8 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.request import urlopen, Request
+from urllib.error import URLError, HTTPError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -235,6 +238,9 @@ class ErrorAlertManager:
         self.smtp_username = os.environ.get('CIVIC_SMTP_USERNAME', '')
         self.smtp_password = os.environ.get('CIVIC_SMTP_PASSWORD', '')
 
+        # Slack configuration from environment
+        self.slack_webhook_url = os.environ.get('CIVIC_SLACK_WEBHOOK_URL', '')
+
     def get_error_metrics(self) -> Dict[str, Any]:
         """
         Get current error metrics for external consumption (e.g., /health endpoint).
@@ -292,12 +298,23 @@ class ErrorAlertManager:
             notification_method="log_only"
         )
 
+        # Track which channels succeeded
+        channels_sent = []
+
         # Attempt to send email notification
         if self._send_email_alert(alert, metrics):
+            channels_sent.append("email")
+
+        # Attempt to send Slack notification
+        if self._send_slack_alert(alert, metrics):
+            channels_sent.append("slack")
+
+        # Update alert with notification status
+        if channels_sent:
             alert.notification_sent = True
-            alert.notification_method = "email"
+            alert.notification_method = "+".join(channels_sent)
         else:
-            # Log-only alert when email not configured
+            # Log-only alert when no channels configured
             logger.warning(
                 f"ERROR ALERT: {alert_type} - {metrics.error_rate_percent}% error rate "
                 f"({metrics.error_count}/{metrics.total_requests} requests) "
@@ -428,6 +445,109 @@ Alert type: {alert.alert_type}
             logger.error(f"Failed to send email alert: {e}")
             return False
 
+    def _send_slack_alert(self, alert: AlertEvent, metrics: ErrorMetrics) -> bool:
+        """
+        Send Slack webhook alert notification.
+
+        Returns:
+            True if Slack message sent successfully, False otherwise
+        """
+        if not self.slack_webhook_url:
+            logger.debug("Slack alerting not configured (missing webhook URL)")
+            return False
+
+        # Format severity
+        severity = "CRITICAL" if alert.alert_type == "error_rate_critical" else "WARNING"
+        emoji = ":rotating_light:" if severity == "CRITICAL" else ":warning:"
+
+        # Build Slack Block Kit message
+        # See: https://api.slack.com/block-kit
+        blocks = [
+            {
+                "type": "header",
+                "text": {
+                    "type": "plain_text",
+                    "text": f"{emoji} Civic Error Rate Alert",
+                    "emoji": True
+                }
+            },
+            {
+                "type": "section",
+                "fields": [
+                    {
+                        "type": "mrkdwn",
+                        "text": f"*Severity:*\n{severity}"
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": f"*Error Rate:*\n{alert.error_rate}% (threshold: {alert.threshold}%)"
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": f"*Total Requests:*\n{alert.total_requests} (last {self.window_minutes}min)"
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": f"*Server Errors (5xx):*\n{alert.error_count}"
+                    }
+                ]
+            }
+        ]
+
+        # Add top error endpoints if any
+        if metrics.top_error_endpoints:
+            endpoint_lines = [
+                f"• `{ep['path']}`: {ep['count']} errors"
+                for ep in metrics.top_error_endpoints[:3]
+            ]
+            blocks.append({
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*Top Error Endpoints:*\n" + "\n".join(endpoint_lines)
+                }
+            })
+
+        # Add action links
+        blocks.append({
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": f"<https://civic-api.fly.dev/health|View Health> | Alert type: `{alert.alert_type}`"
+                }
+            ]
+        })
+
+        payload = {
+            "blocks": blocks,
+            "text": f"{severity}: Civic error rate at {alert.error_rate}%"  # Fallback text
+        }
+
+        try:
+            req = Request(
+                self.slack_webhook_url,
+                data=json.dumps(payload).encode('utf-8'),
+                headers={'Content-Type': 'application/json'}
+            )
+            with urlopen(req, timeout=10) as response:
+                if response.status == 200:
+                    logger.info("Slack alert sent successfully")
+                    return True
+                else:
+                    logger.warning(f"Slack webhook returned status {response.status}")
+                    return False
+
+        except HTTPError as e:
+            logger.error(f"Slack webhook HTTP error: {e.code} - {e.reason}")
+            return False
+        except URLError as e:
+            logger.error(f"Slack webhook URL error: {e.reason}")
+            return False
+        except Exception as e:
+            logger.error(f"Failed to send Slack alert: {e}")
+            return False
+
     def _format_endpoints(self, endpoints: List[Dict[str, Any]]) -> str:
         """Format endpoint list for email body."""
         if not endpoints:
@@ -516,3 +636,7 @@ if __name__ == "__main__":
         print("  CIVIC_SMTP_PORT       - SMTP port (default: 587)")
         print("  CIVIC_SMTP_USERNAME   - SMTP username")
         print("  CIVIC_SMTP_PASSWORD   - SMTP password/app password")
+        print()
+        print("Environment variables for Slack alerts:")
+        print("  CIVIC_SLACK_WEBHOOK_URL - Slack incoming webhook URL")
+        print("                            Create at: https://api.slack.com/messaging/webhooks")
