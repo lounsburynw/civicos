@@ -35,6 +35,24 @@ except ImportError:
     logger = logging.getLogger('civic_api')
     logging.basicConfig(level=logging.INFO)
 
+# Error rate monitoring (Session 294)
+_error_alert_manager = None
+_error_alert_checked = False
+
+def get_error_alert_manager():
+    """Lazily initialize and return the error alert manager, or None if unavailable."""
+    global _error_alert_manager, _error_alert_checked
+    if not _error_alert_checked:
+        _error_alert_checked = True
+        try:
+            from ..monitoring.error_alerting import ErrorAlertManager
+            _error_alert_manager = ErrorAlertManager()
+            logger.debug("module_loaded", extra={"module_name": "error_alerting"})
+        except Exception as e:
+            _error_alert_manager = None
+            logger.warning("module_unavailable", extra={"module_name": "error_alerting", "error": str(e)})
+    return _error_alert_manager
+
 # Core imports
 from ..core.config import config, get_data_path, get_bundled_path, get_user_path
 from ..core.rate_limiter import rate_limiter
@@ -7182,10 +7200,19 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             'pipeline_ready': digest_available and len(schema_files) > 0
         }
 
+        # 5. Error rate check (Session 294)
+        error_metrics_check = self._check_error_rate()
+        checks['error_rate'] = error_metrics_check
+        # Elevated error rate = degraded status
+        if error_metrics_check.get('status') == 'critical':
+            overall_healthy = False
+
         # Determine overall status
         if not overall_healthy:
             overall_status = 'unhealthy'
-        elif services_check.get('legistar') == 'unavailable' or checks['data']['status'] == 'degraded':
+        elif (services_check.get('legistar') == 'unavailable' or
+              checks['data']['status'] == 'degraded' or
+              error_metrics_check.get('status') == 'elevated'):
             overall_status = 'degraded'
         else:
             overall_status = 'healthy'
@@ -7363,6 +7390,53 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                 result['legistar'] = 'unavailable'
         except Exception:
             result['legistar'] = 'unavailable'
+
+        return result
+
+    def _check_error_rate(self) -> dict:
+        """Check error rate from recent requests (Session 294)"""
+        result = {
+            'status': 'healthy',
+            'details': {
+                'window_minutes': 5,
+                'total_requests': 0,
+                'error_count': 0,
+                'error_rate_percent': 0.0
+            }
+        }
+
+        try:
+            alert_manager = get_error_alert_manager()
+            if not alert_manager:
+                result['details']['note'] = 'Error monitoring not available'
+                return result
+
+            metrics = alert_manager.get_error_metrics()
+
+            result['details'] = {
+                'window_minutes': metrics.get('window_minutes', 5),
+                'total_requests': metrics.get('total_requests', 0),
+                'error_count': metrics.get('error_count', 0),
+                'client_error_count': metrics.get('client_error_count', 0),
+                'error_rate_percent': metrics.get('error_rate_percent', 0.0),
+                'top_error_endpoints': metrics.get('top_error_endpoints', [])
+            }
+
+            # Map metrics status to health check status
+            metrics_status = metrics.get('status', 'normal')
+            if metrics_status == 'critical':
+                result['status'] = 'critical'
+            elif metrics_status == 'elevated':
+                result['status'] = 'elevated'
+            else:
+                result['status'] = 'healthy'
+
+            # Also trigger alert check (will debounce if needed)
+            alert_manager.check_and_alert()
+
+        except Exception as e:
+            result['status'] = 'unknown'
+            result['details']['error'] = str(e)
 
         return result
 
