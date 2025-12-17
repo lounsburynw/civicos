@@ -3339,3 +3339,46 @@ All 12 tests passing.
 - All 12 admin_status tests passing
 
 **Commit:** Session 301: status_page + visual_indicators + time_ago_formatting - Admin dashboard frontend
+
+## Session 302: fetch_meetings_button - Manual Trigger Implementation
+**Date:** 2025-12-17
+**Phase:** Pilot
+**Item:** fetch_meetings_button (admin_operations > manual_triggers)
+
+### Summary
+Implemented the "Fetch Meetings" button in the admin dashboard to manually trigger the ProudCity scraper.
+
+### Implementation
+**1. Backend Endpoint** (civic_api_integrated.py)
+- Added POST /api/admin/trigger endpoint
+- Implemented handle_admin_trigger() dispatcher for operations
+- Implemented _trigger_fetch_meetings() that:
+  - Creates ProudCityClient
+  - Fetches events for 90 days ahead, 30 days past
+  - Normalizes to Meeting format
+  - Stores via StateManager with temporal versioning
+  - Returns counts: fetched, normalized, stored, new
+
+**2. Frontend API Service** (api.ts)
+- Added AdminTriggerResponse type to civic.ts
+- Added triggerFetchMeetings() method
+
+**3. Admin Dashboard UI** (AdminStatusPage.vue)
+- Added "Manual Operations" section with collapsible header
+- Fetch Meetings button with loading state
+- Operation result display showing success/error status
+- Auto-refresh of status after successful operation
+
+### Files Changed
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py` - POST /api/admin/trigger endpoint
+- `apps/civic-workspace/src/types/civic.ts` - AdminTriggerResponse interface
+- `apps/civic-workspace/src/services/api.ts` - triggerFetchMeetings() method
+- `apps/civic-workspace/src/components/workspace/AdminStatusPage.vue` - Manual Operations section
+- `pilot.json` - Updated fetch_meetings_button to "ready"
+
+### Tests
+- All 34 smoke tests passing
+- All 12 admin_status tests passing
+- TypeScript type-check passes
+
+**Commit:** Session 302: fetch_meetings_button - Admin manual trigger for ProudCity scraper

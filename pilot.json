@@ -384,9 +384,10 @@
     "description": "Operational tools for admin support and automation",
     "manual_triggers": {
       "fetch_meetings_button": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Button: Fetch New Meetings (ProudCity scraper)"
+        "artifact": "Button: Fetch New Meetings (ProudCity scraper)",
+        "implementation": "POST /api/admin/trigger with operation: fetch_meetings"
       },
       "discover_videos_button": {
         "status": "not_ready",

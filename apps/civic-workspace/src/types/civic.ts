@@ -775,3 +775,21 @@ export interface AdminStatusResponse {
     state_db_size_bytes: number;
   };
 }
+
+/**
+ * Response from admin trigger operations
+ * Backend: POST /api/admin/trigger
+ */
+export interface AdminTriggerResponse {
+  status: 'success' | 'error';
+  operation: string;
+  jurisdiction: string;
+  timestamp: string;
+  count_fetched?: number;
+  count_normalized?: number;
+  count_stored?: number;
+  count_new?: number;
+  duration_seconds?: number;
+  error?: string;
+  supported_operations?: string[];
+}
