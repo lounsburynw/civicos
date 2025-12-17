@@ -1250,12 +1250,12 @@ class CivicEmbeddings:
         self,
         state: str = "california",
         topics: Optional[List[str]] = None,
-        legislative_context_path: str = "data/legislative_context",
+        legislation_path: str = "data/legislation/state",
     ) -> Any:  # Returns chromadb.Collection
         """
         Build vector index for state legislation from JSON files.
 
-        Loads state bills from legislative context JSON files and indexes them
+        Loads state bills from legislation JSON files and indexes them
         in ChromaDB for semantic search. This enables queries like
         "affordable housing funding" to find relevant bills beyond keyword matching.
 
@@ -1263,7 +1263,7 @@ class CivicEmbeddings:
             state: State identifier (e.g., "california")
             topics: Optional list of topics to index. If None, indexes all:
                    ["housing", "transportation", "environment", "education", "budget"]
-            legislative_context_path: Path to legislative context JSON files
+            legislation_path: Path to legislation directory (contains state subdirs)
 
         Returns:
             ChromaDB collection with embedded legislation
@@ -1276,12 +1276,12 @@ class CivicEmbeddings:
         if topics is None:
             topics = ["housing", "transportation", "environment", "education", "budget"]
 
-        context_path = Path(legislative_context_path)
+        base_path = Path(legislation_path)
         documents = []
         total_bills = 0
 
         for topic in topics:
-            file_path = context_path / f"{state}_{topic}.json"
+            file_path = base_path / state / f"{topic}.json"
             if not file_path.exists():
                 continue
 
@@ -1324,7 +1324,7 @@ class CivicEmbeddings:
 
         if not documents:
             raise ValueError(
-                f"No legislation found in {legislative_context_path} for state={state}, topics={topics}"
+                f"No legislation found in {legislation_path}/{state} for topics={topics}"
             )
 
         # Create collection (delete existing if present)
@@ -1342,7 +1342,7 @@ class CivicEmbeddings:
                 "embedding_model": self.model_name,
                 "embedding_dimension": self.embedding_dimension,
                 "created_at": datetime.now().isoformat(),
-                "source": "legislative_context JSON files",
+                "source": "legislation JSON files",
                 "state": state,
                 "topics": ",".join(topics),
                 "total_bills": total_bills,
@@ -1448,7 +1448,7 @@ class CivicEmbeddings:
     def build_federal_programs_index(
         self,
         topics: Optional[List[str]] = None,
-        federal_programs_path: str = "data/federal_programs",
+        federal_programs_path: str = "data/funding/federal",
     ) -> Any:  # Returns chromadb.Collection
         """
         Build vector index for federal programs from JSON files.

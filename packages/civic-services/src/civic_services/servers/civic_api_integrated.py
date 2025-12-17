@@ -5440,7 +5440,7 @@ Key Topics (choose up to 3 from):
                 return
 
             # Load state legislation file for topic
-            leg_file = Path(f'data/legislative_context/california_{topic}.json')
+            leg_file = Path(f'data/legislation/state/california/{topic}.json')
 
             if not leg_file.exists():
                 self.send_json({
@@ -5530,7 +5530,7 @@ Key Topics (choose up to 3 from):
                 return
 
             # Load federal programs file for topic
-            fed_file = Path(f'data/federal_programs/{topic}.json')
+            fed_file = Path(f'data/funding/federal/{topic}.json')
 
             if not fed_file.exists():
                 self.send_json({
