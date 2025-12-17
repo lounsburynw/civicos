@@ -2600,3 +2600,53 @@ Date: 2025-12-16
 - pilot.json
 
 **Commit:** Session 286: legislative_unified_search - UnifiedSearch legislation integration
+
+### Session 287: marin_housing_programs - County Housing Programs Integration
+**Date:** 2025-12-16
+
+#### Summary
+Completed `marin_housing_programs` pilot item - added Marin Housing Authority housing programs to the legislative/regulatory context layer.
+
+#### What Was Done
+
+##### 1. Data File Created
+- Created `data/funding/county/marin/housing_programs.json` with 8 Marin Housing Authority programs:
+  - Housing Choice Voucher (Section 8)
+  - Public Housing (Golden Gate Village)
+  - Below Market Rate Homeownership
+  - HCV Homeownership Program
+  - CDBG Housing
+  - HOME Investment Partnerships
+  - PLHA (Permanent Local Housing Allocation)
+  - Marin Affordable Housing Fund
+- Includes 2025 income limits, eligibility requirements, leverage points for civic engagement
+
+##### 2. Vector Indexing Added
+- Added `build_county_housing_index()` to CivicEmbeddings (embeddings.py:1656-1789)
+- Added `search_county_housing()` for semantic search (embeddings.py:1791-1855)
+- Added `has_county_housing()` check method (embeddings.py:1857-1865)
+- Added `county_housing_collection_name` to collection names (embeddings.py:315)
+
+##### 3. UnifiedSearch Integration
+- Updated unified.py to include county housing in "legislation" corpus searches
+- Modified `search_all()` (unified.py:206-213)
+- Modified `search_corpus()` (unified.py:350-361)
+- Modified `get_available_corpora()` (unified.py:429-432)
+
+##### 4. Tests Added
+- Created TestCountyHousingVectorSearch class with 8 tests (test_integration_rag_san_rafael.py:4163-4369)
+- Updated 3 unified search unit tests to mock new collection (test_unified_search.py)
+- All tests passing:
+  - 8 county housing integration tests
+  - 27 unified search unit tests
+  - 34 smoke tests
+
+### Files Changed
+- data/funding/county/marin/housing_programs.json (NEW)
+- packages/civic/src/civic/_internal/meetings/embeddings.py
+- packages/civic/src/civic/_internal/search/unified.py
+- packages/civic/tests/test_integration_rag_san_rafael.py
+- packages/civic/tests/test_unified_search.py
+- pilot.json (status: ready)
+
+**Commit:** Session 287: marin_housing_programs - County Housing Programs Integration

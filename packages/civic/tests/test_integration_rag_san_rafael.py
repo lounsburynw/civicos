@@ -3534,6 +3534,9 @@ LEGISLATION_STATE_DIR = PROJECT_ROOT / "data/legislation/state"
 # Path to federal funding programs files (new structure: data/funding/federal/)
 FEDERAL_PROGRAMS_DIR = PROJECT_ROOT / "data/funding/federal"
 
+# Path to county funding programs files (new structure: data/funding/county/{county}/)
+COUNTY_HOUSING_DIR = PROJECT_ROOT / "data/funding/county"
+
 
 @pytest.mark.requires_real_data
 class TestLegislationVectorSearch:
@@ -4155,3 +4158,212 @@ class TestLegislativeUnifiedSearch:
             assert len(results) > 0
             for r in results:
                 assert r.source_type == "state_legislation"
+
+
+@pytest.mark.requires_real_data
+class TestCountyHousingVectorSearch:
+    """
+    Tests for county housing programs vector indexing and semantic search.
+
+    Validates marin_housing_programs pilot item:
+    - County housing programs data file exists
+    - Programs are indexed in ChromaDB
+    - Semantic search returns relevant programs
+    - Integration with UnifiedSearch works correctly
+    """
+
+    def test_county_housing_file_exists(self):
+        """Validate Marin county housing programs JSON file exists."""
+        path = COUNTY_HOUSING_DIR / "marin" / "housing_programs.json"
+        assert path.exists(), f"County housing programs file not found: {path}"
+
+    def test_county_housing_file_has_programs(self):
+        """Validate county housing programs file contains program data."""
+        import json
+
+        path = COUNTY_HOUSING_DIR / "marin" / "housing_programs.json"
+        with open(path) as f:
+            data = json.load(f)
+
+        programs = data.get("programs", {})
+        assert len(programs) >= 5, f"Expected at least 5 programs, got {len(programs)}"
+
+        # Check for key Marin Housing Authority programs
+        expected_programs = ["housing_choice_voucher", "below_market_rate_homeownership"]
+        for prog in expected_programs:
+            assert prog in programs, f"Expected program '{prog}' not found"
+
+    def test_county_housing_index_can_be_built(self):
+        """Validate county housing programs can be indexed in ChromaDB."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            # Build county housing index
+            collection = embedder.build_county_housing_index(
+                county_name="marin",
+                county_housing_path=str(COUNTY_HOUSING_DIR)
+            )
+
+            # Should have indexed programs
+            count = collection.count()
+            assert count >= 5, f"Expected at least 5 programs indexed, got {count}"
+
+            # Verify collection metadata
+            metadata = collection.metadata
+            assert metadata["county"] == "marin"
+            assert metadata["total_programs"] >= 5
+
+    def test_county_housing_semantic_search(self):
+        """Validate semantic search returns relevant programs."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            # Build index
+            embedder.build_county_housing_index(
+                county_name="marin",
+                county_housing_path=str(COUNTY_HOUSING_DIR)
+            )
+
+            # Search for Section 8 voucher program
+            results = embedder.search_county_housing(
+                "section 8 rental assistance voucher",
+                top_k=5
+            )
+
+            # Should return results
+            assert len(results) > 0, "No search results returned"
+
+            # Top results should include housing choice voucher
+            program_ids = [r.metadata["program_id"] for r in results]
+            hcv_found = any(
+                "voucher" in pid.lower() or "hcv" in pid.lower()
+                for pid in program_ids
+            )
+            assert hcv_found, f"Expected Housing Choice Voucher program, got: {program_ids}"
+
+    def test_county_housing_search_bmr(self):
+        """Validate semantic search finds Below Market Rate homeownership."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            embedder.build_county_housing_index(
+                county_name="marin",
+                county_housing_path=str(COUNTY_HOUSING_DIR)
+            )
+
+            # Search for first time homebuyer
+            results = embedder.search_county_housing(
+                "first time homebuyer affordable homeownership",
+                top_k=5
+            )
+
+            assert len(results) > 0
+            program_ids = [r.metadata["program_id"] for r in results]
+            bmr_found = any("below_market_rate" in pid or "bmr" in pid.lower() for pid in program_ids)
+            assert bmr_found, f"Expected BMR program in results, got: {program_ids}"
+
+    def test_has_county_housing_method(self):
+        """Validate has_county_housing() returns correct status."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            # Before indexing
+            assert not embedder.has_county_housing(), "has_county_housing() should be False before indexing"
+
+            # After indexing
+            embedder.build_county_housing_index(
+                county_name="marin",
+                county_housing_path=str(COUNTY_HOUSING_DIR)
+            )
+            assert embedder.has_county_housing(), "has_county_housing() should be True after indexing"
+
+    def test_county_housing_metadata_fields(self):
+        """Validate indexed programs have expected metadata fields."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            embedder.build_county_housing_index(
+                county_name="marin",
+                county_housing_path=str(COUNTY_HOUSING_DIR)
+            )
+
+            results = embedder.search_county_housing("housing", top_k=1)
+            assert len(results) > 0
+
+            metadata = results[0].metadata
+            expected_fields = [
+                "program_id", "program_name", "county", "administering_agency",
+                "source_type", "jurisdiction"
+            ]
+            for field in expected_fields:
+                assert field in metadata, f"Missing metadata field: {field}"
+
+            # Verify county-specific metadata
+            assert metadata["county"] == "marin"
+            assert metadata["source_type"] == "county_housing_program"
+            assert metadata["jurisdiction"] == "county-marin"
+
+    def test_county_housing_unified_search_integration(self):
+        """Validate county housing programs appear in UnifiedSearch legislation results."""
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        from civic._internal.search.unified import UnifiedSearch
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            # Build county housing index
+            embedder.build_county_housing_index(
+                county_name="marin",
+                county_housing_path=str(COUNTY_HOUSING_DIR)
+            )
+
+            search = UnifiedSearch("city-san-rafael", persist_directory=tmpdir)
+
+            # Search via unified search
+            results = search.search_all(
+                "section 8 rental assistance housing voucher",
+                corpus_types=["legislation"],
+                top_k=10
+            )
+
+            assert len(results) > 0, "No UnifiedSearch results returned"
+
+            # At least one result should be from county housing
+            source_types = [r.source_type for r in results]
+            assert "county_housing_program" in source_types, (
+                f"Expected county_housing_program in source types, got: {source_types}"
+            )
