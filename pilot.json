@@ -278,9 +278,11 @@
         "note": "docs/critical/UPTIME_MONITORING.md with UptimeRobot setup guide for /health endpoints on both REST API and WebSocket server"
       },
       "error_alerts": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Alert on elevated error rates"
+        "artifact": "Alert on elevated error rates",
+        "completed": "2025-12-17",
+        "note": "ErrorAlertManager in packages/civic-services/src/civic_services/monitoring/error_alerting.py. Monitors 5xx error rates (5%=elevated, 10%=critical), emails alerts with debouncing. Integrated into /health endpoint."
       },
       "alert_channel": {
         "status": "not_ready",
@@ -846,7 +848,7 @@
       "full_city_bootstrap": {
         "status": "not_ready",
         "priority": 3,
-        "artifact": "Single command to bootstrap new city: extract → transform → load all corpora",
+        "artifact": "Single command to bootstrap new city: extract \u2192 transform \u2192 load all corpora",
         "note": "Post-ingestion: generalize from San Rafael experience"
       }
     },

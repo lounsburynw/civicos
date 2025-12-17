@@ -2964,3 +2964,57 @@ Decided to use Fly.io auto-assigned subdomains for pilot:
 - `docs/critical/HOSTING_DECISION.md` - Updated Domain Configuration section with current URLs and decision log entry
 
 **Commit:** Session 292: domain_setup - Use Fly.io auto-assigned subdomains
+
+## Session 294
+
+**Date:** 2025-12-17
+**Item:** error_alerts (monitoring_observability > alerting)
+**Priority:** P2
+
+### Summary
+Implemented error rate monitoring and alerting system that:
+- Monitors 5xx error rates from structured JSON logs
+- Sends email alerts when thresholds exceeded (5% = elevated, 10% = critical)
+- Integrates with /health endpoint to expose error metrics
+- Debounces alerts to prevent notification storms (15 min cooldown)
+
+### Implementation Details
+- **ErrorMetricsCollector**: Reads logs/civic.json.log, calculates error rates over configurable time windows
+- **ErrorAlertManager**: Manages thresholds, debouncing, and email notifications
+- Thresholds: 5% error rate = elevated (degraded status), 10% = critical (unhealthy)
+- Minimum 10 requests required before alerting (avoids noise in low-traffic periods)
+- Alert history stored in data/error_alerts.json
+
+### Files Changed
+- `packages/civic-services/src/civic_services/monitoring/error_alerting.py` (NEW)
+- `packages/civic-services/src/civic_services/monitoring/__init__.py` (exports)
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py` (health endpoint integration)
+- `pilot.json` - Updated error_alerts status to ready (88/153, 58%)
+
+### /health Endpoint Integration
+The error_rate check is now included in health response:
+```json
+{
+  "checks": {
+    "error_rate": {
+      "status": "healthy|elevated|critical",
+      "details": {
+        "window_minutes": 5,
+        "total_requests": N,
+        "error_count": N,
+        "error_rate_percent": X.X,
+        "top_error_endpoints": [...]
+      }
+    }
+  }
+}
+```
+
+### Email Configuration
+Alerts use existing SMTP config from .env.example:
+- CIVIC_ALERT_EMAILS: Comma-separated recipient list
+- CIVIC_SMTP_SERVER/PORT/USERNAME/PASSWORD: SMTP credentials
+
+Without email config, alerts are logged only (log_only mode).
+
+**Commit:** Session 294: error_alerts - Error rate monitoring and alerting
