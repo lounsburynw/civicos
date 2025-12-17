@@ -342,14 +342,18 @@
         "artifact": "GET /admin/status returns JSON pipeline health"
       },
       "database_stats": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Include row counts, last modified timestamps per table"
+        "artifact": "Include row counts, last modified timestamps per table",
+        "completed": "2025-12-17",
+        "note": "Implemented in Session 299 admin_status_endpoint - meetings/agenda_items/issues/initiatives with counts and timestamps"
       },
       "chromadb_stats": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Include collection counts, document counts"
+        "artifact": "Include collection counts, document counts",
+        "completed": "2025-12-17",
+        "note": "Implemented in Session 299 admin_status_endpoint - 5 collections with per-collection and total_documents counts"
       }
     },
     "frontend_dashboard": {
