@@ -2901,3 +2901,27 @@ Before adding items, verified against existing implementations:
 - `pilot.json` - Added 2 categories, 17 items (153 total, 84 ready/54%)
 
 **Commit:** Session 290: Add data_standards and city_onboarding categories to pilot.json
+
+---
+
+## Session 292: domain_setup - Use Fly.io Auto-Assigned Subdomains
+**Date:** 2025-12-17
+**Item:** domain_setup (deployment_artifacts > infrastructure)
+**Priority:** P2
+
+### Summary
+Decided to use Fly.io auto-assigned subdomains for pilot:
+- REST API: `https://civic-api.fly.dev`
+- WebSocket: `https://civic-websocket.fly.dev`
+
+### Rationale
+- Zero additional cost (included with Fly.io hosting)
+- SSL certificates auto-managed
+- Already working and verified via monitoring
+- Custom domain can be added post-pilot without breaking changes
+
+### Files Changed
+- `pilot.json` - Updated domain_setup status to ready (86/153, 56%)
+- `docs/critical/HOSTING_DECISION.md` - Updated Domain Configuration section with current URLs and decision log entry
+
+**Commit:** Session 292: domain_setup - Use Fly.io auto-assigned subdomains
