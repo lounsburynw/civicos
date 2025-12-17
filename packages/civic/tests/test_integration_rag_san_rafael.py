@@ -3453,3 +3453,76 @@ class TestMinutesTranscriptComparison:
             f"Should be able to construct video link at 01:40:03 (6003s). "
             f"Got: {youtube_url}"
         )
+
+
+@pytest.mark.requires_real_data
+class TestWhatHappenedFullContext:
+    """
+    Integration tests for what_happened_full_context().
+
+    Tests the query layer integration that links decisions to transcript excerpts.
+    This is the fulfillment of the query_layer_integration pilot item.
+
+    Requires real San Rafael data (decisions + transcripts indexed).
+    """
+
+    def test_what_happened_full_context_returns_results(self):
+        """Validate what_happened_full_context() returns DecisionWithContext objects."""
+        from civic import Civic
+        from civic.civic import DecisionWithContext
+
+        c = Civic("san-rafael")
+        results = c.what_happened_full_context("shelter")
+
+        assert isinstance(results, list)
+        for r in results:
+            assert isinstance(r, DecisionWithContext)
+            assert hasattr(r, "decision")
+            assert hasattr(r, "transcript_links")
+            assert hasattr(r, "link_confidence")
+
+    def test_what_happened_full_context_limits_respected(self):
+        """Validate that top_k parameter limits decision count."""
+        from civic import Civic
+
+        c = Civic("san-rafael")
+        results = c.what_happened_full_context(
+            "housing",
+            top_k=2,
+        )
+
+        # Should respect top_k limit
+        assert len(results) <= 2
+
+    def test_transcript_links_have_video_urls(self):
+        """Validate that transcript links have proper video URLs when available."""
+        from civic import Civic
+
+        c = Civic("san-rafael")
+        results = c.what_happened_full_context("shelter", top_k=5)
+
+        for r in results:
+            for link in r.transcript_links:
+                # If link has video_id and start_ms, should generate URL
+                if link.video_id and link.start_ms:
+                    assert link.video_url is not None
+                    assert "youtube.com" in link.video_url
+
+    def test_decision_with_context_properties(self):
+        """Validate DecisionWithContext has expected properties."""
+        from civic import Civic
+
+        c = Civic("san-rafael")
+        results = c.what_happened_full_context("council", top_k=3)
+
+        for r in results:
+            # has_transcript should be bool
+            assert isinstance(r.has_transcript, bool)
+
+            # Properties should return lists (possibly empty)
+            assert isinstance(r.public_comments, list)
+            assert isinstance(r.staff_discussion, list)
+            assert isinstance(r.council_discussion, list)
+
+            # link_type should be a string
+            assert isinstance(r.link_type, str)

@@ -14,6 +14,8 @@ from civic import Civic
 from civic.civic import (
     RegulatoryStack,
     Decision,
+    DecisionWithContext,
+    TranscriptLink,
     Meeting,
     Community,
     Initiative,
@@ -89,6 +91,28 @@ class TestQueryMethods:
         result = c.whos_with_me("traffic safety")
         assert isinstance(result, Community)
         assert result.topic == "traffic safety"
+
+    def test_what_happened_full_context_returns_list(self):
+        """what_happened_full_context() returns list of DecisionWithContext."""
+        c = Civic("san-rafael-ca")
+        result = c.what_happened_full_context("bike lanes")
+        assert isinstance(result, list)
+        # Each item should be DecisionWithContext if results exist
+        # (may be empty list if no matching decisions)
+
+    def test_what_happened_full_context_structure(self):
+        """what_happened_full_context() returns properly structured results."""
+        c = Civic("san-rafael-ca")
+        result = c.what_happened_full_context("housing", top_k=2)
+        assert isinstance(result, list)
+        # Verify we don't get more than requested
+        assert len(result) <= 2
+
+    def test_decision_with_context_types_exist(self):
+        """DecisionWithContext and TranscriptLink can be imported from civic.civic."""
+        # This verifies the types are properly exported
+        assert DecisionWithContext is not None
+        assert TranscriptLink is not None
 
 
 class TestActionMethods:

@@ -99,6 +99,66 @@ class TranscriptExcerpt:
 
 
 @dataclass
+class DecisionWithContext:
+    """
+    A decision enriched with linked transcript excerpts from what_happened_full_context().
+
+    Combines the official decision (from minutes) with relevant transcript
+    excerpts (from meeting video) showing what was said during discussion.
+    """
+    decision: Decision
+    transcript_links: List["TranscriptLink"] = field(default_factory=list)
+    link_confidence: float = 0.0  # Overall confidence of linking
+    link_type: str = ""  # "high_confidence", "medium_confidence", "low_confidence", "none"
+
+    @property
+    def has_transcript(self) -> bool:
+        """Whether any transcript excerpts were found."""
+        return len(self.transcript_links) > 0
+
+    @property
+    def public_comments(self) -> List["TranscriptLink"]:
+        """Get only public comment excerpts."""
+        return [link for link in self.transcript_links if link.is_public_comment]
+
+    @property
+    def staff_discussion(self) -> List["TranscriptLink"]:
+        """Get only staff presentation excerpts."""
+        return [link for link in self.transcript_links if link.speaker_role == "staff"]
+
+    @property
+    def council_discussion(self) -> List["TranscriptLink"]:
+        """Get only council deliberation excerpts."""
+        return [link for link in self.transcript_links if link.speaker_role == "council"]
+
+
+@dataclass
+class TranscriptLink:
+    """A link from a decision to a transcript excerpt."""
+    chunk_id: str
+    text: str
+    speaker: str
+    speaker_role: Optional[str] = None
+    speaker_name: Optional[str] = None
+    video_id: Optional[str] = None
+    start_timestamp: Optional[str] = None
+    end_timestamp: Optional[str] = None
+    start_ms: Optional[int] = None
+    end_ms: Optional[int] = None
+    is_public_comment: bool = False
+    agenda_item: Optional[str] = None
+    confidence: float = 0.0
+
+    @property
+    def video_url(self) -> Optional[str]:
+        """Generate YouTube URL with timestamp if video_id is available."""
+        if not self.video_id or not self.start_ms:
+            return None
+        seconds = self.start_ms // 1000
+        return f"https://www.youtube.com/watch?v={self.video_id}&t={seconds}s"
+
+
+@dataclass
 class HybridSearchResult:
     """
     Combined result from what_happened_with_discussion().
@@ -326,6 +386,87 @@ class Civic:
                 votes=d.votes,
             )
             for d in results
+        ]
+
+    def what_happened_full_context(
+        self,
+        query: str,
+        since: str = None,
+        top_k: int = 5,
+        transcript_excerpts_per_decision: int = 3,
+    ) -> List[DecisionWithContext]:
+        """
+        Search past decisions with linked transcript excerpts.
+
+        Returns both the official decision (from minutes) and what was actually
+        said during the meeting (from video transcript). This provides complete
+        context including:
+        - What public testimony was given
+        - What staff recommended and why
+        - What council members discussed before voting
+
+        Args:
+            query: Search query (e.g., "bike lanes", "housing development")
+            since: Optional date filter (ISO format)
+            top_k: Maximum number of decisions to return (default 5)
+            transcript_excerpts_per_decision: Max excerpts per decision (default 3)
+
+        Returns:
+            List of DecisionWithContext objects with decisions + linked transcripts
+
+        Example:
+            >>> c = Civic("san-rafael")
+            >>> results = c.what_happened_full_context("homeless shelter")
+            >>> for r in results:
+            ...     print(f"{r.decision.title}: {r.decision.outcome}")
+            ...     if r.has_transcript:
+            ...         for link in r.public_comments:
+            ...             print(f"  Public: {link.text[:60]}...")
+        """
+        from civic.history import search_decisions_with_context
+
+        results = search_decisions_with_context(
+            state_manager=self._state,
+            jurisdiction=self.jurisdiction,
+            query=query,
+            since=since,
+            top_k=top_k,
+            transcript_excerpts_per_decision=transcript_excerpts_per_decision,
+        )
+
+        # Convert to this module's types for consistency
+        return [
+            DecisionWithContext(
+                decision=Decision(
+                    id=r.decision.id,
+                    title=r.decision.title,
+                    date=r.decision.date,
+                    outcome=r.decision.outcome,
+                    body=r.decision.body,
+                    votes=r.decision.votes,
+                ),
+                transcript_links=[
+                    TranscriptLink(
+                        chunk_id=link.chunk_id,
+                        text=link.text,
+                        speaker=link.speaker,
+                        speaker_role=link.speaker_role,
+                        speaker_name=link.speaker_name,
+                        video_id=link.video_id,
+                        start_timestamp=link.start_timestamp,
+                        end_timestamp=link.end_timestamp,
+                        start_ms=link.start_ms,
+                        end_ms=link.end_ms,
+                        is_public_comment=link.is_public_comment,
+                        agenda_item=link.agenda_item,
+                        confidence=link.confidence,
+                    )
+                    for link in r.transcript_links
+                ],
+                link_confidence=r.link_confidence,
+                link_type=r.link_type,
+            )
+            for r in results
         ]
 
     def what_was_said(self, query: str, top_k: int = 10) -> List[TranscriptExcerpt]:

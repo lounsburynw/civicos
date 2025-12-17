@@ -2324,3 +2324,48 @@ Created `docs/critical/DATA_INGESTION_OPERATIONS.md` - comprehensive operator ma
 4. Rollback procedures (SQLite backup/restore, schema rollback, vector rebuild)
 5. Verification commands
 6. Troubleshooting guide
+
+## Session 280: Query Layer Integration - what_happened_full_context()
+Date: 2025-12-16
+
+### Work Done
+1. **Implemented query layer integration for decision-transcript linking**:
+   - Added `DecisionWithContext` and `TranscriptLink` dataclasses to `civic.civic`
+   - Added `search_decisions_with_context()` function to `civic.history`
+   - Added `what_happened_full_context()` method to `Civic` class
+   - Uses semantic search to find transcript chunks related to each decision
+
+2. **New API method**:
+   ```python
+   c = Civic("san-rafael")
+   results = c.what_happened_full_context("homeless shelter", top_k=5)
+   for r in results:
+       print(f"{r.decision.title}: {r.decision.outcome}")
+       if r.has_transcript:
+           for link in r.public_comments:
+               print(f"  Public: {link.text[:60]}...")
+   ```
+
+3. **Result types**:
+   - `DecisionWithContext`: Decision + list of TranscriptLink + confidence
+   - `TranscriptLink`: Transcript chunk with speaker, video_id, timestamps, video_url property
+   - Properties: `has_transcript`, `public_comments`, `staff_discussion`, `council_discussion`
+
+4. **Added tests**:
+   - 7 new tests in test_queries.py (unit tests for dataclasses)
+   - 3 new tests in test_civic.py (smoke tests for Civic method)
+   - 4 new tests in test_integration_rag_san_rafael.py (integration tests with real data)
+
+5. **Updated pilot.json**: `query_layer_integration` → ready
+
+### Files Changed
+- `packages/civic/src/civic/civic.py` (DecisionWithContext, TranscriptLink, what_happened_full_context)
+- `packages/civic/src/civic/history.py` (TranscriptLink, DecisionWithContext, search_decisions_with_context)
+- `packages/civic/tests/test_queries.py` (7 new tests)
+- `packages/civic/tests/test_civic.py` (3 new tests)
+- `packages/civic/tests/test_integration_rag_san_rafael.py` (4 new integration tests)
+- `pilot.json` (query_layer_integration status → ready)
+
+**Progress:** 75/131 items ready (57%)
+
+**Commit:** Session 280: Query layer integration - what_happened_full_context()
