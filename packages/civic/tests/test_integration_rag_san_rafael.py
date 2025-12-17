@@ -3913,3 +3913,245 @@ class TestFederalProgramsVectorSearch:
             # Results should be sorted by score descending
             scores = [r.score for r in results]
             assert scores == sorted(scores, reverse=True), "Results not sorted by score"
+
+
+@pytest.mark.requires_real_data
+class TestLegislativeUnifiedSearch:
+    """
+    Tests for legislation integration into UnifiedSearch.
+
+    Validates legislative_unified_search pilot item:
+    - UnifiedSearch.search_all() includes legislation results
+    - UnifiedSearchResult correctly converts state_legislation and federal_program
+    - Corpus filtering works for legislation
+    """
+
+    def test_unified_search_includes_legislation(self):
+        """Validate search_all() includes legislation corpus."""
+        from civic._internal.search.unified import UnifiedSearch
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Build legislation index
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+            embedder.build_legislation_index(
+                state="california",
+                legislation_path=str(LEGISLATION_STATE_DIR)
+            )
+
+            # Create UnifiedSearch with same persist_directory
+            search = UnifiedSearch("city-san-rafael", persist_directory=tmpdir)
+
+            # Search all corpora
+            results = search.search_all(
+                "affordable housing streamlined approval",
+                top_k=10,
+                corpus_types=["legislation"]
+            )
+
+            # Should return legislation results
+            assert len(results) > 0, "No legislation results from search_all()"
+
+            # All results should be state_legislation
+            for r in results:
+                assert r.source_type == "state_legislation", (
+                    f"Expected state_legislation, got {r.source_type}"
+                )
+
+    def test_unified_search_result_legislation_fields(self):
+        """Validate UnifiedSearchResult has correct fields for legislation."""
+        from civic._internal.search.unified import UnifiedSearch
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+            embedder.build_legislation_index(
+                state="california",
+                legislation_path=str(LEGISLATION_STATE_DIR)
+            )
+
+            search = UnifiedSearch("city-san-rafael", persist_directory=tmpdir)
+
+            results = search.search_all(
+                "affordable housing",
+                top_k=5,
+                corpus_types=["legislation"]
+            )
+
+            assert len(results) > 0
+
+            # Check first result has legislation-specific fields populated
+            r = results[0]
+            assert r.bill_id is not None, "bill_id should be populated"
+            assert r.topic is not None, "topic should be populated"
+            assert r.title is not None, "title should be populated (from bill_name)"
+
+    def test_unified_search_federal_programs(self):
+        """Validate search_all() includes federal programs with correct source_type."""
+        from civic._internal.search.unified import UnifiedSearch
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+            embedder.build_federal_programs_index(
+                federal_programs_path=str(FEDERAL_PROGRAMS_DIR)
+            )
+
+            search = UnifiedSearch("city-san-rafael", persist_directory=tmpdir)
+
+            results = search.search_all(
+                "community development block grant housing",
+                top_k=10,
+                corpus_types=["legislation"]
+            )
+
+            # Should return federal program results
+            assert len(results) > 0, "No federal program results from search_all()"
+
+            # All results should be federal_program
+            for r in results:
+                assert r.source_type == "federal_program", (
+                    f"Expected federal_program, got {r.source_type}"
+                )
+
+    def test_unified_search_result_federal_program_fields(self):
+        """Validate UnifiedSearchResult has correct fields for federal programs."""
+        from civic._internal.search.unified import UnifiedSearch
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+            embedder.build_federal_programs_index(
+                federal_programs_path=str(FEDERAL_PROGRAMS_DIR)
+            )
+
+            search = UnifiedSearch("city-san-rafael", persist_directory=tmpdir)
+
+            results = search.search_all(
+                "housing grants",
+                top_k=5,
+                corpus_types=["legislation"]
+            )
+
+            assert len(results) > 0
+
+            # Check first result has federal program-specific fields populated
+            r = results[0]
+            assert r.program_id is not None, "program_id should be populated"
+            assert r.topic is not None, "topic should be populated"
+            assert r.title is not None, "title should be populated (from program_name)"
+            assert r.source_type == "federal_program"
+
+    def test_unified_search_mixed_legislation(self):
+        """Validate search_all() returns both state bills and federal programs."""
+        from civic._internal.search.unified import UnifiedSearch
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+
+            # Build both indexes
+            embedder.build_legislation_index(
+                state="california",
+                legislation_path=str(LEGISLATION_STATE_DIR)
+            )
+            embedder.build_federal_programs_index(
+                federal_programs_path=str(FEDERAL_PROGRAMS_DIR)
+            )
+
+            search = UnifiedSearch("city-san-rafael", persist_directory=tmpdir)
+
+            results = search.search_all(
+                "housing funding affordable",
+                top_k=20,  # Get more results to see both types
+                corpus_types=["legislation"]
+            )
+
+            assert len(results) > 0
+
+            # Should have results from both source types
+            source_types = {r.source_type for r in results}
+            assert "state_legislation" in source_types or "federal_program" in source_types, (
+                f"Expected legislation results, got source_types: {source_types}"
+            )
+
+    def test_unified_search_corpus_filter_excludes_legislation(self):
+        """Validate corpus_types filter can exclude legislation."""
+        from civic._internal.search.unified import UnifiedSearch
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+            embedder.build_legislation_index(
+                state="california",
+                legislation_path=str(LEGISLATION_STATE_DIR)
+            )
+
+            search = UnifiedSearch("city-san-rafael", persist_directory=tmpdir)
+
+            # Search WITHOUT legislation corpus
+            results = search.search_all(
+                "affordable housing",
+                top_k=10,
+                corpus_types=["decision", "transcript"]  # Explicitly exclude legislation
+            )
+
+            # Should not return legislation results (will return empty since no other corpora indexed)
+            legislation_types = {"state_legislation", "federal_program"}
+            for r in results:
+                assert r.source_type not in legislation_types, (
+                    f"Found {r.source_type} when legislation should be excluded"
+                )
+
+    def test_search_corpus_legislation(self):
+        """Validate search_corpus() works for legislation corpus."""
+        from civic._internal.search.unified import UnifiedSearch
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            embedder = CivicEmbeddings(
+                "city-san-rafael",
+                persist_directory=tmpdir
+            )
+            embedder.build_legislation_index(
+                state="california",
+                legislation_path=str(LEGISLATION_STATE_DIR)
+            )
+
+            search = UnifiedSearch("city-san-rafael", persist_directory=tmpdir)
+
+            # Use search_corpus for specific corpus
+            results = search.search_corpus(
+                "legislation",
+                "streamlined housing approval",
+                top_k=5
+            )
+
+            assert len(results) > 0
+            for r in results:
+                assert r.source_type == "state_legislation"

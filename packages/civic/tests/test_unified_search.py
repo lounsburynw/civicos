@@ -175,6 +175,7 @@ class TestUnifiedSearchGetAvailableCorpora:
         mock_embeddings.issues_collection_name = "test_issues"
         mock_embeddings.municipal_code_collection_name = "test_muni"
         mock_embeddings.legislation_collection_name = "test_legislation"
+        mock_embeddings.federal_programs_collection_name = "test_federal_programs"
 
         mock_collection = Mock()
         mock_collection.count.return_value = 10
@@ -190,8 +191,8 @@ class TestUnifiedSearchGetAvailableCorpora:
         # Second call - should use cache
         corpora2 = search.get_available_corpora()
 
-        # Should only query collections once (6 collections)
-        assert mock_client.get_collection.call_count == 6
+        # Should only query collections once (7 collections: 6 base + federal_programs)
+        assert mock_client.get_collection.call_count == 7
         assert corpora1 is corpora2
 
     @patch("civic._internal.search.unified.CivicEmbeddings")
@@ -204,6 +205,7 @@ class TestUnifiedSearchGetAvailableCorpora:
         mock_embeddings.issues_collection_name = "test_issues"
         mock_embeddings.municipal_code_collection_name = "test_muni"
         mock_embeddings.legislation_collection_name = "test_legislation"
+        mock_embeddings.federal_programs_collection_name = "test_federal_programs"
 
         mock_collection = Mock()
         mock_collection.count.return_value = 10
@@ -219,8 +221,8 @@ class TestUnifiedSearchGetAvailableCorpora:
         # Second call with refresh
         search.get_available_corpora(refresh=True)
 
-        # Should query collections twice (6 + 6)
-        assert mock_client.get_collection.call_count == 12
+        # Should query collections twice (7 + 7)
+        assert mock_client.get_collection.call_count == 14
 
 
 class TestUnifiedSearchSearchAll:
@@ -597,6 +599,7 @@ class TestUnifiedSearchSearchCorpus:
         mock_embeddings.issues_collection_name = "test_issues"
         mock_embeddings.municipal_code_collection_name = "test_muni"
         mock_embeddings.legislation_collection_name = "test_legislation"
+        mock_embeddings.federal_programs_collection_name = "test_federal_programs"
 
         def get_collection_side_effect(name):
             if name == "test_legislation":
@@ -610,13 +613,14 @@ class TestUnifiedSearchSearchCorpus:
         mock_embeddings._client = mock_client
 
         mock_embeddings.search_legislation.return_value = []
+        mock_embeddings.has_legislation.return_value = True
+        mock_embeddings.has_federal_programs.return_value = False
         mock_embeddings_cls.return_value = mock_embeddings
 
         search = UnifiedSearch("city-san-rafael")
         search.search_corpus(
             "legislation",
             "housing bills",
-            state="CA",
             topic="housing",
         )
 
@@ -624,7 +628,6 @@ class TestUnifiedSearchSearchCorpus:
             "housing bills",
             top_k=10,
             where=None,
-            state="CA",
             topic="housing",
         )
 

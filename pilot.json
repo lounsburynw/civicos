@@ -654,10 +654,12 @@
         "verified": "2025-12-16"
       },
       "legislative_unified_search": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "Add 'legislation' corpus type to UnifiedSearch.search_all()",
-        "note": "Integrate state bills + federal programs into UnifiedSearch alongside decisions, transcripts, issues, municipal_code",
+        "note": "Integrated state_legislation + federal_program source types into UnifiedSearch. search_all() and search_corpus('legislation') now query both collections. Added legislation-specific fields to UnifiedSearchResult (bill_id, program_id, topic, etc). 7 new integration tests + 27 unit tests pass.",
+        "completed": "2025-12-16",
+        "test_file": "packages/civic/tests/test_integration_rag_san_rafael.py::TestLegislativeUnifiedSearch",
         "depends_on": [
           "state_bills_vector_indexed",
           "federal_programs_vector_indexed"
