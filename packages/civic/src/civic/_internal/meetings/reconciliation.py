@@ -739,7 +739,7 @@ class DecisionTranscriptReconciler:
                 for r in results[:top_k]
             ]
         except Exception as e:
-            logger.warning(f"Semantic search failed: {e}")
+            logger.debug(f"Semantic search failed: {e}")
             return []
 
     def _load_transcript_chunks(self, meeting_date: str) -> List[Dict[str, Any]]:
@@ -768,7 +768,7 @@ class DecisionTranscriptReconciler:
 
             return chunks
         except Exception as e:
-            logger.warning(f"Failed to load transcript chunks: {e}")
+            logger.debug(f"Failed to load transcript chunks: {e}")
             return []
 
     def _get_chunk_id(self, chunk: Dict) -> str:
