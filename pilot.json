@@ -641,9 +641,10 @@
         "completed": "2025-12-16"
       },
       "federal_programs_json_loaded": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Federal grant programs loaded from data/federal_programs/*.json"
+        "artifact": "Federal grant programs loaded from data/federal_programs/*.json",
+        "verified": "2025-12-16"
       },
       "federal_programs_vector_indexed": {
         "status": "not_ready",
@@ -656,7 +657,10 @@
         "priority": 2,
         "artifact": "Add 'legislation' corpus type to UnifiedSearch.search_all()",
         "note": "Integrate state bills + federal programs into UnifiedSearch alongside decisions, transcripts, issues, municipal_code",
-        "depends_on": ["state_bills_vector_indexed", "federal_programs_vector_indexed"]
+        "depends_on": [
+          "state_bills_vector_indexed",
+          "federal_programs_vector_indexed"
+        ]
       }
     },
     "transcript_backlog": {
