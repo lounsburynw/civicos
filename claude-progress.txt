@@ -2756,3 +2756,62 @@ Added comprehensive Marin County homelessness services data to the programs corp
 Next P2 item: `marin_county_code` - Index relevant Marin County code sections (housing, land use)
 
 **Commit:** Session 289: county_homelessness_services - Marin County Homelessness Services Integration
+
+---
+
+## Session 290: config_validation - Startup Configuration Validation
+**Date:** 2025-12-17
+**Phase:** Pilot
+**Item:** `config_validation` (deployment_artifacts > configuration, P2)
+
+### Summary
+Implemented comprehensive configuration validation at startup with structured output, category validators, CLI command, and full test coverage.
+
+### Implementation Details
+
+#### 1. ValidationResult Dataclass
+New structured result class for validation output:
+- `passed: bool` - Overall validation status
+- `errors: List[str]` - Blocking errors (must fix)
+- `warnings: List[str]` - Non-blocking issues
+- `suggestions: Dict[str, str]` - How to fix issues
+- `format_errors()` - Detailed error output
+- `format_summary()` - Concise status
+- `to_dict()` - JSON serialization
+
+#### 2. Category Validators
+Enhanced `CivicConfig.validate_environment()` with 5 category validators:
+- `_validate_core_config()` - CIVIC_ENV, CIVIC_API_PORT
+- `_validate_security_config()` - CIVIC_WEB_KEY, CIVIC_CORS_ORIGINS, auth methods
+- `_validate_data_paths()` - Bundled/user data directory existence and permissions
+- `_validate_llm_config()` - OPENAI_API_KEY, model validation, placeholder detection
+- `_validate_external_services()` - Optional API key placeholder detection
+
+#### 3. Environment-Specific Validation
+- **Production/Staging**: Strict validation (errors on missing required vars)
+- **Development**: Lenient validation (warnings for missing optional vars)
+- Detects placeholder values (`sk-proj-...`, `your-`, `AIza...`)
+- Validates model names against known OpenAI models
+
+#### 4. CLI Command
+```bash
+python -m civic_services.core.config [--json] [--strict]
+```
+- Human-readable output by default
+- `--json` for structured output
+- `--strict` treats warnings as errors
+- Exit code 0 (pass) or 1 (fail)
+
+### Files Changed
+- `packages/civic-services/src/civic_services/core/config.py` - Enhanced validation
+- `packages/civic/tests/test_config_validation.py` (NEW) - 26 tests
+- `pilot.json` - Status: ready
+
+### Test Results
+- 26/26 config validation tests passing
+- 34/34 smoke tests passing
+
+### Next Session
+Next P2 item: Check `pilot.json` for next not_ready item
+
+**Commit:** Session 290: config_validation - Startup configuration validation with structured output

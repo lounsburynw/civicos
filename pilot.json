@@ -163,9 +163,12 @@
         "note": "Comprehensive SECRETS_MANAGEMENT.md covering: quick reference table, all 20+ secrets with obtainment links, environment-specific configs (dev/staging/prod), security best practices, key rotation schedule, cost estimation, validation commands"
       },
       "config_validation": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Startup validates required config"
+        "artifact": "Startup validates required config",
+        "completed": "2025-12-17",
+        "test_file": "packages/civic/tests/test_config_validation.py",
+        "note": "Enhanced CivicConfig.validate_environment() with structured ValidationResult, category validators (core, security, data paths, LLM, external services), CLI command (python -m civic_services.core.config), 26 tests covering all validation scenarios"
       }
     },
     "database": {
