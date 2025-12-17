@@ -3,11 +3,13 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2025-12-16",
+  "last_updated": "2025-12-17",
   "category_order": [
     "test_infrastructure",
     "data_architecture",
     "data_readiness",
+    "data_standards",
+    "city_onboarding",
     "deployment_artifacts",
     "monitoring_observability",
     "ingestion_visibility",
@@ -746,6 +748,130 @@
       }
     }
   },
+  "data_standards": {
+    "description": "FAIR data practices and reproducibility - to be finalized after pilot ingestion complete",
+    "schema_validation": {
+      "validate_meetings_on_ingest": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Validate Meeting objects against civic-app-schema.json during extraction",
+        "note": "Post-ingestion: finalize schema once battle-tested"
+      },
+      "validate_decisions_on_ingest": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Validate Decision objects during extraction",
+        "note": "Post-ingestion: finalize schema once battle-tested"
+      }
+    },
+    "provenance": {
+      "ingestion_manifest": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Standardized manifest tracking: what was processed, when, checksums",
+        "note": "Post-ingestion: document actual manifest format used"
+      },
+      "extraction_audit_log": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Log extraction runs with success/failure counts per platform",
+        "note": "Post-ingestion: capture patterns from pilot extraction"
+      }
+    },
+    "versioning": {
+      "data_snapshot_releases": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Quarterly tagged data releases with version numbers",
+        "note": "Post-ingestion: first release after pilot data stable"
+      }
+    },
+    "documentation": {
+      "data_dictionary": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Field-level docs for Meeting, Decision, Issue dataclasses",
+        "note": "Post-ingestion: document schemas as actually used"
+      },
+      "extractor_protocol_docs": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Document BaseExtractor protocol and adapter pattern",
+        "note": "Existing: packages/civic-extraction/src/civic_extraction/clients/base.py"
+      }
+    }
+  },
+  "city_onboarding": {
+    "description": "Reproducible pipeline for onboarding new cities - to be finalized after pilot ingestion complete",
+    "configuration": {
+      "extraction_config_schema": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Add extraction config to jurisdiction_overrides (platform, archives, API keys)",
+        "note": "Existing: data/jurisdiction_overrides/city-san-rafael.json (needs extraction fields)"
+      },
+      "san_rafael_extraction_config": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Document San Rafael's ProudCity config as reference",
+        "note": "Existing: ProudCityClient.DEFAULT_ARCHIVES hard-coded in proudcity.py"
+      },
+      "platform_detection_helper": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Script to auto-detect city's meeting platform",
+        "note": "Post-ingestion: based on patterns learned from pilot"
+      }
+    },
+    "orchestration": {
+      "generalized_pipeline_runner": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Extend batch_process script to handle meeting extraction (not just transcription)",
+        "note": "Existing: scripts/batch_process_san_rafael_meetings.py (transcription only)"
+      },
+      "checkpoint_for_meetings": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Extend checkpoint/resume to meeting discovery (currently only transcription)",
+        "note": "Existing: resume capability in batch_process_san_rafael_meetings.py"
+      },
+      "full_city_bootstrap": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Single command to bootstrap new city: extract → transform → load all corpora",
+        "note": "Post-ingestion: generalize from San Rafael experience"
+      }
+    },
+    "documentation": {
+      "city_onboarding_guide": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Step-by-step guide: adding a new city",
+        "note": "Post-ingestion: document what actually worked"
+      },
+      "platform_specific_notes": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Platform quirks: Legistar date formats, CivicClerk OData, ProudCity scraping",
+        "note": "Existing knowledge in client implementations"
+      }
+    },
+    "validation": {
+      "preflight_checks": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Validate config and API access before running pipeline",
+        "note": "Post-ingestion: based on common failure modes"
+      },
+      "post_ingestion_report": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Summary report: records ingested, schema violations, gaps detected",
+        "note": "Post-ingestion: capture metrics format from pilot"
+      }
+    }
+  },
   "rollback_procedures": {
     "description": "Recover quickly from failed deployments",
     "deployment_process": {
@@ -974,11 +1100,11 @@
     }
   },
   "summary": {
-    "total_items": 133,
+    "total_items": 153,
     "by_priority": {
       "p1": 56,
       "p2": 64,
-      "p3": 13
+      "p3": 30
     },
     "by_category": {
       "test_infrastructure": 10,
@@ -989,11 +1115,13 @@
       "pipeline_automation": 11,
       "data_architecture": 14,
       "data_readiness": 15,
+      "data_standards": 7,
+      "city_onboarding": 10,
       "rollback_procedures": 9,
       "user_documentation": 9,
       "frontend_refinement": 3,
       "pilot_validation": 10
     },
-    "notes": "Updated 2025-12-15: CI test infrastructure complete (100% pass rate). Added requires_real_data marker system, synthetic fixture and scheduled test items."
+    "notes": "Updated 2025-12-17: Added data_standards (7 items) and city_onboarding (10 items) categories for FAIR data practices and reproducible ETL. All P3, to be finalized after pilot ingestion complete."
   }
 }
