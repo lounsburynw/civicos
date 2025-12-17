@@ -8,18 +8,22 @@ Usage:
     civic status --jurisdiction san-rafael # Specific jurisdiction
     civic status --json                    # Machine-readable output
     civic status --corpus decisions        # Single corpus
+    civic status --check-gaps              # Compare ingested vs source counts
 
 Entry point: civic-status (configured in pyproject.toml)
 """
 
 import argparse
 import json
+import logging
 import os
 import sqlite3
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 # ANSI color codes for terminal output
 class Colors:
@@ -310,6 +314,150 @@ def format_bytes(size_bytes: int) -> str:
     return f"{size_bytes:.1f} TB"
 
 
+def get_source_counts(
+    jurisdiction_id: str,
+    days_past: int = 365
+) -> Dict[str, Any]:
+    """
+    Get counts of available data from external sources.
+
+    Queries external APIs (ProudCity, SeeClickFix) to determine how many
+    records are available at the source for comparison with ingested counts.
+
+    Args:
+        jurisdiction_id: Jurisdiction identifier (e.g., "city-san-rafael")
+        days_past: How many days into the past to query
+
+    Returns:
+        Dict with source counts and metadata:
+        {
+            "meetings": {"count": int, "source": str, "error": str|None},
+            "issues": {"count": int, "source": str, "error": str|None},
+            "queried_at": datetime
+        }
+    """
+    result = {
+        "meetings": {"count": 0, "source": "proudcity", "error": None},
+        "issues": {"count": 0, "source": "seeclickfix", "error": None},
+        "queried_at": datetime.now(),
+    }
+
+    # Get meetings from ProudCity (San Rafael specific)
+    if jurisdiction_id in ("city-san-rafael", "san-rafael"):
+        try:
+            from civic_extraction.clients.proudcity import create_san_rafael_client
+            client = create_san_rafael_client()
+            events = client.get_events(days_ahead=90, days_past=days_past)
+            result["meetings"]["count"] = len(events)
+        except ImportError:
+            result["meetings"]["error"] = "civic-extraction not installed"
+        except Exception as e:
+            logger.warning(f"Failed to get ProudCity meetings: {e}")
+            result["meetings"]["error"] = str(e)[:100]
+
+    # Get issues from SeeClickFix
+    try:
+        # Derive place_url from jurisdiction_id
+        place_url = jurisdiction_id.replace("city-", "")
+
+        from civic_services.clients.seeclickfix_client import SeeClickFixClient
+        client = SeeClickFixClient()
+
+        # Get total count by fetching pages
+        # SeeClickFix doesn't provide total count, so we paginate
+        total_issues = 0
+        page = 1
+        max_pages = 20  # Safety limit
+
+        while page <= max_pages:
+            response = client.get_issues(
+                place_url=place_url,
+                per_page=100,
+                page=page,
+                status=None  # All statuses
+            )
+            issues = response.get("issues", [])
+            total_issues += len(issues)
+
+            if not response.get("metadata", {}).get("has_more", False):
+                break
+            if len(issues) < 100:
+                break
+            page += 1
+
+        result["issues"]["count"] = total_issues
+
+    except ImportError:
+        result["issues"]["error"] = "civic-services not installed"
+    except Exception as e:
+        logger.warning(f"Failed to get SeeClickFix issues: {e}")
+        result["issues"]["error"] = str(e)[:100]
+
+    return result
+
+
+def calculate_gaps(
+    ingested_counts: Dict[str, int],
+    source_counts: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Calculate gaps between ingested and source data.
+
+    Args:
+        ingested_counts: Dict mapping data type to ingested count
+        source_counts: Dict from get_source_counts()
+
+    Returns:
+        Dict with gap analysis:
+        {
+            "meetings": {"ingested": int, "source": int, "gap": int, "pct": float},
+            "issues": {"ingested": int, "source": int, "gap": int, "pct": float},
+            "overall_coverage": float
+        }
+    """
+    gaps = {}
+    total_ingested = 0
+    total_source = 0
+
+    for data_type in ["meetings", "issues"]:
+        ingested = ingested_counts.get(data_type, 0)
+        source_info = source_counts.get(data_type, {})
+        source = source_info.get("count", 0)
+        error = source_info.get("error")
+
+        if error:
+            gaps[data_type] = {
+                "ingested": ingested,
+                "source": None,
+                "gap": None,
+                "pct": None,
+                "error": error,
+            }
+        else:
+            gap = source - ingested if source > 0 else 0
+            pct = (ingested / source * 100) if source > 0 else 100.0
+
+            gaps[data_type] = {
+                "ingested": ingested,
+                "source": source,
+                "gap": gap,
+                "pct": round(pct, 1),
+                "error": None,
+            }
+
+            total_ingested += ingested
+            total_source += source
+
+    # Overall coverage
+    gaps["overall_coverage"] = (
+        round(total_ingested / total_source * 100, 1)
+        if total_source > 0
+        else 100.0
+    )
+
+    return gaps
+
+
 def print_status(
     jurisdiction_id: str,
     state_db_path: str = "data/civic_state.db",
@@ -317,6 +465,7 @@ def print_status(
     corpus_filter: Optional[str] = None,
     no_color: bool = False,
     json_only: bool = False,
+    check_gaps: bool = False,
 ) -> Dict[str, Any]:
     """
     Print ingestion status and return status dict.
@@ -328,6 +477,7 @@ def print_status(
         corpus_filter: Optional corpus to filter (e.g., "decisions")
         no_color: Disable colored output
         json_only: Skip human-readable output, return dict only
+        check_gaps: Query external sources to compare counts
 
     Returns:
         Status dictionary with all gathered stats
@@ -345,6 +495,17 @@ def print_status(
         "chroma_db": chroma_stats,
         "files": file_stats,
     }
+
+    # Gap analysis (optional - queries external sources)
+    if check_gaps:
+        source_counts = get_source_counts(jurisdiction_id)
+        ingested_counts = {
+            "meetings": state_stats["meetings"]["count"],
+            "issues": state_stats["issues"]["count"],
+        }
+        gaps = calculate_gaps(ingested_counts, source_counts)
+        status["gap_analysis"] = gaps
+        status["source_counts"] = source_counts
 
     # Calculate overall health
     corpus_statuses = []
@@ -429,6 +590,62 @@ def print_status(
     print(f"  chroma.sqlite3  : {format_bytes(chroma_stats['db_size_bytes'])}")
     print()
 
+    # Gap analysis (if enabled)
+    if check_gaps and "gap_analysis" in status:
+        gaps = status["gap_analysis"]
+        print(colorize("Gap Analysis (ingested vs source):", Colors.BOLD, no_color))
+
+        for data_type in ["meetings", "issues"]:
+            gap_info = gaps.get(data_type, {})
+            ingested = gap_info.get("ingested", 0)
+            source = gap_info.get("source")
+            gap = gap_info.get("gap")
+            pct = gap_info.get("pct")
+            error = gap_info.get("error")
+
+            if error:
+                line = f"  {data_type:15} : {ingested:,} ingested | source unavailable ({error})"
+                print(colorize(line, Colors.DIM, no_color))
+            elif source is not None:
+                # Color based on coverage percentage
+                if pct > 100:
+                    # More ingested than source (historical data or API pagination limits)
+                    indicator = "OK"
+                    color = Colors.GREEN
+                    gap_str = f"(+{abs(gap):,} extra)"
+                elif pct >= 95:
+                    indicator = "OK"
+                    color = Colors.GREEN
+                    gap_str = f"gap: {gap:,}" if gap > 0 else "complete"
+                elif pct >= 80:
+                    indicator = "GAP"
+                    color = Colors.YELLOW
+                    gap_str = f"gap: {gap:,}"
+                else:
+                    indicator = "LOW"
+                    color = Colors.RED
+                    gap_str = f"gap: {gap:,}"
+
+                # Cap displayed percentage at 100 for clarity
+                display_pct = min(pct, 100.0) if pct > 100 else pct
+
+                status_str = colorize(f"[{indicator}]", color, no_color)
+                print(f"  {data_type:15} : {ingested:,}/{source:,} | {display_pct}% coverage | {gap_str} {status_str}")
+
+        overall_coverage = gaps.get("overall_coverage", 0)
+        # Cap display at 100% for clarity
+        display_coverage = min(overall_coverage, 100.0)
+        if overall_coverage >= 95:
+            cov_color = Colors.GREEN
+        elif overall_coverage >= 80:
+            cov_color = Colors.YELLOW
+        else:
+            cov_color = Colors.RED
+        print()
+        extra_note = " (includes historical)" if overall_coverage > 100 else ""
+        print(f"  Overall coverage: {colorize(f'{display_coverage}%', cov_color, no_color)}{extra_note}")
+        print()
+
     return status
 
 
@@ -443,6 +660,7 @@ Examples:
   civic status --jurisdiction san-rafael # Specific jurisdiction
   civic status --json                    # Machine-readable output
   civic status --corpus decisions        # Single corpus
+  civic status --check-gaps              # Compare ingested vs source counts
         """
     )
 
@@ -482,6 +700,12 @@ Examples:
         help="Path to vectors directory"
     )
 
+    parser.add_argument(
+        "--check-gaps",
+        action="store_true",
+        help="Compare ingested counts against source APIs (may be slow)"
+    )
+
     args = parser.parse_args()
 
     # Normalize jurisdiction ID
@@ -497,6 +721,7 @@ Examples:
             corpus_filter=args.corpus,
             no_color=args.no_color or args.json,
             json_only=args.json,
+            check_gaps=args.check_gaps,
         )
 
         if args.json:

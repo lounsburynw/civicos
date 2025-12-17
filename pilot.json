@@ -330,7 +330,7 @@
         "artifact": "Visual indicators for stale data (yellow >7 days, red >30 days)"
       },
       "gap_detection": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "Compare ingested count vs source count"
       }
