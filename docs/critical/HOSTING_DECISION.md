@@ -275,9 +275,19 @@ fly billing
 fly orgs billing limits set --amount 10
 ```
 
-## Domain Configuration (Future)
+## Domain Configuration
 
-When custom domain is ready:
+**Current (Pilot):** Using Fly.io auto-assigned subdomains:
+- REST API: `https://civic-api.fly.dev`
+- WebSocket: `https://civic-websocket.fly.dev`
+
+Benefits of current approach:
+- Zero additional cost (included with Fly.io)
+- SSL certificates auto-managed by Fly.io
+- No DNS configuration required
+- Sufficient for pilot validation (Jan 2026)
+
+**Future (Post-Pilot):** Custom domain can be added without breaking changes:
 
 ```bash
 # Add custom domain
@@ -295,6 +305,7 @@ fly certs create civic.example.com -a civic-api
 | 2025-12-11 | SJC region | Closest to San Rafael pilot location |
 | 2025-12-11 | Shared CPU | Sufficient for pilot scale traffic |
 | 2025-12-11 | 3GB volume | Enough for SQLite + ChromaDB + growth |
+| 2025-12-17 | Use .fly.dev subdomains | Zero cost, already working, custom domain can be added later |
 
 ## References
 

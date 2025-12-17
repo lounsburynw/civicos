@@ -213,9 +213,11 @@
         "note": "Documented in HOSTING_DECISION.md: ~$4.73/month total (civic-api $1.94, civic-websocket $1.94, 3GB volume $0.45, egress $0.40). ~$2.27 buffer under $7 limit"
       },
       "domain_setup": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Domain/subdomain configured"
+        "artifact": "Domain/subdomain configured",
+        "completed": "2025-12-17",
+        "note": "Using Fly.io auto-assigned subdomains: civic-api.fly.dev (REST API), civic-websocket.fly.dev (WebSocket). Zero cost, SSL included, sufficient for pilot. Custom domain can be added later via fly certs create without breaking changes."
       }
     }
   },
