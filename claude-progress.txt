@@ -1,3 +1,42 @@
+## Session 309: running_operations - Running Operations Progress Indicator
+**Date:** 2025-12-18
+**Item:** running_operations (admin_operations > operation_status)
+**Priority:** P2
+
+### Summary
+Added running operation indicator with elapsed time timer to Admin Status page. When any operation runs, a blue banner appears showing what's running and how long it's been running.
+
+### Implementation
+**1. Types** (civic.ts)
+- Added `RunningOperation` interface with operation, startedAt, label fields
+
+**2. State & Timer** (AdminStatusPage.vue)
+- Added `runningOperation` ref and `elapsedSeconds` ref
+- Added `operationLabels` map for user-friendly operation descriptions
+- Added `startOperationTimer()` - starts timer when operation begins
+- Added `stopOperationTimer()` - stops timer when operation completes
+- Added `formatElapsedTime()` - formats seconds as "45s" or "2m 30s"
+- Updated all 5 trigger functions to use timer
+- Added cleanup in onUnmounted
+
+**3. UI** (AdminStatusPage.vue)
+- Added Running Operation Banner section above Manual Operations
+- Banner shows: spinning RefreshCw icon, operation label, clock icon with elapsed time
+- Blue theme (rgba(59, 130, 246)) matches info/active state
+
+### Files Changed
+- `apps/civic-workspace/src/types/civic.ts` - RunningOperation interface
+- `apps/civic-workspace/src/components/workspace/AdminStatusPage.vue` - Timer logic and UI
+- `pilot.json` - Updated running_operations to "ready"
+
+### Tests
+- 34 smoke tests passing
+- TypeScript type-check passes
+
+**Commit:** Session 309: running_operations - Running Operations progress indicator
+
+---
+
 ## Session 308: refresh_seeclickfix_button - Admin Refresh SeeClickFix trigger
 **Date:** 2025-12-18
 **Item:** refresh_seeclickfix_button (admin_operations > manual_triggers)
