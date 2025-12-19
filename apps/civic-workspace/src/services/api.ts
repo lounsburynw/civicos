@@ -1291,6 +1291,34 @@ class CivicAPI {
 
     return response.json();
   }
+
+  /**
+   * Trigger refresh SeeClickFix operation
+   * POST /api/admin/trigger with operation: "refresh_seeclickfix"
+   *
+   * Fetches latest 311 issues from SeeClickFix API.
+   * Backend: src/civic_services/servers/civic_api_integrated.py
+   */
+  async triggerRefreshSeeClickFix(jurisdiction: string = 'san-rafael'): Promise<AdminTriggerResponse> {
+    const response = await fetch(
+      `${this.baseURL}/api/admin/trigger`,
+      {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({
+          operation: 'refresh_seeclickfix',
+          jurisdiction: jurisdiction
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || `Failed to trigger refresh SeeClickFix: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
 }
 
 // Export singleton instance

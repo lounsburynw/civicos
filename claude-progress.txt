@@ -1,3 +1,46 @@
+## Session 308: refresh_seeclickfix_button - Admin Refresh SeeClickFix trigger
+**Date:** 2025-12-18
+**Item:** refresh_seeclickfix_button (admin_operations > manual_triggers)
+**Priority:** P2
+
+### Summary
+Added "Refresh SeeClickFix" button to Admin Status page that fetches latest 311 issues from SeeClickFix API and stores them in the database.
+
+### Implementation
+**1. Backend** (civic_api_integrated.py)
+- Added `refresh_seeclickfix` operation to handle_admin_trigger()
+- Added `_trigger_refresh_seeclickfix()` handler that:
+  - Fetches all issues from SeeClickFix API with pagination (up to 50 pages)
+  - Queries existing issues to track new vs updated
+  - Stores issues using direct SQL (similar to import_seeclickfix_json pattern)
+  - Reports count_fetched, count_new, count_updated, count_stored
+
+**2. Frontend API** (api.ts)
+- Added `triggerRefreshSeeClickFix()` method following existing pattern
+
+**3. UI** (AdminStatusPage.vue)
+- Added Refresh SeeClickFix button card with AlertCircle icon
+- Added result template showing issue counts
+- Added `triggerRefreshSeeClickFix()` handler function
+
+**4. Types** (civic.ts)
+- Extended AdminTriggerResponse with count_updated field
+
+### Files Changed
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py` - Backend handler
+- `apps/civic-workspace/src/services/api.ts` - API method
+- `apps/civic-workspace/src/components/workspace/AdminStatusPage.vue` - UI button
+- `apps/civic-workspace/src/types/civic.ts` - Response type
+- `pilot.json` - Updated refresh_seeclickfix_button to "ready"
+
+### Tests
+- 34 smoke tests passing
+- TypeScript type-check passes
+
+**Commit:** Session 308: refresh_seeclickfix_button - Admin Refresh SeeClickFix trigger
+
+---
+
 ## Session 307: transcribe_button - Admin Transcribe Videos trigger
 **Date:** 2025-12-18
 **Item:** transcribe_button (admin_operations > manual_triggers)
