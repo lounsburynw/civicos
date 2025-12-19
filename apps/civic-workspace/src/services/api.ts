@@ -1235,6 +1235,34 @@ class CivicAPI {
 
     return response.json();
   }
+
+  /**
+   * Trigger download audio operation
+   * POST /api/admin/trigger with operation: "download_audio"
+   *
+   * Downloads YouTube audio files from discovered meeting videos.
+   * Backend: src/civic_services/servers/civic_api_integrated.py:7807-7938
+   */
+  async triggerDownloadAudio(jurisdiction: string = 'san-rafael'): Promise<AdminTriggerResponse> {
+    const response = await fetch(
+      `${this.baseURL}/api/admin/trigger`,
+      {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({
+          operation: 'download_audio',
+          jurisdiction: jurisdiction
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || `Failed to trigger download audio: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
 }
 
 // Export singleton instance

@@ -7617,11 +7617,14 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             elif operation == 'discover_videos':
                 result = self._trigger_discover_videos(jurisdiction)
                 self.send_json(result)
+            elif operation == 'download_audio':
+                result = self._trigger_download_audio(jurisdiction)
+                self.send_json(result)
             else:
                 self.send_json({
                     'status': 'error',
                     'error': f'Unknown operation: {operation}',
-                    'supported_operations': ['fetch_meetings', 'discover_videos']
+                    'supported_operations': ['fetch_meetings', 'discover_videos', 'download_audio']
                 }, status=400)
 
         except json.JSONDecodeError as e:
@@ -7798,6 +7801,139 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             result['status'] = 'error'
             result['error'] = str(e)
             logger.error(f"Discover videos error: {e}", exc_info=True)
+
+        return result
+
+    def _trigger_download_audio(self, jurisdiction: str) -> dict:
+        """SESSION 306: Download YouTube audio from discovered videos.
+
+        Downloads audio files from YouTube videos that have been discovered
+        in meeting records. Skips already-downloaded files.
+
+        Args:
+            jurisdiction: Jurisdiction ID (e.g., 'san-rafael')
+
+        Returns:
+            Dict with operation result including download counts
+        """
+        import re
+        from datetime import datetime
+        start_time = time.time()
+
+        result = {
+            'status': 'success',
+            'operation': 'download_audio',
+            'jurisdiction': jurisdiction,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+
+        try:
+            from ..storage.state_manager import StateManager
+
+            state_db_path = get_user_path('civic_state.db')
+            state_mgr = StateManager(str(state_db_path))
+
+            # Map jurisdiction to jurisdiction_id format
+            jurisdiction_id = f"city-{jurisdiction}" if not jurisdiction.startswith('city-') else jurisdiction
+
+            # Query all current meetings for this jurisdiction
+            meetings = state_mgr.query_meetings(jurisdiction_id=jurisdiction_id)
+
+            # Find meetings with YouTube video URLs
+            youtube_pattern = re.compile(r'(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]{11})')
+
+            videos_to_download = []
+            for meeting in meetings:
+                video_url = meeting.get('video_url')
+                if video_url:
+                    match = youtube_pattern.search(video_url)
+                    if match:
+                        video_id = match.group(1)
+                        videos_to_download.append({
+                            'video_id': video_id,
+                            'meeting_id': meeting.get('id'),
+                            'meeting_title': meeting.get('title'),
+                            'youtube_url': f'https://www.youtube.com/watch?v={video_id}'
+                        })
+
+            result['count_pending'] = len(videos_to_download)
+
+            # Check which are already downloaded
+            audio_dir = get_user_path('youtube_audio')
+            os.makedirs(audio_dir, exist_ok=True)
+
+            already_downloaded = []
+            needs_download = []
+
+            for video in videos_to_download:
+                audio_path = os.path.join(audio_dir, f"{video['video_id']}.mp3")
+                if os.path.exists(audio_path):
+                    already_downloaded.append(video)
+                else:
+                    needs_download.append(video)
+
+            result['count_skipped'] = len(already_downloaded)
+
+            # Download new audio files
+            count_downloaded = 0
+            count_errors = 0
+            errors = []
+
+            if needs_download:
+                try:
+                    import yt_dlp
+                except ImportError:
+                    result['status'] = 'error'
+                    result['error'] = 'yt_dlp module not installed. Run: pip install yt-dlp'
+                    return result
+
+                for video in needs_download:
+                    try:
+                        video_id = video['video_id']
+                        output_template = os.path.join(audio_dir, video_id)
+
+                        ydl_opts = {
+                            'format': 'bestaudio/best',
+                            'postprocessors': [{
+                                'key': 'FFmpegExtractAudio',
+                                'preferredcodec': 'mp3',
+                                'preferredquality': '128',
+                            }],
+                            'outtmpl': output_template,
+                            'quiet': True,
+                            'no_warnings': True,
+                        }
+
+                        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                            ydl.download([video['youtube_url']])
+
+                        # Verify download succeeded
+                        audio_path = os.path.join(audio_dir, f"{video_id}.mp3")
+                        if os.path.exists(audio_path):
+                            count_downloaded += 1
+                            logger.info(f"Downloaded audio: {video_id}")
+                        else:
+                            count_errors += 1
+                            errors.append({'video_id': video_id, 'error': 'File not created'})
+
+                    except Exception as e:
+                        count_errors += 1
+                        errors.append({'video_id': video['video_id'], 'error': str(e)})
+                        logger.warning(f"Failed to download {video['video_id']}: {e}")
+
+            result['count_downloaded'] = count_downloaded
+            result['count_errors'] = count_errors
+
+            if errors:
+                result['errors_sample'] = errors[:5]
+
+            result['duration_seconds'] = round(time.time() - start_time, 2)
+            logger.info(f"Download audio completed: {count_downloaded} downloaded, {len(already_downloaded)} skipped, {count_errors} errors")
+
+        except Exception as e:
+            result['status'] = 'error'
+            result['error'] = str(e)
+            logger.error(f"Download audio error: {e}", exc_info=True)
 
         return result
 
