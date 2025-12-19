@@ -1,3 +1,51 @@
+## Session 305: source_coverage_in_inventory - Source coverage tracking
+**Date:** 2025-12-18
+**Item:** source_coverage_in_inventory + ui_source_coverage_display (ingestion_visibility > source_discovery)
+**Priority:** P2
+
+### Summary
+Enhanced source inventory to return coverage data comparing discovered vs configured meeting types. The admin dashboard now shows "X/Y" format in the Coverage column with percentage and missing type details.
+
+### Implementation
+
+**1. Backend** (proudcity.py)
+- Enhanced `get_source_inventory(include_coverage=True)` to:
+  - Call `discover_meeting_types()` to find all available types
+  - Compare with configured `self.archives`
+  - Return coverage object: `{ configured_count, discovered_count, configured, discovered, missing, coverage_percent }`
+  - Log coverage metrics
+
+**2. API** (civic_api_integrated.py)
+- Updated `handle_admin_status()` to pass `include_coverage=True`
+- Extract and expose coverage fields: `configured_count`, `discovered_count`, `missing`, `coverage_percent`
+
+**3. Types** (civic.ts)
+- Added optional coverage fields to `AdminStatusResponse.sources.meetings` interface
+
+**4. UI** (AdminStatusPage.vue)
+- Changed header from "Available" to "Coverage"
+- `formatSourceCount()`: Shows "X/Y" (configured/discovered) format
+- `getSourceTooltip()`: Multi-line tooltip with meeting count, coverage %, missing types list
+- `getSourceMeta()`: Shows coverage percentage
+- `getSourceNodeClass()`: Returns 'warning' class when gaps exist
+- Added `.stage-node.has-data.warning` CSS with orange styling
+
+### Files Changed
+- `packages/civic-extraction/src/civic_extraction/clients/proudcity.py` - Enhanced get_source_inventory()
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py` - API handler
+- `apps/civic-workspace/src/types/civic.ts` - Coverage types
+- `apps/civic-workspace/src/components/workspace/AdminStatusPage.vue` - UI display
+- `pilot.json` - Updated source_coverage_in_inventory and ui_source_coverage_display to "ready"
+
+### Tests
+- 34 smoke tests passing
+- 12 admin_status tests passing
+- TypeScript type-check passes
+
+**Commit:** Session 305: source_coverage_in_inventory - Source coverage tracking
+
+---
+
 ## Session 304: auto_discover_meeting_types - Dynamic meeting type discovery
 **Date:** 2025-12-18
 **Item:** auto_discover_meeting_types (ingestion_visibility > source_discovery)
