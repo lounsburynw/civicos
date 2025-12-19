@@ -1,3 +1,47 @@
+## Session 307: transcribe_button - Admin Transcribe Videos trigger
+**Date:** 2025-12-18
+**Item:** transcribe_button (admin_operations > manual_triggers)
+**Priority:** P2
+
+### Summary
+Added "Transcribe Videos" button to Admin Status page that fetches YouTube captions for meeting videos that don't have transcripts.
+
+### Implementation
+**1. Backend** (civic_api_integrated.py)
+- Added `transcribe_videos` operation to handle_admin_trigger()
+- Added `_trigger_transcribe_videos()` handler that:
+  - Queries meetings with YouTube URLs from StateManager
+  - Checks for existing transcripts in data/youtube_transcripts/
+  - Fetches missing transcripts using youtube-transcript-api
+  - Reports count_with_video, count_transcribed, count_fetched, count_no_captions, count_errors
+
+**2. Frontend API** (api.ts)
+- Added `triggerTranscribeVideos()` method following existing pattern
+
+**3. UI** (AdminStatusPage.vue)
+- Added Transcribe Videos button card with Captions icon
+- Added result template showing transcript stats
+- Added `triggerTranscribeVideos()` handler function
+
+**4. Types** (civic.ts)
+- Extended AdminTriggerResponse with transcribe fields:
+  - count_with_video, count_transcribed, count_no_captions
+
+### Files Changed
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py` - Backend handler
+- `apps/civic-workspace/src/services/api.ts` - API method
+- `apps/civic-workspace/src/components/workspace/AdminStatusPage.vue` - UI button
+- `apps/civic-workspace/src/types/civic.ts` - Response type
+- `pilot.json` - Updated transcribe_button to "ready"
+
+### Tests
+- 34 smoke tests passing
+- TypeScript type-check passes
+
+**Commit:** Session 307: transcribe_button - Admin Transcribe Videos trigger
+
+---
+
 ## Session 305: source_coverage_in_inventory - Source coverage tracking
 **Date:** 2025-12-18
 **Item:** source_coverage_in_inventory + ui_source_coverage_display (ingestion_visibility > source_discovery)

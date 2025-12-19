@@ -7620,11 +7620,14 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             elif operation == 'download_audio':
                 result = self._trigger_download_audio(jurisdiction)
                 self.send_json(result)
+            elif operation == 'transcribe_videos':
+                result = self._trigger_transcribe_videos(jurisdiction)
+                self.send_json(result)
             else:
                 self.send_json({
                     'status': 'error',
                     'error': f'Unknown operation: {operation}',
-                    'supported_operations': ['fetch_meetings', 'discover_videos', 'download_audio']
+                    'supported_operations': ['fetch_meetings', 'discover_videos', 'download_audio', 'transcribe_videos']
                 }, status=400)
 
         except json.JSONDecodeError as e:
@@ -7934,6 +7937,140 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             result['status'] = 'error'
             result['error'] = str(e)
             logger.error(f"Download audio error: {e}", exc_info=True)
+
+        return result
+
+    def _trigger_transcribe_videos(self, jurisdiction: str) -> dict:
+        """SESSION 307: Transcribe YouTube videos that have audio but no transcript.
+
+        Uses youtube-transcript-api to fetch existing YouTube captions.
+        For videos without captions, returns count so admin can manually trigger
+        AssemblyAI transcription if needed.
+
+        Args:
+            jurisdiction: Jurisdiction ID (e.g., 'san-rafael')
+
+        Returns:
+            Dict with operation result including transcription counts
+        """
+        import re
+        from datetime import datetime
+        start_time = time.time()
+
+        result = {
+            'status': 'success',
+            'operation': 'transcribe_videos',
+            'jurisdiction': jurisdiction,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+
+        try:
+            from ..storage.state_manager import StateManager
+
+            state_db_path = get_user_path('civic_state.db')
+            state_mgr = StateManager(str(state_db_path))
+
+            # Map jurisdiction to jurisdiction_id format
+            jurisdiction_id = f"city-{jurisdiction}" if not jurisdiction.startswith('city-') else jurisdiction
+
+            # Query all current meetings for this jurisdiction
+            meetings = state_mgr.query_meetings(jurisdiction_id=jurisdiction_id)
+
+            # Find meetings with YouTube video URLs
+            youtube_pattern = re.compile(r'(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]{11})')
+
+            videos_with_urls = []
+            for meeting in meetings:
+                video_url = meeting.get('video_url')
+                if video_url:
+                    match = youtube_pattern.search(video_url)
+                    if match:
+                        video_id = match.group(1)
+                        videos_with_urls.append({
+                            'video_id': video_id,
+                            'meeting_id': meeting.get('id'),
+                            'meeting_title': meeting.get('title')
+                        })
+
+            result['count_with_video'] = len(videos_with_urls)
+
+            # Check which have transcripts already
+            transcripts_dir = get_user_path('youtube_transcripts')
+            os.makedirs(transcripts_dir, exist_ok=True)
+
+            already_transcribed = []
+            needs_transcript = []
+
+            for video in videos_with_urls:
+                # Check for existing transcript file (*.en.json3 format)
+                transcript_path = os.path.join(transcripts_dir, f"{video['video_id']}.en.json3")
+                if os.path.exists(transcript_path):
+                    already_transcribed.append(video)
+                else:
+                    needs_transcript.append(video)
+
+            result['count_transcribed'] = len(already_transcribed)
+            result['count_pending'] = len(needs_transcript)
+
+            # Attempt to fetch transcripts using youtube-transcript-api
+            count_fetched = 0
+            count_no_captions = 0
+            count_errors = 0
+            errors = []
+
+            if needs_transcript:
+                try:
+                    from youtube_transcript_api import YouTubeTranscriptApi
+                    from youtube_transcript_api.formatters import JSONFormatter
+                except ImportError:
+                    result['status'] = 'error'
+                    result['error'] = 'youtube_transcript_api not installed. Run: pip install youtube-transcript-api'
+                    return result
+
+                api = YouTubeTranscriptApi()
+                formatter = JSONFormatter()
+
+                for video in needs_transcript:
+                    try:
+                        video_id = video['video_id']
+
+                        # Fetch transcript (prefer English)
+                        fetched_transcript = api.fetch(video_id, languages=['en', 'en-US', 'en-GB'])
+
+                        # Format and save
+                        transcript_json = formatter.format_transcript(fetched_transcript)
+                        transcript_path = os.path.join(transcripts_dir, f"{video_id}.en.json3")
+
+                        with open(transcript_path, 'w', encoding='utf-8') as f:
+                            f.write(transcript_json)
+
+                        count_fetched += 1
+                        logger.info(f"Fetched transcript: {video_id}")
+
+                    except Exception as e:
+                        error_msg = str(e)
+                        if 'NoTranscriptFound' in error_msg or 'TranscriptsDisabled' in error_msg:
+                            count_no_captions += 1
+                            errors.append({'video_id': video['video_id'], 'error': 'No captions available'})
+                        else:
+                            count_errors += 1
+                            errors.append({'video_id': video['video_id'], 'error': error_msg[:100]})
+                        logger.warning(f"Failed to fetch transcript {video['video_id']}: {e}")
+
+            result['count_fetched'] = count_fetched
+            result['count_no_captions'] = count_no_captions
+            result['count_errors'] = count_errors
+
+            if errors:
+                result['errors_sample'] = errors[:5]
+
+            result['duration_seconds'] = round(time.time() - start_time, 2)
+            logger.info(f"Transcribe videos completed: {count_fetched} fetched, {len(already_transcribed)} already done, {count_no_captions} no captions, {count_errors} errors")
+
+        except Exception as e:
+            result['status'] = 'error'
+            result['error'] = str(e)
+            logger.error(f"Transcribe videos error: {e}", exc_info=True)
 
         return result
 
