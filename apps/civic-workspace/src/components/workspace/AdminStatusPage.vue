@@ -261,6 +261,20 @@
         </div>
       </div>
 
+      <!-- Running Operation Indicator (SESSION 309) -->
+      <div v-if="runningOperation" class="running-operation-banner">
+        <div class="running-indicator">
+          <RefreshCw :size="18" class="spinning" />
+        </div>
+        <div class="running-info">
+          <span class="running-label">{{ runningOperation.label }}</span>
+          <span class="running-timer">
+            <Clock :size="12" />
+            {{ formatElapsedTime(elapsedSeconds) }}
+          </span>
+        </div>
+      </div>
+
       <!-- Manual Operations Section -->
       <section class="operations-section">
         <h3 class="section-title">
@@ -440,7 +454,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { formatDistanceToNow, differenceInDays } from 'date-fns';
 import {
   Activity,
@@ -457,10 +471,11 @@ import {
   Download,
   Video,
   Music,
-  Captions
+  Captions,
+  Clock
 } from 'lucide-vue-next';
 import { api } from '@/services/api';
-import type { AdminStatusResponse, AdminTriggerResponse } from '@/types/civic';
+import type { AdminStatusResponse, AdminTriggerResponse, RunningOperation } from '@/types/civic';
 
 const props = defineProps<{
   jurisdiction?: string;
@@ -476,6 +491,47 @@ const error = ref<string | null>(null);
 const statusData = ref<AdminStatusResponse | null>(null);
 const operationInProgress = ref<string | null>(null);
 const operationResult = ref<AdminTriggerResponse | null>(null);
+
+// Running operations with timer (SESSION 309)
+const runningOperation = ref<RunningOperation | null>(null);
+const elapsedSeconds = ref(0);
+let elapsedTimer: ReturnType<typeof setInterval> | null = null;
+
+const operationLabels: Record<string, string> = {
+  'fetch_meetings': 'Fetching meetings from ProudCity',
+  'discover_videos': 'Discovering YouTube videos',
+  'download_audio': 'Downloading audio files',
+  'transcribe_videos': 'Fetching video transcripts',
+  'refresh_seeclickfix': 'Refreshing SeeClickFix issues'
+};
+
+function startOperationTimer(operation: string) {
+  runningOperation.value = {
+    operation,
+    startedAt: new Date(),
+    label: operationLabels[operation] || operation
+  };
+  elapsedSeconds.value = 0;
+  elapsedTimer = setInterval(() => {
+    elapsedSeconds.value++;
+  }, 1000);
+}
+
+function stopOperationTimer() {
+  if (elapsedTimer) {
+    clearInterval(elapsedTimer);
+    elapsedTimer = null;
+  }
+  runningOperation.value = null;
+  elapsedSeconds.value = 0;
+}
+
+function formatElapsedTime(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}m ${secs}s`;
+}
 
 const totalStorageBytes = computed(() => {
   if (!statusData.value) return 0;
@@ -657,6 +713,7 @@ function getOpenIssuesCount(): number {
 async function triggerFetchMeetings() {
   operationInProgress.value = 'fetch_meetings';
   operationResult.value = null;
+  startOperationTimer('fetch_meetings');
   try {
     const result = await api.triggerFetchMeetings(props.jurisdiction || 'san-rafael');
     operationResult.value = result;
@@ -672,6 +729,7 @@ async function triggerFetchMeetings() {
       error: e instanceof Error ? e.message : 'Operation failed'
     };
   } finally {
+    stopOperationTimer();
     operationInProgress.value = null;
   }
 }
@@ -679,6 +737,7 @@ async function triggerFetchMeetings() {
 async function triggerDiscoverVideos() {
   operationInProgress.value = 'discover_videos';
   operationResult.value = null;
+  startOperationTimer('discover_videos');
   try {
     const result = await api.triggerDiscoverVideos(props.jurisdiction || 'san-rafael');
     operationResult.value = result;
@@ -694,6 +753,7 @@ async function triggerDiscoverVideos() {
       error: e instanceof Error ? e.message : 'Operation failed'
     };
   } finally {
+    stopOperationTimer();
     operationInProgress.value = null;
   }
 }
@@ -701,6 +761,7 @@ async function triggerDiscoverVideos() {
 async function triggerDownloadAudio() {
   operationInProgress.value = 'download_audio';
   operationResult.value = null;
+  startOperationTimer('download_audio');
   try {
     const result = await api.triggerDownloadAudio(props.jurisdiction || 'san-rafael');
     operationResult.value = result;
@@ -716,6 +777,7 @@ async function triggerDownloadAudio() {
       error: e instanceof Error ? e.message : 'Operation failed'
     };
   } finally {
+    stopOperationTimer();
     operationInProgress.value = null;
   }
 }
@@ -723,6 +785,7 @@ async function triggerDownloadAudio() {
 async function triggerTranscribeVideos() {
   operationInProgress.value = 'transcribe_videos';
   operationResult.value = null;
+  startOperationTimer('transcribe_videos');
   try {
     const result = await api.triggerTranscribeVideos(props.jurisdiction || 'san-rafael');
     operationResult.value = result;
@@ -738,6 +801,7 @@ async function triggerTranscribeVideos() {
       error: e instanceof Error ? e.message : 'Operation failed'
     };
   } finally {
+    stopOperationTimer();
     operationInProgress.value = null;
   }
 }
@@ -745,6 +809,7 @@ async function triggerTranscribeVideos() {
 async function triggerRefreshSeeClickFix() {
   operationInProgress.value = 'refresh_seeclickfix';
   operationResult.value = null;
+  startOperationTimer('refresh_seeclickfix');
   try {
     const result = await api.triggerRefreshSeeClickFix(props.jurisdiction || 'san-rafael');
     operationResult.value = result;
@@ -760,12 +825,17 @@ async function triggerRefreshSeeClickFix() {
       error: e instanceof Error ? e.message : 'Operation failed'
     };
   } finally {
+    stopOperationTimer();
     operationInProgress.value = null;
   }
 }
 
 onMounted(() => {
   loadStatus(false);
+});
+
+onUnmounted(() => {
+  stopOperationTimer();
 });
 </script>
 
@@ -1294,5 +1364,42 @@ onMounted(() => {
 .storage-row.total {
   font-weight: 600;
   color: var(--color-text-primary);
+}
+
+/* Running Operation Banner (SESSION 309) */
+.running-operation-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+}
+
+.running-indicator {
+  color: #3b82f6;
+}
+
+.running-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.running-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.running-timer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #3b82f6;
+  font-weight: 500;
 }
 </style>

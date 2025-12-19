@@ -829,3 +829,13 @@ export interface AdminTriggerResponse {
   error?: string;
   supported_operations?: string[];
 }
+
+/**
+ * Running operation state for admin progress indicator
+ * SESSION 309: running_operations
+ */
+export interface RunningOperation {
+  operation: string;
+  startedAt: Date;
+  label: string;
+}

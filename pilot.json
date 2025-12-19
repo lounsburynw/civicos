@@ -459,7 +459,7 @@
     },
     "operation_status": {
       "running_operations": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "Show running operations with progress indicator"
       },
