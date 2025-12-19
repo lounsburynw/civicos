@@ -3382,3 +3382,47 @@ Implemented the "Fetch Meetings" button in the admin dashboard to manually trigg
 - TypeScript type-check passes
 
 **Commit:** Session 302: fetch_meetings_button - Admin manual trigger for ProudCity scraper
+
+---
+
+## Session 303: discover_videos_button - Admin Discover Videos trigger
+**Date:** 2025-12-18
+**Item:** discover_videos_button (admin_operations > manual_triggers)
+**Priority:** P2
+
+### Summary
+Added "Discover Videos" button to admin dashboard following fetch_meetings pattern.
+Scans meetings in database for YouTube video URLs and reports stats.
+
+### Implementation
+**1. Backend** (civic_api_integrated.py)
+- Added `discover_videos` to supported operations in handle_admin_trigger()
+- Added `_trigger_discover_videos()` method (lines 7659-7730)
+- Queries meetings from StateManager, extracts YouTube video IDs via regex
+- Returns: count_meetings, count_meetings_with_video, count_videos_discovered, videos_sample
+
+**2. Frontend API** (api.ts)
+- Added `triggerDiscoverVideos()` method (lines 1197-1223)
+- POSTs to /api/admin/trigger with operation: discover_videos
+
+**3. Frontend UI** (AdminStatusPage.vue)
+- Added Discover Videos operation card with Video icon
+- Updated result display to show discover_videos stats
+- Added Video import from lucide-vue-next
+
+**4. Types** (civic.ts)
+- Added discover_videos fields to AdminTriggerResponse interface
+
+### Files Changed
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py` - Backend handler
+- `apps/civic-workspace/src/services/api.ts` - API method
+- `apps/civic-workspace/src/components/workspace/AdminStatusPage.vue` - UI button
+- `apps/civic-workspace/src/types/civic.ts` - Response type
+- `pilot.json` - Updated discover_videos_button to "ready"
+
+### Tests
+- 34 smoke tests passing
+- 12 admin_status tests passing
+- TypeScript type-check passes
+
+**Commit:** Session 303: discover_videos_button - Admin Discover Videos trigger

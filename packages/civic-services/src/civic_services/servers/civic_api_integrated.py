@@ -7521,6 +7521,7 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
 
         Supported operations:
         - fetch_meetings: Trigger ProudCity scraper to fetch new meetings
+        - discover_videos: Scan meetings for YouTube video URLs (SESSION 303)
         """
         try:
             # Read request body
@@ -7541,11 +7542,14 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             if operation == 'fetch_meetings':
                 result = self._trigger_fetch_meetings(jurisdiction)
                 self.send_json(result)
+            elif operation == 'discover_videos':
+                result = self._trigger_discover_videos(jurisdiction)
+                self.send_json(result)
             else:
                 self.send_json({
                     'status': 'error',
                     'error': f'Unknown operation: {operation}',
-                    'supported_operations': ['fetch_meetings']
+                    'supported_operations': ['fetch_meetings', 'discover_videos']
                 }, status=400)
 
         except json.JSONDecodeError as e:
@@ -7649,6 +7653,79 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             result['status'] = 'error'
             result['error'] = str(e)
             logger.error(f"Fetch meetings error: {e}", exc_info=True)
+
+        return result
+
+    def _trigger_discover_videos(self, jurisdiction: str) -> dict:
+        """SESSION 303: Discover YouTube videos from meeting records.
+
+        Scans meetings in the database for video_url fields and extracts
+        YouTube video IDs. Returns stats about discovered videos.
+
+        Args:
+            jurisdiction: Jurisdiction ID (e.g., 'san-rafael')
+
+        Returns:
+            Dict with operation result including video counts
+        """
+        import re
+        from datetime import datetime
+        start_time = time.time()
+
+        result = {
+            'status': 'success',
+            'operation': 'discover_videos',
+            'jurisdiction': jurisdiction,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+
+        try:
+            from ..storage.state_manager import StateManager
+
+            state_db_path = get_user_path('civic_state.db')
+            state_mgr = StateManager(str(state_db_path))
+
+            # Map jurisdiction to jurisdiction_id format
+            jurisdiction_id = f"city-{jurisdiction}" if not jurisdiction.startswith('city-') else jurisdiction
+
+            # Query all current meetings for this jurisdiction
+            meetings = state_mgr.query_meetings(jurisdiction_id=jurisdiction_id)
+            result['count_meetings'] = len(meetings)
+
+            # Find meetings with video URLs
+            youtube_pattern = re.compile(r'(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]{11})')
+
+            videos_discovered = []
+            meetings_with_video = 0
+
+            for meeting in meetings:
+                video_url = meeting.get('video_url')
+                if video_url:
+                    meetings_with_video += 1
+                    match = youtube_pattern.search(video_url)
+                    if match:
+                        video_id = match.group(1)
+                        videos_discovered.append({
+                            'video_id': video_id,
+                            'meeting_id': meeting.get('id'),
+                            'meeting_title': meeting.get('title'),
+                            'meeting_date': meeting.get('meeting_datetime'),
+                            'youtube_url': f'https://www.youtube.com/watch?v={video_id}'
+                        })
+
+            result['count_meetings_with_video'] = meetings_with_video
+            result['count_videos_discovered'] = len(videos_discovered)
+
+            # Include first 10 videos as sample
+            result['videos_sample'] = videos_discovered[:10]
+
+            result['duration_seconds'] = round(time.time() - start_time, 2)
+            logger.info(f"Discover videos completed: {result['count_videos_discovered']} videos from {result['count_meetings_with_video']} meetings")
+
+        except Exception as e:
+            result['status'] = 'error'
+            result['error'] = str(e)
+            logger.error(f"Discover videos error: {e}", exc_info=True)
 
         return result
 
