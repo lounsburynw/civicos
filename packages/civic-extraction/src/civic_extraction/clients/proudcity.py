@@ -219,6 +219,113 @@ class ProudCityClient(BaseExtractor):
 
         return None
 
+    def discover_meeting_types(self) -> Dict[str, str]:
+        """
+        Discover all available meeting type archives by scraping main /meetings/ page.
+
+        Scrapes the main meetings landing page to find all archive URLs dynamically,
+        replacing the need for hardcoded DEFAULT_ARCHIVES.
+
+        Returns:
+            Dict mapping meeting_type_key to archive_path:
+            {
+                'city_council': '/city-council-meetings/',
+                'planning_commission': '/planning-commission-meetings/',
+                'ada_access_advisory_committee': '/ada-access-advisory-committee-meetings/',
+                ...
+            }
+        """
+        meetings_url = f"{self.base_url}/meetings/"
+        response = self._make_request(meetings_url)
+        if not response:
+            logger.warning(
+                "Failed to fetch meetings page for discovery",
+                extra={
+                    "url": meetings_url,
+                    "jurisdiction_id": self.jurisdiction_id,
+                    "platform": self.platform_name,
+                }
+            )
+            return {}
+
+        soup = BeautifulSoup(response.content, 'html.parser')
+        discovered = {}
+
+        # Find all links ending in -meetings/ or -hearings/
+        archive_pattern = re.compile(r'^/([a-z0-9-]+)-(meetings|hearings)/?$')
+
+        for link in soup.find_all('a', href=True):
+            href = link.get('href', '')
+
+            # Handle both relative and absolute URLs
+            if href.startswith('http'):
+                # Extract path from full URL
+                if self.base_url in href:
+                    href = href.replace(self.base_url, '')
+                else:
+                    continue  # External link
+
+            match = archive_pattern.match(href)
+            if match:
+                type_slug = match.group(1)  # e.g., "city-council"
+                suffix = match.group(2)  # "meetings" or "hearings"
+
+                # Convert slug to key: city-council -> city_council
+                type_key = type_slug.replace('-', '_')
+
+                # Normalize path with trailing slash
+                path = f"/{type_slug}-{suffix}/"
+
+                # Avoid duplicates (some pages have multiple links to same archive)
+                if type_key not in discovered:
+                    discovered[type_key] = path
+
+        logger.info(
+            "Discovered meeting types",
+            extra={
+                "count": len(discovered),
+                "types": list(discovered.keys()),
+                "jurisdiction_id": self.jurisdiction_id,
+                "platform": self.platform_name,
+            }
+        )
+
+        return discovered
+
+    def get_source_inventory(self) -> Dict[str, Any]:
+        """
+        Get inventory counts from source without full fetch.
+
+        Scrapes archive pages to count available meetings per type,
+        without downloading individual meeting details.
+
+        Returns:
+            Dict with counts per meeting type and total:
+            {
+                'total': 85,
+                'by_type': {
+                    'city_council': 45,
+                    'planning_commission': 23,
+                    ...
+                },
+                'timestamp': '2025-01-15T10:30:00Z'
+            }
+        """
+        inventory = {
+            'total': 0,
+            'by_type': {},
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+
+        for meeting_type, path in self.archives.items():
+            archive_url = f"{self.base_url}{path}"
+            events = self._scrape_archive_page(archive_url, meeting_type)
+            count = len(events)
+            inventory['by_type'][meeting_type] = count
+            inventory['total'] += count
+
+        return inventory
+
     def get_events(
         self,
         days_ahead: int = 90,
