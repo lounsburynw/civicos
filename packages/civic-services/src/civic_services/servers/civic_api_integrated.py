@@ -7623,11 +7623,14 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             elif operation == 'transcribe_videos':
                 result = self._trigger_transcribe_videos(jurisdiction)
                 self.send_json(result)
+            elif operation == 'refresh_seeclickfix':
+                result = self._trigger_refresh_seeclickfix(jurisdiction)
+                self.send_json(result)
             else:
                 self.send_json({
                     'status': 'error',
                     'error': f'Unknown operation: {operation}',
-                    'supported_operations': ['fetch_meetings', 'discover_videos', 'download_audio', 'transcribe_videos']
+                    'supported_operations': ['fetch_meetings', 'discover_videos', 'download_audio', 'transcribe_videos', 'refresh_seeclickfix']
                 }, status=400)
 
         except json.JSONDecodeError as e:
@@ -8071,6 +8074,163 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             result['status'] = 'error'
             result['error'] = str(e)
             logger.error(f"Transcribe videos error: {e}", exc_info=True)
+
+        return result
+
+    def _trigger_refresh_seeclickfix(self, jurisdiction: str) -> dict:
+        """SESSION 308: Refresh SeeClickFix operational issues.
+
+        Fetches latest 311 issues from SeeClickFix API and stores them
+        in the database, tracking new vs updated issues.
+
+        Args:
+            jurisdiction: Jurisdiction ID (e.g., 'san-rafael')
+
+        Returns:
+            Dict with operation result including issue counts
+        """
+        import sqlite3
+        from datetime import datetime
+        start_time = time.time()
+
+        result = {
+            'status': 'success',
+            'operation': 'refresh_seeclickfix',
+            'jurisdiction': jurisdiction,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+
+        try:
+            from ..clients.seeclickfix_client import SeeClickFixClient
+            from ..storage.state_manager import StateManager
+
+            # Initialize client and storage
+            client = SeeClickFixClient()
+            state_db_path = get_user_path('civic_state.db')
+            state_mgr = StateManager(str(state_db_path))
+
+            # Map jurisdiction to jurisdiction_id format
+            jurisdiction_id = f"city-{jurisdiction}" if not jurisdiction.startswith('city-') else jurisdiction
+
+            # Get existing issues to track new vs updated
+            existing_issues = state_mgr.query_issues(jurisdiction_id=jurisdiction_id, limit=10000)
+            existing_ids = {issue.get('id') for issue in existing_issues}
+            existing_statuses = {issue.get('id'): issue.get('status') for issue in existing_issues}
+
+            # Fetch all issues from SeeClickFix (paginate through all)
+            all_issues = []
+            page = 1
+            max_pages = 50  # Safety limit
+
+            while page <= max_pages:
+                response = client.get_issues(
+                    place_url=jurisdiction,
+                    per_page=100,
+                    page=page,
+                    status=None  # Get all statuses (open, closed, acknowledged)
+                )
+
+                issues = response.get('issues', [])
+                if not issues:
+                    break
+
+                all_issues.extend(issues)
+
+                metadata = response.get('metadata', {})
+                if not metadata.get('has_more', False):
+                    break
+
+                page += 1
+
+            result['count_fetched'] = len(all_issues)
+
+            if all_issues:
+                # Store issues using direct SQL (similar to import_seeclickfix_json)
+                conn = sqlite3.connect(str(state_db_path))
+                cursor = conn.cursor()
+
+                # Ensure city_state exists
+                cursor.execute("""
+                    INSERT OR IGNORE INTO city_states (jurisdiction_id, jurisdiction_name, as_of)
+                    VALUES (?, ?, ?)
+                """, (jurisdiction_id, jurisdiction.replace('-', ' ').title(), datetime.now()))
+
+                count_new = 0
+                count_updated = 0
+                count_stored = 0
+
+                for issue in all_issues:
+                    issue_id = issue.get('id')  # Already prefixed with 'scf-' by client
+
+                    # Extract location data
+                    location = issue.get('location', {})
+                    if isinstance(location, dict):
+                        address = location.get('address')
+                        lat = location.get('lat')
+                        lng = location.get('lng')
+                    else:
+                        address = issue.get('address')
+                        lat = issue.get('lat')
+                        lng = issue.get('lng')
+
+                    # Determine issue type from category
+                    issue_type = issue.get('category') or issue.get('issue_type')
+
+                    try:
+                        cursor.execute("""
+                            INSERT OR REPLACE INTO issues (
+                                id, jurisdiction_id, source, source_id, title,
+                                description, issue_type, address, latitude, longitude,
+                                status, created_at, valid_from
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                        """, (
+                            issue_id,
+                            jurisdiction_id,
+                            'seeclickfix',
+                            str(issue.get('external_id')),
+                            issue.get('title', 'Unknown Issue'),
+                            issue.get('description'),
+                            issue_type,
+                            address,
+                            lat,
+                            lng,
+                            issue.get('status', 'open'),
+                            issue.get('created_at')
+                        ))
+
+                        # Track new vs updated
+                        if issue_id not in existing_ids:
+                            count_new += 1
+                        elif existing_statuses.get(issue_id) != issue.get('status'):
+                            count_updated += 1
+
+                        count_stored += 1
+
+                    except Exception as e:
+                        logger.warning(f"Failed to store issue {issue_id}: {e}")
+
+                conn.commit()
+                conn.close()
+
+                result['count_new'] = count_new
+                result['count_updated'] = count_updated
+                result['count_stored'] = count_stored
+            else:
+                result['count_new'] = 0
+                result['count_updated'] = 0
+                result['count_stored'] = 0
+
+            result['duration_seconds'] = round(time.time() - start_time, 2)
+            logger.info(f"Refresh SeeClickFix completed: {result}")
+
+        except ImportError as e:
+            result['status'] = 'error'
+            result['error'] = f'SeeClickFix client not available: {str(e)}'
+            logger.error(f"Refresh SeeClickFix import error: {e}")
+        except Exception as e:
+            result['status'] = 'error'
+            result['error'] = str(e)
+            logger.error(f"Refresh SeeClickFix error: {e}", exc_info=True)
 
         return result
 

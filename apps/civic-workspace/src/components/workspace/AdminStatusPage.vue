@@ -340,6 +340,24 @@
               {{ operationInProgress === 'transcribe_videos' ? 'Running...' : 'Run' }}
             </button>
           </div>
+          <div class="operation-card">
+            <div class="operation-info">
+              <AlertCircle :size="18" />
+              <div class="operation-text">
+                <span class="operation-name">Refresh SeeClickFix</span>
+                <span class="operation-desc">Fetch latest 311 issues from SeeClickFix</span>
+              </div>
+            </div>
+            <button
+              class="operation-btn"
+              @click="triggerRefreshSeeClickFix"
+              :disabled="!!operationInProgress"
+            >
+              <RefreshCw v-if="operationInProgress === 'refresh_seeclickfix'" :size="14" class="spinning" />
+              <Play v-else :size="14" />
+              {{ operationInProgress === 'refresh_seeclickfix' ? 'Running...' : 'Run' }}
+            </button>
+          </div>
         </div>
 
         <!-- Operation Result -->
@@ -376,6 +394,12 @@
                 <span>Fetched: {{ operationResult.count_fetched }}</span>
                 <span v-if="operationResult.count_no_captions">No Captions: {{ operationResult.count_no_captions }}</span>
                 <span v-if="operationResult.count_errors">Errors: {{ operationResult.count_errors }}</span>
+              </template>
+              <!-- refresh_seeclickfix results -->
+              <template v-else-if="operationResult.operation === 'refresh_seeclickfix'">
+                <span>Fetched: {{ operationResult.count_fetched }}</span>
+                <span>New: {{ operationResult.count_new }}</span>
+                <span v-if="operationResult.count_updated">Updated: {{ operationResult.count_updated }}</span>
               </template>
               <span>Duration: {{ operationResult.duration_seconds }}s</span>
             </template>
@@ -709,6 +733,28 @@ async function triggerTranscribeVideos() {
     operationResult.value = {
       status: 'error',
       operation: 'transcribe_videos',
+      jurisdiction: props.jurisdiction || 'san-rafael',
+      timestamp: new Date().toISOString(),
+      error: e instanceof Error ? e.message : 'Operation failed'
+    };
+  } finally {
+    operationInProgress.value = null;
+  }
+}
+
+async function triggerRefreshSeeClickFix() {
+  operationInProgress.value = 'refresh_seeclickfix';
+  operationResult.value = null;
+  try {
+    const result = await api.triggerRefreshSeeClickFix(props.jurisdiction || 'san-rafael');
+    operationResult.value = result;
+    if (result.status === 'success') {
+      await loadStatus(false);
+    }
+  } catch (e) {
+    operationResult.value = {
+      status: 'error',
+      operation: 'refresh_seeclickfix',
       jurisdiction: props.jurisdiction || 'san-rafael',
       timestamp: new Date().toISOString(),
       error: e instanceof Error ? e.message : 'Operation failed'

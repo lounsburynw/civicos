@@ -821,6 +821,9 @@ export interface AdminTriggerResponse {
   count_with_video?: number;
   count_transcribed?: number;
   count_no_captions?: number;
+  // refresh_seeclickfix fields (SESSION 308)
+  // count_fetched, count_new, count_stored already defined above
+  count_updated?: number;
   // Common fields
   duration_seconds?: number;
   error?: string;
