@@ -401,16 +401,16 @@
         "note": "Session 304: Implemented discover_meeting_types() that scrapes /meetings/ page and finds all /-meetings/ and /-hearings/ URLs. Tested on live San Rafael site: discovers 15 meeting types vs 6 hardcoded."
       },
       "source_coverage_in_inventory": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "Source inventory returns discovered vs configured meeting types",
-        "note": "Session 303 TODO: Return { discovered: [...], configured: [...], missing: [...] } so UI can show coverage gaps."
+        "note": "Session 305: Enhanced get_source_inventory(include_coverage=True) returns { coverage: { configured_count, discovered_count, missing, coverage_percent } }. API exposes coverage fields in /api/admin/status?include_sources=true."
       },
       "ui_source_coverage_display": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "UI shows '6/15 meeting types configured' with list of configured vs missing",
-        "note": "Session 303 TODO: Expandable section in pipeline row showing which meeting types are tracked and which are available but not configured."
+        "note": "Session 305: Pipeline 'Coverage' column shows 'X/Y' format (configured/discovered), meta shows coverage %, tooltip lists missing types. Orange warning style when gaps exist."
       }
     }
   },

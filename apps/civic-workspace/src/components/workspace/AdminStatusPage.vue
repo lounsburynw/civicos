@@ -5,14 +5,24 @@
       <div class="header-left">
         <h2 class="header-title">
           <Activity :size="20" />
-          Pipeline Status
+          Data Pipeline
         </h2>
         <span v-if="statusData" class="jurisdiction-badge">{{ statusData.jurisdiction }}</span>
       </div>
       <div class="header-right">
-        <button class="refresh-btn" @click="loadStatus" :disabled="loading" title="Refresh status">
+        <button class="refresh-btn" @click="loadStatus(false)" :disabled="loading" title="Refresh status">
           <RefreshCw :size="16" :class="{ 'spinning': loading }" />
           Refresh
+        </button>
+        <button
+          v-if="!statusData?.sources"
+          class="refresh-btn"
+          @click="loadStatus(true)"
+          :disabled="loadingSources"
+          title="Check source availability (slower)"
+        >
+          <Download :size="16" :class="{ 'spinning': loadingSources }" />
+          Check Sources
         </button>
         <button class="close-btn" @click="$emit('close')" title="Close tab">
           <span class="icon">×</span>
@@ -30,235 +40,326 @@
     <div v-else-if="error" class="error-state">
       <AlertCircle :size="24" />
       <p>{{ error }}</p>
-      <button class="retry-btn" @click="loadStatus">Retry</button>
+      <button class="retry-btn" @click="loadStatus(false)">Retry</button>
     </div>
 
-    <!-- Status Content -->
-    <div v-else-if="statusData" class="status-content">
+    <!-- Pipeline Content -->
+    <div v-else-if="statusData" class="pipeline-content">
       <!-- Overall Status Banner -->
       <div class="status-banner" :class="statusData.status">
         <div class="status-indicator">
-          <CheckCircle v-if="statusData.status === 'healthy'" :size="24" />
-          <AlertTriangle v-else-if="statusData.status === 'degraded'" :size="24" />
-          <XCircle v-else :size="24" />
+          <CheckCircle v-if="statusData.status === 'healthy'" :size="20" />
+          <AlertTriangle v-else-if="statusData.status === 'degraded'" :size="20" />
+          <XCircle v-else :size="20" />
         </div>
-        <div class="status-info">
-          <span class="status-label">Overall Status</span>
+        <div class="status-text">
           <span class="status-value">{{ formatStatus(statusData.status) }}</span>
-        </div>
-        <div class="status-timestamp">
-          Updated {{ formatTimeAgo(statusData.timestamp) }}
+          <span class="status-timestamp">Updated {{ formatTimeAgo(statusData.timestamp) }}</span>
         </div>
       </div>
 
-      <!-- Database Section -->
-      <section class="status-section">
-        <div class="section-header" @click="toggleSection('database')">
-          <Database :size="18" />
-          <h3>Database</h3>
-          <span class="connection-status" :class="statusData.database.status">
-            {{ statusData.database.status }}
-          </span>
-          <ChevronDown :size="16" :class="{ 'rotated': !expandedSections.database }" />
-        </div>
-        <div v-if="expandedSections.database" class="section-content">
-          <table class="status-table">
-            <thead>
-              <tr>
-                <th>Table</th>
-                <th class="align-right">Count</th>
-                <th>Last Updated</th>
-                <th>Health</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Meetings</td>
-                <td class="align-right">{{ statusData.database.meetings.count.toLocaleString() }}</td>
-                <td>{{ formatTimeAgo(statusData.database.meetings.last_updated) }}</td>
-                <td><span class="health-dot" :class="getHealthClass(statusData.database.meetings.last_updated)"></span></td>
-              </tr>
-              <tr>
-                <td>Agenda Items</td>
-                <td class="align-right">{{ statusData.database.agenda_items.count.toLocaleString() }}</td>
-                <td>{{ formatTimeAgo(statusData.database.agenda_items.last_enriched) }}</td>
-                <td><span class="health-dot" :class="getHealthClass(statusData.database.agenda_items.last_enriched)"></span></td>
-              </tr>
-              <tr>
-                <td>Issues ({{ statusData.database.issues.by_status.open }} open)</td>
-                <td class="align-right">{{ statusData.database.issues.count.toLocaleString() }}</td>
-                <td>{{ formatTimeAgo(statusData.database.issues.last_updated) }}</td>
-                <td><span class="health-dot" :class="getHealthClass(statusData.database.issues.last_updated)"></span></td>
-              </tr>
-              <tr>
-                <td>Initiatives</td>
-                <td class="align-right">{{ statusData.database.initiatives.count.toLocaleString() }}</td>
-                <td>{{ formatTimeAgo(statusData.database.initiatives.last_updated) }}</td>
-                <td><span class="health-dot" :class="getHealthClass(statusData.database.initiatives.last_updated)"></span></td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="section-footer">
-            <span class="file-size">Size: {{ formatBytes(statusData.database.size_bytes) }}</span>
+      <!-- Pipeline Legend -->
+      <div class="pipeline-legend">
+        <span class="legend-label">Pipeline stages:</span>
+        <span class="legend-item"><span class="node empty"></span> Empty</span>
+        <span class="legend-item"><span class="node has-data"></span> Has data</span>
+        <span class="legend-item"><span class="node fresh"></span> Fresh (&lt;7d)</span>
+      </div>
+
+      <!-- Data Pipelines -->
+      <div class="pipelines">
+        <!-- Meetings Pipeline -->
+        <div class="pipeline-row">
+          <div class="pipeline-label">
+            <Calendar :size="18" />
+            <span>Meetings</span>
+          </div>
+          <div class="pipeline-stages">
+            <!-- Source Coverage -->
+            <div class="stage">
+              <div class="stage-header">Coverage</div>
+              <div
+                class="stage-node"
+                :class="getSourceNodeClass('meetings')"
+                :title="getSourceTooltip('meetings')"
+              >
+                {{ formatSourceCount('meetings') }}
+              </div>
+              <div class="stage-meta">{{ getSourceMeta('meetings') }}</div>
+            </div>
+
+            <div class="stage-arrow">→</div>
+
+            <!-- Ingested -->
+            <div class="stage">
+              <div class="stage-header">Ingested</div>
+              <div
+                class="stage-node"
+                :class="getNodeClass(statusData.database.meetings.count, statusData.database.meetings.last_updated)"
+                :title="`${statusData.database.meetings.count} meetings in database`"
+              >
+                {{ statusData.database.meetings.count }}
+              </div>
+              <div class="stage-meta">{{ formatTimeAgo(statusData.database.meetings.last_updated) }}</div>
+            </div>
+
+            <div class="stage-arrow">→</div>
+
+            <!-- Searchable -->
+            <div class="stage">
+              <div class="stage-header">Searchable</div>
+              <div
+                class="stage-node"
+                :class="getNodeClass(getCollectionCount('decisions'), null)"
+                :title="`${getCollectionCount('decisions')} documents indexed`"
+              >
+                {{ formatSearchableCount('meetings') }}
+              </div>
+              <div class="stage-meta">{{ getSearchableMeta('meetings') }}</div>
+            </div>
           </div>
         </div>
-      </section>
 
-      <!-- ChromaDB Section -->
-      <section class="status-section">
-        <div class="section-header" @click="toggleSection('chromadb')">
-          <Layers :size="18" />
-          <h3>Vector Store (ChromaDB)</h3>
-          <span class="connection-status" :class="statusData.chromadb.status">
-            {{ statusData.chromadb.status.replace('_', ' ') }}
-          </span>
-          <ChevronDown :size="16" :class="{ 'rotated': !expandedSections.chromadb }" />
-        </div>
-        <div v-if="expandedSections.chromadb" class="section-content">
-          <template v-if="statusData.chromadb.collections && Object.keys(statusData.chromadb.collections).length > 0">
-            <div class="total-documents">
-              <span class="total-label">Total Documents:</span>
-              <span class="total-value">{{ (statusData.chromadb.total_documents || 0).toLocaleString() }}</span>
+        <!-- Agenda Items Pipeline -->
+        <div class="pipeline-row">
+          <div class="pipeline-label">
+            <FileText :size="18" />
+            <span>Agenda Items</span>
+          </div>
+          <div class="pipeline-stages">
+            <!-- Source (derived from meetings) -->
+            <div class="stage">
+              <div class="stage-header">Available</div>
+              <div class="stage-node derived" title="Derived from meeting agendas">
+                —
+              </div>
+              <div class="stage-meta">from meetings</div>
             </div>
-            <table class="status-table">
-              <thead>
-                <tr>
-                  <th>Collection</th>
-                  <th class="align-right">Documents</th>
-                  <th>Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(collection, key) in statusData.chromadb.collections" :key="key">
-                  <td>{{ formatCollectionName(String(key)) }}</td>
-                  <td class="align-right">{{ collection.count.toLocaleString() }}</td>
-                  <td>{{ formatTimeAgo(collection.created_at) }}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div class="section-footer">
-              <span class="file-size">Size: {{ formatBytes(statusData.chromadb.size_bytes || 0) }}</span>
+
+            <div class="stage-arrow">→</div>
+
+            <!-- Ingested -->
+            <div class="stage">
+              <div class="stage-header">Ingested</div>
+              <div
+                class="stage-node"
+                :class="getNodeClass(statusData.database.agenda_items.count, statusData.database.agenda_items.last_enriched)"
+                :title="`${statusData.database.agenda_items.count} agenda items enriched`"
+              >
+                {{ statusData.database.agenda_items.count }}
+              </div>
+              <div class="stage-meta">{{ formatTimeAgo(statusData.database.agenda_items.last_enriched) }}</div>
             </div>
-          </template>
-          <div v-else class="empty-section">
-            <p>No vector storage configured for this jurisdiction.</p>
+
+            <div class="stage-arrow">→</div>
+
+            <!-- Searchable -->
+            <div class="stage">
+              <div class="stage-header">Searchable</div>
+              <div
+                class="stage-node"
+                :class="getNodeClass(getCollectionCount('chunks'), null)"
+                :title="`${getCollectionCount('chunks')} chunks indexed`"
+              >
+                {{ getCollectionCount('chunks') }}
+              </div>
+              <div class="stage-meta">chunks</div>
+            </div>
           </div>
         </div>
-      </section>
 
-      <!-- Files Section -->
-      <section class="status-section">
-        <div class="section-header" @click="toggleSection('files')">
-          <HardDrive :size="18" />
-          <h3>Storage</h3>
-          <ChevronDown :size="16" :class="{ 'rotated': !expandedSections.files }" />
+        <!-- Issues Pipeline -->
+        <div class="pipeline-row">
+          <div class="pipeline-label">
+            <AlertCircle :size="18" />
+            <span>Issues</span>
+          </div>
+          <div class="pipeline-stages">
+            <!-- Source -->
+            <div class="stage">
+              <div class="stage-header">Available</div>
+              <div class="stage-node unknown" title="SeeClickFix source not configured">
+                ?
+              </div>
+              <div class="stage-meta">SeeClickFix</div>
+            </div>
+
+            <div class="stage-arrow">→</div>
+
+            <!-- Ingested -->
+            <div class="stage">
+              <div class="stage-header">Ingested</div>
+              <div
+                class="stage-node"
+                :class="getNodeClass(statusData.database.issues.count, statusData.database.issues.last_updated)"
+                :title="`${statusData.database.issues.count} issues (${getOpenIssuesCount()} open)`"
+              >
+                {{ statusData.database.issues.count }}
+              </div>
+              <div class="stage-meta">{{ getOpenIssuesCount() }} open</div>
+            </div>
+
+            <div class="stage-arrow">→</div>
+
+            <!-- Searchable -->
+            <div class="stage">
+              <div class="stage-header">Searchable</div>
+              <div
+                class="stage-node"
+                :class="getNodeClass(getCollectionCount('issues'), null)"
+                :title="`${getCollectionCount('issues')} issues indexed`"
+              >
+                {{ getCollectionCount('issues') }}
+              </div>
+              <div class="stage-meta">indexed</div>
+            </div>
+          </div>
         </div>
-        <div v-if="expandedSections.files" class="section-content">
-          <table class="status-table">
-            <thead>
-              <tr>
-                <th>File</th>
-                <th class="align-right">Size</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>State Database</td>
-                <td class="align-right">{{ formatBytes(statusData.files?.state_db_size_bytes || 0) }}</td>
-              </tr>
-              <tr>
-                <td>Participation Database</td>
-                <td class="align-right">{{ formatBytes(statusData.files?.participation_db_size_bytes || 0) }}</td>
-              </tr>
-              <tr>
-                <td>Vector Store</td>
-                <td class="align-right">{{ formatBytes(statusData.chromadb?.size_bytes || 0) }}</td>
-              </tr>
-              <tr class="total-row">
-                <td><strong>Total</strong></td>
-                <td class="align-right"><strong>{{ formatBytes(totalStorageBytes) }}</strong></td>
-              </tr>
-            </tbody>
-          </table>
+
+        <!-- Initiatives Pipeline -->
+        <div class="pipeline-row">
+          <div class="pipeline-label">
+            <Users :size="18" />
+            <span>Initiatives</span>
+          </div>
+          <div class="pipeline-stages">
+            <!-- Source (user-created) -->
+            <div class="stage">
+              <div class="stage-header">Available</div>
+              <div class="stage-node derived" title="Created by users">
+                —
+              </div>
+              <div class="stage-meta">user-created</div>
+            </div>
+
+            <div class="stage-arrow">→</div>
+
+            <!-- Ingested -->
+            <div class="stage">
+              <div class="stage-header">Ingested</div>
+              <div
+                class="stage-node"
+                :class="getNodeClass(statusData.database.initiatives.count, statusData.database.initiatives.last_updated)"
+                :title="`${statusData.database.initiatives.count} initiatives`"
+              >
+                {{ statusData.database.initiatives.count }}
+              </div>
+              <div class="stage-meta">{{ formatTimeAgo(statusData.database.initiatives.last_updated) }}</div>
+            </div>
+
+            <div class="stage-arrow">→</div>
+
+            <!-- Searchable -->
+            <div class="stage">
+              <div class="stage-header">Searchable</div>
+              <div class="stage-node empty" title="Not indexed">
+                —
+              </div>
+              <div class="stage-meta">not indexed</div>
+            </div>
+          </div>
         </div>
-      </section>
+      </div>
 
       <!-- Manual Operations Section -->
-      <section class="status-section">
-        <div class="section-header" @click="toggleSection('operations')">
-          <Play :size="18" />
-          <h3>Manual Operations</h3>
-          <ChevronDown :size="16" :class="{ 'rotated': !expandedSections.operations }" />
-        </div>
-        <div v-if="expandedSections.operations" class="section-content">
-          <div class="operations-grid">
-            <div class="operation-card">
-              <div class="operation-info">
-                <Download :size="18" />
-                <div class="operation-text">
-                  <span class="operation-name">Fetch Meetings</span>
-                  <span class="operation-desc">Scrape ProudCity for new meetings</span>
-                </div>
+      <section class="operations-section">
+        <h3 class="section-title">
+          <Play :size="16" />
+          Manual Operations
+        </h3>
+        <div class="operations-grid">
+          <div class="operation-card">
+            <div class="operation-info">
+              <Download :size="18" />
+              <div class="operation-text">
+                <span class="operation-name">Fetch Meetings</span>
+                <span class="operation-desc">Scrape ProudCity for new meetings</span>
               </div>
-              <button
-                class="operation-btn"
-                @click="triggerFetchMeetings"
-                :disabled="!!operationInProgress"
-              >
-                <RefreshCw v-if="operationInProgress === 'fetch_meetings'" :size="14" class="spinning" />
-                <Play v-else :size="14" />
-                {{ operationInProgress === 'fetch_meetings' ? 'Running...' : 'Run' }}
-              </button>
             </div>
-            <div class="operation-card">
-              <div class="operation-info">
-                <Video :size="18" />
-                <div class="operation-text">
-                  <span class="operation-name">Discover Videos</span>
-                  <span class="operation-desc">Find YouTube videos for meetings</span>
-                </div>
-              </div>
-              <button
-                class="operation-btn"
-                @click="triggerDiscoverVideos"
-                :disabled="!!operationInProgress"
-              >
-                <RefreshCw v-if="operationInProgress === 'discover_videos'" :size="14" class="spinning" />
-                <Play v-else :size="14" />
-                {{ operationInProgress === 'discover_videos' ? 'Running...' : 'Run' }}
-              </button>
-            </div>
+            <button
+              class="operation-btn"
+              @click="triggerFetchMeetings"
+              :disabled="!!operationInProgress"
+            >
+              <RefreshCw v-if="operationInProgress === 'fetch_meetings'" :size="14" class="spinning" />
+              <Play v-else :size="14" />
+              {{ operationInProgress === 'fetch_meetings' ? 'Running...' : 'Run' }}
+            </button>
           </div>
+          <div class="operation-card">
+            <div class="operation-info">
+              <Video :size="18" />
+              <div class="operation-text">
+                <span class="operation-name">Discover Videos</span>
+                <span class="operation-desc">Find YouTube videos for meetings</span>
+              </div>
+            </div>
+            <button
+              class="operation-btn"
+              @click="triggerDiscoverVideos"
+              :disabled="!!operationInProgress"
+            >
+              <RefreshCw v-if="operationInProgress === 'discover_videos'" :size="14" class="spinning" />
+              <Play v-else :size="14" />
+              {{ operationInProgress === 'discover_videos' ? 'Running...' : 'Run' }}
+            </button>
+          </div>
+        </div>
 
-          <!-- Operation Result -->
-          <div v-if="operationResult" class="operation-result" :class="operationResult.status">
-            <div class="result-header">
-              <CheckCircle v-if="operationResult.status === 'success'" :size="16" />
-              <XCircle v-else :size="16" />
-              <span class="result-title">{{ operationResult.operation }}</span>
-            </div>
-            <div class="result-details">
-              <template v-if="operationResult.status === 'success'">
-                <!-- fetch_meetings results -->
-                <template v-if="operationResult.operation === 'fetch_meetings'">
-                  <span>Fetched: {{ operationResult.count_fetched }}</span>
-                  <span>New: {{ operationResult.count_new }}</span>
-                </template>
-                <!-- discover_videos results -->
-                <template v-else-if="operationResult.operation === 'discover_videos'">
-                  <span>Meetings: {{ operationResult.count_meetings }}</span>
-                  <span>With Video: {{ operationResult.count_meetings_with_video }}</span>
-                  <span>Videos: {{ operationResult.count_videos_discovered }}</span>
-                </template>
-                <span>Duration: {{ operationResult.duration_seconds }}s</span>
+        <!-- Operation Result -->
+        <div v-if="operationResult" class="operation-result" :class="operationResult.status">
+          <div class="result-header">
+            <CheckCircle v-if="operationResult.status === 'success'" :size="16" />
+            <XCircle v-else :size="16" />
+            <span class="result-title">{{ operationResult.operation }}</span>
+          </div>
+          <div class="result-details">
+            <template v-if="operationResult.status === 'success'">
+              <!-- fetch_meetings results -->
+              <template v-if="operationResult.operation === 'fetch_meetings'">
+                <span>Fetched: {{ operationResult.count_fetched }}</span>
+                <span>New: {{ operationResult.count_new }}</span>
               </template>
-              <template v-else>
-                <span class="error-message">{{ operationResult.error }}</span>
+              <!-- discover_videos results -->
+              <template v-else-if="operationResult.operation === 'discover_videos'">
+                <span>Meetings: {{ operationResult.count_meetings }}</span>
+                <span>With Video: {{ operationResult.count_meetings_with_video }}</span>
+                <span>Videos: {{ operationResult.count_videos_discovered }}</span>
               </template>
-            </div>
+              <span>Duration: {{ operationResult.duration_seconds }}s</span>
+            </template>
+            <template v-else>
+              <span class="error-message">{{ operationResult.error }}</span>
+            </template>
           </div>
         </div>
       </section>
+
+      <!-- Storage Details (collapsed by default) -->
+      <details class="storage-details">
+        <summary>
+          <HardDrive :size="16" />
+          Storage Details
+        </summary>
+        <div class="storage-content">
+          <div class="storage-row">
+            <span>State Database</span>
+            <span>{{ formatBytes(statusData.files?.state_db_size_bytes || 0) }}</span>
+          </div>
+          <div class="storage-row">
+            <span>Participation Database</span>
+            <span>{{ formatBytes(statusData.files?.participation_db_size_bytes || 0) }}</span>
+          </div>
+          <div class="storage-row">
+            <span>Vector Store</span>
+            <span>{{ formatBytes(statusData.chromadb?.size_bytes || 0) }}</span>
+          </div>
+          <div class="storage-row total">
+            <span>Total</span>
+            <span>{{ formatBytes(totalStorageBytes) }}</span>
+          </div>
+        </div>
+      </details>
     </div>
   </div>
 </template>
@@ -273,10 +374,10 @@ import {
   CheckCircle,
   AlertTriangle,
   XCircle,
-  Database,
-  Layers,
+  Calendar,
+  FileText,
+  Users,
   HardDrive,
-  ChevronDown,
   Play,
   Download,
   Video
@@ -293,14 +394,9 @@ defineEmits<{
 }>();
 
 const loading = ref(false);
+const loadingSources = ref(false);
 const error = ref<string | null>(null);
 const statusData = ref<AdminStatusResponse | null>(null);
-const expandedSections = ref({
-  database: true,
-  chromadb: true,
-  files: false,
-  operations: true
-});
 const operationInProgress = ref<string | null>(null);
 const operationResult = ref<AdminTriggerResponse | null>(null);
 
@@ -313,27 +409,32 @@ const totalStorageBytes = computed(() => {
   );
 });
 
-async function loadStatus() {
-  loading.value = true;
+async function loadStatus(includeSources: boolean = false) {
+  if (includeSources) {
+    loadingSources.value = true;
+  } else {
+    loading.value = true;
+  }
   error.value = null;
+
   try {
-    statusData.value = await api.getAdminStatus(props.jurisdiction || 'san-rafael');
+    statusData.value = await api.getAdminStatus(
+      props.jurisdiction || 'san-rafael',
+      { includeSources }
+    );
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load status';
   } finally {
     loading.value = false;
+    loadingSources.value = false;
   }
-}
-
-function toggleSection(section: 'database' | 'chromadb' | 'files' | 'operations') {
-  expandedSections.value[section] = !expandedSections.value[section];
 }
 
 function formatStatus(status: string): string {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-function formatTimeAgo(timestamp: string | null): string {
+function formatTimeAgo(timestamp: string | null | undefined): string {
   if (!timestamp) return 'Never';
   try {
     return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
@@ -350,17 +451,130 @@ function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-function formatCollectionName(key: string): string {
-  // Convert snake_case to Title Case
-  return key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+function getNodeClass(count: number | null | undefined, lastUpdated: string | null | undefined): string {
+  if (!count || count === 0) return 'empty';
+  if (!lastUpdated) return 'has-data';
+
+  const days = differenceInDays(new Date(), new Date(lastUpdated));
+  if (days < 7) return 'fresh';
+  if (days < 30) return 'has-data';
+  return 'stale';
 }
 
-function getHealthClass(timestamp: string | null): string {
-  if (!timestamp) return 'health-unknown';
-  const days = differenceInDays(new Date(), new Date(timestamp));
-  if (days < 7) return 'health-good';
-  if (days < 30) return 'health-warning';
-  return 'health-critical';
+function getSourceNodeClass(dataType: string): string {
+  if (!statusData.value?.sources) return 'unknown';
+
+  if (dataType === 'meetings') {
+    const meetings = statusData.value.sources.meetings;
+    const available = meetings?.available;
+    if (available === null || available === undefined) return 'unknown';
+    if (available === 0) return 'empty';
+    // Show warning if coverage gaps exist
+    if (meetings?.missing && meetings.missing.length > 0) return 'has-data warning';
+    return 'has-data';
+  }
+
+  return 'unknown';
+}
+
+function formatSourceCount(dataType: string): string {
+  if (!statusData.value?.sources) return '?';
+
+  if (dataType === 'meetings') {
+    const meetings = statusData.value.sources.meetings;
+    const available = meetings?.available;
+    if (available === null || available === undefined) return '?';
+
+    // Show coverage format if available: "configured/discovered"
+    if (meetings?.configured_count !== undefined && meetings?.discovered_count !== undefined) {
+      return `${meetings.configured_count}/${meetings.discovered_count}`;
+    }
+
+    return String(available);
+  }
+
+  return '?';
+}
+
+function getSourceTooltip(dataType: string): string {
+  if (!statusData.value?.sources) return 'Click "Check Sources" to load availability';
+
+  if (dataType === 'meetings') {
+    const meetings = statusData.value.sources.meetings;
+    if (!meetings) return 'No source data';
+    if (meetings.error) return meetings.error;
+
+    // Build tooltip with coverage info if available
+    const lines: string[] = [`${meetings.available} meetings from ${meetings.configured_count || '?'} configured types`];
+
+    if (meetings.coverage_percent !== undefined) {
+      lines.push(`Coverage: ${meetings.coverage_percent}% (${meetings.configured_count}/${meetings.discovered_count} types)`);
+    }
+
+    if (meetings.missing && meetings.missing.length > 0) {
+      const missingDisplay = meetings.missing.slice(0, 5).map(m => m.replace(/_/g, ' ')).join(', ');
+      const suffix = meetings.missing.length > 5 ? ` +${meetings.missing.length - 5} more` : '';
+      lines.push(`Missing: ${missingDisplay}${suffix}`);
+    }
+
+    return lines.join('\n');
+  }
+
+  return 'Unknown';
+}
+
+function getSourceMeta(dataType: string): string {
+  if (!statusData.value?.sources) return 'ProudCity';
+
+  if (dataType === 'meetings') {
+    const meetings = statusData.value.sources.meetings;
+    if (!meetings) return 'ProudCity';
+
+    // Show coverage percentage if available
+    if (meetings.coverage_percent !== undefined) {
+      return `${meetings.coverage_percent}% coverage`;
+    }
+
+    if (meetings.last_checked) {
+      return formatTimeAgo(meetings.last_checked);
+    }
+    return meetings.platform || 'ProudCity';
+  }
+
+  return '';
+}
+
+function getCollectionCount(collectionType: string): number {
+  if (!statusData.value?.chromadb?.collections) return 0;
+  const collection = statusData.value.chromadb.collections[collectionType];
+  return collection?.count || 0;
+}
+
+function formatSearchableCount(dataType: string): string {
+  if (dataType === 'meetings') {
+    const count = getCollectionCount('decisions');
+    const ingested = statusData.value?.database.meetings.count || 0;
+    if (count === 0 && ingested === 0) return '0';
+    if (count === 0) return '0/' + ingested;
+    if (ingested === 0) return String(count);
+    return `${count}/${ingested}`;
+  }
+  return '0';
+}
+
+function getSearchableMeta(dataType: string): string {
+  if (dataType === 'meetings') {
+    const count = getCollectionCount('decisions');
+    const ingested = statusData.value?.database.meetings.count || 0;
+    if (count === 0 && ingested > 0) return 'not indexed';
+    if (count === ingested && count > 0) return 'all indexed';
+    return 'indexed';
+  }
+  return '';
+}
+
+function getOpenIssuesCount(): number {
+  return statusData.value?.database.issues.by_status?.open ?? 0;
 }
 
 async function triggerFetchMeetings() {
@@ -369,9 +583,8 @@ async function triggerFetchMeetings() {
   try {
     const result = await api.triggerFetchMeetings(props.jurisdiction || 'san-rafael');
     operationResult.value = result;
-    // Refresh status to show updated counts
     if (result.status === 'success') {
-      await loadStatus();
+      await loadStatus(false);
     }
   } catch (e) {
     operationResult.value = {
@@ -392,6 +605,9 @@ async function triggerDiscoverVideos() {
   try {
     const result = await api.triggerDiscoverVideos(props.jurisdiction || 'san-rafael');
     operationResult.value = result;
+    if (result.status === 'success') {
+      await loadStatus(false);
+    }
   } catch (e) {
     operationResult.value = {
       status: 'error',
@@ -406,7 +622,7 @@ async function triggerDiscoverVideos() {
 }
 
 onMounted(() => {
-  loadStatus();
+  loadStatus(false);
 });
 </script>
 
@@ -536,8 +752,8 @@ onMounted(() => {
   cursor: pointer;
 }
 
-/* Status Content */
-.status-content {
+/* Pipeline Content */
+.pipeline-content {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
@@ -547,10 +763,10 @@ onMounted(() => {
 .status-banner {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 16px 20px;
+  gap: 12px;
+  padding: 12px 16px;
   border-radius: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .status-banner.healthy {
@@ -572,203 +788,208 @@ onMounted(() => {
 .status-banner.degraded .status-indicator { color: #eab308; }
 .status-banner.unhealthy .status-indicator { color: #ef4444; }
 
-.status-info {
+.status-text {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 12px;
 }
 
-.status-info .status-label {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-}
-
-.status-info .status-value {
-  font-size: 18px;
+.status-value {
   font-weight: 600;
   color: var(--color-text-primary);
 }
 
 .status-timestamp {
-  margin-left: auto;
   font-size: 13px;
   color: var(--color-text-secondary);
 }
 
-/* Sections */
-.status-section {
-  margin-bottom: 16px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.section-header {
+/* Pipeline Legend */
+.pipeline-legend {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
+  gap: 16px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
   background: var(--color-bg-secondary);
-  cursor: pointer;
-  transition: background 0.15s ease;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
 }
 
-.section-header:hover {
-  background: var(--color-bg-hover);
+.legend-label {
+  font-weight: 500;
 }
 
-.section-header h3 {
-  margin: 0;
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-item .node {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.node.empty {
+  background: var(--color-bg-tertiary);
+  border: 2px solid var(--color-border);
+}
+
+.node.has-data {
+  background: #eab308;
+}
+
+.node.fresh {
+  background: #22c55e;
+}
+
+.node.stale {
+  background: #ef4444;
+}
+
+.node.unknown {
+  background: var(--color-bg-tertiary);
+  border: 2px dashed var(--color-border);
+}
+
+.node.derived {
+  background: transparent;
+  border: 2px dotted var(--color-border);
+}
+
+/* Pipelines */
+.pipelines {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.pipeline-row {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.pipeline-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 140px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.pipeline-stages {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  justify-content: space-around;
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 80px;
+}
+
+.stage-header {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stage-node {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: default;
+}
+
+.stage-node.empty {
+  background: var(--color-bg-tertiary);
+  border: 2px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.stage-node.has-data {
+  background: rgba(234, 179, 8, 0.15);
+  border: 2px solid #eab308;
+  color: #eab308;
+}
+
+.stage-node.has-data.warning {
+  background: rgba(249, 115, 22, 0.15);
+  border: 2px solid #f97316;
+  color: #f97316;
+}
+
+.stage-node.fresh {
+  background: rgba(34, 197, 94, 0.15);
+  border: 2px solid #22c55e;
+  color: #22c55e;
+}
+
+.stage-node.stale {
+  background: rgba(239, 68, 68, 0.15);
+  border: 2px solid #ef4444;
+  color: #ef4444;
+}
+
+.stage-node.unknown {
+  background: var(--color-bg-tertiary);
+  border: 2px dashed var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.stage-node.derived {
+  background: transparent;
+  border: 2px dotted var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.stage-meta {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+
+.stage-arrow {
+  color: var(--color-text-secondary);
+  font-size: 18px;
+  margin: 0 4px;
+}
+
+/* Operations Section */
+.operations-section {
+  margin-bottom: 24px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px 0;
   font-size: 14px;
   font-weight: 600;
   color: var(--color-text-primary);
 }
 
-.section-header .connection-status {
-  margin-left: auto;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  text-transform: uppercase;
-}
-
-.connection-status.connected {
-  background: rgba(34, 197, 94, 0.15);
-  color: #22c55e;
-}
-
-.connection-status.missing,
-.connection-status.no_storage {
-  background: rgba(234, 179, 8, 0.15);
-  color: #eab308;
-}
-
-.connection-status.error,
-.connection-status.chromadb_not_installed {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-}
-
-.section-header svg:last-child {
-  color: var(--color-text-secondary);
-  transition: transform 0.2s ease;
-}
-
-.section-header svg.rotated {
-  transform: rotate(-90deg);
-}
-
-.section-content {
-  padding: 16px;
-}
-
-/* Tables */
-.status-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.status-table th {
-  padding: 8px 12px;
-  text-align: left;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.status-table td {
-  padding: 10px 12px;
-  color: var(--color-text-primary);
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.status-table tr:last-child td {
-  border-bottom: none;
-}
-
-.status-table .align-right {
-  text-align: right;
-}
-
-.status-table .total-row {
-  background: var(--color-bg-secondary);
-}
-
-/* Health Indicators */
-.health-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-.health-dot.health-good {
-  background: #22c55e;
-}
-
-.health-dot.health-warning {
-  background: #eab308;
-}
-
-.health-dot.health-critical {
-  background: #ef4444;
-}
-
-.health-dot.health-unknown {
-  background: #6b7280;
-}
-
-/* Total Documents */
-.total-documents {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  margin-bottom: 12px;
-  background: var(--color-bg-tertiary);
-  border-radius: 6px;
-}
-
-.total-label {
-  font-size: 13px;
-  color: var(--color-text-secondary);
-}
-
-.total-value {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-/* Section Footer */
-.section-footer {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 12px;
-  margin-top: 12px;
-  border-top: 1px solid var(--color-border-light);
-}
-
-.file-size {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-}
-
-/* Empty Section */
-.empty-section {
-  padding: 24px;
-  text-align: center;
-  color: var(--color-text-secondary);
-}
-
-.empty-section p {
-  margin: 0;
-  font-size: 13px;
-}
-
-/* Operations Section */
 .operations-grid {
   display: flex;
   flex-direction: column;
@@ -780,9 +1001,9 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: var(--color-bg-tertiary);
+  background: var(--color-bg-secondary);
   border-radius: 8px;
-  border: 1px solid var(--color-border-light);
+  border: 1px solid var(--color-border);
 }
 
 .operation-info {
@@ -880,5 +1101,55 @@ onMounted(() => {
 
 .result-details .error-message {
   color: #ef4444;
+}
+
+/* Storage Details */
+.storage-details {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.storage-details summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--color-bg-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  list-style: none;
+}
+
+.storage-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.storage-details[open] summary {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.storage-content {
+  padding: 12px 16px;
+}
+
+.storage-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border-light, var(--color-border));
+}
+
+.storage-row:last-child {
+  border-bottom: none;
+}
+
+.storage-row.total {
+  font-weight: 600;
+  color: var(--color-text-primary);
 }
 </style>

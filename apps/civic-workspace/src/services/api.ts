@@ -1148,13 +1148,27 @@ class CivicAPI {
 
   /**
    * Get admin status (pipeline health, database stats, ChromaDB stats)
-   * GET /admin/status?jurisdiction={jurisdiction}
+   * GET /admin/status?jurisdiction={jurisdiction}&include_sources={bool}&refresh_sources={bool}
    *
-   * Backend: src/civic_services/servers/civic_api_integrated.py:7318-7511
+   * Backend: src/civic_services/servers/civic_api_integrated.py:7318-7576
    */
-  async getAdminStatus(jurisdiction: string = 'san-rafael'): Promise<AdminStatusResponse> {
+  async getAdminStatus(
+    jurisdiction: string = 'san-rafael',
+    options?: { includeSources?: boolean; refreshSources?: boolean }
+  ): Promise<AdminStatusResponse> {
+    const params = new URLSearchParams({
+      jurisdiction: jurisdiction
+    });
+
+    if (options?.includeSources) {
+      params.set('include_sources', 'true');
+    }
+    if (options?.refreshSources) {
+      params.set('refresh_sources', 'true');
+    }
+
     const response = await fetch(
-      `${this.baseURL}/admin/status?jurisdiction=${encodeURIComponent(jurisdiction)}`,
+      `${this.baseURL}/admin/status?${params.toString()}`,
       {
         headers: this.getAuthHeaders()
       }
