@@ -210,6 +210,24 @@
                 {{ operationInProgress === 'fetch_meetings' ? 'Running...' : 'Run' }}
               </button>
             </div>
+            <div class="operation-card">
+              <div class="operation-info">
+                <Video :size="18" />
+                <div class="operation-text">
+                  <span class="operation-name">Discover Videos</span>
+                  <span class="operation-desc">Find YouTube videos for meetings</span>
+                </div>
+              </div>
+              <button
+                class="operation-btn"
+                @click="triggerDiscoverVideos"
+                :disabled="!!operationInProgress"
+              >
+                <RefreshCw v-if="operationInProgress === 'discover_videos'" :size="14" class="spinning" />
+                <Play v-else :size="14" />
+                {{ operationInProgress === 'discover_videos' ? 'Running...' : 'Run' }}
+              </button>
+            </div>
           </div>
 
           <!-- Operation Result -->
@@ -221,8 +239,17 @@
             </div>
             <div class="result-details">
               <template v-if="operationResult.status === 'success'">
-                <span>Fetched: {{ operationResult.count_fetched }}</span>
-                <span>New: {{ operationResult.count_new }}</span>
+                <!-- fetch_meetings results -->
+                <template v-if="operationResult.operation === 'fetch_meetings'">
+                  <span>Fetched: {{ operationResult.count_fetched }}</span>
+                  <span>New: {{ operationResult.count_new }}</span>
+                </template>
+                <!-- discover_videos results -->
+                <template v-else-if="operationResult.operation === 'discover_videos'">
+                  <span>Meetings: {{ operationResult.count_meetings }}</span>
+                  <span>With Video: {{ operationResult.count_meetings_with_video }}</span>
+                  <span>Videos: {{ operationResult.count_videos_discovered }}</span>
+                </template>
                 <span>Duration: {{ operationResult.duration_seconds }}s</span>
               </template>
               <template v-else>
@@ -251,7 +278,8 @@ import {
   HardDrive,
   ChevronDown,
   Play,
-  Download
+  Download,
+  Video
 } from 'lucide-vue-next';
 import { api } from '@/services/api';
 import type { AdminStatusResponse, AdminTriggerResponse } from '@/types/civic';
@@ -349,6 +377,25 @@ async function triggerFetchMeetings() {
     operationResult.value = {
       status: 'error',
       operation: 'fetch_meetings',
+      jurisdiction: props.jurisdiction || 'san-rafael',
+      timestamp: new Date().toISOString(),
+      error: e instanceof Error ? e.message : 'Operation failed'
+    };
+  } finally {
+    operationInProgress.value = null;
+  }
+}
+
+async function triggerDiscoverVideos() {
+  operationInProgress.value = 'discover_videos';
+  operationResult.value = null;
+  try {
+    const result = await api.triggerDiscoverVideos(props.jurisdiction || 'san-rafael');
+    operationResult.value = result;
+  } catch (e) {
+    operationResult.value = {
+      status: 'error',
+      operation: 'discover_videos',
       jurisdiction: props.jurisdiction || 'san-rafael',
       timestamp: new Date().toISOString(),
       error: e instanceof Error ? e.message : 'Operation failed'

@@ -1193,6 +1193,34 @@ class CivicAPI {
 
     return response.json();
   }
+
+  /**
+   * Trigger discover videos operation
+   * POST /api/admin/trigger with operation: "discover_videos"
+   *
+   * Scans meetings for YouTube video URLs and returns video counts.
+   * Backend: src/civic_services/servers/civic_api_integrated.py:7659-7730
+   */
+  async triggerDiscoverVideos(jurisdiction: string = 'san-rafael'): Promise<AdminTriggerResponse> {
+    const response = await fetch(
+      `${this.baseURL}/api/admin/trigger`,
+      {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({
+          operation: 'discover_videos',
+          jurisdiction: jurisdiction
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || `Failed to trigger discover videos: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
 }
 
 // Export singleton instance

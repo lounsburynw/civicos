@@ -785,10 +785,16 @@ export interface AdminTriggerResponse {
   operation: string;
   jurisdiction: string;
   timestamp: string;
+  // fetch_meetings fields
   count_fetched?: number;
   count_normalized?: number;
   count_stored?: number;
   count_new?: number;
+  // discover_videos fields (SESSION 303)
+  count_meetings?: number;
+  count_meetings_with_video?: number;
+  count_videos_discovered?: number;
+  // Common fields
   duration_seconds?: number;
   error?: string;
   supported_operations?: string[];

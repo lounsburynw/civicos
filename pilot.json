@@ -390,9 +390,11 @@
         "implementation": "POST /api/admin/trigger with operation: fetch_meetings"
       },
       "discover_videos_button": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Button: Discover YouTube Videos"
+        "artifact": "Button: Discover YouTube Videos",
+        "implementation": "POST /api/admin/trigger with operation: discover_videos",
+        "completed": "2025-12-18"
       },
       "download_audio_button": {
         "status": "not_ready",
