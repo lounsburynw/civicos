@@ -3,7 +3,7 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2025-12-17",
+  "last_updated": "2025-12-18",
   "category_order": [
     "test_infrastructure",
     "data_architecture",
@@ -354,6 +354,13 @@
         "artifact": "Include collection counts, document counts",
         "completed": "2025-12-17",
         "note": "Implemented in Session 299 admin_status_endpoint - 5 collections with per-collection and total_documents counts"
+      },
+      "source_inventory_counts": {
+        "status": "ready",
+        "priority": 2,
+        "artifact": "GET /admin/status?include_sources=true returns available counts from ProudCity",
+        "completed": "2025-12-18",
+        "note": "Session 303: ProudCityClient.get_source_inventory() scrapes archive pages to count available meetings. Results cached 1hr. Frontend 'Check Sources' button triggers this."
       }
     },
     "frontend_dashboard": {
@@ -377,6 +384,33 @@
         "artifact": "Show '2 hours ago' instead of timestamps",
         "completed": "2025-12-17",
         "note": "Using date-fns formatDistanceToNow for relative time display"
+      },
+      "pipeline_flow_visualization": {
+        "status": "ready",
+        "priority": 2,
+        "artifact": "Pipeline view showing Available → Ingested → Searchable flow",
+        "completed": "2025-12-18",
+        "note": "Session 303: Redesigned AdminStatusPage.vue with pipeline rows per data type (Meetings, Agenda Items, Issues, Initiatives). Each row shows 3 stages with circular nodes colored by state (empty/has-data/fresh/stale). Removed jargon (Database→Ingested, ChromaDB→Searchable)."
+      }
+    },
+    "source_discovery": {
+      "auto_discover_meeting_types": {
+        "status": "ready",
+        "priority": 2,
+        "artifact": "ProudCityClient.discover_meeting_types() scrapes main meetings page to find all archive URLs",
+        "note": "Session 304: Implemented discover_meeting_types() that scrapes /meetings/ page and finds all /-meetings/ and /-hearings/ URLs. Tested on live San Rafael site: discovers 15 meeting types vs 6 hardcoded."
+      },
+      "source_coverage_in_inventory": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Source inventory returns discovered vs configured meeting types",
+        "note": "Session 303 TODO: Return { discovered: [...], configured: [...], missing: [...] } so UI can show coverage gaps."
+      },
+      "ui_source_coverage_display": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "UI shows '6/15 meeting types configured' with list of configured vs missing",
+        "note": "Session 303 TODO: Expandable section in pipeline row showing which meeting types are tracked and which are available but not configured."
       }
     }
   },
@@ -1130,17 +1164,17 @@
     }
   },
   "summary": {
-    "total_items": 153,
+    "total_items": 158,
     "by_priority": {
       "p1": 56,
-      "p2": 64,
+      "p2": 69,
       "p3": 30
     },
     "by_category": {
       "test_infrastructure": 10,
       "deployment_artifacts": 13,
       "monitoring_observability": 14,
-      "ingestion_visibility": 9,
+      "ingestion_visibility": 14,
       "admin_operations": 11,
       "pipeline_automation": 11,
       "data_architecture": 14,
@@ -1152,6 +1186,6 @@
       "frontend_refinement": 3,
       "pilot_validation": 10
     },
-    "notes": "Updated 2025-12-17: Added data_standards (7 items) and city_onboarding (10 items) categories for FAIR data practices and reproducible ETL. All P3, to be finalized after pilot ingestion complete."
+    "notes": "Updated 2025-12-18: Session 303 added source_discovery sub-category (3 items) for auto-discovering meeting types and showing coverage. Added source_inventory_counts and pipeline_flow_visualization as completed. ingestion_visibility now 14 items."
   }
 }
