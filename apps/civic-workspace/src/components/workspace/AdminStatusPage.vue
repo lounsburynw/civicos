@@ -322,6 +322,24 @@
               {{ operationInProgress === 'download_audio' ? 'Running...' : 'Run' }}
             </button>
           </div>
+          <div class="operation-card">
+            <div class="operation-info">
+              <Captions :size="18" />
+              <div class="operation-text">
+                <span class="operation-name">Transcribe Videos</span>
+                <span class="operation-desc">Fetch YouTube captions for meeting videos</span>
+              </div>
+            </div>
+            <button
+              class="operation-btn"
+              @click="triggerTranscribeVideos"
+              :disabled="!!operationInProgress"
+            >
+              <RefreshCw v-if="operationInProgress === 'transcribe_videos'" :size="14" class="spinning" />
+              <Play v-else :size="14" />
+              {{ operationInProgress === 'transcribe_videos' ? 'Running...' : 'Run' }}
+            </button>
+          </div>
         </div>
 
         <!-- Operation Result -->
@@ -349,6 +367,14 @@
                 <span>Pending: {{ operationResult.count_pending }}</span>
                 <span>Downloaded: {{ operationResult.count_downloaded }}</span>
                 <span>Skipped: {{ operationResult.count_skipped }}</span>
+                <span v-if="operationResult.count_errors">Errors: {{ operationResult.count_errors }}</span>
+              </template>
+              <!-- transcribe_videos results -->
+              <template v-else-if="operationResult.operation === 'transcribe_videos'">
+                <span>With Video: {{ operationResult.count_with_video }}</span>
+                <span>Already Done: {{ operationResult.count_transcribed }}</span>
+                <span>Fetched: {{ operationResult.count_fetched }}</span>
+                <span v-if="operationResult.count_no_captions">No Captions: {{ operationResult.count_no_captions }}</span>
                 <span v-if="operationResult.count_errors">Errors: {{ operationResult.count_errors }}</span>
               </template>
               <span>Duration: {{ operationResult.duration_seconds }}s</span>
@@ -406,7 +432,8 @@ import {
   Play,
   Download,
   Video,
-  Music
+  Music,
+  Captions
 } from 'lucide-vue-next';
 import { api } from '@/services/api';
 import type { AdminStatusResponse, AdminTriggerResponse } from '@/types/civic';
@@ -660,6 +687,28 @@ async function triggerDownloadAudio() {
     operationResult.value = {
       status: 'error',
       operation: 'download_audio',
+      jurisdiction: props.jurisdiction || 'san-rafael',
+      timestamp: new Date().toISOString(),
+      error: e instanceof Error ? e.message : 'Operation failed'
+    };
+  } finally {
+    operationInProgress.value = null;
+  }
+}
+
+async function triggerTranscribeVideos() {
+  operationInProgress.value = 'transcribe_videos';
+  operationResult.value = null;
+  try {
+    const result = await api.triggerTranscribeVideos(props.jurisdiction || 'san-rafael');
+    operationResult.value = result;
+    if (result.status === 'success') {
+      await loadStatus(false);
+    }
+  } catch (e) {
+    operationResult.value = {
+      status: 'error',
+      operation: 'transcribe_videos',
       jurisdiction: props.jurisdiction || 'san-rafael',
       timestamp: new Date().toISOString(),
       error: e instanceof Error ? e.message : 'Operation failed'

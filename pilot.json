@@ -438,9 +438,11 @@
         "completed": "2025-12-18"
       },
       "transcribe_button": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Button: Transcribe Pending Videos"
+        "artifact": "Button: Transcribe Pending Videos",
+        "implementation": "POST /api/admin/trigger with operation: transcribe_videos",
+        "completed": "2025-12-18"
       },
       "refresh_seeclickfix_button": {
         "status": "not_ready",
