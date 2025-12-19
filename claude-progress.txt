@@ -3505,3 +3505,49 @@ Scans meetings in database for YouTube video URLs and reports stats.
 - TypeScript type-check passes
 
 **Commit:** Session 303: discover_videos_button - Admin Discover Videos trigger
+
+## Session 306: download_audio_button - Admin Download Audio trigger
+**Date:** 2025-12-18
+**Item:** download_audio_button (admin_operations > manual_triggers)
+**Priority:** P2
+
+### Summary
+Added a "Download Audio" button to the admin status page that triggers YouTube audio downloads from discovered meeting videos. Downloads are saved as MP3 files for later transcription.
+
+### Implementation
+
+**1. Backend** (civic_api_integrated.py)
+- Added `download_audio` to supported operations in `handle_admin_trigger()`
+- Created `_trigger_download_audio()` method that:
+  - Queries meetings with YouTube video URLs from StateManager
+  - Extracts video IDs using regex pattern
+  - Checks which videos already have downloaded audio
+  - Uses yt_dlp to download pending videos as MP3
+  - Returns counts: pending, downloaded, skipped, errors
+
+**2. API Service** (api.ts)
+- Added `triggerDownloadAudio()` method following same pattern as other triggers
+- POST to /api/admin/trigger with operation: "download_audio"
+
+**3. UI** (AdminStatusPage.vue)
+- Added Download Audio operation card with Music icon
+- Added result template showing: pending, downloaded, skipped, errors
+- Added `triggerDownloadAudio()` handler function
+- Added Music import from lucide-vue-next
+
+**4. Types** (civic.ts)
+- Extended AdminTriggerResponse with download_audio fields:
+  - count_pending, count_downloaded, count_skipped, count_errors
+
+### Files Changed
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py` - Backend handler
+- `apps/civic-workspace/src/services/api.ts` - API method
+- `apps/civic-workspace/src/components/workspace/AdminStatusPage.vue` - UI button
+- `apps/civic-workspace/src/types/civic.ts` - Response type
+- `pilot.json` - Updated download_audio_button to "ready"
+
+### Tests
+- 34 smoke tests passing
+- TypeScript type-check passes
+
+**Commit:** Session 306: download_audio_button - Admin Download Audio trigger

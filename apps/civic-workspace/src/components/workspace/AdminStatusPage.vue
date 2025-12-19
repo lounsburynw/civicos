@@ -304,6 +304,24 @@
               {{ operationInProgress === 'discover_videos' ? 'Running...' : 'Run' }}
             </button>
           </div>
+          <div class="operation-card">
+            <div class="operation-info">
+              <Music :size="18" />
+              <div class="operation-text">
+                <span class="operation-name">Download Audio</span>
+                <span class="operation-desc">Download YouTube audio for transcription</span>
+              </div>
+            </div>
+            <button
+              class="operation-btn"
+              @click="triggerDownloadAudio"
+              :disabled="!!operationInProgress"
+            >
+              <RefreshCw v-if="operationInProgress === 'download_audio'" :size="14" class="spinning" />
+              <Play v-else :size="14" />
+              {{ operationInProgress === 'download_audio' ? 'Running...' : 'Run' }}
+            </button>
+          </div>
         </div>
 
         <!-- Operation Result -->
@@ -325,6 +343,13 @@
                 <span>Meetings: {{ operationResult.count_meetings }}</span>
                 <span>With Video: {{ operationResult.count_meetings_with_video }}</span>
                 <span>Videos: {{ operationResult.count_videos_discovered }}</span>
+              </template>
+              <!-- download_audio results -->
+              <template v-else-if="operationResult.operation === 'download_audio'">
+                <span>Pending: {{ operationResult.count_pending }}</span>
+                <span>Downloaded: {{ operationResult.count_downloaded }}</span>
+                <span>Skipped: {{ operationResult.count_skipped }}</span>
+                <span v-if="operationResult.count_errors">Errors: {{ operationResult.count_errors }}</span>
               </template>
               <span>Duration: {{ operationResult.duration_seconds }}s</span>
             </template>
@@ -380,7 +405,8 @@ import {
   HardDrive,
   Play,
   Download,
-  Video
+  Video,
+  Music
 } from 'lucide-vue-next';
 import { api } from '@/services/api';
 import type { AdminStatusResponse, AdminTriggerResponse } from '@/types/civic';
@@ -612,6 +638,28 @@ async function triggerDiscoverVideos() {
     operationResult.value = {
       status: 'error',
       operation: 'discover_videos',
+      jurisdiction: props.jurisdiction || 'san-rafael',
+      timestamp: new Date().toISOString(),
+      error: e instanceof Error ? e.message : 'Operation failed'
+    };
+  } finally {
+    operationInProgress.value = null;
+  }
+}
+
+async function triggerDownloadAudio() {
+  operationInProgress.value = 'download_audio';
+  operationResult.value = null;
+  try {
+    const result = await api.triggerDownloadAudio(props.jurisdiction || 'san-rafael');
+    operationResult.value = result;
+    if (result.status === 'success') {
+      await loadStatus(false);
+    }
+  } catch (e) {
+    operationResult.value = {
+      status: 'error',
+      operation: 'download_audio',
       jurisdiction: props.jurisdiction || 'san-rafael',
       timestamp: new Date().toISOString(),
       error: e instanceof Error ? e.message : 'Operation failed'
