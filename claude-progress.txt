@@ -1,3 +1,34 @@
+## Session 304: auto_discover_meeting_types - Dynamic meeting type discovery
+**Date:** 2025-12-18
+**Item:** auto_discover_meeting_types (ingestion_visibility > source_discovery)
+**Priority:** P2
+
+### Summary
+Implemented `discover_meeting_types()` method in ProudCityClient that programmatically finds all meeting type archives by scraping the main /meetings/ page. This replaces the need for hardcoded meeting types.
+
+### Implementation
+Added `discover_meeting_types()` method to `proudcity.py` that:
+1. Fetches `{base_url}/meetings/` landing page
+2. Finds all links matching `/-meetings/` or `/-hearings/` pattern
+3. Extracts type key from URL path (e.g., `/city-council-meetings/` → `city_council`)
+4. Returns dict mapping type keys to archive paths
+
+### Test Results
+- Live test on San Rafael: Discovers **15 meeting types** vs 6 hardcoded in DEFAULT_ARCHIVES
+- New types discovered: ada_access_advisory_committee, bicycle_pedestrian_advisory_committee, board_and_commission, board_of_library_trustees, guide_public, paac, park_and_recreation_commission, pickleweed_advisory_committee, public_art_review_board, and more
+
+### Files Changed
+- `packages/civic-extraction/src/civic_extraction/clients/proudcity.py` - Added discover_meeting_types() method
+- `pilot.json` - Updated auto_discover_meeting_types to "ready"
+
+### Tests
+- 34 smoke tests passing
+- 23 extraction client tests passing
+
+**Commit:** Session 304: auto_discover_meeting_types - Dynamic meeting type discovery
+
+---
+
 ## Session 293: log_levels_appropriate - Standardize log levels
 **Date:** 2025-12-17
 **Item:** log_levels_appropriate (monitoring_observability > logging)
