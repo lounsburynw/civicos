@@ -816,6 +816,11 @@ export interface AdminTriggerResponse {
   count_downloaded?: number;
   count_skipped?: number;
   count_errors?: number;
+  // transcribe_videos fields (SESSION 307)
+  // count_fetched already defined above (reused for transcribe)
+  count_with_video?: number;
+  count_transcribed?: number;
+  count_no_captions?: number;
   // Common fields
   duration_seconds?: number;
   error?: string;

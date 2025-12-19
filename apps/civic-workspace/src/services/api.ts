@@ -1263,6 +1263,34 @@ class CivicAPI {
 
     return response.json();
   }
+
+  /**
+   * Trigger transcribe videos operation
+   * POST /api/admin/trigger with operation: "transcribe_videos"
+   *
+   * Transcribes YouTube videos that have audio downloaded but no transcript.
+   * Backend: src/civic_services/servers/civic_api_integrated.py
+   */
+  async triggerTranscribeVideos(jurisdiction: string = 'san-rafael'): Promise<AdminTriggerResponse> {
+    const response = await fetch(
+      `${this.baseURL}/api/admin/trigger`,
+      {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({
+          operation: 'transcribe_videos',
+          jurisdiction: jurisdiction
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || `Failed to trigger transcribe videos: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
 }
 
 // Export singleton instance
