@@ -731,8 +731,8 @@ export interface AdminStatusResponse {
   jurisdiction: string;
   database: {
     status: 'connected' | 'missing' | 'error';
-    path: string;
-    size_bytes: number;
+    path?: string;
+    size_bytes?: number;
     meetings: {
       count: number;
       earliest: string | null;
@@ -746,9 +746,9 @@ export interface AdminStatusResponse {
     issues: {
       count: number;
       last_updated: string | null;
-      by_status: {
-        open: number;
-        closed: number;
+      by_status?: {
+        open?: number;
+        closed?: number;
       };
     };
     initiatives: {
@@ -758,22 +758,39 @@ export interface AdminStatusResponse {
   };
   chromadb: {
     status: 'connected' | 'no_storage' | 'error' | 'chromadb_not_installed';
-    path: string;
-    size_bytes: number;
-    total_documents: number;
-    collections: {
+    path?: string;
+    size_bytes?: number;
+    total_documents?: number;
+    collections?: {
       [key: string]: {
         name: string;
         count: number;
         created_at: string | null;
-        metadata: Record<string, any>;
-      };
+        metadata?: Record<string, any>;
+      } | null;
     };
   };
-  files: {
-    participation_db_size_bytes: number;
-    state_db_size_bytes: number;
+  files?: {
+    participation_db_size_bytes?: number;
+    state_db_size_bytes?: number;
   };
+  sources?: {
+    meetings?: {
+      platform: string;
+      available: number | null;
+      by_type?: Record<string, number>;
+      last_checked?: string;
+      error?: string;
+      // Coverage data (SESSION 305)
+      configured_count?: number;
+      discovered_count?: number;
+      missing?: string[];
+      coverage_percent?: number;
+    };
+    error?: string;
+    _cached_at?: number;
+    _from_cache?: boolean;
+  } | null;
 }
 
 /**

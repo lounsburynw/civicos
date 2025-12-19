@@ -292,15 +292,20 @@ class ProudCityClient(BaseExtractor):
 
         return discovered
 
-    def get_source_inventory(self) -> Dict[str, Any]:
+    def get_source_inventory(self, include_coverage: bool = True) -> Dict[str, Any]:
         """
         Get inventory counts from source without full fetch.
 
         Scrapes archive pages to count available meetings per type,
-        without downloading individual meeting details.
+        without downloading individual meeting details. Optionally includes
+        coverage analysis comparing discovered vs configured meeting types.
+
+        Args:
+            include_coverage: If True, also discover all meeting types and
+                              calculate coverage (configured vs discovered).
 
         Returns:
-            Dict with counts per meeting type and total:
+            Dict with counts per meeting type, total, and coverage:
             {
                 'total': 85,
                 'by_type': {
@@ -308,7 +313,15 @@ class ProudCityClient(BaseExtractor):
                     'planning_commission': 23,
                     ...
                 },
-                'timestamp': '2025-01-15T10:30:00Z'
+                'timestamp': '2025-01-15T10:30:00Z',
+                'coverage': {
+                    'configured_count': 6,
+                    'discovered_count': 15,
+                    'configured': ['city_council', 'planning_commission', ...],
+                    'discovered': ['city_council', 'ada_access_advisory_committee', ...],
+                    'missing': ['ada_access_advisory_committee', 'library_board', ...],
+                    'coverage_percent': 40.0
+                }
             }
         """
         inventory = {
@@ -323,6 +336,39 @@ class ProudCityClient(BaseExtractor):
             count = len(events)
             inventory['by_type'][meeting_type] = count
             inventory['total'] += count
+
+        # Add coverage analysis if requested
+        if include_coverage:
+            discovered = self.discover_meeting_types()
+            configured_keys = set(self.archives.keys())
+            discovered_keys = set(discovered.keys())
+            missing_keys = discovered_keys - configured_keys
+
+            coverage_percent = (
+                (len(configured_keys) / len(discovered_keys) * 100)
+                if discovered_keys else 100.0
+            )
+
+            inventory['coverage'] = {
+                'configured_count': len(configured_keys),
+                'discovered_count': len(discovered_keys),
+                'configured': sorted(configured_keys),
+                'discovered': sorted(discovered_keys),
+                'missing': sorted(missing_keys),
+                'coverage_percent': round(coverage_percent, 1)
+            }
+
+            logger.info(
+                "Source coverage calculated",
+                extra={
+                    "configured_count": len(configured_keys),
+                    "discovered_count": len(discovered_keys),
+                    "missing_count": len(missing_keys),
+                    "coverage_percent": coverage_percent,
+                    "jurisdiction_id": self.jurisdiction_id,
+                    "platform": self.platform_name,
+                }
+            )
 
         return inventory
 

@@ -7318,13 +7318,23 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
 
         self.send_json(status)
 
+    # Class-level cache for source inventory (avoid repeated scraping)
+    _source_inventory_cache: Dict[str, Any] = {}
+    _source_inventory_cache_ttl = 3600  # 1 hour
+
     def serve_admin_status(self):
         """SESSION 299: Serve admin pipeline health status with detailed database and collection stats.
 
         GET /admin/status returns comprehensive JSON including:
         - Database table row counts and timestamps (meetings, issues, agenda_items, initiatives)
         - ChromaDB collection document counts
+        - Source availability counts (optional, cached)
         - Overall pipeline health
+
+        Query params:
+        - jurisdiction: Jurisdiction ID (default: san-rafael)
+        - include_sources: Include source inventory counts (default: false, slower)
+        - refresh_sources: Force refresh of source inventory cache (default: false)
         """
         from urllib.parse import parse_qs, urlparse
         import sqlite3
@@ -7332,6 +7342,8 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
         parsed_url = urlparse(self.path)
         params = parse_qs(parsed_url.query)
         jurisdiction_id = params.get('jurisdiction', ['san-rafael'])[0]
+        include_sources = params.get('include_sources', ['false'])[0].lower() == 'true'
+        refresh_sources = params.get('refresh_sources', ['false'])[0].lower() == 'true'
 
         result = {
             'status': 'healthy',
@@ -7339,7 +7351,8 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             'jurisdiction': jurisdiction_id,
             'database': {},
             'chromadb': {},
-            'files': {}
+            'files': {},
+            'sources': None  # Populated if include_sources=true
         }
 
         # 1. State database stats (meetings, agenda_items, issues, initiatives)
@@ -7505,7 +7518,66 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
         if os.path.exists(state_db_path):
             result['files']['state_db_size_bytes'] = os.path.getsize(state_db_path)
 
-        # 4. Determine overall status
+        # 4. Source inventory (optional - requires scraping)
+        if include_sources:
+            cache_key = f"source_inventory_{jurisdiction_id}"
+            cached = AuthenticatedCivicAPIHandler._source_inventory_cache.get(cache_key)
+
+            # Check if cache is valid
+            if cached and not refresh_sources:
+                cache_time = cached.get('_cached_at', 0)
+                if time.time() - cache_time < AuthenticatedCivicAPIHandler._source_inventory_cache_ttl:
+                    result['sources'] = cached
+                    result['sources']['_from_cache'] = True
+
+            # Fetch fresh if not cached or expired
+            if result['sources'] is None:
+                try:
+                    from civic_extraction.clients.proudcity import create_san_rafael_client
+
+                    # Currently only ProudCity for San Rafael
+                    if jurisdiction_id in ['san-rafael', 'city-san-rafael']:
+                        client = create_san_rafael_client()
+                        inventory = client.get_source_inventory(include_coverage=True)
+
+                        meetings_data = {
+                            'platform': 'proudcity',
+                            'available': inventory['total'],
+                            'by_type': inventory['by_type'],
+                            'last_checked': inventory['timestamp']
+                        }
+
+                        # Include coverage data if available (SESSION 305)
+                        if 'coverage' in inventory:
+                            coverage = inventory['coverage']
+                            meetings_data['configured_count'] = coverage['configured_count']
+                            meetings_data['discovered_count'] = coverage['discovered_count']
+                            meetings_data['missing'] = coverage['missing']
+                            meetings_data['coverage_percent'] = coverage['coverage_percent']
+
+                        result['sources'] = {
+                            'meetings': meetings_data,
+                            '_cached_at': time.time(),
+                            '_from_cache': False
+                        }
+
+                        # Cache it
+                        AuthenticatedCivicAPIHandler._source_inventory_cache[cache_key] = result['sources']
+                    else:
+                        result['sources'] = {
+                            'meetings': {
+                                'platform': 'unknown',
+                                'available': None,
+                                'error': f'No source client configured for {jurisdiction_id}'
+                            }
+                        }
+                except ImportError as e:
+                    result['sources'] = {'error': f'Source client not available: {str(e)}'}
+                except Exception as e:
+                    logger.error(f"Source inventory error: {e}", exc_info=True)
+                    result['sources'] = {'error': str(e)}
+
+        # 5. Determine overall status
         if result['database'].get('status') == 'error' or result['chromadb'].get('status') == 'error':
             result['status'] = 'unhealthy'
         elif result['database'].get('status') == 'missing' or result['chromadb'].get('status') == 'no_storage':
