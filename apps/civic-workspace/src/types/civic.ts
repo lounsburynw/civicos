@@ -811,6 +811,11 @@ export interface AdminTriggerResponse {
   count_meetings?: number;
   count_meetings_with_video?: number;
   count_videos_discovered?: number;
+  // download_audio fields (SESSION 306)
+  count_pending?: number;
+  count_downloaded?: number;
+  count_skipped?: number;
+  count_errors?: number;
   // Common fields
   duration_seconds?: number;
   error?: string;
