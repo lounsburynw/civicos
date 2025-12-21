@@ -1326,13 +1326,13 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
 
             # Load user's issues
             try:
-                from issue_storage import IssueStorage
+                from civic_services.storage.issue_storage import IssueStorage
                 storage = IssueStorage()
             except ImportError:
                 import sys
                 from pathlib import Path
                 sys.path.insert(0, str(Path(__file__).parent))
-                from issue_storage import IssueStorage
+                from civic_services.storage.issue_storage import IssueStorage
                 storage = IssueStorage()
 
             # Session 63: Load issues based on ownership filter (independent from status)
@@ -1341,7 +1341,7 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
             if ownership == 'following':
                 # Load only issues user is following (may be filed by others)
                 try:
-                    from issue_storage import CommunityStorage
+                    from civic_services.storage.issue_storage import CommunityStorage
                     community_storage = CommunityStorage()
 
                     # Get issue IDs user is following
@@ -1375,7 +1375,7 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
                     all_issues.extend(user_issues)
 
                     # Get followed issues (may overlap with user_issues)
-                    from issue_storage import CommunityStorage
+                    from civic_services.storage.issue_storage import CommunityStorage
                     community_storage = CommunityStorage()
                     followed_issue_ids = set()
                     follows = community_storage.get_user_follows(user_id)
@@ -1616,15 +1616,15 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
 
             # Import automated_civic_refresh to access CITY_CONFIGS
             try:
-                from automated_civic_refresh import CITY_CONFIGS
+                from civic_services.monitoring.automated_civic_refresh import CITY_CONFIGS
             except ImportError:
                 import sys
                 sys.path.insert(0, str(Path(__file__).parent))
-                from automated_civic_refresh import CITY_CONFIGS
+                from civic_services.monitoring.automated_civic_refresh import CITY_CONFIGS
 
             # Import issue storage for issue counts
             try:
-                from issue_storage import IssueStorage
+                from civic_services.storage.issue_storage import IssueStorage
                 storage = IssueStorage()
                 complaint_storage_available = True
             except Exception as e:
@@ -1886,13 +1886,13 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
         try:
             # Import issue storage
             try:
-                from issue_storage import IssueStorage
+                from civic_services.storage.issue_storage import IssueStorage
                 storage = IssueStorage()
             except ImportError:
                 import sys
                 from pathlib import Path
                 sys.path.insert(0, str(Path(__file__).parent))
-                from issue_storage import IssueStorage
+                from civic_services.storage.issue_storage import IssueStorage
                 storage = IssueStorage()
 
             # Get issues (all or filtered by user_id)
@@ -2029,13 +2029,13 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
         try:
             # Import issue storage
             try:
-                from issue_storage import IssueStorage
+                from civic_services.storage.issue_storage import IssueStorage
                 storage = IssueStorage()
             except ImportError:
                 import sys
                 from pathlib import Path
                 sys.path.insert(0, str(Path(__file__).parent))
-                from issue_storage import IssueStorage
+                from civic_services.storage.issue_storage import IssueStorage
                 storage = IssueStorage()
 
             # Get issue by ID
@@ -2143,14 +2143,14 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
 
             # Import storage
             try:
-                from issue_storage import IssueStorage, CommunityStorage
+                from civic_services.storage.issue_storage import IssueStorage, CommunityStorage
                 from issue_matcher import match_issue_to_events
                 from issue_detector import IssueDetector
             except ImportError:
                 import sys
                 from pathlib import Path
                 sys.path.insert(0, str(Path(__file__).parent))
-                from issue_storage import IssueStorage, CommunityStorage
+                from civic_services.storage.issue_storage import IssueStorage, CommunityStorage
                 from issue_matcher import match_issue_to_events
                 from issue_detector import IssueDetector
 
@@ -2300,12 +2300,12 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
         try:
             # Import storage
             try:
-                from issue_storage import IssueStorage
+                from civic_services.storage.issue_storage import IssueStorage
             except ImportError:
                 import sys
                 from pathlib import Path
                 sys.path.insert(0, str(Path(__file__).parent))
-                from issue_storage import IssueStorage
+                from civic_services.storage.issue_storage import IssueStorage
 
             storage = IssueStorage()
 
@@ -2347,12 +2347,12 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
         try:
             # Import storage
             try:
-                from issue_storage import IssueStorage
+                from civic_services.storage.issue_storage import IssueStorage
             except ImportError:
                 import sys
                 from pathlib import Path
                 sys.path.insert(0, str(Path(__file__).parent))
-                from issue_storage import IssueStorage
+                from civic_services.storage.issue_storage import IssueStorage
 
             storage = IssueStorage()
 
@@ -2431,12 +2431,12 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
 
             # Import storage
             try:
-                from issue_storage import IssueStorage
+                from civic_services.storage.issue_storage import IssueStorage
             except ImportError:
                 import sys
                 from pathlib import Path
                 sys.path.insert(0, str(Path(__file__).parent))
-                from issue_storage import IssueStorage
+                from civic_services.storage.issue_storage import IssueStorage
 
             storage = IssueStorage()
 
@@ -2508,12 +2508,12 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
 
             # Import storage
             try:
-                from issue_storage import IssueStorage
+                from civic_services.storage.issue_storage import IssueStorage
             except ImportError:
                 import sys
                 from pathlib import Path
                 sys.path.insert(0, str(Path(__file__).parent))
-                from issue_storage import IssueStorage
+                from civic_services.storage.issue_storage import IssueStorage
 
             storage = IssueStorage()
 
@@ -4271,12 +4271,12 @@ Key Topics (choose up to 3 from):
 
             # Import storage
             try:
-                from issue_storage import CommunityStorage
+                from civic_services.storage.issue_storage import CommunityStorage
             except ImportError:
                 import sys
                 from pathlib import Path
                 sys.path.insert(0, str(Path(__file__).parent))
-                from issue_storage import CommunityStorage
+                from civic_services.storage.issue_storage import CommunityStorage
 
             storage = CommunityStorage()
 
@@ -4345,12 +4345,12 @@ Key Topics (choose up to 3 from):
 
             # Import storage
             try:
-                from issue_storage import CommunityStorage
+                from civic_services.storage.issue_storage import CommunityStorage
             except ImportError:
                 import sys
                 from pathlib import Path
                 sys.path.insert(0, str(Path(__file__).parent))
-                from issue_storage import CommunityStorage
+                from civic_services.storage.issue_storage import CommunityStorage
 
             storage = CommunityStorage()
 
@@ -4389,12 +4389,12 @@ Key Topics (choose up to 3 from):
 
             # Import storage
             try:
-                from issue_storage import CommunityStorage
+                from civic_services.storage.issue_storage import CommunityStorage
             except ImportError:
                 import sys
                 from pathlib import Path
                 sys.path.insert(0, str(Path(__file__).parent))
-                from issue_storage import CommunityStorage
+                from civic_services.storage.issue_storage import CommunityStorage
 
             storage = CommunityStorage()
 
@@ -4422,12 +4422,12 @@ Key Topics (choose up to 3 from):
     def _load_complaint_by_id(self, issue_id: str) -> Optional[Dict]:
         """Load a single issue by ID from database"""
         try:
-            from issue_storage import IssueStorage
+            from civic_services.storage.issue_storage import IssueStorage
         except ImportError:
             import sys
             from pathlib import Path
             sys.path.insert(0, str(Path(__file__).parent))
-            from issue_storage import IssueStorage
+            from civic_services.storage.issue_storage import IssueStorage
 
         storage = IssueStorage()
         # get_issue only takes issue_id
@@ -4458,12 +4458,12 @@ Key Topics (choose up to 3 from):
         try:
             # Import storage
             try:
-                from issue_storage import CommunityStorage
+                from civic_services.storage.issue_storage import CommunityStorage
             except ImportError:
                 import sys
                 from pathlib import Path
                 sys.path.insert(0, str(Path(__file__).parent))
-                from issue_storage import CommunityStorage
+                from civic_services.storage.issue_storage import CommunityStorage
 
             storage = CommunityStorage()
 
@@ -4536,12 +4536,12 @@ Key Topics (choose up to 3 from):
 
             # Import storage
             try:
-                from issue_storage import CommunityStorage
+                from civic_services.storage.issue_storage import CommunityStorage
             except ImportError:
                 import sys
                 from pathlib import Path
                 sys.path.insert(0, str(Path(__file__).parent))
-                from issue_storage import CommunityStorage
+                from civic_services.storage.issue_storage import CommunityStorage
 
             storage = CommunityStorage()
 
@@ -4592,12 +4592,12 @@ Key Topics (choose up to 3 from):
         try:
             # Import storage
             try:
-                from issue_storage import CommunityStorage
+                from civic_services.storage.issue_storage import CommunityStorage
             except ImportError:
                 import sys
                 from pathlib import Path
                 sys.path.insert(0, str(Path(__file__).parent))
-                from issue_storage import CommunityStorage
+                from civic_services.storage.issue_storage import CommunityStorage
 
             storage = CommunityStorage()
 
@@ -4681,12 +4681,12 @@ Key Topics (choose up to 3 from):
 
             # Import storage
             try:
-                from issue_storage import CommunityStorage
+                from civic_services.storage.issue_storage import CommunityStorage
             except ImportError:
                 import sys
                 from pathlib import Path
                 sys.path.insert(0, str(Path(__file__).parent))
-                from issue_storage import CommunityStorage
+                from civic_services.storage.issue_storage import CommunityStorage
 
             storage = CommunityStorage()
 
@@ -4737,12 +4737,12 @@ Key Topics (choose up to 3 from):
 
             # Import storage
             try:
-                from issue_storage import CommunityStorage
+                from civic_services.storage.issue_storage import CommunityStorage
             except ImportError:
                 import sys
                 from pathlib import Path
                 sys.path.insert(0, str(Path(__file__).parent))
-                from issue_storage import CommunityStorage
+                from civic_services.storage.issue_storage import CommunityStorage
 
             storage = CommunityStorage()
 
@@ -4810,12 +4810,12 @@ Key Topics (choose up to 3 from):
 
             # Import storage
             try:
-                from issue_storage import CommunityStorage
+                from civic_services.storage.issue_storage import CommunityStorage
             except ImportError:
                 import sys
                 from pathlib import Path
                 sys.path.insert(0, str(Path(__file__).parent))
-                from issue_storage import CommunityStorage
+                from civic_services.storage.issue_storage import CommunityStorage
 
             storage = CommunityStorage()
 
@@ -4887,14 +4887,14 @@ Key Topics (choose up to 3 from):
 
             # Import services
             try:
-                from geocoding_service import get_geocoding_service
-                from location_validator import get_location_validator
+                from civic_services.clients.geocoding_service import get_geocoding_service
+                from civic_services.core.location_validator import get_location_validator
             except ImportError:
                 import sys
                 from pathlib import Path
                 sys.path.insert(0, str(Path(__file__).parent))
-                from geocoding_service import get_geocoding_service
-                from location_validator import get_location_validator
+                from civic_services.clients.geocoding_service import get_geocoding_service
+                from civic_services.core.location_validator import get_location_validator
 
             # Geocode address
             geocoding_service = get_geocoding_service()

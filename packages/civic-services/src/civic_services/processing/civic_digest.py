@@ -47,9 +47,9 @@ except ImportError:
 
 # Import agent type system and unified data source manager
 try:
-    from automated_civic_refresh import get_jurisdiction_agent_type, CITY_CONFIGS
-    from unified_data_source_manager import UnifiedDataSourceManager
-    from municipal_registry import MUNICIPAL_REGISTRY
+    from civic_services.monitoring.automated_civic_refresh import get_jurisdiction_agent_type, CITY_CONFIGS
+    from civic_services.monitoring.unified_data_source_manager import UnifiedDataSourceManager
+    from civic_services.core.municipal_registry import MUNICIPAL_REGISTRY
     AGENT_REGISTRY_AVAILABLE = True
 except ImportError:
     print("⚠️ Agent registry not available - using standard extraction only")
@@ -217,7 +217,7 @@ class CivicDigest:
             # Step 2.5: Apply post-processing for accuracy and consistency
             try:
                 from civic_data_postprocessor import CivicDataPostProcessor
-                from automated_civic_refresh import get_jurisdiction_by_url
+                from civic_services.monitoring.automated_civic_refresh import get_jurisdiction_by_url
 
                 jurisdiction_id = get_jurisdiction_by_url(agenda_url)
                 processor = CivicDataPostProcessor(self.openai_client)
@@ -247,7 +247,7 @@ class CivicDigest:
                 print(f"⚠️ Could not import post-processor or jurisdiction detection: {e}")
                 # Fallback to basic jurisdiction detection
                 try:
-                    from automated_civic_refresh import get_jurisdiction_by_url
+                    from civic_services.monitoring.automated_civic_refresh import get_jurisdiction_by_url
                     jurisdiction_id = get_jurisdiction_by_url(agenda_url)
                     civic_data['jurisdiction_id'] = jurisdiction_id
                 except ImportError:
@@ -644,7 +644,7 @@ Calendar content:
                 return self._extract_civic_data_standard(joined_sources, source_url)
         elif agent_type == "granicus":
             # Extract jurisdiction key from source_url for Granicus client
-            from automated_civic_refresh import get_jurisdiction_by_url
+            from civic_services.monitoring.automated_civic_refresh import get_jurisdiction_by_url
             jurisdiction_key = get_jurisdiction_by_url(source_url)
             if jurisdiction_key:
                 # Remove 'city-' prefix for client lookup
@@ -875,7 +875,7 @@ SOURCE CONTENT:
                         config_domain = meeting_url.split("//")[1].split("/")[0].lower()
                         if url_domain == config_domain or config_domain in url_domain:
                             # Create DataSourceConfig for this jurisdiction
-                            from unified_data_source_manager import DataSourceConfig
+                            from civic_services.monitoring.unified_data_source_manager import DataSourceConfig
                             # Get Legistar client name from municipal registry (handles underscore → hyphen mapping)
                             legistar_client = MUNICIPAL_REGISTRY.get(city_id, {}).get('legistar_client', city_config['jurisdiction_id'])
                             config = DataSourceConfig(
@@ -968,11 +968,11 @@ SOURCE CONTENT:
 
             # Get proper jurisdiction_id from URL (not subdomain)
             # This ensures we use the normalized jurisdiction_id from CITY_CONFIGS
-            from automated_civic_refresh import get_jurisdiction_by_url
+            from civic_services.monitoring.automated_civic_refresh import get_jurisdiction_by_url
             jurisdiction_id = get_jurisdiction_by_url(source_url)
 
             # Convert to civic schema format
-            from municipal_registry import get_city_info
+            from civic_services.core.municipal_registry import get_city_info
             # Try both hyphen and underscore variants for registry lookup
             city_info = get_city_info(jurisdiction_key) or get_city_info(jurisdiction_key.replace('-', '_'))
 
@@ -1051,7 +1051,7 @@ SOURCE CONTENT:
             print(f"🏛️ Using Granicus ViewPublisher extraction for {jurisdiction_key}")
 
             # Get Granicus configuration from city config
-            from automated_civic_refresh import CITY_CONFIGS
+            from civic_services.monitoring.automated_civic_refresh import CITY_CONFIGS
             city_config = CITY_CONFIGS.get(jurisdiction_key.replace('-', '_'))
             if not city_config or 'granicus_config' not in city_config:
                 print(f"⚠️ No Granicus config for {jurisdiction_key}")
@@ -1075,7 +1075,7 @@ SOURCE CONTENT:
             print(f"✅ Granicus ViewPublisher returned {len(meetings)} meetings")
 
             # Convert to civic schema format
-            from municipal_registry import get_city_info
+            from civic_services.core.municipal_registry import get_city_info
             city_info = get_city_info(jurisdiction_key) or get_city_info(jurisdiction_key.replace('-', '_'))
             jurisdiction = {
                 'id': city_config.get('jurisdiction_id', f'city-{jurisdiction_key}'),
@@ -1741,7 +1741,7 @@ Meeting content:
                 return self._get_empty_civic_data()
 
             # Get city info from existing config
-            from automated_civic_refresh import get_jurisdiction_by_url, CITY_CONFIGS
+            from civic_services.monitoring.automated_civic_refresh import get_jurisdiction_by_url, CITY_CONFIGS
             from urllib.parse import urlparse
 
             jurisdiction_id = get_jurisdiction_by_url(source_url)
@@ -2014,7 +2014,7 @@ Respond with only the meeting type (e.g., "commission" or "committee")
 
             # Get jurisdiction info for URLs
             try:
-                from automated_civic_refresh import get_jurisdiction_by_url
+                from civic_services.monitoring.automated_civic_refresh import get_jurisdiction_by_url
                 jurisdiction_id = get_jurisdiction_by_url(source_url)
             except ImportError:
                 jurisdiction_id = 'unknown'
@@ -2436,7 +2436,7 @@ IMPORTANT: The meeting date/time text should be clickable and hide the Google Ca
     def _detect_jurisdiction(self, url: str) -> str:
         """Detect jurisdiction from meeting URL using centralized configuration"""
         try:
-            from automated_civic_refresh import get_jurisdiction_by_url
+            from civic_services.monitoring.automated_civic_refresh import get_jurisdiction_by_url
             jurisdiction_id = get_jurisdiction_by_url(url)
 
             # Convert jurisdiction_id to legacy format for wiki loading

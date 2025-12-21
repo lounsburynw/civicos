@@ -143,7 +143,7 @@ class CivicMonitoringDashboard:
 
     def _get_jurisdiction_statuses(self) -> List[JurisdictionStatus]:
         """Get status for all configured jurisdictions"""
-        from automated_civic_refresh import CITY_CONFIGS
+        from civic_services.monitoring.automated_civic_refresh import CITY_CONFIGS
 
         statuses = []
         cost_entries = self._get_cost_entries_today()
@@ -200,7 +200,7 @@ class CivicMonitoringDashboard:
             if not schema_files:
                 return None, 0
 
-            from automated_civic_refresh import CITY_CONFIGS
+            from civic_services.monitoring.automated_civic_refresh import CITY_CONFIGS
             target_jurisdiction = CITY_CONFIGS[city_id]['jurisdiction_id']
 
             latest_data = None

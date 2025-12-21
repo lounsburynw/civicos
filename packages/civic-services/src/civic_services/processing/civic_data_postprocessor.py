@@ -70,7 +70,7 @@ class CivicDataPostProcessor:
     def _get_jurisdiction_config(self, jurisdiction_id: str) -> Dict:
         """Load jurisdiction-specific configuration"""
         try:
-            from automated_civic_refresh import CITY_CONFIGS
+            from civic_services.monitoring.automated_civic_refresh import CITY_CONFIGS
 
             # Find config by jurisdiction_id
             for config in CITY_CONFIGS.values():

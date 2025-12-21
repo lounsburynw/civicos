@@ -99,6 +99,7 @@ Read only when needed for architectural decisions:
 | Command | Purpose | Subagents |
 |---------|---------|-----------|
 | `/start` | Begin session, find next item | No |
+| `/launch` | Start dev servers (API, WebSocket, Frontend) | No |
 | `/load_context` | Load context for work area | Yes (Explore) |
 | `/analyze-item [name]` | Deep analysis of item | Yes (3 parallel) |
 | `/test [mode]` | Run tests (smoke/targeted/full/profile) | No |
@@ -134,13 +135,23 @@ Task(subagent_type="Explore", prompt="Explore [area] for [item]...")
 - Reference: `pilot.json` for checklist items
 - Focus: Rollback procedures, user documentation, Jan 2026 launch readiness
 
-## Key Commands
+## Launching the App
+
+Use the dev launch script to start all services with proper environment configuration:
 
 ```bash
-python -m civic_services.civic_api_integrated     # REST API (8001)
-python -m civic_services.civic_socketio_server    # WebSocket (8002)
-cd apps/civic-workspace && npm run dev   # Frontend
+./scripts/dev.sh          # Start all services (API, WebSocket, Frontend)
+./scripts/dev.sh api      # REST API only (port 8001)
+./scripts/dev.sh ws       # WebSocket only (port 8002)
+./scripts/dev.sh frontend # Vue frontend only (port 5173)
 ```
+
+The script automatically:
+- Loads `.env` (requires `GOOGLE_MAPS_API_KEY` with Geocoding API enabled)
+- Sets `CIVIC_DEV_MODE=true` and `CIVIC_WEB_KEY=dev_key_local`
+- Activates `civic-env` virtual environment
+
+Or use the `/launch` command which documents the full process.
 
 ## Testing Strategy
 

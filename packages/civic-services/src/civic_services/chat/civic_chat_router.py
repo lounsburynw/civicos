@@ -141,7 +141,7 @@ def parse_query_to_plan(
     provider = get_model_for_task('query_planning')
 
     # Build system prompt with jurisdiction reference
-    from automated_civic_refresh import CITY_CONFIGS
+    from civic_services.monitoring.automated_civic_refresh import CITY_CONFIGS
 
     jurisdiction_lines = []
     for city_name, config in sorted(CITY_CONFIGS.items()):
