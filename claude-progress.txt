@@ -3776,3 +3776,47 @@ Implemented config-driven setup for ProudCity extraction, moving hard-coded arch
 - 34 smoke tests passing
 
 **Commit:** Session 312: san_rafael_extraction_config - Config-driven ProudCitySource
+
+---
+
+## Session 313: generalized_pipeline_runner
+
+**Date:** 2025-12-21
+**Item:** generalized_pipeline_runner (city_onboarding > orchestration)
+**Status:** COMPLETE
+
+### Summary
+Implemented a generalized Pipeline class for ETL orchestration with three stages:
+discover → ingest → index, each with status callbacks for dashboard consumption.
+
+### Implementation
+- **Pipeline class**: Orchestrates three-stage ETL workflow
+- **StageStatus/StageState**: Track per-stage state, items, duration, errors
+- **PipelineResult**: Full result after run() completes
+- **Status callbacks**: on_stage_start, on_stage_progress, on_stage_complete, on_error
+- **pipeline.status()**: Dashboard-consumable JSON dict for real-time monitoring
+
+### Key Features
+- Three stages matching dashboard visualization: Available → Ingested → Searchable
+- Status callbacks for real-time progress reporting
+- Graceful error handling with per-stage error accumulation
+- Skip capability (skip_index=True for testing)
+- Reset method for re-running pipelines
+- IndexTarget protocol for pluggable indexing backends
+
+### Tests Added
+- TestPipeline: 8 tests (creation, stages, status, serialization, reset, enums)
+- TestPipelineWithMockSource: 4 tests (run, callbacks, failure handling, index target)
+- Total: 43 extraction client tests passing (was 32)
+
+### Files Changed
+- `packages/civic-extraction/src/civic_extraction/pipeline.py` - NEW: Pipeline class
+- `packages/civic-extraction/src/civic_extraction/__init__.py` - Added exports
+- `packages/civic-extraction/tests/test_clients.py` - 11 new tests
+- `pilot.json` - Updated generalized_pipeline_runner to "ready"
+
+### Tests
+- 43 extraction client tests passing
+- 34 smoke tests passing
+
+**Commit:** Session 313: generalized_pipeline_runner - Pipeline class with stages and callbacks
