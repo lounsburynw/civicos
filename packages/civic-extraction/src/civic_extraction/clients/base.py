@@ -59,6 +59,42 @@ class HealthStatus:
 
 
 @dataclass
+class ValidationResult:
+    """
+    Result of preflight validation for a data source.
+
+    Used to fail fast before running extraction pipeline.
+    Checks config correctness and API accessibility.
+    """
+
+    is_valid: bool  # All checks passed, safe to proceed
+    config_valid: bool  # Config structure is correct
+    api_reachable: bool  # API endpoint is accessible
+
+    # Error tracking
+    errors: List[str] = field(default_factory=list)  # Critical errors (fail fast)
+    warnings: List[str] = field(default_factory=list)  # Non-blocking issues
+
+    # Timing
+    check_duration_ms: float = 0.0
+
+    # Additional context
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "is_valid": self.is_valid,
+            "config_valid": self.config_valid,
+            "api_reachable": self.api_reachable,
+            "errors": self.errors,
+            "warnings": self.warnings,
+            "check_duration_ms": self.check_duration_ms,
+            "metadata": self.metadata,
+        }
+
+
+@dataclass
 class ExtractionConfig:
     """
     Configuration for a data extraction source.
@@ -144,6 +180,20 @@ class DataSource(Protocol):
 
         Returns:
             HealthStatus with all required fields populated
+        """
+        ...
+
+    def validate(self) -> ValidationResult:
+        """
+        Validate source configuration and API access before running pipeline.
+
+        Preflight check that fails fast with clear error messages for:
+        - Missing or invalid config fields
+        - Unreachable API endpoints
+        - Missing API keys or credentials
+
+        Returns:
+            ValidationResult with is_valid, errors, warnings, and timing
         """
         ...
 

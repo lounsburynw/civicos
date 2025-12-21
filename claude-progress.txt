@@ -1,3 +1,63 @@
+## Session 315: preflight_checks - DataSource Validation
+
+**Date:** 2025-12-21
+**Item:** preflight_checks (city_onboarding > validation)
+**Priority:** P1
+
+### Summary
+Implemented `source.validate()` method on all DataSource clients that performs preflight checks before running the extraction pipeline. Fails fast with clear error messages for missing configuration or unreachable endpoints.
+
+### Implementation
+
+**1. ValidationResult Dataclass** (base.py)
+- `is_valid` - all checks passed, safe to proceed
+- `config_valid` - config structure is correct
+- `api_reachable` - API endpoint is accessible
+- `errors[]` - critical errors (fail fast)
+- `warnings[]` - non-blocking issues
+- `check_duration_ms` - timing info
+- `metadata` - platform-specific context
+
+**2. DataSource Protocol** (base.py)
+- Added `validate() -> ValidationResult` method signature
+- Preflight check that fails fast before pipeline runs
+
+**3. ProudCitySource.validate()** (proudcity.py)
+- Checks: base_url (required, HTTPS), jurisdiction_id, source_id
+- Checks: archives non-empty OR auto_discover enabled
+- API check: hits `/meetings/` endpoint
+- Archive validation: verifies each archive path is reachable (warnings)
+
+**4. LegistarClient.validate()** (legistar.py)
+- Checks: client_name required
+- API check: hits `/bodies` endpoint
+
+**5. CivicClerkClient.validate()** (civicclerk.py)
+- Checks: subdomain required
+- API check: hits `/Boards` endpoint
+
+### Tests Added
+- TestValidationResult: 3 tests (creation, with errors, to_dict)
+- TestValidateMethods: 6 tests (all client types, config validation)
+- Total: 52 extraction client tests passing
+
+### Files Changed
+- `packages/civic-extraction/src/civic_extraction/clients/base.py` - ValidationResult, DataSource.validate()
+- `packages/civic-extraction/src/civic_extraction/clients/proudcity.py` - ProudCitySource.validate()
+- `packages/civic-extraction/src/civic_extraction/clients/legistar.py` - LegistarClient.validate()
+- `packages/civic-extraction/src/civic_extraction/clients/civicclerk.py` - CivicClerkClient.validate()
+- `packages/civic-extraction/src/civic_extraction/__init__.py` - Export ValidationResult
+- `packages/civic-extraction/tests/test_clients.py` - 9 new tests
+- `pilot.json` - Updated preflight_checks to "ready"
+
+### Tests
+- 52 extraction client tests passing
+- 34 smoke tests passing
+
+**Commit:** Session 315: preflight_checks - DataSource validate() method
+
+---
+
 ## Session 314: full_city_bootstrap - Bootstrap CLI Command
 
 **Date:** 2025-12-21
