@@ -30,7 +30,7 @@ All clients implement a common interface:
 from civic_extraction.clients.legistar import LegistarClient
 from civic_extraction.clients.civicclerk import CivicClerkClient
 from civic_extraction.clients.proudcity import ProudCityClient, create_san_rafael_client
-from civic_extraction.clients.base import BaseExtractor, Meeting
+from civic_extraction.clients.base import BaseExtractor, Meeting, DataSource, HealthStatus
 
 __version__ = "0.1.0"
 __all__ = [
@@ -40,4 +40,6 @@ __all__ = [
     "create_san_rafael_client",
     "BaseExtractor",
     "Meeting",
+    "DataSource",
+    "HealthStatus",
 ]
