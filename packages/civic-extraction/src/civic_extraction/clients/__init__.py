@@ -9,14 +9,30 @@ Each client wraps a specific municipal platform API:
 
 from civic_extraction.clients.legistar import LegistarClient
 from civic_extraction.clients.civicclerk import CivicClerkClient
-from civic_extraction.clients.proudcity import ProudCityClient, create_san_rafael_client
-from civic_extraction.clients.base import BaseExtractor, Meeting
+from civic_extraction.clients.proudcity import (
+    ProudCityClient,
+    ProudCitySource,
+    create_san_rafael_client,
+    create_san_rafael_source,
+)
+from civic_extraction.clients.base import (
+    BaseExtractor,
+    Meeting,
+    ExtractionConfig,
+    DataSource,
+    HealthStatus,
+)
 
 __all__ = [
     "LegistarClient",
     "CivicClerkClient",
     "ProudCityClient",
+    "ProudCitySource",
     "create_san_rafael_client",
+    "create_san_rafael_source",
     "BaseExtractor",
     "Meeting",
+    "ExtractionConfig",
+    "DataSource",
+    "HealthStatus",
 ]

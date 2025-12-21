@@ -29,17 +29,31 @@ All clients implement a common interface:
 
 from civic_extraction.clients.legistar import LegistarClient
 from civic_extraction.clients.civicclerk import CivicClerkClient
-from civic_extraction.clients.proudcity import ProudCityClient, create_san_rafael_client
-from civic_extraction.clients.base import BaseExtractor, Meeting, DataSource, HealthStatus
+from civic_extraction.clients.proudcity import (
+    ProudCityClient,
+    ProudCitySource,
+    create_san_rafael_client,
+    create_san_rafael_source,
+)
+from civic_extraction.clients.base import (
+    BaseExtractor,
+    Meeting,
+    DataSource,
+    HealthStatus,
+    ExtractionConfig,
+)
 
 __version__ = "0.1.0"
 __all__ = [
     "LegistarClient",
     "CivicClerkClient",
     "ProudCityClient",
+    "ProudCitySource",
     "create_san_rafael_client",
+    "create_san_rafael_source",
     "BaseExtractor",
     "Meeting",
     "DataSource",
     "HealthStatus",
+    "ExtractionConfig",
 ]
