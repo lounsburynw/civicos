@@ -72,6 +72,7 @@ civic-server = "civic.mcp:main"
 civic-state-server = "civic._internal.state.mcp:main"
 civic-legal-server = "civic._internal.legal.mcp:main"
 civic-status = "civic.cli:main"
+civic-bootstrap = "civic.cli:bootstrap_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
