@@ -3,16 +3,16 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2025-12-18",
+  "last_updated": "2025-12-21",
   "category_order": [
     "test_infrastructure",
     "data_architecture",
     "data_readiness",
     "data_standards",
     "city_onboarding",
+    "ingestion_visibility",
     "deployment_artifacts",
     "monitoring_observability",
-    "ingestion_visibility",
     "admin_operations",
     "pipeline_automation",
     "rollback_procedures",
@@ -317,7 +317,7 @@
     }
   },
   "ingestion_visibility": {
-    "description": "Operational visibility into data pipeline state",
+    "description": "Pipeline visibility for operators - DEPENDS ON: city_onboarding ETL modularization",
     "cli_status": {
       "civic_status_command": {
         "status": "ready",
@@ -388,9 +388,9 @@
       "pipeline_flow_visualization": {
         "status": "ready",
         "priority": 2,
-        "artifact": "Pipeline view showing Available → Ingested → Searchable flow",
+        "artifact": "Pipeline view showing Available \u2192 Ingested \u2192 Searchable flow",
         "completed": "2025-12-18",
-        "note": "Session 303: Redesigned AdminStatusPage.vue with pipeline rows per data type (Meetings, Agenda Items, Issues, Initiatives). Each row shows 3 stages with circular nodes colored by state (empty/has-data/fresh/stale). Removed jargon (Database→Ingested, ChromaDB→Searchable)."
+        "note": "Session 303: Redesigned AdminStatusPage.vue with pipeline rows per data type (Meetings, Agenda Items, Issues, Initiatives). Each row shows 3 stages with circular nodes colored by state (empty/has-data/fresh/stale). Removed jargon (Database\u2192Ingested, ChromaDB\u2192Searchable)."
       }
     },
     "source_discovery": {
@@ -872,23 +872,23 @@
     }
   },
   "city_onboarding": {
-    "description": "Reproducible pipeline for onboarding new cities - to be finalized after pilot ingestion complete",
+    "description": "Modular ETL pipeline for onboarding new cities - PRIORITY: complete before dashboard redesign",
     "configuration": {
       "extraction_config_schema": {
         "status": "not_ready",
-        "priority": 3,
-        "artifact": "Add extraction config to jurisdiction_overrides (platform, archives, API keys)",
-        "note": "Existing: data/jurisdiction_overrides/city-san-rafael.json (needs extraction fields)"
+        "priority": 1,
+        "artifact": "Define DataSource interface with health() method returning standardized status",
+        "note": "Clean abstraction enables clean dashboard. Each source exposes: available count, last_checked, errors[]"
       },
       "san_rafael_extraction_config": {
         "status": "not_ready",
-        "priority": 3,
-        "artifact": "Document San Rafael's ProudCity config as reference",
-        "note": "Existing: ProudCityClient.DEFAULT_ARCHIVES hard-coded in proudcity.py"
+        "priority": 1,
+        "artifact": "Implement ProudCitySource(DataSource) with config-driven setup",
+        "note": "Move hard-coded archives from proudcity.py to jurisdiction config"
       },
       "platform_detection_helper": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 2,
         "artifact": "Script to auto-detect city's meeting platform",
         "note": "Post-ingestion: based on patterns learned from pilot"
       }
@@ -896,33 +896,33 @@
     "orchestration": {
       "generalized_pipeline_runner": {
         "status": "not_ready",
-        "priority": 3,
-        "artifact": "Extend batch_process script to handle meeting extraction (not just transcription)",
-        "note": "Existing: scripts/batch_process_san_rafael_meetings.py (transcription only)"
+        "priority": 1,
+        "artifact": "Pipeline class with stages: discover -> ingest -> index, each with status callbacks",
+        "note": "Dashboard consumes pipeline.status() for real-time progress"
       },
       "checkpoint_for_meetings": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 2,
         "artifact": "Extend checkpoint/resume to meeting discovery (currently only transcription)",
         "note": "Existing: resume capability in batch_process_san_rafael_meetings.py"
       },
       "full_city_bootstrap": {
         "status": "not_ready",
-        "priority": 3,
-        "artifact": "Single command to bootstrap new city: extract \u2192 transform \u2192 load all corpora",
-        "note": "Post-ingestion: generalize from San Rafael experience"
+        "priority": 1,
+        "artifact": "Single command: civic bootstrap san-rafael -> runs full ETL pipeline",
+        "note": "Entry point for new city setup, surfaces clear success/failure"
       }
     },
     "documentation": {
       "city_onboarding_guide": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 2,
         "artifact": "Step-by-step guide: adding a new city",
         "note": "Post-ingestion: document what actually worked"
       },
       "platform_specific_notes": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 2,
         "artifact": "Platform quirks: Legistar date formats, CivicClerk OData, ProudCity scraping",
         "note": "Existing knowledge in client implementations"
       }
@@ -930,15 +930,15 @@
     "validation": {
       "preflight_checks": {
         "status": "not_ready",
-        "priority": 3,
-        "artifact": "Validate config and API access before running pipeline",
-        "note": "Post-ingestion: based on common failure modes"
+        "priority": 1,
+        "artifact": "source.validate() checks config and API access before running pipeline",
+        "note": "Fail fast with clear error messages for missing API keys, unreachable endpoints"
       },
       "post_ingestion_report": {
         "status": "not_ready",
-        "priority": 3,
-        "artifact": "Summary report: records ingested, schema violations, gaps detected",
-        "note": "Post-ingestion: capture metrics format from pilot"
+        "priority": 2,
+        "artifact": "pipeline.report() returns structured summary: records ingested, errors, gaps",
+        "note": "Dashboard displays this report after manual operations complete"
       }
     }
   },
