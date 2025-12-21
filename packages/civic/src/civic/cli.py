@@ -1,16 +1,19 @@
 """
 Civic CLI - Command-line interface for Civic platform.
 
-Provides status and diagnostics for the Civic ingestion pipeline.
+Provides status, diagnostics, and city bootstrap for the Civic platform.
 
 Usage:
+    civic bootstrap san-rafael             # Bootstrap a new city (full ETL)
     civic status                           # Show all metrics
     civic status --jurisdiction san-rafael # Specific jurisdiction
     civic status --json                    # Machine-readable output
     civic status --corpus decisions        # Single corpus
     civic status --check-gaps              # Compare ingested vs source counts
 
-Entry point: civic-status (configured in pyproject.toml)
+Entry points:
+    civic-bootstrap: Bootstrap command (city onboarding)
+    civic-status: Status command (diagnostics)
 """
 
 import argparse
@@ -647,6 +650,361 @@ def print_status(
         print()
 
     return status
+
+
+# =============================================================================
+# Bootstrap Command
+# =============================================================================
+
+
+class BootstrapResult:
+    """Result of a bootstrap operation."""
+
+    def __init__(
+        self,
+        success: bool,
+        jurisdiction_id: str,
+        source_id: str,
+        stages: Dict[str, Any],
+        total_duration_ms: float,
+        meetings_count: int = 0,
+        indexed_count: int = 0,
+        errors: List[str] = None,
+    ):
+        self.success = success
+        self.jurisdiction_id = jurisdiction_id
+        self.source_id = source_id
+        self.stages = stages
+        self.total_duration_ms = total_duration_ms
+        self.meetings_count = meetings_count
+        self.indexed_count = indexed_count
+        self.errors = errors or []
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "success": self.success,
+            "jurisdiction_id": self.jurisdiction_id,
+            "source_id": self.source_id,
+            "stages": self.stages,
+            "total_duration_ms": self.total_duration_ms,
+            "meetings_count": self.meetings_count,
+            "indexed_count": self.indexed_count,
+            "errors": self.errors,
+        }
+
+
+def validate_bootstrap(jurisdiction_id: str) -> tuple[bool, List[str]]:
+    """
+    Validate that bootstrap can proceed.
+
+    Returns:
+        Tuple of (is_valid, list of error messages)
+    """
+    errors = []
+
+    # Check extraction config exists
+    config_path = Path("data/extraction") / f"{jurisdiction_id.replace('city-', '')}.json"
+    if not config_path.exists():
+        errors.append(f"Extraction config not found: {config_path}")
+
+    # Check data directories are writable
+    data_dirs = [
+        Path("data"),
+        Path("data/pilot/vectors"),
+    ]
+    for d in data_dirs:
+        if d.exists() and not os.access(d, os.W_OK):
+            errors.append(f"Directory not writable: {d}")
+        elif not d.exists():
+            try:
+                d.mkdir(parents=True, exist_ok=True)
+            except OSError as e:
+                errors.append(f"Cannot create directory {d}: {e}")
+
+    return len(errors) == 0, errors
+
+
+def run_bootstrap(
+    jurisdiction_id: str,
+    days_ahead: int = 90,
+    days_past: int = 30,
+    skip_index: bool = False,
+    verbose: bool = False,
+    no_color: bool = False,
+    quiet: bool = False,
+) -> BootstrapResult:
+    """
+    Run the full ETL bootstrap for a jurisdiction.
+
+    Args:
+        jurisdiction_id: Jurisdiction to bootstrap (e.g., "san-rafael" or "city-san-rafael")
+        days_ahead: Days into future for event fetching
+        days_past: Days into past for event fetching
+        skip_index: If True, skip the index stage
+        verbose: Show detailed progress
+        no_color: Disable colored output
+        quiet: Suppress all output (for JSON mode)
+
+    Returns:
+        BootstrapResult with status of the operation
+    """
+    # Normalize jurisdiction_id
+    if not jurisdiction_id.startswith("city-"):
+        jurisdiction_id = f"city-{jurisdiction_id}"
+
+    all_errors: List[str] = []
+
+    # Validate
+    is_valid, validation_errors = validate_bootstrap(jurisdiction_id)
+    if not is_valid:
+        if not quiet:
+            print(colorize(f"\nCivic Bootstrap: {jurisdiction_id}", Colors.BOLD, no_color))
+            print("=" * 40)
+            print(colorize("Validation FAILED", Colors.RED + Colors.BOLD, no_color))
+            print("-" * 20)
+            for err in validation_errors:
+                print(f"  - {err}")
+        return BootstrapResult(
+            success=False,
+            jurisdiction_id=jurisdiction_id,
+            source_id="unknown",
+            stages={},
+            total_duration_ms=0,
+            errors=validation_errors,
+        )
+
+    # Import pipeline components
+    try:
+        from civic_extraction import Pipeline, ProudCitySource
+    except ImportError as e:
+        error_msg = f"civic-extraction not installed: {e}"
+        if not quiet:
+            print(colorize(f"\nCivic Bootstrap: {jurisdiction_id}", Colors.BOLD, no_color))
+            print("=" * 40)
+            print(colorize("Setup FAILED", Colors.RED + Colors.BOLD, no_color))
+            print("-" * 20)
+            print(f"  - {error_msg}")
+        return BootstrapResult(
+            success=False,
+            jurisdiction_id=jurisdiction_id,
+            source_id="unknown",
+            stages={},
+            total_duration_ms=0,
+            errors=[error_msg],
+        )
+
+    # Load source from config
+    try:
+        source = ProudCitySource.from_jurisdiction(jurisdiction_id)
+    except Exception as e:
+        error_msg = f"Failed to load source config: {e}"
+        if not quiet:
+            print(colorize(f"\nCivic Bootstrap: {jurisdiction_id}", Colors.BOLD, no_color))
+            print("=" * 40)
+            print(colorize("Configuration FAILED", Colors.RED + Colors.BOLD, no_color))
+            print("-" * 20)
+            print(f"  - {error_msg}")
+        return BootstrapResult(
+            success=False,
+            jurisdiction_id=jurisdiction_id,
+            source_id="unknown",
+            stages={},
+            total_duration_ms=0,
+            errors=[error_msg],
+        )
+
+    # Progress callbacks for terminal output
+    def on_stage_start(stage: str) -> None:
+        if quiet or not verbose:
+            return
+        print(f"\n  Stage: {stage}")
+        print(f"    Status: {colorize('running...', Colors.YELLOW, no_color)}")
+
+    def on_stage_complete(stage: str, status: Any) -> None:
+        if quiet:
+            return
+
+        state = status.state.value if hasattr(status.state, 'value') else str(status.state)
+        duration_s = status.duration_ms / 1000
+
+        if state == "completed":
+            state_str = colorize("completed", Colors.GREEN, no_color)
+        elif state == "failed":
+            state_str = colorize("FAILED", Colors.RED, no_color)
+        elif state == "skipped":
+            state_str = colorize("skipped", Colors.DIM, no_color)
+        else:
+            state_str = state
+
+        if verbose:
+            # Overwrite the "running..." line
+            print(f"\r    Status: {state_str} ({duration_s:.1f}s)")
+            if status.items_processed > 0:
+                print(f"    Items: {status.items_processed}")
+            if status.errors:
+                for err in status.errors:
+                    print(f"    Error: {colorize(err, Colors.RED, no_color)}")
+        else:
+            # Compact output
+            check = colorize("OK", Colors.GREEN, no_color) if state == "completed" else state_str
+            items = f" ({status.items_processed} items)" if status.items_processed > 0 else ""
+            print(f"  {stage}: {check}{items} [{duration_s:.1f}s]")
+
+    def on_error(stage: str, exception: Exception) -> None:
+        all_errors.append(f"{stage}: {str(exception)}")
+        if verbose and not quiet:
+            print(f"    ERROR: {colorize(str(exception), Colors.RED, no_color)}")
+
+    # Create and run pipeline
+    pipeline = Pipeline(source, jurisdiction_id, index_target=None)  # TODO: add index target
+
+    if not quiet:
+        print(colorize(f"\nCivic Bootstrap: {jurisdiction_id}", Colors.BOLD, no_color))
+        print("=" * 40)
+        print(f"Source: {source.source_id}")
+        print(f"URL: {source.config.base_url if hasattr(source, 'config') else 'unknown'}")
+        if skip_index:
+            print(f"Mode: {colorize('ingest-only (skip indexing)', Colors.YELLOW, no_color)}")
+        print()
+
+    result = pipeline.run(
+        on_stage_start=on_stage_start,
+        on_stage_complete=on_stage_complete,
+        on_error=on_error,
+        days_ahead=days_ahead,
+        days_past=days_past,
+        skip_index=skip_index,
+    )
+
+    # Print summary
+    if not quiet:
+        print()
+        if result.success:
+            print(colorize("Bootstrap Summary", Colors.BOLD, no_color))
+            print("-" * 20)
+            print(f"Status: {colorize('SUCCESS', Colors.GREEN, no_color)}")
+            print(f"Duration: {result.total_duration_ms / 1000:.1f}s")
+
+            # Get counts from stages
+            ingest_stage = result.stages.get("ingest")
+            meetings_count = ingest_stage.items_processed if ingest_stage else 0
+            print(f"Meetings: {meetings_count} ingested")
+
+            if not skip_index:
+                index_stage = result.stages.get("index")
+                indexed_count = index_stage.items_processed if index_stage else 0
+                if indexed_count > 0:
+                    print(f"Indexed: {indexed_count} items")
+
+            print()
+            print(f"Next: civic-status --jurisdiction {jurisdiction_id.replace('city-', '')}")
+
+        else:
+            print(colorize("Bootstrap FAILED", Colors.RED + Colors.BOLD, no_color))
+            print("-" * 20)
+            for err in all_errors:
+                print(f"  - {err}")
+
+            # Show stage errors
+            for stage_name, stage_status in result.stages.items():
+                if stage_status.errors:
+                    for err in stage_status.errors:
+                        print(f"  - {stage_name}: {err}")
+
+    return BootstrapResult(
+        success=result.success,
+        jurisdiction_id=result.jurisdiction_id,
+        source_id=result.source_id,
+        stages={k: v.to_dict() for k, v in result.stages.items()},
+        total_duration_ms=result.total_duration_ms,
+        meetings_count=result.stages.get("ingest", type("", (), {"items_processed": 0})).items_processed,
+        indexed_count=result.stages.get("index", type("", (), {"items_processed": 0})).items_processed,
+        errors=all_errors,
+    )
+
+
+def bootstrap_main():
+    """Main CLI entry point for bootstrap command."""
+    parser = argparse.ArgumentParser(
+        description="Bootstrap a new city for Civic platform",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  civic bootstrap san-rafael              # Full bootstrap
+  civic bootstrap san-rafael --verbose    # Detailed progress
+  civic bootstrap san-rafael --skip-index # Ingest only, skip indexing
+  civic bootstrap san-rafael --json       # Machine-readable output
+        """
+    )
+
+    parser.add_argument(
+        "jurisdiction",
+        help="Jurisdiction to bootstrap (e.g., 'san-rafael' or 'city-san-rafael')"
+    )
+
+    parser.add_argument(
+        "--days-ahead",
+        type=int,
+        default=90,
+        help="Days into future for event fetching (default: 90)"
+    )
+
+    parser.add_argument(
+        "--days-past",
+        type=int,
+        default=30,
+        help="Days into past for event fetching (default: 30)"
+    )
+
+    parser.add_argument(
+        "--skip-index",
+        action="store_true",
+        help="Skip the indexing stage (ingest only)"
+    )
+
+    parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Show detailed progress"
+    )
+
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable colored output"
+    )
+
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output as JSON"
+    )
+
+    args = parser.parse_args()
+
+    try:
+        result = run_bootstrap(
+            jurisdiction_id=args.jurisdiction,
+            days_ahead=args.days_ahead,
+            days_past=args.days_past,
+            skip_index=args.skip_index,
+            verbose=args.verbose and not args.json,
+            no_color=args.no_color or args.json,
+            quiet=args.json,
+        )
+
+        if args.json:
+            print(json.dumps(result.to_dict(), indent=2))
+
+        sys.exit(0 if result.success else 1)
+
+    except KeyboardInterrupt:
+        print("\nBootstrap interrupted.")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def main():
