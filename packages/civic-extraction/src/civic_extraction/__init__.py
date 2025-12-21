@@ -40,6 +40,7 @@ from civic_extraction.clients.base import (
     Meeting,
     DataSource,
     HealthStatus,
+    ValidationResult,
     ExtractionConfig,
 )
 from civic_extraction.pipeline import (
@@ -61,6 +62,7 @@ __all__ = [
     "Meeting",
     "DataSource",
     "HealthStatus",
+    "ValidationResult",
     "ExtractionConfig",
     "Pipeline",
     "PipelineResult",

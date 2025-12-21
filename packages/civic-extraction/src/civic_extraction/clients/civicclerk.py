@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from urllib.parse import quote
 
-from civic_extraction.clients.base import BaseExtractor, Meeting, HealthStatus
+from civic_extraction.clients.base import BaseExtractor, Meeting, HealthStatus, ValidationResult
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +126,60 @@ class CivicClerkClient(BaseExtractor):
             check_duration_ms=round(check_duration_ms, 2),
             errors=errors,
             last_successful=datetime.utcnow() if is_available else None,
+            metadata=metadata,
+        )
+
+    def validate(self) -> ValidationResult:
+        """
+        Validate source configuration and API access before running pipeline.
+
+        Preflight check that fails fast with clear error messages for:
+        - Missing subdomain
+        - Unreachable CivicClerk API endpoint
+
+        Returns:
+            ValidationResult with is_valid, errors, warnings, and timing
+        """
+        start_time = time.time()
+        errors: List[str] = []
+        warnings: List[str] = []
+        config_valid = True
+        api_reachable = False
+        metadata: Dict[str, Any] = {}
+
+        # Check required config
+        if not self.subdomain:
+            errors.append("subdomain is required")
+            config_valid = False
+
+        # Check API reachability by hitting /Boards endpoint (lightweight)
+        if config_valid:
+            try:
+                response = self.session.get(
+                    f"{self.api_base}/Boards",
+                    timeout=10
+                )
+                if response.status_code == 200:
+                    api_reachable = True
+                    data = response.json()
+                    boards = data.get('value', [])
+                    metadata["board_count"] = len(boards)
+                else:
+                    errors.append(f"Cannot reach CivicClerk API at {self.api_base}: HTTP {response.status_code}")
+                    metadata["status_code"] = response.status_code
+            except Exception as e:
+                errors.append(f"Cannot reach CivicClerk API: {str(e)}")
+                metadata["connection_error"] = str(e)
+
+        check_duration_ms = (time.time() - start_time) * 1000
+
+        return ValidationResult(
+            is_valid=len(errors) == 0,
+            config_valid=config_valid,
+            api_reachable=api_reachable,
+            errors=errors,
+            warnings=warnings,
+            check_duration_ms=round(check_duration_ms, 2),
             metadata=metadata,
         )
 

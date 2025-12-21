@@ -7,7 +7,7 @@ from datetime import datetime
 
 from civic_extraction import LegistarClient, CivicClerkClient, ProudCityClient, Meeting
 from civic_extraction import create_san_rafael_client, create_san_rafael_source
-from civic_extraction import ProudCitySource, ExtractionConfig, DataSource
+from civic_extraction import ProudCitySource, ExtractionConfig, DataSource, ValidationResult
 from civic_extraction.clients.base import BaseExtractor, Extractor
 
 
@@ -325,6 +325,130 @@ class TestProudCitySource:
         client = create_san_rafael_client()
         # Should have 15+ archives from config, not just 6 defaults
         assert len(client.archives) >= 15
+
+
+class TestValidationResult:
+    """Test ValidationResult dataclass."""
+
+    def test_validation_result_creation(self):
+        """Test basic ValidationResult creation."""
+        result = ValidationResult(
+            is_valid=True,
+            config_valid=True,
+            api_reachable=True,
+        )
+        assert result.is_valid is True
+        assert result.config_valid is True
+        assert result.api_reachable is True
+        assert result.errors == []
+        assert result.warnings == []
+
+    def test_validation_result_with_errors(self):
+        """Test ValidationResult with errors."""
+        result = ValidationResult(
+            is_valid=False,
+            config_valid=False,
+            api_reachable=False,
+            errors=["base_url is required", "jurisdiction_id is required"],
+            warnings=["Archive path for city_council should start with /"],
+        )
+        assert result.is_valid is False
+        assert len(result.errors) == 2
+        assert len(result.warnings) == 1
+        assert "base_url is required" in result.errors
+
+    def test_validation_result_to_dict(self):
+        """Test ValidationResult serialization."""
+        result = ValidationResult(
+            is_valid=True,
+            config_valid=True,
+            api_reachable=True,
+            check_duration_ms=123.45,
+            metadata={"body_count": 5},
+        )
+        d = result.to_dict()
+        assert d["is_valid"] is True
+        assert d["config_valid"] is True
+        assert d["api_reachable"] is True
+        assert d["check_duration_ms"] == 123.45
+        assert d["metadata"]["body_count"] == 5
+        assert "errors" in d
+        assert "warnings" in d
+
+
+class TestValidateMethods:
+    """Test validate() methods on data source clients."""
+
+    def test_legistar_validate_requires_client_name(self):
+        """Test LegistarClient.validate() checks client_name."""
+        # Create client with empty client_name (shouldn't happen normally)
+        client = LegistarClient("")
+        result = client.validate()
+        assert result.is_valid is False
+        assert result.config_valid is False
+        assert "client_name is required" in result.errors
+
+    def test_civicclerk_validate_requires_subdomain(self):
+        """Test CivicClerkClient.validate() checks subdomain."""
+        # Create client with empty subdomain (shouldn't happen normally)
+        client = CivicClerkClient("")
+        result = client.validate()
+        assert result.is_valid is False
+        assert result.config_valid is False
+        assert "subdomain is required" in result.errors
+
+    def test_proudcity_source_validate_checks_config(self):
+        """Test ProudCitySource.validate() checks config fields."""
+        # Create config with missing base_url
+        config = ExtractionConfig(
+            source_id="test-source",
+            source_type="proudcity",
+            jurisdiction_id="city-test",
+            base_url="",  # Empty - should fail
+            auto_discover=False,
+            archives={},
+        )
+        source = ProudCitySource(config)
+        result = source.validate()
+        assert result.is_valid is False
+        assert result.config_valid is False
+        assert "base_url is required" in result.errors
+
+    def test_proudcity_source_validate_requires_https(self):
+        """Test ProudCitySource.validate() requires HTTPS."""
+        config = ExtractionConfig(
+            source_id="test-source",
+            source_type="proudcity",
+            jurisdiction_id="city-test",
+            base_url="http://example.org",  # HTTP - should fail
+            auto_discover=True,
+        )
+        source = ProudCitySource(config)
+        result = source.validate()
+        assert result.is_valid is False
+        assert "HTTPS" in result.errors[0]
+
+    def test_proudcity_source_validate_requires_archives_or_autodiscover(self):
+        """Test ProudCitySource.validate() requires archives or auto_discover."""
+        config = ExtractionConfig(
+            source_id="test-source",
+            source_type="proudcity",
+            jurisdiction_id="city-test",
+            base_url="https://example.org",
+            auto_discover=False,
+            archives={},  # Empty and no auto_discover
+        )
+        source = ProudCitySource(config)
+        result = source.validate()
+        assert result.is_valid is False
+        assert "archives is empty and auto_discover is not enabled" in result.errors
+
+    def test_proudcity_source_validate_timing(self):
+        """Test ValidationResult includes timing info."""
+        source = ProudCitySource.from_jurisdiction("city-san-rafael")
+        result = source.validate()
+        # Should have timing info regardless of success/failure
+        assert result.check_duration_ms >= 0
 
 
 class TestPipeline:

@@ -21,7 +21,7 @@ import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 
-from civic_extraction.clients.base import BaseExtractor, Meeting, HealthStatus
+from civic_extraction.clients.base import BaseExtractor, Meeting, HealthStatus, ValidationResult
 
 logger = logging.getLogger(__name__)
 
@@ -877,6 +877,94 @@ class ProudCitySource:
     def health(self) -> HealthStatus:
         """Check source availability via underlying client."""
         return self._client.health()
+
+    def validate(self) -> ValidationResult:
+        """
+        Validate source configuration and API access before running pipeline.
+
+        Preflight check that fails fast with clear error messages for:
+        - Missing or invalid config fields
+        - Unreachable API endpoints
+        - Empty archives without auto_discover enabled
+
+        Returns:
+            ValidationResult with is_valid, errors, warnings, and timing
+        """
+        start_time = time.time()
+        errors: List[str] = []
+        warnings: List[str] = []
+        config_valid = True
+        api_reachable = False
+        metadata: Dict[str, Any] = {}
+
+        # Check required config fields
+        if not self._config.base_url:
+            errors.append("base_url is required")
+            config_valid = False
+        elif not self._config.base_url.startswith("https://"):
+            errors.append(f"base_url must use HTTPS: {self._config.base_url}")
+            config_valid = False
+
+        if not self._config.jurisdiction_id:
+            errors.append("jurisdiction_id is required")
+            config_valid = False
+
+        if not self._config.source_id:
+            errors.append("source_id is required")
+            config_valid = False
+
+        # Check that archives are configured or auto_discover is enabled
+        if not self._config.archives and not self._config.auto_discover:
+            errors.append("archives is empty and auto_discover is not enabled")
+            config_valid = False
+
+        # Check API reachability (only if config is valid)
+        if config_valid:
+            try:
+                meetings_url = f"{self._config.base_url}/meetings/"
+                response = self._client._make_request(meetings_url, retries=1, timeout=10)
+                if response and response.status_code == 200:
+                    api_reachable = True
+                    metadata["main_page_status"] = 200
+                else:
+                    status = response.status_code if response else "no response"
+                    errors.append(f"Cannot reach {meetings_url}: HTTP {status}")
+                    metadata["main_page_status"] = status
+            except Exception as e:
+                errors.append(f"Cannot reach {self._config.base_url}: {str(e)}")
+                metadata["connection_error"] = str(e)
+
+        # Validate archive paths (only if API is reachable and archives configured)
+        if api_reachable and self._config.archives:
+            archive_checks = {}
+            for meeting_type, path in self._config.archives.items():
+                if not path.startswith("/"):
+                    warnings.append(f"Archive path for {meeting_type} should start with /: {path}")
+                try:
+                    archive_url = f"{self._config.base_url}{path}"
+                    response = self._client._make_request(archive_url, retries=1, timeout=10)
+                    if response and response.status_code == 200:
+                        archive_checks[meeting_type] = "ok"
+                    else:
+                        status = response.status_code if response else "no response"
+                        warnings.append(f"Archive unreachable: {meeting_type} ({path}) - HTTP {status}")
+                        archive_checks[meeting_type] = f"error: {status}"
+                except Exception as e:
+                    warnings.append(f"Archive check failed: {meeting_type} ({path}) - {str(e)}")
+                    archive_checks[meeting_type] = f"error: {str(e)}"
+            metadata["archive_checks"] = archive_checks
+
+        check_duration_ms = (time.time() - start_time) * 1000
+
+        return ValidationResult(
+            is_valid=len(errors) == 0,
+            config_valid=config_valid,
+            api_reachable=api_reachable,
+            errors=errors,
+            warnings=warnings,
+            check_duration_ms=round(check_duration_ms, 2),
+            metadata=metadata,
+        )
 
     def get_events(self, days_ahead: int = 90, days_past: int = 0):
         """Extract events from the underlying client."""
