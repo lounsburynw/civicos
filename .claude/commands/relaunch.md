@@ -1,1 +1,1 @@
-Please re-launch the app.
+Re-launch the Civic development servers using `./scripts/dev.sh`. See `/launch` for details.
