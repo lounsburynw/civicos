@@ -875,10 +875,12 @@
     "description": "Modular ETL pipeline for onboarding new cities - PRIORITY: complete before dashboard redesign",
     "configuration": {
       "extraction_config_schema": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": "Define DataSource interface with health() method returning standardized status",
-        "note": "Clean abstraction enables clean dashboard. Each source exposes: available count, last_checked, errors[]"
+        "note": "Clean abstraction enables clean dashboard. Each source exposes: available count, last_checked, errors[]",
+        "completed": "2025-12-21",
+        "implementation": "Added DataSource Protocol and HealthStatus dataclass in civic_extraction/clients/base.py. All three clients (LegistarClient, CivicClerkClient, ProudCityClient) implement source_id, source_type properties and health() method."
       },
       "san_rafael_extraction_config": {
         "status": "not_ready",

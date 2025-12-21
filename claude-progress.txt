@@ -1,3 +1,43 @@
+## Session 311: extraction_config_schema - DataSource Interface with Health Check
+
+**Date:** 2025-12-21
+**Item:** extraction_config_schema (city_onboarding > configuration)
+**Priority:** P1
+
+### Summary
+Added `DataSource` Protocol and `HealthStatus` dataclass defining a standardized interface for data source health monitoring. All three extraction clients now implement the interface.
+
+### Implementation
+
+**1. Interface Definition** (civic_extraction/clients/base.py)
+- Added `HealthStatus` dataclass with fields: source_id, source_type, jurisdiction_id, is_available, available_count, last_checked, check_duration_ms, errors, last_successful, coverage_percent, metadata
+- Added `DataSource` Protocol with `source_id`, `source_type` properties and `health()` method
+- Added `to_dict()` serialization method to HealthStatus
+
+**2. Client Implementations**
+- ProudCityClient: `health()` checks /meetings/ page, calls `get_source_inventory()` for counts
+- LegistarClient: `health()` queries 14-day event window and body count
+- CivicClerkClient: `health()` queries 14-day event window and board count
+
+**3. Package Exports** (civic_extraction/__init__.py)
+- Exported `DataSource` and `HealthStatus` from package
+
+### Files Changed
+- `packages/civic-extraction/src/civic_extraction/clients/base.py` - Interface definition
+- `packages/civic-extraction/src/civic_extraction/clients/proudcity.py` - health() implementation
+- `packages/civic-extraction/src/civic_extraction/clients/legistar.py` - health() implementation
+- `packages/civic-extraction/src/civic_extraction/clients/civicclerk.py` - health() implementation
+- `packages/civic-extraction/src/civic_extraction/__init__.py` - Exports
+- `pilot.json` - Updated extraction_config_schema to "ready"
+
+### Tests
+- 34 smoke tests passing
+- Interface verification: All clients satisfy DataSource protocol (isinstance check passes)
+
+**Commit:** Session 311: extraction_config_schema - DataSource interface with health check
+
+---
+
 ## Session 309: running_operations - Running Operations Progress Indicator
 **Date:** 2025-12-18
 **Item:** running_operations (admin_operations > operation_status)

@@ -10,12 +10,16 @@ Usage:
     meetings = client.get_meetings(days_ahead=30)  # Normalized
 """
 
+import logging
 import requests
+import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from urllib.parse import quote
 
-from civic_extraction.clients.base import BaseExtractor, Meeting
+from civic_extraction.clients.base import BaseExtractor, Meeting, HealthStatus
+
+logger = logging.getLogger(__name__)
 
 
 class CivicClerkClient(BaseExtractor):
@@ -49,6 +53,81 @@ class CivicClerkClient(BaseExtractor):
     @property
     def platform_name(self) -> str:
         return "civicclerk"
+
+    @property
+    def source_id(self) -> str:
+        """Unique identifier: platform-jurisdiction."""
+        return f"civicclerk-{self.subdomain}"
+
+    @property
+    def source_type(self) -> str:
+        """Type of source."""
+        return "civicclerk"
+
+    def health(self) -> HealthStatus:
+        """
+        Check source availability and return standardized status.
+
+        Performs a lightweight check by querying events for the last 7 days.
+        """
+        start_time = time.time()
+        errors: List[str] = []
+        is_available = False
+        available_count = 0
+        metadata: Dict[str, Any] = {}
+
+        try:
+            # Quick availability check: query last 7 days of events (no enrichment for speed)
+            start_date = datetime.now() - timedelta(days=7)
+            end_date = datetime.now() + timedelta(days=7)
+
+            start_str = start_date.strftime('%Y-%m-%dT00:00:00.000Z')
+            end_str = end_date.strftime('%Y-%m-%dT23:59:59.999Z')
+
+            filter_str = f"startDateTime ge {start_str} and startDateTime le {end_str}"
+            api_url = f"{self.api_base}/Events?$filter={quote(filter_str)}&$top=100"
+
+            response = self.session.get(api_url, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            events = data.get('value', [])
+
+            is_available = True
+            available_count = len(events)
+
+            # Get board count for metadata
+            boards = self.get_boards()
+            metadata = {
+                'event_count_14day': available_count,
+                'board_count': len(boards) if boards else 0,
+            }
+
+        except Exception as e:
+            errors.append(f"Health check error: {str(e)}")
+            logger.warning(
+                "Health check failed",
+                extra={
+                    "error": str(e),
+                    "jurisdiction_id": self.jurisdiction_id,
+                    "platform": self.platform_name,
+                    "subdomain": self.subdomain,
+                }
+            )
+
+        check_duration_ms = (time.time() - start_time) * 1000
+
+        return HealthStatus(
+            source_id=self.source_id,
+            source_type=self.source_type,
+            jurisdiction_id=self.jurisdiction_id,
+            is_available=is_available,
+            available_count=available_count,
+            last_checked=datetime.utcnow(),
+            check_duration_ms=round(check_duration_ms, 2),
+            errors=errors,
+            last_successful=datetime.utcnow() if is_available else None,
+            metadata=metadata,
+        )
 
     def get_events(
         self,
