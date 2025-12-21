@@ -327,5 +327,333 @@ class TestProudCitySource:
         assert len(client.archives) >= 15
 
 
+class TestPipeline:
+    """Test the Pipeline class for ETL orchestration."""
+
+    def test_pipeline_creation(self):
+        """Test Pipeline creates with correct initial state."""
+        from civic_extraction.pipeline import Pipeline, StageState
+
+        source = ProudCitySource.from_jurisdiction("city-san-rafael")
+        pipeline = Pipeline(source, "city-san-rafael")
+
+        assert pipeline.jurisdiction_id == "city-san-rafael"
+        assert pipeline.source_id == "proudcity-city-san-rafael"
+
+        # All stages should be pending
+        status = pipeline.status()
+        assert status["is_running"] is False
+        assert status["stages"]["discover"]["state"] == StageState.PENDING.value
+        assert status["stages"]["ingest"]["state"] == StageState.PENDING.value
+        assert status["stages"]["index"]["state"] == StageState.PENDING.value
+
+    def test_pipeline_has_three_stages(self):
+        """Test Pipeline has discover, ingest, index stages."""
+        from civic_extraction.pipeline import Pipeline
+
+        assert Pipeline.STAGES == ["discover", "ingest", "index"]
+
+    def test_pipeline_status_method(self):
+        """Test Pipeline.status() returns dashboard-consumable dict."""
+        from civic_extraction.pipeline import Pipeline
+
+        source = ProudCitySource.from_jurisdiction("city-san-rafael")
+        pipeline = Pipeline(source, "city-san-rafael")
+
+        status = pipeline.status()
+
+        # Required keys
+        assert "jurisdiction_id" in status
+        assert "source_id" in status
+        assert "is_running" in status
+        assert "stages" in status
+
+        # All three stages present
+        assert "discover" in status["stages"]
+        assert "ingest" in status["stages"]
+        assert "index" in status["stages"]
+
+        # Each stage has required fields
+        for stage_name in ["discover", "ingest", "index"]:
+            stage = status["stages"][stage_name]
+            assert "state" in stage
+            assert "items_found" in stage
+            assert "items_processed" in stage
+            assert "duration_ms" in stage
+            assert "errors" in stage
+
+    def test_stage_status_to_dict(self):
+        """Test StageStatus.to_dict() serialization."""
+        from civic_extraction.pipeline import StageStatus, StageState
+        from datetime import datetime
+
+        status = StageStatus(
+            state=StageState.COMPLETED,
+            items_found=50,
+            items_processed=48,
+            duration_ms=1234.5,
+            errors=["minor error"],
+            started_at=datetime(2025, 12, 21, 10, 0, 0),
+            completed_at=datetime(2025, 12, 21, 10, 0, 1),
+            progress_percent=96.0,
+        )
+
+        d = status.to_dict()
+        assert d["state"] == "completed"
+        assert d["items_found"] == 50
+        assert d["items_processed"] == 48
+        assert d["duration_ms"] == 1234.5
+        assert d["errors"] == ["minor error"]
+        assert "2025-12-21" in d["started_at"]
+        assert d["progress_percent"] == 96.0
+
+    def test_pipeline_result_to_dict(self):
+        """Test PipelineResult.to_dict() serialization."""
+        from civic_extraction.pipeline import PipelineResult, StageStatus, StageState
+        from datetime import datetime
+
+        result = PipelineResult(
+            success=True,
+            stages={
+                "discover": StageStatus(state=StageState.COMPLETED, items_found=50),
+                "ingest": StageStatus(state=StageState.COMPLETED, items_processed=50),
+                "index": StageStatus(state=StageState.COMPLETED, items_processed=50),
+            },
+            total_duration_ms=5000.0,
+            started_at=datetime(2025, 12, 21, 10, 0, 0),
+            completed_at=datetime(2025, 12, 21, 10, 0, 5),
+            jurisdiction_id="city-san-rafael",
+            source_id="proudcity-san-rafael",
+        )
+
+        d = result.to_dict()
+        assert d["success"] is True
+        assert d["total_duration_ms"] == 5000.0
+        assert d["jurisdiction_id"] == "city-san-rafael"
+        assert "discover" in d["stages"]
+        assert d["stages"]["discover"]["state"] == "completed"
+
+    def test_pipeline_reset(self):
+        """Test Pipeline.reset() clears state."""
+        from civic_extraction.pipeline import Pipeline, StageState
+
+        source = ProudCitySource.from_jurisdiction("city-san-rafael")
+        pipeline = Pipeline(source, "city-san-rafael")
+
+        # Simulate some state
+        pipeline._stages["discover"].state = StageState.COMPLETED
+        pipeline._stages["discover"].items_found = 100
+
+        # Reset
+        pipeline.reset()
+
+        status = pipeline.status()
+        assert status["stages"]["discover"]["state"] == StageState.PENDING.value
+        assert status["stages"]["discover"]["items_found"] == 0
+
+    def test_stage_state_enum_values(self):
+        """Test StageState enum has expected values."""
+        from civic_extraction.pipeline import StageState
+
+        assert StageState.PENDING.value == "pending"
+        assert StageState.RUNNING.value == "running"
+        assert StageState.COMPLETED.value == "completed"
+        assert StageState.FAILED.value == "failed"
+        assert StageState.SKIPPED.value == "skipped"
+
+
+class TestPipelineWithMockSource:
+    """Test Pipeline with a mock DataSource for isolated testing."""
+
+    def test_pipeline_run_with_mock_source(self):
+        """Test Pipeline.run() executes all stages with mock source."""
+        from civic_extraction.pipeline import Pipeline, StageState
+        from civic_extraction.clients.base import HealthStatus, Meeting
+        from datetime import datetime
+
+        class MockSource:
+            """Mock DataSource for testing."""
+            source_id = "mock-test"
+            source_type = "mock"
+
+            def health(self):
+                return HealthStatus(
+                    source_id="mock-test",
+                    source_type="mock",
+                    jurisdiction_id="city-test",
+                    is_available=True,
+                    available_count=3,
+                    last_checked=datetime.now(),
+                    check_duration_ms=10.0,
+                )
+
+            def get_meetings(self, days_ahead=90, days_past=30):
+                return [
+                    Meeting(
+                        id="mock-1",
+                        title="Mock Meeting 1",
+                        meeting_datetime=datetime.now(),
+                        jurisdiction_id="city-test",
+                    ),
+                    Meeting(
+                        id="mock-2",
+                        title="Mock Meeting 2",
+                        meeting_datetime=datetime.now(),
+                        jurisdiction_id="city-test",
+                    ),
+                ]
+
+        source = MockSource()
+        pipeline = Pipeline(source, "city-test")
+
+        result = pipeline.run(skip_index=True)
+
+        assert result.success is True
+        assert result.jurisdiction_id == "city-test"
+        assert result.source_id == "mock-test"
+
+        # Discover stage should complete
+        assert result.stages["discover"].state == StageState.COMPLETED
+        assert result.stages["discover"].items_found == 3
+
+        # Ingest stage should complete
+        assert result.stages["ingest"].state == StageState.COMPLETED
+        assert result.stages["ingest"].items_processed == 2
+
+        # Index stage should be skipped
+        assert result.stages["index"].state == StageState.SKIPPED
+
+    def test_pipeline_callbacks_called(self):
+        """Test Pipeline.run() calls callbacks at appropriate times."""
+        from civic_extraction.pipeline import Pipeline
+        from civic_extraction.clients.base import HealthStatus, Meeting
+        from datetime import datetime
+
+        class MockSource:
+            source_id = "mock-test"
+            source_type = "mock"
+
+            def health(self):
+                return HealthStatus(
+                    source_id="mock-test",
+                    source_type="mock",
+                    jurisdiction_id="city-test",
+                    is_available=True,
+                    available_count=5,
+                    last_checked=datetime.now(),
+                    check_duration_ms=10.0,
+                )
+
+            def get_meetings(self, days_ahead=90, days_past=30):
+                return [
+                    Meeting(
+                        id="mock-1",
+                        title="Mock",
+                        meeting_datetime=datetime.now(),
+                        jurisdiction_id="city-test",
+                    ),
+                ]
+
+        # Track callback invocations
+        started_stages = []
+        completed_stages = []
+
+        def on_start(stage):
+            started_stages.append(stage)
+
+        def on_complete(stage, status):
+            completed_stages.append(stage)
+
+        source = MockSource()
+        pipeline = Pipeline(source, "city-test")
+        pipeline.run(
+            on_stage_start=on_start,
+            on_stage_complete=on_complete,
+            skip_index=True,
+        )
+
+        assert "discover" in started_stages
+        assert "ingest" in started_stages
+        assert "discover" in completed_stages
+        assert "ingest" in completed_stages
+
+    def test_pipeline_handles_discover_failure(self):
+        """Test Pipeline handles discover stage failure gracefully."""
+        from civic_extraction.pipeline import Pipeline, StageState
+
+        class FailingSource:
+            source_id = "failing-test"
+            source_type = "mock"
+
+            def health(self):
+                raise ConnectionError("Cannot connect to source")
+
+            def get_meetings(self, days_ahead=90, days_past=30):
+                return []
+
+        errors_logged = []
+
+        def on_error(stage, exc):
+            errors_logged.append((stage, str(exc)))
+
+        source = FailingSource()
+        pipeline = Pipeline(source, "city-test")
+        result = pipeline.run(on_error=on_error, skip_index=True)
+
+        assert result.success is False
+        assert result.stages["discover"].state == StageState.FAILED
+        assert "Cannot connect" in result.stages["discover"].errors[0]
+        assert result.stages["ingest"].state == StageState.SKIPPED
+        assert ("discover", "Cannot connect to source") in errors_logged
+
+    def test_pipeline_with_index_target(self):
+        """Test Pipeline.run() with an index target."""
+        from civic_extraction.pipeline import Pipeline, StageState
+        from civic_extraction.clients.base import HealthStatus, Meeting
+        from datetime import datetime
+
+        class MockSource:
+            source_id = "mock-test"
+            source_type = "mock"
+
+            def health(self):
+                return HealthStatus(
+                    source_id="mock-test",
+                    source_type="mock",
+                    jurisdiction_id="city-test",
+                    is_available=True,
+                    available_count=2,
+                    last_checked=datetime.now(),
+                    check_duration_ms=10.0,
+                )
+
+            def get_meetings(self, days_ahead=90, days_past=30):
+                return [
+                    Meeting(
+                        id="mock-1",
+                        title="Mock",
+                        meeting_datetime=datetime.now(),
+                        jurisdiction_id="city-test",
+                    ),
+                ]
+
+        class MockIndexTarget:
+            indexed_count = 0
+
+            def index_meetings(self, meetings):
+                self.indexed_count = len(meetings)
+                return len(meetings)
+
+        source = MockSource()
+        index_target = MockIndexTarget()
+        pipeline = Pipeline(source, "city-test", index_target=index_target)
+        result = pipeline.run()
+
+        assert result.success is True
+        assert result.stages["index"].state == StageState.COMPLETED
+        assert result.stages["index"].items_processed == 1
+        assert index_target.indexed_count == 1
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -42,6 +42,12 @@ from civic_extraction.clients.base import (
     HealthStatus,
     ExtractionConfig,
 )
+from civic_extraction.pipeline import (
+    Pipeline,
+    PipelineResult,
+    StageStatus,
+    StageState,
+)
 
 __version__ = "0.1.0"
 __all__ = [
@@ -56,4 +62,8 @@ __all__ = [
     "DataSource",
     "HealthStatus",
     "ExtractionConfig",
+    "Pipeline",
+    "PipelineResult",
+    "StageStatus",
+    "StageState",
 ]

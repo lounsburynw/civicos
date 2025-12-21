@@ -897,10 +897,12 @@
     },
     "orchestration": {
       "generalized_pipeline_runner": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": "Pipeline class with stages: discover -> ingest -> index, each with status callbacks",
-        "note": "Dashboard consumes pipeline.status() for real-time progress"
+        "note": "Dashboard consumes pipeline.status() for real-time progress",
+        "completed": "2025-12-21",
+        "location": "packages/civic-extraction/src/civic_extraction/pipeline.py"
       },
       "checkpoint_for_meetings": {
         "status": "not_ready",
