@@ -6,7 +6,8 @@ import pytest
 from datetime import datetime
 
 from civic_extraction import LegistarClient, CivicClerkClient, ProudCityClient, Meeting
-from civic_extraction import create_san_rafael_client
+from civic_extraction import create_san_rafael_client, create_san_rafael_source
+from civic_extraction import ProudCitySource, ExtractionConfig, DataSource
 from civic_extraction.clients.base import BaseExtractor, Extractor
 
 
@@ -253,6 +254,77 @@ class TestExtractorProtocol:
             jurisdiction_id="city-san-rafael"
         )
         assert isinstance(client, Extractor)
+
+
+class TestExtractionConfig:
+    """Test ExtractionConfig dataclass and loading."""
+
+    def test_extraction_config_from_jurisdiction(self):
+        """Test loading config from jurisdiction ID."""
+        config = ExtractionConfig.from_jurisdiction("city-san-rafael")
+        assert config.source_id == "proudcity-san-rafael"
+        assert config.source_type == "proudcity"
+        assert config.jurisdiction_id == "city-san-rafael"
+        assert config.base_url == "https://www.cityofsanrafael.org"
+        assert config.auto_discover is True
+        assert "city_council" in config.archives
+        assert "planning_commission" in config.archives
+
+    def test_extraction_config_archives_complete(self):
+        """Test San Rafael config has all discovered archives."""
+        config = ExtractionConfig.from_jurisdiction("city-san-rafael")
+        # Should have 15 discovered meeting types from Session 304
+        assert len(config.archives) >= 15
+        # Check a few specific types
+        assert config.archives.get("city_council") == "/city-council-meetings/"
+        assert config.archives.get("ada_access_advisory_committee") == "/ada-access-advisory-committee-meetings/"
+        assert config.archives.get("design_review_board") == "/design-review-board-hearings/"
+
+    def test_extraction_config_not_found(self):
+        """Test missing config raises FileNotFoundError."""
+        with pytest.raises(FileNotFoundError):
+            ExtractionConfig.from_jurisdiction("city-nonexistent")
+
+
+class TestProudCitySource:
+    """Test ProudCitySource config-driven wrapper."""
+
+    def test_proudcity_source_from_jurisdiction(self):
+        """Test creating ProudCitySource from jurisdiction ID."""
+        source = ProudCitySource.from_jurisdiction("city-san-rafael")
+        assert source.source_id == "proudcity-city-san-rafael"
+        assert source.source_type == "proudcity"
+        assert source.config.jurisdiction_id == "city-san-rafael"
+
+    def test_proudcity_source_has_client(self):
+        """Test ProudCitySource exposes underlying client."""
+        source = ProudCitySource.from_jurisdiction("city-san-rafael")
+        assert source.client is not None
+        assert isinstance(source.client, ProudCityClient)
+
+    def test_proudcity_source_archives_from_config(self):
+        """Test ProudCitySource uses archives from config."""
+        source = ProudCitySource.from_jurisdiction("city-san-rafael")
+        # Client should have 15+ archives from config, not just 6 defaults
+        assert len(source.client.archives) >= 15
+        assert "ada_access_advisory_committee" in source.client.archives
+
+    def test_proudcity_source_implements_datasource(self):
+        """Test ProudCitySource implements DataSource protocol."""
+        source = ProudCitySource.from_jurisdiction("city-san-rafael")
+        assert isinstance(source, DataSource)
+
+    def test_create_san_rafael_source_factory(self):
+        """Test convenience factory for ProudCitySource."""
+        source = create_san_rafael_source()
+        assert source.source_id == "proudcity-city-san-rafael"
+        assert isinstance(source, ProudCitySource)
+
+    def test_create_san_rafael_client_uses_config(self):
+        """Test create_san_rafael_client uses config by default."""
+        client = create_san_rafael_client()
+        # Should have 15+ archives from config, not just 6 defaults
+        assert len(client.archives) >= 15
 
 
 if __name__ == "__main__":

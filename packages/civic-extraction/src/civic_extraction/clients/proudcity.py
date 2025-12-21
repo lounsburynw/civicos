@@ -796,15 +796,128 @@ class ProudCityClient(BaseExtractor):
         return f"{self.base_url}{url}"
 
 
+class ProudCitySource:
+    """
+    Config-driven wrapper for ProudCityClient implementing DataSource protocol.
+
+    Loads extraction configuration from JSON files and creates a properly
+    configured ProudCityClient. Provides config-driven setup for city onboarding.
+
+    Usage:
+        source = ProudCitySource.from_jurisdiction("city-san-rafael")
+        client = source.client
+        health = source.health()
+    """
+
+    def __init__(self, config: "ExtractionConfig"):
+        """
+        Initialize ProudCitySource from an ExtractionConfig.
+
+        Args:
+            config: ExtractionConfig loaded from JSON
+        """
+        from civic_extraction.clients.base import ExtractionConfig
+        self._config = config
+        self._client = ProudCityClient(
+            base_url=config.base_url,
+            jurisdiction_id=config.jurisdiction_id,
+            archives=config.archives if config.archives else None
+        )
+
+    @classmethod
+    def from_jurisdiction(cls, jurisdiction_id: str) -> "ProudCitySource":
+        """
+        Create ProudCitySource from jurisdiction ID, loading config from file.
+
+        Args:
+            jurisdiction_id: Jurisdiction ID (e.g., "city-san-rafael")
+
+        Returns:
+            Configured ProudCitySource
+        """
+        from civic_extraction.clients.base import ExtractionConfig
+        config = ExtractionConfig.from_jurisdiction(jurisdiction_id)
+        return cls(config)
+
+    @classmethod
+    def from_config_file(cls, path: str) -> "ProudCitySource":
+        """
+        Create ProudCitySource from a specific config file path.
+
+        Args:
+            path: Path to extraction config JSON file
+
+        Returns:
+            Configured ProudCitySource
+        """
+        from civic_extraction.clients.base import ExtractionConfig
+        config = ExtractionConfig.from_file(path)
+        return cls(config)
+
+    @property
+    def client(self) -> ProudCityClient:
+        """Get the underlying ProudCityClient."""
+        return self._client
+
+    @property
+    def config(self) -> "ExtractionConfig":
+        """Get the extraction configuration."""
+        return self._config
+
+    @property
+    def source_id(self) -> str:
+        """Unique identifier: platform-jurisdiction."""
+        return self._client.source_id
+
+    @property
+    def source_type(self) -> str:
+        """Type of source."""
+        return self._client.source_type
+
+    def health(self) -> HealthStatus:
+        """Check source availability via underlying client."""
+        return self._client.health()
+
+    def get_events(self, days_ahead: int = 90, days_past: int = 0):
+        """Extract events from the underlying client."""
+        return self._client.get_events(days_ahead=days_ahead, days_past=days_past)
+
+    def get_meetings(self, days_ahead: int = 90, days_past: int = 0):
+        """Get normalized meetings from the underlying client."""
+        return self._client.get_meetings(days_ahead=days_ahead, days_past=days_past)
+
+
 # Convenience factory for San Rafael
-def create_san_rafael_client() -> ProudCityClient:
+def create_san_rafael_client(use_config: bool = True) -> ProudCityClient:
     """
     Create a ProudCityClient configured for San Rafael.
+
+    Args:
+        use_config: If True (default), load archives from config file.
+                   If False, use DEFAULT_ARCHIVES for backward compatibility.
 
     Returns:
         ProudCityClient configured with San Rafael's archive URLs
     """
+    if use_config:
+        try:
+            source = ProudCitySource.from_jurisdiction("city-san-rafael")
+            return source.client
+        except FileNotFoundError:
+            # Fall back to hardcoded defaults if config not found
+            pass
+
     return ProudCityClient(
         base_url="https://www.cityofsanrafael.org",
         jurisdiction_id="city-san-rafael"
     )
+
+
+def create_san_rafael_source() -> ProudCitySource:
+    """
+    Create a config-driven ProudCitySource for San Rafael.
+
+    Returns:
+        ProudCitySource with full config access
+    """
+    return ProudCitySource.from_jurisdiction("city-san-rafael")

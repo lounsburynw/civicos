@@ -883,7 +883,7 @@
         "implementation": "Added DataSource Protocol and HealthStatus dataclass in civic_extraction/clients/base.py. All three clients (LegistarClient, CivicClerkClient, ProudCityClient) implement source_id, source_type properties and health() method."
       },
       "san_rafael_extraction_config": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": "Implement ProudCitySource(DataSource) with config-driven setup",
         "note": "Move hard-coded archives from proudcity.py to jurisdiction config"
