@@ -58,6 +58,61 @@ class HealthStatus:
         }
 
 
+@dataclass
+class ExtractionConfig:
+    """
+    Configuration for a data extraction source.
+
+    Loaded from JSON config files in data/extraction/.
+    """
+
+    source_id: str  # "proudcity-san-rafael"
+    source_type: str  # "proudcity", "legistar", "civicclerk"
+    jurisdiction_id: str  # "city-san-rafael"
+    base_url: str  # "https://www.cityofsanrafael.org"
+    auto_discover: bool = False  # Whether to auto-discover archives
+    archives: Dict[str, str] = field(default_factory=dict)  # meeting_type -> path
+    metadata: Dict[str, Any] = field(default_factory=dict)  # Additional config
+
+    @classmethod
+    def from_file(cls, path: str) -> "ExtractionConfig":
+        """Load configuration from a JSON file."""
+        import json
+        with open(path, "r") as f:
+            data = json.load(f)
+        return cls(
+            source_id=data["source_id"],
+            source_type=data["source_type"],
+            jurisdiction_id=data["jurisdiction_id"],
+            base_url=data["base_url"],
+            auto_discover=data.get("auto_discover", False),
+            archives=data.get("archives", {}),
+            metadata=data.get("metadata", {}),
+        )
+
+    @classmethod
+    def from_jurisdiction(cls, jurisdiction_id: str) -> "ExtractionConfig":
+        """Load configuration for a jurisdiction from the standard config directory."""
+        import os
+
+        # Map jurisdiction_id to config file name
+        # e.g., "city-san-rafael" -> "san-rafael.json"
+        config_name = jurisdiction_id.replace("city-", "")
+        config_dir = os.path.join(
+            os.path.dirname(__file__),
+            "..", "..", "..", "..", "..",  # Up to project root
+            "data", "extraction"
+        )
+        config_path = os.path.join(config_dir, f"{config_name}.json")
+        config_path = os.path.normpath(config_path)
+
+        if not os.path.exists(config_path):
+            raise FileNotFoundError(
+                f"No extraction config found for {jurisdiction_id} at {config_path}"
+            )
+        return cls.from_file(config_path)
+
+
 @runtime_checkable
 class DataSource(Protocol):
     """

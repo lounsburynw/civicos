@@ -3717,3 +3717,62 @@ Added a "Download Audio" button to the admin status page that triggers YouTube a
 - TypeScript type-check passes
 
 **Commit:** Session 306: download_audio_button - Admin Download Audio trigger
+
+---
+
+## Session 312: san_rafael_extraction_config - Config-driven ProudCitySource
+**Date:** 2025-12-21
+**Item:** san_rafael_extraction_config (city_onboarding > configuration)
+**Priority:** P1
+
+### Summary
+Implemented config-driven setup for ProudCity extraction, moving hard-coded archives from proudcity.py to a jurisdiction config file. Created `ProudCitySource` class that implements DataSource protocol and loads configuration from JSON.
+
+### Implementation
+
+**1. Extraction Config File** (data/extraction/san-rafael.json)
+- Created new `data/extraction/` directory for extraction configs
+- Config contains: source_id, source_type, jurisdiction_id, base_url, auto_discover flag
+- Archives: All 15 discovered meeting types from Session 304 (vs 6 hardcoded defaults)
+- Includes metadata with creation date and notes
+
+**2. ExtractionConfig Dataclass** (base.py lines 61-113)
+- Added `ExtractionConfig` dataclass to hold source configuration
+- `from_file(path)` - Load from specific JSON file
+- `from_jurisdiction(jurisdiction_id)` - Load from standard config directory
+- Maps "city-san-rafael" -> "data/extraction/san-rafael.json"
+
+**3. ProudCitySource Class** (proudcity.py lines 799-887)
+- Config-driven wrapper implementing DataSource protocol
+- `from_jurisdiction(jurisdiction_id)` - Create from jurisdiction ID
+- `from_config_file(path)` - Create from specific config file
+- Exposes: source_id, source_type, client, config, health(), get_events(), get_meetings()
+- Delegates to underlying ProudCityClient
+
+**4. Updated Factory Functions** (proudcity.py lines 890-923)
+- `create_san_rafael_client(use_config=True)` - Now loads archives from config by default
+- Falls back to hardcoded defaults if config not found
+- Added `create_san_rafael_source()` - Returns ProudCitySource for full config access
+
+**5. Exports Updated** (__init__.py in both civic_extraction and clients/)
+- Exported: ProudCitySource, create_san_rafael_source, ExtractionConfig
+
+### Tests Added
+- TestExtractionConfig: 3 tests (from_jurisdiction, archives_complete, not_found)
+- TestProudCitySource: 6 tests (from_jurisdiction, has_client, archives_from_config, implements_datasource, factory, client_uses_config)
+- Total: 32 extraction client tests passing (was 23)
+
+### Files Changed
+- `data/extraction/san-rafael.json` - NEW: Extraction config for San Rafael
+- `packages/civic-extraction/src/civic_extraction/clients/base.py` - Added ExtractionConfig
+- `packages/civic-extraction/src/civic_extraction/clients/proudcity.py` - Added ProudCitySource, updated create_san_rafael_client
+- `packages/civic-extraction/src/civic_extraction/clients/__init__.py` - Exports
+- `packages/civic-extraction/src/civic_extraction/__init__.py` - Exports
+- `packages/civic-extraction/tests/test_clients.py` - 9 new tests
+- `pilot.json` - Updated san_rafael_extraction_config to "ready"
+
+### Tests
+- 32 extraction client tests passing
+- 34 smoke tests passing
+
+**Commit:** Session 312: san_rafael_extraction_config - Config-driven ProudCitySource
