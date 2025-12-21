@@ -1,86 +1,101 @@
-# Next Session: Admin Dashboard Redesign
+# Next Session: ETL Modularization for City Onboarding
 
 ## Context
 
 Session 310 completed:
-- Created `scripts/dev.sh` for launching dev servers with proper env config
-- Fixed 90+ bare imports across civic_services to use full module paths
-- Added `/launch` command documenting the startup process
-- Updated CLAUDE.md with launch instructions
+- Created `scripts/dev.sh` for launching dev servers
+- Fixed 90+ bare imports across civic_services
+- Added `/launch` command
+- Reprioritized `pilot.json`: ETL modularization before dashboard redesign
 
-## Problem: Admin Dashboard is Confusing
+## Why ETL First?
 
-The current admin "Data Pipeline" dashboard (`AdminStatusPage.vue`) displays metrics that don't make intuitive sense:
+The admin dashboard is confusing because it reflects tangled internals. The fix isn't better UI—it's cleaner abstractions.
 
-**Current display (Meetings row):**
-| COVERAGE | INGESTED | SEARCHABLE |
-|----------|----------|------------|
-| 6/15 (40%) | 0 | 0 |
+**Current state:**
+- Dashboard shows "6/15 coverage" (meeting types) vs "0 ingested" (actual meetings)—confusing
+- Bare imports everywhere (just fixed 90+)
+- No standard interface for data sources
 
-**The confusion:**
-- "Coverage" = meeting *types* configured vs discovered (categories like "City Council", "Planning Commission")
-- "Ingested" = actual meeting records in database
-- "Searchable" = meetings indexed in vector store
+**Target state:**
+- Each data source implements `DataSource` interface with `health()` method
+- Pipeline has clear stages: discover → ingest → index
+- Dashboard simply displays `source.health()` output
 
-A user sees "6/15 coverage" but "0 ingested" and has no idea what that means. You can have type coverage but no actual data.
+## Priority 1 Items (from pilot.json)
 
-**Agenda Items row is redundant** - agenda items are intrinsically tied to meetings. When you ingest a meeting, you get its agenda items. Having a separate row implies they're independent sources.
+```
+city_onboarding/configuration/extraction_config_schema
+  → Define DataSource interface with health() method
 
-## Goal: Layman-Friendly Dashboard
+city_onboarding/configuration/san_rafael_extraction_config
+  → Implement ProudCitySource(DataSource) with config-driven setup
 
-Design a dashboard that a **new person setting up Civic in their own city** can understand:
+city_onboarding/orchestration/generalized_pipeline_runner
+  → Pipeline class with stages, each with status callbacks
 
-1. **Clear data flow**: Source → Database → Search Index
-2. **Actionable metrics**: What's working, what needs attention
-3. **Honest labels**: No jargon, no misleading percentages
-4. **Guidance**: When data is missing, tell them what to do
+city_onboarding/orchestration/full_city_bootstrap
+  → Single command: civic bootstrap san-rafael
+
+city_onboarding/validation/preflight_checks
+  → source.validate() for fail-fast config validation
+```
+
+## Suggested Interface Design
+
+```python
+class DataSource(Protocol):
+    """Interface for all civic data sources."""
+
+    def health(self) -> SourceHealth:
+        """Return current source status."""
+        ...
+
+    def validate(self) -> ValidationResult:
+        """Check config and connectivity before running."""
+        ...
+
+    def discover(self) -> list[DiscoveredItem]:
+        """Find available items from source."""
+        ...
+
+    def ingest(self, items: list[DiscoveredItem]) -> IngestResult:
+        """Fetch and store items in database."""
+        ...
+
+@dataclass
+class SourceHealth:
+    available: int           # Items available at source
+    last_checked: datetime   # When we last queried source
+    errors: list[str]        # Any current errors
+
+@dataclass
+class ValidationResult:
+    valid: bool
+    errors: list[str]        # e.g., "API key missing", "Endpoint unreachable"
+```
 
 ## Files to Explore
 
-**Backend (data sources):**
-- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py` - `serve_admin_status()` at line ~7325
-- `packages/civic-extraction/` - Platform scrapers (ProudCity, SeeClickFix)
+**Existing extraction code:**
+- `packages/civic-extraction/src/civic_extraction/clients/proudcity.py` - ProudCity scraper
+- `packages/civic-extraction/src/civic_extraction/clients/seeclickfix.py` - SeeClickFix API
+- `packages/civic-extraction/src/civic_extraction/clients/base.py` - Existing base class
 
-**Frontend:**
-- `apps/civic-workspace/src/components/workspace/AdminStatusPage.vue` - Current dashboard UI
+**Pipeline orchestration:**
+- `scripts/batch_process_san_rafael_meetings.py` - Current batch processing
+- `packages/civic-services/src/civic_services/monitoring/automated_civic_refresh.py` - CITY_CONFIGS
 
-**Data flow:**
-1. **Meetings**: ProudCity scraper → `meetings` table → ChromaDB `decisions` collection
-2. **Issues**: SeeClickFix API → `issues` table → ChromaDB `issues` collection
-3. **Initiatives**: User-created → `initiatives` table → (not indexed)
+**Admin status (dashboard data source):**
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py` - `serve_admin_status()` ~line 7325
 
-## Suggested Approach
+## Implementation Order
 
-### 1. Understand the actual data pipeline
-```
-Source (external)     →  Database (storage)  →  Vector Store (search)
-├─ ProudCity meetings    ├─ meetings table      ├─ decisions collection
-├─ SeeClickFix issues    ├─ issues table        ├─ issues collection
-└─ YouTube videos        └─ agenda_items        └─ transcripts collection
-```
-
-### 2. Simplify the dashboard rows
-
-**Before (confusing):**
-- Meetings: COVERAGE → INGESTED → SEARCHABLE
-- Agenda Items: AVAILABLE → INGESTED → SEARCHABLE
-
-**After (clear):**
-- Meetings: `115 meetings` | `Last scraped: 2 days ago` | `92 indexed for search`
-- Issues: `1,340 issues` | `Open: 47` | `Last updated: 1 hour ago`
-
-### 3. Remove redundant rows
-- Remove "Agenda Items" as separate row (they come from meetings)
-- Or rename to "Meeting Documents" if we're tracking PDFs/attachments separately
-
-### 4. Add guidance
-When ingested=0, show: "Click 'Fetch Meetings' to scrape your first meetings from ProudCity"
-
-## Key Questions to Answer
-
-1. What does a healthy pipeline look like? (counts, freshness thresholds)
-2. What actions can a user take when something is wrong?
-3. What's the minimum viable dashboard for a new city setup?
+1. **Define interfaces** in `packages/civic-extraction/src/civic_extraction/interfaces/`
+2. **Refactor ProudCityClient** to implement DataSource
+3. **Create Pipeline class** that orchestrates sources
+4. **Update admin_status endpoint** to consume `source.health()`
+5. **Dashboard becomes trivial** - just display the clean data
 
 ## Launch the App
 
@@ -88,4 +103,17 @@ When ingested=0, show: "Click 'Fetch Meetings' to scrape your first meetings fro
 ./scripts/dev.sh
 ```
 
-Then navigate to the Admin page to see the current dashboard.
+## Success Criteria
+
+A new person can run:
+```bash
+civic bootstrap my-city --platform proudcity --url https://my-city.proudcity.com
+```
+
+And see clear output:
+```
+✓ Config validated
+✓ Discovered 47 meetings
+✓ Ingested 47 meetings (23 new, 24 updated)
+✓ Indexed 47 for search
+```
