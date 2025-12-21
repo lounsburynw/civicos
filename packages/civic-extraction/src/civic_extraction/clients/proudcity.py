@@ -21,7 +21,7 @@ import re
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 
-from civic_extraction.clients.base import BaseExtractor, Meeting
+from civic_extraction.clients.base import BaseExtractor, Meeting, HealthStatus
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +79,83 @@ class ProudCityClient(BaseExtractor):
     @property
     def platform_name(self) -> str:
         return "proudcity"
+
+    @property
+    def source_id(self) -> str:
+        """Unique identifier: platform-jurisdiction."""
+        return f"proudcity-{self.jurisdiction_id}"
+
+    @property
+    def source_type(self) -> str:
+        """Type of source."""
+        return "proudcity"
+
+    def health(self) -> HealthStatus:
+        """
+        Check source availability and return standardized status.
+
+        Performs a lightweight check by fetching the main meetings page
+        and counting configured archive types without full data fetch.
+        """
+        start_time = time.time()
+        errors: List[str] = []
+        is_available = False
+        available_count = 0
+        coverage_percent = None
+        metadata: Dict[str, Any] = {}
+
+        try:
+            # Quick availability check: hit the main meetings page
+            meetings_url = f"{self.base_url}/meetings/"
+            response = self._make_request(meetings_url, retries=1, timeout=10)
+
+            if response and response.status_code == 200:
+                is_available = True
+
+                # Get inventory counts (lightweight - just archive page scraping)
+                inventory = self.get_source_inventory(include_coverage=True)
+                available_count = inventory.get('total', 0)
+
+                # Extract coverage info
+                coverage = inventory.get('coverage', {})
+                coverage_percent = coverage.get('coverage_percent')
+
+                metadata = {
+                    'by_type': inventory.get('by_type', {}),
+                    'configured_count': coverage.get('configured_count', 0),
+                    'discovered_count': coverage.get('discovered_count', 0),
+                    'missing_types': coverage.get('missing', []),
+                }
+            else:
+                status = response.status_code if response else 'no response'
+                errors.append(f"Failed to reach {meetings_url}: {status}")
+
+        except Exception as e:
+            errors.append(f"Health check error: {str(e)}")
+            logger.warning(
+                "Health check failed",
+                extra={
+                    "error": str(e),
+                    "jurisdiction_id": self.jurisdiction_id,
+                    "platform": self.platform_name,
+                }
+            )
+
+        check_duration_ms = (time.time() - start_time) * 1000
+
+        return HealthStatus(
+            source_id=self.source_id,
+            source_type=self.source_type,
+            jurisdiction_id=self.jurisdiction_id,
+            is_available=is_available,
+            available_count=available_count,
+            last_checked=datetime.utcnow(),
+            check_duration_ms=round(check_duration_ms, 2),
+            errors=errors,
+            last_successful=datetime.utcnow() if is_available else None,
+            coverage_percent=coverage_percent,
+            metadata=metadata,
+        )
 
     def _throttle_request(self):
         """Prevent burst requests."""

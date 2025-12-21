@@ -11,6 +11,89 @@ from typing import List, Dict, Optional, Any, Protocol, runtime_checkable
 
 
 @dataclass
+class HealthStatus:
+    """
+    Standardized health check response for data sources.
+
+    Used by dashboards to show unified status of all data sources.
+    Each source exposes: available count, last_checked, errors[].
+    """
+
+    source_id: str  # "legistar-berkeley", "civicclerk-elcerrito", "proudcity-san-rafael"
+    source_type: str  # "legistar", "civicclerk", "proudcity"
+    jurisdiction_id: str  # "city-berkeley", "elcerritoca", "san-rafael"
+
+    # Core metrics
+    is_available: bool  # Can connect and fetch data
+    available_count: int  # Number of items available in last check
+
+    # Timing
+    last_checked: datetime  # When health() was called
+    check_duration_ms: float  # How long the health check took
+
+    # Error tracking
+    errors: List[str] = field(default_factory=list)  # Recent error messages
+
+    # Optional quality metrics
+    last_successful: Optional[datetime] = None  # Last successful fetch
+    coverage_percent: Optional[float] = None  # Extraction coverage (platform-specific)
+    metadata: Dict[str, Any] = field(default_factory=dict)  # Platform-specific stats
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "source_id": self.source_id,
+            "source_type": self.source_type,
+            "jurisdiction_id": self.jurisdiction_id,
+            "is_available": self.is_available,
+            "available_count": self.available_count,
+            "last_checked": self.last_checked.isoformat() if self.last_checked else None,
+            "check_duration_ms": self.check_duration_ms,
+            "errors": self.errors,
+            "last_successful": (
+                self.last_successful.isoformat() if self.last_successful else None
+            ),
+            "coverage_percent": self.coverage_percent,
+            "metadata": self.metadata,
+        }
+
+
+@runtime_checkable
+class DataSource(Protocol):
+    """
+    Protocol for any data source providing civic data.
+
+    All platform clients should implement this interface to enable
+    unified health monitoring in the admin dashboard.
+    """
+
+    @property
+    def source_id(self) -> str:
+        """Unique identifier: platform-jurisdiction, e.g. 'legistar-berkeley'."""
+        ...
+
+    @property
+    def source_type(self) -> str:
+        """Type of source: 'legistar', 'civicclerk', 'proudcity'."""
+        ...
+
+    def health(self) -> HealthStatus:
+        """
+        Check source availability and return standardized status.
+
+        Should include:
+        - Connection test (ping API or check website)
+        - Count available items without full fetch
+        - Capture any errors
+        - Record check timestamp and duration
+
+        Returns:
+            HealthStatus with all required fields populated
+        """
+        ...
+
+
+@dataclass
 class Meeting:
     """
     Normalized meeting data structure.
