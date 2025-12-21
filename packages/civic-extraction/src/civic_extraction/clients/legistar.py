@@ -16,7 +16,7 @@ import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 
-from civic_extraction.clients.base import BaseExtractor, Meeting, HealthStatus
+from civic_extraction.clients.base import BaseExtractor, Meeting, HealthStatus, ValidationResult
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +109,54 @@ class LegistarClient(BaseExtractor):
             check_duration_ms=round(check_duration_ms, 2),
             errors=errors,
             last_successful=datetime.utcnow() if is_available else None,
+            metadata=metadata,
+        )
+
+    def validate(self) -> ValidationResult:
+        """
+        Validate source configuration and API access before running pipeline.
+
+        Preflight check that fails fast with clear error messages for:
+        - Missing client_name
+        - Unreachable Legistar API endpoint
+
+        Returns:
+            ValidationResult with is_valid, errors, warnings, and timing
+        """
+        start_time = time.time()
+        errors: List[str] = []
+        warnings: List[str] = []
+        config_valid = True
+        api_reachable = False
+        metadata: Dict[str, Any] = {}
+
+        # Check required config
+        if not self.client_name:
+            errors.append("client_name is required")
+            config_valid = False
+
+        # Check API reachability by hitting /bodies endpoint (lightweight)
+        if config_valid:
+            try:
+                bodies = self._make_request("bodies", retries=1)
+                if bodies is not None:
+                    api_reachable = True
+                    metadata["body_count"] = len(bodies) if isinstance(bodies, list) else 0
+                else:
+                    errors.append(f"Cannot reach Legistar API at {self.base_url}")
+            except Exception as e:
+                errors.append(f"Cannot reach Legistar API: {str(e)}")
+                metadata["connection_error"] = str(e)
+
+        check_duration_ms = (time.time() - start_time) * 1000
+
+        return ValidationResult(
+            is_valid=len(errors) == 0,
+            config_valid=config_valid,
+            api_reachable=api_reachable,
+            errors=errors,
+            warnings=warnings,
+            check_duration_ms=round(check_duration_ms, 2),
             metadata=metadata,
         )
 

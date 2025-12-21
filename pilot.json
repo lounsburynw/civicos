@@ -933,10 +933,11 @@
     },
     "validation": {
       "preflight_checks": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": "source.validate() checks config and API access before running pipeline",
-        "note": "Fail fast with clear error messages for missing API keys, unreachable endpoints"
+        "note": "Fail fast with clear error messages for missing API keys, unreachable endpoints",
+        "test_file": "packages/civic-extraction/tests/test_clients.py::TestValidateMethods"
       },
       "post_ingestion_report": {
         "status": "not_ready",
