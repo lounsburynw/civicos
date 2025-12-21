@@ -911,10 +911,10 @@
         "note": "Existing: resume capability in batch_process_san_rafael_meetings.py"
       },
       "full_city_bootstrap": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": "Single command: civic bootstrap san-rafael -> runs full ETL pipeline",
-        "note": "Entry point for new city setup, surfaces clear success/failure"
+        "note": "Implemented civic-bootstrap CLI: validation, Pipeline orchestration, status callbacks, JSON output"
       }
     },
     "documentation": {

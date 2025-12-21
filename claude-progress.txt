@@ -1,3 +1,57 @@
+## Session 314: full_city_bootstrap - Bootstrap CLI Command
+
+**Date:** 2025-12-21
+**Item:** full_city_bootstrap (city_onboarding > orchestration)
+**Priority:** P1
+
+### Summary
+Implemented `civic-bootstrap` CLI command that provides a single entry point for bootstrapping a new city. Runs the full ETL pipeline (discover → ingest → index) with clear progress output and structured JSON for automation.
+
+### Implementation
+
+**1. Bootstrap Command** (civic/cli.py)
+- `civic-bootstrap san-rafael` - runs full bootstrap
+- `--skip-index` - ingest only, skip vector indexing
+- `--verbose` - detailed stage progress
+- `--json` - structured output for automation
+- `--days-ahead/--days-past` - configurable time window
+
+**2. Validation/Preflight** (validate_bootstrap)
+- Checks extraction config exists: `data/extraction/{city}.json`
+- Ensures data directories are writable
+- Clear error messages on failure
+
+**3. Pipeline Integration**
+- Uses Pipeline class from Session 313
+- Status callbacks for real-time progress display
+- Captures stage timing and item counts
+
+**4. Output Modes**
+- Compact: `discover: OK (850 items) [22.8s]`
+- Verbose: Full stage details with items and errors
+- JSON: Complete result structure for CI/automation
+
+### Usage
+```bash
+civic-bootstrap san-rafael              # Full bootstrap
+civic-bootstrap san-rafael --verbose    # Detailed progress
+civic-bootstrap san-rafael --skip-index # Ingest only
+civic-bootstrap san-rafael --json       # Machine-readable output
+```
+
+### Files Changed
+- `packages/civic/src/civic/cli.py` - Bootstrap command implementation
+- `packages/civic/pyproject.toml` - Added civic-bootstrap entry point
+- `pilot.json` - Updated full_city_bootstrap to "ready"
+
+### Tests
+- 34 smoke tests passing
+- Bootstrap tested with real San Rafael source
+
+**Commit:** Session 314: full_city_bootstrap - Bootstrap CLI command
+
+---
+
 ## Session 311: extraction_config_schema - DataSource Interface with Health Check
 
 **Date:** 2025-12-21
