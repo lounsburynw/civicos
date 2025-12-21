@@ -144,7 +144,7 @@ class MultiPlatformMonitor:
 
         try:
             # Import CivicPlus configuration
-            from automated_civic_refresh import CITY_CONFIGS
+            from civic_services.monitoring.automated_civic_refresh import CITY_CONFIGS
 
             # Count CivicPlus cities from configuration
             civicplus_cities = {city: config for city, config in CITY_CONFIGS.items()

@@ -1427,7 +1427,7 @@ Only return has_virtual_access=true if you find ACTUAL virtual access details. B
             import sys
             import os
             sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-            from automated_civic_refresh import CITY_CONFIGS
+            from civic_services.monitoring.automated_civic_refresh import CITY_CONFIGS
 
             # Find city config by jurisdiction_id
             for city_key, config in CITY_CONFIGS.items():
