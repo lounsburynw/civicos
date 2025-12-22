@@ -18,3 +18,30 @@
 ### Next
 - architecture_cleanup section complete
 - Consider: profile_slow_tests (priority 3), test_markers (priority 3), or video_transcript_rag items
+
+## Session 326: legislative_cron (2025-12-21)
+
+### Completed
+- Created `civic-extract legislative` CLI command for weekly legislative context refresh
+- Follows seeclickfix.py pattern with full feature parity
+- Supports --topic (housing/transportation/environment/budget/education/all)
+- Supports --state (default: california), --days-back (default: 90), --limit (default: 20)
+- Supports --schedule flag for weekly Sunday 6am schedule
+- Supports --dry-run for validation
+- Checkpoint save/resume support
+- Load_dotenv integration for API key management
+
+### Files Created/Modified
+- `packages/civic-extraction/src/civic_extraction/cli/legislative.py` - New CLI module
+- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` - Registered legislative subcommand
+
+### Test Results
+- Dry-run: Configuration validated, API keys detected ✓
+- Full fetch: 30 bills found, 2 locally-relevant bills identified ✓
+- Output saved to data/legislative/ and data/legislative_context/ ✓
+
+### Pilot Progress
+- 126/161 items ready (78%)
+- 35 items remaining
+
+**Commit:** Session 326: legislative_cron - Legislative refresh CLI for weekly context updates

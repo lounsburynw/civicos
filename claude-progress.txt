@@ -4457,3 +4457,67 @@ civic-extract seeclickfix --jurisdiction city-san-rafael --max-pages 2
 - Fixed path mismatch: LegislativeDiscovery now writes to `data/legislation/state/{state}/{topic}.json`
 - Added ChromaDB indexing: `build_legislation_index()` called after discovery
 - End-to-end verified: 9 bills indexed, semantic search returns results
+
+---
+
+## Session 327: missed_run_alerts - Pipeline Monitor CLI
+
+**Date:** 2025-12-21
+**Item:** missed_run_alerts (pipeline_automation > heartbeat_monitoring)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Created `civic-extract monitor` CLI command to detect missed/overdue pipeline runs by checking checkpoint timestamps.
+
+### Implementation
+
+**New CLI:** `civic-extract monitor`
+
+Features:
+- Check all pipelines: `civic-extract monitor --check-all`
+- Single pipeline: `civic-extract monitor --pipeline discover`
+- Override threshold: `--max-age 24` (hours)
+- JSON output: `--format json` for dashboard integration
+- CI mode: `--exit-on-overdue` returns exit code 1 if any overdue
+
+### Pipeline Configurations
+| Pipeline | Schedule | Alert Threshold |
+|----------|----------|-----------------|
+| discover | Daily 6am | >30h |
+| youtube | Daily 7am | >30h |
+| audio | Daily 8am | >30h |
+| seeclickfix | Daily 8am | >30h |
+| transcribe | Daily 9am | >30h |
+| legislative | Weekly Sun 6am | >192h (8d) |
+
+### Usage
+```bash
+# Check all pipelines
+civic-extract monitor --check-all
+
+# Check specific pipeline with custom threshold
+civic-extract monitor --pipeline discover --max-age 24
+
+# JSON output for dashboards
+civic-extract monitor --check-all --format json
+
+# CI/cron integration (exit 1 if overdue)
+civic-extract monitor --check-all --exit-on-overdue
+```
+
+### Files Created/Modified
+- `packages/civic-extraction/src/civic_extraction/cli/monitor.py` - New monitor command
+- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` - Registered monitor subcommand
+
+### Also Marked Ready
+During review, discovered these items were already implemented:
+- `success_logging` - Checkpoint files contain timestamps and counts
+- `last_processed_tracking` - Checkpoints store last_video_id, last_meeting_id, etc.
+- `skip_already_processed` - audio.py/transcribe.py track items_skipped
+- `failure_handling` - items_failed tracked in checkpoints
+
+### Pilot Progress
+- 131/161 items ready (81%)
+- 30 items remaining
+
+**Next P0:** feature_guide (user_documentation > end_user_docs)

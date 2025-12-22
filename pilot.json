@@ -551,31 +551,36 @@
     },
     "incremental_processing": {
       "last_processed_tracking": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Track last processed timestamp per pipeline"
+        "artifact": "Track last processed timestamp per pipeline",
+        "note": "Checkpoint files store last_video_id, last_meeting_id, last_page, etc."
       },
       "skip_already_processed": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Skip items already in database"
+        "artifact": "Skip items already in database",
+        "note": "audio.py and transcribe.py track items_skipped for existing files"
       },
       "failure_handling": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Retry failed items, skip after N failures"
+        "artifact": "Retry failed items, skip after N failures",
+        "note": "items_failed tracked in checkpoints, can resume from checkpoint"
       }
     },
     "heartbeat_monitoring": {
       "success_logging": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
-        "artifact": "Log successful runs with timestamp and counts"
+        "artifact": "Log successful runs with timestamp and counts",
+        "note": "Checkpoint files contain timestamp and item counts for each run"
       },
       "missed_run_alerts": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "Alert when scheduled run doesn't complete"
+        "status": "ready",
+        "priority": 2,
+        "artifact": "Alert when scheduled run doesn't complete",
+        "cli": "civic-extract monitor --check-all --exit-on-overdue"
       }
     }
   },
@@ -1064,7 +1069,7 @@
       },
       "feature_guide": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "How to use each feature"
       },
       "faq": {
