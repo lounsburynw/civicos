@@ -4548,3 +4548,34 @@ Created comprehensive end-user feature guide documenting all Civic capabilities.
 - 29 items remaining
 
 **Next P0:** faq (user_documentation > end_user_docs)
+
+## Session 329 — 2025-12-21
+
+**Task:** faq (user_documentation > end_user_docs) — P0
+
+### Summary
+Created comprehensive FAQ document for end users.
+
+### Files Created
+- `docs/user_guides/FAQ.md` - Complete FAQ with:
+  - About Civic (what it is, why it exists, who created it)
+  - Data and Sources (where info comes from, freshness, accuracy)
+  - Privacy and Accounts (browsing privacy, account requirements, data storage)
+  - Using Civic (finding meetings, searching, AI Assistant capabilities)
+  - Participating in Government (comments, initiatives, meeting attendance)
+  - Technical Questions (browsers, troubleshooting, keyboard shortcuts)
+  - The San Rafael Pilot (what it is, timeline, participation)
+  - Getting Help (support channels, feedback)
+  - Quick Reference (account-free vs account features)
+
+### Structure
+- Follows existing user guide style (GETTING_STARTED.md, FEATURE_GUIDE.md)
+- Tables for scannable information
+- Links to other docs where appropriate
+- Honest about limitations (AI can make mistakes, timestamps are approximate)
+
+### Pilot Progress
+- 133/161 items ready (83%)
+- 28 items remaining
+
+**Next P0:** troubleshooting (user_documentation > admin_docs)
