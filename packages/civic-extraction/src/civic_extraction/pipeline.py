@@ -581,6 +581,51 @@ class Pipeline:
         self._discovered_count = 0
         self._ingested_meetings = []
 
+    def report(self, result: Optional[PipelineResult] = None) -> "PostIngestionReport":
+        """
+        Generate a post-ingestion report from pipeline results.
+
+        This method provides a structured summary suitable for dashboard display
+        or CLI output after bootstrap/ingestion operations complete.
+
+        Args:
+            result: Optional PipelineResult to report on. If not provided,
+                    constructs a result from current pipeline state.
+
+        Returns:
+            PostIngestionReport with records ingested, errors, and gaps
+
+        Raises:
+            ValueError: If pipeline hasn't been run and no result provided
+        """
+        if result is not None:
+            return PostIngestionReport.from_pipeline_result(result)
+
+        # Construct result from current state if pipeline has been run
+        if self._started_at is None or self._completed_at is None:
+            raise ValueError(
+                "Pipeline has not been run. Either run the pipeline first "
+                "or provide a PipelineResult to report on."
+            )
+
+        # Build a PipelineResult from current state
+        current_result = PipelineResult(
+            success=all(
+                s.state in (StageState.COMPLETED, StageState.SKIPPED)
+                for s in self._stages.values()
+            ),
+            stages=dict(self._stages),
+            total_duration_ms=(
+                (self._completed_at - self._started_at).total_seconds() * 1000
+            ),
+            started_at=self._started_at,
+            completed_at=self._completed_at,
+            jurisdiction_id=self.jurisdiction_id,
+            source_id=self.source_id,
+        )
+
+        return PostIngestionReport.from_pipeline_result(current_result)
+
 
 def save_checkpoint(checkpoint: IngestCheckpoint, path: str) -> None:
     """
@@ -635,3 +680,164 @@ def checkpoint_path_for_jurisdiction(
         Path like "data/checkpoints/city-san-rafael.json"
     """
     return f"{base_dir}/{jurisdiction_id}.json"
+
+
+@dataclass
+class PostIngestionReport:
+    """
+    Structured report generated after pipeline ingestion completes.
+
+    Provides a summary of records ingested, errors encountered, and data gaps
+    for display in the admin dashboard or CLI output.
+
+    Attributes:
+        jurisdiction_id: The jurisdiction processed
+        source_id: The source processed
+        timestamp: When the report was generated
+        success: Whether the pipeline completed successfully
+        total_duration_ms: Total pipeline duration
+        records_ingested: Count of successfully ingested records by type
+        errors: List of errors encountered during processing
+        gaps: List of data gaps detected (missing/incomplete data)
+        stages: Per-stage summary information
+    """
+    jurisdiction_id: str
+    source_id: str
+    timestamp: datetime
+    success: bool
+    total_duration_ms: float
+    records_ingested: Dict[str, int] = field(default_factory=dict)
+    errors: List[str] = field(default_factory=list)
+    gaps: List[str] = field(default_factory=list)
+    stages: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+
+    @classmethod
+    def from_pipeline_result(cls, result: PipelineResult) -> "PostIngestionReport":
+        """
+        Create a report from a PipelineResult.
+
+        Args:
+            result: The PipelineResult from Pipeline.run()
+
+        Returns:
+            PostIngestionReport with summary information
+        """
+        # Collect records ingested by type
+        records_ingested: Dict[str, int] = {}
+
+        ingest_stage = result.stages.get("ingest")
+        if ingest_stage:
+            records_ingested["meetings"] = ingest_stage.items_processed
+
+        index_stage = result.stages.get("index")
+        if index_stage and index_stage.items_processed > 0:
+            records_ingested["indexed_items"] = index_stage.items_processed
+
+        # Collect all errors across stages
+        all_errors: List[str] = []
+        for stage_name, stage_status in result.stages.items():
+            for error in stage_status.errors:
+                all_errors.append(f"{stage_name}: {error}")
+
+        # Detect gaps (items found but not processed)
+        gaps: List[str] = []
+        for stage_name, stage_status in result.stages.items():
+            if stage_status.items_found > stage_status.items_processed:
+                gap_count = stage_status.items_found - stage_status.items_processed
+                gaps.append(
+                    f"{stage_name}: {gap_count} items found but not processed "
+                    f"({stage_status.items_processed}/{stage_status.items_found})"
+                )
+
+        # Build per-stage summary
+        stages: Dict[str, Dict[str, Any]] = {}
+        for stage_name, stage_status in result.stages.items():
+            stages[stage_name] = {
+                "state": stage_status.state.value,
+                "items_found": stage_status.items_found,
+                "items_processed": stage_status.items_processed,
+                "duration_ms": stage_status.duration_ms,
+                "error_count": len(stage_status.errors),
+            }
+
+        return cls(
+            jurisdiction_id=result.jurisdiction_id,
+            source_id=result.source_id,
+            timestamp=result.completed_at,
+            success=result.success,
+            total_duration_ms=result.total_duration_ms,
+            records_ingested=records_ingested,
+            errors=all_errors,
+            gaps=gaps,
+            stages=stages,
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "jurisdiction_id": self.jurisdiction_id,
+            "source_id": self.source_id,
+            "timestamp": self.timestamp.isoformat(),
+            "success": self.success,
+            "total_duration_ms": self.total_duration_ms,
+            "records_ingested": self.records_ingested,
+            "errors": self.errors,
+            "gaps": self.gaps,
+            "stages": self.stages,
+        }
+
+    def is_acceptable(self, min_records: int = 1, max_errors: int = 0) -> bool:
+        """
+        Check if the ingestion meets minimum quality thresholds.
+
+        Args:
+            min_records: Minimum number of records required
+            max_errors: Maximum number of errors allowed
+
+        Returns:
+            True if the report passes quality checks
+        """
+        total_records = sum(self.records_ingested.values())
+        return (
+            self.success
+            and total_records >= min_records
+            and len(self.errors) <= max_errors
+        )
+
+    def summary(self) -> str:
+        """
+        Generate a human-readable summary string.
+
+        Returns:
+            Multi-line summary of the ingestion report
+        """
+        lines = [
+            f"Post-Ingestion Report: {self.jurisdiction_id}",
+            f"  Source: {self.source_id}",
+            f"  Status: {'SUCCESS' if self.success else 'FAILED'}",
+            f"  Duration: {self.total_duration_ms / 1000:.1f}s",
+            "",
+            "  Records Ingested:",
+        ]
+
+        if self.records_ingested:
+            for record_type, count in self.records_ingested.items():
+                lines.append(f"    - {record_type}: {count}")
+        else:
+            lines.append("    - (none)")
+
+        if self.errors:
+            lines.append("")
+            lines.append(f"  Errors ({len(self.errors)}):")
+            for error in self.errors[:5]:  # Show first 5 errors
+                lines.append(f"    - {error}")
+            if len(self.errors) > 5:
+                lines.append(f"    - ... and {len(self.errors) - 5} more")
+
+        if self.gaps:
+            lines.append("")
+            lines.append(f"  Data Gaps ({len(self.gaps)}):")
+            for gap in self.gaps:
+                lines.append(f"    - {gap}")
+
+        return "\n".join(lines)
