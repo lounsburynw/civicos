@@ -493,6 +493,13 @@
         "artifact": ".critics/ directory with LLM-based code review prompts",
         "note": "Session 320: 4 critics (pipeline, protocol, architecture, session) + /critic command + session P0 enforcement",
         "completed": "2025-12-21"
+      },
+      "data_critic": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": ".critics/data.critic.md - ETL data quality and schema validation",
+        "note": "Blocked on: stable schema, known edge cases, platform quirks cataloged. Define after pipeline automation validates patterns against real San Rafael data.",
+        "blocked_by": ["meeting_discovery_cron", "youtube_discovery_cron", "transcript_processing_cron"]
       }
     }
   },
