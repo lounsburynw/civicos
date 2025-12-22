@@ -915,6 +915,12 @@
         "priority": 1,
         "artifact": "Single command: civic bootstrap san-rafael -> runs full ETL pipeline",
         "note": "Implemented civic-bootstrap CLI: validation, Pipeline orchestration, status callbacks, JSON output"
+      },
+      "storage_backend_protocol": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "StorageBackend + VectorBackend protocols in civic/storage/",
+        "note": "4-stage pipeline: discover → ingest → store → index. StorageBackend (SQLite/Postgres) for primary CRUD, VectorBackend (ChromaDB/pgvector) for search. Index reads from storage not memory. Currently pipeline fetches meetings but discards them - no persistence."
       }
     },
     "documentation": {
