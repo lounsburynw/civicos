@@ -1,4 +1,4 @@
-# Recommended: Audio Download Cron
+# Recommended: Transcription Cron
 
 **Priority:** P0 (IMMEDIATE)
 **Area:** pipeline_automation > scheduling
@@ -8,69 +8,80 @@
 
 ## Context
 
-Session 322 completed `youtube_discovery_cron` as `civic-extract youtube` CLI command. The pattern continues as package CLI (discover -> youtube -> audio). Next is audio download from discovered YouTube videos.
+Session 323 completed `audio_download_cron` as `civic-extract audio` CLI. The pipeline automation sequence continues (discover -> youtube -> audio -> transcribe). Audio files are now being downloaded to `data/youtube_audio/`. Next is transcription.
 
 ## Recommended Task
 
-Add `civic-extract audio` command to download audio from YouTube videos discovered by the `youtube` command.
+Add `civic-extract transcribe` command to transcribe audio files using Modal's GPU infrastructure (WhisperX + PyAnnote diarization).
 
 ## Key Files
 
-- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` - CLI entry point (add audio subcommand)
-- `packages/civic-extraction/src/civic_extraction/cli/youtube.py` - **Pattern to follow**
-- `packages/civic-extraction/src/civic_extraction/cli/discover.py` - **Also a pattern**
-- `scripts/download_youtube_audio.py` - **Existing audio download logic**
+- `packages/civic-extraction/src/civic_extraction/cli/audio.py` - **Pattern to follow**
+- `scripts/modal_process_audio.py` - **Existing Modal transcription logic** (core processing)
+- `data/youtube_audio/` - Input audio files (from audio command)
+- `data/testimony/` - Output transcripts (JSON format)
 
 ## What Needs to Happen
 
-1. **Create audio.py CLI module** - `packages/civic-extraction/src/civic_extraction/cli/audio.py`:
-   - Follow youtube.py and discover.py patterns
-   - Read from `data/{jurisdiction}_videos.json` (output of youtube command)
-   - Use yt-dlp to download audio (see scripts/download_youtube_audio.py)
-   - Skip already-downloaded files
+1. **Create transcribe.py CLI module** - `packages/civic-extraction/src/civic_extraction/cli/transcribe.py`:
+   - Follow audio.py pattern for CLI structure
+   - Wrap `scripts/modal_process_audio.py` logic as CLI command
+   - Read audio files from `data/youtube_audio/{video_id}.mp3`
+   - Output transcripts to `data/transcripts/{video_id}.json`
+   - Skip already-transcribed files
    - Checkpoint save/resume
-   - Output to `data/youtube_audio/{video_id}.mp3`
+   - Support --dry-run, --limit, --schedule flags
 
-2. **Register in CLI** - Update `cli/__init__.py` to add audio subcommand
+2. **Register in CLI** - Update `cli/__init__.py` to add transcribe subcommand
 
-3. **Handle cookies** - YouTube requires cookies for some downloads
-   - Support --cookies flag (default: `~/Downloads/www.youtube.com_cookies.txt`)
-   - Warn if cookies file not found
+3. **Handle Modal setup** - The command should:
+   - Check Modal is installed and authenticated
+   - Provide helpful error message if not configured
+   - Support --skip-diarization flag for faster testing
 
-4. **Test** - `civic-extract audio --jurisdiction city-san-rafael --dry-run`
+## Existing Modal Infrastructure
+
+From `scripts/modal_process_audio.py`:
+- Uses Modal A10G GPU ($0.22/12min meeting)
+- WhisperX large-v3 for transcription
+- PyAnnote speaker diarization
+- Parallel processing support (up to 10 GPUs)
+- Requires HuggingFace token for diarization model
 
 ## Suggested Approach
 
-1. Read `scripts/download_youtube_audio.py` for existing yt-dlp usage
-2. Create `cli/audio.py` following youtube.py pattern
-3. Read videos from `data/{jurisdiction}_videos.json`
-4. Register in `cli/__init__.py`
-5. Reinstall package: `pip install -e packages/civic-extraction/`
-6. Test with --dry-run first
+1. Read `scripts/modal_process_audio.py` to understand Modal setup
+2. Create `cli/transcribe.py` wrapping that logic
+3. Read audio files from `data/youtube_audio/`
+4. Output to `data/transcripts/` (or testimony as in existing script)
+5. Register in `cli/__init__.py`
+6. Test with --dry-run first, then single file
 
 ## Tests to Run
 ```bash
 # After creating the command
-civic-extract audio --help
-civic-extract audio --jurisdiction city-san-rafael --dry-run
-civic-extract audio --jurisdiction city-san-rafael --limit 1  # Download just 1 video for testing
+civic-extract transcribe --help
+civic-extract transcribe --jurisdiction city-san-rafael --dry-run
+civic-extract transcribe --jurisdiction city-san-rafael --limit 1
 ```
 
 ## Success Criteria
-- [ ] `civic-extract audio` command works
-- [ ] Reads from `{jurisdiction}_videos.json`
-- [ ] Supports --schedule, --dry-run, --cookies, --jurisdiction flags
-- [ ] Skips already-downloaded files
+- [ ] `civic-extract transcribe` command works
+- [ ] Reads audio from `data/youtube_audio/`
+- [ ] Uses Modal for GPU transcription
+- [ ] Supports --schedule, --dry-run, --limit flags
+- [ ] Skips already-transcribed files
 - [ ] Checkpoint save/resume works
-- [ ] pilot.json updated to mark audio_download_cron as ready
+- [ ] pilot.json updated to mark transcription_cron as ready
 
-## Related Pipeline Automation Items
+## Notes
 
-After audio_download_cron:
-- `transcription_cron` (P2) - `civic-extract transcribe` command
-- `seeclickfix_cron` (P2) - `civic-extract seeclickfix` command
+- Modal requires setup: `pip install modal && modal token new`
+- HuggingFace token needed for diarization: `modal secret create huggingface HF_TOKEN=...`
+- Can use --skip-diarization for testing without HF token
+- Cost estimate: ~$0.22 per 12-minute meeting
 
 ## Pilot Progress
 
-- 122/161 items ready (76%)
-- 39 items remaining
+- 123/161 items ready (76%)
+- 38 items remaining
