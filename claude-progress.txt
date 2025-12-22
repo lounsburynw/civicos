@@ -1,13 +1,40 @@
-## Session 315: preflight_checks - DataSource Validation
+## Session 315: preflight_checks + Storage Architecture Discovery
 
 **Date:** 2025-12-21
 **Item:** preflight_checks (city_onboarding > validation)
 **Priority:** P1
 
 ### Summary
-Implemented `source.validate()` method on all DataSource clients that performs preflight checks before running the extraction pipeline. Fails fast with clear error messages for missing configuration or unreachable endpoints.
+Implemented `source.validate()` method on all DataSource clients. Then discovered critical gap: Pipeline fetches meetings but has no persistence layer.
 
-### Implementation
+### Critical Discovery: Pipeline Has No Storage
+
+Tested `civic-bootstrap san-rafael --skip-index`:
+- discover: 850 items (health check)
+- ingest: 17 meetings fetched into memory
+- **Problem:** Meetings are discarded when process exits - no disk write!
+
+### Architecture Decision for Next Session
+
+**4-stage pipeline:** discover → ingest → store → index
+
+**Two protocols in `civic/storage/`:**
+```python
+class StorageBackend(Protocol):  # Primary storage (source of truth)
+    def save_meetings(self, meetings: List[Meeting]) -> int
+    def get_meetings(self, jurisdiction_id: str) -> List[Meeting]
+
+class VectorBackend(Protocol):  # Search index (derived)
+    def index(self, meetings: List[Meeting]) -> int
+    def search(self, query: str, k: int) -> List[SearchResult]
+    def rebuild(self, storage: StorageBackend) -> int
+```
+
+**Key principle:** Index reads from StorageBackend, not memory. Vector index is always derived from primary storage.
+
+**Implementations:**
+- StorageBackend: SQLiteStorage (pilot), PostgresStorage (scale)
+- VectorBackend: ChromaDBBackend (pilot), PgVectorBackend (scale)
 
 **1. ValidationResult Dataclass** (base.py)
 - `is_valid` - all checks passed, safe to proceed
