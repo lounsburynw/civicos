@@ -929,10 +929,10 @@
     },
     "documentation": {
       "city_onboarding_guide": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "Step-by-step guide: adding a new city",
-        "note": "Post-ingestion: document what actually worked"
+        "note": "CITY_ONBOARDING_GUIDE.md in docs/user_guides/ - covers platform detection, config creation, bootstrap, verification, and troubleshooting"
       },
       "platform_specific_notes": {
         "status": "not_ready",
