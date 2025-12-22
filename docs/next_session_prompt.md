@@ -1,83 +1,103 @@
-# Recommended: Operation History Table
+# Recommended: Error Logs Display
 
 **Priority:** P0 (IMMEDIATE)
-**Area:** ingestion_visibility > frontend_dashboard
+**Area:** admin_operations > operation_status
 **Date:** 2025-12-22
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 341 completed server-side operation tracking (running_operations, operation_history, operation_progress_panel). The backend now stores operation history in the `operations` table and exposes it via `GET /api/admin/operations`. The frontend already has the API methods (`getOperations()`) but lacks a UI table to display operation history.
+Session 342 added the operation history table to AdminStatusPage.vue. The table shows operation name, started time, duration, and status with expandable rows. Currently, errors are shown as a single line in expanded rows (`op.error`). The `error_logs` item asks for enhanced error display with log output.
 
-**Why operation_history_table is next:**
-1. **Builds on Session 341**: Backend + API + types are ready, just need the table component
-2. **Admin visibility**: Operators need to see what ran, when, and whether it succeeded
-3. **Quick win**: Most plumbing exists, primarily a Vue template addition
+**Current state:**
+- Operations table stores: id, name, status, started_at, completed_at, result_json, error
+- Frontend displays error in expandable row (line 511-514)
+- Error field is a simple string from `complete_operation(error=...)`
+
+**What's missing:**
+- Multi-line error formatting (stack traces get truncated)
+- Error filtering (show only failed operations)
+- Richer error details from result_json (not just error string)
 
 ## Recommended Task
 
-Add an operation history table to AdminStatusPage.vue showing the last 10 operations with expandable details.
+Enhance error display in the operation history table:
+1. Format multi-line errors (stack traces) with proper whitespace
+2. Add "Show errors only" filter toggle
+3. Display additional error context from result_json if available
 
 ## Key Files
 
-**Frontend (add table here):**
-- `apps/civic-workspace/src/components/workspace/AdminStatusPage.vue:410-460` - Operation result display area
-- `apps/civic-workspace/src/services/api.ts:1358-1382` - `getOperations()` method (already exists)
-- `apps/civic-workspace/src/types/civic.ts:899-922` - `OperationsListResponse`, `OperationListItem` types
+**Frontend (enhance display):**
+- `apps/civic-workspace/src/components/workspace/AdminStatusPage.vue:498-515` - Expandable detail row with error display
+- `apps/civic-workspace/src/components/workspace/AdminStatusPage.vue:461-517` - History table section
+- `apps/civic-workspace/src/types/civic.ts:912-922` - OperationListItem type
 
-**Backend (already implemented in Session 341):**
-- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py:7677-7743` - `serve_operations_list()`
-- `packages/civic-services/src/civic_services/storage/state_manager.py:938-990` - `get_operations()`
+**Backend (error storage):**
+- `packages/civic-services/src/civic_services/storage/state_manager.py:851-895` - `complete_operation()` stores error string
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py:7677-7743` - `serve_operations_list()` returns operations
+
+**API endpoint:**
+- `GET /api/admin/operations?status=failed` - Filter by status (already supported)
 
 ## Suggested Approach
 
-1. **Add state for operation history:**
+1. **Add error filter toggle:**
    ```typescript
-   const operationHistory = ref<OperationListItem[]>([]);
+   const showErrorsOnly = ref(false);
+   const filteredHistory = computed(() =>
+     showErrorsOnly.value
+       ? operationHistory.value.filter(op => op.status === 'failed')
+       : operationHistory.value
+   );
    ```
 
-2. **Load history on mount and after operations complete:**
-   ```typescript
-   async function loadOperationHistory() {
-     const response = await api.getOperations({
-       jurisdiction: props.jurisdiction || 'san-rafael',
-       limit: 10
-     });
-     operationHistory.value = response.operations;
+2. **Enhance error display with pre-wrap:**
+   ```vue
+   <div v-if="op.error" class="detail-row error">
+     <span class="detail-label">Error:</span>
+     <pre class="error-log">{{ op.error }}</pre>
+   </div>
+   ```
+
+3. **Add CSS for log display:**
+   ```css
+   .error-log {
+     font-family: monospace;
+     font-size: 11px;
+     white-space: pre-wrap;
+     background: rgba(239, 68, 68, 0.05);
+     padding: 8px;
+     border-radius: 4px;
+     max-height: 200px;
+     overflow-y: auto;
    }
    ```
 
-3. **Add table UI below the running operation banner:**
-   - Show: operation name, started_at (formatted), duration, status badge
-   - Status badges: green for completed, red for failed, yellow for running
-   - Expandable row showing result counts (count_fetched, count_new, etc.)
-   - Error message in expandable area if failed
-
-4. **Style consistently** with existing AdminStatusPage patterns
+4. **Update filter toggle UI** (add checkbox/toggle near section title)
 
 ## Tests to Run
 
 ```bash
-# Smoke tests
-pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
-
 # TypeScript compilation
 cd apps/civic-workspace && npm run type-check
+
+# Smoke tests
+pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] Operation history table displays in AdminStatusPage
-- [ ] Shows last 10 operations with name, time, duration, status
-- [ ] Status badges indicate success/failure/running
-- [ ] Expandable rows show result details (counts, errors)
-- [ ] History refreshes after each operation completes
+- [ ] Multi-line errors display with preserved formatting
+- [ ] "Show errors only" toggle filters to failed operations
+- [ ] Error log styling matches design system
+- [ ] Stack traces readable with scroll for long content
 - [ ] TypeScript compiles without errors
-- [ ] pilot.json `operation_history_table` marked as ready
+- [ ] pilot.json `error_logs` marked as ready
 
 ## Pilot Progress
 
-- 146/168 items ready (86.9%)
-- 22 items remaining
-- P0: operation_history_table (this item)
+- 147/168 items ready (87.5%)
+- 21 items remaining
+- P0: error_logs (this item)
