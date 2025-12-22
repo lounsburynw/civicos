@@ -36,7 +36,13 @@ Updated admin dashboard to show 4-stage ETL pipeline (Coverage → Ingested → 
 - 2 items completed: status_page, pipeline_flow_visualization
 
 ### Next P0
-`running_operations` - Server-side operation state tracking (required for operation_progress_panel)
+`storage_stats_abstraction` - Fix layer boundary violation for open-source adoption and PostgreSQL migration
+
+### Priority Reorder (post-session)
+After discussion about open-source goals:
+- **P0**: `storage_stats_abstraction` - Fix direct SQLiteBackend import in API layer
+- **P1**: `postgres_backend_implementation` - Prove protocol modularity (NEW)
+- **P1**: `running_operations` - Demoted from P0 (dashboard feature, not foundational)
 
 ---
 
