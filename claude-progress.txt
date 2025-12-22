@@ -1,3 +1,59 @@
+## Session 317: platform_detection_helper - Auto-detect city platform
+
+**Date:** 2025-12-21
+**Item:** platform_detection_helper (city_onboarding > configuration)
+**Priority:** P2
+
+### Summary
+Implemented platform detection helper for city onboarding. The `detect_platform()` function probes Legistar API, CivicClerk OData API, and scrapes ProudCity /meetings/ pages to auto-detect which platform a city uses.
+
+### Implementation
+
+**New module:** `packages/civic-extraction/src/civic_extraction/platform_detection.py`
+
+**Main function:**
+```python
+from civic_extraction import detect_platform
+
+result = detect_platform("https://www.cityofsanrafael.org")
+# DetectionResult(source_type='proudcity', confidence=0.90, ...)
+```
+
+**Detection strategies:**
+1. **Legistar** (0.95 confidence): Test `webapi.legistar.com/v1/{client}/bodies`
+2. **CivicClerk** (0.95 confidence): Test `{subdomain}.api.civicclerk.com/v1/Boards`
+3. **ProudCity** (0.50-0.90 confidence): Scrape /meetings/ for archive links
+
+**Confidence scoring:**
+- 0.95: Valid API JSON response
+- 0.90: 5+ meeting type archives found
+- 0.75: 2-4 archives found
+- 0.50: 1 archive found
+- 0.0: No platform detected
+
+### Files Created
+- `packages/civic-extraction/src/civic_extraction/platform_detection.py` - Detection module
+- `packages/civic-extraction/tests/test_platform_detection.py` - 27 unit tests
+
+### Files Modified
+- `packages/civic-extraction/src/civic_extraction/__init__.py` - Export detect_platform, DetectionResult
+- `pilot.json` - Updated platform_detection_helper to "ready"
+
+### Tests
+- 27 platform detection tests passing
+- 34 smoke tests passing
+
+### Next Steps
+This enables future city onboarding flow:
+1. User provides city URL
+2. `detect_platform()` returns source_type + confidence
+3. If confidence >= 0.8, auto-generate extraction config
+4. If low confidence, prompt for manual platform selection
+
+**Commit:** Session 317: platform_detection_helper - Auto-detect city platform
+
+---
+
 ## Session 315: preflight_checks + Storage Architecture Discovery
 
 **Date:** 2025-12-21
