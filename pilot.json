@@ -969,7 +969,7 @@
       },
       "platform_specific_notes": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Platform quirks: Legistar date formats, CivicClerk OData, ProudCity scraping",
         "note": "Existing knowledge in client implementations"
       }
@@ -1098,9 +1098,11 @@
         "note": "docs/user_guides/ADMIN_TROUBLESHOOTING.md - comprehensive guide with 10 sections: startup, auth, database, API, WebSocket, data extraction, RAG/search, resources, deployment, recovery. Quick diagnostics, command reference, related doc links."
       },
       "data_management": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "How to manage extracted data"
+        "status": "ready",
+        "priority": 1,
+        "artifact": "How to manage extracted data",
+        "completed": "2025-12-21",
+        "note": "docs/user_guides/ADMIN_DATA_MANAGEMENT.md - comprehensive guide with 10 sections: data overview, directory structure, extraction pipelines, monitoring, checkpoints, manual operations, database management, backup/restore, retention, storage management"
       }
     },
     "mcp_integration_docs": {

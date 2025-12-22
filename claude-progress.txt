@@ -4617,3 +4617,36 @@ Created comprehensive FAQ document for end users.
 - 28 items remaining
 
 **Next P0:** troubleshooting (user_documentation > admin_docs)
+
+## Session 331 — 2025-12-21
+
+**Task:** data_management (user_documentation > admin_docs) — P0
+
+### Summary
+Created comprehensive data management guide for administrators.
+
+### Files Created
+- `docs/user_guides/ADMIN_DATA_MANAGEMENT.md` - Complete admin guide covering:
+  - Data Overview (data types, sources, refresh frequencies, storage locations)
+  - Directory Structure (full data/ directory map with size references)
+  - Extraction Pipelines (all CLI commands, manual run procedures, full refresh)
+  - Monitoring Pipeline Health (civic-extract monitor commands, CI integration)
+  - Checkpoints (format, viewing, resetting for force re-runs)
+  - Manual Data Operations (adding/removing jurisdictions, re-indexing)
+  - Database Management (viewing state, migrations, integrity checks)
+  - Backup and Restore (local and production procedures)
+  - Data Retention (policies for each data type, cleanup commands)
+  - Storage Management (checking usage, reducing storage, disk full recovery)
+  - Common Tasks Reference table
+
+### Structure
+- Follows existing admin doc pattern (ADMIN_SETUP_GUIDE.md, ADMIN_TROUBLESHOOTING.md)
+- Command-line examples for all operations
+- Tables for quick reference
+- Links to related docs
+
+### Pilot Progress
+- 135/161 items ready (84%)
+- 26 items remaining
+
+**Next P0:** platform_specific_notes (city_onboarding > documentation)
