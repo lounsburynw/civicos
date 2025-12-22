@@ -670,6 +670,7 @@ class BootstrapResult:
         meetings_count: int = 0,
         indexed_count: int = 0,
         errors: List[str] = None,
+        report: Optional[Dict[str, Any]] = None,
     ):
         self.success = success
         self.jurisdiction_id = jurisdiction_id
@@ -679,10 +680,11 @@ class BootstrapResult:
         self.meetings_count = meetings_count
         self.indexed_count = indexed_count
         self.errors = errors or []
+        self.report = report  # PostIngestionReport as dict
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
-        return {
+        result = {
             "success": self.success,
             "jurisdiction_id": self.jurisdiction_id,
             "source_id": self.source_id,
@@ -692,6 +694,9 @@ class BootstrapResult:
             "indexed_count": self.indexed_count,
             "errors": self.errors,
         }
+        if self.report:
+            result["report"] = self.report
+        return result
 
 
 def validate_bootstrap(jurisdiction_id: str) -> tuple[bool, List[str]]:
@@ -877,25 +882,39 @@ def run_bootstrap(
         skip_index=skip_index,
     )
 
+    # Generate post-ingestion report
+    report = pipeline.report(result)
+    report_dict = report.to_dict()
+
     # Print summary
     if not quiet:
         print()
         if result.success:
-            print(colorize("Bootstrap Summary", Colors.BOLD, no_color))
+            print(colorize("Post-Ingestion Report", Colors.BOLD, no_color))
             print("-" * 20)
             print(f"Status: {colorize('SUCCESS', Colors.GREEN, no_color)}")
             print(f"Duration: {result.total_duration_ms / 1000:.1f}s")
 
-            # Get counts from stages
-            ingest_stage = result.stages.get("ingest")
-            meetings_count = ingest_stage.items_processed if ingest_stage else 0
-            print(f"Meetings: {meetings_count} ingested")
+            # Records ingested from report
+            print()
+            print("Records Ingested:")
+            for record_type, count in report.records_ingested.items():
+                print(f"  - {record_type}: {count}")
 
-            if not skip_index:
-                index_stage = result.stages.get("index")
-                indexed_count = index_stage.items_processed if index_stage else 0
-                if indexed_count > 0:
-                    print(f"Indexed: {indexed_count} items")
+            # Show gaps if any
+            if report.gaps:
+                print()
+                print(colorize(f"Data Gaps ({len(report.gaps)}):", Colors.YELLOW, no_color))
+                for gap in report.gaps:
+                    print(f"  - {gap}")
+
+            # Quality check
+            if report.is_acceptable():
+                print()
+                print(f"Quality: {colorize('ACCEPTABLE', Colors.GREEN, no_color)}")
+            else:
+                print()
+                print(f"Quality: {colorize('NEEDS REVIEW', Colors.YELLOW, no_color)}")
 
             print()
             print(f"Next: civic-status --jurisdiction {jurisdiction_id.replace('city-', '')}")
@@ -903,14 +922,17 @@ def run_bootstrap(
         else:
             print(colorize("Bootstrap FAILED", Colors.RED + Colors.BOLD, no_color))
             print("-" * 20)
-            for err in all_errors:
-                print(f"  - {err}")
 
-            # Show stage errors
-            for stage_name, stage_status in result.stages.items():
-                if stage_status.errors:
-                    for err in stage_status.errors:
-                        print(f"  - {stage_name}: {err}")
+            # Show errors from report
+            if report.errors:
+                print(f"Errors ({len(report.errors)}):")
+                for err in report.errors[:10]:
+                    print(f"  - {err}")
+                if len(report.errors) > 10:
+                    print(f"  - ... and {len(report.errors) - 10} more")
+            else:
+                for err in all_errors:
+                    print(f"  - {err}")
 
     return BootstrapResult(
         success=result.success,
@@ -921,6 +943,7 @@ def run_bootstrap(
         meetings_count=result.stages.get("ingest", type("", (), {"items_processed": 0})).items_processed,
         indexed_count=result.stages.get("index", type("", (), {"items_processed": 0})).items_processed,
         errors=all_errors,
+        report=report_dict,
     )
 
 
