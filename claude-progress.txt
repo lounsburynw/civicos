@@ -4348,3 +4348,55 @@ civic-extract audio --jurisdiction city-san-rafael --schedule   # Run daily at 8
 - 38 items remaining
 
 **Commit:** Session 323: audio_download_cron - Automated audio download CLI
+
+## Session 324: transcription_cron - civic-extract transcribe CLI
+
+**Date:** 2025-12-21
+**Item:** transcription_cron (pipeline_automation > scheduling)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Created `civic-extract transcribe` CLI for automated audio transcription using AssemblyAI with speaker diarization. Follows the pattern established by audio.py.
+
+### Implementation
+
+**New CLI:** `civic-extract transcribe`
+
+Features:
+- One-time run: `civic-extract transcribe --jurisdiction city-san-rafael`
+- Scheduled mode: `--schedule` runs daily at 9am (after audio at 8am)
+- Dry-run mode: `--dry-run` shows files that would be transcribed with cost estimate
+- Limit mode: `--limit N` transcribes only N files
+- Checkpoint support: Saves/resumes from `data/checkpoints/transcribe_{jurisdiction}.json`
+- Skip already-transcribed: Checks `data/testimony/testimony_{video_id}.json`
+- Configurable speakers: `--min-speakers`, `--max-speakers` for diarization tuning
+
+### Usage
+```bash
+civic-extract transcribe --jurisdiction city-san-rafael                    # Transcribe all pending
+civic-extract transcribe --jurisdiction city-san-rafael --dry-run          # Show cost estimate
+civic-extract transcribe --jurisdiction city-san-rafael --limit 1          # Transcribe one file
+civic-extract transcribe --jurisdiction city-san-rafael --schedule         # Start 9am scheduler
+```
+
+### Test Results
+Successfully tested with San Rafael:
+- Transcribed 2 audio files (zHPgE8sZNRs: 82.6 min, k5ZUhxHn5pE: 2.6 min)
+- 7 speakers, 40 utterances in test video
+- Cost: $0.05 for 2.6 min video
+- Checkpoint resume working correctly
+- Skip already-transcribed working correctly
+
+### Files Created/Modified
+- `packages/civic-extraction/src/civic_extraction/cli/transcribe.py` - Transcribe command (new)
+- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` - Registered transcribe subcommand
+
+### Cost
+AssemblyAI: $0.02/minute ($0.015 transcription + $0.005 diarization)
+2-hour meeting = $2.40
+
+### Pilot Progress
+- 124/161 items ready (77%)
+- 37 items remaining
+
+**Commit:** Session 324: transcription_cron - Automated transcription CLI
