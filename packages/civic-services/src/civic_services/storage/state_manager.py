@@ -29,7 +29,7 @@ Usage:
 
 import sqlite3
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Any
 from pathlib import Path
 import logging
@@ -206,6 +206,34 @@ class StateManager:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_issues_status ON issues(status)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_issues_type ON issues(issue_type)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_issues_address ON issues(address)")
+
+        # Operations table (SESSION 341: Server-side operation tracking)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS operations (
+                id TEXT PRIMARY KEY,
+                jurisdiction_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                started_at TIMESTAMP NOT NULL,
+                completed_at TIMESTAMP,
+                result_json TEXT,
+                error TEXT,
+                duration_seconds REAL,
+
+                -- Progress tracking
+                current_step TEXT,
+                progress_percent REAL DEFAULT 0,
+                items_processed INTEGER DEFAULT 0,
+                items_total INTEGER DEFAULT 0,
+
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                CHECK (status IN ('pending', 'running', 'completed', 'failed'))
+            )
+        """)
+
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_operations_jurisdiction ON operations(jurisdiction_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_operations_status ON operations(status)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_operations_started ON operations(started_at)")
 
         conn.commit()
         conn.close()
@@ -710,6 +738,328 @@ class StateManager:
             "by_status": by_status,
             "top_types": by_type
         }
+
+    # =========================================================================
+    # Operation Tracking Methods (SESSION 341)
+    # =========================================================================
+
+    def create_operation(
+        self,
+        operation_id: str,
+        jurisdiction_id: str,
+        name: str
+    ) -> Dict[str, Any]:
+        """
+        Create a new operation record with 'pending' status.
+
+        Args:
+            operation_id: Unique operation ID (UUID)
+            jurisdiction_id: City identifier
+            name: Operation name (fetch_meetings, discover_videos, etc.)
+
+        Returns:
+            Dict with operation record
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        started_at = datetime.now().isoformat()
+
+        cursor.execute("""
+            INSERT INTO operations (
+                id, jurisdiction_id, name, status, started_at,
+                progress_percent, items_processed, items_total
+            ) VALUES (?, ?, ?, 'pending', ?, 0, 0, 0)
+        """, (operation_id, jurisdiction_id, name, started_at))
+
+        conn.commit()
+        conn.close()
+
+        logger.info(f"Created operation {operation_id}: {name} for {jurisdiction_id}")
+
+        return {
+            "id": operation_id,
+            "jurisdiction_id": jurisdiction_id,
+            "name": name,
+            "status": "pending",
+            "started_at": started_at,
+            "progress_percent": 0,
+            "items_processed": 0,
+            "items_total": 0
+        }
+
+    def update_operation_status(
+        self,
+        operation_id: str,
+        status: str,
+        current_step: Optional[str] = None,
+        progress_percent: Optional[float] = None,
+        items_processed: Optional[int] = None,
+        items_total: Optional[int] = None
+    ) -> bool:
+        """
+        Update operation progress.
+
+        Args:
+            operation_id: Operation ID
+            status: New status (pending, running, completed, failed)
+            current_step: Description of current step
+            progress_percent: Progress percentage (0-100)
+            items_processed: Number of items processed
+            items_total: Total items to process
+
+        Returns:
+            True if update succeeded
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # Build dynamic update
+        updates = ["status = ?"]
+        params = [status]
+
+        if current_step is not None:
+            updates.append("current_step = ?")
+            params.append(current_step)
+
+        if progress_percent is not None:
+            updates.append("progress_percent = ?")
+            params.append(progress_percent)
+
+        if items_processed is not None:
+            updates.append("items_processed = ?")
+            params.append(items_processed)
+
+        if items_total is not None:
+            updates.append("items_total = ?")
+            params.append(items_total)
+
+        params.append(operation_id)
+
+        cursor.execute(f"""
+            UPDATE operations
+            SET {', '.join(updates)}
+            WHERE id = ?
+        """, params)
+
+        updated = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+
+        return updated
+
+    def complete_operation(
+        self,
+        operation_id: str,
+        result: Dict[str, Any],
+        error: Optional[str] = None
+    ) -> bool:
+        """
+        Mark operation as completed (success or failure).
+
+        Args:
+            operation_id: Operation ID
+            result: Result dictionary to store as JSON
+            error: Error message if failed
+
+        Returns:
+            True if update succeeded
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        completed_at = datetime.now().isoformat()
+        status = 'failed' if error else 'completed'
+
+        # Calculate duration
+        cursor.execute("SELECT started_at FROM operations WHERE id = ?", (operation_id,))
+        row = cursor.fetchone()
+        duration_seconds = None
+        if row and row[0]:
+            try:
+                started = datetime.fromisoformat(row[0])
+                duration_seconds = (datetime.now() - started).total_seconds()
+            except:
+                pass
+
+        cursor.execute("""
+            UPDATE operations
+            SET status = ?,
+                completed_at = ?,
+                result_json = ?,
+                error = ?,
+                duration_seconds = ?,
+                progress_percent = 100
+            WHERE id = ?
+        """, (status, completed_at, json.dumps(result), error, duration_seconds, operation_id))
+
+        updated = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+
+        logger.info(f"Completed operation {operation_id}: status={status}")
+        return updated
+
+    def get_operation(self, operation_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get operation by ID.
+
+        Args:
+            operation_id: Operation ID
+
+        Returns:
+            Operation dict or None if not found
+        """
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM operations WHERE id = ?", (operation_id,))
+        row = cursor.fetchone()
+
+        conn.close()
+
+        if not row:
+            return None
+
+        result = dict(row)
+
+        # Parse result_json
+        if result.get('result_json'):
+            try:
+                result['result'] = json.loads(result['result_json'])
+            except:
+                result['result'] = None
+        else:
+            result['result'] = None
+
+        return result
+
+    def get_operations(
+        self,
+        jurisdiction_id: Optional[str] = None,
+        status: Optional[str] = None,
+        limit: int = 20
+    ) -> List[Dict[str, Any]]:
+        """
+        Query operations with optional filters.
+
+        Args:
+            jurisdiction_id: Filter by jurisdiction
+            status: Filter by status
+            limit: Max results
+
+        Returns:
+            List of operation dicts
+        """
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        query = "SELECT * FROM operations WHERE 1=1"
+        params = []
+
+        if jurisdiction_id:
+            query += " AND jurisdiction_id = ?"
+            params.append(jurisdiction_id)
+
+        if status:
+            query += " AND status = ?"
+            params.append(status)
+
+        query += " ORDER BY started_at DESC LIMIT ?"
+        params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+
+        conn.close()
+
+        results = []
+        for row in rows:
+            op = dict(row)
+            if op.get('result_json'):
+                try:
+                    op['result'] = json.loads(op['result_json'])
+                except:
+                    op['result'] = None
+            else:
+                op['result'] = None
+            results.append(op)
+
+        return results
+
+    def get_current_operation(
+        self,
+        jurisdiction_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get currently running operation for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Jurisdiction ID
+
+        Returns:
+            Running operation dict or None
+        """
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT * FROM operations
+            WHERE jurisdiction_id = ?
+              AND status IN ('pending', 'running')
+            ORDER BY started_at DESC
+            LIMIT 1
+        """, (jurisdiction_id,))
+
+        row = cursor.fetchone()
+        conn.close()
+
+        if not row:
+            return None
+
+        result = dict(row)
+        if result.get('result_json'):
+            try:
+                result['result'] = json.loads(result['result_json'])
+            except:
+                result['result'] = None
+        else:
+            result['result'] = None
+
+        return result
+
+    def cleanup_old_operations(self, days: int = 30) -> int:
+        """
+        Remove completed operations older than specified days.
+
+        Args:
+            days: Age threshold in days
+
+        Returns:
+            Number of operations deleted
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cutoff = (datetime.now() - timedelta(days=days)).isoformat()
+
+        cursor.execute("""
+            DELETE FROM operations
+            WHERE status IN ('completed', 'failed')
+              AND completed_at < ?
+        """, (cutoff,))
+
+        deleted = cursor.rowcount
+        conn.commit()
+        conn.close()
+
+        if deleted > 0:
+            logger.info(f"Cleaned up {deleted} old operations")
+
+        return deleted
 
 
 # Convenience function for quick testing

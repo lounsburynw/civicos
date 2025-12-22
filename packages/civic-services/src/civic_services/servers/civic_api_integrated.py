@@ -688,6 +688,17 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
         elif base_path == '/admin/status':
             # SESSION 299: Admin status endpoint for pipeline health
             self.serve_admin_status()
+        elif base_path.startswith('/api/admin/operations/'):
+            # SESSION 341: Operation status endpoint
+            path_parts = base_path.split('/')
+            if len(path_parts) >= 5:
+                operation_id = path_parts[4]
+                self.serve_operation_status(operation_id)
+            else:
+                self.send_error(404)
+        elif base_path == '/api/admin/operations':
+            # SESSION 341: List operations endpoint
+            self.serve_operations_list()
         elif base_path.startswith('/api/operational-issues/'):
             # SESSION 90: SeeClickFix operational complaints
             # GET /api/operational-issues/{jurisdiction_id}?per_page=20&page=1&status=open
@@ -7614,16 +7625,142 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
 
         self.send_json(result)
 
+    def serve_operation_status(self, operation_id: str):
+        """SESSION 341: Get status of a specific operation.
+
+        GET /api/admin/operations/{operation_id}
+
+        Returns operation details including progress and result.
+        """
+        try:
+            from ..storage.state_manager import StateManager
+            state_db_path = get_user_path('civic_state.db')
+            state_mgr = StateManager(str(state_db_path))
+
+            operation = state_mgr.get_operation(operation_id)
+
+            if not operation:
+                self.send_json({
+                    'status': 'error',
+                    'error': 'Operation not found'
+                }, status=404)
+                return
+
+            # Format response
+            response = {
+                'operation_id': operation['id'],
+                'name': operation['name'],
+                'jurisdiction_id': operation['jurisdiction_id'],
+                'status': operation['status'],
+                'started_at': operation['started_at'],
+                'completed_at': operation.get('completed_at'),
+                'duration_seconds': operation.get('duration_seconds'),
+                'progress': {
+                    'percent': operation.get('progress_percent', 0),
+                    'current_step': operation.get('current_step'),
+                    'items_processed': operation.get('items_processed', 0),
+                    'items_total': operation.get('items_total', 0)
+                },
+                'result': operation.get('result'),
+                'error': operation.get('error')
+            }
+
+            self.send_json(response)
+
+        except Exception as e:
+            logger.error(f"Error fetching operation {operation_id}: {e}", exc_info=True)
+            self.send_json({
+                'status': 'error',
+                'error': str(e)
+            }, status=500)
+
+    def serve_operations_list(self):
+        """SESSION 341: List operations with optional filters.
+
+        GET /api/admin/operations?jurisdiction=san-rafael&status=running&limit=20
+
+        Query params:
+        - jurisdiction: Filter by jurisdiction (e.g., 'san-rafael' or 'city-san-rafael')
+        - status: Filter by status (pending, running, completed, failed)
+        - limit: Max results (default 20)
+        """
+        try:
+            from urllib.parse import parse_qs, urlparse
+            from ..storage.state_manager import StateManager
+
+            # Parse query parameters
+            parsed = urlparse(self.path)
+            params = parse_qs(parsed.query)
+
+            jurisdiction = params.get('jurisdiction', [None])[0]
+            status = params.get('status', [None])[0]
+            limit = int(params.get('limit', [20])[0])
+
+            # Normalize jurisdiction_id
+            if jurisdiction and not jurisdiction.startswith('city-'):
+                jurisdiction = f"city-{jurisdiction}"
+
+            state_db_path = get_user_path('civic_state.db')
+            state_mgr = StateManager(str(state_db_path))
+
+            operations = state_mgr.get_operations(
+                jurisdiction_id=jurisdiction,
+                status=status,
+                limit=limit
+            )
+
+            # Format response
+            response = {
+                'operations': [
+                    {
+                        'operation_id': op['id'],
+                        'name': op['name'],
+                        'jurisdiction_id': op['jurisdiction_id'],
+                        'status': op['status'],
+                        'started_at': op['started_at'],
+                        'completed_at': op.get('completed_at'),
+                        'duration_seconds': op.get('duration_seconds'),
+                        'progress_percent': op.get('progress_percent', 0),
+                        'error': op.get('error')
+                    }
+                    for op in operations
+                ],
+                'count': len(operations),
+                'filters': {
+                    'jurisdiction': jurisdiction,
+                    'status': status,
+                    'limit': limit
+                }
+            }
+
+            self.send_json(response)
+
+        except Exception as e:
+            logger.error(f"Error listing operations: {e}", exc_info=True)
+            self.send_json({
+                'status': 'error',
+                'error': str(e)
+            }, status=500)
+
     def handle_admin_trigger(self):
-        """SESSION 302: Handle admin manual trigger operations.
+        """SESSION 302/341: Handle admin manual trigger operations.
 
         POST /api/admin/trigger
         Body: { "operation": "fetch_meetings", "jurisdiction": "san-rafael" }
 
+        SESSION 341: Now returns operation_id immediately and runs in background.
+        Poll GET /api/admin/operations/{operation_id} for status updates.
+
         Supported operations:
         - fetch_meetings: Trigger ProudCity scraper to fetch new meetings
-        - discover_videos: Scan meetings for YouTube video URLs (SESSION 303)
+        - discover_videos: Scan meetings for YouTube video URLs
+        - download_audio: Download YouTube audio files
+        - transcribe_videos: Fetch YouTube transcripts
+        - refresh_seeclickfix: Refresh 311 issues
         """
+        import threading
+        import uuid
+
         try:
             # Read request body
             content_length = int(self.headers.get('Content-Length', 0))
@@ -7640,27 +7777,88 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                 }, status=400)
                 return
 
-            if operation == 'fetch_meetings':
-                result = self._trigger_fetch_meetings(jurisdiction)
-                self.send_json(result)
-            elif operation == 'discover_videos':
-                result = self._trigger_discover_videos(jurisdiction)
-                self.send_json(result)
-            elif operation == 'download_audio':
-                result = self._trigger_download_audio(jurisdiction)
-                self.send_json(result)
-            elif operation == 'transcribe_videos':
-                result = self._trigger_transcribe_videos(jurisdiction)
-                self.send_json(result)
-            elif operation == 'refresh_seeclickfix':
-                result = self._trigger_refresh_seeclickfix(jurisdiction)
-                self.send_json(result)
-            else:
+            supported_operations = ['fetch_meetings', 'discover_videos', 'download_audio', 'transcribe_videos', 'refresh_seeclickfix']
+
+            if operation not in supported_operations:
                 self.send_json({
                     'status': 'error',
                     'error': f'Unknown operation: {operation}',
-                    'supported_operations': ['fetch_meetings', 'discover_videos', 'download_audio', 'transcribe_videos', 'refresh_seeclickfix']
+                    'supported_operations': supported_operations
                 }, status=400)
+                return
+
+            # Map jurisdiction to jurisdiction_id format
+            jurisdiction_id = f"city-{jurisdiction}" if not jurisdiction.startswith('city-') else jurisdiction
+
+            # Get StateManager for operation tracking
+            from ..storage.state_manager import StateManager
+            state_db_path = get_user_path('civic_state.db')
+            state_mgr = StateManager(str(state_db_path))
+
+            # Check for existing running operation
+            existing = state_mgr.get_current_operation(jurisdiction_id)
+            if existing:
+                self.send_json({
+                    'status': 'error',
+                    'error': f'Operation already running: {existing["name"]}',
+                    'operation_id': existing['id'],
+                    'operation_name': existing['name'],
+                    'started_at': existing['started_at']
+                }, status=409)
+                return
+
+            # Create operation record
+            operation_id = str(uuid.uuid4())
+            state_mgr.create_operation(operation_id, jurisdiction_id, operation)
+
+            # Map operation to handler
+            operation_handlers = {
+                'fetch_meetings': self._trigger_fetch_meetings,
+                'discover_videos': self._trigger_discover_videos,
+                'download_audio': self._trigger_download_audio,
+                'transcribe_videos': self._trigger_transcribe_videos,
+                'refresh_seeclickfix': self._trigger_refresh_seeclickfix
+            }
+
+            handler = operation_handlers[operation]
+
+            # Define background worker
+            def run_operation():
+                try:
+                    # Update status to running
+                    state_mgr.update_operation_status(
+                        operation_id,
+                        status='running',
+                        current_step='Starting operation'
+                    )
+
+                    # Execute the operation
+                    result = handler(jurisdiction)
+
+                    # Mark as complete
+                    error = result.get('error') if result.get('status') == 'error' else None
+                    state_mgr.complete_operation(operation_id, result, error)
+
+                except Exception as e:
+                    logger.error(f"Operation {operation_id} failed: {e}", exc_info=True)
+                    state_mgr.complete_operation(
+                        operation_id,
+                        {'status': 'error', 'error': str(e)},
+                        error=str(e)
+                    )
+
+            # Start background thread
+            threading.Thread(target=run_operation, daemon=True).start()
+
+            # Return immediately with operation_id
+            self.send_json({
+                'status': 'accepted',
+                'operation_id': operation_id,
+                'operation': operation,
+                'jurisdiction': jurisdiction,
+                'message': f'Operation {operation} started. Poll /api/admin/operations/{operation_id} for status.',
+                'poll_url': f'/api/admin/operations/{operation_id}'
+            })
 
         except json.JSONDecodeError as e:
             self.send_json({
