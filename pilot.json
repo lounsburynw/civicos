@@ -1068,13 +1068,15 @@
         "location": "docs/user_guides/GETTING_STARTED.md"
       },
       "feature_guide": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "How to use each feature"
+        "status": "ready",
+        "priority": 1,
+        "artifact": "How to use each feature",
+        "location": "docs/user_guides/FEATURE_GUIDE.md",
+        "completed": "2025-12-21"
       },
       "faq": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Common questions answered"
       }
     },
