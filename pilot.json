@@ -521,14 +521,15 @@
         "completed": "2025-12-21"
       },
       "audio_download_cron": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "Cron job: Audio download daily 7am",
-        "note": "Next in pipeline automation sequence after youtube_discovery_cron"
+        "status": "ready",
+        "priority": 2,
+        "artifact": "Cron job: Audio download daily 8am",
+        "note": "Session 323: civic-extract audio CLI with --schedule mode for daily 8am (after youtube at 7am), checkpoint support, skip already-downloaded files, cookie authentication.",
+        "completed": "2025-12-21"
       },
       "transcription_cron": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Cron job: Transcription batch weekly"
       },
       "seeclickfix_cron": {
