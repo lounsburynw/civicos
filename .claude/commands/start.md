@@ -18,13 +18,15 @@ tail -20 claude-progress.txt
 git log --oneline -5
 ```
 
-## Step 2: Identify Next Work Item
+## Step 2: Identify Recommended Work Item
 
-**Priority Rules:**
+**Priority Levels (recommendations, not mandates):**
 - **P0**: Immediate/blocking - at most ONE P0 item allowed at a time
 - **P1**: High priority - current sprint
 - **P2**: Normal priority - planned work
 - **P3**: Low priority - nice to have
+
+> The priority system suggests the next item, but you have discretion. If you see a reason to work on a different item (dependencies, quick wins, context from handoff), you may do so. Document your reasoning.
 
 ```bash
 python3 -c "
@@ -86,9 +88,10 @@ if len(p0_items) > 1:
 
 if best:
     priority_label = {0: 'P0 (IMMEDIATE)', 1: 'P1', 2: 'P2', 3: 'P3'}.get(best['priority'], f'P{best[\"priority\"]}')
-    print(f'NEXT ITEM: {best[\"item\"]}')
+    print(f'RECOMMENDED: {best[\"item\"]}')
     print(f'Area: {best[\"category\"]} > {best[\"subcategory\"]}')
     print(f'Priority: {priority_label}')
+    print(f'(You have discretion to choose a different item if justified)')
     if 'test' in best['info']:
         print(f'Test: {best[\"info\"][\"test\"]}')
     if 'manual_step' in best['info']:

@@ -40,7 +40,9 @@ Check current phase: `python3 -c "import json; print(json.load(open('phase.json'
 | **P2** | Normal priority | Planned work |
 | **P3** | Low priority | Nice to have |
 
-P0 is reserved for critical blockers that must be resolved before any other work. `/start` and `init.sh` will warn if multiple P0 items exist.
+**Priorities are recommendations, not mandates.** `/start` suggests the highest-priority item, but sessions have discretion to choose differently if justified (dependencies, quick wins, stale context). Document reasoning when deviating.
+
+P0 is reserved for critical blockers. `/start` and `init.sh` will warn if multiple P0 items exist.
 
 ## Core API
 
