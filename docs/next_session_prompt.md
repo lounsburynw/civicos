@@ -1,4 +1,4 @@
-# Recommended: Error Logs Display
+# Recommended: Operations Backend Protocol
 
 **Priority:** P0 (IMMEDIATE)
 **Area:** admin_operations > operation_status
@@ -8,80 +8,67 @@
 
 ## Context
 
-Session 342 added the operation history table to AdminStatusPage.vue. The table shows operation name, started time, duration, and status with expandable rows. Currently, errors are shown as a single line in expanded rows (`op.error`). The `error_logs` item asks for enhanced error display with log output.
+Session 341 added operation tracking (create, update, complete, get operations) directly to StateManager, which is SQLite-only. For production Postgres deployment, these methods need to go through the StorageBackend protocol like other persistence operations.
 
 **Current state:**
-- Operations table stores: id, name, status, started_at, completed_at, result_json, error
-- Frontend displays error in expandable row (line 511-514)
-- Error field is a simple string from `complete_operation(error=...)`
+- `StateManager` has operations table + methods (SQLite)
+- `StorageBackend` protocol in `backend.py` has no operation methods
+- `PostgresBackend` implements StorageBackend but can't do operation tracking
 
-**What's missing:**
-- Multi-line error formatting (stack traces get truncated)
-- Error filtering (show only failed operations)
-- Richer error details from result_json (not just error string)
+**The problem:** Operation tracking won't work in production until this is fixed.
 
 ## Recommended Task
 
-Enhance error display in the operation history table:
-1. Format multi-line errors (stack traces) with proper whitespace
-2. Add "Show errors only" filter toggle
-3. Display additional error context from result_json if available
+Add operation tracking to the StorageBackend protocol and implement in PostgresBackend:
+
+1. Add protocol methods to `StorageBackend` in `backend.py`
+2. Implement in `PostgresBackend`
+3. Either refactor StateManager to use protocol, or create SQLiteBackend wrapper
 
 ## Key Files
 
-**Frontend (enhance display):**
-- `apps/civic-workspace/src/components/workspace/AdminStatusPage.vue:498-515` - Expandable detail row with error display
-- `apps/civic-workspace/src/components/workspace/AdminStatusPage.vue:461-517` - History table section
-- `apps/civic-workspace/src/types/civic.ts:912-922` - OperationListItem type
+**Protocol definition:**
+- `packages/civic-services/src/civic_services/storage/backend.py` - StorageBackend protocol (add methods here)
 
-**Backend (error storage):**
-- `packages/civic-services/src/civic_services/storage/state_manager.py:851-895` - `complete_operation()` stores error string
-- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py:7677-7743` - `serve_operations_list()` returns operations
+**Existing SQLite implementation (reference):**
+- `packages/civic-services/src/civic_services/storage/state_manager.py:751-1030` - Operations methods to port:
+  - `create_operation()` (line 751)
+  - `update_operation_status()` (line 791)
+  - `complete_operation()` (line 851)
+  - `get_operation()` (line 897)
+  - `get_operations()` (line 938)
 
-**API endpoint:**
-- `GET /api/admin/operations?status=failed` - Filter by status (already supported)
+**Postgres implementation:**
+- `packages/civic-services/src/civic_services/storage/postgres_backend.py` - Add implementations here
+
+**Tests:**
+- `packages/civic-services/tests/storage/test_postgres_backend.py` - Add operation tests
 
 ## Suggested Approach
 
-1. **Add error filter toggle:**
-   ```typescript
-   const showErrorsOnly = ref(false);
-   const filteredHistory = computed(() =>
-     showErrorsOnly.value
-       ? operationHistory.value.filter(op => op.status === 'failed')
-       : operationHistory.value
-   );
+1. **Add to StorageBackend protocol** (`backend.py`):
+   ```python
+   def create_operation(self, operation_id: str, name: str, jurisdiction_id: str) -> bool: ...
+   def update_operation_status(self, operation_id: str, status: str, ...) -> bool: ...
+   def complete_operation(self, operation_id: str, result: Dict, error: Optional[str]) -> bool: ...
+   def get_operation(self, operation_id: str) -> Optional[Dict]: ...
+   def get_operations(self, jurisdiction_id: Optional[str], status: Optional[str], limit: int) -> List[Dict]: ...
    ```
 
-2. **Enhance error display with pre-wrap:**
-   ```vue
-   <div v-if="op.error" class="detail-row error">
-     <span class="detail-label">Error:</span>
-     <pre class="error-log">{{ op.error }}</pre>
-   </div>
-   ```
+2. **Implement in PostgresBackend** - follow existing patterns (use `self.pool`, async queries)
 
-3. **Add CSS for log display:**
-   ```css
-   .error-log {
-     font-family: monospace;
-     font-size: 11px;
-     white-space: pre-wrap;
-     background: rgba(239, 68, 68, 0.05);
-     padding: 8px;
-     border-radius: 4px;
-     max-height: 200px;
-     overflow-y: auto;
-   }
-   ```
+3. **Add tests** - similar to existing StorageBackend tests
 
-4. **Update filter toggle UI** (add checkbox/toggle near section title)
+4. **Decide StateManager approach:**
+   - Option A: StateManager delegates to StorageBackend (if injected)
+   - Option B: Create SQLiteBackend that wraps StateManager operations
+   - Option C: Leave StateManager for dev, use PostgresBackend for prod (current pattern)
 
 ## Tests to Run
 
 ```bash
-# TypeScript compilation
-cd apps/civic-workspace && npm run type-check
+# Storage backend tests
+pytest packages/civic-services/tests/storage/ -v --override-ini="addopts="
 
 # Smoke tests
 pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
@@ -89,15 +76,14 @@ pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
 
 ## Success Criteria
 
-- [ ] Multi-line errors display with preserved formatting
-- [ ] "Show errors only" toggle filters to failed operations
-- [ ] Error log styling matches design system
-- [ ] Stack traces readable with scroll for long content
-- [ ] TypeScript compiles without errors
-- [ ] pilot.json `error_logs` marked as ready
+- [ ] StorageBackend protocol has operation tracking methods
+- [ ] PostgresBackend implements all operation methods
+- [ ] Tests pass for Postgres operation tracking
+- [ ] Existing SQLite flow still works (StateManager)
+- [ ] pilot.json `operations_backend_protocol` marked as ready
 
 ## Pilot Progress
 
-- 147/168 items ready (87.5%)
-- 21 items remaining
-- P0: error_logs (this item)
+- 147/169 items ready (87.0%)
+- 22 items remaining
+- P0: operations_backend_protocol (this item)

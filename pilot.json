@@ -489,13 +489,13 @@
       },
       "error_logs": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 2,
         "artifact": "Show errors/failures with log output",
         "note": "Store error details in operation_history result_json. Display expandable error details in dashboard."
       },
       "operations_backend_protocol": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Operation tracking methods in StorageBackend protocol with Postgres implementation",
         "note": "Session 341 added operations table to StateManager (SQLite-only). Need to: (1) Add create_operation, update_operation_status, complete_operation, get_operation, get_operations methods to StorageBackend protocol in backend.py, (2) Implement in PostgresBackend, (3) Refactor StateManager to use protocol or create SQLiteBackend wrapper. Enables same operation tracking API for local SQLite and production Postgres.",
         "depends_on": "operation_history"
