@@ -402,11 +402,12 @@
         "depends_on": "running_operations"
       },
       "operation_history_table": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Table showing last N operations with expandable details",
         "note": "Consume GET /api/admin/operations. Show: operation name, started_at, duration, status (success/failure), result counts. Expandable row for error details.",
-        "depends_on": "operation_history"
+        "depends_on": "operation_history",
+        "completed": "2025-12-22"
       }
     },
     "source_discovery": {
@@ -488,7 +489,7 @@
       },
       "error_logs": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Show errors/failures with log output",
         "note": "Store error details in operation_history result_json. Display expandable error details in dashboard."
       }
