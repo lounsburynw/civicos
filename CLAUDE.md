@@ -116,8 +116,9 @@ Read only when needed for architectural decisions:
 | `/load_context` | Load context for work area | Yes (Explore) |
 | `/analyze-item [name]` | Deep analysis of item | Yes (3 parallel) |
 | `/test [mode]` | Run tests (smoke/targeted/full/profile) | No |
+| `/critic [type]` | Run codebase critics on staged changes | No |
 | `/commit` | Commit changes | No |
-| `/nextsesh` | Prepare handoff notes | No |
+| `/nextsesh` | Prepare handoff notes (requires P0 set) | No |
 
 ### Subagent Usage for Context Management
 
@@ -147,6 +148,36 @@ Task(subagent_type="Explore", prompt="Explore [area] for [item]...")
 - Priority: Deployment artifacts and monitoring
 - Reference: `pilot.json` for checklist items
 - Focus: Rollback procedures, user documentation, Jan 2026 launch readiness
+
+### Session End Requirements
+
+**Sessions must assign exactly 1 P0 before ending.** This ensures continuity between sessions.
+
+Before running `/nextsesh`:
+1. Identify the most important next task
+2. Update `pilot.json` to set that item's `priority: 0`
+3. `/nextsesh` will fail if no P0 is set
+
+## Codebase Critics
+
+LLM-based code review prompts in `.critics/` catch architectural issues before commit.
+
+| Critic | Purpose |
+|--------|---------|
+| `pipeline.critic.md` | 4-stage ETL pattern (storage gaps, stage ordering) |
+| `protocol.critic.md` | Protocol conformance (StorageBackend, VectorBackend) |
+| `architecture.critic.md` | Layer boundaries (cross-package imports) |
+| `session.critic.md` | Session hygiene (P0 assignment) |
+
+**Usage:**
+```bash
+/critic              # Run all critics on staged changes
+/critic pipeline     # Run specific critic
+```
+
+Critics output JSON with `pass`, `issues`, `severity`. Critical failures should block commit.
+
+See `.critics/README.md` for full documentation.
 
 ## Launching the App
 

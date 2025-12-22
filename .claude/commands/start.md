@@ -18,6 +18,28 @@ tail -20 claude-progress.txt
 git log --oneline -5
 ```
 
+## Step 1.5: Check for Handoff Context
+
+Check if the previous session left context for you:
+
+```bash
+if [ -f "docs/next_session_prompt.md" ]; then
+    echo "=== HANDOFF FROM PREVIOUS SESSION ==="
+    cat docs/next_session_prompt.md
+    echo ""
+    echo "=== END HANDOFF ==="
+    echo ""
+    echo "Review the above handoff. You may:"
+    echo "1. Accept and work on the recommended item"
+    echo "2. Modify the approach"
+    echo "3. Ignore and use pilot.json priorities instead"
+else
+    echo "No handoff from previous session."
+fi
+```
+
+If a handoff exists and contains a P0 item, that takes precedence over Step 2's checklist scan. Read and understand the handoff before proceeding.
+
 ## Step 2: Identify Recommended Work Item
 
 **Priority Levels (recommendations, not mandates):**
@@ -182,6 +204,7 @@ Before ending:
 | `/load_context` | Load context for current work area | Yes (Explore) |
 | `/analyze-item` | Deep analysis of specific item | Yes (3 parallel) |
 | `/test [mode]` | Run tests (smoke/targeted/full/profile) | No |
+| `/critic [type]` | Run codebase critics on staged changes | No |
 | `/commit` | Commit changes | No |
 | `/nextsesh` | Prepare handoff notes | No |
 

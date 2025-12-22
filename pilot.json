@@ -488,10 +488,11 @@
     },
     "developer_tooling": {
       "codebase_critics": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": ".critics/ directory with LLM-based code review prompts",
-        "note": "Session 315: catches architectural issues like storage gap. Includes pipeline, protocol, architecture critics + /critic command"
+        "note": "Session 320: 4 critics (pipeline, protocol, architecture, session) + /critic command + session P0 enforcement",
+        "completed": "2025-12-21"
       }
     }
   },
@@ -500,8 +501,9 @@
     "scheduling": {
       "meeting_discovery_cron": {
         "status": "not_ready",
-        "priority": 2,
-        "artifact": "Cron job: Meeting discovery daily 6am"
+        "priority": 0,
+        "artifact": "Cron job: Meeting discovery daily 6am",
+        "note": "First of pipeline automation cron jobs"
       },
       "youtube_discovery_cron": {
         "status": "not_ready",
