@@ -1,4 +1,4 @@
-# Recommended: YouTube Discovery Cron
+# Recommended: Audio Download Cron
 
 **Priority:** P0 (IMMEDIATE)
 **Area:** pipeline_automation > scheduling
@@ -8,60 +8,65 @@
 
 ## Context
 
-Session 321 completed `meeting_discovery_cron` as `civic-extract discover` CLI command. The pattern is established as a package CLI, not standalone scripts. Next is YouTube video discovery.
+Session 322 completed `youtube_discovery_cron` as `civic-extract youtube` CLI command. The pattern continues as package CLI (discover -> youtube -> audio). Next is audio download from discovered YouTube videos.
 
 ## Recommended Task
 
-Add `civic-extract youtube` command to discover YouTube videos for meetings.
+Add `civic-extract audio` command to download audio from YouTube videos discovered by the `youtube` command.
 
 ## Key Files
 
-- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` - CLI entry point (add youtube subcommand)
-- `packages/civic-extraction/src/civic_extraction/cli/discover.py` - **Pattern to follow**
-- `packages/civic-extraction/pyproject.toml` - Entry point defined here
+- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` - CLI entry point (add audio subcommand)
+- `packages/civic-extraction/src/civic_extraction/cli/youtube.py` - **Pattern to follow**
+- `packages/civic-extraction/src/civic_extraction/cli/discover.py` - **Also a pattern**
+- `scripts/download_youtube_audio.py` - **Existing audio download logic**
 
 ## What Needs to Happen
 
-1. **Investigate YouTube extraction** - Find or create YouTube discovery client
-   - Grep for "youtube" in packages/civic-extraction
-   - Check how videos are linked to meetings
-
-2. **Create youtube.py CLI module** - `packages/civic-extraction/src/civic_extraction/cli/youtube.py`:
-   - Follow discover.py pattern
-   - One-time and --schedule modes
+1. **Create audio.py CLI module** - `packages/civic-extraction/src/civic_extraction/cli/audio.py`:
+   - Follow youtube.py and discover.py patterns
+   - Read from `data/{jurisdiction}_videos.json` (output of youtube command)
+   - Use yt-dlp to download audio (see scripts/download_youtube_audio.py)
+   - Skip already-downloaded files
    - Checkpoint save/resume
-   - Dry-run validation
+   - Output to `data/youtube_audio/{video_id}.mp3`
 
-3. **Register in CLI** - Update `cli/__init__.py` to add youtube subcommand
+2. **Register in CLI** - Update `cli/__init__.py` to add audio subcommand
 
-4. **Test** - `civic-extract youtube --jurisdiction city-san-rafael --dry-run`
+3. **Handle cookies** - YouTube requires cookies for some downloads
+   - Support --cookies flag (default: `~/Downloads/www.youtube.com_cookies.txt`)
+   - Warn if cookies file not found
+
+4. **Test** - `civic-extract audio --jurisdiction city-san-rafael --dry-run`
 
 ## Suggested Approach
 
-1. Grep for "youtube" in packages/civic-extraction to find existing code
-2. Create `cli/youtube.py` following `cli/discover.py` pattern
-3. Register in `cli/__init__.py`
-4. Reinstall package: `pip install -e packages/civic-extraction/`
-5. Test with --dry-run first, then full run
+1. Read `scripts/download_youtube_audio.py` for existing yt-dlp usage
+2. Create `cli/audio.py` following youtube.py pattern
+3. Read videos from `data/{jurisdiction}_videos.json`
+4. Register in `cli/__init__.py`
+5. Reinstall package: `pip install -e packages/civic-extraction/`
+6. Test with --dry-run first
 
 ## Tests to Run
 ```bash
 # After creating the command
-civic-extract youtube --help
-civic-extract youtube --jurisdiction city-san-rafael --dry-run
+civic-extract audio --help
+civic-extract audio --jurisdiction city-san-rafael --dry-run
+civic-extract audio --jurisdiction city-san-rafael --limit 1  # Download just 1 video for testing
 ```
 
 ## Success Criteria
-- [ ] `civic-extract youtube` command works
-- [ ] Supports --schedule, --dry-run, --jurisdiction flags
+- [ ] `civic-extract audio` command works
+- [ ] Reads from `{jurisdiction}_videos.json`
+- [ ] Supports --schedule, --dry-run, --cookies, --jurisdiction flags
+- [ ] Skips already-downloaded files
 - [ ] Checkpoint save/resume works
-- [ ] Successfully discovers YouTube videos for san-rafael
-- [ ] pilot.json updated to mark youtube_discovery_cron as ready
+- [ ] pilot.json updated to mark audio_download_cron as ready
 
 ## Related Pipeline Automation Items
 
-After youtube_discovery_cron:
-- `audio_download_cron` (P2) - `civic-extract audio` command
+After audio_download_cron:
 - `transcription_cron` (P2) - `civic-extract transcribe` command
 - `seeclickfix_cron` (P2) - `civic-extract seeclickfix` command
 
