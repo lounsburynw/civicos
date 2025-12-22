@@ -5025,3 +5025,42 @@ Need to assign a new P0 before running /nextsesh.
 
 ---
 
+
+
+## Session 341 (2025-12-22)
+**Focus:** running_operations - Server-side operation tracking
+
+### Implemented
+1. **Operations table in StateManager** (state_manager.py)
+   - Added `operations` table with columns: id, jurisdiction_id, name, status, started_at, completed_at, result_json, error, duration_seconds, current_step, progress_percent, items_processed, items_total
+   - Created indexes for jurisdiction_id, status, started_at
+   - Added methods: create_operation(), update_operation_status(), complete_operation(), get_operation(), get_operations(), get_current_operation(), cleanup_old_operations()
+
+2. **Async operation execution** (civic_api_integrated.py:handle_admin_trigger)
+   - Operations now return immediately with operation_id
+   - Background thread executes the actual operation
+   - Checks for existing running operation (returns 409 if blocked)
+   - Updates operation status throughout execution lifecycle
+
+3. **Status polling endpoints**
+   - GET /api/admin/operations/{operation_id} - Full operation status with progress
+   - GET /api/admin/operations?jurisdiction=&status=&limit= - List operations with filters
+
+4. **Frontend updates** (AdminStatusPage.vue, api.ts, civic.ts)
+   - New types: OperationStatus, OperationProgress, OperationResult, OperationsListResponse
+   - API methods: getOperationStatus(), getOperations(), getCurrentOperation()
+   - Polling logic: 2-second interval while operation running
+   - Resume on browser refresh: checkForRunningOperation() on mount
+
+### Key Changes
+- handle_admin_trigger: Returns `{status: 'accepted', operation_id: '...', poll_url: '...'}`
+- Frontend polls server for status instead of client-side timer only
+- Operation state persists across browser refresh
+- Completed 2 pilot.json items: running_operations + operation_history
+
+### Pilot Progress
+- Before: 143/168 items (85.1%)
+- After: 146/168 items (86.9%)
+- 3 items completed: running_operations, operation_history, operation_progress_panel
+
+---

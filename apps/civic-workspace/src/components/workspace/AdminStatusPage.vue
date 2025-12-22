@@ -291,7 +291,7 @@
         </div>
       </div>
 
-      <!-- Running Operation Indicator (SESSION 309) -->
+      <!-- Running Operation Indicator (SESSION 309/341) -->
       <div v-if="runningOperation" class="running-operation-banner">
         <div class="running-indicator">
           <RefreshCw :size="18" class="spinning" />
@@ -301,6 +301,10 @@
           <span class="running-timer">
             <Clock :size="12" />
             {{ formatElapsedTime(elapsedSeconds) }}
+          </span>
+          <!-- Server-side progress (SESSION 341) -->
+          <span v-if="currentOperationStatus?.progress?.current_step" class="running-step">
+            {{ currentOperationStatus.progress.current_step }}
           </span>
         </div>
       </div>
@@ -505,7 +509,7 @@ import {
   Clock
 } from 'lucide-vue-next';
 import { api } from '@/services/api';
-import type { AdminStatusResponse, AdminTriggerResponse, RunningOperation } from '@/types/civic';
+import type { AdminStatusResponse, AdminTriggerResponse, RunningOperation, OperationStatus, OperationResult } from '@/types/civic';
 
 const props = defineProps<{
   jurisdiction?: string;
@@ -520,12 +524,15 @@ const loadingSources = ref(false);
 const error = ref<string | null>(null);
 const statusData = ref<AdminStatusResponse | null>(null);
 const operationInProgress = ref<string | null>(null);
-const operationResult = ref<AdminTriggerResponse | null>(null);
+const operationResult = ref<OperationResult | null>(null);
 
-// Running operations with timer (SESSION 309)
+// Running operations with server-side tracking (SESSION 341)
 const runningOperation = ref<RunningOperation | null>(null);
+const currentOperationStatus = ref<OperationStatus | null>(null);
 const elapsedSeconds = ref(0);
 let elapsedTimer: ReturnType<typeof setInterval> | null = null;
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+const POLL_INTERVAL_MS = 2000; // Poll every 2 seconds
 
 const operationLabels: Record<string, string> = {
   'fetch_meetings': 'Fetching meetings from ProudCity',
@@ -535,8 +542,9 @@ const operationLabels: Record<string, string> = {
   'refresh_seeclickfix': 'Refreshing SeeClickFix issues'
 };
 
-function startOperationTimer(operation: string) {
+function startOperationTimer(operationId: string, operation: string) {
   runningOperation.value = {
+    operation_id: operationId,
     operation,
     startedAt: new Date(),
     label: operationLabels[operation] || operation
@@ -554,6 +562,79 @@ function stopOperationTimer() {
   }
   runningOperation.value = null;
   elapsedSeconds.value = 0;
+}
+
+// SESSION 341: Poll operation status from server
+async function pollOperationStatus(operationId: string) {
+  try {
+    const status = await api.getOperationStatus(operationId);
+    currentOperationStatus.value = status;
+
+    if (status.status === 'completed' || status.status === 'failed') {
+      // Operation finished - stop polling and update UI
+      stopPolling();
+      stopOperationTimer();
+      operationInProgress.value = null;
+
+      if (status.result) {
+        operationResult.value = status.result;
+      } else if (status.error) {
+        operationResult.value = {
+          status: 'error',
+          operation: status.name,
+          jurisdiction: status.jurisdiction_id.replace('city-', ''),
+          timestamp: status.completed_at || new Date().toISOString(),
+          error: status.error
+        };
+      }
+
+      // Refresh status data if successful
+      if (status.status === 'completed') {
+        await loadStatus(false);
+      }
+    }
+  } catch (e) {
+    console.error('Failed to poll operation status:', e);
+    // Don't stop polling on transient errors
+  }
+}
+
+function startPolling(operationId: string) {
+  stopPolling(); // Clear any existing poller
+  pollTimer = setInterval(() => {
+    pollOperationStatus(operationId);
+  }, POLL_INTERVAL_MS);
+  // Also do an immediate poll
+  pollOperationStatus(operationId);
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+  currentOperationStatus.value = null;
+}
+
+// SESSION 341: Check for running operation on mount
+async function checkForRunningOperation() {
+  try {
+    const currentOp = await api.getCurrentOperation(props.jurisdiction || 'san-rafael');
+    if (currentOp && (currentOp.status === 'pending' || currentOp.status === 'running')) {
+      // Resume tracking this operation
+      operationInProgress.value = currentOp.name;
+      currentOperationStatus.value = currentOp;
+
+      // Calculate elapsed time from server's started_at
+      const startedAt = new Date(currentOp.started_at);
+      elapsedSeconds.value = Math.floor((Date.now() - startedAt.getTime()) / 1000);
+
+      startOperationTimer(currentOp.operation_id, currentOp.name);
+      startPolling(currentOp.operation_id);
+    }
+  } catch (e) {
+    console.error('Failed to check for running operation:', e);
+  }
 }
 
 function formatElapsedTime(seconds: number): string {
@@ -823,132 +904,83 @@ function getOpenIssuesCount(): number {
   return statusData.value?.database.issues.by_status?.open ?? 0;
 }
 
-async function triggerFetchMeetings() {
-  operationInProgress.value = 'fetch_meetings';
+// SESSION 341: Generic async operation trigger with polling
+async function triggerOperation(
+  operation: string,
+  triggerFn: () => Promise<AdminTriggerResponse>
+) {
+  operationInProgress.value = operation;
   operationResult.value = null;
-  startOperationTimer('fetch_meetings');
+
   try {
-    const result = await api.triggerFetchMeetings(props.jurisdiction || 'san-rafael');
-    operationResult.value = result;
-    if (result.status === 'success') {
-      await loadStatus(false);
+    const response = await triggerFn();
+
+    if (response.status === 'accepted' && response.operation_id) {
+      // Operation started - begin polling
+      startOperationTimer(response.operation_id, operation);
+      startPolling(response.operation_id);
+    } else if (response.status === 'error') {
+      // Error starting operation
+      operationResult.value = {
+        status: 'error',
+        operation,
+        jurisdiction: props.jurisdiction || 'san-rafael',
+        timestamp: new Date().toISOString(),
+        error: response.error || 'Failed to start operation'
+      };
+      operationInProgress.value = null;
     }
   } catch (e) {
     operationResult.value = {
       status: 'error',
-      operation: 'fetch_meetings',
+      operation,
       jurisdiction: props.jurisdiction || 'san-rafael',
       timestamp: new Date().toISOString(),
       error: e instanceof Error ? e.message : 'Operation failed'
     };
-  } finally {
-    stopOperationTimer();
     operationInProgress.value = null;
   }
+}
+
+async function triggerFetchMeetings() {
+  await triggerOperation('fetch_meetings', () =>
+    api.triggerFetchMeetings(props.jurisdiction || 'san-rafael')
+  );
 }
 
 async function triggerDiscoverVideos() {
-  operationInProgress.value = 'discover_videos';
-  operationResult.value = null;
-  startOperationTimer('discover_videos');
-  try {
-    const result = await api.triggerDiscoverVideos(props.jurisdiction || 'san-rafael');
-    operationResult.value = result;
-    if (result.status === 'success') {
-      await loadStatus(false);
-    }
-  } catch (e) {
-    operationResult.value = {
-      status: 'error',
-      operation: 'discover_videos',
-      jurisdiction: props.jurisdiction || 'san-rafael',
-      timestamp: new Date().toISOString(),
-      error: e instanceof Error ? e.message : 'Operation failed'
-    };
-  } finally {
-    stopOperationTimer();
-    operationInProgress.value = null;
-  }
+  await triggerOperation('discover_videos', () =>
+    api.triggerDiscoverVideos(props.jurisdiction || 'san-rafael')
+  );
 }
 
 async function triggerDownloadAudio() {
-  operationInProgress.value = 'download_audio';
-  operationResult.value = null;
-  startOperationTimer('download_audio');
-  try {
-    const result = await api.triggerDownloadAudio(props.jurisdiction || 'san-rafael');
-    operationResult.value = result;
-    if (result.status === 'success') {
-      await loadStatus(false);
-    }
-  } catch (e) {
-    operationResult.value = {
-      status: 'error',
-      operation: 'download_audio',
-      jurisdiction: props.jurisdiction || 'san-rafael',
-      timestamp: new Date().toISOString(),
-      error: e instanceof Error ? e.message : 'Operation failed'
-    };
-  } finally {
-    stopOperationTimer();
-    operationInProgress.value = null;
-  }
+  await triggerOperation('download_audio', () =>
+    api.triggerDownloadAudio(props.jurisdiction || 'san-rafael')
+  );
 }
 
 async function triggerTranscribeVideos() {
-  operationInProgress.value = 'transcribe_videos';
-  operationResult.value = null;
-  startOperationTimer('transcribe_videos');
-  try {
-    const result = await api.triggerTranscribeVideos(props.jurisdiction || 'san-rafael');
-    operationResult.value = result;
-    if (result.status === 'success') {
-      await loadStatus(false);
-    }
-  } catch (e) {
-    operationResult.value = {
-      status: 'error',
-      operation: 'transcribe_videos',
-      jurisdiction: props.jurisdiction || 'san-rafael',
-      timestamp: new Date().toISOString(),
-      error: e instanceof Error ? e.message : 'Operation failed'
-    };
-  } finally {
-    stopOperationTimer();
-    operationInProgress.value = null;
-  }
+  await triggerOperation('transcribe_videos', () =>
+    api.triggerTranscribeVideos(props.jurisdiction || 'san-rafael')
+  );
 }
 
 async function triggerRefreshSeeClickFix() {
-  operationInProgress.value = 'refresh_seeclickfix';
-  operationResult.value = null;
-  startOperationTimer('refresh_seeclickfix');
-  try {
-    const result = await api.triggerRefreshSeeClickFix(props.jurisdiction || 'san-rafael');
-    operationResult.value = result;
-    if (result.status === 'success') {
-      await loadStatus(false);
-    }
-  } catch (e) {
-    operationResult.value = {
-      status: 'error',
-      operation: 'refresh_seeclickfix',
-      jurisdiction: props.jurisdiction || 'san-rafael',
-      timestamp: new Date().toISOString(),
-      error: e instanceof Error ? e.message : 'Operation failed'
-    };
-  } finally {
-    stopOperationTimer();
-    operationInProgress.value = null;
-  }
+  await triggerOperation('refresh_seeclickfix', () =>
+    api.triggerRefreshSeeClickFix(props.jurisdiction || 'san-rafael')
+  );
 }
 
 onMounted(() => {
   loadStatus(false);
+  // SESSION 341: Check for running operation to resume after browser refresh
+  checkForRunningOperation();
 });
 
 onUnmounted(() => {
   stopOperationTimer();
+  stopPolling();
 });
 </script>
 

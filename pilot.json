@@ -395,15 +395,15 @@
         "depends_on": "status_page"
       },
       "operation_progress_panel": {
-        "status": "not_ready",
-        "priority": 1,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Real-time operation progress from server state",
-        "note": "Replace client-side timer with server-side progress. Poll GET /api/admin/operations/current or use WebSocket. Show stage, items processed, errors.",
+        "note": "SESSION 341: Frontend polls GET /api/admin/operations/{id} every 2 seconds. Shows current_step, timer. Resumes on browser refresh.",
         "depends_on": "running_operations"
       },
       "operation_history_table": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Table showing last N operations with expandable details",
         "note": "Consume GET /api/admin/operations. Show: operation name, started_at, duration, status (success/failure), result counts. Expandable row for error details.",
         "depends_on": "operation_history"
@@ -475,16 +475,16 @@
     },
     "operation_status": {
       "running_operations": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Show running operations with server-side progress tracking",
-        "note": "AUDIT FINDING: Current implementation is client-side timer only. Needs: (1) Server-side operation state table, (2) Progress updates via polling or WebSocket, (3) Resume on browser refresh."
+        "note": "SESSION 341: Added operations table to StateManager, async execution with operation_id, polling from frontend, resume on browser refresh."
       },
       "operation_history": {
-        "status": "not_ready",
-        "priority": 1,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Persist operation runs to database with results",
-        "note": "Add operations table: (id, name, status, started_at, completed_at, result_json, error). Expose GET /api/admin/operations endpoint."
+        "note": "SESSION 341: Operations table stores (id, name, status, started_at, completed_at, result_json, error). GET /api/admin/operations endpoint exposed."
       },
       "error_logs": {
         "status": "not_ready",

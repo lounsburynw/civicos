@@ -810,10 +810,29 @@ export interface AdminStatusResponse {
 }
 
 /**
- * Response from admin trigger operations
+ * Response from admin trigger operations (now async)
  * Backend: POST /api/admin/trigger
+ * SESSION 341: Now returns operation_id for async tracking
  */
 export interface AdminTriggerResponse {
+  status: 'accepted' | 'error';
+  operation_id?: string;
+  operation: string;
+  jurisdiction: string;
+  message?: string;
+  poll_url?: string;
+  // Error fields
+  error?: string;
+  operation_name?: string; // when blocked by running operation
+  started_at?: string;
+  supported_operations?: string[];
+}
+
+/**
+ * Operation result data (stored in result_json)
+ * SESSION 341: Unified result structure
+ */
+export interface OperationResult {
   status: 'success' | 'error';
   operation: string;
   jurisdiction: string;
@@ -833,24 +852,81 @@ export interface AdminTriggerResponse {
   count_skipped?: number;
   count_errors?: number;
   // transcribe_videos fields (SESSION 307)
-  // count_fetched already defined above (reused for transcribe)
   count_with_video?: number;
   count_transcribed?: number;
   count_no_captions?: number;
   // refresh_seeclickfix fields (SESSION 308)
-  // count_fetched, count_new, count_stored already defined above
   count_updated?: number;
   // Common fields
   duration_seconds?: number;
   error?: string;
-  supported_operations?: string[];
+}
+
+/**
+ * Progress tracking for operations
+ * SESSION 341: Server-side progress
+ */
+export interface OperationProgress {
+  percent: number;
+  current_step: string | null;
+  items_processed: number;
+  items_total: number;
+}
+
+/**
+ * Server-side operation status response
+ * Backend: GET /api/admin/operations/{operation_id}
+ * SESSION 341: Full operation tracking
+ */
+export interface OperationStatus {
+  operation_id: string;
+  name: string;
+  jurisdiction_id: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  started_at: string;
+  completed_at: string | null;
+  duration_seconds: number | null;
+  progress: OperationProgress;
+  result: OperationResult | null;
+  error: string | null;
+}
+
+/**
+ * List operations response
+ * Backend: GET /api/admin/operations
+ * SESSION 341: Operations history
+ */
+export interface OperationsListResponse {
+  operations: OperationListItem[];
+  count: number;
+  filters: {
+    jurisdiction: string | null;
+    status: string | null;
+    limit: number;
+  };
+}
+
+/**
+ * Compact operation item for list view
+ */
+export interface OperationListItem {
+  operation_id: string;
+  name: string;
+  jurisdiction_id: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  started_at: string;
+  completed_at: string | null;
+  duration_seconds: number | null;
+  progress_percent: number;
+  error: string | null;
 }
 
 /**
  * Running operation state for admin progress indicator
- * SESSION 309: running_operations
+ * SESSION 309/341: Now tracks server-side operation_id
  */
 export interface RunningOperation {
+  operation_id: string;
   operation: string;
   startedAt: Date;
   label: string;
