@@ -494,10 +494,10 @@
         "note": "Store error details in operation_history result_json. Display expandable error details in dashboard."
       },
       "operations_backend_protocol": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Operation tracking methods in StorageBackend protocol with Postgres implementation",
-        "note": "Session 341 added operations table to StateManager (SQLite-only). Need to: (1) Add create_operation, update_operation_status, complete_operation, get_operation, get_operations methods to StorageBackend protocol in backend.py, (2) Implement in PostgresBackend, (3) Refactor StateManager to use protocol or create SQLiteBackend wrapper. Enables same operation tracking API for local SQLite and production Postgres.",
+        "note": "Session 343: Added 5 operation methods to StorageBackend protocol (create_operation, update_operation_status, complete_operation, get_operation, get_operations). Implemented in PostgresBackend and SQLiteBackend. Tests in test_sqlite_backend.py TestSQLiteBackendOperations.",
         "depends_on": "operation_history"
       }
     },
@@ -734,7 +734,7 @@
     "configuration_management": {
       "jurisdiction_registry_consolidation": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Consolidate CITY_CONFIGS into reusable JurisdictionRegistry class",
         "note": "CITY_CONFIGS exists in automated_civic_refresh.py but other files have duplicate hardcoded mappings (civic_schema_adapter.py timezone maps, civic_api_integrated.py county/state). Need to: (1) Promote CITY_CONFIGS to JurisdictionRegistry class in core location, (2) Add missing fields (county, state, civic_center_address), (3) Refactor other files to import from registry instead of hardcoding."
       },
