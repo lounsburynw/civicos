@@ -3,7 +3,7 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2025-12-21",
+  "last_updated": "2025-12-22",
   "category_order": [
     "test_infrastructure",
     "data_architecture",
@@ -365,11 +365,11 @@
     },
     "frontend_dashboard": {
       "status_page": {
-        "status": "ready",
-        "priority": 2,
-        "artifact": "Admin page showing ingestion status table view",
-        "completed": "2025-12-17",
-        "note": "AdminStatusPage.vue component with collapsible sections for Database, ChromaDB, and Storage"
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Admin page aligned with 4-stage ETL pipeline",
+        "note": "REWORK NEEDED: Current dashboard shows 3 stages. Must align with new 4-stage pattern: Available → Ingested → Stored → Indexed. Consume StorageBackend.get_stats() and VectorBackend.get_stats().",
+        "depends_on": "storage_backend_protocol"
       },
       "visual_indicators": {
         "status": "ready",
@@ -386,11 +386,25 @@
         "note": "Using date-fns formatDistanceToNow for relative time display"
       },
       "pipeline_flow_visualization": {
-        "status": "ready",
-        "priority": 2,
-        "artifact": "Pipeline view showing Available \u2192 Ingested \u2192 Searchable flow",
-        "completed": "2025-12-18",
-        "note": "Session 303: Redesigned AdminStatusPage.vue with pipeline rows per data type (Meetings, Agenda Items, Issues, Initiatives). Each row shows 3 stages with circular nodes colored by state (empty/has-data/fresh/stale). Removed jargon (Database\u2192Ingested, ChromaDB\u2192Searchable)."
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Pipeline view showing Available → Ingested → Stored → Indexed flow",
+        "note": "REWORK NEEDED: Add 4th stage (Stored) between Ingested and Indexed. Shows data persisted before vector indexing. Prevents data loss visibility.",
+        "depends_on": "status_page"
+      },
+      "operation_progress_panel": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Real-time operation progress from server state",
+        "note": "Replace client-side timer with server-side progress. Poll GET /api/admin/operations/current or use WebSocket. Show stage, items processed, errors.",
+        "depends_on": "running_operations"
+      },
+      "operation_history_table": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Table showing last N operations with expandable details",
+        "note": "Consume GET /api/admin/operations. Show: operation name, started_at, duration, status (success/failure), result counts. Expandable row for error details.",
+        "depends_on": "operation_history"
       }
     },
     "source_discovery": {
@@ -459,19 +473,22 @@
     },
     "operation_status": {
       "running_operations": {
-        "status": "ready",
-        "priority": 2,
-        "artifact": "Show running operations with progress indicator"
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Show running operations with server-side progress tracking",
+        "note": "AUDIT FINDING: Current implementation is client-side timer only. Needs: (1) Server-side operation state table, (2) Progress updates via polling or WebSocket, (3) Resume on browser refresh."
       },
       "operation_history": {
         "status": "not_ready",
-        "priority": 3,
-        "artifact": "Show last 10 runs per pipeline with success/failure"
+        "priority": 1,
+        "artifact": "Persist operation runs to database with results",
+        "note": "Add operations table: (id, name, status, started_at, completed_at, result_json, error). Expose GET /api/admin/operations endpoint."
       },
       "error_logs": {
         "status": "not_ready",
-        "priority": 3,
-        "artifact": "Show errors/failures with log output"
+        "priority": 2,
+        "artifact": "Show errors/failures with log output",
+        "note": "Store error details in operation_history result_json. Display expandable error details in dashboard."
       }
     },
     "configuration": {
@@ -953,11 +970,32 @@
         "note": "Implemented civic-bootstrap CLI: validation, Pipeline orchestration, status callbacks, JSON output"
       },
       "storage_backend_protocol": {
-        "status": "ready",
-        "priority": 1,
+        "status": "not_ready",
+        "priority": 0,
         "artifact": "StorageBackend + VectorBackend protocols in civic/storage/",
-        "note": "4-stage pipeline: discover → ingest → store → index. StorageBackend (SQLite/Postgres) for primary CRUD, VectorBackend (ChromaDB/pgvector) for search. Index reads from storage not memory. Protocols defined with dataclasses, validation, and 18 tests passing.",
-        "test_file": "packages/civic/tests/test_storage_protocols.py"
+        "note": "AUDIT FINDING: Protocols defined but NOT implemented. No SQLiteBackend or ChromaDBBackend classes exist. Pipeline reads from memory, not storage. Needs: (1) SQLiteBackend implementing StorageBackend, (2) Pipeline store stage before index, (3) Index reads from storage.",
+        "test_file": "packages/civic/tests/test_storage_protocols.py",
+        "blocked_by": ["sqlite_backend_implementation", "pipeline_store_stage", "index_reads_from_storage"]
+      },
+      "sqlite_backend_implementation": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "SQLiteBackend class implementing StorageBackend protocol",
+        "note": "Wrap StateManager to conform to StorageBackend protocol. Methods: validate(), store_meetings(), get_meetings(), get_stats(), delete_meetings()."
+      },
+      "pipeline_store_stage": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Add explicit store stage to Pipeline between ingest and index",
+        "note": "Pipeline currently goes discover→ingest→index. Need discover→ingest→store→index. Store stage calls storage_backend.store_meetings() before indexing.",
+        "depends_on": "sqlite_backend_implementation"
+      },
+      "index_reads_from_storage": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Index stage reads from StorageBackend, not memory",
+        "note": "Current pipeline.py:552-554 passes in-memory data to index. Must call storage_backend.get_meetings() then index. Prevents data loss if indexing fails.",
+        "depends_on": "pipeline_store_stage"
       }
     },
     "documentation": {
@@ -1138,8 +1176,9 @@
     "social_features": {
       "user_identity_in_messages": {
         "status": "not_ready",
-        "priority": 0,
-        "artifact": "Show user identity in coordination thread messages"
+        "priority": 2,
+        "artifact": "Show user identity in coordination thread messages",
+        "note": "Demoted from P0 - storage backend protocol is the critical path blocker."
       },
       "public_profiles": {
         "status": "not_ready",
@@ -1230,9 +1269,10 @@
     }
   },
   "summary": {
-    "total_items": 158,
+    "total_items": 166,
     "by_priority": {
-      "p1": 56,
+      "p0": 1,
+      "p1": 63,
       "p2": 69,
       "p3": 30
     },
@@ -1240,18 +1280,18 @@
       "test_infrastructure": 10,
       "deployment_artifacts": 13,
       "monitoring_observability": 14,
-      "ingestion_visibility": 14,
+      "ingestion_visibility": 16,
       "admin_operations": 11,
       "pipeline_automation": 11,
       "data_architecture": 14,
       "data_readiness": 15,
       "data_standards": 7,
-      "city_onboarding": 10,
+      "city_onboarding": 13,
       "rollback_procedures": 9,
       "user_documentation": 9,
       "frontend_refinement": 3,
       "pilot_validation": 10
     },
-    "notes": "Updated 2025-12-18: Session 303 added source_discovery sub-category (3 items) for auto-discovering meeting types and showing coverage. Added source_inventory_counts and pipeline_flow_visualization as completed. ingestion_visibility now 14 items."
+    "notes": "Updated 2025-12-22: AUDIT - Storage backend protocols defined but NOT implemented. Pipeline missing store stage; index reads from memory. Added 5 new items: sqlite_backend_implementation, pipeline_store_stage, index_reads_from_storage, operation_progress_panel, operation_history_table. Marked storage_backend_protocol, status_page, pipeline_flow_visualization, running_operations as not_ready. storage_backend_protocol is P0 blocker."
   }
 }
