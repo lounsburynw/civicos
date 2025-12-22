@@ -1,3 +1,61 @@
+## Session 333: post_ingestion_report - Post-Ingestion Report for City Onboarding
+
+**Date:** 2025-12-21
+**Item:** post_ingestion_report (city_onboarding > validation)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Implemented `PostIngestionReport` dataclass and `Pipeline.report()` method that provides a structured summary after city onboarding ingestion: records ingested, errors, and data gaps.
+
+### Implementation
+
+**Files Modified:**
+- `packages/civic-extraction/src/civic_extraction/pipeline.py` - Added `PostIngestionReport` dataclass and `Pipeline.report()` method
+- `packages/civic-extraction/src/civic_extraction/__init__.py` - Exported `PostIngestionReport`
+- `packages/civic/src/civic/cli.py` - Updated `BootstrapResult` and `run_bootstrap()` to use report
+
+### PostIngestionReport Features
+
+1. **Records Ingested** - Counts by type (meetings, indexed_items)
+2. **Errors** - Collected from all pipeline stages with stage prefix
+3. **Data Gaps** - Items found but not processed (e.g., "ingest: 5 items found but not processed (95/100)")
+4. **Quality Check** - `is_acceptable(min_records, max_errors)` method
+5. **Human Summary** - `summary()` method for terminal output
+6. **JSON Serialization** - `to_dict()` for dashboard consumption
+
+### Usage
+
+```python
+# After pipeline.run()
+report = pipeline.report(result)
+print(report.summary())
+print(report.to_dict())  # JSON for dashboard
+```
+
+### CLI Integration
+
+`civic bootstrap san-rafael` now shows:
+```
+Post-Ingestion Report
+--------------------
+Status: SUCCESS
+Duration: 8.5s
+
+Records Ingested:
+  - meetings: 114
+  - indexed_items: 114
+
+Quality: ACCEPTABLE
+```
+
+### Pilot Progress
+- 137/161 items ready (85%)
+- 24 items remaining
+
+**Next P0:** data_migration_reversible (rollback_procedures > data_safety)
+
+---
+
 ## Session 332: platform_specific_notes - Platform Technical Reference
 
 **Date:** 2025-12-21
