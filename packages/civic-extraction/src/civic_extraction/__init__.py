@@ -49,6 +49,11 @@ from civic_extraction.pipeline import (
     StageStatus,
     StageState,
 )
+from civic_extraction.platform_detection import (
+    DetectionResult,
+    detect_platform,
+    detect_platform_batch,
+)
 
 __version__ = "0.1.0"
 __all__ = [
@@ -68,4 +73,7 @@ __all__ = [
     "PipelineResult",
     "StageStatus",
     "StageState",
+    "DetectionResult",
+    "detect_platform",
+    "detect_platform_batch",
 ]
