@@ -4123,3 +4123,51 @@ These protocols enable:
 3. Pipeline extension to use store stage between ingest and index
 
 **Commit:** Session 316: storage_backend_protocol - StorageBackend + VectorBackend protocols
+
+## Session 319: city_onboarding_guide - City onboarding documentation
+
+**Date:** 2025-12-21
+**Item:** city_onboarding_guide (city_onboarding > documentation)
+**Priority:** P2
+
+### Summary
+Created comprehensive CITY_ONBOARDING_GUIDE.md documenting how to add a new city to Civic. The guide synthesizes patterns from the San Rafael pilot and generalizes them for new jurisdictions.
+
+### Documentation Created
+
+**Location:** `docs/user_guides/CITY_ONBOARDING_GUIDE.md`
+
+**Sections:**
+1. **Overview** - What gets ingested, supported platforms, cost estimates
+2. **Pre-Onboarding** - Platform detection using `detect_platform()` helper
+3. **Step 1: Gather Information** - Jurisdiction ID, base URL, platform details
+4. **Step 2: Create Configs** - Extraction config + jurisdiction override examples
+5. **Step 3: Test Connectivity** - Preflight validation with `source.health()`
+6. **Step 4: Bootstrap** - `civic-bootstrap` CLI usage with options
+7. **Step 5: Verify** - `civic-status --check-gaps` for coverage verification
+8. **Step 6: Deploy** - Reference to DEPLOYMENT_GUIDE.md
+9. **Troubleshooting** - Decision trees for common issues
+10. **Appendix** - Platform-specific details (Legistar, CivicClerk, ProudCity)
+
+### Key Content
+- Real examples from San Rafael config files
+- Code snippets for platform detection, config validation, bootstrap
+- Decision trees for troubleshooting
+- Platform-specific gotchas documented
+
+### Files Created/Modified
+- `docs/user_guides/CITY_ONBOARDING_GUIDE.md` - New guide (~400 lines)
+- `pilot.json` - Marked city_onboarding_guide as ready
+
+### Dependencies
+This guide documents usage of:
+- `platform_detection_helper` (Session 317)
+- `civic-bootstrap` CLI (Session 308)
+- `preflight_checks` validation
+- Extraction config schema
+
+### Pilot Progress
+- 119/159 items ready (75%)
+- 40 items remaining
+
+**Commit:** Session 319: city_onboarding_guide - City onboarding documentation
