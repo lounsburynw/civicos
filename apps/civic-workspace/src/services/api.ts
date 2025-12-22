@@ -19,7 +19,9 @@ import type {
   ThreadMessage,
   SetLocationResponse,
   AdminStatusResponse,
-  AdminTriggerResponse
+  AdminTriggerResponse,
+  OperationStatus,
+  OperationsListResponse
 } from '@/types/civic';
 
 /**
@@ -1318,6 +1320,103 @@ class CivicAPI {
     }
 
     return response.json();
+  }
+
+  // =========================================================================
+  // Operation Status API (SESSION 341)
+  // =========================================================================
+
+  /**
+   * Get status of a specific operation
+   * GET /api/admin/operations/{operation_id}
+   *
+   * SESSION 341: Poll this endpoint to track operation progress.
+   * Backend: src/civic_services/servers/civic_api_integrated.py:serve_operation_status
+   */
+  async getOperationStatus(operationId: string): Promise<OperationStatus> {
+    const response = await fetch(
+      `${this.baseURL}/api/admin/operations/${operationId}`,
+      {
+        method: 'GET',
+        headers: this.getAuthHeaders()
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || `Failed to fetch operation status: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * List operations with optional filters
+   * GET /api/admin/operations?jurisdiction=san-rafael&status=running&limit=20
+   *
+   * SESSION 341: Get operation history and currently running operations.
+   * Backend: src/civic_services/servers/civic_api_integrated.py:serve_operations_list
+   */
+  async getOperations(options?: {
+    jurisdiction?: string;
+    status?: 'pending' | 'running' | 'completed' | 'failed';
+    limit?: number;
+  }): Promise<OperationsListResponse> {
+    const params = new URLSearchParams();
+    if (options?.jurisdiction) params.append('jurisdiction', options.jurisdiction);
+    if (options?.status) params.append('status', options.status);
+    if (options?.limit) params.append('limit', options.limit.toString());
+
+    const queryString = params.toString();
+    const url = `${this.baseURL}/api/admin/operations${queryString ? `?${queryString}` : ''}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || `Failed to fetch operations: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get currently running operation for a jurisdiction
+   * Convenience method that filters by status=running
+   *
+   * SESSION 341: Use on page load to restore operation state after browser refresh.
+   */
+  async getCurrentOperation(jurisdiction: string = 'san-rafael'): Promise<OperationStatus | null> {
+    try {
+      const response = await this.getOperations({
+        jurisdiction,
+        status: 'running',
+        limit: 1
+      });
+
+      if (response.operations.length > 0) {
+        // Get full operation details
+        return this.getOperationStatus(response.operations[0].operation_id);
+      }
+
+      // Also check pending operations
+      const pendingResponse = await this.getOperations({
+        jurisdiction,
+        status: 'pending',
+        limit: 1
+      });
+
+      if (pendingResponse.operations.length > 0) {
+        return this.getOperationStatus(pendingResponse.operations[0].operation_id);
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
   }
 }
 
