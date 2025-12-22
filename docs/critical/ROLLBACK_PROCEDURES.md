@@ -487,6 +487,165 @@ Before each deployment, reduce rollback risk:
 
 ---
 
+## Schema Migration Rollback
+
+When a schema migration causes issues, you may need to reverse it. The migration system supports downgrade scripts.
+
+### Migration File Convention
+
+For reversible migrations, create paired files:
+
+```
+migrations/
+  011_add_feature_x.sql           # Forward (up) migration
+  011_add_feature_x.down.sql      # Reverse (down) migration
+```
+
+### Rollback a Schema Migration
+
+**Step 1: Identify the migration to roll back**
+
+```bash
+python scripts/migrate.py --status
+```
+
+**Step 2: Create a backup before rolling back**
+
+```bash
+fly ssh console -a civic-api -C "python scripts/backup.py --compress"
+```
+
+**Step 3: Roll back the migration**
+
+```bash
+# Roll back the last N migrations
+python scripts/migrate.py --rollback 1
+
+# Or roll back to a specific version
+python scripts/migrate.py --rollback-to 010
+```
+
+**Step 4: Verify the rollback**
+
+```bash
+python scripts/migrate.py --status
+# Check that the migration is now marked as "pending" again
+```
+
+### Writing Reversible Migrations
+
+**Good pattern - reversible:**
+```sql
+-- 011_add_voice_count.sql (forward)
+ALTER TABLE issues ADD COLUMN voice_count INTEGER DEFAULT 0;
+CREATE INDEX idx_issues_voice_count ON issues(voice_count);
+
+-- 011_add_voice_count.down.sql (reverse)
+DROP INDEX IF EXISTS idx_issues_voice_count;
+ALTER TABLE issues DROP COLUMN voice_count;
+```
+
+**Caution - data-destructive:**
+```sql
+-- Dropping a column loses data! Consider:
+-- 1. Rename to _deprecated instead of dropping
+-- 2. Ensure backup exists before applying
+-- 3. Document data loss in migration comments
+```
+
+### Migrations Without Downgrade Scripts
+
+If a migration doesn't have a `.down.sql` file:
+
+1. **Check if data can be restored from backup**
+   ```bash
+   fly ssh console -a civic-api -C "python scripts/backup.py --list"
+   ```
+
+2. **Roll back code to pre-migration version**
+   ```bash
+   fly deploy -a civic-api --image registry.fly.io/civic-api:vPREVIOUS
+   ```
+
+3. **Restore database from backup**
+   ```bash
+   fly ssh console -a civic-api -C "python scripts/backup.py --restore civic_state_YYYYMMDD.db.gz --force"
+   ```
+
+4. **Verify migration status matches restored data**
+   ```bash
+   fly ssh console -a civic-api -C "python scripts/migrate.py --status"
+   ```
+
+### Temporal Data Recovery
+
+The Civic schema uses **temporal versioning** for data safety:
+
+- Tables have `valid_from` and `valid_to` columns
+- Updates don't overwrite; they close old versions and insert new
+- Point-in-time queries can recover historical state
+
+**Query historical state:**
+```python
+# Get data as of a specific datetime
+from civic import Civic
+c = Civic("san-rafael")
+c.what_happened("housing", as_of="2025-12-01T12:00:00")
+```
+
+**Direct SQL recovery:**
+```sql
+-- Find all versions of meetings before a date
+SELECT * FROM meetings
+WHERE valid_from <= '2025-12-01'
+  AND (valid_to IS NULL OR valid_to > '2025-12-01');
+```
+
+### ChromaDB/Vector Index Rollback
+
+Vector indices don't support migration rollback directly. To recover:
+
+1. **Delete the collection:**
+   ```python
+   import chromadb
+   client = chromadb.PersistentClient(path="data/chroma")
+   client.delete_collection("legal_documents")
+   ```
+
+2. **Re-index from storage:**
+   ```python
+   from civic._internal.legal.embeddings import LegalEmbeddingsStore
+   store = LegalEmbeddingsStore(persist_directory="data/chroma")
+   store.index_from_storage()  # Rebuilds from SQLite source data
+   ```
+
+### Best Practices
+
+1. **Always create backup before migrations**
+   ```bash
+   python scripts/backup.py --compress
+   python scripts/migrate.py
+   ```
+
+2. **Test migrations locally first**
+   ```bash
+   cp data/civic_state.db data/civic_state.db.backup
+   python scripts/migrate.py --dry-run
+   python scripts/migrate.py
+   ```
+
+3. **Write downgrade scripts for destructive changes**
+   - Column drops
+   - Table drops
+   - Index removals on large tables
+
+4. **Keep migrations idempotent**
+   - Use `IF NOT EXISTS` for creates
+   - Use `IF EXISTS` for drops
+   - Check before inserting seed data
+
+---
+
 ## Related Documentation
 
 | Document | Purpose |

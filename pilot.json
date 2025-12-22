@@ -1038,9 +1038,11 @@
         "note": "GitHub Actions workflow (.github/workflows/daily-backup.yml) runs daily at 2AM UTC. Creates compressed backups, applies retention (7 daily + 4 weekly), creates GitHub issue on failure. Documented in docs/critical/DAILY_BACKUP_SCHEDULE.md"
       },
       "data_migration_reversible": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "Schema changes can be rolled back"
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Schema changes can be rolled back",
+        "completed": "2025-12-21",
+        "note": "Added --rollback and --rollback-to flags to migrate.py. Rollback uses .down.sql files. Created example 010_add_short_name.down.sql. Documented schema migration rollback procedures in ROLLBACK_PROCEDURES.md including temporal data recovery and ChromaDB re-indexing."
       }
     },
     "version_management": {
@@ -1053,7 +1055,7 @@
       },
       "changelog_maintained": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "CHANGELOG.md updated for releases"
       }
     }
