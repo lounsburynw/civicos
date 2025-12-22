@@ -7350,6 +7350,7 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             'timestamp': datetime.utcnow().isoformat() + 'Z',
             'jurisdiction': jurisdiction_id,
             'database': {},
+            'storage': {},  # SESSION 338: StorageBackend stats (4-stage pipeline)
             'chromadb': {},
             'files': {},
             'sources': None  # Populated if include_sources=true
@@ -7451,6 +7452,33 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             result['database']['status'] = 'missing'
             result['database']['path'] = str(state_db_path)
             result['status'] = 'degraded'
+
+        # 1.5 SESSION 338: StorageBackend stats (4-stage pipeline: discover -> ingest -> store -> index)
+        # This represents the "stored" stage - data persisted to SQLite with temporal versioning
+        try:
+            from civic.storage.sqlite_backend import SQLiteBackend
+            storage_backend = SQLiteBackend(str(state_db_path))
+            storage_stats = storage_backend.get_stats(jurisdiction_id)
+
+            result['storage'] = {
+                'status': 'connected',
+                'backend_type': storage_backend.backend_type,
+                'meetings': {
+                    'count': storage_stats.meeting_count,
+                    'earliest': storage_stats.earliest_meeting.isoformat() if storage_stats.earliest_meeting else None,
+                    'latest': storage_stats.latest_meeting.isoformat() if storage_stats.latest_meeting else None,
+                    'last_updated': storage_stats.last_updated.isoformat() if storage_stats.last_updated else None,
+                },
+                'agenda_items': {
+                    'count': storage_stats.agenda_item_count,
+                },
+                'size_bytes': storage_stats.size_bytes,
+            }
+        except ImportError:
+            result['storage'] = {'status': 'unavailable', 'error': 'civic.storage not installed'}
+        except Exception as e:
+            result['storage'] = {'status': 'error', 'error': str(e)}
+            logger.warning("storage_stats_error", extra={"error": str(e)})
 
         # 2. ChromaDB collection stats
         vectors_dir = Path(get_user_path('')) / 'pilot' / 'vectors'
