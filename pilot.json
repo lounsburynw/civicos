@@ -889,10 +889,11 @@
         "note": "Move hard-coded archives from proudcity.py to jurisdiction config"
       },
       "platform_detection_helper": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "Script to auto-detect city's meeting platform",
-        "note": "Post-ingestion: based on patterns learned from pilot"
+        "note": "detect_platform() probes Legistar/CivicClerk APIs and scrapes ProudCity patterns",
+        "test_file": "packages/civic-extraction/tests/test_platform_detection.py"
       }
     },
     "orchestration": {
