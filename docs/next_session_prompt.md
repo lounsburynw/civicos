@@ -1,66 +1,62 @@
-# Recommended: Running Operations - Server-Side Progress Tracking
+# Recommended: Storage Stats Abstraction
 
 **Priority:** P0 (IMMEDIATE)
-**Area:** admin_operations > operation_status
+**Area:** data_architecture > modular_etl
 **Date:** 2025-12-22
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 338 completed the **status_page** P0 - aligning the admin dashboard with the 4-stage pipeline (Coverage → Ingested → Stored → Indexed). The dashboard now shows storage stats from `SQLiteBackend.get_stats()`.
+Session 338 added storage stats to the admin dashboard, but introduced a **layer boundary violation**: the API server (`civic-services`) imports `SQLiteBackend` directly from `civic.storage`. This breaks the abstraction that enables backend swapping.
 
-**The current operation tracking is client-side only.** When a user triggers an operation (fetch meetings, transcribe videos), the timer runs in the browser. If they refresh or close the tab, they lose visibility into the running operation. This is the #1 audit finding blocking dashboard completion.
+**Why this matters:**
+1. **Open-source adoption**: Other municipalities copying this pattern will hard-code SQLite
+2. **PostgreSQL migration**: Current code will break when switching backends
+3. **Architecture**: Coordination layer shouldn't import Core layer internals
 
 ## Recommended Task
 
-Implement server-side operation state tracking:
-1. Create operations table in SQLite to persist running/completed operations
-2. Add `GET /api/admin/operations/current` endpoint to check running operation
-3. Add `GET /api/admin/operations` endpoint for operation history
-4. Update frontend to poll for operation status instead of client-side timer
+Fix the layer violation by exposing storage stats via the public `Civic` API:
+
+1. Add `Civic.get_storage_stats(jurisdiction_id)` method to core API
+2. Update `civic_api_integrated.py` to call `Civic.get_storage_stats()` instead of importing `SQLiteBackend` directly
+3. Keep the same API response structure (no frontend changes needed)
 
 ## Key Files
 
-**Backend (main work):**
-- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py:7588-7831` - Existing trigger handlers (`handle_admin_trigger`, `_trigger_fetch_meetings`, etc.)
-- `packages/civic-services/src/civic_services/core/config.py` - `get_user_path()` for database paths
+**Core API (add method):**
+- `packages/civic/src/civic/civic.py` - Main Civic class, add `get_storage_stats()`
 
-**Frontend (will consume new endpoints):**
-- `apps/civic-workspace/src/components/workspace/AdminStatusPage.vue:508-527` - Current client-side timer logic
+**Storage backend (reference):**
+- `packages/civic/src/civic/storage/backend.py:14-53` - `StorageStats` dataclass
+- `packages/civic/src/civic/storage/sqlite_backend.py:408-481` - `SQLiteBackend.get_stats()`
 
-**Reference:**
-- `packages/civic/src/civic/storage/sqlite_backend.py` - Pattern for SQLite table creation
+**API server (update import):**
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py:7456-7481` - Current direct import to replace
 
 ## Suggested Approach
 
-1. **Create operations table schema:**
-   ```sql
-   CREATE TABLE operations (
-       id TEXT PRIMARY KEY,
-       operation TEXT NOT NULL,
-       jurisdiction_id TEXT NOT NULL,
-       status TEXT NOT NULL,  -- 'running', 'completed', 'failed'
-       started_at TIMESTAMP NOT NULL,
-       completed_at TIMESTAMP,
-       result_json TEXT,
-       error TEXT
-   )
+1. **Add method to Civic class:**
+   ```python
+   def get_storage_stats(self, jurisdiction_id: str = None) -> StorageStats:
+       """Get storage statistics for dashboard display."""
+       jurisdiction_id = jurisdiction_id or self.jurisdiction_id
+       return self._storage_backend.get_stats(jurisdiction_id)
    ```
 
-2. **Add operation tracking helpers:**
-   - `start_operation(op_name, jurisdiction)` → returns operation_id
-   - `complete_operation(op_id, result)` → marks complete
-   - `fail_operation(op_id, error)` → marks failed
-   - `get_current_operation(jurisdiction)` → returns running op or None
+2. **Update API server:**
+   ```python
+   # Before (layer violation)
+   from civic.storage.sqlite_backend import SQLiteBackend
+   storage_backend = SQLiteBackend(str(state_db_path))
 
-3. **Add API endpoints:**
-   - `GET /api/admin/operations/current?jurisdiction=san-rafael` → current running operation
-   - `GET /api/admin/operations?jurisdiction=san-rafael&limit=10` → recent operations
+   # After (clean abstraction)
+   civic = Civic(jurisdiction_id)
+   storage_stats = civic.get_storage_stats()
+   ```
 
-4. **Update triggers to use tracking:**
-   - Wrap existing `_trigger_*` methods to start/complete operations
-   - Store result counts in `result_json`
+3. **Verify existing tests still pass**
 
 ## Tests to Run
 
@@ -68,26 +64,27 @@ Implement server-side operation state tracking:
 # Smoke tests
 pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
 
-# After implementation, test the new endpoints manually
-curl "http://localhost:8001/api/admin/operations/current?jurisdiction=san-rafael"
+# Storage tests
+pytest packages/civic/tests/ -k "storage" -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] Operations table created in civic_state.db
-- [ ] Running operations persist across browser refresh
-- [ ] `GET /api/admin/operations/current` returns running operation or null
-- [ ] `GET /api/admin/operations` returns last N operations with results
-- [ ] pilot.json `running_operations` marked as ready
+- [ ] `Civic.get_storage_stats()` method exists and returns `StorageStats`
+- [ ] `civic_api_integrated.py` no longer imports from `civic.storage`
+- [ ] Admin dashboard still shows storage stats (no regression)
+- [ ] All existing tests pass
+- [ ] pilot.json `storage_stats_abstraction` marked as ready
 
-## Dependencies
+## Next Up: PostgreSQL Backend (P1)
 
-This item unblocks:
-- `operation_progress_panel` - Real-time progress in dashboard
-- `operation_history_table` - Table showing past operations
+After this abstraction is clean, the next step is `postgres_backend_implementation`:
+- Create `PostgresBackend` implementing `StorageBackend` protocol
+- Proves the modularity for open-source adopters
+- Both backends pass the same test suite
 
 ## Pilot Progress
 
 - 141/166 items ready (84.9%)
-- 25 items remaining
-- P0: running_operations (this item)
+- 27 items remaining (added 2 new items)
+- P0: storage_stats_abstraction (this item)

@@ -476,7 +476,7 @@
     "operation_status": {
       "running_operations": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Show running operations with server-side progress tracking",
         "note": "AUDIT FINDING: Current implementation is client-side timer only. Needs: (1) Server-side operation state table, (2) Progress updates via polling or WebSocket, (3) Resume on browser refresh."
       },
@@ -999,6 +999,19 @@
         "artifact": "Index stage reads from StorageBackend, not memory",
         "note": "_run_index() now calls storage_backend.get_meetings() when storage_target configured. Falls back to in-memory for backward compatibility.",
         "completed": "2025-12-22"
+      },
+      "storage_stats_abstraction": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "Expose storage stats via Civic API, not direct backend import",
+        "note": "SESSION 338 TECH DEBT: civic_api_integrated.py imports SQLiteBackend directly. Add Civic.get_storage_stats() method so API layer is backend-agnostic. Required for PostgreSQL migration and clean open-source patterns."
+      },
+      "postgres_backend_implementation": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "PostgresBackend class implementing StorageBackend protocol",
+        "note": "Prove protocol modularity for open-source adoption. Municipalities with existing Postgres infrastructure get a clear path. Both SQLite and Postgres backends pass same test suite.",
+        "depends_on": "storage_stats_abstraction"
       }
     },
     "documentation": {
