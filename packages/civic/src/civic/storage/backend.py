@@ -215,3 +215,113 @@ class StorageBackend(Protocol):
             Number of meetings deleted
         """
         ...
+
+    # ========== Operation Tracking Methods ==========
+    #
+    # Operations are long-running tasks (fetch_meetings, discover_videos, etc.)
+    # that need progress tracking and history for admin dashboards.
+    #
+    # Status values: 'pending', 'running', 'completed', 'failed'
+
+    def create_operation(
+        self,
+        operation_id: str,
+        jurisdiction_id: str,
+        name: str,
+    ) -> Dict[str, Any]:
+        """
+        Create a new operation record with 'pending' status.
+
+        Args:
+            operation_id: Unique operation ID (UUID)
+            jurisdiction_id: City identifier (e.g., "city-san-rafael")
+            name: Operation name (fetch_meetings, discover_videos, etc.)
+
+        Returns:
+            Dict with operation record containing:
+            - id, jurisdiction_id, name, status, started_at
+            - progress_percent, items_processed, items_total (all 0)
+        """
+        ...
+
+    def update_operation_status(
+        self,
+        operation_id: str,
+        status: str,
+        current_step: Optional[str] = None,
+        progress_percent: Optional[float] = None,
+        items_processed: Optional[int] = None,
+        items_total: Optional[int] = None,
+    ) -> bool:
+        """
+        Update operation progress.
+
+        Args:
+            operation_id: Operation ID
+            status: New status ('pending', 'running', 'completed', 'failed')
+            current_step: Description of current step (e.g., "Fetching page 3")
+            progress_percent: Progress percentage (0-100)
+            items_processed: Number of items processed so far
+            items_total: Total items to process
+
+        Returns:
+            True if update succeeded, False if operation not found
+        """
+        ...
+
+    def complete_operation(
+        self,
+        operation_id: str,
+        result: Dict[str, Any],
+        error: Optional[str] = None,
+    ) -> bool:
+        """
+        Mark operation as completed (success or failure).
+
+        Sets status to 'completed' (success) or 'failed' (if error provided).
+        Calculates duration_seconds from started_at to now.
+        Sets progress_percent to 100.
+
+        Args:
+            operation_id: Operation ID
+            result: Result dictionary to store as JSON
+            error: Error message if failed (triggers 'failed' status)
+
+        Returns:
+            True if update succeeded, False if operation not found
+        """
+        ...
+
+    def get_operation(self, operation_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get operation by ID.
+
+        Args:
+            operation_id: Operation ID
+
+        Returns:
+            Operation dict with parsed result field, or None if not found.
+            Dict includes: id, jurisdiction_id, name, status, started_at,
+            completed_at, result, error, duration_seconds, current_step,
+            progress_percent, items_processed, items_total
+        """
+        ...
+
+    def get_operations(
+        self,
+        jurisdiction_id: Optional[str] = None,
+        status: Optional[str] = None,
+        limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        """
+        Query operations with optional filters.
+
+        Args:
+            jurisdiction_id: Filter by jurisdiction (None = all)
+            status: Filter by status (None = all)
+            limit: Max results (default 20)
+
+        Returns:
+            List of operation dicts, most recent first (by started_at)
+        """
+        ...

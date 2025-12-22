@@ -85,6 +85,12 @@ class TestSQLiteBackendProtocol:
         assert hasattr(backend, "get_meetings")
         assert hasattr(backend, "get_stats")
         assert hasattr(backend, "delete_meetings")
+        # Operation tracking methods
+        assert hasattr(backend, "create_operation")
+        assert hasattr(backend, "update_operation_status")
+        assert hasattr(backend, "complete_operation")
+        assert hasattr(backend, "get_operation")
+        assert hasattr(backend, "get_operations")
 
 
 class TestSQLiteBackendValidation:
@@ -307,4 +313,203 @@ class TestSQLiteBackendIntegration:
         # Stats update
         stats = backend.get_stats("city-test")
         assert stats.meeting_count == 2
+
+
+class TestSQLiteBackendOperations:
+    """Tests for operation tracking methods."""
+
+    def test_create_operation(self, backend):
+        """create_operation should create pending operation."""
+        # Need to initialize schema first
+        backend.store_meetings("city-test", [{"id": "m1", "title": "T", "meeting_datetime": "2025-01-01", "source_platform": "test"}])
+
+        result = backend.create_operation("op-123", "city-test", "fetch_meetings")
+
+        assert result["id"] == "op-123"
+        assert result["jurisdiction_id"] == "city-test"
+        assert result["name"] == "fetch_meetings"
+        assert result["status"] == "pending"
+        assert result["progress_percent"] == 0
+        assert result["items_processed"] == 0
+        assert result["items_total"] == 0
+        assert "started_at" in result
+
+    def test_get_operation(self, backend):
+        """get_operation should retrieve operation by ID."""
+        backend.store_meetings("city-test", [{"id": "m1", "title": "T", "meeting_datetime": "2025-01-01", "source_platform": "test"}])
+        backend.create_operation("op-456", "city-test", "discover_videos")
+
+        op = backend.get_operation("op-456")
+
+        assert op is not None
+        assert op["id"] == "op-456"
+        assert op["name"] == "discover_videos"
+        assert op["status"] == "pending"
+
+    def test_get_operation_not_found(self, backend):
+        """get_operation should return None for non-existent ID."""
+        op = backend.get_operation("non-existent")
+        assert op is None
+
+    def test_update_operation_status(self, backend):
+        """update_operation_status should update operation fields."""
+        backend.store_meetings("city-test", [{"id": "m1", "title": "T", "meeting_datetime": "2025-01-01", "source_platform": "test"}])
+        backend.create_operation("op-789", "city-test", "fetch_meetings")
+
+        updated = backend.update_operation_status(
+            "op-789",
+            status="running",
+            current_step="Fetching page 2",
+            progress_percent=50.0,
+            items_processed=10,
+            items_total=20
+        )
+
+        assert updated is True
+
+        op = backend.get_operation("op-789")
+        assert op["status"] == "running"
+        assert op["current_step"] == "Fetching page 2"
+        assert op["progress_percent"] == 50.0
+        assert op["items_processed"] == 10
+        assert op["items_total"] == 20
+
+    def test_update_operation_status_partial(self, backend):
+        """update_operation_status with partial updates."""
+        backend.store_meetings("city-test", [{"id": "m1", "title": "T", "meeting_datetime": "2025-01-01", "source_platform": "test"}])
+        backend.create_operation("op-partial", "city-test", "fetch_meetings")
+
+        # Only update status
+        updated = backend.update_operation_status("op-partial", status="running")
+        assert updated is True
+
+        op = backend.get_operation("op-partial")
+        assert op["status"] == "running"
+        assert op["current_step"] is None
+
+    def test_update_operation_status_not_found(self, backend):
+        """update_operation_status should return False for non-existent ID."""
+        updated = backend.update_operation_status("non-existent", status="running")
+        assert updated is False
+
+    def test_complete_operation_success(self, backend):
+        """complete_operation should mark as completed with result."""
+        backend.store_meetings("city-test", [{"id": "m1", "title": "T", "meeting_datetime": "2025-01-01", "source_platform": "test"}])
+        backend.create_operation("op-success", "city-test", "fetch_meetings")
+
+        result_data = {"meetings_fetched": 5, "errors": []}
+        completed = backend.complete_operation("op-success", result=result_data)
+
+        assert completed is True
+
+        op = backend.get_operation("op-success")
+        assert op["status"] == "completed"
+        assert op["progress_percent"] == 100
+        assert op["result"] == result_data
+        assert op["error"] is None
+        assert op["duration_seconds"] is not None
+        assert op["completed_at"] is not None
+
+    def test_complete_operation_failure(self, backend):
+        """complete_operation with error should mark as failed."""
+        backend.store_meetings("city-test", [{"id": "m1", "title": "T", "meeting_datetime": "2025-01-01", "source_platform": "test"}])
+        backend.create_operation("op-failure", "city-test", "fetch_meetings")
+
+        result_data = {"meetings_fetched": 0}
+        completed = backend.complete_operation(
+            "op-failure",
+            result=result_data,
+            error="Connection timeout"
+        )
+
+        assert completed is True
+
+        op = backend.get_operation("op-failure")
+        assert op["status"] == "failed"
+        assert op["error"] == "Connection timeout"
+        assert op["result"] == result_data
+
+    def test_get_operations_all(self, backend):
+        """get_operations should return all operations."""
+        backend.store_meetings("city-test", [{"id": "m1", "title": "T", "meeting_datetime": "2025-01-01", "source_platform": "test"}])
+        backend.create_operation("op-1", "city-test", "fetch_meetings")
+        backend.create_operation("op-2", "city-test", "discover_videos")
+        backend.create_operation("op-3", "city-test", "extract_text")
+
+        ops = backend.get_operations()
+
+        assert len(ops) == 3
+        # Most recent first
+        assert ops[0]["id"] == "op-3"
+        assert ops[1]["id"] == "op-2"
+        assert ops[2]["id"] == "op-1"
+
+    def test_get_operations_by_jurisdiction(self, backend):
+        """get_operations should filter by jurisdiction."""
+        backend.store_meetings("city-a", [{"id": "m1", "title": "T", "meeting_datetime": "2025-01-01", "source_platform": "test"}])
+        backend.store_meetings("city-b", [{"id": "m2", "title": "T", "meeting_datetime": "2025-01-01", "source_platform": "test"}])
+
+        backend.create_operation("op-a1", "city-a", "fetch_meetings")
+        backend.create_operation("op-b1", "city-b", "fetch_meetings")
+        backend.create_operation("op-a2", "city-a", "discover_videos")
+
+        ops = backend.get_operations(jurisdiction_id="city-a")
+
+        assert len(ops) == 2
+        assert all(op["jurisdiction_id"] == "city-a" for op in ops)
+
+    def test_get_operations_by_status(self, backend):
+        """get_operations should filter by status."""
+        backend.store_meetings("city-test", [{"id": "m1", "title": "T", "meeting_datetime": "2025-01-01", "source_platform": "test"}])
+        backend.create_operation("op-pending", "city-test", "fetch_meetings")
+        backend.create_operation("op-running", "city-test", "discover_videos")
+        backend.update_operation_status("op-running", status="running")
+
+        ops = backend.get_operations(status="running")
+
+        assert len(ops) == 1
+        assert ops[0]["id"] == "op-running"
+
+    def test_get_operations_with_limit(self, backend):
+        """get_operations should respect limit."""
+        backend.store_meetings("city-test", [{"id": "m1", "title": "T", "meeting_datetime": "2025-01-01", "source_platform": "test"}])
+        for i in range(5):
+            backend.create_operation(f"op-{i}", "city-test", "fetch_meetings")
+
+        ops = backend.get_operations(limit=3)
+
+        assert len(ops) == 3
+
+    def test_operations_workflow(self, backend):
+        """Test complete operation lifecycle."""
+        backend.store_meetings("city-test", [{"id": "m1", "title": "T", "meeting_datetime": "2025-01-01", "source_platform": "test"}])
+
+        # Create
+        op = backend.create_operation("op-wf", "city-test", "fetch_meetings")
+        assert op["status"] == "pending"
+
+        # Start running
+        backend.update_operation_status(
+            "op-wf",
+            status="running",
+            items_total=10
+        )
+        op = backend.get_operation("op-wf")
+        assert op["status"] == "running"
+
+        # Progress updates
+        backend.update_operation_status(
+            "op-wf",
+            status="running",
+            progress_percent=50,
+            items_processed=5
+        )
+        op = backend.get_operation("op-wf")
+        assert op["progress_percent"] == 50
+
+        # Complete
+        backend.complete_operation("op-wf", result={"count": 10})
+        op = backend.get_operation("op-wf")
+        assert op["status"] == "completed"
+        assert op["progress_percent"] == 100
 

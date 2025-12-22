@@ -241,6 +241,40 @@ class PostgresBackend:
             ON meetings(jurisdiction_id, valid_from, valid_to)
         """)
 
+        # Operations table for tracking long-running tasks
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS operations (
+                id TEXT PRIMARY KEY,
+                jurisdiction_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                started_at TIMESTAMP NOT NULL,
+                completed_at TIMESTAMP,
+                result_json TEXT,
+                error TEXT,
+                duration_seconds REAL,
+                current_step TEXT,
+                progress_percent REAL DEFAULT 0,
+                items_processed INTEGER DEFAULT 0,
+                items_total INTEGER DEFAULT 0,
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                CHECK (status IN ('pending', 'running', 'completed', 'failed'))
+            )
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_operations_jurisdiction
+            ON operations(jurisdiction_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_operations_status
+            ON operations(status)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_operations_started
+            ON operations(started_at DESC)
+        """)
+
         conn.commit()
 
     def store_meetings(
@@ -556,6 +590,278 @@ class PostgresBackend:
         finally:
             conn.close()
 
+    # ========== Operation Tracking Methods ==========
+
+    def create_operation(
+        self,
+        operation_id: str,
+        jurisdiction_id: str,
+        name: str,
+    ) -> Dict[str, Any]:
+        """
+        Create a new operation record with 'pending' status.
+
+        Args:
+            operation_id: Unique operation ID (UUID)
+            jurisdiction_id: City identifier (e.g., "city-san-rafael")
+            name: Operation name (fetch_meetings, discover_videos, etc.)
+
+        Returns:
+            Dict with operation record
+        """
+        started_at = datetime.now()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("""
+                INSERT INTO operations (
+                    id, jurisdiction_id, name, status, started_at,
+                    progress_percent, items_processed, items_total
+                ) VALUES (%s, %s, %s, 'pending', %s, 0, 0, 0)
+            """, (operation_id, jurisdiction_id, name, started_at.isoformat()))
+
+            conn.commit()
+        finally:
+            conn.close()
+
+        return {
+            "id": operation_id,
+            "jurisdiction_id": jurisdiction_id,
+            "name": name,
+            "status": "pending",
+            "started_at": started_at.isoformat(),
+            "progress_percent": 0,
+            "items_processed": 0,
+            "items_total": 0
+        }
+
+    def update_operation_status(
+        self,
+        operation_id: str,
+        status: str,
+        current_step: Optional[str] = None,
+        progress_percent: Optional[float] = None,
+        items_processed: Optional[int] = None,
+        items_total: Optional[int] = None,
+    ) -> bool:
+        """
+        Update operation progress.
+
+        Args:
+            operation_id: Operation ID
+            status: New status ('pending', 'running', 'completed', 'failed')
+            current_step: Description of current step
+            progress_percent: Progress percentage (0-100)
+            items_processed: Number of items processed so far
+            items_total: Total items to process
+
+        Returns:
+            True if update succeeded, False if operation not found
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Build dynamic update
+            updates = ["status = %s"]
+            params: List[Any] = [status]
+
+            if current_step is not None:
+                updates.append("current_step = %s")
+                params.append(current_step)
+
+            if progress_percent is not None:
+                updates.append("progress_percent = %s")
+                params.append(progress_percent)
+
+            if items_processed is not None:
+                updates.append("items_processed = %s")
+                params.append(items_processed)
+
+            if items_total is not None:
+                updates.append("items_total = %s")
+                params.append(items_total)
+
+            params.append(operation_id)
+
+            cursor.execute(f"""
+                UPDATE operations
+                SET {', '.join(updates)}
+                WHERE id = %s
+            """, params)
+
+            updated = cursor.rowcount > 0
+            conn.commit()
+            return updated
+        finally:
+            conn.close()
+
+    def complete_operation(
+        self,
+        operation_id: str,
+        result: Dict[str, Any],
+        error: Optional[str] = None,
+    ) -> bool:
+        """
+        Mark operation as completed (success or failure).
+
+        Args:
+            operation_id: Operation ID
+            result: Result dictionary to store as JSON
+            error: Error message if failed (triggers 'failed' status)
+
+        Returns:
+            True if update succeeded, False if operation not found
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            completed_at = datetime.now()
+            status = 'failed' if error else 'completed'
+
+            # Calculate duration
+            cursor.execute(
+                "SELECT started_at FROM operations WHERE id = %s",
+                (operation_id,)
+            )
+            row = cursor.fetchone()
+            duration_seconds = None
+            if row and row[0]:
+                try:
+                    started = row[0]
+                    if isinstance(started, str):
+                        started = datetime.fromisoformat(started)
+                    duration_seconds = (completed_at - started).total_seconds()
+                except Exception:
+                    pass
+
+            cursor.execute("""
+                UPDATE operations
+                SET status = %s,
+                    completed_at = %s,
+                    result_json = %s,
+                    error = %s,
+                    duration_seconds = %s,
+                    progress_percent = 100
+                WHERE id = %s
+            """, (
+                status, completed_at.isoformat(), json.dumps(result),
+                error, duration_seconds, operation_id
+            ))
+
+            updated = cursor.rowcount > 0
+            conn.commit()
+            return updated
+        finally:
+            conn.close()
+
+    def get_operation(self, operation_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get operation by ID.
+
+        Args:
+            operation_id: Operation ID
+
+        Returns:
+            Operation dict with parsed result field, or None if not found
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        try:
+            cursor.execute("SELECT * FROM operations WHERE id = %s", (operation_id,))
+            row = cursor.fetchone()
+
+            if not row:
+                return None
+
+            result = dict(row)
+
+            # Convert datetime objects to ISO strings
+            for key in ['started_at', 'completed_at']:
+                if key in result and result[key] is not None:
+                    if isinstance(result[key], datetime):
+                        result[key] = result[key].isoformat()
+
+            # Parse result_json
+            if result.get('result_json'):
+                try:
+                    result['result'] = json.loads(result['result_json'])
+                except Exception:
+                    result['result'] = None
+            else:
+                result['result'] = None
+
+            return result
+        finally:
+            conn.close()
+
+    def get_operations(
+        self,
+        jurisdiction_id: Optional[str] = None,
+        status: Optional[str] = None,
+        limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        """
+        Query operations with optional filters.
+
+        Args:
+            jurisdiction_id: Filter by jurisdiction (None = all)
+            status: Filter by status (None = all)
+            limit: Max results (default 20)
+
+        Returns:
+            List of operation dicts, most recent first (by started_at)
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        try:
+            query = "SELECT * FROM operations WHERE 1=1"
+            params: List[Any] = []
+
+            if jurisdiction_id:
+                query += " AND jurisdiction_id = %s"
+                params.append(jurisdiction_id)
+
+            if status:
+                query += " AND status = %s"
+                params.append(status)
+
+            query += " ORDER BY started_at DESC LIMIT %s"
+            params.append(limit)
+
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+            results = []
+            for row in rows:
+                op = dict(row)
+
+                # Convert datetime objects to ISO strings
+                for key in ['started_at', 'completed_at']:
+                    if key in op and op[key] is not None:
+                        if isinstance(op[key], datetime):
+                            op[key] = op[key].isoformat()
+
+                # Parse result_json
+                if op.get('result_json'):
+                    try:
+                        op['result'] = json.loads(op['result_json'])
+                    except Exception:
+                        op['result'] = None
+                else:
+                    op['result'] = None
+                results.append(op)
+
+            return results
+        finally:
+            conn.close()
+
 
 # Verify protocol compliance at import time (only if psycopg2 available)
 # StorageBackend is @runtime_checkable, so isinstance() works
@@ -565,8 +871,13 @@ def _verify_protocol_compliance() -> None:
         return  # Skip verification if psycopg2 not installed
     # Can't instantiate without a connection, but we can check class attributes
     # The actual isinstance check happens in tests with a real instance
-    required_methods = ['backend_type', 'validate', 'store_meetings',
-                        'get_meetings', 'get_stats', 'delete_meetings']
+    required_methods = [
+        'backend_type', 'validate', 'store_meetings',
+        'get_meetings', 'get_stats', 'delete_meetings',
+        # Operation tracking methods
+        'create_operation', 'update_operation_status', 'complete_operation',
+        'get_operation', 'get_operations'
+    ]
     for method in required_methods:
         assert hasattr(PostgresBackend, method), (
             f"PostgresBackend must implement {method}"
