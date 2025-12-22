@@ -4521,3 +4521,30 @@ During review, discovered these items were already implemented:
 - 30 items remaining
 
 **Next P0:** feature_guide (user_documentation > end_user_docs)
+
+## Session 328 - 2025-12-21
+
+### Item: feature_guide (user_documentation > end_user_docs)
+
+Created comprehensive end-user feature guide documenting all Civic capabilities.
+
+### Files Created
+- `docs/user_guides/FEATURE_GUIDE.md` - Complete feature guide with:
+  - Learn features: What's Next, What Applies, What Happened, Who's With Me
+  - Act features: Add Your Voice, Start Something, Follow, Prepare
+  - Ask features: Chat with the Civic Assistant
+  - Privacy and Public Records section
+  - Keyboard shortcuts
+  - Troubleshooting
+
+### Structure
+- Follows GETTING_STARTED.md style (accessible, encouraging tone)
+- Each feature section includes: Purpose, When to use, What you'll see, How to use it, Tips
+- Tables for quick reference
+- Example Assistant questions throughout
+
+### Pilot Progress
+- 132/161 items ready (82%)
+- 29 items remaining
+
+**Next P0:** faq (user_documentation > end_user_docs)
