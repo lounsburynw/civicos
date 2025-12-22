@@ -78,5 +78,23 @@ if os.path.exists(checklist):
         print(f'Progress: {done}/{total} items {done_val} ({100*done//total}%)')
         if pending > 0:
             print(f'Remaining: {pending} items {pending_val}')
+
+    # Check for P0 items (at most 1 allowed)
+    p0_items = []
+    skip_keys = ['version', 'phase', 'derived_from', 'last_updated', 'target', 'location', 'summary', 'category_order', 'description']
+    for cat_key, cat_val in cl.items():
+        if cat_key in skip_keys or not isinstance(cat_val, dict):
+            continue
+        for sub_key, sub_val in cat_val.items():
+            if not isinstance(sub_val, dict) or sub_key in skip_keys:
+                continue
+            for item_key, item_val in sub_val.items():
+                if isinstance(item_val, dict) and item_val.get('status') == pending_val and item_val.get('priority') == 0:
+                    p0_items.append(item_key)
+
+    if len(p0_items) > 1:
+        print(f'WARNING: {len(p0_items)} P0 items (should be at most 1)')
+    elif len(p0_items) == 1:
+        print(f'P0 (IMMEDIATE): {p0_items[0]}')
 "
 echo "=========================================="

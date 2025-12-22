@@ -31,6 +31,17 @@ Check current phase: `python3 -c "import json; print(json.load(open('phase.json'
 - **integration -> pilot**: All `integration.json` items passing
 - **pilot -> launch**: All `pilot.json` items complete
 
+### Priority Levels
+
+| Priority | Meaning | Rule |
+|----------|---------|------|
+| **P0** | Immediate/blocking | **At most ONE P0 at a time** |
+| **P1** | High priority | Current sprint work |
+| **P2** | Normal priority | Planned work |
+| **P3** | Low priority | Nice to have |
+
+P0 is reserved for critical blockers that must be resolved before any other work. `/start` and `init.sh` will warn if multiple P0 items exist.
+
 ## Core API
 
 ```python
