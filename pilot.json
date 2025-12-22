@@ -968,10 +968,10 @@
         "note": "CITY_ONBOARDING_GUIDE.md in docs/user_guides/ - covers platform detection, config creation, bootstrap, verification, and troubleshooting"
       },
       "platform_specific_notes": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Platform quirks: Legistar date formats, CivicClerk OData, ProudCity scraping",
-        "note": "Existing knowledge in client implementations"
+        "note": "PLATFORM_SPECIFIC_NOTES.md in docs/user_guides/ - comprehensive technical reference for all 3 platforms"
       }
     },
     "validation": {
@@ -984,7 +984,7 @@
       },
       "post_ingestion_report": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "pipeline.report() returns structured summary: records ingested, errors, gaps",
         "note": "Dashboard displays this report after manual operations complete"
       }

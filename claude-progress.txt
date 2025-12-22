@@ -1,3 +1,37 @@
+## Session 332: platform_specific_notes - Platform Technical Reference
+
+**Date:** 2025-12-21
+**Item:** platform_specific_notes (city_onboarding > documentation)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Created comprehensive technical reference documenting quirks and patterns for all three civic meeting platforms: Legistar, CivicClerk, and ProudCity.
+
+### Implementation
+
+**New File:** `docs/user_guides/PLATFORM_SPECIFIC_NOTES.md`
+
+Covers:
+- **Quick Reference Table** - Platform detection, API types, example cities
+- **Legistar (REST API)** - Base URL patterns, date formats (ISO 8601 with datetime wrapper), rate limiting (1.0s throttle), retryable errors (429/500/502/503), meeting type inference
+- **CivicClerk (OData v4)** - Subdomain patterns, OData filter syntax with millisecond timestamps, pagination ($top/$skip), event enrichment workflow
+- **ProudCity (Web Scraping)** - Archive discovery, slug-to-key conversion, date extraction from URLs, PDF extraction patterns, coverage analysis
+- **Cross-Platform Patterns** - DataSource protocol, error handling, Meeting normalization
+- **Adding New Platforms** - Implementation guide for new civic platforms
+
+### Key Details Documented
+- Legistar: `EventDate` and `EventTime` are separate fields requiring combination
+- CivicClerk: URL encoding required for filter values; enrichment needed for agenda URLs
+- ProudCity: Rate limited to 1 req/sec; uses regex pattern matching for date extraction
+
+### Pilot Progress
+- 136/161 items ready (84%)
+- 25 items remaining
+
+**Next P0:** post_ingestion_report (city_onboarding > validation)
+
+---
+
 ## Session 330: troubleshooting - Admin Troubleshooting Guide
 
 **Date:** 2025-12-21
