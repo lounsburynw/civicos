@@ -4742,3 +4742,30 @@ Created comprehensive data management guide for administrators.
 - 26 items remaining
 
 **Next P0:** platform_specific_notes (city_onboarding > documentation)
+
+## Session 334 (2025-12-21): data_migration_reversible
+
+### Completed
+- Added schema migration rollback capability to migrate.py:
+  - `--rollback N`: Roll back the last N migrations
+  - `--rollback-to VERSION`: Roll back to a specific version
+  - Status now shows ↩ indicator for migrations with .down.sql files
+- Created example downgrade migration: `010_add_short_name.down.sql`
+- Documented reversible migration patterns in ROLLBACK_PROCEDURES.md:
+  - Migration file convention (.sql and .down.sql pairs)
+  - Rollback commands and procedures
+  - Temporal data recovery using valid_from/valid_to
+  - ChromaDB collection re-indexing
+  - Best practices for writing reversible migrations
+
+### Key Files Modified
+- scripts/migrate.py: Added rollback functions and CLI args
+- docs/critical/ROLLBACK_PROCEDURES.md: Added Schema Migration Rollback section
+- migrations/010_add_short_name.down.sql: Example downgrade script
+- pilot.json: Marked data_migration_reversible as ready
+
+### Pilot Progress
+- 138/161 items ready (86%)
+- 23 items remaining
+
+**Next P0:** changelog_maintained (rollback_procedures > version_management)
