@@ -35,6 +35,12 @@ dev = [
     "pytest>=7.0",
     "responses>=0.23.0",  # For mocking requests
 ]
+scheduler = [
+    "schedule>=1.2.0",  # For --schedule mode in CLI
+]
+
+[project.scripts]
+civic-extract = "civic_extraction.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/civic-platform/civic-extraction"
