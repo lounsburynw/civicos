@@ -471,6 +471,15 @@ class SQLiteBackend:
             except (ValueError, TypeError):
                 pass
 
+        # Get database file size (SQLite-specific)
+        size_bytes = None
+        db_file = Path(self._db_path)
+        if db_file.exists():
+            try:
+                size_bytes = db_file.stat().st_size
+            except OSError:
+                pass  # Permission error, file gone, etc.
+
         return StorageStats(
             jurisdiction_id=jurisdiction_id,
             meeting_count=meeting_count,
@@ -478,6 +487,8 @@ class SQLiteBackend:
             earliest_meeting=earliest_dt,
             latest_meeting=latest_dt,
             last_updated=last_updated_dt,
+            size_bytes=size_bytes,
+            metadata={"backend_type": self.backend_type},
         )
 
     def delete_meetings(

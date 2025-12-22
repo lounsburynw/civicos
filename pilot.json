@@ -1001,14 +1001,15 @@
         "completed": "2025-12-22"
       },
       "storage_stats_abstraction": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Expose storage stats via Civic API, not direct backend import",
-        "note": "SESSION 338 TECH DEBT: civic_api_integrated.py imports SQLiteBackend directly. Add Civic.get_storage_stats() method so API layer is backend-agnostic. Required for PostgreSQL migration and clean open-source patterns."
+        "note": "SESSION 339: Added Civic.get_storage_stats() method. API server now uses civic.Civic instead of importing SQLiteBackend directly. StorageStats includes backend_type in metadata and size_bytes. Clean abstraction enables PostgreSQL migration.",
+        "completed": "2025-12-22"
       },
       "postgres_backend_implementation": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "PostgresBackend class implementing StorageBackend protocol",
         "note": "Prove protocol modularity for open-source adoption. Municipalities with existing Postgres infrastructure get a clear path. Both SQLite and Postgres backends pass same test suite.",
         "depends_on": "storage_stats_abstraction"
@@ -1308,6 +1309,6 @@
       "frontend_refinement": 3,
       "pilot_validation": 10
     },
-    "notes": "Updated 2025-12-22: Session 337 - IMPLEMENTED storage_backend_protocol P0. SQLiteBackend created in civic/storage/sqlite_backend.py. Pipeline now has 4 stages (discover→ingest→store→index). Index reads from storage when configured. 26 new tests in test_sqlite_backend.py. Backward compatible - existing pipelines work without storage_target."
+    "notes": "Updated 2025-12-22: Session 339 - FIXED storage_stats_abstraction P0 (layer violation). Added Civic.get_storage_stats() method to core API. API server now uses civic.Civic instead of importing SQLiteBackend directly. StorageStats includes backend_type in metadata and size_bytes. Next P0: postgres_backend_implementation."
   }
 }
