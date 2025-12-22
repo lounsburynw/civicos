@@ -1,50 +1,58 @@
-# Recommended: Changelog Maintained
+# Recommended: User Identity in Messages
 
 **Priority:** P0 (IMMEDIATE)
-**Area:** rollback_procedures > version_management
+**Area:** frontend_refinement > social_features
 **Date:** 2025-12-21
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 334 completed `data_migration_reversible` - added `--rollback` and `--rollback-to` flags to migrate.py, documented schema migration rollback procedures in ROLLBACK_PROCEDURES.md.
+Session 335 completed `changelog_maintained` - updated CHANGELOG.md with comprehensive release documentation and maintenance guide.
 
-Next priority is maintaining a CHANGELOG.md for releases, which complements the tagged_releases and versioning work already complete.
+Next priority is showing proper user identity in coordination thread messages. Currently, MessageBubble.vue uses a simplistic `formatUserId()` that just extracts the first part before underscore/hash, and ThreadArtifact.vue has a hardcoded `userId = 'demo_user'`.
 
 ## Recommended Task
 
-Create and maintain CHANGELOG.md following Keep a Changelog format, documenting notable changes for each release.
+Display proper user names/display names in coordination thread messages instead of raw user IDs.
 
 ## Key Files
 
-- `docs/critical/VERSIONING_STRATEGY.md` - Existing versioning approach
-- None yet for CHANGELOG.md - needs to be created
+- `apps/civic-workspace/src/components/workspace/MessageBubble.vue:147-152` - `formatUserId()` needs real user lookup
+- `apps/civic-workspace/src/components/workspace/ThreadArtifact.vue:32` - hardcoded `userId = 'demo_user'`
+- `apps/civic-workspace/src/components/workspace/CoordinationChat.vue:64` - uses `formatUserId()` for reply context
+- `apps/civic-workspace/src/stores/profile.ts` - profile store (may have user data)
+- `apps/civic-workspace/src/composables/useAvatars.ts` - already handles avatar URLs
 
 ## Suggested Approach
 
-1. **Create CHANGELOG.md** in project root:
-   - Use Keep a Changelog format (https://keepachangelog.com)
-   - Sections: Added, Changed, Deprecated, Removed, Fixed, Security
-   - Link releases to git tags
+1. **Check existing user profile data:**
+   - Review `stores/profile.ts` for current user data
+   - Review ThreadMessage type for user info in messages
 
-2. **Populate with existing releases**:
-   - v0.2.0-pilot-20251214 (current)
-   - Notable changes from session logs in claude-progress.txt
+2. **Implement user lookup:**
+   - Option A: Add display_name to ThreadMessage from backend
+   - Option B: Create a composable `useUserDisplay()` to look up/cache user names
 
-3. **Document changelog maintenance process**:
-   - When to update (before tagging a release)
-   - What to include (user-facing changes, breaking changes)
-   - Integration with /commit workflow
+3. **Update components:**
+   - Replace `formatUserId()` with proper display name lookup
+   - Ensure "You" still works for current user
+   - Handle fallback gracefully for unknown users
+
+4. **Test in running app:**
+   ```bash
+   ./scripts/dev.sh
+   # Open http://localhost:5173, navigate to a thread
+   ```
 
 ## Success Criteria
 
-- [ ] CHANGELOG.md created with proper format
-- [ ] Current release documented
-- [ ] Process for maintaining changelog documented
-- [ ] pilot.json updated to mark changelog_maintained as ready
+- [ ] Messages show user display names instead of raw IDs
+- [ ] Current user messages still show "You"
+- [ ] Avatar and name are consistent
+- [ ] pilot.json updated to mark user_identity_in_messages as ready
 
 ## Pilot Progress
 
-- 138/161 items ready (86%)
-- 23 items remaining
+- 139/161 items ready (86%)
+- 22 items remaining
