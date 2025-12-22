@@ -636,6 +636,12 @@
         "status": "not_ready",
         "priority": 3,
         "artifact": "Compare retrieval quality on sample queries before/after"
+      },
+      "vector_backend_protocol_completion": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Complete VectorBackend protocol with embedding_model property and pgvector stub",
+        "note": "VectorBackend protocol exists but is incomplete. Need to: (1) Add embedding_model and embedding_dimension properties, (2) Create PgVectorBackend stub for future Postgres migration, (3) Document ChromaDB → pgvector migration path. Currently ChromaDB is hardcoded in embeddings.py and cli.py."
       }
     },
     "schema_documentation": {
@@ -723,6 +729,26 @@
         "artifact": "what_happened_full_context() returns decisions + linked transcript excerpts",
         "completed": "2025-12-16",
         "note": "Implemented what_happened_full_context() in Civic class. Returns DecisionWithContext objects with linked TranscriptLink excerpts. Uses semantic search to link decisions to transcript chunks from same meeting. 7 new tests (3 unit + 4 integration)."
+      }
+    },
+    "configuration_management": {
+      "jurisdiction_registry_consolidation": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Consolidate CITY_CONFIGS into reusable JurisdictionRegistry class",
+        "note": "CITY_CONFIGS exists in automated_civic_refresh.py but other files have duplicate hardcoded mappings (civic_schema_adapter.py timezone maps, civic_api_integrated.py county/state). Need to: (1) Promote CITY_CONFIGS to JurisdictionRegistry class in core location, (2) Add missing fields (county, state, civic_center_address), (3) Refactor other files to import from registry instead of hardcoding."
+      },
+      "data_path_resolver": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Centralize file path generation with environment variable support",
+        "note": "Currently hardcoded paths: data/civic_state.db (15+ refs), data/pilot/vectors/ (embeddings.py), data/checkpoints/ (pipeline.py). Need DataPathResolver that reads CIVIC_DATA_ROOT from env and generates all paths. Blocks containerized deployment."
+      },
+      "embedding_model_env_config": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Read embedding model from environment variable",
+        "note": "embeddings.py:178 hardcodes DEFAULT_MODEL = 'nomic-ai/nomic-embed-text-v1.5'. Should read from CIVIC_EMBEDDING_MODEL env var with fallback to default. Enables swapping to OpenAI embeddings without code changes."
       }
     }
   },
