@@ -3961,3 +3961,53 @@ discover → ingest → index, each with status callbacks for dashboard consumpt
 - 34 smoke tests passing
 
 **Commit:** Session 313: generalized_pipeline_runner - Pipeline class with stages and callbacks
+
+---
+
+## Session 316: storage_backend_protocol
+
+**Date:** 2025-12-21
+**Item:** storage_backend_protocol (city_onboarding > orchestration)
+**Status:** COMPLETE
+
+### Summary
+Created StorageBackend and VectorBackend protocols for the 4-stage pipeline:
+discover → ingest → store → index
+
+### Implementation
+
+**StorageBackend Protocol** (`packages/civic/src/civic/storage/backend.py`):
+- `@runtime_checkable` protocol for primary data persistence (SQLite, Postgres)
+- Methods: `validate()`, `store_meetings()`, `get_meetings()`, `get_stats()`, `delete_meetings()`
+- Dataclasses: `StorageStats`, `StorageValidationResult`
+- Supports temporal versioning via `as_of` parameter
+
+**VectorBackend Protocol** (`packages/civic/src/civic/storage/vector.py`):
+- `@runtime_checkable` protocol for vector search (ChromaDB, pgvector)
+- Methods: `validate()`, `index_from_storage()`, `search()`, `get_stats()`, `delete_index()`
+- Dataclasses: `SearchResult`, `VectorStats`, `VectorValidationResult`
+- Key design: `index_from_storage()` reads from StorageBackend, not memory
+
+**Key Design Principle:**
+Index reads from storage, not memory. This ensures:
+- Data is persisted before indexing
+- Re-indexing possible without re-fetching from source
+- Clear separation of store and index stages
+
+### Files Created
+- `packages/civic/src/civic/storage/__init__.py` - Module exports
+- `packages/civic/src/civic/storage/backend.py` - StorageBackend protocol
+- `packages/civic/src/civic/storage/vector.py` - VectorBackend protocol
+- `packages/civic/tests/test_storage_protocols.py` - 18 tests
+
+### Tests
+- 18 storage protocol tests passing
+- 34 smoke tests passing
+
+### Next Steps
+These protocols enable:
+1. SQLiteBackend implementation (wraps StateManager)
+2. ChromaDBBackend implementation (wraps VectorStore)
+3. Pipeline extension to use store stage between ingest and index
+
+**Commit:** Session 316: storage_backend_protocol - StorageBackend + VectorBackend protocols
