@@ -72,13 +72,16 @@ Respond with JSON:
 - [ ] README documents usage
 - [ ] At least one critic would have caught the storage gap
 
-## Also Fix
+## Also Fix (if not already done)
 
-- Update `/start` to check for existing `docs/next_session_prompt.md` and show it before recommending from `pilot.json`
-- Update `/nextsesh` and `/readnextsesh` to use `docs/next_session_prompt.md` (not `docs/core/`)
-- Update `/nextsesh` to **require setting exactly 1 P0 item** before session ends
-- Update CLAUDE.md: "Sessions must assign exactly 1 P0 before ending"
-- Add `session.critic.md` that checks: "Did this session set a P0 for next session?"
+- [x] Update `/start` to check for existing `docs/next_session_prompt.md` (Step 1.5 added)
+- [x] Update `/nextsesh` to require exactly 1 P0 item before session ends
+- [ ] Update `/readnextsesh` to use `docs/next_session_prompt.md`
+- [ ] Update CLAUDE.md: "Sessions must assign exactly 1 P0 before ending"
+- [ ] Add `session.critic.md` that checks:
+  - "Did this session set a P0 for next session?"
+  - "Does next_session_prompt.md match actual codebase state?" (catch stale handoffs)
+  - "Are 'TODO' items in handoff already implemented in code?"
 
 ## Note
 
