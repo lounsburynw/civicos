@@ -4313,3 +4313,38 @@ civic-extract youtube --jurisdiction city-san-rafael --days-past 90  # Custom da
 - 39 items remaining
 
 **Commit:** Session 322: youtube_discovery_cron - Automated YouTube video discovery
+
+## Session 323: audio_download_cron - Audio download CLI (2025-12-21)
+
+### What was done
+Created `civic-extract audio` CLI command to download audio from YouTube videos discovered by the `youtube` command.
+
+### Implementation
+- `packages/civic-extraction/src/civic_extraction/cli/audio.py` - New audio download CLI
+  - Reads from `data/{jurisdiction}_videos.json` (output of youtube command)
+  - Uses yt-dlp to download audio as MP3
+  - Supports --schedule mode (daily at 8am, after youtube at 7am)
+  - Skip already-downloaded files
+  - Checkpoint save/resume
+  - Cookie authentication (--cookies flag)
+  - --dry-run and --limit options for testing
+  - Output to `data/youtube_audio/{video_id}.mp3`
+- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` - Registered audio subcommand
+
+### Usage
+```bash
+civic-extract audio --jurisdiction city-san-rafael --dry-run    # Show what would be downloaded
+civic-extract audio --jurisdiction city-san-rafael --limit 5    # Download 5 videos
+civic-extract audio --jurisdiction city-san-rafael --schedule   # Run daily at 8am
+```
+
+### Test results
+- Successfully downloaded 2 test videos from San Rafael meetings
+- Checkpoint resume working correctly
+- Skip already-downloaded files working correctly
+
+### Pilot Progress
+- 123/161 items ready (76%)
+- 38 items remaining
+
+**Commit:** Session 323: audio_download_cron - Automated audio download CLI
