@@ -485,6 +485,14 @@
         "priority": 3,
         "artifact": "Show AssemblyAI usage/cost this month"
       }
+    },
+    "developer_tooling": {
+      "codebase_critics": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": ".critics/ directory with LLM-based code review prompts",
+        "note": "Session 315: catches architectural issues like storage gap. Includes pipeline, protocol, architecture critics + /critic command"
+      }
     }
   },
   "pipeline_automation": {
