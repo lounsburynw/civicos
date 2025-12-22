@@ -1,3 +1,59 @@
+## Session 318: checkpoint_for_meetings - Pipeline checkpoint/resume capability
+
+**Date:** 2025-12-21
+**Item:** checkpoint_for_meetings (city_onboarding > orchestration)
+**Priority:** P2
+
+### Summary
+Extended checkpoint/resume capability to the Pipeline class for meeting discovery/ingestion. Previously only transcription batch processing had resume capability. Now the generalized Pipeline supports resuming from a checkpoint after failures.
+
+### Implementation
+
+**New dataclass:** `IngestCheckpoint` in `packages/civic-extraction/src/civic_extraction/pipeline.py`
+- Tracks last successfully ingested meeting (id + datetime)
+- Serializable to/from JSON for persistence
+
+**Pipeline.run() parameters:**
+```python
+from civic_extraction import Pipeline, IngestCheckpoint, save_checkpoint, load_checkpoint
+
+# Resume from checkpoint
+checkpoint = load_checkpoint("data/checkpoints/city-san-rafael.json")
+result = pipeline.run(
+    resume_from=checkpoint,  # Skip meetings at or before checkpoint
+    on_checkpoint=lambda cp: save_checkpoint(cp, path),  # Called after ingest
+)
+```
+
+**Checkpoint utilities:**
+- `save_checkpoint(checkpoint, path)` - Save to JSON file
+- `load_checkpoint(path)` - Load from JSON (returns None if not found)
+- `checkpoint_path_for_jurisdiction(jurisdiction_id)` - Standard path generator
+
+**Filtering logic:**
+- Meetings with datetime > checkpoint.last_meeting_datetime are processed
+- Meetings with same datetime but different ID are processed
+- Exact match (same datetime + ID) is skipped
+
+### Files Modified
+- `packages/civic-extraction/src/civic_extraction/pipeline.py` - IngestCheckpoint, utilities, Pipeline.run()
+- `packages/civic-extraction/src/civic_extraction/__init__.py` - Export new symbols
+- `packages/civic-extraction/tests/test_pipeline_checkpoint.py` - 14 tests
+
+### Tests
+- 14 checkpoint tests passing
+- 34 smoke tests passing
+
+### Next Steps
+Related items enabled by this:
+- `last_processed_tracking` (P2) - Track last processed timestamp per pipeline
+- `skip_already_processed` (P2) - Skip items already in database
+- `failure_handling` (P2) - Retry failed items
+
+**Commit:** Session 318: checkpoint_for_meetings - Pipeline checkpoint/resume capability
+
+---
+
 ## Session 317: platform_detection_helper - Auto-detect city platform
 
 **Date:** 2025-12-21

@@ -45,6 +45,49 @@ class StageState(str, Enum):
 
 
 @dataclass
+class IngestCheckpoint:
+    """
+    Checkpoint for resuming a pipeline from a specific meeting.
+
+    Used to track the last successfully ingested meeting, allowing resume
+    after failures without reprocessing already-ingested meetings.
+
+    Attributes:
+        jurisdiction_id: The jurisdiction being processed
+        last_meeting_id: ID of last successfully ingested meeting
+        last_meeting_datetime: Datetime of last ingested meeting (for filtering)
+        items_processed: Total items processed so far
+        checkpoint_at: When this checkpoint was created
+    """
+    jurisdiction_id: str
+    last_meeting_id: str
+    last_meeting_datetime: datetime
+    items_processed: int = 0
+    checkpoint_at: datetime = field(default_factory=datetime.now)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "jurisdiction_id": self.jurisdiction_id,
+            "last_meeting_id": self.last_meeting_id,
+            "last_meeting_datetime": self.last_meeting_datetime.isoformat(),
+            "items_processed": self.items_processed,
+            "checkpoint_at": self.checkpoint_at.isoformat(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "IngestCheckpoint":
+        """Create from dictionary."""
+        return cls(
+            jurisdiction_id=data["jurisdiction_id"],
+            last_meeting_id=data["last_meeting_id"],
+            last_meeting_datetime=datetime.fromisoformat(data["last_meeting_datetime"]),
+            items_processed=data.get("items_processed", 0),
+            checkpoint_at=datetime.fromisoformat(data["checkpoint_at"]),
+        )
+
+
+@dataclass
 class StageStatus:
     """
     Status of a single pipeline stage.
@@ -125,6 +168,7 @@ StageStartCallback = Callable[[str], None]
 StageProgressCallback = Callable[[str, int, int], None]  # stage, current, total
 StageCompleteCallback = Callable[[str, StageStatus], None]
 ErrorCallback = Callable[[str, Exception], None]
+CheckpointCallback = Callable[["IngestCheckpoint"], None]  # called when checkpoint created
 
 
 @runtime_checkable
@@ -243,9 +287,11 @@ class Pipeline:
         on_stage_progress: Optional[StageProgressCallback] = None,
         on_stage_complete: Optional[StageCompleteCallback] = None,
         on_error: Optional[ErrorCallback] = None,
+        on_checkpoint: Optional[CheckpointCallback] = None,
         days_ahead: int = 90,
         days_past: int = 30,
         skip_index: bool = False,
+        resume_from: Optional[IngestCheckpoint] = None,
     ) -> PipelineResult:
         """
         Run the complete pipeline: discover -> ingest -> index.
@@ -255,9 +301,11 @@ class Pipeline:
             on_stage_progress: Called with progress updates (stage, current, total)
             on_stage_complete: Called when each stage completes
             on_error: Called when an error occurs
+            on_checkpoint: Called after ingest completes with checkpoint for resume
             days_ahead: Days into future for event fetching
             days_past: Days into past for event fetching
             skip_index: If True, skip the index stage
+            resume_from: Checkpoint to resume from (skip meetings before checkpoint)
 
         Returns:
             PipelineResult with status of all stages
@@ -281,7 +329,7 @@ class Pipeline:
             if self._stages["discover"].state == StageState.COMPLETED:
                 self._run_ingest(
                     on_stage_start, on_stage_progress, on_stage_complete, on_error,
-                    days_ahead, days_past
+                    on_checkpoint, days_ahead, days_past, resume_from
                 )
                 if self._stages["ingest"].state == StageState.FAILED:
                     success = False
@@ -370,8 +418,10 @@ class Pipeline:
         on_stage_progress: Optional[StageProgressCallback],
         on_stage_complete: Optional[StageCompleteCallback],
         on_error: Optional[ErrorCallback],
+        on_checkpoint: Optional[CheckpointCallback],
         days_ahead: int,
         days_past: int,
+        resume_from: Optional[IngestCheckpoint],
     ) -> None:
         """Run the ingest stage: fetch and normalize data."""
         stage = "ingest"
@@ -390,15 +440,40 @@ class Pipeline:
                 days_past=days_past
             )
 
+            total_found = len(meetings)
+            skipped_count = 0
+
+            # Filter out meetings before checkpoint if resuming
+            if resume_from is not None:
+                original_count = len(meetings)
+                meetings = [
+                    m for m in meetings
+                    if self._meeting_after_checkpoint(m, resume_from)
+                ]
+                skipped_count = original_count - len(meetings)
+                status.metadata["resumed_from"] = resume_from.to_dict()
+                status.metadata["skipped_count"] = skipped_count
+
             self._ingested_meetings = meetings
-            status.items_found = len(meetings)
+            status.items_found = total_found
             status.items_processed = len(meetings)
             status.state = StageState.COMPLETED
             status.progress_percent = 100.0
 
             # Report progress if callback provided
             if on_stage_progress and len(meetings) > 0:
-                on_stage_progress(stage, len(meetings), len(meetings))
+                on_stage_progress(stage, len(meetings), total_found)
+
+            # Create checkpoint for resume capability
+            if meetings and on_checkpoint:
+                last_meeting = meetings[-1]
+                checkpoint = IngestCheckpoint(
+                    jurisdiction_id=self.jurisdiction_id,
+                    last_meeting_id=self._get_meeting_id(last_meeting),
+                    last_meeting_datetime=self._get_meeting_datetime(last_meeting),
+                    items_processed=len(meetings) + skipped_count,
+                )
+                on_checkpoint(checkpoint)
 
         except Exception as e:
             status.state = StageState.FAILED
@@ -411,6 +486,41 @@ class Pipeline:
 
         if on_stage_complete:
             on_stage_complete(stage, status)
+
+    def _meeting_after_checkpoint(
+        self,
+        meeting: Any,
+        checkpoint: IngestCheckpoint,
+    ) -> bool:
+        """Check if a meeting is after the checkpoint (should be processed)."""
+        meeting_dt = self._get_meeting_datetime(meeting)
+        meeting_id = self._get_meeting_id(meeting)
+
+        # If same datetime, check if ID is different (avoid reprocessing same meeting)
+        if meeting_dt == checkpoint.last_meeting_datetime:
+            return meeting_id != checkpoint.last_meeting_id
+
+        # Process meetings strictly after checkpoint
+        return meeting_dt > checkpoint.last_meeting_datetime
+
+    def _get_meeting_id(self, meeting: Any) -> str:
+        """Extract meeting ID from meeting object."""
+        if hasattr(meeting, "id"):
+            return meeting.id
+        if isinstance(meeting, dict):
+            return meeting.get("id", "")
+        return ""
+
+    def _get_meeting_datetime(self, meeting: Any) -> datetime:
+        """Extract meeting datetime from meeting object."""
+        if hasattr(meeting, "meeting_datetime"):
+            return meeting.meeting_datetime
+        if isinstance(meeting, dict):
+            dt = meeting.get("meeting_datetime")
+            if isinstance(dt, str):
+                return datetime.fromisoformat(dt)
+            return dt or datetime.min
+        return datetime.min
 
     def _run_index(
         self,
@@ -470,3 +580,58 @@ class Pipeline:
         self._is_running = False
         self._discovered_count = 0
         self._ingested_meetings = []
+
+
+def save_checkpoint(checkpoint: IngestCheckpoint, path: str) -> None:
+    """
+    Save checkpoint to JSON file.
+
+    Args:
+        checkpoint: The checkpoint to save
+        path: File path for checkpoint JSON
+    """
+    import json
+    from pathlib import Path
+
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(checkpoint.to_dict(), f, indent=2)
+
+
+def load_checkpoint(path: str) -> Optional[IngestCheckpoint]:
+    """
+    Load checkpoint from JSON file.
+
+    Args:
+        path: File path to checkpoint JSON
+
+    Returns:
+        IngestCheckpoint if file exists, None otherwise
+    """
+    import json
+    from pathlib import Path
+
+    if not Path(path).exists():
+        return None
+
+    with open(path) as f:
+        data = json.load(f)
+
+    return IngestCheckpoint.from_dict(data)
+
+
+def checkpoint_path_for_jurisdiction(
+    jurisdiction_id: str,
+    base_dir: str = "data/checkpoints"
+) -> str:
+    """
+    Get standard checkpoint file path for a jurisdiction.
+
+    Args:
+        jurisdiction_id: The jurisdiction (e.g., "city-san-rafael")
+        base_dir: Base directory for checkpoint files
+
+    Returns:
+        Path like "data/checkpoints/city-san-rafael.json"
+    """
+    return f"{base_dir}/{jurisdiction_id}.json"

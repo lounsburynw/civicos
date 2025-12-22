@@ -906,10 +906,12 @@
         "location": "packages/civic-extraction/src/civic_extraction/pipeline.py"
       },
       "checkpoint_for_meetings": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "Extend checkpoint/resume to meeting discovery (currently only transcription)",
-        "note": "Existing: resume capability in batch_process_san_rafael_meetings.py"
+        "note": "IngestCheckpoint dataclass + Pipeline.run(resume_from=checkpoint) + save/load utilities",
+        "test_file": "packages/civic-extraction/tests/test_pipeline_checkpoint.py",
+        "completed": "2025-12-21"
       },
       "full_city_bootstrap": {
         "status": "ready",
