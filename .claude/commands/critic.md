@@ -23,56 +23,78 @@ If no staged changes, warn the user:
 No staged changes. Stage your changes with `git add` first.
 ```
 
-3. **Load relevant critics:**
+3. **Dispatch critic agents:**
 
-Based on argument or all critics if none specified:
-- `.critics/pipeline.critic.md` - For Pipeline changes
-- `.critics/protocol.critic.md` - For storage/protocol changes
-- `.critics/architecture.critic.md` - For package/import changes
-- `.critics/session.critic.md` - For session end checks
+Use the Task tool to spawn parallel sub-agents for each critic. This keeps critic file contents out of main context.
 
-4. **Run each critic:**
-
-For each critic, analyze the staged diff against the critic's checks.
-Output a structured review:
+**For each critic, spawn a Task agent with this prompt pattern:**
 
 ```
-## Pipeline Critic
-✅ PASS | ⚠️ WARNING | ❌ FAIL
+You are a code critic. Analyze this staged diff against the critic rules.
 
-Issues:
-- [list any issues found]
+CRITIC FILE: .critics/{name}.critic.md
+Read the critic file first, then analyze the diff.
 
-Suggestions:
-- [list any suggestions]
+STAGED DIFF:
+{paste the staged diff here}
 
----
+Respond with JSON only:
+{
+  "critic": "{name}",
+  "pass": boolean,
+  "issues": ["list of specific issues found"],
+  "severity": "critical" | "warning" | "info",
+  "suggestions": ["optional fixes"]
+}
 ```
 
-5. **Summary:**
+**Spawn these in parallel using multiple Task tool calls in a single message:**
+- Task: "Run pipeline critic" → reads `.critics/pipeline.critic.md`
+- Task: "Run protocol critic" → reads `.critics/protocol.critic.md`
+- Task: "Run architecture critic" → reads `.critics/architecture.critic.md`
+- Task: "Run session critic" → reads `.critics/session.critic.md`
+
+Use `model: "haiku"` for fast, cost-effective critic runs.
+
+4. **Aggregate results:**
+
+Collect JSON responses from all agents. Format as summary table:
 
 ```
+## Critic Results
+
+| Critic | Result | Severity | Issues |
+|--------|--------|----------|--------|
+| Pipeline | ✅ PASS | - | - |
+| Protocol | ✅ PASS | - | - |
+| Architecture | ⚠️ WARNING | warning | 1 issue |
+| Session | ❌ FAIL | critical | No P0 set |
+
+## Issues Found
+
+### Session Critic (critical)
+- No P0 item set for next session
+
 ## Summary
 
 Critics run: 4
 Passed: 3
-Warnings: 1
-Failed: 0
+Warnings: 0
+Failed: 1
 
-Ready to commit: Yes/No
+Ready to commit: No
 ```
 
-## Auto-Detection
+## Single Critic Mode
 
-If no critic is specified, automatically select relevant critics based on changed files:
+If user specifies a single critic (e.g., `/critic session`), only spawn one agent for that critic.
 
-| File Pattern | Critics |
-|--------------|---------|
-| `**/pipeline*.py` | pipeline |
-| `**/storage/*.py` | protocol |
-| `**/sources/*.py` | protocol |
-| Any package import changes | architecture |
-| Session end (`/nextsesh`) | session |
+## Benefits of Sub-Agent Approach
+
+- **Context efficient**: Critic files stay out of main context
+- **Parallel execution**: All 4 critics run simultaneously
+- **Isolated analysis**: Each agent focuses on one concern
+- **Structured output**: JSON responses easy to aggregate
 
 ## Notes
 
@@ -80,3 +102,4 @@ If no critic is specified, automatically select relevant critics based on change
 - Each critic outputs JSON with pass/issues/severity
 - Critical failures should block commit
 - Warnings are advisory
+- Use haiku model for cost efficiency (~$0.001 per critic run)
