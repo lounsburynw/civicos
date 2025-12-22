@@ -509,8 +509,8 @@
       "meeting_discovery_cron": {
         "status": "ready",
         "priority": 1,
-        "artifact": "scripts/meeting_discovery_cron.py - Meeting discovery with --schedule mode for daily 6am",
-        "note": "Session 321: Created cron script with one-time and scheduled modes, checkpoint support, and logging",
+        "artifact": "civic-extract discover CLI - packages/civic-extraction/src/civic_extraction/cli/discover.py",
+        "note": "Session 321: CLI with --schedule mode for daily 6am, checkpoint support, logging. Refactored from scripts/ to package CLI.",
         "completed": "2025-12-21"
       },
       "youtube_discovery_cron": {

@@ -1,34 +1,33 @@
-## Session 321: meeting_discovery_cron - Automated meeting discovery cron job
+## Session 321: meeting_discovery_cron - civic-extract CLI
 
 **Date:** 2025-12-21
 **Item:** meeting_discovery_cron (pipeline_automation > scheduling)
 **Priority:** P0 (IMMEDIATE)
 
 ### Summary
-Created cron script for automated meeting discovery. This is the first of the pipeline automation cron jobs needed for Jan 2026 pilot.
+Created `civic-extract` CLI for automated meeting discovery. Implemented as a proper package CLI in civic-extraction rather than a standalone script.
 
 ### Implementation
 
-**New script:** `scripts/meeting_discovery_cron.py`
+**New CLI:** `civic-extract discover`
 
 Features:
-- One-time run mode: `python scripts/meeting_discovery_cron.py --jurisdiction city-san-rafael`
-- Scheduled mode: `--schedule` flag runs daily at 6am using `schedule` library
+- One-time run: `civic-extract discover --jurisdiction city-san-rafael`
+- Scheduled mode: `--schedule` runs daily at 6am using `schedule` library
 - Dry-run mode: `--dry-run` validates config without running pipeline
 - Checkpoint support: Saves/resumes from `data/checkpoints/{jurisdiction}.json`
-- Configurable date range: `--days-past`, `--days-ahead` (defaults: 30, 90)
-- Verbose logging: Timestamps, stage progress, item counts
+- Configurable: `--days-past`, `--days-ahead`, `--checkpoint-dir`
 
 ### Usage
 ```bash
 # One-time run
-python scripts/meeting_discovery_cron.py --jurisdiction city-san-rafael
+civic-extract discover --jurisdiction city-san-rafael
 
-# Start scheduler (runs daily at 6am)
-python scripts/meeting_discovery_cron.py --jurisdiction city-san-rafael --schedule
+# Start scheduler (daily at 6am)
+civic-extract discover --jurisdiction city-san-rafael --schedule
 
 # Dry-run validation
-python scripts/meeting_discovery_cron.py --jurisdiction city-san-rafael --dry-run
+civic-extract discover --jurisdiction city-san-rafael --dry-run
 ```
 
 ### Test Results
@@ -39,13 +38,21 @@ Successfully tested with san-rafael:
 - Pipeline completed in ~46 seconds
 
 ### Files Created
-- `scripts/meeting_discovery_cron.py` - Main cron script
+- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` - CLI entry point
+- `packages/civic-extraction/src/civic_extraction/cli/discover.py` - Discover command
+- Updated `packages/civic-extraction/pyproject.toml` - Entry point + scheduler dependency
+
+### Architecture Decision
+Implemented as package CLI (`civic-extract`) rather than `scripts/` because:
+- Generic infrastructure, not municipal-specific
+- Works for any jurisdiction with config file
+- Sets pattern for future commands (youtube, transcribe, etc.)
 
 ### Pilot Progress
-- 121/161 items ready (75%)
+- 122/161 items ready (76%)
 - Next P0: youtube_discovery_cron (pipeline automation sequence)
 
-**Commit:** Session 321: meeting_discovery_cron - Automated meeting discovery cron job
+**Commit:** Session 321: meeting_discovery_cron - civic-extract CLI
 
 ---
 

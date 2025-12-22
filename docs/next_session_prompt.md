@@ -8,48 +8,51 @@
 
 ## Context
 
-Session 321 completed `meeting_discovery_cron` - the first pipeline automation cron job. The pattern is now established. Next is YouTube video discovery to find recordings of meetings.
+Session 321 completed `meeting_discovery_cron` as `civic-extract discover` CLI command. The pattern is established as a package CLI, not standalone scripts. Next is YouTube video discovery.
 
 ## Recommended Task
 
-Create a cron job that discovers YouTube videos for San Rafael meetings, similar to meeting_discovery_cron.py.
+Add `civic-extract youtube` command to discover YouTube videos for meetings.
 
 ## Key Files
 
-- `scripts/meeting_discovery_cron.py` - **Pattern to follow** - one-time and --schedule modes, checkpoint support, logging
-- `packages/civic-extraction/src/civic_extraction/clients/youtube.py` - YouTube client (if exists)
-- `packages/civic-extraction/src/civic_extraction/sources/` - Data source implementations
-- `data/extraction/san-rafael.json` - Jurisdiction config
+- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` - CLI entry point (add youtube subcommand)
+- `packages/civic-extraction/src/civic_extraction/cli/discover.py` - **Pattern to follow**
+- `packages/civic-extraction/pyproject.toml` - Entry point defined here
 
 ## What Needs to Happen
 
 1. **Investigate YouTube extraction** - Find or create YouTube discovery client
-   - Search for existing YouTube-related code in civic-extraction
-   - Understand how videos are linked to meetings
+   - Grep for "youtube" in packages/civic-extraction
+   - Check how videos are linked to meetings
 
-2. **Create cron script** - `scripts/youtube_discovery_cron.py` following the pattern:
-   - One-time and scheduled (--schedule) modes
-   - Checkpoint save/resume capability
-   - Dry-run validation mode
-   - Structured logging
+2. **Create youtube.py CLI module** - `packages/civic-extraction/src/civic_extraction/cli/youtube.py`:
+   - Follow discover.py pattern
+   - One-time and --schedule modes
+   - Checkpoint save/resume
+   - Dry-run validation
 
-3. **Test with san-rafael** - Run discovery and verify output
+3. **Register in CLI** - Update `cli/__init__.py` to add youtube subcommand
+
+4. **Test** - `civic-extract youtube --jurisdiction city-san-rafael --dry-run`
 
 ## Suggested Approach
 
 1. Grep for "youtube" in packages/civic-extraction to find existing code
-2. Check if there's a YouTubeSource or similar client
-3. Create youtube_discovery_cron.py mirroring meeting_discovery_cron.py
-4. Test with --dry-run first, then full run
+2. Create `cli/youtube.py` following `cli/discover.py` pattern
+3. Register in `cli/__init__.py`
+4. Reinstall package: `pip install -e packages/civic-extraction/`
+5. Test with --dry-run first, then full run
 
 ## Tests to Run
 ```bash
-# After creating the script
-python scripts/youtube_discovery_cron.py --jurisdiction city-san-rafael --dry-run
+# After creating the command
+civic-extract youtube --help
+civic-extract youtube --jurisdiction city-san-rafael --dry-run
 ```
 
 ## Success Criteria
-- [ ] Script created at scripts/youtube_discovery_cron.py
+- [ ] `civic-extract youtube` command works
 - [ ] Supports --schedule, --dry-run, --jurisdiction flags
 - [ ] Checkpoint save/resume works
 - [ ] Successfully discovers YouTube videos for san-rafael
@@ -58,9 +61,9 @@ python scripts/youtube_discovery_cron.py --jurisdiction city-san-rafael --dry-ru
 ## Related Pipeline Automation Items
 
 After youtube_discovery_cron:
-- `audio_download_cron` (P2) - Download audio from YouTube
-- `transcription_cron` (P2) - Batch transcription via AssemblyAI
-- `seeclickfix_cron` (P2) - Refresh SeeClickFix data
+- `audio_download_cron` (P2) - `civic-extract audio` command
+- `transcription_cron` (P2) - `civic-extract transcribe` command
+- `seeclickfix_cron` (P2) - `civic-extract seeclickfix` command
 
 ## Pilot Progress
 
