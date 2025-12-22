@@ -366,7 +366,7 @@
     "frontend_dashboard": {
       "status_page": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Admin page aligned with 4-stage ETL pipeline",
         "note": "REWORK NEEDED: Current dashboard shows 3 stages. Must align with new 4-stage pattern: Available → Ingested → Stored → Indexed. Consume StorageBackend.get_stats() and VectorBackend.get_stats().",
         "depends_on": "storage_backend_protocol"
@@ -970,32 +970,33 @@
         "note": "Implemented civic-bootstrap CLI: validation, Pipeline orchestration, status callbacks, JSON output"
       },
       "storage_backend_protocol": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "StorageBackend + VectorBackend protocols in civic/storage/",
-        "note": "AUDIT FINDING: Protocols defined but NOT implemented. No SQLiteBackend or ChromaDBBackend classes exist. Pipeline reads from memory, not storage. Needs: (1) SQLiteBackend implementing StorageBackend, (2) Pipeline store stage before index, (3) Index reads from storage.",
+        "note": "Session 337: Implemented SQLiteBackend conforming to StorageBackend protocol. Pipeline now has 4 stages: discover→ingest→store→index. Index reads from storage backend when configured.",
         "test_file": "packages/civic/tests/test_storage_protocols.py",
-        "blocked_by": ["sqlite_backend_implementation", "pipeline_store_stage", "index_reads_from_storage"]
+        "completed": "2025-12-22"
       },
       "sqlite_backend_implementation": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": "SQLiteBackend class implementing StorageBackend protocol",
-        "note": "Wrap StateManager to conform to StorageBackend protocol. Methods: validate(), store_meetings(), get_meetings(), get_stats(), delete_meetings()."
+        "note": "Implemented civic/storage/sqlite_backend.py with validate(), store_meetings(), get_meetings(), get_stats(), delete_meetings(). 26 tests in test_sqlite_backend.py.",
+        "completed": "2025-12-22"
       },
       "pipeline_store_stage": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": "Add explicit store stage to Pipeline between ingest and index",
-        "note": "Pipeline currently goes discover→ingest→index. Need discover→ingest→store→index. Store stage calls storage_backend.store_meetings() before indexing.",
-        "depends_on": "sqlite_backend_implementation"
+        "note": "Pipeline.STAGES now ['discover', 'ingest', 'store', 'index']. Store stage calls storage_backend.store_meetings(). Backward compatible - works without storage_target.",
+        "completed": "2025-12-22"
       },
       "index_reads_from_storage": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": "Index stage reads from StorageBackend, not memory",
-        "note": "Current pipeline.py:552-554 passes in-memory data to index. Must call storage_backend.get_meetings() then index. Prevents data loss if indexing fails.",
-        "depends_on": "pipeline_store_stage"
+        "note": "_run_index() now calls storage_backend.get_meetings() when storage_target configured. Falls back to in-memory for backward compatibility.",
+        "completed": "2025-12-22"
       }
     },
     "documentation": {
@@ -1292,6 +1293,6 @@
       "frontend_refinement": 3,
       "pilot_validation": 10
     },
-    "notes": "Updated 2025-12-22: AUDIT - Storage backend protocols defined but NOT implemented. Pipeline missing store stage; index reads from memory. Added 5 new items: sqlite_backend_implementation, pipeline_store_stage, index_reads_from_storage, operation_progress_panel, operation_history_table. Marked storage_backend_protocol, status_page, pipeline_flow_visualization, running_operations as not_ready. storage_backend_protocol is P0 blocker."
+    "notes": "Updated 2025-12-22: Session 337 - IMPLEMENTED storage_backend_protocol P0. SQLiteBackend created in civic/storage/sqlite_backend.py. Pipeline now has 4 stages (discover→ingest→store→index). Index reads from storage when configured. 26 new tests in test_sqlite_backend.py. Backward compatible - existing pipelines work without storage_target."
   }
 }
