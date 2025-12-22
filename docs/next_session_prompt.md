@@ -74,7 +74,11 @@ Respond with JSON:
 
 ## Also Fix
 
+- Update `/start` to check for existing `docs/next_session_prompt.md` and show it before recommending from `pilot.json`
 - Update `/nextsesh` and `/readnextsesh` to use `docs/next_session_prompt.md` (not `docs/core/`)
+- Update `/nextsesh` to **require setting exactly 1 P0 item** before session ends
+- Update CLAUDE.md: "Sessions must assign exactly 1 P0 before ending"
+- Add `session.critic.md` that checks: "Did this session set a P0 for next session?"
 
 ## Note
 
