@@ -1054,9 +1054,11 @@
         "note": "Created v0.2.0-pilot-20251214 tag. Format: v{major}.{minor}.{patch}-pilot-{YYYYMMDD}. See VERSIONING_STRATEGY.md."
       },
       "changelog_maintained": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "CHANGELOG.md updated for releases"
+        "status": "ready",
+        "priority": 1,
+        "artifact": "CHANGELOG.md updated for releases",
+        "completed": "2025-12-21",
+        "note": "CHANGELOG.md updated with Keep a Changelog format. Documents v0.2.0-pilot-20251214 and unreleased changes from sessions 319-334. Includes maintenance guide."
       }
     }
   },
@@ -1136,7 +1138,7 @@
     "social_features": {
       "user_identity_in_messages": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Show user identity in coordination thread messages"
       },
       "public_profiles": {
