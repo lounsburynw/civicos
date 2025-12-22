@@ -1,3 +1,52 @@
+## Session 339: storage_stats_abstraction - Fix Layer Boundary Violation
+
+**Date:** 2025-12-22
+**Item:** storage_stats_abstraction (city_onboarding > orchestration)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Fixed layer boundary violation where the API server (`civic-services`) imported `SQLiteBackend` directly from `civic.storage`. This broke the abstraction needed for backend swapping (SQLite → PostgreSQL).
+
+### Implementation
+
+1. **Core API Enhancement** (`packages/civic/src/civic/civic.py`):
+   - Added `_storage: StorageBackend` field to Civic dataclass
+   - Added `get_storage_stats(jurisdiction_id: str = None) -> StorageStats` method
+   - Initializes `SQLiteBackend` in `__post_init__`
+
+2. **StorageStats Enhancement** (`packages/civic/src/civic/storage/sqlite_backend.py`):
+   - Added `size_bytes` calculation (file size for SQLite)
+   - Added `backend_type` to `metadata` dict
+   - Error-safe file size check with OSError handling
+
+3. **Public API Export** (`packages/civic/src/civic/__init__.py`):
+   - Exported `StorageStats` for type hints
+
+4. **API Server Fix** (`civic_api_integrated.py:7456-7482`):
+   - Replaced `from civic.storage.sqlite_backend import SQLiteBackend` with `from civic import Civic`
+   - Now uses `Civic(jurisdiction_id).get_storage_stats()`
+   - Backend type comes from `storage_stats.metadata.get('backend_type', 'unknown')`
+
+### Testing
+- 34 smoke tests: passed
+- 31 storage-related tests: passed
+- Manual verification: `Civic.get_storage_stats()` returns correct data
+
+### Why This Matters
+1. **Open-source adoption**: Other municipalities copying patterns won't hard-code SQLite
+2. **PostgreSQL migration**: Clean abstraction enables backend swap
+3. **Layer discipline**: Coordination layer (civic-services) uses only Core layer public API (civic)
+
+### Pilot Progress
+- Before: 141/168 items (83.9%)
+- After: 142/168 items (84.5%)
+- 1 item completed: storage_stats_abstraction
+
+### Next P0
+`postgres_backend_implementation` - Create PostgresBackend implementing StorageBackend protocol to prove modularity
+
+---
+
 ## Session 338: status_page - 4-Stage Pipeline Dashboard Alignment
 
 **Date:** 2025-12-22

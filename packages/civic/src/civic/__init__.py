@@ -44,6 +44,9 @@ from civic.civic import (
 # Cross-corpus search result type
 from civic.history import UnifiedSearchResult, HybridSearchResult
 
+# Storage types (for dashboard/admin use)
+from civic.storage import StorageStats
+
 # Optional MCP support - lazy import to avoid circular dependencies
 MCP_AVAILABLE = False
 mcp_server = None
@@ -83,6 +86,8 @@ __all__ = [
     # Cross-corpus search result types
     "UnifiedSearchResult",
     "HybridSearchResult",
+    # Storage types
+    "StorageStats",
     # MCP
     "MCP_AVAILABLE",
     "mcp_server",

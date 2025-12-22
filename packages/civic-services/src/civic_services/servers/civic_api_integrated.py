@@ -7453,16 +7453,17 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             result['database']['path'] = str(state_db_path)
             result['status'] = 'degraded'
 
-        # 1.5 SESSION 338: StorageBackend stats (4-stage pipeline: discover -> ingest -> store -> index)
-        # This represents the "stored" stage - data persisted to SQLite with temporal versioning
+        # 1.5 StorageBackend stats via Civic API (4-stage pipeline: discover -> ingest -> store -> index)
+        # This represents the "stored" stage - data persisted with temporal versioning
+        # Uses Civic.get_storage_stats() to maintain layer abstraction (backend swappable)
         try:
-            from civic.storage.sqlite_backend import SQLiteBackend
-            storage_backend = SQLiteBackend(str(state_db_path))
-            storage_stats = storage_backend.get_stats(jurisdiction_id)
+            from civic import Civic
+            civic = Civic(jurisdiction_id, db_path=str(state_db_path))
+            storage_stats = civic.get_storage_stats()
 
             result['storage'] = {
                 'status': 'connected',
-                'backend_type': storage_backend.backend_type,
+                'backend_type': storage_stats.metadata.get('backend_type', 'unknown'),
                 'meetings': {
                     'count': storage_stats.meeting_count,
                     'earliest': storage_stats.earliest_meeting.isoformat() if storage_stats.earliest_meeting else None,
@@ -7475,7 +7476,7 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                 'size_bytes': storage_stats.size_bytes,
             }
         except ImportError:
-            result['storage'] = {'status': 'unavailable', 'error': 'civic.storage not installed'}
+            result['storage'] = {'status': 'unavailable', 'error': 'civic not installed'}
         except Exception as e:
             result['storage'] = {'status': 'error', 'error': str(e)}
             logger.warning("storage_stats_error", extra={"error": str(e)})
