@@ -756,6 +756,22 @@ export interface AdminStatusResponse {
       last_updated: string | null;
     };
   };
+  // SESSION 338: StorageBackend stats (4-stage pipeline)
+  storage?: {
+    status: 'connected' | 'unavailable' | 'error';
+    backend_type?: string;
+    meetings?: {
+      count: number;
+      earliest: string | null;
+      latest: string | null;
+      last_updated: string | null;
+    };
+    agenda_items?: {
+      count: number;
+    };
+    size_bytes?: number | null;
+    error?: string;
+  };
   chromadb: {
     status: 'connected' | 'no_storage' | 'error' | 'chromadb_not_installed';
     path?: string;

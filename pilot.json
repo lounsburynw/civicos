@@ -365,10 +365,11 @@
     },
     "frontend_dashboard": {
       "status_page": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Admin page aligned with 4-stage ETL pipeline",
-        "note": "REWORK NEEDED: Current dashboard shows 3 stages. Must align with new 4-stage pattern: Available → Ingested → Stored → Indexed. Consume StorageBackend.get_stats() and VectorBackend.get_stats().",
+        "note": "SESSION 338: Dashboard now shows 4 stages (Coverage → Ingested → Stored → Indexed). API returns storage section from SQLiteBackend.get_stats().",
+        "completed": "2025-12-22",
         "depends_on": "storage_backend_protocol"
       },
       "visual_indicators": {
@@ -386,10 +387,11 @@
         "note": "Using date-fns formatDistanceToNow for relative time display"
       },
       "pipeline_flow_visualization": {
-        "status": "not_ready",
-        "priority": 1,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Pipeline view showing Available → Ingested → Stored → Indexed flow",
-        "note": "REWORK NEEDED: Add 4th stage (Stored) between Ingested and Indexed. Shows data persisted before vector indexing. Prevents data loss visibility.",
+        "note": "SESSION 338: Pipeline now shows 4 stages with Stored stage between Ingested and Indexed. Each stage has freshness indicators and tooltips.",
+        "completed": "2025-12-22",
         "depends_on": "status_page"
       },
       "operation_progress_panel": {
@@ -474,7 +476,7 @@
     "operation_status": {
       "running_operations": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Show running operations with server-side progress tracking",
         "note": "AUDIT FINDING: Current implementation is client-side timer only. Needs: (1) Server-side operation state table, (2) Progress updates via polling or WebSocket, (3) Resume on browser refresh."
       },

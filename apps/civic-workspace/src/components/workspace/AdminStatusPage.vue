@@ -105,9 +105,24 @@
 
             <div class="stage-arrow">→</div>
 
-            <!-- Searchable -->
+            <!-- Stored (SESSION 338: 4-stage pipeline) -->
             <div class="stage">
-              <div class="stage-header">Searchable</div>
+              <div class="stage-header">Stored</div>
+              <div
+                class="stage-node"
+                :class="getStoredNodeClass('meetings')"
+                :title="getStoredTooltip('meetings')"
+              >
+                {{ getStoredCount('meetings') }}
+              </div>
+              <div class="stage-meta">{{ getStoredMeta('meetings') }}</div>
+            </div>
+
+            <div class="stage-arrow">→</div>
+
+            <!-- Indexed -->
+            <div class="stage">
+              <div class="stage-header">Indexed</div>
               <div
                 class="stage-node"
                 :class="getNodeClass(getCollectionCount('decisions'), null)"
@@ -153,9 +168,24 @@
 
             <div class="stage-arrow">→</div>
 
-            <!-- Searchable -->
+            <!-- Stored (SESSION 338: 4-stage pipeline) -->
             <div class="stage">
-              <div class="stage-header">Searchable</div>
+              <div class="stage-header">Stored</div>
+              <div
+                class="stage-node"
+                :class="getStoredNodeClass('agenda_items')"
+                :title="getStoredTooltip('agenda_items')"
+              >
+                {{ getStoredCount('agenda_items') }}
+              </div>
+              <div class="stage-meta">{{ getStoredMeta('agenda_items') }}</div>
+            </div>
+
+            <div class="stage-arrow">→</div>
+
+            <!-- Indexed -->
+            <div class="stage">
+              <div class="stage-header">Indexed</div>
               <div
                 class="stage-node"
                 :class="getNodeClass(getCollectionCount('chunks'), null)"
@@ -608,6 +638,89 @@ function getSourceNodeClass(dataType: string): string {
   }
 
   return 'unknown';
+}
+
+// SESSION 338: StorageBackend stats helpers for 4-stage pipeline
+function getStoredNodeClass(dataType: string): string {
+  if (!statusData.value?.storage) return 'unknown';
+  if (statusData.value.storage.status !== 'connected') return 'unknown';
+
+  if (dataType === 'meetings') {
+    const count = statusData.value.storage.meetings?.count;
+    const lastUpdated = statusData.value.storage.meetings?.last_updated;
+    if (count === null || count === undefined || count === 0) return 'empty';
+    if (!lastUpdated) return 'has-data';
+
+    const days = differenceInDays(new Date(), new Date(lastUpdated));
+    if (days < 7) return 'fresh';
+    if (days < 30) return 'has-data';
+    return 'stale';
+  }
+
+  if (dataType === 'agenda_items') {
+    const count = statusData.value.storage.agenda_items?.count;
+    if (count === null || count === undefined || count === 0) return 'empty';
+    return 'has-data';
+  }
+
+  return 'unknown';
+}
+
+function getStoredCount(dataType: string): string {
+  if (!statusData.value?.storage) return '?';
+  if (statusData.value.storage.status !== 'connected') return '?';
+
+  if (dataType === 'meetings') {
+    const count = statusData.value.storage.meetings?.count;
+    return count !== undefined ? String(count) : '?';
+  }
+
+  if (dataType === 'agenda_items') {
+    const count = statusData.value.storage.agenda_items?.count;
+    return count !== undefined ? String(count) : '?';
+  }
+
+  return '?';
+}
+
+function getStoredTooltip(dataType: string): string {
+  if (!statusData.value?.storage) return 'Storage backend not available';
+  if (statusData.value.storage.status !== 'connected') {
+    return statusData.value.storage.error || 'Storage backend unavailable';
+  }
+
+  if (dataType === 'meetings') {
+    const meetings = statusData.value.storage.meetings;
+    if (!meetings) return 'No stored meetings data';
+    return `${meetings.count} meetings in storage backend (SQLite)`;
+  }
+
+  if (dataType === 'agenda_items') {
+    const agendaItems = statusData.value.storage.agenda_items;
+    if (!agendaItems) return 'No stored agenda items data';
+    return `${agendaItems.count} agenda items in storage backend`;
+  }
+
+  return 'Storage backend';
+}
+
+function getStoredMeta(dataType: string): string {
+  if (!statusData.value?.storage) return 'SQLite';
+  if (statusData.value.storage.status !== 'connected') return 'unavailable';
+
+  if (dataType === 'meetings') {
+    const lastUpdated = statusData.value.storage.meetings?.last_updated;
+    if (lastUpdated) {
+      return formatTimeAgo(lastUpdated);
+    }
+    return 'SQLite';
+  }
+
+  if (dataType === 'agenda_items') {
+    return 'SQLite';
+  }
+
+  return statusData.value.storage.backend_type || 'SQLite';
 }
 
 function formatSourceCount(dataType: string): string {

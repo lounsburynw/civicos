@@ -1,3 +1,45 @@
+## Session 338: status_page - 4-Stage Pipeline Dashboard Alignment
+
+**Date:** 2025-12-22
+**Item:** status_page, pipeline_flow_visualization (ingestion_visibility > frontend_dashboard)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Updated admin dashboard to show 4-stage ETL pipeline (Coverage → Ingested → Stored → Indexed). Added `storage` section to API response that uses `SQLiteBackend.get_stats()` to show persisted data counts.
+
+### Implementation
+
+1. **API Enhancement** (`civic_api_integrated.py`):
+   - Added `storage` field to result dictionary
+   - Section 1.5 fetches `SQLiteBackend.get_stats(jurisdiction_id)`
+   - Returns: status, backend_type, meetings.count/timestamps, agenda_items.count
+
+2. **TypeScript Types** (`types/civic.ts`):
+   - Added `storage?` optional field to `AdminStatusResponse`
+   - Includes meetings/agenda_items counts and timestamps
+
+3. **Vue Component** (`AdminStatusPage.vue`):
+   - Added "Stored" stage between "Ingested" and "Indexed" for Meetings pipeline
+   - Added "Stored" stage for Agenda Items pipeline
+   - Renamed "Searchable" to "Indexed" for clarity
+   - Added helper functions: `getStoredNodeClass`, `getStoredCount`, `getStoredTooltip`, `getStoredMeta`
+
+### Testing
+- 34 smoke tests: passed
+- 31 storage-related tests: passed
+- TypeScript type-check: passed
+- SQLiteBackend.get_stats() integration: verified
+
+### Pilot Progress
+- Before: 139/166 items (83.7%)
+- After: 141/166 items (84.9%)
+- 2 items completed: status_page, pipeline_flow_visualization
+
+### Next P0
+`running_operations` - Server-side operation state tracking (required for operation_progress_panel)
+
+---
+
 ## Session 333: post_ingestion_report - Post-Ingestion Report for City Onboarding
 
 **Date:** 2025-12-21
