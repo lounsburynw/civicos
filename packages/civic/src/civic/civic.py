@@ -32,6 +32,7 @@ from datetime import datetime
 
 # Import from internal modules (consolidated)
 from civic._internal.state import StateManager
+from civic.storage import StorageBackend, StorageStats, SQLiteBackend
 
 # Optional imports - gracefully degrade if not available
 try:
@@ -308,6 +309,7 @@ class Civic:
     db_path: str = "data/civic_state.db"
     _state: StateManager = field(default=None, repr=False)
     _search: Any = field(default=None, repr=False)  # LegalSearch if available
+    _storage: StorageBackend = field(default=None, repr=False)  # StorageBackend for stats
 
     def __post_init__(self):
         """Initialize internal services."""
@@ -316,6 +318,7 @@ class Civic:
         self.jurisdiction = normalize_jurisdiction(self.jurisdiction)
 
         self._state = StateManager(self.db_path)
+        self._storage = SQLiteBackend(self.db_path)
 
         # LegalSearch requires embeddings - make optional
         if LEGAL_AVAILABLE:
@@ -323,6 +326,25 @@ class Civic:
                 self._search = LegalSearch()
             except Exception:
                 self._search = None
+
+    # ─────────── STORAGE METHODS ───────────
+
+    def get_storage_stats(self, jurisdiction_id: str = None) -> StorageStats:
+        """
+        Get storage statistics for dashboard display.
+
+        Returns statistics about stored data including meeting counts,
+        temporal range, and storage size. Used by admin dashboards to
+        show the "stored" stage of the 4-stage ETL pipeline.
+
+        Args:
+            jurisdiction_id: Optional override (default: self.jurisdiction)
+
+        Returns:
+            StorageStats with counts, temporal info, and metadata
+        """
+        jurisdiction_id = jurisdiction_id or self.jurisdiction
+        return self._storage.get_stats(jurisdiction_id)
 
     # ─────────── QUERY METHODS (Learn) ───────────
 
