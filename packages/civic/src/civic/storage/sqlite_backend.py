@@ -535,5 +535,12 @@ class SQLiteBackend:
 
 
 # Verify protocol compliance at import time
-assert isinstance(SQLiteBackend, type)
-# Runtime check will be done when instances are created
+# StorageBackend is @runtime_checkable, so isinstance() works
+def _verify_protocol_compliance() -> None:
+    """Verify SQLiteBackend implements StorageBackend protocol."""
+    _test_instance = SQLiteBackend(":memory:")
+    assert isinstance(_test_instance, StorageBackend), (
+        "SQLiteBackend must implement StorageBackend protocol"
+    )
+
+_verify_protocol_compliance()
