@@ -1,3 +1,54 @@
+## Session 321: meeting_discovery_cron - Automated meeting discovery cron job
+
+**Date:** 2025-12-21
+**Item:** meeting_discovery_cron (pipeline_automation > scheduling)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Created cron script for automated meeting discovery. This is the first of the pipeline automation cron jobs needed for Jan 2026 pilot.
+
+### Implementation
+
+**New script:** `scripts/meeting_discovery_cron.py`
+
+Features:
+- One-time run mode: `python scripts/meeting_discovery_cron.py --jurisdiction city-san-rafael`
+- Scheduled mode: `--schedule` flag runs daily at 6am using `schedule` library
+- Dry-run mode: `--dry-run` validates config without running pipeline
+- Checkpoint support: Saves/resumes from `data/checkpoints/{jurisdiction}.json`
+- Configurable date range: `--days-past`, `--days-ahead` (defaults: 30, 90)
+- Verbose logging: Timestamps, stage progress, item counts
+
+### Usage
+```bash
+# One-time run
+python scripts/meeting_discovery_cron.py --jurisdiction city-san-rafael
+
+# Start scheduler (runs daily at 6am)
+python scripts/meeting_discovery_cron.py --jurisdiction city-san-rafael --schedule
+
+# Dry-run validation
+python scripts/meeting_discovery_cron.py --jurisdiction city-san-rafael --dry-run
+```
+
+### Test Results
+Successfully tested with san-rafael:
+- Discovered 850 total meetings across 15 archive types
+- Ingested 17 meetings within date range
+- Checkpoint saved to data/checkpoints/city-san-rafael.json
+- Pipeline completed in ~46 seconds
+
+### Files Created
+- `scripts/meeting_discovery_cron.py` - Main cron script
+
+### Pilot Progress
+- 121/161 items ready (75%)
+- Next P0: youtube_discovery_cron (pipeline automation sequence)
+
+**Commit:** Session 321: meeting_discovery_cron - Automated meeting discovery cron job
+
+---
+
 ## Session 318: checkpoint_for_meetings - Pipeline checkpoint/resume capability
 
 **Date:** 2025-12-21
@@ -4171,3 +4222,44 @@ This guide documents usage of:
 - 40 items remaining
 
 **Commit:** Session 319: city_onboarding_guide - City onboarding documentation
+
+## Session 320: codebase_critics - LLM-based code review infrastructure
+
+**Date:** 2025-12-21
+**Item:** codebase_critics (developer_experience > developer_tooling)
+**Priority:** Pre-P0 hotfix from Session 315
+
+### Summary
+Completed the codebase critics infrastructure - an LLM-based code review system that catches architectural issues before commit. This addresses the storage gap bug discovered in Session 315 by embedding architectural checks into the development workflow.
+
+### Implementation
+
+**New directory:** `.critics/` with 4 specialized critics:
+- `pipeline.critic.md` - 4-stage ETL pattern (discover→ingest→store→index), persistence before indexing
+- `protocol.critic.md` - Protocol conformance (DataSource, StorageBackend, VectorBackend signatures)
+- `architecture.critic.md` - Layer boundaries, package violations per FINAL_PACKAGE_ARCHITECTURE.md
+- `session.critic.md` - Session hygiene (exactly 1 P0, handoff prepared)
+
+**New command:** `/critic [type]` - Run critics on staged changes
+- Outputs structured pass/fail/warning per critic
+- Summary shows critic counts and commit readiness
+
+**Session protocol updates:**
+- `/nextsesh` now requires exactly 1 P0 before running (fails fast)
+- `/start` checks for handoff context (Step 1.5)
+- CLAUDE.md documents session end requirements
+
+### Files Created/Modified
+- `.critics/README.md` - Usage documentation
+- `.critics/*.critic.md` - 4 critic prompts
+- `.claude/commands/critic.md` - New slash command
+- `.claude/commands/nextsesh.md` - P0 enforcement
+- `.claude/commands/start.md` - Handoff check (Step 1.5)
+- `CLAUDE.md` - Session end requirements, critics section
+- `pilot.json` - Marked codebase_critics as ready
+
+### Pilot Progress
+- 121/160 items ready (75.6%)
+- 39 items remaining
+
+**Commit:** Session 320: codebase_critics - LLM-based code review infrastructure
