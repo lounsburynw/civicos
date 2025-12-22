@@ -1,52 +1,50 @@
-# Recommended: Data Migration Reversible
+# Recommended: Changelog Maintained
 
 **Priority:** P0 (IMMEDIATE)
-**Area:** rollback_procedures > data_safety
+**Area:** rollback_procedures > version_management
 **Date:** 2025-12-21
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 333 completed `post_ingestion_report` - added PostIngestionReport dataclass and Pipeline.report() method that provides structured validation after city onboarding ingestion.
+Session 334 completed `data_migration_reversible` - added `--rollback` and `--rollback-to` flags to migrate.py, documented schema migration rollback procedures in ROLLBACK_PROCEDURES.md.
 
-Next priority is ensuring schema changes can be rolled back for safe deployments.
+Next priority is maintaining a CHANGELOG.md for releases, which complements the tagged_releases and versioning work already complete.
 
 ## Recommended Task
 
-Document and implement reversible data migration patterns. Ensure schema changes can be rolled back without data loss.
+Create and maintain CHANGELOG.md following Keep a Changelog format, documenting notable changes for each release.
 
 ## Key Files
 
-- `docs/critical/DAILY_BACKUP_SCHEDULE.md` - Existing backup strategy (7 daily + 4 weekly)
-- `.github/workflows/daily-backup.yml` - Backup workflow
-- `packages/civic/src/civic/storage/` - Storage layer with SQLite/ChromaDB
+- `docs/critical/VERSIONING_STRATEGY.md` - Existing versioning approach
+- None yet for CHANGELOG.md - needs to be created
 
 ## Suggested Approach
 
-1. **Document migration patterns** - Options:
-   - Create `docs/admin/MIGRATION_GUIDE.md` with rollback procedures
-   - Document forward/backward migration scripts pattern
-   - Define schema versioning strategy
+1. **Create CHANGELOG.md** in project root:
+   - Use Keep a Changelog format (https://keepachangelog.com)
+   - Sections: Added, Changed, Deprecated, Removed, Fixed, Security
+   - Link releases to git tags
 
-2. **Identify current schema dependencies**:
-   - SQLite tables structure
-   - ChromaDB collection schemas
-   - JSON data file formats
+2. **Populate with existing releases**:
+   - v0.2.0-pilot-20251214 (current)
+   - Notable changes from session logs in claude-progress.txt
 
-3. **Implement reversibility**:
-   - Migration script template with `up()` and `down()` methods
-   - Pre-migration backup verification
-   - Rollback testing procedure
+3. **Document changelog maintenance process**:
+   - When to update (before tagging a release)
+   - What to include (user-facing changes, breaking changes)
+   - Integration with /commit workflow
 
 ## Success Criteria
 
-- [ ] Migration patterns documented
-- [ ] Schema versioning strategy defined
-- [ ] Rollback procedure tested
-- [ ] pilot.json updated to mark data_migration_reversible as ready
+- [ ] CHANGELOG.md created with proper format
+- [ ] Current release documented
+- [ ] Process for maintaining changelog documented
+- [ ] pilot.json updated to mark changelog_maintained as ready
 
 ## Pilot Progress
 
-- 137/161 items ready (85%)
-- 24 items remaining
+- 138/161 items ready (86%)
+- 23 items remaining
