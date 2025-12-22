@@ -458,6 +458,65 @@
         </div>
       </section>
 
+      <!-- Operation History Table (SESSION 342) -->
+      <section v-if="operationHistory.length > 0" class="history-section">
+        <h3 class="section-title">
+          <History :size="16" />
+          Operation History
+        </h3>
+        <div class="history-table">
+          <div class="history-header">
+            <span class="col-expand"></span>
+            <span class="col-name">Operation</span>
+            <span class="col-time">Started</span>
+            <span class="col-duration">Duration</span>
+            <span class="col-status">Status</span>
+          </div>
+          <div
+            v-for="op in operationHistory"
+            :key="op.operation_id"
+            class="history-row-wrapper"
+          >
+            <div
+              class="history-row"
+              :class="{ expanded: historyExpanded[op.operation_id] }"
+              @click="toggleHistoryRow(op.operation_id)"
+            >
+              <span class="col-expand">
+                <ChevronDown v-if="historyExpanded[op.operation_id]" :size="14" />
+                <ChevronRight v-else :size="14" />
+              </span>
+              <span class="col-name">{{ formatOperationName(op.name) }}</span>
+              <span class="col-time">{{ formatOperationTime(op.started_at) }}</span>
+              <span class="col-duration">{{ op.duration_seconds !== null ? `${op.duration_seconds}s` : '—' }}</span>
+              <span class="col-status">
+                <span class="status-badge" :class="getStatusBadgeClass(op.status)">
+                  {{ op.status }}
+                </span>
+              </span>
+            </div>
+            <div v-if="historyExpanded[op.operation_id]" class="history-details">
+              <div class="detail-row">
+                <span class="detail-label">Operation ID:</span>
+                <span class="detail-value monospace">{{ op.operation_id }}</span>
+              </div>
+              <div v-if="op.completed_at" class="detail-row">
+                <span class="detail-label">Completed:</span>
+                <span class="detail-value">{{ formatOperationTime(op.completed_at) }}</span>
+              </div>
+              <div v-if="op.progress_percent !== undefined" class="detail-row">
+                <span class="detail-label">Progress:</span>
+                <span class="detail-value">{{ op.progress_percent }}%</span>
+              </div>
+              <div v-if="op.error" class="detail-row error">
+                <span class="detail-label">Error:</span>
+                <span class="detail-value">{{ op.error }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Storage Details (collapsed by default) -->
       <details class="storage-details">
         <summary>
@@ -506,10 +565,13 @@ import {
   Video,
   Music,
   Captions,
-  Clock
+  Clock,
+  History,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-vue-next';
 import { api } from '@/services/api';
-import type { AdminStatusResponse, AdminTriggerResponse, RunningOperation, OperationStatus, OperationResult } from '@/types/civic';
+import type { AdminStatusResponse, AdminTriggerResponse, RunningOperation, OperationStatus, OperationResult, OperationListItem } from '@/types/civic';
 
 const props = defineProps<{
   jurisdiction?: string;
@@ -525,6 +587,10 @@ const error = ref<string | null>(null);
 const statusData = ref<AdminStatusResponse | null>(null);
 const operationInProgress = ref<string | null>(null);
 const operationResult = ref<OperationResult | null>(null);
+
+// SESSION 342: Operation history for table display
+const operationHistory = ref<OperationListItem[]>([]);
+const historyExpanded = ref<Record<string, boolean>>({});
 
 // Running operations with server-side tracking (SESSION 341)
 const runningOperation = ref<RunningOperation | null>(null);
@@ -588,10 +654,12 @@ async function pollOperationStatus(operationId: string) {
         };
       }
 
-      // Refresh status data if successful
+      // Refresh status data and history
       if (status.status === 'completed') {
         await loadStatus(false);
       }
+      // SESSION 342: Always refresh history when operation finishes
+      await loadOperationHistory();
     }
   } catch (e) {
     console.error('Failed to poll operation status:', e);
@@ -642,6 +710,51 @@ function formatElapsedTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins}m ${secs}s`;
+}
+
+// SESSION 342: Load operation history
+async function loadOperationHistory() {
+  try {
+    const response = await api.getOperations({
+      jurisdiction: props.jurisdiction || 'san-rafael',
+      limit: 10
+    });
+    operationHistory.value = response.operations;
+  } catch (e) {
+    console.error('Failed to load operation history:', e);
+  }
+}
+
+function toggleHistoryRow(operationId: string) {
+  historyExpanded.value[operationId] = !historyExpanded.value[operationId];
+}
+
+function formatOperationTime(timestamp: string): string {
+  try {
+    const date = new Date(timestamp);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+  } catch {
+    return timestamp;
+  }
+}
+
+function getStatusBadgeClass(status: string): string {
+  switch (status) {
+    case 'completed': return 'success';
+    case 'failed': return 'error';
+    case 'running': return 'running';
+    case 'pending': return 'pending';
+    default: return '';
+  }
+}
+
+function formatOperationName(name: string): string {
+  return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 const totalStorageBytes = computed(() => {
@@ -976,6 +1089,8 @@ onMounted(() => {
   loadStatus(false);
   // SESSION 341: Check for running operation to resume after browser refresh
   checkForRunningOperation();
+  // SESSION 342: Load operation history on mount
+  loadOperationHistory();
 });
 
 onUnmounted(() => {
@@ -1546,5 +1661,151 @@ onUnmounted(() => {
   font-size: 12px;
   color: #3b82f6;
   font-weight: 500;
+}
+
+.running-step {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+/* Operation History Table (SESSION 342) */
+.history-section {
+  margin-bottom: 24px;
+}
+
+.history-table {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.history-header {
+  display: grid;
+  grid-template-columns: 24px 1fr 120px 80px 100px;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.history-row-wrapper {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.history-row-wrapper:last-child {
+  border-bottom: none;
+}
+
+.history-row {
+  display: grid;
+  grid-template-columns: 24px 1fr 120px 80px 100px;
+  gap: 8px;
+  padding: 10px 12px;
+  align-items: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.history-row:hover {
+  background: var(--color-bg-hover);
+}
+
+.history-row.expanded {
+  background: var(--color-bg-secondary);
+}
+
+.col-expand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+}
+
+.col-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.col-time {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.col-duration {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  text-align: right;
+}
+
+.col-status {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status-badge.success {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.status-badge.error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.status-badge.running {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.status-badge.pending {
+  background: rgba(234, 179, 8, 0.15);
+  color: #eab308;
+}
+
+.history-details {
+  padding: 8px 12px 12px 44px;
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
+}
+
+.detail-row {
+  display: flex;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.detail-label {
+  color: var(--color-text-secondary);
+  min-width: 100px;
+}
+
+.detail-value {
+  color: var(--color-text-primary);
+}
+
+.detail-value.monospace {
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.detail-row.error .detail-value {
+  color: #ef4444;
 }
 </style>
