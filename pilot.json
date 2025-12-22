@@ -528,13 +528,15 @@
         "completed": "2025-12-21"
       },
       "transcription_cron": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "Cron job: Transcription batch weekly"
+        "status": "ready",
+        "priority": 1,
+        "artifact": "civic-extract transcribe CLI - packages/civic-extraction/src/civic_extraction/cli/transcribe.py",
+        "note": "Session 324: CLI with --schedule mode for daily 9am (after audio at 8am), AssemblyAI transcription with speaker diarization, checkpoint support, skip already-transcribed files.",
+        "completed": "2025-12-21"
       },
       "seeclickfix_cron": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Cron job: SeeClickFix refresh daily 8am"
       },
       "legislative_cron": {
