@@ -5064,3 +5064,111 @@ Need to assign a new P0 before running /nextsesh.
 - 3 items completed: running_operations, operation_history, operation_progress_panel
 
 ---
+
+## Session 342 - Operation History Table
+**Date:** 2025-12-22
+**Item:** operation_history_table (P0)
+**Status:** COMPLETE
+
+### What Was Done
+Added operation history table to AdminStatusPage.vue showing the last 10 operations:
+
+1. **State & API integration** (`AdminStatusPage.vue:529-531`)
+   - `operationHistory` ref for OperationListItem[]
+   - `historyExpanded` for expandable row state
+   - `loadOperationHistory()` calls api.getOperations() on mount and after operations complete
+
+2. **Table UI** (`AdminStatusPage.vue:461-517`)
+   - Grid layout: expand icon, operation name, started time, duration, status
+   - Status badges: green (completed), red (failed), blue (running), yellow (pending)
+   - Clickable rows expand to show operation ID, completion time, progress, errors
+
+3. **Helper functions** (`AdminStatusPage.vue:668-694`)
+   - `formatOperationTime()` - locale-aware date formatting
+   - `getStatusBadgeClass()` - maps status to CSS class
+   - `formatOperationName()` - snake_case to Title Case
+
+4. **Styles** (`AdminStatusPage.vue:1672-1810`)
+   - CSS grid table with hover states
+   - Status badge colors matching design system
+   - Expandable detail rows with monospace ID
+
+### Pilot Progress
+- Before: 146/168 items (86.9%)
+- After: 147/168 items (87.5%)
+- Next P0: error_logs
+
+---
+
+## Session 343: operations_backend_protocol - Add Operation Tracking to StorageBackend Protocol
+
+**Date:** 2025-12-22
+**Item:** operations_backend_protocol (admin_operations > operation_status)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Added operation tracking methods to the StorageBackend protocol, enabling consistent operation tracking across SQLite (dev) and PostgreSQL (production) backends. Session 341 had added operations to StateManager (SQLite-only); this session promotes them to the protocol layer.
+
+### Implementation
+
+1. **Protocol Definition** (`packages/civic/src/civic/storage/backend.py:219-327`):
+   - Added 5 operation methods to StorageBackend protocol:
+     - `create_operation(operation_id, jurisdiction_id, name)` → Dict
+     - `update_operation_status(operation_id, status, current_step?, progress_percent?, items_processed?, items_total?)` → bool
+     - `complete_operation(operation_id, result, error?)` → bool
+     - `get_operation(operation_id)` → Optional[Dict]
+     - `get_operations(jurisdiction_id?, status?, limit?)` → List[Dict]
+
+2. **PostgresBackend Implementation** (`packages/civic/src/civic/storage/postgres_backend.py:593-863`):
+   - Added operations table schema in `_ensure_schema()` (lines 244-276)
+   - Implemented all 5 operation methods with proper psycopg2 parameterized queries
+   - Updated protocol compliance check to include operation methods
+
+3. **SQLiteBackend Implementation** (`packages/civic/src/civic/storage/sqlite_backend.py:581-847`):
+   - Added operations table schema in `_ensure_schema()` (lines 231-263)
+   - Implemented all 5 operation methods with proper sqlite3 queries
+   - All methods ensure schema exists before querying
+
+4. **Tests** (`packages/civic/tests/test_sqlite_backend.py:312-509`):
+   - Added `TestSQLiteBackendOperations` class with 14 tests covering:
+     - create_operation, get_operation, get_operation_not_found
+     - update_operation_status (full and partial updates)
+     - complete_operation (success and failure)
+     - get_operations (all, by_jurisdiction, by_status, with_limit)
+     - Full workflow test
+
+5. **Protocol Tests** (`packages/civic/tests/test_storage_protocols.py`):
+   - Updated mock implementations to include operation methods
+   - All protocol compliance tests pass
+
+### Testing
+```bash
+pytest packages/civic/tests/test_sqlite_backend.py -v  # 38 passed
+pytest packages/civic/tests/test_storage_protocols.py -v  # 18 passed
+pytest packages/civic/tests/test_civic.py -q  # 34 passed
+```
+
+### Operations Table Schema
+```sql
+CREATE TABLE operations (
+    id TEXT PRIMARY KEY,
+    jurisdiction_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',  -- pending, running, completed, failed
+    started_at TIMESTAMP NOT NULL,
+    completed_at TIMESTAMP,
+    result_json TEXT,
+    error TEXT,
+    duration_seconds REAL,
+    current_step TEXT,
+    progress_percent REAL DEFAULT 0,
+    items_processed INTEGER DEFAULT 0,
+    items_total INTEGER DEFAULT 0
+)
+```
+
+### Pilot Progress
+- Before: 147/173 items (85.0%)
+- After: 148/173 items (85.5%)
+
+---

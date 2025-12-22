@@ -257,6 +257,44 @@ class TestStorageBackendProtocol:
             ) -> int:
                 return 0
 
+            def create_operation(
+                self,
+                operation_id: str,
+                jurisdiction_id: str,
+                name: str,
+            ) -> Dict[str, Any]:
+                return {"id": operation_id, "status": "pending"}
+
+            def update_operation_status(
+                self,
+                operation_id: str,
+                status: str,
+                current_step: Optional[str] = None,
+                progress_percent: Optional[float] = None,
+                items_processed: Optional[int] = None,
+                items_total: Optional[int] = None,
+            ) -> bool:
+                return True
+
+            def complete_operation(
+                self,
+                operation_id: str,
+                result: Dict[str, Any],
+                error: Optional[str] = None,
+            ) -> bool:
+                return True
+
+            def get_operation(self, operation_id: str) -> Optional[Dict[str, Any]]:
+                return None
+
+            def get_operations(
+                self,
+                jurisdiction_id: Optional[str] = None,
+                status: Optional[str] = None,
+                limit: int = 20,
+            ) -> List[Dict[str, Any]]:
+                return []
+
         mock = MockStorageBackend()
         assert isinstance(mock, StorageBackend)
 
@@ -405,6 +443,44 @@ class TestProtocolIntegration:
                 count = len(self._data.get(jurisdiction_id, []))
                 self._data[jurisdiction_id] = []
                 return count
+
+            def create_operation(
+                self,
+                operation_id: str,
+                jurisdiction_id: str,
+                name: str,
+            ) -> Dict[str, Any]:
+                return {"id": operation_id, "status": "pending"}
+
+            def update_operation_status(
+                self,
+                operation_id: str,
+                status: str,
+                current_step: Optional[str] = None,
+                progress_percent: Optional[float] = None,
+                items_processed: Optional[int] = None,
+                items_total: Optional[int] = None,
+            ) -> bool:
+                return True
+
+            def complete_operation(
+                self,
+                operation_id: str,
+                result: Dict[str, Any],
+                error: Optional[str] = None,
+            ) -> bool:
+                return True
+
+            def get_operation(self, operation_id: str) -> Optional[Dict[str, Any]]:
+                return None
+
+            def get_operations(
+                self,
+                jurisdiction_id: Optional[str] = None,
+                status: Optional[str] = None,
+                limit: int = 20,
+            ) -> List[Dict[str, Any]]:
+                return []
 
         @dataclass
         class InMemoryVector:
