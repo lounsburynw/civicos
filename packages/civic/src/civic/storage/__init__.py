@@ -48,6 +48,7 @@ from .backend import (
     StorageStats,
     StorageValidationResult,
 )
+from .postgres_backend import PostgresBackend
 from .sqlite_backend import SQLiteBackend
 from .vector import (
     SearchResult,
@@ -63,6 +64,8 @@ __all__ = [
     "StorageValidationResult",
     # SQLite implementation
     "SQLiteBackend",
+    # PostgreSQL implementation
+    "PostgresBackend",
     # Vector backend
     "VectorBackend",
     "VectorStats",

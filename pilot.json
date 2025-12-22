@@ -368,7 +368,7 @@
         "status": "ready",
         "priority": 2,
         "artifact": "Admin page aligned with 4-stage ETL pipeline",
-        "note": "SESSION 338: Dashboard now shows 4 stages (Coverage → Ingested → Stored → Indexed). API returns storage section from SQLiteBackend.get_stats().",
+        "note": "SESSION 338: Dashboard now shows 4 stages (Coverage \u2192 Ingested \u2192 Stored \u2192 Indexed). API returns storage section from SQLiteBackend.get_stats().",
         "completed": "2025-12-22",
         "depends_on": "storage_backend_protocol"
       },
@@ -389,7 +389,7 @@
       "pipeline_flow_visualization": {
         "status": "ready",
         "priority": 2,
-        "artifact": "Pipeline view showing Available → Ingested → Stored → Indexed flow",
+        "artifact": "Pipeline view showing Available \u2192 Ingested \u2192 Stored \u2192 Indexed flow",
         "note": "SESSION 338: Pipeline now shows 4 stages with Stored stage between Ingested and Indexed. Each stage has freshness indicators and tooltips.",
         "completed": "2025-12-22",
         "depends_on": "status_page"
@@ -476,7 +476,7 @@
     "operation_status": {
       "running_operations": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Show running operations with server-side progress tracking",
         "note": "AUDIT FINDING: Current implementation is client-side timer only. Needs: (1) Server-side operation state table, (2) Progress updates via polling or WebSocket, (3) Resume on browser refresh."
       },
@@ -518,7 +518,11 @@
         "priority": 3,
         "artifact": ".critics/data.critic.md - ETL data quality and schema validation",
         "note": "Blocked on: stable schema, known edge cases, platform quirks cataloged. Define after pipeline automation validates patterns against real San Rafael data.",
-        "blocked_by": ["meeting_discovery_cron", "youtube_discovery_cron", "transcript_processing_cron"]
+        "blocked_by": [
+          "meeting_discovery_cron",
+          "youtube_discovery_cron",
+          "transcript_processing_cron"
+        ]
       }
     }
   },
@@ -975,7 +979,7 @@
         "status": "ready",
         "priority": 1,
         "artifact": "StorageBackend + VectorBackend protocols in civic/storage/",
-        "note": "Session 337: Implemented SQLiteBackend conforming to StorageBackend protocol. Pipeline now has 4 stages: discover→ingest→store→index. Index reads from storage backend when configured.",
+        "note": "Session 337: Implemented SQLiteBackend conforming to StorageBackend protocol. Pipeline now has 4 stages: discover\u2192ingest\u2192store\u2192index. Index reads from storage backend when configured.",
         "test_file": "packages/civic/tests/test_storage_protocols.py",
         "completed": "2025-12-22"
       },
@@ -1008,8 +1012,8 @@
         "completed": "2025-12-22"
       },
       "postgres_backend_implementation": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "PostgresBackend class implementing StorageBackend protocol",
         "note": "Prove protocol modularity for open-source adoption. Municipalities with existing Postgres infrastructure get a clear path. Both SQLite and Postgres backends pass same test suite.",
         "depends_on": "storage_stats_abstraction"
