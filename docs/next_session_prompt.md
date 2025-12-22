@@ -1,58 +1,83 @@
-# Recommended: User Identity in Messages
+# Recommended: Storage Backend Protocol Implementation
 
 **Priority:** P0 (IMMEDIATE)
-**Area:** frontend_refinement > social_features
-**Date:** 2025-12-21
+**Area:** city_onboarding > orchestration
+**Date:** 2025-12-22
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 335 completed `changelog_maintained` - updated CHANGELOG.md with comprehensive release documentation and maintenance guide.
+Session 336 conducted an ETL production audit that identified a **critical architectural gap**:
 
-Next priority is showing proper user identity in coordination thread messages. Currently, MessageBubble.vue uses a simplistic `formatUserId()` that just extracts the first part before underscore/hash, and ThreadArtifact.vue has a hardcoded `userId = 'demo_user'`.
+**Storage backend protocols are defined but NOT implemented.** The documented 4-stage pattern (discover → ingest → store → index) is broken - pipeline goes directly from ingest to index, reading from memory instead of persistent storage.
+
+This creates data loss risk: if indexing fails, ingested data is lost.
+
+## Audit Findings
+
+1. **StorageBackend protocol** defined at `packages/civic/src/civic/storage/backend.py:85-218` - no implementation exists
+2. **VectorBackend protocol** defined at `packages/civic/src/civic/storage/vector.py:132-278` - no implementation exists
+3. **Pipeline.py:552-554** passes in-memory `_ingested_meetings` to index stage instead of reading from storage
+4. **StateManager** exists but doesn't implement StorageBackend protocol
 
 ## Recommended Task
 
-Display proper user names/display names in coordination thread messages instead of raw user IDs.
+Implement the storage layer integration in 3 sequential steps:
+
+### Step 1: SQLiteBackend Implementation
+Create `packages/civic/src/civic/storage/sqlite_backend.py`:
+```python
+class SQLiteBackend:
+    """Implements StorageBackend protocol, wrapping StateManager."""
+
+    @property
+    def backend_type(self) -> str: ...
+    def validate(self) -> StorageValidationResult: ...
+    def store_meetings(self, meetings: List[Meeting]) -> int: ...
+    def get_meetings(self, jurisdiction_id: str, ...) -> List[Dict]: ...
+    def get_stats(self) -> StorageStats: ...
+    def delete_meetings(self, ...) -> int: ...
+```
+
+### Step 2: Pipeline Store Stage
+Update `packages/civic-extraction/src/civic_extraction/pipeline.py`:
+- Add `store` stage between `ingest` and `index`
+- Store stage calls `storage_backend.store_meetings()`
+- Update `StageState` enum and stage list
+
+### Step 3: Index Reads From Storage
+Update pipeline `_run_index()` to:
+- Call `storage_backend.get_meetings()`
+- Pass retrieved meetings to index target
+- Remove direct use of `_ingested_meetings`
 
 ## Key Files
 
-- `apps/civic-workspace/src/components/workspace/MessageBubble.vue:147-152` - `formatUserId()` needs real user lookup
-- `apps/civic-workspace/src/components/workspace/ThreadArtifact.vue:32` - hardcoded `userId = 'demo_user'`
-- `apps/civic-workspace/src/components/workspace/CoordinationChat.vue:64` - uses `formatUserId()` for reply context
-- `apps/civic-workspace/src/stores/profile.ts` - profile store (may have user data)
-- `apps/civic-workspace/src/composables/useAvatars.ts` - already handles avatar URLs
-
-## Suggested Approach
-
-1. **Check existing user profile data:**
-   - Review `stores/profile.ts` for current user data
-   - Review ThreadMessage type for user info in messages
-
-2. **Implement user lookup:**
-   - Option A: Add display_name to ThreadMessage from backend
-   - Option B: Create a composable `useUserDisplay()` to look up/cache user names
-
-3. **Update components:**
-   - Replace `formatUserId()` with proper display name lookup
-   - Ensure "You" still works for current user
-   - Handle fallback gracefully for unknown users
-
-4. **Test in running app:**
-   ```bash
-   ./scripts/dev.sh
-   # Open http://localhost:5173, navigate to a thread
-   ```
+- `packages/civic/src/civic/storage/backend.py` - StorageBackend protocol definition
+- `packages/civic/src/civic/storage/vector.py` - VectorBackend protocol definition
+- `packages/civic/tests/test_storage_protocols.py` - Existing protocol tests (18 passing)
+- `packages/civic-extraction/src/civic_extraction/pipeline.py` - Pipeline class to update
+- `packages/civic-services/src/civic_services/storage/state_manager.py` - Existing SQLite storage to wrap
 
 ## Success Criteria
 
-- [ ] Messages show user display names instead of raw IDs
-- [ ] Current user messages still show "You"
-- [ ] Avatar and name are consistent
-- [ ] pilot.json updated to mark user_identity_in_messages as ready
+- [ ] SQLiteBackend class implements StorageBackend protocol
+- [ ] Pipeline has 4 stages: discover → ingest → store → index
+- [ ] Index stage reads from storage, not memory
+- [ ] Existing tests pass + new tests for SQLiteBackend
+- [ ] pilot.json items updated: sqlite_backend_implementation, pipeline_store_stage, index_reads_from_storage
+
+## Dependencies
+
+Once storage backend is complete, these items can proceed:
+- `status_page` - Dashboard aligned with 4-stage pipeline
+- `pipeline_flow_visualization` - Show Available → Ingested → Stored → Indexed
+- `operation_progress_panel` - Server-side progress tracking
+- `operation_history_table` - Operation history display
 
 ## Pilot Progress
 
-- 139/161 items ready (86%)
-- 22 items remaining
+- 135/166 items ready (81.3%)
+- 31 items remaining
+- P0: storage_backend_protocol (this item)
