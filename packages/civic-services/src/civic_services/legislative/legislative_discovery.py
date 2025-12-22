@@ -183,7 +183,7 @@ Bills to analyze:
         Returns:
             Path to updated file
         """
-        context_file = Path(f"data/legislative_context/{state}_{topic}.json")
+        context_file = Path(f"data/legislation/state/{state}/{topic}.json")
 
         # Load existing context if it exists
         if context_file.exists():
