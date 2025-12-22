@@ -1,14 +1,22 @@
 """
 Generalized ETL pipeline for civic data extraction.
 
-Provides a Pipeline class with stages: discover -> ingest -> index,
+Provides a Pipeline class with stages: discover -> ingest -> store -> index,
 with status callbacks for dashboard consumption.
+
+The 4-stage pattern ensures data is persisted before indexing:
+- discover: Check what data is available
+- ingest: Fetch and normalize data to memory
+- store: Persist to StorageBackend (prevents data loss)
+- index: Build search indexes from stored data
 
 Usage:
     from civic_extraction import Pipeline, ProudCitySource
+    from civic.storage import SQLiteBackend
 
     source = ProudCitySource.from_jurisdiction("city-san-rafael")
-    pipeline = Pipeline(source, "city-san-rafael")
+    storage = SQLiteBackend("data/civic_state.db")
+    pipeline = Pipeline(source, "city-san-rafael", storage_target=storage)
 
     # Run with callbacks
     result = pipeline.run(
@@ -190,18 +198,25 @@ class IndexTarget(Protocol):
 
 class Pipeline:
     """
-    Generalized ETL pipeline with stages: discover -> ingest -> index.
+    Generalized ETL pipeline with stages: discover -> ingest -> store -> index.
 
     Each stage:
     - discover: Check what data is available from the source
     - ingest: Fetch and normalize data from the source
-    - index: Store data for search (ChromaDB, database)
+    - store: Persist data to StorageBackend (SQLite, Postgres)
+    - index: Build search indexes from stored data (ChromaDB, pgvector)
+
+    The store stage is critical: it ensures data is persisted before indexing.
+    If indexing fails, data is not lost and can be re-indexed.
 
     Status callbacks allow real-time progress monitoring for dashboards.
 
     Usage:
+        from civic.storage import SQLiteBackend
+
         source = ProudCitySource.from_jurisdiction("city-san-rafael")
-        pipeline = Pipeline(source, "city-san-rafael")
+        storage = SQLiteBackend("data/civic_state.db")
+        pipeline = Pipeline(source, "city-san-rafael", storage_target=storage)
 
         # With callbacks
         result = pipeline.run(
@@ -213,12 +228,13 @@ class Pipeline:
         status = pipeline.status()
     """
 
-    STAGES = ["discover", "ingest", "index"]
+    STAGES = ["discover", "ingest", "store", "index"]
 
     def __init__(
         self,
         source: Any,  # DataSource protocol
         jurisdiction_id: str,
+        storage_target: Optional[Any] = None,  # StorageBackend protocol
         index_target: Optional[IndexTarget] = None,
     ):
         """
@@ -227,10 +243,12 @@ class Pipeline:
         Args:
             source: DataSource implementation (e.g., ProudCitySource)
             jurisdiction_id: Jurisdiction being processed (e.g., "city-san-rafael")
+            storage_target: Optional StorageBackend for persistence (SQLite, Postgres)
             index_target: Optional target for indexing (defaults to no-op)
         """
         self.source = source
         self.jurisdiction_id = jurisdiction_id
+        self.storage_target = storage_target
         self.index_target = index_target
 
         # Initialize stage statuses
@@ -246,6 +264,7 @@ class Pipeline:
         # Store ingested data between stages
         self._discovered_count: int = 0
         self._ingested_meetings: List[Any] = []
+        self._stored_count: int = 0
 
     @property
     def source_id(self) -> str:
@@ -336,10 +355,20 @@ class Pipeline:
             else:
                 self._stages["ingest"].state = StageState.SKIPPED
 
-            # Stage 3: Index
+            # Stage 3: Store
+            if self._stages["ingest"].state == StageState.COMPLETED:
+                self._run_store(
+                    on_stage_start, on_stage_progress, on_stage_complete, on_error
+                )
+                if self._stages["store"].state == StageState.FAILED:
+                    success = False
+            else:
+                self._stages["store"].state = StageState.SKIPPED
+
+            # Stage 4: Index
             if skip_index:
                 self._stages["index"].state = StageState.SKIPPED
-            elif self._stages["ingest"].state == StageState.COMPLETED:
+            elif self._stages["store"].state == StageState.COMPLETED:
                 self._run_index(
                     on_stage_start, on_stage_progress, on_stage_complete, on_error
                 )
@@ -522,6 +551,61 @@ class Pipeline:
             return dt or datetime.min
         return datetime.min
 
+    def _run_store(
+        self,
+        on_stage_start: Optional[StageStartCallback],
+        on_stage_progress: Optional[StageProgressCallback],
+        on_stage_complete: Optional[StageCompleteCallback],
+        on_error: Optional[ErrorCallback],
+    ) -> None:
+        """Run the store stage: persist data to storage backend."""
+        stage = "store"
+        status = self._stages[stage]
+        status.state = StageState.RUNNING
+        status.started_at = datetime.now()
+        start_time = time.time()
+
+        if on_stage_start:
+            on_stage_start(stage)
+
+        try:
+            if self.storage_target is None:
+                # No storage target - mark as completed with note
+                # This maintains backward compatibility with pipelines
+                # that don't have storage configured
+                status.items_found = len(self._ingested_meetings)
+                status.items_processed = len(self._ingested_meetings)
+                status.state = StageState.COMPLETED
+                status.progress_percent = 100.0
+                status.metadata["note"] = "No storage target configured (using in-memory)"
+                self._stored_count = len(self._ingested_meetings)
+            else:
+                # Store the meetings to persistent storage
+                stored_count = self.storage_target.store_meetings(
+                    jurisdiction_id=self.jurisdiction_id,
+                    meetings=self._ingested_meetings,
+                )
+                self._stored_count = stored_count
+                status.items_found = len(self._ingested_meetings)
+                status.items_processed = stored_count
+                status.state = StageState.COMPLETED
+                status.progress_percent = 100.0
+
+                if on_stage_progress:
+                    on_stage_progress(stage, stored_count, len(self._ingested_meetings))
+
+        except Exception as e:
+            status.state = StageState.FAILED
+            status.errors.append(str(e))
+            if on_error:
+                on_error(stage, e)
+
+        status.completed_at = datetime.now()
+        status.duration_ms = (time.time() - start_time) * 1000
+
+        if on_stage_complete:
+            on_stage_complete(stage, status)
+
     def _run_index(
         self,
         on_stage_start: Optional[StageStartCallback],
@@ -529,7 +613,7 @@ class Pipeline:
         on_stage_complete: Optional[StageCompleteCallback],
         on_error: Optional[ErrorCallback],
     ) -> None:
-        """Run the index stage: store data for search."""
+        """Run the index stage: build search indexes from stored data."""
         stage = "index"
         status = self._stages[stage]
         status.state = StageState.RUNNING
@@ -542,23 +626,35 @@ class Pipeline:
         try:
             if self.index_target is None:
                 # No index target - mark as completed with note
-                status.items_found = len(self._ingested_meetings)
+                status.items_found = self._stored_count
                 status.items_processed = 0
                 status.state = StageState.COMPLETED
                 status.progress_percent = 100.0
                 status.metadata["note"] = "No index target configured"
             else:
+                # Get meetings to index - prefer reading from storage
+                meetings_to_index: List[Any] = []
+
+                if self.storage_target is not None:
+                    # Read from storage backend (the correct pattern)
+                    meetings_to_index = self.storage_target.get_meetings(
+                        jurisdiction_id=self.jurisdiction_id
+                    )
+                    status.metadata["source"] = "storage_backend"
+                else:
+                    # Fallback to in-memory (backward compatibility)
+                    meetings_to_index = self._ingested_meetings
+                    status.metadata["source"] = "in_memory"
+
                 # Index the meetings
-                indexed_count = self.index_target.index_meetings(
-                    self._ingested_meetings
-                )
-                status.items_found = len(self._ingested_meetings)
+                indexed_count = self.index_target.index_meetings(meetings_to_index)
+                status.items_found = len(meetings_to_index)
                 status.items_processed = indexed_count
                 status.state = StageState.COMPLETED
                 status.progress_percent = 100.0
 
                 if on_stage_progress:
-                    on_stage_progress(stage, indexed_count, len(self._ingested_meetings))
+                    on_stage_progress(stage, indexed_count, len(meetings_to_index))
 
         except Exception as e:
             status.state = StageState.FAILED
@@ -580,6 +676,7 @@ class Pipeline:
         self._is_running = False
         self._discovered_count = 0
         self._ingested_meetings = []
+        self._stored_count = 0
 
     def report(self, result: Optional[PipelineResult] = None) -> "PostIngestionReport":
         """
@@ -728,6 +825,10 @@ class PostIngestionReport:
         ingest_stage = result.stages.get("ingest")
         if ingest_stage:
             records_ingested["meetings"] = ingest_stage.items_processed
+
+        store_stage = result.stages.get("store")
+        if store_stage and store_stage.items_processed > 0:
+            records_ingested["stored_meetings"] = store_stage.items_processed
 
         index_stage = result.stages.get("index")
         if index_stage and index_stage.items_processed > 0:

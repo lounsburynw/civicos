@@ -4794,3 +4794,68 @@ Updated CHANGELOG.md to document all changes since v0.2.0-pilot-20251214:
 - 22 items remaining
 
 **Next P0:** user_identity_in_messages (frontend_refinement > social_features)
+
+## Session 337: storage_backend_protocol - 4-Stage Pipeline Implementation
+
+**Date:** 2025-12-22
+**Item:** storage_backend_protocol (city_onboarding > orchestration)
+**Status:** Complete
+
+### Summary
+Implemented the critical storage backend protocol gap identified in Session 336's ETL audit. The pipeline now has a proper 4-stage pattern: discover → ingest → store → index, with data persisted before indexing.
+
+### Key Files Created/Modified
+
+**New Files:**
+- `packages/civic/src/civic/storage/sqlite_backend.py` - SQLiteBackend implementing StorageBackend protocol
+- `packages/civic/tests/test_sqlite_backend.py` - 26 comprehensive tests
+
+**Modified Files:**
+- `packages/civic/src/civic/storage/__init__.py` - Export SQLiteBackend
+- `packages/civic-extraction/src/civic_extraction/pipeline.py` - Add store stage, update index to read from storage
+- `pilot.json` - Mark 4 items as ready
+
+### Implementation Details
+
+1. **SQLiteBackend Class** (`sqlite_backend.py:17-537`)
+   - `backend_type` property returns "sqlite"
+   - `validate()` - Schema and connectivity check
+   - `store_meetings()` - Atomic storage with temporal versioning
+   - `get_meetings()` - Retrieval with temporal and date filtering
+   - `get_stats()` - StorageStats with counts and date ranges
+   - `delete_meetings()` - Soft delete with temporal versioning
+
+2. **Pipeline Store Stage** (`pipeline.py:554-607`)
+   - New `_run_store()` method
+   - Calls `storage_target.store_meetings()`
+   - Backward compatible - works without storage_target (in-memory fallback)
+   - Pipeline.STAGES = ["discover", "ingest", "store", "index"]
+
+3. **Index Reads From Storage** (`pipeline.py:626-657`)
+   - `_run_index()` now prefers `storage_target.get_meetings()`
+   - Falls back to `_ingested_meetings` if no storage_target
+   - Metadata tracks source ("storage_backend" or "in_memory")
+
+### Test Results
+
+- 26 new tests in test_sqlite_backend.py: 26 passed
+- 18 existing protocol tests: 18 passed  
+- 34 smoke tests: 34 passed
+
+### Pilot Progress
+
+- Before: 135/166 items (81.3%)
+- After: 139/166 items (83.7%)
+- 4 items completed:
+  - storage_backend_protocol
+  - sqlite_backend_implementation
+  - pipeline_store_stage
+  - index_reads_from_storage
+
+### Unblocked Items
+
+With storage_backend_protocol complete, these items can now proceed:
+- status_page - Dashboard aligned with 4-stage pipeline
+- pipeline_flow_visualization - Show Available → Ingested → Stored → Indexed
+- operation_progress_panel - Server-side progress tracking
+- operation_history_table - Operation history display
