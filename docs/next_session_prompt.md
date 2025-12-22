@@ -76,7 +76,7 @@ Respond with JSON:
 
 - [x] Update `/start` to check for existing `docs/next_session_prompt.md` (Step 1.5 added)
 - [x] Update `/nextsesh` to require exactly 1 P0 item before session ends
-- [ ] Update `/readnextsesh` to use `docs/next_session_prompt.md`
+- [x] Update `/readnextsesh` to use `docs/next_session_prompt.md`
 - [ ] Update CLAUDE.md: "Sessions must assign exactly 1 P0 before ending"
 - [ ] Add `session.critic.md` that checks:
   - "Did this session set a P0 for next session?"
