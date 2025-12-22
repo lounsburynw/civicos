@@ -4400,3 +4400,60 @@ AssemblyAI: $0.02/minute ($0.015 transcription + $0.005 diarization)
 - 37 items remaining
 
 **Commit:** Session 324: transcription_cron - Automated transcription CLI
+
+## Session 325: seeclickfix_cron - SeeClickFix CLI for 311 issue refresh
+
+**Date:** 2025-12-21
+**Item:** seeclickfix_cron (pipeline_automation > scheduling)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Created `civic-extract seeclickfix` CLI command to fetch operational issues from SeeClickFix API. This completes the pipeline automation sequence for 311-style issue tracking.
+
+### Implementation
+
+**New CLI:** `civic-extract seeclickfix`
+
+Features:
+- One-time run: `civic-extract seeclickfix --jurisdiction city-san-rafael`
+- Scheduled mode: `--schedule` runs daily at 8am using `schedule` library
+- Dry-run mode: `--dry-run` validates API connectivity
+- Checkpoint save/resume for fault tolerance
+- Pagination handling (fetched 1,330 San Rafael issues)
+- Status filtering: `--status open|closed|acknowledged`
+- Configurable: `--max-pages`, `--per-page`, `--place-url`
+
+### Usage
+```bash
+# One-time run
+civic-extract seeclickfix --jurisdiction city-san-rafael
+
+# Start scheduler (daily at 8am)
+civic-extract seeclickfix --jurisdiction city-san-rafael --schedule
+
+# Dry-run validation
+civic-extract seeclickfix --jurisdiction city-san-rafael --dry-run
+
+# Limited fetch for testing
+civic-extract seeclickfix --jurisdiction city-san-rafael --max-pages 2
+```
+
+### Files Created/Modified
+- `packages/civic-extraction/src/civic_extraction/cli/seeclickfix.py` - New CLI module
+- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` - Registered seeclickfix subcommand
+
+### Test Results
+- Dry-run: API accessible for san-rafael ✓
+- Full fetch: 1,330 issues across 14 pages ✓
+- Checkpoint: Resume from page 2 after page 1 checkpoint ✓
+
+### Pilot Progress
+- 125/161 items ready (78%)
+- 36 items remaining
+
+**Commit:** Session 325: seeclickfix_cron - SeeClickFix CLI for 311 issue refresh
+
+### Pipeline Fix (after critic feedback)
+- Fixed path mismatch: LegislativeDiscovery now writes to `data/legislation/state/{state}/{topic}.json`
+- Added ChromaDB indexing: `build_legislation_index()` called after discovery
+- End-to-end verified: 9 bills indexed, semantic search returns results

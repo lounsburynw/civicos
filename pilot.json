@@ -542,9 +542,11 @@
         "completed": "2025-12-21"
       },
       "legislative_cron": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "Cron job: Legislative context weekly"
+        "status": "ready",
+        "priority": 1,
+        "artifact": "civic-extract legislative CLI - packages/civic-extraction/src/civic_extraction/cli/legislative.py",
+        "note": "Session 326: CLI with --schedule mode for weekly Sunday 6am, LegiScan API + LLM filtering, checkpoint support, topic filtering (housing/transportation/environment/budget/education/all).",
+        "completed": "2025-12-21"
       }
     },
     "incremental_processing": {
@@ -572,7 +574,7 @@
       },
       "missed_run_alerts": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Alert when scheduled run doesn't complete"
       }
     }

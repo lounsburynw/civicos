@@ -21,6 +21,10 @@ Usage:
     civic-extract seeclickfix --jurisdiction city-san-rafael
     civic-extract seeclickfix --jurisdiction city-san-rafael --schedule
     civic-extract seeclickfix --jurisdiction city-san-rafael --dry-run
+
+    civic-extract legislative --topic housing
+    civic-extract legislative --topic all --schedule
+    civic-extract legislative --topic housing --dry-run
 """
 
 import argparse
@@ -28,6 +32,7 @@ import sys
 
 from civic_extraction.cli.audio import add_audio_parser, run_audio
 from civic_extraction.cli.discover import add_discover_parser, run_discover
+from civic_extraction.cli.legislative import add_legislative_parser, run_legislative
 from civic_extraction.cli.seeclickfix import add_seeclickfix_parser, run_seeclickfix
 from civic_extraction.cli.transcribe import add_transcribe_parser, run_transcribe
 from civic_extraction.cli.youtube import add_youtube_parser, run_youtube
@@ -51,6 +56,7 @@ def main() -> int:
     # Add subcommands
     add_audio_parser(subparsers)
     add_discover_parser(subparsers)
+    add_legislative_parser(subparsers)
     add_seeclickfix_parser(subparsers)
     add_transcribe_parser(subparsers)
     add_youtube_parser(subparsers)
@@ -66,6 +72,8 @@ def main() -> int:
         return run_audio(args)
     elif args.command == "discover":
         return run_discover(args)
+    elif args.command == "legislative":
+        return run_legislative(args)
     elif args.command == "seeclickfix":
         return run_seeclickfix(args)
     elif args.command == "transcribe":
