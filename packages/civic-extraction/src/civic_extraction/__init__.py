@@ -48,6 +48,10 @@ from civic_extraction.pipeline import (
     PipelineResult,
     StageStatus,
     StageState,
+    IngestCheckpoint,
+    save_checkpoint,
+    load_checkpoint,
+    checkpoint_path_for_jurisdiction,
 )
 from civic_extraction.platform_detection import (
     DetectionResult,
@@ -73,6 +77,10 @@ __all__ = [
     "PipelineResult",
     "StageStatus",
     "StageState",
+    "IngestCheckpoint",
+    "save_checkpoint",
+    "load_checkpoint",
+    "checkpoint_path_for_jurisdiction",
     "DetectionResult",
     "detect_platform",
     "detect_platform_batch",
