@@ -4270,3 +4270,46 @@ Completed the codebase critics infrastructure - an LLM-based code review system 
 - 39 items remaining
 
 **Commit:** Session 320: codebase_critics - LLM-based code review infrastructure
+
+---
+
+## Session 322 - December 21, 2025
+
+### youtube_discovery_cron
+
+Added `civic-extract youtube` CLI command for YouTube video discovery.
+
+**What was done:**
+- Created `packages/civic-extraction/src/civic_extraction/cli/youtube.py`
+  - Sources meetings directly from ProudCity website (not from events files)
+  - Extracts YouTube video IDs from meeting pages using regex patterns
+  - Supports --schedule mode for daily 7am runs (after discover at 6am)
+  - Checkpoint save/resume for fault tolerance
+  - Deduplication against existing results
+  - Outputs to `data/{jurisdiction}_videos.json` and `{jurisdiction}_youtube_urls.txt`
+
+- Updated `cli/__init__.py` to register youtube subcommand
+
+**Command usage:**
+```bash
+civic-extract youtube --jurisdiction city-san-rafael              # One-time run
+civic-extract youtube --jurisdiction city-san-rafael --dry-run    # Show what would be processed
+civic-extract youtube --jurisdiction city-san-rafael --schedule   # Run daily at 7am
+civic-extract youtube --jurisdiction city-san-rafael --days-past 90  # Custom date range
+```
+
+**Test results:**
+- Successfully discovered 19 YouTube videos from 32 San Rafael meetings
+- Checkpoint system working correctly
+- Output files created in expected locations
+
+### Files Created/Modified
+- `packages/civic-extraction/src/civic_extraction/cli/youtube.py` - New YouTube discovery CLI
+- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` - Registered youtube subcommand
+- `pilot.json` - Marked youtube_discovery_cron as ready, set audio_download_cron as next P0
+
+### Pilot Progress
+- 122/161 items ready (76%)
+- 39 items remaining
+
+**Commit:** Session 322: youtube_discovery_cron - Automated YouTube video discovery
