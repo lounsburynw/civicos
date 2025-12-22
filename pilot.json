@@ -514,15 +514,17 @@
         "completed": "2025-12-21"
       },
       "youtube_discovery_cron": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "Cron job: YouTube video discovery daily 6am",
-        "note": "Next in pipeline automation sequence after meeting_discovery_cron"
+        "status": "ready",
+        "priority": 1,
+        "artifact": "civic-extract youtube CLI - packages/civic-extraction/src/civic_extraction/cli/youtube.py",
+        "note": "Session 322: CLI with --schedule mode for daily 7am, checkpoint support, logging. Sources meetings directly from ProudCity website.",
+        "completed": "2025-12-21"
       },
       "audio_download_cron": {
         "status": "not_ready",
-        "priority": 2,
-        "artifact": "Cron job: Audio download daily 7am"
+        "priority": 0,
+        "artifact": "Cron job: Audio download daily 7am",
+        "note": "Next in pipeline automation sequence after youtube_discovery_cron"
       },
       "transcription_cron": {
         "status": "not_ready",
