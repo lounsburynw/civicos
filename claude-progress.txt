@@ -4769,3 +4769,28 @@ Created comprehensive data management guide for administrators.
 - 23 items remaining
 
 **Next P0:** changelog_maintained (rollback_procedures > version_management)
+
+---
+
+## Session 335: changelog_maintained
+**Date:** 2025-12-21
+**Item:** changelog_maintained (rollback_procedures > version_management)
+**Status:** Complete
+
+### Summary
+Updated CHANGELOG.md to document all changes since v0.2.0-pilot-20251214:
+- 16 new features in [Unreleased] section (sessions 319-334)
+- Corrected tag date from 20251211 to 20251214
+- Added comprehensive changelog maintenance guide
+- Documented what to include/exclude in changelog entries
+- Added step-by-step release workflow
+
+### Key Files Modified
+- CHANGELOG.md: Comprehensive update with unreleased changes and maintenance guide
+- pilot.json: Marked changelog_maintained as ready
+
+### Pilot Progress
+- 139/161 items ready (86%)
+- 22 items remaining
+
+**Next P0:** user_identity_in_messages (frontend_refinement > social_features)
