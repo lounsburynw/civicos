@@ -20,6 +20,12 @@ git log --oneline -5
 
 ## Step 2: Identify Next Work Item
 
+**Priority Rules:**
+- **P0**: Immediate/blocking - at most ONE P0 item allowed at a time
+- **P1**: High priority - current sprint
+- **P2**: Normal priority - planned work
+- **P3**: Low priority - nice to have
+
 ```bash
 python3 -c "
 import json
@@ -47,6 +53,7 @@ status_pending = {
 
 best = None
 best_priority = 999
+p0_items = []
 
 # Use category_order if defined, otherwise iterate as-is
 category_order = checklist.get('category_order', [k for k in checklist.keys()])
@@ -64,14 +71,24 @@ for category in category_order:
         for item, info in subitems.items():
             if isinstance(info, dict) and info.get('status') == status_pending:
                 priority = info.get('priority', 99)
+                if priority == 0:
+                    p0_items.append(item)
                 if priority < best_priority:
                     best_priority = priority
                     best = {'item': item, 'category': category, 'subcategory': subcategory, 'priority': priority, 'info': info}
 
+# Warn if multiple P0 items (violates at-most-one rule)
+if len(p0_items) > 1:
+    print(f'WARNING: {len(p0_items)} P0 items found (should be at most 1):')
+    for item in p0_items:
+        print(f'  - {item}')
+    print()
+
 if best:
+    priority_label = {0: 'P0 (IMMEDIATE)', 1: 'P1', 2: 'P2', 3: 'P3'}.get(best['priority'], f'P{best[\"priority\"]}')
     print(f'NEXT ITEM: {best[\"item\"]}')
     print(f'Area: {best[\"category\"]} > {best[\"subcategory\"]}')
-    print(f'Priority: {best[\"priority\"]}')
+    print(f'Priority: {priority_label}')
     if 'test' in best['info']:
         print(f'Test: {best[\"info\"][\"test\"]}')
     if 'manual_step' in best['info']:
