@@ -105,7 +105,7 @@ Read only when needed for architectural decisions:
 3. Work on ONE item per session
 4. Update checklist status when items change
 5. Append to `claude-progress.txt` before ending
-6. Commit: `git commit -m "Session N: [description]"`
+6. Run `/commit` - runs critics, then commits if they pass
 
 ### Slash Commands
 
@@ -117,7 +117,7 @@ Read only when needed for architectural decisions:
 | `/analyze-item [name]` | Deep analysis of item | Yes (3 parallel) |
 | `/test [mode]` | Run tests (smoke/targeted/full/profile) | No |
 | `/critic [type]` | Run codebase critics on staged changes | No |
-| `/commit` | Commit changes | No |
+| `/commit` | Run critics on staged changes, then commit | No |
 | `/nextsesh` | Prepare handoff notes (requires P0 set) | No |
 
 ### Subagent Usage for Context Management
