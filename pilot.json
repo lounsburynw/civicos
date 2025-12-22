@@ -1091,13 +1091,15 @@
         "note": "Created docs/user_guides/ADMIN_SETUP_GUIDE.md - comprehensive 10-section guide covering pre-setup research, env config, jurisdiction setup, data source connection, database setup, vector/RAG, deployment, monitoring, verification checklist, and troubleshooting"
       },
       "troubleshooting": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "Common issues and solutions"
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Common issues and solutions",
+        "completed": "2025-12-21",
+        "note": "docs/user_guides/ADMIN_TROUBLESHOOTING.md - comprehensive guide with 10 sections: startup, auth, database, API, WebSocket, data extraction, RAG/search, resources, deployment, recovery. Quick diagnostics, command reference, related doc links."
       },
       "data_management": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "How to manage extracted data"
       }
     },

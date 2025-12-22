@@ -1,3 +1,41 @@
+## Session 330: troubleshooting - Admin Troubleshooting Guide
+
+**Date:** 2025-12-21
+**Item:** troubleshooting (user_documentation > admin_docs)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Created comprehensive admin troubleshooting guide with common issues and solutions.
+
+### Implementation
+
+**New File:** `docs/user_guides/ADMIN_TROUBLESHOOTING.md`
+
+Covers 10 major categories:
+1. **Startup Issues** - Application won't start, missing secrets, health check timeouts
+2. **Authentication Issues** - 401 errors, invalid API keys, CORS problems
+3. **Database Issues** - Not found, migration errors, locked database, corruption
+4. **API Issues** - 500/503 errors, slow responses, rate limiting
+5. **WebSocket Issues** - Connection refused, drops, message delivery
+6. **Data Extraction Issues** - No meetings found, Legistar/SeeClickFix/YouTube errors
+7. **RAG/Search Issues** - Vector search returns nothing, irrelevant results
+8. **Resource Issues** - OOM, disk full, large Docker images
+9. **Deployment Issues** - Deploy fails, version mismatch between apps
+10. **Recovery Procedures** - Quick rollback, full rollback, emergency procedures
+
+Includes:
+- Quick diagnostics section for rapid health checks
+- Command reference table with all common diagnostic commands
+- Links to related docs (DEPLOYMENT_GUIDE, ROLLBACK_PROCEDURES, SECRETS_MANAGEMENT)
+
+### Pilot Progress
+- 134/161 items ready (83%)
+- 27 items remaining
+
+**Next P0:** data_management (user_documentation > admin_docs)
+
+---
+
 ## Session 321: meeting_discovery_cron - civic-extract CLI
 
 **Date:** 2025-12-21
