@@ -1,0 +1,48 @@
+"""
+CLI for civic-extraction package.
+
+Usage:
+    civic-extract discover --jurisdiction city-san-rafael
+    civic-extract discover --jurisdiction city-san-rafael --schedule
+    civic-extract discover --jurisdiction city-san-rafael --dry-run
+"""
+
+import argparse
+import sys
+
+from civic_extraction.cli.discover import add_discover_parser, run_discover
+
+
+def main() -> int:
+    """Main entry point for civic-extract CLI."""
+    parser = argparse.ArgumentParser(
+        prog="civic-extract",
+        description="Civic data extraction CLI",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Enable verbose (debug) logging",
+    )
+
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    # Add subcommands
+    add_discover_parser(subparsers)
+
+    args = parser.parse_args()
+
+    if args.command is None:
+        parser.print_help()
+        return 1
+
+    # Route to appropriate command
+    if args.command == "discover":
+        return run_discover(args)
+
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

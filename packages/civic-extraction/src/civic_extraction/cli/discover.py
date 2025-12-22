@@ -1,42 +1,16 @@
-#!/usr/bin/env python3
 """
-Automated meeting discovery cron job for Civic.
-
-Runs the meeting discovery pipeline on a schedule, storing results and
-saving checkpoints for resume capability.
+Meeting discovery command for civic-extract CLI.
 
 Usage:
-    # Run once for san-rafael
-    python scripts/meeting_discovery_cron.py --jurisdiction city-san-rafael
-
-    # Run with custom date range (default: 30 days past, 90 days ahead)
-    python scripts/meeting_discovery_cron.py --jurisdiction city-san-rafael \
-        --days-past 60 --days-ahead 120
-
-    # Dry-run (validate config, don't run pipeline)
-    python scripts/meeting_discovery_cron.py --jurisdiction city-san-rafael --dry-run
-
-    # Start scheduler (runs daily at 6am)
-    python scripts/meeting_discovery_cron.py --jurisdiction city-san-rafael --schedule
-
-Environment:
-    Expects civic-env virtual environment to be active.
-    Loads config from data/extraction/{jurisdiction-slug}.json
-
-Session: 321
+    civic-extract discover --jurisdiction city-san-rafael
+    civic-extract discover --jurisdiction city-san-rafael --schedule
+    civic-extract discover --jurisdiction city-san-rafael --dry-run
 """
 
 import argparse
-import json
 import logging
 import sys
-from datetime import datetime
-from pathlib import Path
 from typing import Optional
-
-# Add packages to path
-PROJECT_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "packages/civic-extraction/src"))
 
 from civic_extraction.pipeline import (
     Pipeline,
@@ -58,10 +32,78 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def add_discover_parser(subparsers: argparse._SubParsersAction) -> None:
+    """Add the discover subcommand to the parser."""
+    parser = subparsers.add_parser(
+        "discover",
+        help="Discover meetings from municipal sources",
+        description="Run meeting discovery pipeline for a jurisdiction",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--jurisdiction",
+        required=True,
+        help="Jurisdiction ID (e.g., city-san-rafael)",
+    )
+    parser.add_argument(
+        "--days-past",
+        type=int,
+        default=30,
+        help="Days into past to search (default: 30)",
+    )
+    parser.add_argument(
+        "--days-ahead",
+        type=int,
+        default=90,
+        help="Days into future to search (default: 90)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate config only, don't run pipeline",
+    )
+    parser.add_argument(
+        "--schedule",
+        action="store_true",
+        help="Run on schedule (daily at 6am) instead of once",
+    )
+    parser.add_argument(
+        "--checkpoint-dir",
+        default="data/checkpoints",
+        help="Directory for checkpoint files (default: data/checkpoints)",
+    )
+
+
+def run_discover(args: argparse.Namespace) -> int:
+    """Run the discover command."""
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+
+    if args.schedule:
+        run_scheduled(args.jurisdiction, args.days_past, args.days_ahead, args.checkpoint_dir)
+        return 0  # Never reached (scheduler runs forever)
+    else:
+        result = run_meeting_discovery(
+            args.jurisdiction,
+            days_past=args.days_past,
+            days_ahead=args.days_ahead,
+            checkpoint_dir=args.checkpoint_dir,
+            dry_run=args.dry_run,
+        )
+
+        if result is None and not args.dry_run:
+            return 1
+        elif result and not result.success:
+            return 1
+
+        return 0
+
+
 def run_meeting_discovery(
     jurisdiction_id: str,
     days_past: int = 30,
     days_ahead: int = 90,
+    checkpoint_dir: str = "data/checkpoints",
     skip_index: bool = True,
     dry_run: bool = False,
 ) -> Optional[PipelineResult]:
@@ -72,6 +114,7 @@ def run_meeting_discovery(
         jurisdiction_id: Jurisdiction ID (e.g., "city-san-rafael")
         days_past: Days into past to search
         days_ahead: Days into future to search
+        checkpoint_dir: Directory for checkpoint files
         skip_index: Skip index stage (for cron, we just discover/ingest)
         dry_run: If True, validate only - don't run pipeline
 
@@ -107,10 +150,7 @@ def run_meeting_discovery(
         return None
 
     # Check for existing checkpoint
-    checkpoint_path = checkpoint_path_for_jurisdiction(
-        jurisdiction_id,
-        str(PROJECT_ROOT / "data/checkpoints")
-    )
+    checkpoint_path = checkpoint_path_for_jurisdiction(jurisdiction_id, checkpoint_dir)
     resume_from = load_checkpoint(checkpoint_path)
     if resume_from:
         logger.info(f"Resuming from checkpoint: {resume_from.last_meeting_id}")
@@ -175,7 +215,12 @@ def run_meeting_discovery(
     return result
 
 
-def run_scheduled(jurisdiction_id: str, days_past: int, days_ahead: int) -> None:
+def run_scheduled(
+    jurisdiction_id: str,
+    days_past: int,
+    days_ahead: int,
+    checkpoint_dir: str,
+) -> None:
     """
     Run the discovery pipeline on a schedule.
 
@@ -198,6 +243,7 @@ def run_scheduled(jurisdiction_id: str, days_past: int, days_ahead: int) -> None
             jurisdiction_id,
             days_past=days_past,
             days_ahead=days_ahead,
+            checkpoint_dir=checkpoint_dir,
         )
         logger.info("Scheduled run complete")
         logger.info("=" * 50)
@@ -213,71 +259,3 @@ def run_scheduled(jurisdiction_id: str, days_past: int, days_ahead: int) -> None
     while True:
         schedule.run_pending()
         time_module.sleep(60)  # Check every minute
-
-
-def main():
-    parser = argparse.ArgumentParser(
-        description="Automated meeting discovery for Civic",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__,
-    )
-    parser.add_argument(
-        "--jurisdiction",
-        required=True,
-        help="Jurisdiction ID (e.g., city-san-rafael)",
-    )
-    parser.add_argument(
-        "--days-past",
-        type=int,
-        default=30,
-        help="Days into past to search (default: 30)",
-    )
-    parser.add_argument(
-        "--days-ahead",
-        type=int,
-        default=90,
-        help="Days into future to search (default: 90)",
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Validate config only, don't run pipeline",
-    )
-    parser.add_argument(
-        "--schedule",
-        action="store_true",
-        help="Run on schedule (daily at 6am) instead of once",
-    )
-    parser.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Enable verbose (debug) logging",
-    )
-
-    args = parser.parse_args()
-
-    if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
-
-    if args.schedule:
-        run_scheduled(args.jurisdiction, args.days_past, args.days_ahead)
-    else:
-        result = run_meeting_discovery(
-            args.jurisdiction,
-            days_past=args.days_past,
-            days_ahead=args.days_ahead,
-            dry_run=args.dry_run,
-        )
-
-        # Exit with appropriate code
-        if result is None and not args.dry_run:
-            sys.exit(1)
-        elif result and not result.success:
-            sys.exit(1)
-
-        sys.exit(0)
-
-
-if __name__ == "__main__":
-    main()
