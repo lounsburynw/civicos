@@ -1272,6 +1272,14 @@
   },
   "frontend_refinement": {
     "description": "Frontend polish for pilot quality",
+    "interface_clarity": {
+      "dashboard_visual_hierarchy": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "Simplify Data Pipeline dashboard - clearer visual hierarchy and inline help",
+        "note": "Current interface is overwhelming: 4 data types × 4 stages = 16 cells competing for attention. Needs: (1) collapse less important rows, (2) highlight actionable items, (3) reduce visual noise, (4) clearer status indicators, (5) add help blurbs/tooltips explaining what each section means and how to use it"
+      }
+    },
     "social_features": {
       "user_identity_in_messages": {
         "status": "not_ready",
@@ -1369,11 +1377,13 @@
     },
     "data_pipeline": {
       "e2e_data_ingestion_verification": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "description": "Verify end-to-end data ingestion pipeline including status dashboard",
         "test": "Manual verification of full pipeline flow",
-        "manual_step": "Run data ingestion for a municipality and verify in status dashboard"
+        "manual_step": "Run data ingestion for a municipality and verify in status dashboard",
+        "completed": "2025-12-23",
+        "note": "Session 357: Pipeline verified for San Rafael. 4-stage ETL works (discover→ingest→store→index). Discovered 850 meetings, ingested 17 in date range, stored to SQLite, validated 100%. Manifests saved to data/manifests/. Civic API reads from StateManager correctly. Dashboard uses separate data/events/ path (legacy integration)."
       }
     }
   },

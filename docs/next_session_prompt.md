@@ -1,107 +1,57 @@
-# Recommended: E2E Data Ingestion Verification
+# Recommended: Dashboard Visual Hierarchy & Inline Help
 
 **Priority:** P0 (IMMEDIATE)
-**Area:** pilot_validation > data_pipeline
+**Area:** frontend_refinement > interface_clarity
 **Date:** 2025-12-23
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 356 completed `research_abstraction` - extracted `BaseResearcher` abstract class from housing-specific code, enabling extensibility for new topic researchers.
+Session 357 completed `e2e_data_ingestion_verification` - verified the full data pipeline works end-to-end for San Rafael. However, reviewing the Data Pipeline dashboard revealed UX issues that need immediate attention before pilot.
 
-**This task:** Before Jan 2026 pilot, verify the entire data ingestion pipeline works end-to-end, including the status dashboard. This is a manual verification task to ensure all components integrate correctly.
+**This task:** Simplify the Data Pipeline dashboard interface. Current state is overwhelming and lacks clarity for users.
 
-## Data Pipeline Components
+## Current Problems
 
-1. **Pipeline** (`packages/civic-extraction/src/civic_extraction/pipeline.py`)
-   - 4-stage ETL: discover → ingest → store → index
-   - Checkpoint/resume support
-   - Validation on ingest (added Session 349)
+The dashboard shows a 4×4 grid of data (Meetings, Agenda Items, Issues, Initiatives × Coverage, Ingested, Stored, Indexed):
 
-2. **Platform Sources** (`packages/civic-extraction/src/civic_extraction/sources/`)
-   - Legistar (REST API)
-   - CivicClerk (OData v4)
-   - ProudCity (web scraping)
+1. **Too much information competing for attention** - 16 cells with arrows between them
+2. **Unclear visual hierarchy** - Nothing tells users what's important vs informational
+3. **No inline help** - Users don't understand what "COVERAGE" or "INDEXED" means
+4. **Status indicators unclear** - "Degraded" shown but no explanation of why or what to do
 
-3. **Storage** (`packages/civic/src/civic/_internal/storage/`)
-   - ChromaDB vector store
-   - JSON file storage
+## Screenshot Reference
 
-4. **Status Dashboard** (`scripts/city_status_dashboard.py`)
-   - Reads from `data/city_status_registry.json`
-   - Shows city health: healthy/degraded/broken
+See screenshot from Session 357 showing the overwhelming interface with:
+- Multiple rows (Meetings, Agenda Items, Issues, Initiatives)
+- Multiple columns (COVERAGE → INGESTED → STORED → INDEXED)
+- Numeric values and timestamps scattered throughout
+- "Degraded" status with no actionable guidance
 
-## Suggested Verification Steps
+## Suggested Improvements
 
-1. **Check current registry status**
-   ```bash
-   python scripts/city_status_dashboard.py
-   python scripts/city_status_dashboard.py --broken
-   ```
-
-2. **Run REDUCED pipeline test (recommended first)**
-   Use small date range to limit ingested meetings (~5-10 meetings):
-   ```python
-   from civic_extraction import Pipeline
-   from civic_extraction.sources import get_source
-
-   source = get_source("san-rafael")
-   pipeline = Pipeline(source, data_dir="data/meetings")
-
-   # Reduced test: only 7 days past/ahead (vs default 30/90)
-   result = pipeline.run(days_past=7, days_ahead=7)
-   print(f"Stages: {[s.stage for s in result.stages]}")
-   print(f"Meetings discovered: {result.stages[0].items_processed}")
-   ```
-
-3. **Verify data persisted**
-   ```bash
-   ls -la data/meetings/san-rafael/
-   cat data/meetings/san-rafael/manifest.json | python -m json.tool | head -30
-   ```
-
-4. **Verify via Civic API**
-   ```python
-   from civic import Civic
-   c = Civic("san-rafael")
-   meetings = c.whats_next()
-   print(f"Found {len(meetings)} upcoming meetings")
-   for m in meetings[:3]:
-       print(f"  - {m.title}: {m.meeting_datetime}")
-   ```
-
-5. **Update and check dashboard**
-   ```bash
-   python scripts/update_city_registry.py
-   python scripts/city_status_dashboard.py san-rafael
-   ```
-
-6. **(Optional) Full pipeline run**
-   If reduced test passes, optionally run full ingestion:
-   ```bash
-   civic-extract pipeline run san-rafael
-   ```
+1. **Collapse by default** - Show only summary status, expand for details
+2. **Highlight actionable items** - Clear visual distinction for items needing attention
+3. **Add help tooltips** - Explain what each metric means on hover
+4. **Simplify status indicators** - "Healthy" / "Needs attention" / "Error" with clear next steps
+5. **Reduce visual noise** - Remove or de-emphasize less critical information
 
 ## Key Files
 
-- `packages/civic-extraction/src/civic_extraction/pipeline.py` - Main pipeline
-- `packages/civic-extraction/src/civic_extraction/manifest.py` - Manifest tracking
-- `scripts/city_status_dashboard.py` - Status dashboard
-- `scripts/update_city_registry.py` - Registry updater
-- `data/city_status_registry.json` - City health data
+- `apps/civic-workspace/src/components/DataPipeline.vue` - Main dashboard component
+- `apps/civic-workspace/src/components/` - Related UI components
 
 ## Success Criteria
 
-- [ ] Pipeline runs without errors for at least one city
-- [ ] All 4 stages complete: discover → ingest → store → index
-- [ ] Meetings appear in ChromaDB
-- [ ] `Civic.whats_next()` returns valid data
-- [ ] Status dashboard shows correct city health
-- [ ] Document any issues found for follow-up
+- [ ] Dashboard has clear visual hierarchy
+- [ ] Most important information is immediately visible
+- [ ] Help text/tooltips explain each section
+- [ ] Status indicators have clear meaning
+- [ ] Interface feels approachable, not overwhelming
 
 ## Pilot Progress
 
-- 163/176 items ready (92.6%)
+- 164/177 items ready (92.7%)
 - 13 items remaining
-- P0: e2e_data_ingestion_verification (this item)
+- P0: dashboard_visual_hierarchy (this item)
