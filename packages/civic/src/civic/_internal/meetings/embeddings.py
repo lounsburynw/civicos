@@ -22,6 +22,7 @@ Usage:
 """
 
 import json
+import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime
@@ -29,7 +30,13 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any, Union
 
 from civic._internal.jurisdiction import normalize_jurisdiction
+from civic._internal.meetings.decision_schema import (
+    DecisionValidator,
+    BatchDecisionValidationResult,
+)
 from civic.paths import get_vectors_dir, get_state_db_path
+
+logger = logging.getLogger(__name__)
 
 
 def _chunk_text(text: str, max_chars: int = 1500, overlap: int = 200) -> List[str]:
@@ -283,6 +290,7 @@ class CivicEmbeddings:
         model_name: str = DEFAULT_MODEL,
         persist_directory: Optional[str] = None,
         collection_suffix: str = "",
+        validate_on_index: bool = True,
     ):
         """
         Initialize the embedding generator for a specific jurisdiction.
@@ -294,6 +302,7 @@ class CivicEmbeddings:
                               data/pilot/vectors/{jurisdiction_id}/
             collection_suffix: Optional suffix for collection names to enable
                               test isolation (e.g., "_worker0" for pytest-xdist)
+            validate_on_index: If True, validate decisions before indexing (default True)
         """
         if not CHROMADB_AVAILABLE:
             raise ImportError(
@@ -333,6 +342,10 @@ class CivicEmbeddings:
             path=persist_directory,
             settings=Settings(anonymized_telemetry=False),
         )
+
+        # Initialize decision validator
+        self.validate_on_index = validate_on_index
+        self._decision_validator = DecisionValidator(strict=False) if validate_on_index else None
 
     @property
     def model(self) -> SentenceTransformer:
@@ -565,23 +578,49 @@ class CivicEmbeddings:
         with open(decisions_path) as f:
             decisions = json.load(f)
 
+        # Validate decisions before indexing
+        validation_result: Optional[BatchDecisionValidationResult] = None
+        if self._decision_validator is not None and len(decisions) > 0:
+            validation_result = self._decision_validator.validate_batch(
+                decisions, filter_invalid=True
+            )
+
+            if validation_result.invalid_count > 0:
+                for invalid in validation_result.invalid_results:
+                    logger.warning(
+                        f"Skipped invalid decision [{invalid.decision_id}]: "
+                        f"{'; '.join(invalid.errors)}"
+                    )
+
+            # Use only valid decisions for indexing
+            decisions = validation_result.valid_decisions
+
         # Create collection (delete existing if present)
         try:
             self._client.delete_collection(self.decisions_collection_name)
         except Exception:
             pass
 
+        # Build collection metadata
+        collection_metadata = {
+            "hnsw:space": "cosine",
+            "description": f"{self.jurisdiction_id} decisions for RAG",
+            "jurisdiction_id": self.jurisdiction_id,
+            "embedding_model": self.model_name,
+            "embedding_dimension": self.embedding_dimension,
+            "created_at": datetime.now().isoformat(),
+            "source": str(decisions_path),
+        }
+
+        # Add validation metadata if validation was performed
+        if validation_result is not None:
+            collection_metadata["validation_total"] = validation_result.total_count
+            collection_metadata["validation_valid"] = validation_result.valid_count
+            collection_metadata["validation_invalid"] = validation_result.invalid_count
+
         collection = self._client.create_collection(
             name=self.decisions_collection_name,
-            metadata={
-                "hnsw:space": "cosine",
-                "description": f"{self.jurisdiction_id} decisions for RAG",
-                "jurisdiction_id": self.jurisdiction_id,
-                "embedding_model": self.model_name,
-                "embedding_dimension": self.embedding_dimension,
-                "created_at": datetime.now().isoformat(),
-                "source": str(decisions_path),
-            }
+            metadata=collection_metadata,
         )
 
         # Generate embeddings for each decision
