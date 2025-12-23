@@ -4,19 +4,51 @@ This document provides field-level documentation for the core data types used in
 
 ## Overview
 
-The Civic platform processes three main types of civic data:
+The Civic platform processes civic data organized into these main types:
 
 | Data Type | Source | Description |
 |-----------|--------|-------------|
+| **CityState** | Internal | Jurisdiction state snapshot |
 | **Meeting** | Legistar, CivicClerk, ProudCity | City council and commission meetings |
+| **AgendaItem** | Legistar, CivicClerk | Items on meeting agendas |
 | **Decision** | Meeting minutes, staff reports | Outcomes of council votes |
 | **Issue** | SeeClickFix, native | Civic complaints and 311 reports |
+
+**Source Files:**
+- `packages/civic/src/civic/_internal/state/models.py` - Core models (CityState, Meeting, AgendaItem, Issue)
+- `packages/civic/src/civic/_internal/meetings/decision.py` - Decision models (Decision, VoteTally, LegalInstrument, etc.)
+
+---
+
+## CityState
+
+Represents the overall state of a jurisdiction.
+
+**Source File:** `packages/civic/src/civic/_internal/state/models.py:14`
+
+### Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `jurisdiction_id` | `string` | Yes | Unique identifier (e.g., "city-san-rafael") |
+| `jurisdiction_name` | `string` | Yes | Display name (e.g., "City of San Rafael") |
+| `as_of` | `datetime` | Yes | Timestamp of this state snapshot |
+| `active_residents` | `integer` | No | Number of active users (default: 0) |
+| `pending_comments` | `integer` | No | Draft comments awaiting submission (default: 0) |
+| `coordination_threads` | `integer` | No | Active coordination discussions (default: 0) |
+| `completeness_score` | `float` | No | Data quality score 0.0-1.0 (default: 0.0) |
+| `data_sources` | `array[string]` | No | Platforms providing data |
+| `extraction_version` | `string` | No | Version of extraction pipeline |
+| `created_at` | `datetime` | No | When jurisdiction was created |
+| `updated_at` | `datetime` | No | Last update timestamp |
+
+---
 
 ## Meeting
 
 Normalized meeting data from various municipal platforms.
 
-**Source File:** `packages/civic-extraction/src/civic_extraction/clients/base.py`
+**Source File:** `packages/civic/src/civic/_internal/state/models.py:42`
 
 ### Fields
 
@@ -51,6 +83,56 @@ See `packages/civic-extraction/src/civic_extraction/meeting_schema.py` for the f
 
 ---
 
+## AgendaItem
+
+Represents an item on a meeting agenda.
+
+**Source File:** `packages/civic/src/civic/_internal/state/models.py:80`
+
+### Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | `string` | Yes | Unique item identifier |
+| `meeting_id` | `string` | Yes | Parent meeting ID (foreign key) |
+| `title` | `string` | Yes | Item title |
+| `item_number` | `string` | No | Agenda item number (e.g., "5.1", "6.a") |
+| `description` | `string` | No | Full item description |
+| `project_type` | `string` | No | Category: housing, transportation, environment, etc. (AI-enriched) |
+| `actionability` | `string` | No | Level of public participation possible (AI-enriched) |
+| `impact_level` | `string` | No | Significance assessment (AI-enriched) |
+| `financial_impact_cents` | `integer` | No | Dollar impact in cents |
+| `summary` | `string` | No | AI-generated summary |
+| `why_it_matters` | `string` | No | Plain-language explanation of significance (AI-enriched) |
+| `participation_guide` | `string` | No | How residents can participate (AI-enriched) |
+| `comment_count` | `integer` | No | Number of public comments received (default: 0) |
+| `following_count` | `integer` | No | Number of users following this item (default: 0) |
+| `relevant_bills` | `array[string]` | No | Related state/federal legislation IDs (AI-enriched) |
+| `federal_programs` | `array[string]` | No | Related federal program IDs (AI-enriched) |
+| `matched_complaints` | `array[string]` | No | Related SeeClickFix issue IDs (AI-matched) |
+| `extracted_at` | `datetime` | No | When item was extracted |
+| `enriched_at` | `datetime` | No | When AI enrichment was applied |
+| `valid_from` | `datetime` | No | Temporal validity start (SCD Type 2) |
+| `valid_to` | `datetime` | No | Temporal validity end (SCD Type 2) |
+| `full_data` | `object` | No | Raw data from source for debugging |
+| `video_start_ms` | `integer` | No | Video timestamp when discussion starts (milliseconds) |
+| `video_end_ms` | `integer` | No | Video timestamp when discussion ends (milliseconds) |
+
+### Usage Examples
+
+```python
+from civic import Civic
+
+c = Civic("san-rafael")
+
+# Prepare for a specific agenda item
+prep = c.prepare(meeting_id="2025-01-15-council", item_number="6.a")
+print(prep.summary)
+print(prep.participation_guide)
+```
+
+---
+
 ## Decision
 
 Council decision extracted from meeting minutes and related documents.
@@ -75,7 +157,9 @@ Council decision extracted from meeting minutes and related documents.
 | `source_documents` | `array` | No | Paths to source documents (PDFs, JSONs) |
 | `extraction_method` | `string` | No | How extracted: "llm", "simple", "manual" |
 
-### Vote Structure
+### Vote Structure (VoteTally)
+
+**Source File:** `packages/civic/src/civic/_internal/meetings/decision.py:25`
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -84,9 +168,14 @@ Council decision extracted from meeting minutes and related documents.
 | `absent` | `array[string]` | Yes | Absent council members |
 | `motion_by` | `string` | No | Who made the motion |
 | `second_by` | `string` | No | Who seconded the motion |
-| `passed` | `boolean` | No | Whether the motion passed |
-| `unanimous` | `boolean` | No | Whether vote was unanimous |
-| `vote_count` | `string` | No | Human-readable count (e.g., "4-1") |
+
+**Computed Properties:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `passed` | `boolean` | True if ayes > noes |
+| `unanimous` | `boolean` | True if no noes and at least one aye |
+| `vote_count` | `string` | Human-readable count (e.g., "4-1") |
 
 ### Validation Rules
 
@@ -159,6 +248,59 @@ Common issue categories from SeeClickFix:
 | `acknowledged` | City has reviewed the issue |
 | `in_progress` | Work is underway |
 | `closed` | Issue resolved |
+
+---
+
+## StaffRecommendation
+
+Staff recommendation that informed a decision.
+
+**Source File:** `packages/civic/src/civic/_internal/meetings/decision.py:103`
+
+### Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `department` | `string` | Yes | Originating department |
+| `authors` | `array[string]` | Yes | Staff members who prepared report |
+| `recommendation_text` | `string` | Yes | The recommendation text |
+| `financial_impact` | `string` | No | Budget impact description |
+| `property_details` | `object` | No | For real estate transactions: address, APNs |
+
+---
+
+## PublicInput
+
+Summary of public input on a decision.
+
+**Source File:** `packages/civic/src/civic/_internal/meetings/decision.py:85`
+
+### Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `speaker_count` | `integer` | Yes | Number of public speakers |
+| `speaker_names` | `array[string]` | Yes | Names of speakers |
+| `has_video_transcript` | `boolean` | No | Whether video transcript is available (default: false) |
+
+---
+
+## LegalInstrument
+
+Resolution or ordinance that implements a decision.
+
+**Source File:** `packages/civic/src/civic/_internal/meetings/decision.py:63`
+
+### Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `instrument_type` | `string` | Yes | Type: "resolution", "ordinance", "urgency_ordinance" |
+| `number` | `string` | No | Instrument number (e.g., "15478") |
+| `title` | `string` | Yes | Full title |
+| `purpose` | `string` | Yes | Purpose statement |
+| `legal_authority` | `array[string]` | Yes | Legal basis (e.g., "Government Code Section 8698") |
+| `effective_date` | `string` | No | When the instrument takes effect |
 
 ---
 

@@ -970,10 +970,11 @@
     },
     "documentation": {
       "data_dictionary": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Field-level docs for Meeting, Decision, Issue dataclasses",
-        "note": "Post-ingestion: document schemas as actually used"
+        "note": "Session 353: Updated docs/DATA_DICTIONARY.md with all core models (CityState, Meeting, AgendaItem, Decision, VoteTally, Issue, StaffRecommendation, PublicInput, LegalInstrument). Added source file locations, field types, and usage examples.",
+        "completed": "2025-12-22"
       },
       "extractor_protocol_docs": {
         "status": "ready",
@@ -1333,7 +1334,7 @@
       },
       "feedback_channel": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "check": "Way for users to report issues",
         "note": "Add feedback mechanism (GitHub link, email, or in-app form) for pilot users to report bugs"
       },
