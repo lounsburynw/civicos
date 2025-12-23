@@ -7840,10 +7840,21 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                     state_mgr.complete_operation(operation_id, result, error)
 
                 except Exception as e:
+                    import traceback
                     logger.error(f"Operation {operation_id} failed: {e}", exc_info=True)
+
+                    # Capture detailed error information for debugging
+                    error_details = {
+                        'status': 'error',
+                        'error': str(e),
+                        'error_type': type(e).__name__,
+                        'error_traceback': traceback.format_exc(),
+                        'failed_at': datetime.utcnow().isoformat() + 'Z'
+                    }
+
                     state_mgr.complete_operation(
                         operation_id,
-                        {'status': 'error', 'error': str(e)},
+                        error_details,
                         error=str(e)
                     )
 
@@ -7954,12 +7965,18 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             logger.info(f"Fetch meetings completed: {result}")
 
         except ImportError as e:
+            import traceback
             result['status'] = 'error'
             result['error'] = f'Scraper module not available: {str(e)}'
+            result['error_type'] = 'ImportError'
+            result['error_traceback'] = traceback.format_exc()
             logger.error(f"Fetch meetings import error: {e}")
         except Exception as e:
+            import traceback
             result['status'] = 'error'
             result['error'] = str(e)
+            result['error_type'] = type(e).__name__
+            result['error_traceback'] = traceback.format_exc()
             logger.error(f"Fetch meetings error: {e}", exc_info=True)
 
         return result
@@ -8031,8 +8048,11 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             logger.info(f"Discover videos completed: {result['count_videos_discovered']} videos from {result['count_meetings_with_video']} meetings")
 
         except Exception as e:
+            import traceback
             result['status'] = 'error'
             result['error'] = str(e)
+            result['error_type'] = type(e).__name__
+            result['error_traceback'] = traceback.format_exc()
             logger.error(f"Discover videos error: {e}", exc_info=True)
 
         return result
@@ -8116,8 +8136,11 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                 try:
                     import yt_dlp
                 except ImportError:
+                    import traceback
                     result['status'] = 'error'
                     result['error'] = 'yt_dlp module not installed. Run: pip install yt-dlp'
+                    result['error_type'] = 'ImportError'
+                    result['error_traceback'] = traceback.format_exc()
                     return result
 
                 for video in needs_download:
@@ -8164,8 +8187,11 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             logger.info(f"Download audio completed: {count_downloaded} downloaded, {len(already_downloaded)} skipped, {count_errors} errors")
 
         except Exception as e:
+            import traceback
             result['status'] = 'error'
             result['error'] = str(e)
+            result['error_type'] = type(e).__name__
+            result['error_traceback'] = traceback.format_exc()
             logger.error(f"Download audio error: {e}", exc_info=True)
 
         return result
@@ -8253,8 +8279,11 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                     from youtube_transcript_api import YouTubeTranscriptApi
                     from youtube_transcript_api.formatters import JSONFormatter
                 except ImportError:
+                    import traceback
                     result['status'] = 'error'
                     result['error'] = 'youtube_transcript_api not installed. Run: pip install youtube-transcript-api'
+                    result['error_type'] = 'ImportError'
+                    result['error_traceback'] = traceback.format_exc()
                     return result
 
                 api = YouTubeTranscriptApi()
@@ -8298,8 +8327,11 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             logger.info(f"Transcribe videos completed: {count_fetched} fetched, {len(already_transcribed)} already done, {count_no_captions} no captions, {count_errors} errors")
 
         except Exception as e:
+            import traceback
             result['status'] = 'error'
             result['error'] = str(e)
+            result['error_type'] = type(e).__name__
+            result['error_traceback'] = traceback.format_exc()
             logger.error(f"Transcribe videos error: {e}", exc_info=True)
 
         return result
@@ -8451,12 +8483,18 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             logger.info(f"Refresh SeeClickFix completed: {result}")
 
         except ImportError as e:
+            import traceback
             result['status'] = 'error'
             result['error'] = f'SeeClickFix client not available: {str(e)}'
+            result['error_type'] = 'ImportError'
+            result['error_traceback'] = traceback.format_exc()
             logger.error(f"Refresh SeeClickFix import error: {e}")
         except Exception as e:
+            import traceback
             result['status'] = 'error'
             result['error'] = str(e)
+            result['error_type'] = type(e).__name__
+            result['error_traceback'] = traceback.format_exc()
             logger.error(f"Refresh SeeClickFix error: {e}", exc_info=True)
 
         return result

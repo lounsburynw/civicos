@@ -388,3 +388,196 @@ class TestAdminStatusEndpoint:
             if chroma.get('status') == 'connected':
                 assert 'total_documents' in chroma, "chromadb must have total_documents aggregate"
                 assert isinstance(chroma['total_documents'], int)
+
+
+class TestOperationErrorLogs:
+    """Tests for detailed error logging in operations.
+
+    Session 347: Verifies that failed operations store detailed error information
+    including error_type and error_traceback in result_json for debugging.
+    """
+
+    @pytest.fixture
+    def temp_db(self, tmp_path):
+        """Create a temporary state database with operations table."""
+        db_path = tmp_path / "civic_state.db"
+
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Create operations table (matches state_manager.py schema)
+        cursor.execute("""
+            CREATE TABLE operations (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                jurisdiction_id TEXT NOT NULL,
+                status TEXT DEFAULT 'pending',
+                started_at TEXT,
+                completed_at TEXT,
+                duration_seconds REAL,
+                progress_percent INTEGER DEFAULT 0,
+                current_step TEXT,
+                items_processed INTEGER DEFAULT 0,
+                items_total INTEGER DEFAULT 0,
+                result_json TEXT,
+                error TEXT
+            )
+        """)
+
+        conn.commit()
+        conn.close()
+
+        return db_path
+
+    def test_operation_error_includes_traceback(self, temp_db):
+        """Test that failed operations store error_traceback in result_json."""
+        from civic_services.storage.state_manager import StateManager
+
+        state_mgr = StateManager(str(temp_db))
+
+        # Create an operation
+        operation_id = 'test-op-001'
+        state_mgr.create_operation(operation_id, 'city-san-rafael', 'test_operation')
+
+        # Simulate error with detailed info (like the updated handler does)
+        error_details = {
+            'status': 'error',
+            'error': 'Test error message',
+            'error_type': 'ValueError',
+            'error_traceback': 'Traceback (most recent call last):\n  File "test.py", line 1\nValueError: Test error message',
+            'failed_at': '2024-01-15T12:00:00Z'
+        }
+
+        state_mgr.complete_operation(operation_id, error_details, error='Test error message')
+
+        # Retrieve and verify
+        operation = state_mgr.get_operation(operation_id)
+
+        assert operation['status'] == 'failed'
+        assert operation['error'] == 'Test error message'
+        assert operation['result'] is not None
+        assert operation['result']['error_type'] == 'ValueError'
+        assert 'Traceback' in operation['result']['error_traceback']
+        assert operation['result']['failed_at'] == '2024-01-15T12:00:00Z'
+
+    def test_operation_success_has_no_error_fields(self, temp_db):
+        """Test that successful operations don't have error fields in result."""
+        from civic_services.storage.state_manager import StateManager
+
+        state_mgr = StateManager(str(temp_db))
+
+        operation_id = 'test-op-002'
+        state_mgr.create_operation(operation_id, 'city-san-rafael', 'test_operation')
+
+        # Successful result
+        result = {
+            'status': 'success',
+            'count_processed': 10,
+            'duration_seconds': 5.5
+        }
+
+        state_mgr.complete_operation(operation_id, result, error=None)
+
+        operation = state_mgr.get_operation(operation_id)
+
+        assert operation['status'] == 'completed'
+        assert operation['error'] is None
+        assert operation['result']['status'] == 'success'
+        assert 'error_traceback' not in operation['result']
+        assert 'error_type' not in operation['result']
+
+    def test_api_returns_error_details(self, temp_db, tmp_path):
+        """Test that GET /api/admin/operations/{id} includes error details."""
+        from civic_services.servers.civic_api_integrated import AuthenticatedCivicAPIHandler
+        from civic_services.storage.state_manager import StateManager
+        from unittest.mock import patch, MagicMock
+
+        # Set up operation with error
+        state_mgr = StateManager(str(temp_db))
+        operation_id = 'test-op-003'
+        state_mgr.create_operation(operation_id, 'city-san-rafael', 'fetch_meetings')
+
+        error_details = {
+            'status': 'error',
+            'error': 'Connection timeout',
+            'error_type': 'TimeoutError',
+            'error_traceback': 'Traceback:\n  TimeoutError: Connection timeout'
+        }
+        state_mgr.complete_operation(operation_id, error_details, error='Connection timeout')
+
+        # Create mock handler
+        handler = MagicMock(spec=AuthenticatedCivicAPIHandler)
+        handler.responses = []
+
+        def capture_json(data, status=200):
+            handler.responses.append({'data': data, 'status': status})
+
+        handler.send_json = capture_json
+        handler.serve_operation_status = AuthenticatedCivicAPIHandler.serve_operation_status.__get__(
+            handler, AuthenticatedCivicAPIHandler
+        )
+
+        with patch('civic_services.servers.civic_api_integrated.get_user_path') as mock_path:
+            mock_path.return_value = str(temp_db)
+
+            handler.serve_operation_status(operation_id)
+
+            assert len(handler.responses) == 1
+            response = handler.responses[0]['data']
+
+            # Verify error fields are exposed
+            assert response['status'] == 'failed'
+            assert response['error'] == 'Connection timeout'
+            assert response['result']['error_type'] == 'TimeoutError'
+            assert 'Traceback' in response['result']['error_traceback']
+
+    def test_error_logs_pilot_artifact(self, temp_db):
+        """Verify error_logs pilot.json artifact: expandable error details.
+
+        Session 347: Validates that operations store error details that can
+        be displayed as expandable error information in the dashboard.
+
+        Artifact: "Show errors/failures with log output"
+        Note: "Store error details in operation_history result_json."
+        """
+        from civic_services.storage.state_manager import StateManager
+
+        state_mgr = StateManager(str(temp_db))
+
+        # Create and fail an operation
+        operation_id = 'pilot-test-error'
+        state_mgr.create_operation(operation_id, 'city-san-rafael', 'fetch_meetings')
+
+        # Simulate realistic error with full traceback
+        error_details = {
+            'status': 'error',
+            'operation': 'fetch_meetings',
+            'jurisdiction': 'san-rafael',
+            'error': 'HTTP 503: Service Unavailable',
+            'error_type': 'HTTPError',
+            'error_traceback': '''Traceback (most recent call last):
+  File "/app/civic_api_integrated.py", line 7836, in run_operation
+    result = handler(jurisdiction)
+  File "/app/civic_api_integrated.py", line 7902, in _trigger_fetch_meetings
+    events = client.get_events(days_ahead=90, days_past=30)
+  File "/app/proudcity.py", line 45, in get_events
+    response.raise_for_status()
+HTTPError: HTTP 503: Service Unavailable''',
+            'failed_at': '2024-01-15T12:00:00Z'
+        }
+
+        state_mgr.complete_operation(operation_id, error_details, error='HTTP 503: Service Unavailable')
+
+        # Verify all required fields for dashboard display
+        operation = state_mgr.get_operation(operation_id)
+
+        # Basic error info (summary view)
+        assert operation['status'] == 'failed'
+        assert operation['error'] is not None
+
+        # Detailed error info (expandable view)
+        result = operation['result']
+        assert result['error_type'] == 'HTTPError', "Must include error type for categorization"
+        assert 'Traceback' in result['error_traceback'], "Must include traceback for debugging"
+        assert 'proudcity.py' in result['error_traceback'], "Traceback should show source file"
+        assert result['failed_at'] is not None, "Must include failure timestamp"
