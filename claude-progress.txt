@@ -5540,3 +5540,51 @@ Complete VectorBackend protocol with embedding_model property and pgvector stub.
 Add JSON schema validation to meeting ingestion pipeline (data_standards > schema_validation).
 
 ---
+
+## Session 350 (2025-12-22)
+
+### Completed: ingestion_manifest (data_standards > provenance)
+
+Created standardized ingestion manifest for tracking extraction runs with provenance.
+
+### Implementation
+
+**New Module**: `packages/civic-extraction/src/civic_extraction/manifest.py`
+- `IngestionManifest` - main dataclass with provenance fields
+- `SourceEntry` - per-source tracking (records ingested/failed/skipped)
+- `ValidationSummary` - validation results summary
+- `save_manifest()` / `load_manifest()` - JSON persistence
+- `list_manifests()` / `get_latest_manifest()` - history queries
+
+**Pipeline Integration**:
+- Added `save_manifest` and `run_type` parameters to `Pipeline.run()`
+- Manifest automatically saved after pipeline completion when enabled
+
+**CLI Command**: `civic-extract manifest`
+- `list` - list recent manifests for jurisdiction
+- `show` - display manifest details
+- `latest` - get most recent manifest
+- Supports `--json` output for scripting
+
+### Files Changed
+- `packages/civic-extraction/src/civic_extraction/manifest.py` (new)
+- `packages/civic-extraction/src/civic_extraction/pipeline.py` (manifest integration)
+- `packages/civic-extraction/src/civic_extraction/__init__.py` (exports)
+- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` (CLI routing)
+- `packages/civic-extraction/src/civic_extraction/cli/manifest_cli.py` (new)
+- `packages/civic-extraction/tests/test_manifest.py` (new, 20 tests)
+- `pilot.json` (ingestion_manifest -> ready)
+- `docs/next_session_prompt.md` (updated)
+
+### Tests
+- 20 manifest tests: passed
+- 34 smoke tests: passed
+
+### Pilot Progress
+- Before: 156/174 items (89.7%)
+- After: 157/174 items (90.2%)
+
+### Next P0: extraction_audit_log
+Build on IngestionManifest to create extraction audit logging with aggregated metrics per platform.
+
+---
