@@ -5429,7 +5429,7 @@ Complete VectorBackend protocol with embedding_model property and pgvector stub.
 - Before: 152/174 items (87.4%)
 - After: 153/174 items (87.9%)
 
-### Next P0: feedback_channel
-Add in-app feedback mechanism or clear link to GitHub issues for pilot users to report problems.
+### Next P0: validate_meetings_on_ingest
+Add JSON schema validation to meeting ingestion pipeline (data_standards > schema_validation).
 
 ---
