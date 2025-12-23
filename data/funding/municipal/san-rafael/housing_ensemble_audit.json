@@ -1,0 +1,280 @@
+{
+  "municipality": "San Rafael",
+  "state": "California",
+  "topic": "housing",
+  "timestamp": "2025-12-23T11:38:16.120624",
+  "total_cost": 0.171,
+  "provider": "perplexity",
+  "queries": [
+    {
+      "query": "San Rafael California in-lieu fee $389,032 per unit 2025",
+      "template_key": null,
+      "program_type": null,
+      "response": "**Yes, San Rafael, California's Affordable Housing In-Lieu Fee is $389,032 per affordable housing unit, effective July 1, 2025, through June 30, 2026.** [4]\n\nThis fee applies to residential developments contributing to affordable housing requirements via payment instead of on-site units, as listed on the city's official \"For Developers\" page. [4] The prior rate was $368,274 per unit for July 1, 2024\u2013June 30, 2025, indicating an annual adjustment. [4]\n\nSeparate **park in-lieu fees** (not matching $389,032) are proposed in a draft nexus study at $12,596 per single-family detached unit and $11,282 per multi-family unit, based on land acquisition costs for 1.824 acres of parkland per 1,000 residents; these were slated for council review but removed from the September 2, 2025, agenda. [1][2]\n\n**Commercial linkage fees** (unrelated to the queried amount) are per square foot: $13.33 for office/R&D, $10.00 for retail/restaurant/services, and $5.00 for hotel/motel, updated via Ordinance 2032. [3][4] No search results reference a $389,032 park or other in-lieu fee for 2025. [1][2][3][5][6][7]",
+      "citations": [
+        "https://www.cityofsanrafael.org/meetings/city-council-september-2-2025-tuesday/",
+        "https://storage.googleapis.com/proudcity/sanrafaelca/2025/08/Draft-Park-Impact-Fee-Nexus-Study-08-19-25-PDF.pdf",
+        "https://publicrecords.cityofsanrafael.org/WebLink/DocView.aspx?id=36479&dbid=0&repo=CityofSanRafael",
+        "https://www.cityofsanrafael.org/for-developers/",
+        "https://www.waterboards.ca.gov/rwqcb2/board_info/agendas/2025/May/4_ssr.pdf",
+        "https://www.waterboards.ca.gov/sanfranciscobay/board_info/agendas/2025/September/6_Appendix_A.pdf",
+        "https://library.municode.com/ca/san_rafael/codes/code_of_ordinances?nodeId=TIT19PUPAPROPSP_CH19.50CAPUPR_19.50.060COOTRE"
+      ],
+      "cost": 0.011,
+      "timestamp": "2025-12-23T11:37:58.807435"
+    },
+    {
+      "query": "San Rafael California housing parcel tax ballot measure 2020-2025",
+      "template_key": "ballot_measures",
+      "program_type": "ballot_measure",
+      "response": "**No housing-specific parcel tax ballot measure was identified in San Rafael, California, from 2020 to 2025.** Instead, several non-housing parcel taxes were approved or proposed for schools, libraries, wildfire prevention, and community facilities during this period.\n\n### Key Parcel Taxes in San Rafael (2020-2025)\n- **San Rafael City Schools Parcel Tax (Approved May 2021)**: Voters approved Measure(s) for $323 per parcel (elementary district) and $232 per parcel (high school district), both with 3% annual inflation adjustments, for 8 years starting July 1, 2021. Adjusted amounts for 2024-2025 are $352.96 (elementary) and $253.52 (high school), overseen by a Parcel Tax Citizens Oversight Committee.[4]\n- **Measure P - Albert Park Library & Community Center (Approved November 2024)**: Levies $0.145 per square foot of improved building area ($75 per vacant parcel), estimated at $6.37 million annually, for 30 years or until bonds are repaid (starting July 1, 2025). Includes senior (65+) exemptions.[2][3]\n- **Marin Wildfire Prevention Authority Measure C (Approved 2020)**: Applies countywide (including San Rafael) at up to $0.10 per square foot ($75 per multifamily unit) for 10 years starting 2020-21, generating $19.3 million annually with inflation adjustments and exemptions.[5]\n\n### Related Context\nNearby districts like Ross Valley School District saw a similar school parcel tax (Measure E) rejected in May 2025 (62.1% yes, below two-thirds threshold).[1] San Rafael has faced multiple tax measures recently, including school bonds and a 2020 sales tax increase, contributing to voter fatigue noted by local groups.[6] No search results reference a dedicated **housing parcel tax** (e.g., for affordable housing or rent control funding) in San Rafael for this timeframe.",
+      "citations": [
+        "https://caltax.org/2025/05/09/voters-reject-all-school-parcel-taxes-in-may-6-special-elections/",
+        "https://www.cityofsanrafael.org/measure-p-albert-park-library-community-center/",
+        "https://www.cityofsanrafael.org/measures-submitted-by-the-voters/",
+        "https://www.srcs.org/9369_3",
+        "https://www.marinwildfire.org/about-mwpa/measure-c",
+        "https://marinpost.org/blog/2022/5/9/co-ts-voting-guidance-for-local-tax-measures-on-the-june-7-2022-ballot"
+      ],
+      "cost": 0.012,
+      "timestamp": "2025-12-23T11:37:56.766276"
+    },
+    {
+      "query": "San Rafael California inclusionary housing in-lieu fee per unit Resolution 15179 2024 2025",
+      "template_key": "inclusionary_fees",
+      "program_type": "inclusionary_housing_program",
+      "response": "**The inclusionary housing in-lieu fee in San Rafael, California, is $389,032 per affordable housing unit for the period July 1, 2025, to June 30, 2026, and $368,274 per unit for July 1, 2024, to June 30, 2025.** [3]\n\nThese fees apply to developers opting to pay in-lieu of constructing on-site affordable units, as outlined in San Rafael Municipal Code Section 14.16.030(D), which mandates inclusionary affordable housing requirements. [3][4] The city is conducting an analysis of these requirements via a July 2024 agreement with Strategic Economics, Inc., effective through June 30, 2025, but no updates to the per-unit fees from this analysis appear in available sources. [4]\n\nNo information confirms a **Resolution 15179** specifically setting these 2024-2025 fees; search results reference fees directly from the city's developer page and related documents without mentioning this resolution number. [3][4][6] A June 2025 city council agenda report discusses appropriating funds from the Affordable Housing In-Lieu Fee Fund (Fund #243) but does not detail per-unit rates. [6]\n\nFor context, nearby jurisdictions like Fairfax set 2025 in-lieu fees at $406,051.20 for single-family/rental units and $323,046.01 for condominiums, adjusted annually by the California Construction Index. [1] San Rafael also imposes separate commercial linkage fees (e.g., $13.33 per sq ft for office/R&D, effective July 1, 2024). [3] Developers should consult the city's For Developers page or Housing Manager for the latest official rates and requirements. [3]",
+      "citations": [
+        "https://www.townoffairfax.org/fees-related-to-affordable-housing-updated-for-2025/",
+        "https://local.anaheim.net/docs_agend/questys_pub/44401/44431/44434/44539/44559/2.%20Keyser%20Marston%20Report44559.pdf",
+        "https://www.cityofsanrafael.org/for-developers/",
+        "https://publicrecords.cityofsanrafael.org/WebLink/DocView.aspx?id=37178&dbid=0&repo=CityofSanRafael",
+        "https://www.cityofventura.ca.gov/DocumentCenter/View/45864/9-ATTACHMENT-B---KMA-2024-2025-Report",
+        "https://storage.googleapis.com/proudcity/sanrafaelca/2025/06/7.d-Affordable-Housing-Funding-Recommendation.pdf"
+      ],
+      "cost": 0.012,
+      "timestamp": "2025-12-23T11:37:52.173652"
+    },
+    {
+      "query": "San Rafael California CDBG HOME federal funding allocation cooperative agreement",
+      "template_key": "cdbg_home",
+      "program_type": "cdbg_home_passthrough",
+      "response": "San Rafael, California, receives **CDBG (Community Development Block Grant) and HOME Investment Partnerships Program funds** through a cooperative agreement with Marin County's Federal Grants division, which allocates these federal funds specifically for the San Rafael Planning Area on an annual cycle.[1]\n\nThe County typically issues a Notice of Funding Availability (NOFA) in January, with the **2025-26 cycle open through February 19, 2025, at 5:00 PM**, offering over $3.6 million total, including approximately **$1.5 million in CDBG** and **$700,000 in HOME** via a joint application.[1]\n\nKey details include:\n- Funds support affordable housing, public services, and community development targeting low- and moderate-income residents (households at or below 80% of county median income).[1][5]\n- San Rafael participates in the County's combined NOFA process; applications are submitted to the County.[1]\n- Recent examples: City Council approved $600,000 from its Affordable Housing Trust Fund (separate but related) for three nonprofit housing projects, including support for foster youth housing and low-income rehabilitation.[2]\n- CDBG allocations for San Rafael Planning Area consider three factors (details in public records); minimum grant size is $15,000 per project/year, with countywide projects possible across areas.[4][6]\n- State-level CDBG (via California HCD) provides grants to non-entitlement areas like San Rafael, with 2025 NOFA documents available including scoring matrices and agreements.[5]\n\nFor current applications or specifics, contact Marin County at (415) 499-6695 or San Rafael housing staff at housing@cityofsanrafael.org; the 2025-26 cycle had closed by December 2025.[1] Public records detail past CDBG recommendations and allocations.[3][4]",
+      "citations": [
+        "https://www.cityofsanrafael.org/funding-for-housing-projects/",
+        "https://www.marinfostercare.org/post/san-rafael-approves-funds-for-affordable-housing-initiatives",
+        "https://publicrecords.cityofsanrafael.org/WebLink/DocView.aspx?id=35900&dbid=0&repo=CityofSanRafael",
+        "https://publicrecords.cityofsanrafael.org/WebLink/DocView.aspx?id=36971&dbid=0&repo=CityofSanRafael",
+        "https://www.hcd.ca.gov/funding/cdbg",
+        "https://storage.googleapis.com/proudcity/sanrafaelca/2025/04/6.a-Community-Development-Block-Grant-CDBG.pdf"
+      ],
+      "cost": 0.012,
+      "timestamp": "2025-12-23T11:37:58.506681"
+    },
+    {
+      "query": "San Rafael California commercial linkage fee per square foot office retail hotel Section 14.16.030",
+      "template_key": "commercial_linkage",
+      "program_type": "commercial_linkage_fee",
+      "response": "San Rafael's current **commercial linkage fees** (effective July 1, 2024) are:[2]\n\n| Development Type | Fee per Square Foot |\n|--|--|\n| Office or Research and Development | $13.33 |\n| Retail, Restaurant or Personal Service | $10.00 |\n| Hotel or Motel | $5.00 |\n\nThese fees are codified in **San Rafael Municipal Code Section 14.16.030(D)**[2] and were adopted by the City Council in December 2023 through Ordinance No. 2032.[1] A commercial linkage fee is an impact fee that charges new commercial development for its role in creating demand for affordable housing, based on the finding of a reasonable relationship between new employment and the need for affordable housing for worker households.[2]\n\nThe fees automatically increase each year starting July 1, 2025, in accordance with changes in regional construction costs.[1][4] The updated fee structure replaced the previous policy (based on a 2004 economic analysis) by expressing fees on a dollar-per-square-foot basis and changing the exemption threshold to apply to projects under 2,500 square feet.[1]",
+      "citations": [
+        "https://publicrecords.cityofsanrafael.org/WebLink/DocView.aspx?id=36479&dbid=0&repo=CityofSanRafael",
+        "https://www.cityofsanrafael.org/for-developers/",
+        "https://library.municode.com/ca/san_rafael/ordinances/code_of_ordinances?nodeId=1279959",
+        "https://storage.googleapis.com/proudcity/sanrafaelca/uploads/2023/12/5.b-Update-of-Commercial-Linkage-Fees-rev.pdf",
+        "https://www.councilofinfillbuilders.org/wp-content/uploads/2025/10/Accelerating-Infill-In-Marin-County.pdf",
+        "https://www.cityofsanrafael.org/snapshot-commercial-linkage-fees-nominations-for-2024-public-service-award-events-and-more/"
+      ],
+      "cost": 0.01,
+      "timestamp": "2025-12-23T11:37:53.826315"
+    },
+    {
+      "query": "San Rafael California affordable housing trust fund Resolution 14760 55 year restriction",
+      "template_key": "trust_fund",
+      "program_type": "affordable_housing_trust_fund",
+      "response": "San Rafael's Affordable Housing Trust Fund, governed by City Council Resolution 14760, requires that **all units supported by program funds are income and rent-restricted for at least 55 years**[1]. This lengthy restriction period ensures long-term affordability for the community.\n\nThe fund is administered according to the Guidelines for the Administration of the Affordable Housing Trust Fund as outlined in Resolution 14760[1][2]. The program supports the development and preservation of affordable housing for vulnerable populations, including lower and moderate-income people and families, seniors, individuals with special needs or disabilities, and those who have previously experienced homelessness[1].\n\nThe current 2025-26 funding application cycle offers over $3.6 million in available funding, including approximately $1.5 million in Federal Community Development Block Grant (CDBG) funds and $700,000 in Federal HOME Investment Partnerships Program (HOME) funds[1]. Eligible projects include acquisition and rehabilitation of existing housing, new construction of affordable housing, and adaptive reuse of buildings[2].",
+      "citations": [
+        "https://www.cityofsanrafael.org/funding-for-housing-projects/",
+        "https://www.cityofsanrafael.org/2023-nofa-affordable-housing/",
+        "https://publicrecords.cityofsanrafael.org/WebLink/DocView.aspx?id=28579&dbid=0&repo=CityofSanRafael",
+        "https://publicrecords.cityofsanrafael.org/WebLink/DocView.aspx?id=28578&dbid=0&repo=CityofSanRafael",
+        "https://www.marinfostercare.org/post/san-rafael-approves-funds-for-affordable-housing-initiatives",
+        "https://storage.googleapis.com/proudcity/sanrafaelca/2025/06/7.d-Affordable-Housing-Funding-Recommendation.pdf",
+        "https://www.youtube.com/watch?v=yyLmiQcEh5M"
+      ],
+      "cost": 0.009,
+      "timestamp": "2025-12-23T11:37:54.796179"
+    },
+    {
+      "query": "San Rafael California commercial linkage fee $13.33 office retail",
+      "template_key": null,
+      "program_type": null,
+      "response": "San Rafael's commercial linkage fees for office and retail development are **$13.33 per square foot** for office or research and development uses and **$10.00 per square foot** for retail, restaurant, or personal service uses[2].\n\nThese fees became effective on July 1, 2024, following the San Rafael City Council's adoption of updated commercial linkage fee amendments in December 2023[2]. A commercial linkage fee is an impact fee that charges new commercial development for its role in creating demand for affordable housing, based on the finding that new employment generated by commercial projects creates a need for affordable housing for worker households[2].\n\nThe fees are designed to automatically increase each year starting July 1, 2025, in accordance with changes in regional construction costs[1][4]. Additionally, the updated policy changed the exemption threshold to apply to projects under 2,500 square feet, down from the previous 5,000 square foot exemption[1].",
+      "citations": [
+        "https://publicrecords.cityofsanrafael.org/WebLink/DocView.aspx?id=36479&dbid=0&repo=CityofSanRafael",
+        "https://www.cityofsanrafael.org/for-developers/",
+        "https://library.municode.com/ca/san_rafael/ordinances/code_of_ordinances?nodeId=1279959",
+        "https://storage.googleapis.com/proudcity/sanrafaelca/uploads/2023/12/5.b-Update-of-Commercial-Linkage-Fees-rev.pdf",
+        "https://www.cityofsanrafael.org/snapshot-commercial-linkage-fees-nominations-for-2024-public-service-award-events-and-more/"
+      ],
+      "cost": 0.009,
+      "timestamp": "2025-12-23T11:37:59.802189"
+    },
+    {
+      "query": "San Rafael Measure P parcel tax $0.145 library community center",
+      "template_key": null,
+      "program_type": null,
+      "response": "**San Rafael's Measure P is a parcel tax approved by voters in November 2024 to fund a new library and community center at Albert Park, with a rate of $0.145 per square foot of improved building area per year and $75 per vacant parcel per year on taxable real property within the City.[1][2]**\n\nThe tax commenced on July 1, 2025, and will continue for 30 years or until bonds for planning and construction are paid off, whichever is longer; it is expected to raise nearly $6.4 million annually.[1][2][5]\n\n### Key Details\n- **Purpose**: Funds construction of a new main library and community center to replace outdated facilities, providing expanded services (aiming for 0.70-0.75 square feet per capita) and community spaces.[2][5]\n- **Exemptions**: Available for seniors (age 65+) who own and reside on the parcel as their principal residence; those qualified under prior Measure D automatically qualify. New exemptions require submitting the Measure P Senior Exemption Form by June 1 of the tax year.[2]\n- **Billing**: Appears on property tax bills for taxable real property in San Rafael.[1]\n- **Oversight**: Ensures funds stay local with fiscal accountability measures.[7]\n\nNote: This is distinct from school-related parcel taxes (e.g., Measures G and H) or other library taxes like Measure B, which have separate exemptions and rates.[3][6]",
+      "citations": [
+        "https://www.cityofsanrafael.org/question/what-is-the-measure-p-tax-rate-and-when-will-i-see-it-on-my-property-tax-bill/",
+        "https://www.cityofsanrafael.org/measure-p-albert-park-library-community-center/",
+        "https://www.srcs.org/9369_3",
+        "https://storage.googleapis.com/proudcity/sanrafaelca/2024/08/Impartial-Analysis-of-Library-Tax-Measure-P.pdf",
+        "https://localnewsmatters.org/2025/10/13/getting-a-read-on-san-rafaels-new-library-council-picks-project-manager-in-4-4m-deal/",
+        "https://marinlibrary.org/exemptions/",
+        "https://www.cityofsanrafael.org/topics/measure-p/"
+      ],
+      "cost": 0.011,
+      "timestamp": "2025-12-23T11:38:03.219083"
+    },
+    {
+      "query": "San Rafael California Marin County CDBG HOME cooperative agreement",
+      "template_key": null,
+      "program_type": null,
+      "response": "San Rafael and Marin County administer **Community Development Block Grant (CDBG) and HOME Investment Partnerships Program (HOME) funds through a cooperative agreement**, with the County managing the federal grants allocation for the San Rafael Planning Area[1][4].\n\nUnder this partnership, the City of San Rafael works with the Marin County Federal Grants division to allocate housing funds pursuant to their cooperative agreement[1]. The County typically issues a combined Notice of Funding Availability (NOFA) that covers both programs. For the current 2025-26 funding cycle, applicants can use a joint application to access over **$3.6 million in combined funding**, including approximately $1.5 million in CDBG funds and $700,000 in HOME funds[1].\n\nThe **primary objective** of both programs is to improve the lives of low- and moderate-income residents\u2014defined as those with incomes not exceeding 80 percent of the county median income\u2014through the creation and expansion of community and economic development opportunities[2][5]. CDBG funds support activities that benefit low- and moderate-income persons, aid in preventing or eliminating slums and blight, or address urgent community needs[2].\n\nIn the past, these federal funds have been used for **housing, community facilities, and public services** for low- and moderate-income households[3]. The Marin County Community Development Agency (CDA) develops a 5-Year Consolidated Plan that prioritizes county-specific funding needs, with input from community meetings and resident surveys[3].\n\nProspective applicants must be eligible entities such as public agencies or nonprofits and should contact the City of San Rafael at housing@cityofsanrafael.org for more information[1].",
+      "citations": [
+        "https://www.cityofsanrafael.org/funding-for-housing-projects/",
+        "https://www.grants.ca.gov/grants/community-development-block-grant-cdbg/",
+        "https://www.millvalleylibrary.org/m/NewsFlash/Home/Detail/1128",
+        "https://www.cityofsanrafael.org/2022-2024-nofa-cdbg-and-home-investment-partnerships-program-funds/",
+        "https://www.hcd.ca.gov/funding/cdbg",
+        "https://publicrecords.cityofsanrafael.org/WebLink/DocView.aspx?id=35900&dbid=0&repo=CityofSanRafael",
+        "https://storage.googleapis.com/proudcity/sanrafaelca/2025/04/6.a-Community-Development-Block-Grant-CDBG.pdf"
+      ],
+      "cost": 0.011,
+      "timestamp": "2025-12-23T11:38:04.344655"
+    },
+    {
+      "query": "San Rafael California affordable housing fund $250,000 rolling application",
+      "template_key": null,
+      "program_type": null,
+      "response": "San Rafael's **rolling application process** for affordable housing acquisitions provides up to **$250,000 per year** in funding through the City's Affordable Housing Trust Fund[1].\n\n## Key Details\n\n**Application Process**\nThe rolling application process was approved by the San Rafael City Council on September 3, 2024[1]. Unlike the traditional Notice of Funding Availability (NOFA) with set deadlines, this process allows prospective applicants to submit applications on an ongoing basis rather than during specific funding cycles[1].\n\n**Funding Amount and Conditions**\nThe $250,000 annual cap can be increased if the City Council authorizes additional funding[1]. Funding availability is also dependent on sufficient funds being available in the trust[1].\n\n**Eligibility and Requirements**\nProspective applicants must meet with City staff prior to submitting an application[1]. To request an application, interested parties should email housing@cityofsanrafael.org[1].\n\n**Funded Projects**\nAll units supported by program funds are **income and rent-restricted for at least 55 years**[1], ensuring long-term affordability.\n\n**Additional Funding Opportunities**\nSan Rafael also participates in a combined NOFA issued by Marin County, with the 2025-26 funding application cycle open through February 19, 2025[1]. This cycle offers over $3.6 million in funding, including approximately $1.5 million in Community Development Block Grants (CDBG) and $700,000 in HOME Investment Partnerships Program funds[1].",
+      "citations": [
+        "https://www.cityofsanrafael.org/funding-for-housing-projects/",
+        "https://www.cityofsanrafael.org/2023-nofa-affordable-housing/",
+        "https://www.hcd.ca.gov/sites/default/files/docs/grants-and-funding/calich/erf-r2-rolling-city-of-san-rafael-115.pdf",
+        "https://publicrecords.cityofsanrafael.org/WebLink/DocView.aspx?id=37569&dbid=0&repo=CityofSanRafael",
+        "https://storage.googleapis.com/proudcity/sanrafaelca/uploads/2023/04/2023-Application_Form-fillable-Final.pdf",
+        "https://www.canalalliance.org/media/san-rafael-approves-funds-for-affordable-housing-acquisition/",
+        "https://www.youtube.com/watch?v=yyLmiQcEh5M",
+        "https://bcsh.ca.gov/calich/erf_program.html"
+      ],
+      "cost": 0.011,
+      "timestamp": "2025-12-23T11:38:04.958315"
+    },
+    {
+      "query": "San Rafael California Resolution 14760",
+      "template_key": null,
+      "program_type": null,
+      "response": "**San Rafael, California Resolution 14760** is a resolution adopted by the San Rafael City Council on January 21, 2020, titled **\"Guidelines for the Administration of the Affordable Housing Trust Fund.\"**[1][2][3][4][6]\n\nIt establishes rules for managing the city's Affordable Housing Trust Fund, which supports acquisition, rehabilitation, new construction, and preservation of permanently affordable rental or ownership housing for lower-income households, seniors, families, individuals with special needs, and those experiencing homelessness.[3][5][6] Key elements include:\n\n- **Eligible activities**: Land acquisition, predevelopment costs (e.g., architecture, engineering), construction, conversion of market-rate or non-residential buildings to deed-restricted affordable units, and other efforts aligned with city housing goals.[5]\n- **Affordability requirements**: Units funded by the program must be income- and rent-restricted for at least 55 years.[6]\n- **Eligible applicants**: 501(c)(3) nonprofits or for-profit developers (potentially partnering with nonprofits) with demonstrated experience.[5]\n- **Selection criteria**: Projects must align with the city's Housing Element, County of Marin Consolidated Plan, proximity to transit, service to very-low/extremely-low-income households, family-sized units, or permanent supportive housing; priority for readiness (e.g., entitlements, permits).[5]\n- **Funding process**: Administered via periodic Notices of Funding Availability (NOFAs), including rolling applications for acquisitions (capped at $250,000/year unless expanded) and integration with CDBG/HOME funds.[5][6]\n\nThe full document is accessible via the city's public records portal.[1][2] It references California Civil Code Section 1940 and includes definitions for terms like \"affordable housing.\"[2] Note: Search results distinguish this from a separate January 21, 2020, resolution (also numbered 14760 in some listings) on special taxes for Community Facilities District No. 11334.[1]",
+      "citations": [
+        "https://publicrecords.cityofsanrafael.org/WebLink/DocView.aspx?id=32435&dbid=0&repo=CityofSanRafael",
+        "https://publicrecords.cityofsanrafael.org/WebLink/DocView.aspx?id=28579&dbid=0&repo=CityofSanRafael",
+        "https://storage.googleapis.com/proudcity/sanrafaelca/uploads/2021/10/7.a-Notice-of-Funding-Availability-for-Affordable-Housing.pdf",
+        "https://storage.googleapis.com/proudcity/sanrafaelca/uploads/2021/07/7.c-Request-to-Waive-the-Building-Permit-Fees.pdf",
+        "https://www.cityofsanrafael.org/2023-nofa-affordable-housing/",
+        "https://www.cityofsanrafael.org/funding-for-housing-projects/",
+        "https://www.losososcsd.org/files/db66fa5e0/Agenda+Item+6E+-+Adopt+a+Resolution+Establishing+Appropriation+Limits+for+2021-22.pdf"
+      ],
+      "cost": 0.012,
+      "timestamp": "2025-12-23T11:38:08.340094"
+    },
+    {
+      "query": "San Rafael California Section 14.16.030",
+      "template_key": null,
+      "program_type": null,
+      "response": "**San Rafael Municipal Code Section 14.16.030 establishes the city's affordable housing requirement, applying to certain residential and nonresidential development projects.**[1][3][5][6][7][8]\n\nThis section mandates contributions toward affordable housing, such as in-lieu fees or on-site units, for qualifying developments. For **nonresidential projects**, it requires contributions via a commercial linkage fee, which charges new commercial development based on its role in generating demand for affordable housing tied to new employment.[3][7] These fees fund a citywide housing in-lieu fee account to expand affordable housing supply.[1][4]\n\nThe provision has been amended multiple times, including via Ordinance No. 2032 (updating Title 14 requirements) and other ordinances to refine affordable housing obligations.[1][3][5][10] It appears within Chapter 14.16 (Site and Use Regulations) of Title 14 (Zoning).[6][8]\n\nFor the full current text (codified through Ordinance No. 2051, September 2, 2025), consult the official San Rafael Municode Library, as search results provide only summaries and amendment excerpts rather than the complete section.[5][6][8][10]",
+      "citations": [
+        "https://storage.googleapis.com/proudcity/sanrafaelca/uploads/2021/02/5.b-Housing-Development-Policies-and-Permitting.pdf",
+        "https://www.cityofsanrafael.org/single-family-zoning-additional-regulations-3/",
+        "https://mcclibraryfunctions.azurewebsites.us/api/ordinanceDownload/16610/1279959/pdf?forceDownload=true",
+        "https://www.hcd.ca.gov/housing-elements/docs/san_rafael_5th_adopted011415.pdf",
+        "https://library.municode.com/ca/san_rafael/ordinances/code_of_ordinances?nodeId=1279959",
+        "http://sanrafael-ca.elaws.us/code/coor_title14_diviv_ch14.16",
+        "https://www.cityofsanrafael.org/for-developers/",
+        "https://www.municode.com/library/ca/san_rafael/codes/code_of_ordinances?nodeId=TIT14ZO",
+        "https://www.cityofsanrafael.org/single-family-zoning-dev-standards-3/",
+        "https://library.municode.com/ca/san_rafael"
+      ],
+      "cost": 0.01,
+      "timestamp": "2025-12-23T11:38:08.543357"
+    },
+    {
+      "query": "San Rafael California Resolution 15179",
+      "template_key": null,
+      "program_type": null,
+      "response": "**Resolution 15179** is a City Council resolution adopted by San Rafael, California on **December 19, 2022**, that establishes an updated **affordable housing in-lieu fee** for developers[1][4].\n\nThe resolution rescinded the previous Resolution No. 11942 and established new affordable housing requirements for developers in San Rafael[1]. Specifically, the updated in-lieu fee became effective on **July 1, 2023**[4].\n\nThe resolution relates to San Rafael Municipal Code Section 14.16.030(D), which addresses affordable housing requirements for developers[4]. This includes provisions for commercial linkage fees\u2014impact fees that charge new commercial development for its role in creating demand for affordable housing based on the new employment and worker housing needs generated by such development[4].",
+      "citations": [
+        "https://publicrecords.cityofsanrafael.org/WebLink/DocView.aspx?id=35525&dbid=0&repo=CityofSanRafael",
+        "https://storage.googleapis.com/proudcity/sanrafaelca/uploads/2023/01/4.a-Regular-Meeting-Minutes-2022-12-19.pdf",
+        "https://www.congress.gov/70/crecb/1928/12/10/GPO-CRECB-1929-pt1-v70-7.pdf",
+        "https://www.cityofsanrafael.org/for-developers/",
+        "https://boe.ca.gov/proptaxes/pdf/OCC2018group1.pdf",
+        "https://publicrecords.cityofsanrafael.org/WebLink/DocView.aspx?id=35506&dbid=0&repo=CityofSanRafael",
+        "https://www.sanclemente.gov/AgendaCenter/ViewFile/Item/746?fileID=4914",
+        "https://revistanefrologia.com/es-recommendations-for-living-donor-kidney-articulo-S2013251422000797",
+        "https://pubs.geoscienceworld.org/gsa/geosphere/article-pdf/7/4/938/3340555/938.pdf"
+      ],
+      "cost": 0.008,
+      "timestamp": "2025-12-23T11:38:09.566219"
+    },
+    {
+      "query": "San Rafael California Measure D",
+      "template_key": null,
+      "program_type": null,
+      "response": "**Measure D in San Rafael, California, is a $59 annual parcel tax approved by voters in 2016 to fund opening hours and services at the San Rafael Public Library, paid through property tax bills.**[4]\n\n### Key Details\n- The tax applies to single-family residential parcels, including single-family homes, condos, and townhomes.[1][3]\n- It covers the tax year from July 1 to June 30, with bills typically sent in October.[1]\n\n### Senior Exemption Eligibility\nSeniors aged **65 or older by July 1** of the tax year qualify if they own and occupy the residence as their primary home and do not rent out any portion.[1][3][4]\n- Properties with a second living unit, such as an accessory dwelling unit (ADU), are ineligible.[1]\n- Applications must be submitted by June 1 of the tax year to the San Rafael Public Library (1009 4th St., San Rafael, CA 94901), including a copy of the property tax bill and proof of age (e.g., driver's license, California ID, passport, or birth certificate).[1]\n- Applicants sign under penalty of perjury, affirming eligibility and agreeing to reapply if circumstances change (e.g., renting or adding an ADU).[1]\n\nNote: A separate Measure D in nearby Belvedere (rejected in 2022) proposed a real-estate transfer tax for seismic upgrades and is unrelated.[2] No other recent Measure D initiatives appear in San Rafael based on available results.[5]",
+      "citations": [
+        "https://srpubliclibrary.org/wp-content/uploads/sites/4/2024/10/SRPL-Measure-D-Senior-Exemption-Application.pdf",
+        "https://www.thearknewspaper.com/live/measure-d-belvedere-voters-reject-charter-and-tax-plan-for-seismic-roadwork",
+        "https://www.cityofsanrafael.org/question/measure-d-senior-exemptions/",
+        "https://www.cityofsanrafael.org/question/library-parcel-tax-pay/",
+        "https://www.cityofsanrafael.org/topics/measure-d/",
+        "https://progressivevotersguide.com/california/2020/primary/city/sanrafael",
+        "https://www.sananselmo.gov/Archive/ViewFile/Item/6458"
+      ],
+      "cost": 0.011,
+      "timestamp": "2025-12-23T11:38:12.334184"
+    },
+    {
+      "query": "San Rafael California Measure P",
+      "template_key": null,
+      "program_type": null,
+      "response": "**Measure P is a parcel tax approved by San Rafael voters in November 2024 to fund construction of a new main library and community center at Albert Park.**[1][3]\n\nThe measure levies an annual special parcel tax at the rate of **$0.145 per square foot of improved building area and $75 per vacant parcel**, estimated to generate approximately $6.37 million annually.[1][3] The tax commenced on July 1, 2025, and will continue for 30 years or until construction bonds are satisfied, whichever is longer.[1]\n\n## Project Goals\n\nThe new integrated facility will serve as a hub for civic, cultural, and social enrichment for San Rafael's population of over 60,000 residents.[1] The project aims to replace the aging Downtown Library with a modern, purpose-built complex that provides expanded library services meeting appropriate square footage requirements (approximately 0.70-0.75 square feet per capita) while enhancing community center functions.[1] The facility will incorporate green building practices and sustainable design where feasible.[1]\n\n## Tax Exemptions\n\nPersons over age 65 who own a beneficial interest in a parcel and use it as their principal place of residence are exempt from the tax.[1] Those who already qualified for an exemption under the City's Measure D Library Special Tax automatically qualify for a Measure P exemption.[1]\n\n## Implementation Status\n\nIn 2025, the City Council awarded a California development firm an agreement to plan and construct the facility, marking the first major implementation step for the project.[5]",
+      "citations": [
+        "https://www.cityofsanrafael.org/measure-p-albert-park-library-community-center/",
+        "https://srpubliclibrary.org/about/",
+        "https://www.cityofsanrafael.org/measures-submitted-by-the-voters/",
+        "https://marinpost.org/blog/2024/11/2/save-the-carnegie-vote-no-on-measure-p",
+        "https://patch.com/california/sanrafael/city-council-awards-project-new-library-community-center-san-rafael",
+        "https://www.cityofsanrafael.org/question/what-is-measure-p-what-will-it-fund/"
+      ],
+      "cost": 0.011,
+      "timestamp": "2025-12-23T11:38:13.963907"
+    },
+    {
+      "query": "San Rafael California Downtown Precise Plan",
+      "template_key": null,
+      "program_type": null,
+      "response": "The **Downtown Precise Plan** is San Rafael's comprehensive 20-year planning document that guides development, zoning, and community priorities for downtown.[3] Adopted by the City Council on August 2, 2021, it replaces the 1993 Downtown Vision Plan and serves as both a policy and regulatory framework for the downtown area.[2][5]\n\n## Key Components\n\nThe plan includes several integrated elements:\n\n- **Form-Based Code**: A new zoning framework that replaces seven previous downtown zoning districts with a unified \"Downtown Mixed Use\" (DMU) district, establishing design standards and development guidelines.[2]\n- **Housing and Employment Strategy**: Roughly half of the city's future housing and employment growth is expected to occur in downtown, making the plan critical to San Rafael's broader General Plan 2040.[2]\n- **Historic Preservation**: Strategies to protect and enhance downtown's historic resources.[2]\n- **Transportation and Parking**: Planning for circulation and parking solutions.[2]\n- **Affordable Housing and Anti-Displacement**: Specific strategies to ensure housing affordability and prevent displacement of existing residents and businesses.[2]\n- **Economic Development**: Initiatives to strengthen downtown as a vital business district.[2]\n\n## Development Process\n\nThe plan was developed through extensive community engagement, including a 24-member Steering Committee, 10 public hearings by the Planning Commission between September 2020 and June 2021, and multiple rounds of public input.[2] It was funded by a grant from the Association of Bay Area Governments and reflects downtown's designation as a \"Priority Development Area.\"[2]\n\nThe adopted plan documents are publicly available through the City of San Rafael's website in multiple parts, including a glossary and appendices.[3]",
+      "citations": [
+        "https://downtownsanrafael.org/downtown/",
+        "https://publicrecords.cityofsanrafael.org/WebLink/DocView.aspx?id=33359&dbid=0&repo=CityofSanRafael",
+        "https://www.cityofsanrafael.org/downtown-precise-plan/",
+        "https://www.plantoplace.com/downtown-precise-plan",
+        "https://www.cityofsanrafael.org/departments/general-plan-2040/",
+        "https://storage.googleapis.com/proudcity/sanrafaelca/uploads/2021/09/DSR_PrecisePlan_FinalDraft_Chap1-4-v2.pdf"
+      ],
+      "cost": 0.011,
+      "timestamp": "2025-12-23T11:38:16.120348"
+    }
+  ]
+}

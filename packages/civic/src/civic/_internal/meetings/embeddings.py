@@ -327,6 +327,7 @@ class CivicEmbeddings:
         self.legislation_collection_name = f"{self.jurisdiction_id}_legislation{collection_suffix}"
         self.federal_programs_collection_name = f"{self.jurisdiction_id}_federal_programs{collection_suffix}"
         self.county_programs_collection_name = f"{self.jurisdiction_id}_county_programs{collection_suffix}"
+        self.municipal_programs_collection_name = f"{self.jurisdiction_id}_municipal_programs{collection_suffix}"
 
         # Persist directory follows schema: data/pilot/vectors/{jurisdiction_id}/
         if persist_directory is None:
@@ -1959,6 +1960,220 @@ class CivicEmbeddings:
         Backward-compatible wrapper for checking county housing programs.
         """
         return self.has_county_programs()
+
+    def build_municipal_programs_index(
+        self,
+        city_name: str,
+        topic: str = "housing",
+        municipal_programs_path: str = "data/funding/municipal",
+    ) -> Any:  # Returns chromadb.Collection
+        """
+        Build vector index for municipal programs from JSON files.
+
+        Loads municipal programs from JSON files and indexes them
+        in ChromaDB for semantic search. This enables queries like
+        "inclusionary housing" or "commercial linkage fee" to find relevant
+        municipal programs.
+
+        Args:
+            city_name: City name (e.g., "san-rafael")
+            topic: Program topic (e.g., "housing")
+            municipal_programs_path: Base path to municipal programs JSON files
+
+        Returns:
+            ChromaDB collection with embedded municipal programs
+
+        Example:
+            >>> embedder = CivicEmbeddings("city-san-rafael")
+            >>> collection = embedder.build_municipal_programs_index("san-rafael", "housing")
+            >>> # Collection contains San Rafael housing programs
+        """
+        # Determine filename based on topic
+        filename = f"{topic}_programs.json"
+        programs_path = Path(municipal_programs_path) / city_name / filename
+
+        if not programs_path.exists():
+            raise ValueError(
+                f"Municipal programs file not found: {programs_path}"
+            )
+
+        with open(programs_path, 'r') as f:
+            data = json.load(f)
+
+        documents = []
+        programs = data.get("programs", {})
+
+        for program_id, program_info in programs.items():
+            # Build searchable text combining program info
+            text_parts = [
+                f"Program: {program_info.get('program_name', program_id)}",
+                f"Agency: {program_info.get('administering_agency', '')}",
+                f"Description: {program_info.get('description', '')}",
+                f"Leverage Point: {program_info.get('leverage_point', '')}",
+            ]
+
+            # Include eligible activities if present
+            eligible_activities = program_info.get('eligible_activities', [])
+            if eligible_activities:
+                text_parts.append(f"Eligible Activities: {', '.join(str(a) for a in eligible_activities)}")
+
+            # Include resident input opportunities if present
+            resident_input = program_info.get('resident_input_opportunities', [])
+            if resident_input:
+                text_parts.append(f"Resident Input Opportunities: {', '.join(str(r) for r in resident_input)}")
+
+            if program_info.get('keywords'):
+                text_parts.append(f"Keywords: {', '.join(program_info['keywords'])}")
+
+            # Include eligibility requirements if present
+            eligibility = program_info.get('eligibility_requirements', {})
+            if eligibility:
+                if isinstance(eligibility, dict):
+                    eligibility_text = ", ".join(f"{k}: {v}" for k, v in eligibility.items() if not isinstance(v, dict))
+                    if eligibility_text:
+                        text_parts.append(f"Eligibility: {eligibility_text}")
+
+            text = "\n".join(text_parts)
+
+            # Build metadata, filtering out None values (ChromaDB requires non-null)
+            metadata = {
+                "program_id": program_id,
+                "program_name": program_info.get("program_name") or "",
+                "topic": topic,
+                "city": city_name,
+                "administering_agency": program_info.get("administering_agency") or "",
+                "local_compliance_required": bool(program_info.get("local_compliance_required", False)),
+                "annual_reporting": bool(program_info.get("annual_reporting", False)),
+                "official_url": program_info.get("official_url") or "",
+                "source_type": "municipal_program",
+                "jurisdiction": f"city-{city_name}",
+            }
+
+            documents.append({
+                "id": f"municipal-{city_name}-{topic}-{program_id}",
+                "text": text,
+                "metadata": metadata,
+            })
+
+        if not documents:
+            raise ValueError(
+                f"No municipal programs found in {programs_path}"
+            )
+
+        # Get or create collection (supports multiple topics)
+        try:
+            collection = self._client.get_collection(self.municipal_programs_collection_name)
+        except Exception:
+            collection = self._client.create_collection(
+                name=self.municipal_programs_collection_name,
+                metadata={
+                    "hnsw:space": "cosine",
+                    "description": f"{self.jurisdiction_id} municipal programs for RAG",
+                    "jurisdiction_id": self.jurisdiction_id,
+                    "embedding_model": self.model_name,
+                    "embedding_dimension": self.embedding_dimension,
+                    "created_at": datetime.now().isoformat(),
+                    "source": "municipal_programs JSON files",
+                }
+            )
+
+        # Process in batches for memory efficiency
+        batch_size = 50
+        for i in range(0, len(documents), batch_size):
+            batch = documents[i:i + batch_size]
+
+            texts = [doc["text"] for doc in batch]
+            ids = [doc["id"] for doc in batch]
+            metadatas = [doc["metadata"] for doc in batch]
+
+            embeddings = self.model.encode(texts, show_progress_bar=False)
+
+            collection.upsert(
+                ids=ids,
+                documents=texts,
+                embeddings=embeddings.tolist(),
+                metadatas=metadatas,
+            )
+
+        return collection
+
+    def search_municipal_programs(
+        self,
+        query: str,
+        top_k: int = 10,
+        where: Optional[Dict] = None,
+        topic: Optional[str] = None,
+        city: Optional[str] = None,
+        agency: Optional[str] = None,
+    ) -> List[SearchResult]:
+        """
+        Search municipal programs using semantic search.
+
+        Args:
+            query: Search query text (e.g., "inclusionary housing")
+            top_k: Number of results to return
+            where: Optional ChromaDB filter
+            topic: Filter by topic (e.g., "housing")
+            city: Filter by city (e.g., "san-rafael")
+            agency: Filter by administering agency
+
+        Returns:
+            List of SearchResult objects
+
+        Example:
+            >>> embedder = CivicEmbeddings("city-san-rafael")
+            >>> results = embedder.search_municipal_programs("affordable housing fees")
+            >>> for r in results:
+            ...     print(f"{r.metadata['program_id']}: {r.score:.3f}")
+        """
+        try:
+            collection = self._client.get_collection(
+                self.municipal_programs_collection_name
+            )
+        except Exception:
+            # Collection doesn't exist
+            return []
+
+        # Build filter
+        effective_where = where.copy() if where else None
+
+        filters = []
+        if topic:
+            filters.append({"topic": topic})
+        if city:
+            filters.append({"city": city})
+        if agency:
+            filters.append({"administering_agency": agency})
+
+        if filters:
+            if effective_where:
+                filters.insert(0, effective_where)
+            if len(filters) == 1:
+                effective_where = filters[0]
+            else:
+                effective_where = {"$and": filters}
+
+        # Generate query embedding
+        query_embedding = self.model.encode([query])[0]
+
+        # Search
+        results = collection.query(
+            query_embeddings=[query_embedding.tolist()],
+            n_results=top_k,
+            where=effective_where,
+        )
+
+        return self._results_to_search_results(results)
+
+    def has_municipal_programs(self) -> bool:
+        """Check if municipal programs collection exists and has documents."""
+        try:
+            collection = self._client.get_collection(
+                self.municipal_programs_collection_name
+            )
+            return collection.count() > 0
+        except Exception:
+            return False
 
     def build_index(
         self,

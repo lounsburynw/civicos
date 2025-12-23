@@ -916,11 +916,23 @@
     },
     "municipal_context": {
       "san_rafael_municipal_funding": {
+        "status": "ready",
+        "priority": 2,
+        "artifact": "Research and index San Rafael municipal funding programs",
+        "note": "Built modular research infrastructure with Perplexity ensemble (16 queries, 82 citations). Indexed 4 programs to ChromaDB: inclusionary_housing_program, commercial_linkage_fee, affordable_housing_trust_fund, cdbg_home_passthrough. CLI: civic-extract research municipal-funding",
+        "data_dir": "data/funding/municipal/san-rafael/",
+        "completed": "2025-12-23",
+        "completed_session": 355
+      },
+      "research_abstraction": {
         "status": "not_ready",
         "priority": 0,
-        "artifact": "Research and index San Rafael municipal funding programs",
-        "note": "City-specific programs: housing trust fund, inclusionary housing, general fund allocations, local tax measures",
-        "data_dir": "data/funding/municipal/san-rafael/"
+        "artifact": "Abstract research infrastructure across document types",
+        "note": "Refactor research/ to separate core orchestration (ensemble, rate-limiting, audit) from topic-specific logic (prompts, parsing, schemas). See docs/next_session_prompt.md for design proposal.",
+        "key_files": [
+          "packages/civic-extraction/src/civic_extraction/research/",
+          "packages/civic/src/civic/_internal/meetings/embeddings.py"
+        ]
       }
     }
   },

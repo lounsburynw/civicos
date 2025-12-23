@@ -26,6 +26,10 @@ Usage:
     civic-extract legislative --topic all --schedule
     civic-extract legislative --topic housing --dry-run
 
+    civic-extract research municipal-funding "San Rafael" "California"
+    civic-extract research municipal-funding "San Rafael" "California" --topic housing
+    civic-extract research municipal-funding "San Rafael" "California" --provider perplexity
+
     civic-extract monitor --check-all
     civic-extract monitor --pipeline discover --max-age 30
 
@@ -47,6 +51,7 @@ from civic_extraction.cli.discover import add_discover_parser, run_discover
 from civic_extraction.cli.legislative import add_legislative_parser, run_legislative
 from civic_extraction.cli.manifest_cli import add_manifest_parser, run_manifest
 from civic_extraction.cli.monitor import add_monitor_parser, run_monitor
+from civic_extraction.cli.research import add_research_parser, run_research
 from civic_extraction.cli.seeclickfix import add_seeclickfix_parser, run_seeclickfix
 from civic_extraction.cli.snapshot_cli import add_snapshot_parser, run_snapshot
 from civic_extraction.cli.transcribe import add_transcribe_parser, run_transcribe
@@ -75,6 +80,7 @@ def main() -> int:
     add_legislative_parser(subparsers)
     add_manifest_parser(subparsers)
     add_monitor_parser(subparsers)
+    add_research_parser(subparsers)
     add_seeclickfix_parser(subparsers)
     add_snapshot_parser(subparsers)
     add_transcribe_parser(subparsers)
@@ -99,6 +105,8 @@ def main() -> int:
         return run_manifest(args)
     elif args.command == "monitor":
         return run_monitor(args)
+    elif args.command == "research":
+        return run_research(args)
     elif args.command == "seeclickfix":
         return run_seeclickfix(args)
     elif args.command == "snapshot":
