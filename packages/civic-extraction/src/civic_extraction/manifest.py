@@ -697,3 +697,412 @@ class AuditLog:
 
         lines.extend(["-" * 60, ""])
         return "\n".join(lines)
+
+
+@dataclass
+class DataSnapshot:
+    """
+    Versioned data snapshot for quarterly releases.
+
+    Represents a point-in-time release of extracted data with:
+    - Semantic version for tracking (Q1-2026, Q2-2026, etc.)
+    - Aggregated metrics from audit log
+    - Checksums for data integrity verification
+    - Release metadata
+
+    Usage:
+        snapshot = DataSnapshot.create(
+            jurisdiction_id="city-san-rafael",
+            version="Q1-2026",
+            audit_log=audit,
+        )
+        save_snapshot(snapshot)
+    """
+    snapshot_id: str
+    version: str
+    jurisdiction_id: str
+    created_at: datetime
+    release_type: str = "quarterly"  # quarterly, urgent, manual
+    description: str = ""
+
+    # Aggregated metrics
+    total_records: int = 0
+    platform_metrics: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    data_range_start: Optional[datetime] = None
+    data_range_end: Optional[datetime] = None
+
+    # Files included in snapshot
+    included_files: List[Dict[str, Any]] = field(default_factory=list)
+    checksums: Dict[str, str] = field(default_factory=dict)
+
+    # Metadata
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    @staticmethod
+    def generate_id(jurisdiction_id: str, version: str) -> str:
+        """Generate a unique snapshot ID."""
+        return f"snapshot_{jurisdiction_id}_{version}"
+
+    @staticmethod
+    def validate_version(version: str) -> bool:
+        """
+        Validate version format.
+
+        Accepted formats:
+        - Quarterly: Q1-2026, Q2-2026, Q3-2026, Q4-2026
+        - Date-based: 2026-01-15
+        - Semantic: v1.0.0, v0.2.0-pilot
+        """
+        import re
+        patterns = [
+            r'^Q[1-4]-\d{4}$',           # Q1-2026
+            r'^\d{4}-\d{2}-\d{2}$',       # 2026-01-15
+            r'^v\d+\.\d+\.\d+(-\w+)?$',   # v1.0.0 or v0.2.0-pilot
+        ]
+        return any(re.match(p, version) for p in patterns)
+
+    @classmethod
+    def create(
+        cls,
+        jurisdiction_id: str,
+        version: str,
+        release_type: str = "quarterly",
+        description: str = "",
+        audit_log: Optional[AuditLog] = None,
+    ) -> "DataSnapshot":
+        """
+        Create a new data snapshot.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            version: Release version (e.g., "Q1-2026")
+            release_type: Type of release (quarterly, urgent, manual)
+            description: Human-readable release notes
+            audit_log: Optional audit log to populate metrics from
+
+        Returns:
+            New DataSnapshot instance
+        """
+        if not cls.validate_version(version):
+            raise ValueError(
+                f"Invalid version format: {version}. "
+                "Use Q1-2026, 2026-01-15, or v1.0.0 format."
+            )
+
+        snapshot = cls(
+            snapshot_id=cls.generate_id(jurisdiction_id, version),
+            version=version,
+            jurisdiction_id=jurisdiction_id,
+            created_at=datetime.now(),
+            release_type=release_type,
+            description=description,
+            metadata={
+                "hostname": socket.gethostname(),
+                "extraction_version": _get_version(),
+            },
+        )
+
+        # Populate from audit log if provided
+        if audit_log:
+            snapshot.total_records = audit_log.total_records
+            snapshot.platform_metrics = {
+                k: v.to_dict() for k, v in audit_log.entries.items()
+            }
+            # Find data range from audit entries
+            all_first = [
+                e.first_run for e in audit_log.entries.values()
+                if e.first_run is not None
+            ]
+            all_last = [
+                e.last_run for e in audit_log.entries.values()
+                if e.last_run is not None
+            ]
+            if all_first:
+                snapshot.data_range_start = min(all_first)
+            if all_last:
+                snapshot.data_range_end = max(all_last)
+
+        return snapshot
+
+    def add_file(
+        self,
+        name: str,
+        path: str,
+        file_type: str = "data",
+        record_count: Optional[int] = None,
+    ) -> None:
+        """
+        Add a file to the snapshot with checksum.
+
+        Args:
+            name: Logical name for the file
+            path: Path to the file
+            file_type: Type of file (data, index, config)
+            record_count: Optional record count for data files
+        """
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"File not found: {path}")
+
+        # Calculate checksum
+        with open(path, "rb") as f:
+            content = f.read()
+        checksum = hashlib.sha256(content).hexdigest()
+
+        file_info = {
+            "name": name,
+            "path": path,
+            "file_type": file_type,
+            "size_bytes": len(content),
+            "checksum": checksum,
+        }
+        if record_count is not None:
+            file_info["record_count"] = record_count
+
+        self.included_files.append(file_info)
+        self.checksums[name] = checksum
+
+    def verify_integrity(self) -> Dict[str, Any]:
+        """
+        Verify integrity of all included files.
+
+        Returns:
+            Dict with verification results:
+            - verified: bool (all files match)
+            - files_checked: int
+            - files_missing: list of missing files
+            - files_modified: list of files with checksum mismatch
+        """
+        result = {
+            "verified": True,
+            "files_checked": 0,
+            "files_missing": [],
+            "files_modified": [],
+        }
+
+        for file_info in self.included_files:
+            result["files_checked"] += 1
+            path = file_info["path"]
+
+            if not os.path.exists(path):
+                result["verified"] = False
+                result["files_missing"].append(file_info["name"])
+                continue
+
+            # Verify checksum
+            with open(path, "rb") as f:
+                current_checksum = hashlib.sha256(f.read()).hexdigest()
+
+            if current_checksum != file_info["checksum"]:
+                result["verified"] = False
+                result["files_modified"].append(file_info["name"])
+
+        return result
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "snapshot_id": self.snapshot_id,
+            "version": self.version,
+            "jurisdiction_id": self.jurisdiction_id,
+            "created_at": self.created_at.isoformat(),
+            "release_type": self.release_type,
+            "description": self.description,
+            "total_records": self.total_records,
+            "platform_metrics": self.platform_metrics,
+            "data_range_start": self.data_range_start.isoformat() if self.data_range_start else None,
+            "data_range_end": self.data_range_end.isoformat() if self.data_range_end else None,
+            "included_files": self.included_files,
+            "checksums": self.checksums,
+            "metadata": self.metadata,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "DataSnapshot":
+        """Create from dictionary."""
+        return cls(
+            snapshot_id=data["snapshot_id"],
+            version=data["version"],
+            jurisdiction_id=data["jurisdiction_id"],
+            created_at=datetime.fromisoformat(data["created_at"]),
+            release_type=data.get("release_type", "quarterly"),
+            description=data.get("description", ""),
+            total_records=data.get("total_records", 0),
+            platform_metrics=data.get("platform_metrics", {}),
+            data_range_start=datetime.fromisoformat(data["data_range_start"]) if data.get("data_range_start") else None,
+            data_range_end=datetime.fromisoformat(data["data_range_end"]) if data.get("data_range_end") else None,
+            included_files=data.get("included_files", []),
+            checksums=data.get("checksums", {}),
+            metadata=data.get("metadata", {}),
+        )
+
+    def summary(self) -> str:
+        """Generate human-readable summary."""
+        lines = [
+            "=" * 60,
+            f"DATA SNAPSHOT: {self.version}",
+            "=" * 60,
+            f"Snapshot ID: {self.snapshot_id}",
+            f"Jurisdiction: {self.jurisdiction_id}",
+            f"Release type: {self.release_type}",
+            f"Created: {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}",
+        ]
+
+        if self.description:
+            lines.append(f"Description: {self.description}")
+
+        lines.extend([
+            "",
+            f"Total records: {self.total_records:,}",
+        ])
+
+        if self.data_range_start and self.data_range_end:
+            lines.append(
+                f"Data range: {self.data_range_start.strftime('%Y-%m-%d')} "
+                f"to {self.data_range_end.strftime('%Y-%m-%d')}"
+            )
+
+        if self.platform_metrics:
+            lines.extend(["", "Platform metrics:"])
+            for platform, metrics in sorted(self.platform_metrics.items()):
+                records = metrics.get("total_records", 0)
+                success_rate = metrics.get("success_rate", 0)
+                lines.append(f"  {platform}: {records:,} records ({success_rate:.0f}% success)")
+
+        if self.included_files:
+            lines.extend(["", f"Included files ({len(self.included_files)}):"])
+            for file_info in self.included_files[:5]:  # Show first 5
+                size_kb = file_info["size_bytes"] / 1024
+                lines.append(f"  {file_info['name']}: {size_kb:.1f} KB")
+            if len(self.included_files) > 5:
+                lines.append(f"  ... and {len(self.included_files) - 5} more")
+
+        lines.extend(["", "=" * 60])
+        return "\n".join(lines)
+
+
+def _get_snapshot_dir() -> str:
+    """Get snapshot directory path."""
+    return os.path.join(_get_data_root(), "snapshots")
+
+
+def save_snapshot(
+    snapshot: DataSnapshot,
+    snapshot_dir: Optional[str] = None,
+) -> str:
+    """
+    Save snapshot to JSON file.
+
+    Args:
+        snapshot: The snapshot to save
+        snapshot_dir: Optional custom directory (defaults to data/snapshots/)
+
+    Returns:
+        Path to saved snapshot file
+    """
+    if snapshot_dir is None:
+        snapshot_dir = _get_snapshot_dir()
+
+    # Create jurisdiction subdirectory
+    jurisdiction_dir = os.path.join(snapshot_dir, snapshot.jurisdiction_id)
+    os.makedirs(jurisdiction_dir, exist_ok=True)
+
+    # Generate filename from snapshot_id
+    filename = f"{snapshot.snapshot_id}.json"
+    filepath = os.path.join(jurisdiction_dir, filename)
+
+    with open(filepath, "w") as f:
+        json.dump(snapshot.to_dict(), f, indent=2)
+
+    logger.info(f"Saved snapshot to {filepath}")
+    return filepath
+
+
+def load_snapshot(filepath: str) -> DataSnapshot:
+    """
+    Load snapshot from JSON file.
+
+    Args:
+        filepath: Path to snapshot file
+
+    Returns:
+        DataSnapshot instance
+    """
+    with open(filepath) as f:
+        data = json.load(f)
+    return DataSnapshot.from_dict(data)
+
+
+def list_snapshots(
+    jurisdiction_id: str,
+    snapshot_dir: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """
+    List snapshots for a jurisdiction, most recent first.
+
+    Args:
+        jurisdiction_id: Target jurisdiction
+        snapshot_dir: Optional custom directory
+
+    Returns:
+        List of snapshot summaries (id, version, created_at, total_records)
+    """
+    if snapshot_dir is None:
+        snapshot_dir = _get_snapshot_dir()
+
+    jurisdiction_dir = os.path.join(snapshot_dir, jurisdiction_id)
+
+    if not os.path.exists(jurisdiction_dir):
+        return []
+
+    snapshots = []
+    for filename in os.listdir(jurisdiction_dir):
+        if not filename.endswith(".json"):
+            continue
+
+        filepath = os.path.join(jurisdiction_dir, filename)
+        try:
+            snapshot = load_snapshot(filepath)
+            snapshots.append({
+                "snapshot_id": snapshot.snapshot_id,
+                "version": snapshot.version,
+                "created_at": snapshot.created_at.isoformat(),
+                "release_type": snapshot.release_type,
+                "total_records": snapshot.total_records,
+                "file_count": len(snapshot.included_files),
+                "filepath": filepath,
+            })
+        except Exception as e:
+            logger.warning(f"Failed to load snapshot {filepath}: {e}")
+
+    # Sort by created_at descending
+    snapshots.sort(key=lambda s: s["created_at"], reverse=True)
+
+    return snapshots
+
+
+def get_snapshot(
+    jurisdiction_id: str,
+    version: str,
+    snapshot_dir: Optional[str] = None,
+) -> Optional[DataSnapshot]:
+    """
+    Get a specific snapshot by version.
+
+    Args:
+        jurisdiction_id: Target jurisdiction
+        version: Snapshot version (e.g., "Q1-2026")
+        snapshot_dir: Optional custom directory
+
+    Returns:
+        DataSnapshot or None if not found
+    """
+    if snapshot_dir is None:
+        snapshot_dir = _get_snapshot_dir()
+
+    snapshot_id = DataSnapshot.generate_id(jurisdiction_id, version)
+    filepath = os.path.join(snapshot_dir, jurisdiction_id, f"{snapshot_id}.json")
+
+    if not os.path.exists(filepath):
+        return None
+
+    return load_snapshot(filepath)

@@ -33,6 +33,9 @@ Usage:
     civic-extract manifest latest --jurisdiction city-san-rafael
 
     civic-extract audit --jurisdiction city-san-rafael
+
+    civic-extract snapshot create --jurisdiction city-san-rafael --version Q1-2026
+    civic-extract snapshot list --jurisdiction city-san-rafael
 """
 
 import argparse
@@ -45,6 +48,7 @@ from civic_extraction.cli.legislative import add_legislative_parser, run_legisla
 from civic_extraction.cli.manifest_cli import add_manifest_parser, run_manifest
 from civic_extraction.cli.monitor import add_monitor_parser, run_monitor
 from civic_extraction.cli.seeclickfix import add_seeclickfix_parser, run_seeclickfix
+from civic_extraction.cli.snapshot_cli import add_snapshot_parser, run_snapshot
 from civic_extraction.cli.transcribe import add_transcribe_parser, run_transcribe
 from civic_extraction.cli.youtube import add_youtube_parser, run_youtube
 
@@ -72,6 +76,7 @@ def main() -> int:
     add_manifest_parser(subparsers)
     add_monitor_parser(subparsers)
     add_seeclickfix_parser(subparsers)
+    add_snapshot_parser(subparsers)
     add_transcribe_parser(subparsers)
     add_youtube_parser(subparsers)
 
@@ -96,6 +101,8 @@ def main() -> int:
         return run_monitor(args)
     elif args.command == "seeclickfix":
         return run_seeclickfix(args)
+    elif args.command == "snapshot":
+        return run_snapshot(args)
     elif args.command == "transcribe":
         return run_transcribe(args)
     elif args.command == "youtube":

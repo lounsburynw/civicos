@@ -961,16 +961,17 @@
     },
     "versioning": {
       "data_snapshot_releases": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Quarterly tagged data releases with version numbers",
-        "note": "Post-ingestion: first release after pilot data stable"
+        "note": "DataSnapshot class + CLI: civic-extract snapshot create/list/info/verify",
+        "completed": "2025-12-22"
       }
     },
     "documentation": {
       "data_dictionary": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Field-level docs for Meeting, Decision, Issue dataclasses",
         "note": "Post-ingestion: document schemas as actually used"
       },
