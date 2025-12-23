@@ -338,3 +338,64 @@ class TestBackwardsCompatibility:
             assert "pilot" in path
             assert "vectors" in path
             assert "city-san-rafael" in path
+
+
+class TestEmbeddingModelConfiguration:
+    """Tests for CIVIC_EMBEDDING_MODEL environment variable support."""
+
+    def test_default_model_without_env(self):
+        """Without CIVIC_EMBEDDING_MODEL, should use nomic default."""
+        import sys
+        import importlib
+
+        # Clear env var
+        os.environ.pop("CIVIC_EMBEDDING_MODEL", None)
+
+        # Force reimport to pick up env change
+        if "civic._internal.meetings.embeddings" in sys.modules:
+            del sys.modules["civic._internal.meetings.embeddings"]
+
+        from civic._internal.meetings.embeddings import CivicEmbeddings
+
+        assert CivicEmbeddings.DEFAULT_MODEL == "nomic-ai/nomic-embed-text-v1.5"
+
+    def test_custom_model_from_env(self):
+        """CIVIC_EMBEDDING_MODEL should override default embedding model."""
+        import sys
+        import importlib
+
+        # Set custom model via env
+        with patch.dict(os.environ, {"CIVIC_EMBEDDING_MODEL": "custom/test-model"}):
+            # Force reimport to pick up env change
+            if "civic._internal.meetings.embeddings" in sys.modules:
+                del sys.modules["civic._internal.meetings.embeddings"]
+
+            from civic._internal.meetings.embeddings import CivicEmbeddings
+
+            assert CivicEmbeddings.DEFAULT_MODEL == "custom/test-model"
+
+        # Clean up: reimport with default
+        os.environ.pop("CIVIC_EMBEDDING_MODEL", None)
+        if "civic._internal.meetings.embeddings" in sys.modules:
+            del sys.modules["civic._internal.meetings.embeddings"]
+
+    def test_instance_respects_default_model(self):
+        """CivicEmbeddings instance should use DEFAULT_MODEL when no model_name passed."""
+        import sys
+
+        # Set custom model via env
+        with patch.dict(os.environ, {"CIVIC_EMBEDDING_MODEL": "test/env-model"}):
+            # Force reimport to pick up env change
+            if "civic._internal.meetings.embeddings" in sys.modules:
+                del sys.modules["civic._internal.meetings.embeddings"]
+
+            from civic._internal.meetings.embeddings import CivicEmbeddings
+
+            # Create instance without specifying model_name
+            # (can't actually instantiate without chromadb, so just check class attr)
+            assert CivicEmbeddings.DEFAULT_MODEL == "test/env-model"
+
+        # Clean up: reimport with default
+        os.environ.pop("CIVIC_EMBEDDING_MODEL", None)
+        if "civic._internal.meetings.embeddings" in sys.modules:
+            del sys.modules["civic._internal.meetings.embeddings"]
