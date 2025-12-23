@@ -926,9 +926,9 @@
     "schema_validation": {
       "validate_meetings_on_ingest": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 0,
         "artifact": "Validate Meeting objects against civic-app-schema.json during extraction",
-        "note": "Post-ingestion: finalize schema once battle-tested"
+        "note": "Add JSON schema validation to meeting ingestion pipeline"
       },
       "validate_decisions_on_ingest": {
         "status": "not_ready",
@@ -1323,9 +1323,8 @@
       },
       "feedback_channel": {
         "status": "not_ready",
-        "priority": 0,
-        "check": "Way for users to report issues",
-        "note": "Add in-app feedback mechanism or clear link to GitHub issues for pilot users to report problems"
+        "priority": 2,
+        "check": "Way for users to report issues"
       },
       "pilot_users_identified": {
         "status": "ready",
