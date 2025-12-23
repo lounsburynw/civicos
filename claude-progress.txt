@@ -5385,3 +5385,51 @@ Enhanced operation error handling to capture detailed error information (error t
 Complete VectorBackend protocol with embedding_model property and pgvector stub.
 
 ---
+
+## Session 348 (2025-12-22)
+
+### Task: vector_backend_protocol_completion (P0)
+Complete VectorBackend protocol with embedding_model property and pgvector stub.
+
+### Implementation
+
+1. **VectorBackend Protocol Updates** (`storage/vector.py:179-197`):
+   - Added `embedding_model: str` property - returns model name used for embeddings
+   - Added `embedding_dimension: int` property - returns vector dimension
+   - Updated docstring with usage examples
+
+2. **PgVectorBackend Stub** (`storage/pgvector_backend.py`, new file):
+   - Stub implementation for future PostgreSQL+pgvector migration
+   - Implements VectorBackend protocol with NotImplementedError on all methods
+   - Exposes `embedding_model` and `embedding_dimension` properties
+   - Includes schema reference for future implementation
+   - Exported from `civic.storage.__init__`
+
+3. **Tests** (`test_storage_protocols.py`, 8 new tests):
+   - `test_embedding_properties_required`: Verifies complete implementation passes
+   - `test_missing_embedding_properties_fails`: Verifies incomplete fails isinstance
+   - `test_pgvector_backend_has_required_properties`: Verifies properties work
+   - `test_pgvector_backend_uses_defaults`: Verifies default model/dimension
+   - `test_pgvector_backend_methods_raise_not_implemented`: Verifies stub behavior
+   - `test_pgvector_backend_is_importable`: Verifies module exports
+   - Updated existing tests to include new properties
+
+### Files Changed
+- `packages/civic/src/civic/storage/vector.py` (protocol definition)
+- `packages/civic/src/civic/storage/pgvector_backend.py` (new file)
+- `packages/civic/src/civic/storage/__init__.py` (exports)
+- `packages/civic/tests/test_storage_protocols.py` (8 new tests)
+- `pilot.json` (vector_backend_protocol_completion -> ready)
+
+### Tests
+- 24 storage protocol tests: passed
+- 34 smoke tests: passed
+
+### Pilot Progress
+- Before: 152/174 items (87.4%)
+- After: 153/174 items (87.9%)
+
+### Next P0: feedback_channel
+Add in-app feedback mechanism or clear link to GitHub issues for pilot users to report problems.
+
+---

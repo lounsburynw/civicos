@@ -638,10 +638,11 @@
         "artifact": "Compare retrieval quality on sample queries before/after"
       },
       "vector_backend_protocol_completion": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Complete VectorBackend protocol with embedding_model property and pgvector stub",
-        "note": "VectorBackend protocol exists but is incomplete. Need to: (1) Add embedding_model and embedding_dimension properties, (2) Create PgVectorBackend stub for future Postgres migration, (3) Document ChromaDB \u2192 pgvector migration path. Currently ChromaDB is hardcoded in embeddings.py and cli.py."
+        "completed": "2025-12-22",
+        "note": "Session 348: Added embedding_model and embedding_dimension properties to VectorBackend protocol. Created PgVectorBackend stub (NotImplementedError) for future PostgreSQL+pgvector migration. Added 8 new tests for protocol compliance."
       },
       "shared_config_package": {
         "status": "not_ready",
@@ -1322,8 +1323,9 @@
       },
       "feedback_channel": {
         "status": "not_ready",
-        "priority": 2,
-        "check": "Way for users to report issues"
+        "priority": 0,
+        "check": "Way for users to report issues",
+        "note": "Add in-app feedback mechanism or clear link to GitHub issues for pilot users to report problems"
       },
       "pilot_users_identified": {
         "status": "ready",
