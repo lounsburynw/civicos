@@ -45,6 +45,7 @@ from typing import (
 import time
 
 from civic_extraction.meeting_schema import MeetingValidator, BatchValidationResult
+from civic_extraction.manifest import IngestionManifest, save_manifest as _save_manifest
 
 logger = logging.getLogger(__name__)
 
@@ -326,6 +327,8 @@ class Pipeline:
         days_past: int = 30,
         skip_index: bool = False,
         resume_from: Optional[IngestCheckpoint] = None,
+        save_manifest: bool = False,
+        run_type: str = "manual",
     ) -> PipelineResult:
         """
         Run the complete pipeline: discover -> ingest -> index.
@@ -340,6 +343,8 @@ class Pipeline:
             days_past: Days into past for event fetching
             skip_index: If True, skip the index stage
             resume_from: Checkpoint to resume from (skip meetings before checkpoint)
+            save_manifest: If True, save an ingestion manifest after completion
+            run_type: Type of run for manifest ("manual", "scheduled", "bootstrap")
 
         Returns:
             PipelineResult with status of all stages
@@ -401,7 +406,7 @@ class Pipeline:
         self._is_running = False
         total_duration = (time.time() - pipeline_start) * 1000
 
-        return PipelineResult(
+        result = PipelineResult(
             success=success,
             stages=dict(self._stages),
             total_duration_ms=total_duration,
@@ -410,6 +415,20 @@ class Pipeline:
             jurisdiction_id=self.jurisdiction_id,
             source_id=self.source_id,
         )
+
+        # Save manifest if requested
+        if save_manifest:
+            try:
+                source_type = getattr(self.source, "source_type", "unknown")
+                manifest = IngestionManifest.from_pipeline_result(
+                    result, run_type=run_type, source_type=source_type
+                )
+                manifest_path = _save_manifest(manifest)
+                logger.info(f"Saved ingestion manifest to {manifest_path}")
+            except Exception as e:
+                logger.warning(f"Failed to save manifest: {e}")
+
+        return result
 
     def _run_discover(
         self,

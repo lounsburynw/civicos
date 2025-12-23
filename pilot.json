@@ -943,22 +943,24 @@
     },
     "provenance": {
       "ingestion_manifest": {
-        "status": "not_ready",
-        "priority": 3,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Standardized manifest tracking: what was processed, when, checksums",
-        "note": "Post-ingestion: document actual manifest format used"
+        "note": "Session 350: Created IngestionManifest in civic_extraction/manifest.py with SourceEntry, ValidationSummary, checksums. Pipeline.run(save_manifest=True) saves after completion. CLI: civic-extract manifest list/show/latest. 20 tests.",
+        "completed": "2025-12-22",
+        "test_file": "packages/civic-extraction/tests/test_manifest.py"
       },
       "extraction_audit_log": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 0,
         "artifact": "Log extraction runs with success/failure counts per platform",
-        "note": "Post-ingestion: capture patterns from pilot extraction"
+        "note": "Build on IngestionManifest: add structured logging of extraction runs per platform"
       }
     },
     "versioning": {
       "data_snapshot_releases": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "Quarterly tagged data releases with version numbers",
         "note": "Post-ingestion: first release after pilot data stable"
       }
@@ -966,15 +968,16 @@
     "documentation": {
       "data_dictionary": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "Field-level docs for Meeting, Decision, Issue dataclasses",
         "note": "Post-ingestion: document schemas as actually used"
       },
       "extractor_protocol_docs": {
-        "status": "not_ready",
-        "priority": 3,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Document BaseExtractor protocol and adapter pattern",
-        "note": "Existing: packages/civic-extraction/src/civic_extraction/clients/base.py"
+        "note": "Session 349: Created docs/EXTRACTOR_PROTOCOL.md documenting DataSource, Extractor, BaseExtractor protocols and Meeting data type",
+        "completed": "2025-12-22"
       }
     }
   },
@@ -1365,6 +1368,6 @@
       "frontend_refinement": 3,
       "pilot_validation": 10
     },
-    "notes": "Updated 2025-12-22: Session 349 - COMPLETED both data_standards schema_validation items. (1) validate_meetings_on_ingest: MeetingValidator in civic-extraction. (2) validate_decisions_on_ingest: DecisionValidator in civic. Added 47 tests total."
+    "notes": "Updated 2025-12-22: Session 350 - COMPLETED ingestion_manifest (157/174, 90.2%). Created IngestionManifest in civic_extraction/manifest.py with provenance tracking, checksums, Pipeline integration, CLI command. 20 new tests. Next P0: extraction_audit_log."
   }
 }

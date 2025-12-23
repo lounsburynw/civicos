@@ -65,6 +65,15 @@ from civic_extraction.platform_detection import (
     detect_platform,
     detect_platform_batch,
 )
+from civic_extraction.manifest import (
+    IngestionManifest,
+    SourceEntry,
+    ValidationSummary,
+    save_manifest,
+    load_manifest,
+    list_manifests,
+    get_latest_manifest,
+)
 
 __version__ = "0.1.0"
 __all__ = [
@@ -96,4 +105,11 @@ __all__ = [
     "MeetingValidationResult",
     "BatchValidationResult",
     "MEETING_SCHEMA",
+    "IngestionManifest",
+    "SourceEntry",
+    "ValidationSummary",
+    "save_manifest",
+    "load_manifest",
+    "list_manifests",
+    "get_latest_manifest",
 ]

@@ -1,65 +1,62 @@
-# Recommended: Meeting Schema Validation on Ingest
+# Recommended: Extraction Audit Log
 
 **Priority:** P0 (IMMEDIATE)
-**Area:** data_standards > schema_validation
+**Area:** data_standards > provenance
 **Date:** 2025-12-22
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 348 completed `vector_backend_protocol_completion` - added embedding_model/embedding_dimension properties to VectorBackend protocol and created PgVectorBackend stub (153/174 items ready, 87.9%). The next priority is adding schema validation to the meeting ingestion pipeline.
+Session 350 completed `ingestion_manifest` - created IngestionManifest dataclass with provenance tracking (source entries, validation summaries, checksums), Pipeline.run(save_manifest=True) integration, and CLI command for viewing history (157/174 items ready, 90.2%).
 
-**The problem:** Meetings are ingested without validation:
-- No JSON schema validation during extraction
-- Data quality issues can propagate to vector indexes and API responses
-- Need to catch malformed data before it enters the system
+**The opportunity:** Build on IngestionManifest to create an extraction audit log:
+- Track extraction runs with success/failure counts per platform
+- Aggregate metrics across multiple runs
+- Provide audit trail for data provenance
 
 ## Recommended Task
 
-Add JSON schema validation to meeting ingestion:
+Add extraction audit logging that builds on IngestionManifest:
 
-1. Find or create `civic-app-schema.json` for Meeting objects
-2. Add validation step to meeting extraction/ingestion pipeline
-3. Handle validation errors gracefully (log, skip, or fail)
+1. **AuditLog class** - aggregates extraction runs per platform
+2. **Log entries** - track: platform, run count, success rate, last run, total records
+3. **CLI command** - `civic-extract audit --jurisdiction city-san-rafael`
 
-## Key Files to Investigate
+## Key Files to Reference
 
 ```
-packages/civic/src/civic/storage/sqlite_backend.py  # store_meetings()
-packages/civic/src/civic/storage/postgres_backend.py  # store_meetings()
-packages/civic-extraction/  # Platform extractors
-data/  # Look for existing schema files
+packages/civic-extraction/src/civic_extraction/manifest.py  # IngestionManifest
+packages/civic-extraction/src/civic_extraction/cli/monitor.py  # Monitor patterns
+packages/civic-extraction/tests/test_manifest.py  # Test patterns
 ```
 
 ## Suggested Approach
 
-1. **Find existing schemas** - Check if civic-app-schema.json exists
-2. **Identify validation point** - Where should validation happen? (extraction vs storage)
-3. **Add jsonschema validation** - Use `jsonschema` library
-4. **Handle errors** - Log validation failures, decide on skip vs fail behavior
-5. **Add tests** - Test both valid and invalid meeting data
+1. **Extend manifest module** - Add AuditEntry and AuditLog classes
+2. **Aggregate manifests** - Build audit log from manifest history
+3. **Add CLI** - `civic-extract audit` command for viewing
+4. **Add tests** - Test aggregation and CLI functionality
 
 ## Tests to Run
 
 ```bash
+# Manifest tests
+pytest packages/civic-extraction/tests/test_manifest.py -v --override-ini="addopts="
+
 # Smoke tests
 pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
-
-# Storage tests
-pytest packages/civic/tests/test_storage_protocols.py -v --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] Meeting objects validated against JSON schema during ingestion
-- [ ] Validation errors logged with details
-- [ ] Invalid meetings handled gracefully (skip or fail with clear message)
-- [ ] Existing tests still pass
-- [ ] pilot.json `validate_meetings_on_ingest` marked as ready
+- [ ] AuditLog class aggregates extraction runs per platform
+- [ ] CLI command displays audit information
+- [ ] Tests cover aggregation and CLI
+- [ ] pilot.json `extraction_audit_log` marked as ready
 
 ## Pilot Progress
 
-- 153/174 items ready (87.9%)
-- 21 items remaining
-- P0: validate_meetings_on_ingest (this item)
+- 157/174 items ready (90.2%)
+- 17 items remaining
+- P0: extraction_audit_log (this item)

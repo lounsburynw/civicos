@@ -1,7 +1,7 @@
 {
   "jurisdiction": "california",
   "topic": "housing",
-  "last_updated": "2025-10-07T14:03:15.432682",
+  "last_updated": "2025-12-21T21:06:11.149591",
   "data_sources": [
     "Perplexity Sonar Pro API",
     "leginfo.legislature.ca.gov (cited by Perplexity)",
@@ -122,6 +122,60 @@
         "streamlining",
         "small-scale development"
       ]
+    },
+    "ca-ab650": {
+      "bill": "Planning and zoning: housing element: regional housing needs allocation.",
+      "status": "Active",
+      "enacted": null,
+      "local_implementation_required": true,
+      "local_deadline": null,
+      "leverage_point": "Residents can influence the allocation of regional housing needs through public comments and participation in local planning meetings.",
+      "official_url": "",
+      "summary": "",
+      "keywords": [
+        "housing",
+        "affordable housing",
+        "zoning",
+        "density",
+        "ADU"
+      ],
+      "_legiscan_id": 1970438
+    },
+    "ca-sb838": {
+      "bill": "Housing Accountability Act: housing development projects.",
+      "status": "Active",
+      "enacted": null,
+      "local_implementation_required": true,
+      "local_deadline": null,
+      "leverage_point": "Residents can advocate for or against specific housing development projects during city council meetings and public hearings.",
+      "official_url": "",
+      "summary": "",
+      "keywords": [
+        "housing",
+        "affordable housing",
+        "zoning",
+        "density",
+        "ADU"
+      ],
+      "_legiscan_id": 1980568
+    },
+    "ca-ab1308": {
+      "bill": "Residential building permits: inspections: Housing Accountability Act.",
+      "status": "Active",
+      "enacted": null,
+      "local_implementation_required": true,
+      "local_deadline": null,
+      "leverage_point": "Residents can engage in the permitting process and provide input on inspections and compliance with local housing standards.",
+      "official_url": "",
+      "summary": "",
+      "keywords": [
+        "housing",
+        "affordable housing",
+        "zoning",
+        "density",
+        "ADU"
+      ],
+      "_legiscan_id": 1980205
     }
   },
   "federal_programs": {}
