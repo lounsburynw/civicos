@@ -1,94 +1,65 @@
-# Recommended: Data Path Resolver
+# Recommended: Meeting Schema Validation on Ingest
 
 **Priority:** P0 (IMMEDIATE)
-**Area:** data_architecture > configuration_management
+**Area:** data_standards > schema_validation
 **Date:** 2025-12-22
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 344 completed `jurisdiction_registry_consolidation` - created a centralized `JurisdictionRegistry` class that consolidates all jurisdiction configuration (149/173 items ready, 86.1%). The next priority item is centralizing file path generation which currently blocks containerized deployment.
+Session 348 completed `vector_backend_protocol_completion` - added embedding_model/embedding_dimension properties to VectorBackend protocol and created PgVectorBackend stub (153/174 items ready, 87.9%). The next priority is adding schema validation to the meeting ingestion pipeline.
 
-**The problem:** Hardcoded paths throughout the codebase make it impossible to run in containers or alternate environments:
-- `data/civic_state.db` (15+ references)
-- `data/pilot/vectors/` (embeddings.py)
-- `data/checkpoints/` (pipeline.py)
+**The problem:** Meetings are ingested without validation:
+- No JSON schema validation during extraction
+- Data quality issues can propagate to vector indexes and API responses
+- Need to catch malformed data before it enters the system
 
 ## Recommended Task
 
-Create a `DataPathResolver` class that reads `CIVIC_DATA_ROOT` from environment and generates all file paths:
+Add JSON schema validation to meeting ingestion:
 
-1. Create `DataPathResolver` class in `packages/civic/src/civic/paths.py`
-2. Support environment variable `CIVIC_DATA_ROOT` with fallback to `data/`
-3. Provide methods for all common paths:
-   - `state_db()` -> civic_state.db path
-   - `vectors_dir()` -> vectors directory
-   - `checkpoints_dir()` -> checkpoints directory
-4. Refactor files with hardcoded paths to use resolver
+1. Find or create `civic-app-schema.json` for Meeting objects
+2. Add validation step to meeting extraction/ingestion pipeline
+3. Handle validation errors gracefully (log, skip, or fail)
 
 ## Key Files to Investigate
 
-Use Explore agent to find hardcoded paths:
 ```
-grep -r "data/civic_state.db" packages/
-grep -r "data/pilot/vectors" packages/
-grep -r "data/checkpoints" packages/
+packages/civic/src/civic/storage/sqlite_backend.py  # store_meetings()
+packages/civic/src/civic/storage/postgres_backend.py  # store_meetings()
+packages/civic-extraction/  # Platform extractors
+data/  # Look for existing schema files
 ```
 
 ## Suggested Approach
 
-1. **Create DataPathResolver class**:
-   ```python
-   import os
-   from pathlib import Path
-
-   class DataPathResolver:
-       def __init__(self, root: str = None):
-           self.root = Path(root or os.environ.get('CIVIC_DATA_ROOT', 'data'))
-
-       def state_db(self) -> Path:
-           return self.root / 'civic_state.db'
-
-       def vectors_dir(self) -> Path:
-           return self.root / 'pilot' / 'vectors'
-
-       def checkpoints_dir(self) -> Path:
-           return self.root / 'checkpoints'
-
-   # Module-level default resolver
-   _default_resolver = None
-   def get_resolver() -> DataPathResolver:
-       global _default_resolver
-       if _default_resolver is None:
-           _default_resolver = DataPathResolver()
-       return _default_resolver
-   ```
-
-2. **Refactor files** to use resolver instead of hardcoded paths
-
-3. **Add tests** for path resolution with different CIVIC_DATA_ROOT values
+1. **Find existing schemas** - Check if civic-app-schema.json exists
+2. **Identify validation point** - Where should validation happen? (extraction vs storage)
+3. **Add jsonschema validation** - Use `jsonschema` library
+4. **Handle errors** - Log validation failures, decide on skip vs fail behavior
+5. **Add tests** - Test both valid and invalid meeting data
 
 ## Tests to Run
 
 ```bash
-# Smoke tests (core API)
+# Smoke tests
 pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
 
-# If you add tests for DataPathResolver
-pytest packages/civic/tests/test_paths.py -v --override-ini="addopts="
+# Storage tests
+pytest packages/civic/tests/test_storage_protocols.py -v --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] DataPathResolver class in packages/civic/src/civic/paths.py
-- [ ] CIVIC_DATA_ROOT environment variable support
-- [ ] Hardcoded paths replaced in major files
+- [ ] Meeting objects validated against JSON schema during ingestion
+- [ ] Validation errors logged with details
+- [ ] Invalid meetings handled gracefully (skip or fail with clear message)
 - [ ] Existing tests still pass
-- [ ] pilot.json `data_path_resolver` marked as ready
+- [ ] pilot.json `validate_meetings_on_ingest` marked as ready
 
 ## Pilot Progress
 
-- 149/173 items ready (86.1%)
-- 24 items remaining
-- P0: data_path_resolver (this item)
+- 153/174 items ready (87.9%)
+- 21 items remaining
+- P0: validate_meetings_on_ingest (this item)
