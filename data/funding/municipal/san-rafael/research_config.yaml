@@ -1,0 +1,33 @@
+# San Rafael Municipal Funding Research Configuration
+# This file customizes the research queries for San Rafael, California
+
+# Known program names/identifiers to search for specifically
+# These are searched as: "{municipality} {state} {program}"
+known_programs:
+  - "Resolution 14760"              # Housing Trust Fund governing resolution
+  - "Resolution 15179"              # In-lieu fee update (Dec 2022)
+  - "Section 14.16.030"             # Inclusionary housing ordinance
+  - "Measure P"                     # Community Building Parcel Tax (2024)
+  - "Measure D"                     # Library Special Tax
+  - "Downtown Precise Plan"         # Anti-displacement strategy
+
+# Custom queries specific to San Rafael
+# These are searched exactly as written
+custom_queries:
+  - "San Rafael California in-lieu fee $389,032 per unit 2025"
+  - "San Rafael California commercial linkage fee $13.33 office retail"
+  - "San Rafael California Marin County CDBG HOME cooperative agreement"
+  - "San Rafael California affordable housing fund $250,000 rolling application"
+  - "San Rafael Measure P parcel tax $0.145 library community center"
+
+# Override default query templates
+# Use {municipality}, {state}, {year}, {year_range} placeholders
+query_overrides:
+  trust_fund: "San Rafael California affordable housing trust fund Resolution 14760 55 year restriction"
+  inclusionary_fees: "San Rafael California inclusionary housing in-lieu fee per unit Resolution 15179 2024 2025"
+  commercial_linkage: "San Rafael California commercial linkage fee per square foot office retail hotel Section 14.16.030"
+
+# Query keys to skip (if not relevant to this municipality)
+skip_queries: []
+  # Example: skip rent control query if city doesn't have it
+  # - "rent_control"
