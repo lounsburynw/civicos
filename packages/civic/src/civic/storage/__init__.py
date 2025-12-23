@@ -48,6 +48,7 @@ from .backend import (
     StorageStats,
     StorageValidationResult,
 )
+from .pgvector_backend import PgVectorBackend
 from .postgres_backend import PostgresBackend
 from .sqlite_backend import SQLiteBackend
 from .vector import (
@@ -71,4 +72,6 @@ __all__ = [
     "VectorStats",
     "VectorValidationResult",
     "SearchResult",
+    # pgvector implementation (stub)
+    "PgVectorBackend",
 ]

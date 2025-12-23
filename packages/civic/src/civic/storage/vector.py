@@ -165,11 +165,35 @@ class VectorBackend(Protocol):
             corpus_type="meetings",
             top_k=5
         )
+
+        # Inspect embedding configuration
+        print(f"Model: {vector.embedding_model}")
+        print(f"Dimensions: {vector.embedding_dimension}")
     """
 
     @property
     def backend_type(self) -> str:
         """Type identifier: 'chromadb', 'pgvector'."""
+        ...
+
+    @property
+    def embedding_model(self) -> str:
+        """
+        Embedding model identifier.
+
+        Returns the model name used for generating embeddings.
+        Examples: 'nomic-ai/nomic-embed-text-v1.5', 'text-embedding-3-small'
+        """
+        ...
+
+    @property
+    def embedding_dimension(self) -> int:
+        """
+        Embedding vector dimension.
+
+        Returns the dimension of embedding vectors produced by the model.
+        Used for validation and schema creation in vector stores.
+        """
         ...
 
     def validate(self) -> VectorValidationResult:
