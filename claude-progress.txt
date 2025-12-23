@@ -5172,3 +5172,60 @@ CREATE TABLE operations (
 - After: 148/173 items (85.5%)
 
 ---
+
+---
+
+## Session 344 (2025-12-22)
+
+### Completed: jurisdiction_registry_consolidation (P0)
+
+Created centralized `JurisdictionRegistry` class in `packages/civic/src/civic/jurisdiction.py` that consolidates all jurisdiction configuration previously scattered across multiple files.
+
+**Changes:**
+1. **New module: jurisdiction.py**
+   - `JurisdictionConfig` frozen dataclass with full city config
+   - `GranicusConfig` for Granicus-specific settings
+   - `JurisdictionRegistry` class with lookup methods:
+     - `get(city_key)` - lookup by city key (e.g., "san_rafael")
+     - `get_by_id(jurisdiction_id)` - lookup by ID (e.g., "city-san-rafael")
+     - `get_timezone(jurisdiction_id)` - get timezone string
+     - `get_timezone_display(jurisdiction_id)` - get (timezone, abbrev) tuple
+     - `has_jurisdiction(jurisdiction_id)` - check if registered
+     - `all_configs()` - get all configurations
+   - 25 cities with full config (timezone, agent_type, meeting_urls, etc.)
+   - `CITY_CONFIGS` dict exported for backward compatibility
+
+2. **Refactored civic_schema_adapter.py**
+   - Removed module-level JURISDICTION_TIMEZONES (lines 20-42)
+   - Removed 3 duplicate JURISDICTION_TIMEZONES dicts inside methods
+   - Removed TIMEZONE_DISPLAY dict
+   - All timezone lookups now use `JurisdictionRegistry.get_timezone()`
+
+3. **Refactored automated_civic_refresh.py**
+   - Removed 285-line CITY_CONFIGS definition
+   - Now imports from civic.jurisdiction
+
+4. **Added test_jurisdiction.py** with 23 tests covering:
+   - Registry lookups by key and ID
+   - Timezone resolution
+   - Backward compatibility
+   - Agent type verification
+
+**Files Changed:**
+- `packages/civic/src/civic/jurisdiction.py` (new, 375 lines)
+- `packages/civic/src/civic/__init__.py` (exports added)
+- `packages/civic-services/src/civic_services/processing/civic_schema_adapter.py`
+- `packages/civic-services/src/civic_services/monitoring/automated_civic_refresh.py`
+- `packages/civic/tests/test_jurisdiction.py` (new, 23 tests)
+- `pilot.json` (jurisdiction_registry_consolidation -> ready)
+
+**Tests:** 23 new + 34 smoke tests pass
+
+### Pilot Progress
+- Before: 148/173 items (85.5%)
+- After: 149/173 items (86.1%)
+
+### Next P0: data_path_resolver
+Centralize file path generation with CIVIC_DATA_ROOT env var support.
+
+---

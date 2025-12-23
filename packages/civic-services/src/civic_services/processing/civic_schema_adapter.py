@@ -16,30 +16,7 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 import re
 
-
-# Jurisdiction-to-timezone mapping (module-level constant)
-JURISDICTION_TIMEZONES = {
-    # California cities
-    "city-san-rafael": "America/Los_Angeles",
-    "city-berkeley": "America/Los_Angeles",
-    "city-oakland": "America/Los_Angeles",
-    "city-san-francisco": "America/Los_Angeles",
-    "city-richmond": "America/Los_Angeles",
-    "city-el-cerrito": "America/Los_Angeles",
-    "city-dublin": "America/Los_Angeles",
-    "city-union-city": "America/Los_Angeles",
-    "city-concord": "America/Los_Angeles",
-    "city-hayward": "America/Los_Angeles",
-    "marin-county": "America/Los_Angeles",
-    # Major US cities
-    "city-new-york": "America/New_York",
-    "city-chicago": "America/Chicago",
-    "city-denver": "America/Denver",
-    "city-phoenix": "America/Phoenix",
-    "city-houston": "America/Chicago",
-    "city-philadelphia": "America/New_York",
-    "city-seattle": "America/Los_Angeles"
-}
+from civic.jurisdiction import JurisdictionRegistry
 
 
 # Schema-compliant data classes based on civic-app-schema.json
@@ -251,36 +228,9 @@ class CivicSchemaAdapter:
         - "city-chicago" -> Central Time
         - "city-new-york" -> Eastern Time
         """
-        # Jurisdiction-to-timezone mapping for generalizability
-        JURISDICTION_TIMEZONES = {
-            # California cities
-            "city-san-rafael": "America/Los_Angeles",
-            "city-berkeley": "America/Los_Angeles",
-            "city-oakland": "America/Los_Angeles",
-            "city-san-francisco": "America/Los_Angeles",
-
-            # Major US cities
-            "city-new-york": "America/New_York",
-            "city-chicago": "America/Chicago",
-            "city-denver": "America/Denver",
-            "city-phoenix": "America/Phoenix",
-            "city-houston": "America/Chicago",
-            "city-philadelphia": "America/New_York",
-            "city-seattle": "America/Los_Angeles",
-
-            # State-level defaults for unmapped cities
-            "california": "America/Los_Angeles",
-            "new-york": "America/New_York",
-            "illinois": "America/Chicago",
-            "colorado": "America/Denver",
-            "texas": "America/Chicago",
-            "washington": "America/Los_Angeles",
-            "florida": "America/New_York"
-        }
-
-        # Get jurisdiction ID from current context (fallback to UTC if unknown)
+        # Get jurisdiction ID from current context
         jurisdiction_id = getattr(self, 'current_jurisdiction_id', 'unknown')
-        timezone_name = JURISDICTION_TIMEZONES.get(jurisdiction_id, None)
+        timezone_name = JurisdictionRegistry.get_timezone(jurisdiction_id, default=None)
 
         if timezone_name:
             try:
@@ -600,20 +550,10 @@ class CivicSchemaAdapter:
             # Get jurisdiction timezone for proper conversion
             jurisdiction_id = getattr(self, 'current_jurisdiction_id', 'unknown')
 
-            # Mapping for jurisdiction to timezone display names
-            TIMEZONE_DISPLAY = {
-                "city-el-cerrito": ("America/Los_Angeles", "PT"),
-                "city-san-rafael": ("America/Los_Angeles", "PT"),
-                "city-berkeley": ("America/Los_Angeles", "PT"),
-                "city-oakland": ("America/Los_Angeles", "PT"),
-                "city-san-francisco": ("America/Los_Angeles", "PT"),
-                "city-new-york": ("America/New_York", "ET"),
-                "city-chicago": ("America/Chicago", "CT"),
-                "city-denver": ("America/Denver", "MT"),
-            }
+            # Use JurisdictionRegistry for timezone lookup
+            timezone_name, display_name = JurisdictionRegistry.get_timezone_display(jurisdiction_id)
 
-            if jurisdiction_id in TIMEZONE_DISPLAY:
-                timezone_name, display_name = TIMEZONE_DISPLAY[jurisdiction_id]
+            if JurisdictionRegistry.has_jurisdiction(jurisdiction_id):
                 local_tz = pytz.timezone(timezone_name)
 
                 # Convert to local timezone
@@ -942,22 +882,8 @@ class CivicSchemaAdapter:
 
             # Use jurisdiction timezone mapping if not provided by agent
             if not timezone_field:
-                # Jurisdiction-to-timezone mapping from existing system
-                JURISDICTION_TIMEZONES = {
-                    "city-san-rafael": "America/Los_Angeles",
-                    "city-berkeley": "America/Los_Angeles",
-                    "city-oakland": "America/Los_Angeles",
-                    "city-san-francisco": "America/Los_Angeles",
-                    "city-new-york": "America/New_York",
-                    "city-chicago": "America/Chicago",
-                    "city-denver": "America/Denver",
-                    "city-phoenix": "America/Phoenix",
-                    "city-houston": "America/Chicago",
-                    "city-philadelphia": "America/New_York",
-                    "city-seattle": "America/Los_Angeles",
-                }
                 jurisdiction_id = jurisdiction.id if jurisdiction else 'unknown'
-                timezone_field = JURISDICTION_TIMEZONES.get(jurisdiction_id)
+                timezone_field = JurisdictionRegistry.get_timezone(jurisdiction_id, default=None)
 
             # Clear deadline if there's no justification (ChatGPT feedback compliance)
             if not deadline_reason or deadline_reason.strip() == "":
@@ -1127,7 +1053,7 @@ Be accurate and specific. Use official meeting names from the URL or meeting_typ
                     # Apply timezone if missing
                     if meeting_datetime.tzinfo is None:
                         jurisdiction_id = jurisdiction.id if jurisdiction else 'unknown'
-                        timezone_field = JURISDICTION_TIMEZONES.get(jurisdiction_id, 'America/Los_Angeles')
+                        timezone_field = JurisdictionRegistry.get_timezone(jurisdiction_id, default='America/Los_Angeles')
                         import pytz
                         tz = pytz.timezone(timezone_field)
                         meeting_datetime = tz.localize(meeting_datetime)
@@ -1144,7 +1070,7 @@ Be accurate and specific. Use official meeting names from the URL or meeting_typ
                     meeting_datetime = parser.parse(combined)
                     # Apply timezone
                     jurisdiction_id = jurisdiction.id if jurisdiction else 'unknown'
-                    timezone_field = JURISDICTION_TIMEZONES.get(jurisdiction_id, 'America/Los_Angeles')
+                    timezone_field = JurisdictionRegistry.get_timezone(jurisdiction_id, default='America/Los_Angeles')
                     if meeting_datetime.tzinfo is None:
                         import pytz
                         tz = pytz.timezone(timezone_field)
@@ -1319,7 +1245,7 @@ Only return has_virtual_access=true if you find ACTUAL virtual access details. B
                 agenda_item_number=None,
                 engagement=None,
                 agenda_page=None,
-                timezone=JURISDICTION_TIMEZONES.get(jurisdiction_id, 'America/Los_Angeles')
+                timezone=JurisdictionRegistry.get_timezone(jurisdiction_id, default='America/Los_Angeles')
             )
 
             # Store events as single meeting event

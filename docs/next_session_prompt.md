@@ -1,4 +1,4 @@
-# Recommended: Jurisdiction Registry Consolidation
+# Recommended: Data Path Resolver
 
 **Priority:** P0 (IMMEDIATE)
 **Area:** data_architecture > configuration_management
@@ -8,63 +8,66 @@
 
 ## Context
 
-Session 343 completed `operations_backend_protocol` - adding operation tracking to the StorageBackend protocol (148/173 items ready, 85.5%). The next priority item is consolidating jurisdiction configuration which is currently scattered across multiple files with duplicate hardcoded mappings.
+Session 344 completed `jurisdiction_registry_consolidation` - created a centralized `JurisdictionRegistry` class that consolidates all jurisdiction configuration (149/173 items ready, 86.1%). The next priority item is centralizing file path generation which currently blocks containerized deployment.
 
-**The problem:** `CITY_CONFIGS` exists in one file, but timezone mappings and other jurisdiction metadata are duplicated in multiple places, violating DRY and making it error-prone to add new cities.
+**The problem:** Hardcoded paths throughout the codebase make it impossible to run in containers or alternate environments:
+- `data/civic_state.db` (15+ references)
+- `data/pilot/vectors/` (embeddings.py)
+- `data/checkpoints/` (pipeline.py)
 
 ## Recommended Task
 
-Create a centralized `JurisdictionRegistry` class that consolidates all jurisdiction configuration:
+Create a `DataPathResolver` class that reads `CIVIC_DATA_ROOT` from environment and generates all file paths:
 
-1. Promote `CITY_CONFIGS` to a `JurisdictionRegistry` class in core location
-2. Add missing fields (county, state, civic_center_address)
-3. Refactor files with duplicate hardcoded mappings to import from registry
+1. Create `DataPathResolver` class in `packages/civic/src/civic/paths.py`
+2. Support environment variable `CIVIC_DATA_ROOT` with fallback to `data/`
+3. Provide methods for all common paths:
+   - `state_db()` -> civic_state.db path
+   - `vectors_dir()` -> vectors directory
+   - `checkpoints_dir()` -> checkpoints directory
+4. Refactor files with hardcoded paths to use resolver
 
-## Key Files
+## Key Files to Investigate
 
-**Authoritative Source (to promote):**
-- `packages/civic-services/src/civic_services/monitoring/automated_civic_refresh.py:23-100` - `CITY_CONFIGS` dict with jurisdiction_id, agent_type, meeting_urls, timezone, etc.
-
-**Files with Duplicate Mappings (to refactor):**
-- `packages/civic-services/src/civic_services/processing/civic_schema_adapter.py:20-42` - `JURISDICTION_TIMEZONES` module-level constant (duplicate)
-- `packages/civic-services/src/civic_services/processing/civic_schema_adapter.py:255-279` - `JURISDICTION_TIMEZONES` inside `_apply_jurisdiction_timezone()` (duplicate)
-- `packages/civic-services/src/civic_services/processing/civic_schema_adapter.py:604-613` - `TIMEZONE_DISPLAY` mapping
-- `packages/civic-services/src/civic_services/processing/civic_schema_adapter.py:946-960` - Yet another `JURISDICTION_TIMEZONES` copy
-
-**API integration:**
-- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py:1628-1687` - Imports CITY_CONFIGS, uses it for jurisdiction metadata
+Use Explore agent to find hardcoded paths:
+```
+grep -r "data/civic_state.db" packages/
+grep -r "data/pilot/vectors" packages/
+grep -r "data/checkpoints" packages/
+```
 
 ## Suggested Approach
 
-1. **Create JurisdictionRegistry class** in `packages/civic/src/civic/jurisdiction.py`:
+1. **Create DataPathResolver class**:
    ```python
-   @dataclass
-   class JurisdictionConfig:
-       jurisdiction_id: str
-       agent_type: str
-       meeting_urls: List[str]
-       timezone: str
-       website: Optional[str] = None
-       county: Optional[str] = None
-       state: str = "CA"
-       # ... other fields
+   import os
+   from pathlib import Path
 
-   class JurisdictionRegistry:
-       @classmethod
-       def get(cls, city_key: str) -> JurisdictionConfig: ...
-       @classmethod
-       def get_by_id(cls, jurisdiction_id: str) -> JurisdictionConfig: ...
-       @classmethod
-       def get_timezone(cls, jurisdiction_id: str) -> str: ...
+   class DataPathResolver:
+       def __init__(self, root: str = None):
+           self.root = Path(root or os.environ.get('CIVIC_DATA_ROOT', 'data'))
+
+       def state_db(self) -> Path:
+           return self.root / 'civic_state.db'
+
+       def vectors_dir(self) -> Path:
+           return self.root / 'pilot' / 'vectors'
+
+       def checkpoints_dir(self) -> Path:
+           return self.root / 'checkpoints'
+
+   # Module-level default resolver
+   _default_resolver = None
+   def get_resolver() -> DataPathResolver:
+       global _default_resolver
+       if _default_resolver is None:
+           _default_resolver = DataPathResolver()
+       return _default_resolver
    ```
 
-2. **Migrate CITY_CONFIGS data** from automated_civic_refresh.py to the registry
+2. **Refactor files** to use resolver instead of hardcoded paths
 
-3. **Refactor civic_schema_adapter.py** to use registry instead of hardcoded mappings
-
-4. **Refactor automated_civic_refresh.py** to import from registry
-
-5. **Add tests** for registry lookups
+3. **Add tests** for path resolution with different CIVIC_DATA_ROOT values
 
 ## Tests to Run
 
@@ -72,21 +75,20 @@ Create a centralized `JurisdictionRegistry` class that consolidates all jurisdic
 # Smoke tests (core API)
 pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
 
-# If you add tests for JurisdictionRegistry
-pytest packages/civic/tests/test_jurisdiction.py -v --override-ini="addopts="
+# If you add tests for DataPathResolver
+pytest packages/civic/tests/test_paths.py -v --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] JurisdictionRegistry class in packages/civic/src/civic/
-- [ ] All jurisdiction data consolidated in one location
-- [ ] No duplicate JURISDICTION_TIMEZONES mappings in civic_schema_adapter.py
-- [ ] automated_civic_refresh.py imports from registry
+- [ ] DataPathResolver class in packages/civic/src/civic/paths.py
+- [ ] CIVIC_DATA_ROOT environment variable support
+- [ ] Hardcoded paths replaced in major files
 - [ ] Existing tests still pass
-- [ ] pilot.json `jurisdiction_registry_consolidation` marked as ready
+- [ ] pilot.json `data_path_resolver` marked as ready
 
 ## Pilot Progress
 
-- 148/173 items ready (85.5%)
-- 25 items remaining
-- P0: jurisdiction_registry_consolidation (this item)
+- 149/173 items ready (86.1%)
+- 24 items remaining
+- P0: data_path_resolver (this item)
