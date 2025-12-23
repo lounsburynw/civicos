@@ -5,14 +5,26 @@ Wraps civic-services StateManager to provide protocol-compliant storage.
 Part of the 4-stage pipeline: discover -> ingest -> store -> index.
 """
 
+import json
 import sqlite3
 import time
-from datetime import datetime
+from datetime import datetime, date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from civic.paths import get_state_db_path
 from .backend import StorageBackend, StorageStats, StorageValidationResult
+
+
+class DateTimeEncoder(json.JSONEncoder):
+    """JSON encoder that handles datetime objects."""
+
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, date):
+            return obj.isoformat()
+        return super().default(obj)
 
 
 class SQLiteBackend:
@@ -291,8 +303,6 @@ class SQLiteBackend:
         Raises:
             sqlite3.Error: If atomic store operation fails
         """
-        import json
-
         as_of = as_of or datetime.now()
 
         conn = sqlite3.connect(self._db_path)
@@ -328,6 +338,19 @@ class SQLiteBackend:
                 else:
                     meeting_dict = meeting
 
+                # Convert datetime fields to ISO strings for SQLite
+                meeting_dt = meeting_dict.get('meeting_datetime')
+                if isinstance(meeting_dt, datetime):
+                    meeting_dt = meeting_dt.isoformat()
+                elif isinstance(meeting_dt, date):
+                    meeting_dt = meeting_dt.isoformat()
+
+                comment_dl = meeting_dict.get('comment_deadline')
+                if isinstance(comment_dl, datetime):
+                    comment_dl = comment_dl.isoformat()
+                elif isinstance(comment_dl, date):
+                    comment_dl = comment_dl.isoformat()
+
                 cursor.execute("""
                     INSERT INTO meetings (
                         id, jurisdiction_id, title, meeting_datetime,
@@ -340,7 +363,7 @@ class SQLiteBackend:
                     meeting_dict.get('id'),
                     jurisdiction_id,
                     meeting_dict.get('title'),
-                    meeting_dict.get('meeting_datetime'),
+                    meeting_dt,
                     meeting_dict.get('meeting_type'),
                     meeting_dict.get('status'),
                     meeting_dict.get('location'),
@@ -348,13 +371,13 @@ class SQLiteBackend:
                     meeting_dict.get('agenda_url'),
                     meeting_dict.get('minutes_url'),
                     meeting_dict.get('video_url'),
-                    meeting_dict.get('comment_deadline'),
+                    comment_dl,
                     meeting_dict.get('source_platform', 'unknown'),
                     meeting_dict.get('source_url'),
                     as_of.isoformat(),
                     meeting_dict.get('data_quality_score', 0.0),
                     as_of.isoformat(),
-                    json.dumps(meeting_dict)
+                    json.dumps(meeting_dict, cls=DateTimeEncoder)
                 ))
 
             # Update city_state timestamp
@@ -394,8 +417,6 @@ class SQLiteBackend:
         Returns:
             List of meeting dictionaries ready for indexing
         """
-        import json
-
         as_of = as_of or datetime.now()
         conn = self._get_connection()
         self._ensure_schema(conn)
