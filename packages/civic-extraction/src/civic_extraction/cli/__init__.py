@@ -31,12 +31,15 @@ Usage:
 
     civic-extract manifest list --jurisdiction city-san-rafael
     civic-extract manifest latest --jurisdiction city-san-rafael
+
+    civic-extract audit --jurisdiction city-san-rafael
 """
 
 import argparse
 import sys
 
 from civic_extraction.cli.audio import add_audio_parser, run_audio
+from civic_extraction.cli.audit_cli import add_audit_parser, run_audit
 from civic_extraction.cli.discover import add_discover_parser, run_discover
 from civic_extraction.cli.legislative import add_legislative_parser, run_legislative
 from civic_extraction.cli.manifest_cli import add_manifest_parser, run_manifest
@@ -63,6 +66,7 @@ def main() -> int:
 
     # Add subcommands
     add_audio_parser(subparsers)
+    add_audit_parser(subparsers)
     add_discover_parser(subparsers)
     add_legislative_parser(subparsers)
     add_manifest_parser(subparsers)
@@ -80,6 +84,8 @@ def main() -> int:
     # Route to appropriate command
     if args.command == "audio":
         return run_audio(args)
+    elif args.command == "audit":
+        return run_audit(args)
     elif args.command == "discover":
         return run_discover(args)
     elif args.command == "legislative":

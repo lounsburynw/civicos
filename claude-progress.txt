@@ -5588,3 +5588,49 @@ Created standardized ingestion manifest for tracking extraction runs with proven
 Build on IngestionManifest to create extraction audit logging with aggregated metrics per platform.
 
 ---
+
+## Session 351: Extraction Audit Log
+
+**Date:** 2025-12-22
+**Item:** extraction_audit_log (P0)
+**Status:** COMPLETE
+
+### Summary
+Added extraction audit logging that aggregates metrics from IngestionManifest history.
+
+### Implementation
+
+**AuditEntry class** - Per-platform aggregated metrics:
+- source_type, run_count, success_count, failure_count
+- total_records, avg_records_per_run
+- first_run, last_run timestamps
+- success_rate property (percentage)
+
+**AuditLog class** - Audit log aggregating across platforms:
+- from_manifests() builds from manifest history
+- to_dict()/from_dict() for serialization
+- summary() for human-readable output
+
+**CLI command:**
+```bash
+civic-extract audit --jurisdiction city-san-rafael
+civic-extract audit --jurisdiction city-san-rafael --json
+civic-extract audit --jurisdiction city-san-rafael --limit 50
+```
+
+### Files Modified
+- `packages/civic-extraction/src/civic_extraction/manifest.py` (added AuditEntry, AuditLog)
+- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` (audit routing)
+- `packages/civic-extraction/src/civic_extraction/cli/audit_cli.py` (new)
+- `packages/civic-extraction/tests/test_manifest.py` (13 new tests)
+- `pilot.json` (extraction_audit_log -> ready)
+
+### Tests
+- 33 manifest tests: passed (20 original + 13 new audit tests)
+- 34 smoke tests: passed
+
+### Pilot Progress
+- Before: 157/174 items (90.2%)
+- After: 158/174 items (90.8%)
+
+---
