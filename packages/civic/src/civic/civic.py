@@ -33,6 +33,7 @@ from datetime import datetime
 # Import from internal modules (consolidated)
 from civic._internal.state import StateManager
 from civic.storage import StorageBackend, StorageStats, SQLiteBackend
+from civic.paths import get_state_db_path
 
 # Optional imports - gracefully degrade if not available
 try:
@@ -306,7 +307,7 @@ class Civic:
         c.whats_next(["transportation"])
     """
     jurisdiction: str
-    db_path: str = "data/civic_state.db"
+    db_path: str = field(default=None)  # Defaults to get_state_db_path() in __post_init__
     _state: StateManager = field(default=None, repr=False)
     _search: Any = field(default=None, repr=False)  # LegalSearch if available
     _storage: StorageBackend = field(default=None, repr=False)  # StorageBackend for stats
@@ -316,6 +317,10 @@ class Civic:
         # Normalize jurisdiction ID to canonical format (e.g., "san-rafael" -> "city-san-rafael")
         from civic._internal.jurisdiction import normalize_jurisdiction
         self.jurisdiction = normalize_jurisdiction(self.jurisdiction)
+
+        # Default db_path using get_state_db_path() which respects CIVIC_DATA_ROOT
+        if self.db_path is None:
+            self.db_path = get_state_db_path()
 
         self._state = StateManager(self.db_path)
         self._storage = SQLiteBackend(self.db_path)
@@ -808,6 +813,7 @@ class Civic:
         """
         import os
         from civic._internal.jurisdiction import normalize_jurisdiction
+        from civic.paths import get_vectors_dir
 
         try:
             from civic._internal.meetings.embeddings import CivicEmbeddings
@@ -816,7 +822,7 @@ class Civic:
 
         # Check if embeddings are available for this jurisdiction
         jurisdiction = normalize_jurisdiction(self.jurisdiction)
-        persist_dir = f"data/pilot/vectors/{jurisdiction}"
+        persist_dir = get_vectors_dir(jurisdiction)
         if not os.path.exists(persist_dir):
             return []
 

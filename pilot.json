@@ -741,14 +741,16 @@
         "test_file": "packages/civic/tests/test_jurisdiction.py"
       },
       "data_path_resolver": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Centralize file path generation with environment variable support",
-        "note": "Currently hardcoded paths: data/civic_state.db (15+ refs), data/pilot/vectors/ (embeddings.py), data/checkpoints/ (pipeline.py). Need DataPathResolver that reads CIVIC_DATA_ROOT from env and generates all paths. Blocks containerized deployment."
+        "note": "Created DataPathResolver class in packages/civic/src/civic/paths.py. Supports CIVIC_DATA_ROOT, CIVIC_BUNDLED_DATA_DIR, CIVIC_USER_DATA_DIR env vars. Convenience functions: get_state_db_path(), get_vectors_dir(), get_checkpoints_dir(). Refactored civic.py, sqlite_backend.py, embeddings.py, manager.py to use resolver. civic-extraction uses _get_data_root() helper. 36 new tests.",
+        "completed": "2025-12-22",
+        "test_file": "packages/civic/tests/test_paths.py"
       },
       "embedding_model_env_config": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Read embedding model from environment variable",
         "note": "embeddings.py:178 hardcodes DEFAULT_MODEL = 'nomic-ai/nomic-embed-text-v1.5'. Should read from CIVIC_EMBEDDING_MODEL env var with fallback to default. Enables swapping to OpenAI embeddings without code changes."
       }

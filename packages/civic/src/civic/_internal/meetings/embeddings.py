@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any, Union
 
 from civic._internal.jurisdiction import normalize_jurisdiction
+from civic.paths import get_vectors_dir, get_state_db_path
 
 
 def _chunk_text(text: str, max_chars: int = 1500, overlap: int = 200) -> List[str]:
@@ -316,7 +317,7 @@ class CivicEmbeddings:
 
         # Persist directory follows schema: data/pilot/vectors/{jurisdiction_id}/
         if persist_directory is None:
-            persist_directory = f"data/pilot/vectors/{self.jurisdiction_id}"
+            persist_directory = get_vectors_dir(self.jurisdiction_id)
         self.persist_directory = persist_directory
 
         # Initialize model (lazy loading on first use)
@@ -936,20 +937,21 @@ class CivicEmbeddings:
 
     def build_issues_index(
         self,
-        db_path: Union[str, Path] = "data/civic_state.db",
+        db_path: Union[str, Path] = None,
     ) -> Any:  # Returns chromadb.Collection
         """
         Build vector index for SeeClickFix issues from SQLite database.
 
         Args:
-            db_path: Path to the civic_state SQLite database
+            db_path: Path to the civic_state SQLite database.
+                     Defaults to get_state_db_path() which respects CIVIC_DATA_ROOT.
 
         Returns:
             ChromaDB collection with embedded issues
         """
         import sqlite3
 
-        db_path = Path(db_path)
+        db_path = Path(db_path or get_state_db_path())
         if not db_path.exists():
             raise FileNotFoundError(f"Database not found: {db_path}")
 

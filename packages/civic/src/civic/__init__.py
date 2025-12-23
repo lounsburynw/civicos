@@ -50,6 +50,19 @@ from civic.storage import StorageStats
 # Jurisdiction registry (centralized config)
 from civic.jurisdiction import JurisdictionRegistry, JurisdictionConfig, CITY_CONFIGS
 
+# Path resolution (centralized data paths)
+from civic.paths import (
+    DataPathResolver,
+    get_resolver,
+    reset_resolver,
+    get_data_path,
+    get_bundled_path,
+    get_user_path,
+    get_state_db_path,
+    get_vectors_dir,
+    get_checkpoints_dir,
+)
+
 # Optional MCP support - lazy import to avoid circular dependencies
 MCP_AVAILABLE = False
 mcp_server = None
@@ -95,6 +108,16 @@ __all__ = [
     "JurisdictionRegistry",
     "JurisdictionConfig",
     "CITY_CONFIGS",
+    # Path resolution
+    "DataPathResolver",
+    "get_resolver",
+    "reset_resolver",
+    "get_data_path",
+    "get_bundled_path",
+    "get_user_path",
+    "get_state_db_path",
+    "get_vectors_dir",
+    "get_checkpoints_dir",
     # MCP
     "MCP_AVAILABLE",
     "mcp_server",

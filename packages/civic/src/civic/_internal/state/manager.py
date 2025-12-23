@@ -13,7 +13,7 @@ Key Features:
 Usage:
     from civic_state import StateManager
 
-    state_mgr = StateManager("data/civic_state.db")
+    state_mgr = StateManager()  # Uses get_state_db_path()
     state_mgr.update_meetings("city-berkeley", meetings_list, as_of=datetime.now())
     state = state_mgr.get_city_state("city-berkeley")
     historical = state_mgr.get_city_state("city-berkeley", as_of=datetime(2024, 10, 6))
@@ -25,6 +25,8 @@ from datetime import datetime
 from typing import List, Dict, Optional, Any
 from pathlib import Path
 import logging
+
+from civic.paths import get_state_db_path
 
 logger = logging.getLogger(__name__)
 
@@ -40,16 +42,17 @@ class StateManager:
     - Clean separation from extraction logic
     """
 
-    def __init__(self, db_path: str = "data/civic_state.db"):
+    def __init__(self, db_path: str = None):
         """
         Initialize state manager.
 
         Args:
-            db_path: Path to SQLite database (will be created if doesn't exist)
+            db_path: Path to SQLite database (will be created if doesn't exist).
+                     Defaults to get_state_db_path() which respects CIVIC_DATA_ROOT.
         """
-        self.db_path = db_path
+        self.db_path = db_path or get_state_db_path()
         # Ensure parent directory exists
-        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._ensure_schema()
 
     def _ensure_schema(self):
