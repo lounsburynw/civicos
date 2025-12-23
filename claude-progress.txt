@@ -59,8 +59,30 @@ Added JSON schema validation to the meeting ingestion pipeline. Meetings are now
 - `packages/civic-extraction/tests/test_clients.py` (4-stage fix)
 - `pilot.json` (validate_meetings_on_ingest -> ready)
 
-### Next P0: validate_decisions_on_ingest
-Add JSON schema validation to decision extraction (same pattern as meetings - create DecisionValidator in civic_extraction).
+### Continued: validate_decisions_on_ingest
+
+Added decision validation following the same pattern as meeting validation:
+
+1. **Decision Schema Module** (`packages/civic/src/civic/_internal/meetings/decision_schema.py`):
+   - `DECISION_SCHEMA`: JSON Schema for Decision objects (required: decision_id, meeting_date, agenda_item, title, summary, outcome, vote)
+   - `DecisionValidator`: Validates decisions using jsonschema
+   - `DecisionValidationResult` and `BatchDecisionValidationResult` dataclasses
+
+2. **Embeddings Integration** (`packages/civic/src/civic/_internal/meetings/embeddings.py`):
+   - Added `validate_on_index: bool = True` parameter to CivicEmbeddings.__init__
+   - Modified `build_decisions_index()` to validate decisions before ChromaDB indexing
+   - Validation metadata stored in collection metadata
+
+3. **Tests** (`packages/civic/tests/test_decision_schema.py`):
+   - 21 tests covering schema, validator, batch validation, strict mode, semantic warnings
+
+### Session Summary
+Completed both schema_validation items in data_standards:
+- validate_meetings_on_ingest: 26 tests (21 schema + 5 pipeline)
+- validate_decisions_on_ingest: 21 tests
+
+### Next P0: feedback_channel
+Add feedback mechanism (GitHub link, email, or in-app form) for pilot users to report bugs.
 
 ---
 

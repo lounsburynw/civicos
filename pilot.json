@@ -933,10 +933,12 @@
         "test_file": "packages/civic-extraction/tests/test_meeting_schema.py"
       },
       "validate_decisions_on_ingest": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "Validate Decision objects during extraction",
-        "note": "Add JSON schema validation to decision extraction (similar pattern to validate_meetings_on_ingest)"
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Validate Decision objects during vector indexing",
+        "note": "Session 349: Created DecisionValidator class in civic/_internal/meetings/decision_schema.py. CivicEmbeddings.build_decisions_index() validates decisions before ChromaDB indexing, filters invalid decisions, logs validation errors. 21 tests pass.",
+        "completed": "2025-12-22",
+        "test_file": "packages/civic/tests/test_decision_schema.py"
       }
     },
     "provenance": {
@@ -1325,7 +1327,7 @@
       },
       "feedback_channel": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "check": "Way for users to report issues",
         "note": "Add feedback mechanism (GitHub link, email, or in-app form) for pilot users to report bugs"
       },
@@ -1363,6 +1365,6 @@
       "frontend_refinement": 3,
       "pilot_validation": 10
     },
-    "notes": "Updated 2025-12-22: Session 349 - COMPLETED validate_meetings_on_ingest P0. Created MeetingValidator class with JSON schema validation. Pipeline now validates meetings before storage, filters invalid meetings, logs validation errors. Added 26 tests (21 schema + 5 pipeline). Next P0: validate_decisions_on_ingest."
+    "notes": "Updated 2025-12-22: Session 349 - COMPLETED both data_standards schema_validation items. (1) validate_meetings_on_ingest: MeetingValidator in civic-extraction. (2) validate_decisions_on_ingest: DecisionValidator in civic. Added 47 tests total."
   }
 }
