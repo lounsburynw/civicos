@@ -733,14 +733,16 @@
     },
     "configuration_management": {
       "jurisdiction_registry_consolidation": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Consolidate CITY_CONFIGS into reusable JurisdictionRegistry class",
-        "note": "CITY_CONFIGS exists in automated_civic_refresh.py but other files have duplicate hardcoded mappings (civic_schema_adapter.py timezone maps, civic_api_integrated.py county/state). Need to: (1) Promote CITY_CONFIGS to JurisdictionRegistry class in core location, (2) Add missing fields (county, state, civic_center_address), (3) Refactor other files to import from registry instead of hardcoding."
+        "completed": "2025-12-22",
+        "note": "Created JurisdictionRegistry class in packages/civic/src/civic/jurisdiction.py. Consolidates 25 cities with full config (timezone, agent_type, meeting_urls, etc). Refactored civic_schema_adapter.py to use registry (removed 4 duplicate JURISDICTION_TIMEZONES dicts). automated_civic_refresh.py now imports from registry. 23 new tests. CITY_CONFIGS exported for backward compatibility.",
+        "test_file": "packages/civic/tests/test_jurisdiction.py"
       },
       "data_path_resolver": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Centralize file path generation with environment variable support",
         "note": "Currently hardcoded paths: data/civic_state.db (15+ refs), data/pilot/vectors/ (embeddings.py), data/checkpoints/ (pipeline.py). Need DataPathResolver that reads CIVIC_DATA_ROOT from env and generates all paths. Blocks containerized deployment."
       },
