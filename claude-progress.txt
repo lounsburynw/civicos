@@ -5730,3 +5730,44 @@ Updated docs/DATA_DICTIONARY.md with comprehensive documentation for all core da
 - Before: 159/174 items (91.4%)
 - After: 160/174 items (92.0%)
 
+
+---
+
+## Session 354 - Marin County Code Integration
+**Date:** 2025-12-23
+**P0 Item:** marin_county_code
+
+### Summary
+Indexed Marin County code sections (housing, land use, building, coastal zoning) and integrated county-level ordinances into `what_applies()`.
+
+### Changes
+1. **MunicipalCodeCorpus updates** (`packages/civic/src/civic/_internal/legal/corpus/municipal.py`):
+   - Added `county-marin` to JURISDICTION_MAP with custom product_name ("Municipal Code")
+   - Made stream_sections() pattern-based instead of depth-based (supports different county hierarchies)
+   - Backwards compatible with San Rafael municipal code
+
+2. **Context integration** (`packages/civic/src/civic/context.py`):
+   - Added CITY_TO_COUNTY mapping (city-san-rafael → county-marin)
+   - County ordinances now appear in `what_applies()` results with type="county_ordinance"
+   - Searches both city and county code for comprehensive regulatory context
+
+3. **Index built**:
+   - 776 sections indexed from 4 titles: Development Code (22), Development Standards (24), Building Code (19), Coastal Zoning (20)
+   - Collection: `county-marin_municipal_code`
+
+### Results
+```
+what_applies("housing") now returns:
+- City ordinances (San Rafael): rent stabilization, housing inspections
+- County ordinances (Marin): affordable housing regulations, emergency housing, development standards
+```
+
+### Tests
+- 34 smoke tests: passed
+
+### Pilot Progress
+- Before: 160/174 items (92.0%)
+- After: 161/174 items (92.5%)
+
+### Next P0
+- `san_rafael_municipal_funding` - Research city-specific funding programs

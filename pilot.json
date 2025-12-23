@@ -906,15 +906,18 @@
         "test_file": "packages/civic/tests/test_integration_rag_san_rafael.py::TestHomelessnessServicesVectorSearch"
       },
       "marin_county_code": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "Index relevant Marin County code sections (housing, land use)"
+        "status": "ready",
+        "priority": 2,
+        "artifact": "Index relevant Marin County code sections (housing, land use)",
+        "indexed_titles": ["TIT22DECO", "TIT24DEST", "TIT19MACOBUCO", "TIT20COZOCO"],
+        "total_sections": 776,
+        "completed_session": 354
       }
     },
     "municipal_context": {
       "san_rafael_municipal_funding": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Research and index San Rafael municipal funding programs",
         "note": "City-specific programs: housing trust fund, inclusionary housing, general fund allocations, local tax measures",
         "data_dir": "data/funding/municipal/san-rafael/"

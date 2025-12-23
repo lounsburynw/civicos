@@ -61,10 +61,12 @@ class MunicipalCodeCorpus:
     BASE_URL = "https://api.municode.com"
 
     # Known jurisdiction mappings
+    # product_name defaults to "Code of Ordinances" if not specified
     JURISDICTION_MAP = {
         "city-san-rafael": {"state": "CA", "name": "San Rafael"},
         "city-berkeley": {"state": "CA", "name": "Berkeley"},
         "city-oakland": {"state": "CA", "name": "Oakland"},
+        "county-marin": {"state": "CA", "name": "Marin County", "product_name": "Municipal Code"},
     }
 
     def __init__(
@@ -129,6 +131,7 @@ class MunicipalCodeCorpus:
         jur_info = self.JURISDICTION_MAP[self.jurisdiction_id]
         state = jur_info["state"]
         name = jur_info["name"]
+        product_name = jur_info.get("product_name", "Code of Ordinances")
 
         # Check cache
         cache_key = f"{state}_{name}"
@@ -152,7 +155,7 @@ class MunicipalCodeCorpus:
         # Get product info
         product = self._fetch(
             "Products/name",
-            {"clientId": client_id, "productName": "Code of Ordinances"},
+            {"clientId": client_id, "productName": product_name},
         )
         product_id = product["ProductID"]
 
@@ -274,32 +277,28 @@ class MunicipalCodeCorpus:
             current_chapter_title = ""
 
             for doc in docs:
-                node_depth = doc.get("NodeDepth", 0)
                 doc_id = doc.get("Id", "")
                 heading = doc.get("Title", "")
                 html_content = doc.get("Content", "")
 
-                # Chapter level (depth 2)
-                if node_depth == 2 and heading.startswith("Chapter "):
-                    chapter_match = re.match(
-                        r'Chapter\s+(\d+\.\d+)\s*-\s*(.+)', heading
-                    )
-                    if chapter_match:
-                        current_chapter = chapter_match.group(1)
-                        current_chapter_title = chapter_match.group(2).strip()
+                # Chapter detection (pattern-based, works at any depth)
+                # Matches "Chapter X.YY - Title" or "Chapter XX.YY - Title"
+                chapter_match = re.match(
+                    r'Chapter\s+(\d+\.\d+)\s*-\s*(.+)', heading
+                )
+                if chapter_match:
+                    current_chapter = chapter_match.group(1)
+                    current_chapter_title = chapter_match.group(2).strip()
                     continue
 
-                # Section level (depth 3)
-                if node_depth == 3:
-                    # Parse section number from heading
-                    section_match = re.match(
-                        r'(\d+\.\d+\.\d+)\s*-\s*(.+)', heading
-                    )
-                    if section_match:
-                        section_number = section_match.group(1)
-                        section_title = section_match.group(2).strip()
-                    else:
-                        continue
+                # Section detection (pattern-based, works at any depth)
+                # Matches "X.YY.ZZZ - Title" or "XX.YY.ZZZ - Title"
+                section_match = re.match(
+                    r'(\d+\.\d+\.\d+)\s*-\s*(.+)', heading
+                )
+                if section_match:
+                    section_number = section_match.group(1)
+                    section_title = section_match.group(2).strip()
 
                     # Extract text and ordinance history
                     full_text = self._html_to_text(html_content)

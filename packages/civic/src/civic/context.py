@@ -143,7 +143,7 @@ def get_regulatory_context(
         state = [{"note": f"Error loading state legislation: {e}"}]
         federal = [{"note": f"Error loading federal programs: {e}"}]
 
-    # Search local municipal code
+    # Search local municipal code (city ordinances)
     try:
         from civic._internal.meetings.embeddings import CivicEmbeddings
 
@@ -169,13 +169,51 @@ def get_regulatory_context(
                         "relevance_score": round(result.score, 3),
                     })
 
-        if not local:
-            local = [{"note": f"No local ordinances found for topic '{topic}'"}]
-
     except ImportError:
-        local = [{"note": "Municipal code search not available"}]
-    except Exception as e:
-        local = [{"note": f"Error searching municipal code: {e}"}]
+        pass  # Municipal code search not available
+    except Exception:
+        pass  # Error searching municipal code, continue with county
+
+    # Search county code (applies to cities within the county)
+    # Map city jurisdictions to their county
+    CITY_TO_COUNTY = {
+        "city-san-rafael": "county-marin",
+        "city-berkeley": "county-alameda",
+        "city-oakland": "county-alameda",
+    }
+
+    county_jurisdiction = CITY_TO_COUNTY.get(jurisdiction)
+    if county_jurisdiction:
+        try:
+            from civic._internal.meetings.embeddings import CivicEmbeddings
+
+            county_embedder = CivicEmbeddings(county_jurisdiction)
+
+            if county_embedder.has_municipal_code():
+                # Search county code for relevant ordinances
+                results = county_embedder.search_municipal_code(topic, top_k=5)
+
+                for result in results:
+                    if result.score > 0:
+                        local.append({
+                            "type": "county_ordinance",
+                            "id": result.document_id,
+                            "section": result.metadata.get("section", ""),
+                            "section_title": result.metadata.get("section_title", ""),
+                            "chapter": result.metadata.get("chapter", ""),
+                            "chapter_title": result.metadata.get("chapter_title", ""),
+                            "title_number": result.metadata.get("title_number", ""),
+                            "title_name": result.metadata.get("title_name", ""),
+                            "text_preview": result.text[:300] if result.text else "",
+                            "relevance_score": round(result.score, 3),
+                            "jurisdiction": county_jurisdiction,
+                        })
+
+        except (ImportError, Exception):
+            pass  # County code search not available
+
+    if not local:
+        local = [{"note": f"No local ordinances found for topic '{topic}'"}]
 
     return RegulatoryStack(
         topic=topic,
