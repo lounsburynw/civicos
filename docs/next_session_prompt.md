@@ -40,34 +40,47 @@ Session 356 completed `research_abstraction` - extracted `BaseResearcher` abstra
    python scripts/city_status_dashboard.py --broken
    ```
 
-2. **Run pipeline for a test city (San Rafael)**
-   ```bash
-   source civic-env/bin/activate
-   civic-extract pipeline run san-rafael --stages discover,ingest
+2. **Run REDUCED pipeline test (recommended first)**
+   Use small date range to limit ingested meetings (~5-10 meetings):
+   ```python
+   from civic_extraction import Pipeline
+   from civic_extraction.sources import get_source
+
+   source = get_source("san-rafael")
+   pipeline = Pipeline(source, data_dir="data/meetings")
+
+   # Reduced test: only 7 days past/ahead (vs default 30/90)
+   result = pipeline.run(days_past=7, days_ahead=7)
+   print(f"Stages: {[s.stage for s in result.stages]}")
+   print(f"Meetings discovered: {result.stages[0].items_processed}")
    ```
 
 3. **Verify data persisted**
    ```bash
    ls -la data/meetings/san-rafael/
-   cat data/meetings/san-rafael/manifest.json
+   cat data/meetings/san-rafael/manifest.json | python -m json.tool | head -30
    ```
 
-4. **Check indexing**
-   ```bash
-   civic-extract pipeline run san-rafael --stages index
-   ```
-
-5. **Verify via Civic API**
+4. **Verify via Civic API**
    ```python
    from civic import Civic
    c = Civic("san-rafael")
-   print(c.whats_next())
+   meetings = c.whats_next()
+   print(f"Found {len(meetings)} upcoming meetings")
+   for m in meetings[:3]:
+       print(f"  - {m.title}: {m.meeting_datetime}")
    ```
 
-6. **Update and check dashboard**
+5. **Update and check dashboard**
    ```bash
    python scripts/update_city_registry.py
    python scripts/city_status_dashboard.py san-rafael
+   ```
+
+6. **(Optional) Full pipeline run**
+   If reduced test passes, optionally run full ingestion:
+   ```bash
+   civic-extract pipeline run san-rafael
    ```
 
 ## Key Files
