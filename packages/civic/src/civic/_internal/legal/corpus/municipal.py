@@ -10,6 +10,10 @@ San Rafael Municipal Code structure:
 - Section X.YY.ZZZ: Individual provision (e.g., "1.04.010 - Title.")
 
 API Reference: https://sr.ht/~partytax/unofficial-municode-api-documentation/
+
+Extensibility:
+- Pattern overrides: Add chapter_pattern/section_pattern to JURISDICTION_MAP
+- Custom parsers: Set parser_class in JURISDICTION_MAP for complex cases
 """
 
 import re
@@ -17,7 +21,7 @@ import time
 from dataclasses import dataclass
 from html import unescape
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Iterator, Optional, Callable
 
 try:
     import httpx
@@ -43,6 +47,17 @@ class MunicipalCodeSection:
 # Municode client lookup cache
 _CLIENT_CACHE: dict[str, dict] = {}
 
+# Registry of custom parser classes for jurisdictions with non-standard formats
+_PARSER_REGISTRY: dict[str, type] = {}
+
+
+def register_parser(jurisdiction_id: str):
+    """Decorator to register a custom parser class for a jurisdiction."""
+    def decorator(cls):
+        _PARSER_REGISTRY[jurisdiction_id] = cls
+        return cls
+    return decorator
+
 
 class MunicipalCodeCorpus:
     """
@@ -56,12 +71,28 @@ class MunicipalCodeCorpus:
         client_id: Municode client ID (auto-discovered if not provided)
         product_id: Municode product ID (auto-discovered if not provided)
         rate_limit: Requests per second (default: 2)
+
+    Extensibility:
+        JURISDICTION_MAP supports these optional keys for customization:
+        - product_name: Override default "Code of Ordinances"
+        - chapter_pattern: Regex for chapter detection (must have 2 groups: number, title)
+        - section_pattern: Regex for section detection (must have 2 groups: number, title)
+        - title_pattern: Regex for title detection in TOC (must have 2 groups: number, name)
+
+        For complex cases, use @register_parser decorator to register a custom parser class.
     """
 
     BASE_URL = "https://api.municode.com"
 
+    # Default patterns - work for most California municipalities
+    # Override in JURISDICTION_MAP for jurisdictions with different formats
+    DEFAULT_CHAPTER_PATTERN = r'Chapter\s+(\d+\.\d+)\s*[—–-]\s*(.+)'
+    DEFAULT_SECTION_PATTERN = r'(\d+\.\d+\.\d+[A-Za-z]?)\s*[—–-]\s*(.+)'
+    DEFAULT_TITLE_PATTERN = r'Title\s+(\d+)\s*[—–-]\s*(.+)'
+
     # Known jurisdiction mappings
     # product_name defaults to "Code of Ordinances" if not specified
+    # chapter_pattern/section_pattern override default parsing patterns
     JURISDICTION_MAP = {
         "city-san-rafael": {"state": "CA", "name": "San Rafael"},
         "city-berkeley": {"state": "CA", "name": "Berkeley"},
@@ -89,6 +120,29 @@ class MunicipalCodeCorpus:
         self.rate_limit = rate_limit
         self._last_request = 0.0
         self._client: Optional[httpx.Client] = None
+
+        # Cache compiled patterns for this jurisdiction
+        self._chapter_pattern = self._get_pattern("chapter_pattern", self.DEFAULT_CHAPTER_PATTERN)
+        self._section_pattern = self._get_pattern("section_pattern", self.DEFAULT_SECTION_PATTERN)
+        self._title_pattern = self._get_pattern("title_pattern", self.DEFAULT_TITLE_PATTERN)
+
+    def _get_pattern(self, key: str, default: str) -> re.Pattern:
+        """Get compiled regex pattern for this jurisdiction."""
+        jur_info = self.JURISDICTION_MAP.get(self.jurisdiction_id, {})
+        pattern_str = jur_info.get(key, default)
+        return re.compile(pattern_str)
+
+    @classmethod
+    def for_jurisdiction(cls, jurisdiction_id: str, **kwargs) -> "MunicipalCodeCorpus":
+        """
+        Factory method that returns the appropriate parser for a jurisdiction.
+
+        If a custom parser is registered via @register_parser, returns that.
+        Otherwise returns a standard MunicipalCodeCorpus instance.
+        """
+        if jurisdiction_id in _PARSER_REGISTRY:
+            return _PARSER_REGISTRY[jurisdiction_id](jurisdiction_id, **kwargs)
+        return cls(jurisdiction_id, **kwargs)
 
     def _get_client(self) -> httpx.Client:
         """Get or create HTTP client."""
@@ -242,11 +296,12 @@ class MunicipalCodeCorpus:
         toc = self.get_toc()
 
         # Filter to actual title nodes (skip charter, tables, etc.)
-        titles = [
-            node for node in toc
-            if node["Heading"].startswith("Title ")
-            and node.get("HasChildren", False)
-        ]
+        # Use title pattern to identify valid titles
+        titles = []
+        for node in toc:
+            heading = node.get("Heading", "")
+            if self._title_pattern.match(heading) and node.get("HasChildren", False):
+                titles.append(node)
 
         if title_ids:
             titles = [t for t in titles if t["Id"] in title_ids]
@@ -255,8 +310,8 @@ class MunicipalCodeCorpus:
             title_id = title_node["Id"]
             title_heading = title_node["Heading"]
 
-            # Parse title number and name
-            title_match = re.match(r'Title\s+(\d+)\s*-\s*(.+)', title_heading)
+            # Parse title number and name using configurable pattern
+            title_match = self._title_pattern.match(title_heading)
             if title_match:
                 title_number = title_match.group(1)
                 title_name = title_match.group(2).strip()
@@ -281,21 +336,15 @@ class MunicipalCodeCorpus:
                 heading = doc.get("Title", "")
                 html_content = doc.get("Content", "")
 
-                # Chapter detection (pattern-based, works at any depth)
-                # Matches "Chapter X.YY - Title" or "Chapter XX.YY - Title"
-                chapter_match = re.match(
-                    r'Chapter\s+(\d+\.\d+)\s*-\s*(.+)', heading
-                )
+                # Chapter detection using configurable pattern
+                chapter_match = self._chapter_pattern.match(heading)
                 if chapter_match:
                     current_chapter = chapter_match.group(1)
                     current_chapter_title = chapter_match.group(2).strip()
                     continue
 
-                # Section detection (pattern-based, works at any depth)
-                # Matches "X.YY.ZZZ - Title" or "XX.YY.ZZZ - Title"
-                section_match = re.match(
-                    r'(\d+\.\d+\.\d+)\s*-\s*(.+)', heading
-                )
+                # Section detection using configurable pattern
+                section_match = self._section_pattern.match(heading)
                 if section_match:
                     section_number = section_match.group(1)
                     section_title = section_match.group(2).strip()
