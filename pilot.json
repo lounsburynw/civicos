@@ -489,7 +489,7 @@
       },
       "error_logs": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Show errors/failures with log output",
         "note": "Store error details in operation_history result_json. Display expandable error details in dashboard."
       },
@@ -749,10 +749,12 @@
         "test_file": "packages/civic/tests/test_paths.py"
       },
       "embedding_model_env_config": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Read embedding model from environment variable",
-        "note": "embeddings.py:178 hardcodes DEFAULT_MODEL = 'nomic-ai/nomic-embed-text-v1.5'. Should read from CIVIC_EMBEDDING_MODEL env var with fallback to default. Enables swapping to OpenAI embeddings without code changes."
+        "note": "embeddings.py:180 reads CIVIC_EMBEDDING_MODEL env var with fallback to nomic-ai/nomic-embed-text-v1.5. Enables swapping embedding models via environment for containerized deployment.",
+        "completed": "2025-12-22",
+        "test_file": "packages/civic/tests/test_paths.py::TestEmbeddingModelConfiguration"
       }
     }
   },
