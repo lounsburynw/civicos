@@ -11,6 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from civic.paths import get_state_db_path
 from .backend import StorageBackend, StorageStats, StorageValidationResult
 
 
@@ -22,7 +23,7 @@ class SQLiteBackend:
     Uses temporal versioning for point-in-time queries.
 
     Usage:
-        backend = SQLiteBackend("data/civic_state.db")
+        backend = SQLiteBackend()  # Uses get_state_db_path()
 
         # Validate before use
         result = backend.validate()
@@ -39,14 +40,15 @@ class SQLiteBackend:
         meetings = backend.get_meetings("city-san-rafael")
     """
 
-    def __init__(self, db_path: str = "data/civic_state.db"):
+    def __init__(self, db_path: str = None):
         """
         Initialize SQLite storage backend.
 
         Args:
-            db_path: Path to SQLite database file (created if doesn't exist)
+            db_path: Path to SQLite database file (created if doesn't exist).
+                     Defaults to get_state_db_path() which respects CIVIC_DATA_ROOT.
         """
-        self._db_path = db_path
+        self._db_path = db_path or get_state_db_path()
         self._ensure_directory()
 
     def _ensure_directory(self) -> None:
