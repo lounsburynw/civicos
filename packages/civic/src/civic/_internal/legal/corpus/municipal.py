@@ -11,9 +11,65 @@ San Rafael Municipal Code structure:
 
 API Reference: https://sr.ht/~partytax/unofficial-municode-api-documentation/
 
-Extensibility:
-- Pattern overrides: Add chapter_pattern/section_pattern to JURISDICTION_MAP
-- Custom parsers: Set parser_class in JURISDICTION_MAP for complex cases
+Adding a New Municipality
+=========================
+
+1. VERIFY AVAILABILITY: Check if the municipality is in Municode:
+
+    >>> import httpx
+    >>> clients = httpx.get('https://api.municode.com/Clients/stateAbbr',
+    ...                     params={'stateAbbr': 'CA'}).json()
+    >>> [c for c in clients if 'Berkeley' in c['ClientName']]
+    [{'ClientID': 123, 'ClientName': 'Berkeley'}]
+
+2. ADD TO JURISDICTION_MAP (simple case - standard patterns):
+
+    JURISDICTION_MAP = {
+        "city-berkeley": {"state": "CA", "name": "Berkeley"},
+    }
+
+3. ADD WITH CUSTOM PRODUCT NAME (if not "Code of Ordinances"):
+
+    JURISDICTION_MAP = {
+        "county-marin": {
+            "state": "CA",
+            "name": "Marin County",
+            "product_name": "Municipal Code",  # Check via Products API
+        },
+    }
+
+4. ADD WITH CUSTOM PATTERNS (different numbering scheme):
+
+    JURISDICTION_MAP = {
+        "city-different": {
+            "state": "XX",
+            "name": "Different City",
+            # For codes using "Ch. 1-2" format instead of "Chapter 1.02"
+            "chapter_pattern": r'Ch\\.\\s+(\\d+-\\d+)\\s*[—–-]\\s*(.+)',
+            # For codes using "§ 1-2-3" format instead of "1.02.030"
+            "section_pattern": r'§\\s*(\\d+-\\d+-\\d+)\\s*[—–-]\\s*(.+)',
+        },
+    }
+
+5. ADD CUSTOM PARSER CLASS (completely different structure):
+
+    @register_parser("city-weird")
+    class WeirdCityParser(MunicipalCodeCorpus):
+        def stream_sections(self, title_ids=None):
+            # Custom parsing logic for non-standard hierarchy
+            ...
+
+    # Use via factory method:
+    corpus = MunicipalCodeCorpus.for_jurisdiction("city-weird")
+
+Default Patterns (work for ~80% of California municipalities):
+- Title:   r'Title\\s+(\\d+)\\s*[—–-]\\s*(.+)'
+- Chapter: r'Chapter\\s+(\\d+\\.\\d+)\\s*[—–-]\\s*(.+)'
+- Section: r'(\\d+\\.\\d+\\.\\d+[A-Za-z]?)\\s*[—–-]\\s*(.+)'
+
+Pattern Requirements:
+- Must have exactly 2 capture groups: (number, title/name)
+- Support em-dash (—), en-dash (–), and hyphen (-) separators
 """
 
 import re
