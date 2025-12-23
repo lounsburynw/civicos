@@ -395,7 +395,7 @@ class ErrorAlertManager:
             True if email sent successfully, False otherwise
         """
         if not self.alert_emails or not self.smtp_username or not self.smtp_password:
-            logger.debug("Email alerting not configured (missing credentials)")
+            logger.debug("Email alerting not configured (SMTP settings incomplete)")
             return False
 
         # Format severity

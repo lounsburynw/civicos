@@ -184,7 +184,7 @@ def setup_assemblyai() -> bool:
         return False
 
     aai.settings.api_key = api_key
-    logger.info(f"AssemblyAI configured (key: {api_key[:10]}...)")
+    logger.info("AssemblyAI configured")
     return True
 
 

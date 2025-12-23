@@ -233,7 +233,7 @@ def run_legislative_refresh(
 
     if dry_run:
         logger.info("Dry-run mode - validating configuration...")
-        logger.info(f"API Keys: LegiScan={api_keys['LEGISCAN_API_KEY']}, OpenAI={api_keys['OPENAI_API_KEY']}")
+        logger.info(f"API Keys configured: LegiScan={'yes' if api_keys.get('LEGISCAN_API_KEY') else 'no'}, OpenAI={'yes' if api_keys.get('OPENAI_API_KEY') else 'no'}")
         logger.info(f"Would fetch {topic} legislation for {state} (last {days_back} days)")
         logger.info(f"Would analyze up to {limit} bills per topic with LLM filtering")
 
