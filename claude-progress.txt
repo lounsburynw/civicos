@@ -5229,3 +5229,70 @@ Created centralized `JurisdictionRegistry` class in `packages/civic/src/civic/ju
 Centralize file path generation with CIVIC_DATA_ROOT env var support.
 
 ---
+
+---
+
+## Session 345: data_path_resolver - Centralize File Path Generation
+
+**Date:** 2025-12-22
+**Item:** data_path_resolver (data_architecture > configuration_management)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Created `DataPathResolver` class to centralize all data file paths with environment variable support, unblocking containerized deployment.
+
+### Problem
+64 hardcoded path references across 42 files:
+- `data/civic_state.db` (31 instances)
+- `data/pilot/vectors/` (16 instances)
+- `data/checkpoints/` (17 instances)
+
+### Implementation
+
+1. **DataPathResolver Class** (`packages/civic/src/civic/paths.py`, 250 lines):
+   - Supports environment variables:
+     - `CIVIC_DATA_ROOT`: Unified root (development)
+     - `CIVIC_BUNDLED_DATA_DIR`: Read-only data (production)
+     - `CIVIC_USER_DATA_DIR`: Persistent data (production)
+   - Convenience methods: `state_db()`, `vectors_dir()`, `checkpoints_dir()`, `events_dir()`, `legislation_dir()`
+   - Module-level functions: `get_state_db_path()`, `get_vectors_dir()`, `get_bundled_path()`, `get_user_path()`
+   - Singleton pattern with `reset_resolver()` for testing
+
+2. **Refactored Key Files in civic package**:
+   - `civic.py`: Uses `get_state_db_path()` for default db_path
+   - `sqlite_backend.py`: Uses `get_state_db_path()` in constructor
+   - `_internal/state/manager.py`: Uses `get_state_db_path()`
+   - `_internal/meetings/embeddings.py`: Uses `get_vectors_dir()`, `get_state_db_path()`
+
+3. **Refactored civic-extraction** (standalone package):
+   - `pipeline.py`: Added `_get_data_root()` helper reading `CIVIC_DATA_ROOT`
+   - `checkpoint_path_for_jurisdiction()`: Now uses env var with fallback
+
+4. **Tests** (`test_paths.py`, 36 tests):
+   - Environment variable configuration
+   - Bundled vs user data separation
+   - Production (Fly.io) volume simulation
+   - Backwards compatibility (string return types)
+
+**Files Changed:**
+- `packages/civic/src/civic/paths.py` (new, 250 lines)
+- `packages/civic/src/civic/__init__.py` (exports added)
+- `packages/civic/src/civic/civic.py`
+- `packages/civic/src/civic/storage/sqlite_backend.py`
+- `packages/civic/src/civic/_internal/state/manager.py`
+- `packages/civic/src/civic/_internal/meetings/embeddings.py`
+- `packages/civic-extraction/src/civic_extraction/pipeline.py`
+- `packages/civic/tests/test_paths.py` (new, 36 tests)
+- `packages/civic-extraction/tests/test_pipeline_checkpoint.py` (updated)
+- `pilot.json` (data_path_resolver -> ready)
+
+**Tests:** 36 new + 93 (smoke + jurisdiction + paths) pass
+
+### Pilot Progress
+- Before: 149/173 items (86.1%)
+- After: 150/173 items (86.7%)
+
+### Next P0: embedding_model_env_config
+Read embedding model from CIVIC_EMBEDDING_MODEL environment variable.
+
+---

@@ -150,13 +150,21 @@ class TestCheckpointPersistence:
         loaded = load_checkpoint(path)
         assert loaded is None
 
-    def test_checkpoint_path_for_jurisdiction(self):
+    def test_checkpoint_path_for_jurisdiction(self, monkeypatch):
         """Test standard checkpoint path generation."""
+        # Ensure we test with default data root
+        monkeypatch.delenv("CIVIC_DATA_ROOT", raising=False)
         path = checkpoint_path_for_jurisdiction("city-san-rafael")
         assert path == "data/checkpoints/city-san-rafael.json"
 
+        # Test with custom base_dir
         path = checkpoint_path_for_jurisdiction("city-test", base_dir="/tmp/checkpoints")
         assert path == "/tmp/checkpoints/city-test.json"
+
+        # Test with environment variable
+        monkeypatch.setenv("CIVIC_DATA_ROOT", "/custom/data")
+        path = checkpoint_path_for_jurisdiction("city-test")
+        assert path == "/custom/data/checkpoints/city-test.json"
 
     def test_save_creates_parent_directories(self, tmp_path):
         """Test save_checkpoint creates parent directories."""

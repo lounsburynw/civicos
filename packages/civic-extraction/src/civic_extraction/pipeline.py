@@ -27,6 +27,7 @@ Usage:
     status = pipeline.status()
 """
 
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -41,6 +42,11 @@ from typing import (
     runtime_checkable,
 )
 import time
+
+
+def _get_data_root() -> str:
+    """Get data root directory from environment or default."""
+    return os.environ.get("CIVIC_DATA_ROOT", "data")
 
 
 class StageState(str, Enum):
@@ -764,18 +770,21 @@ def load_checkpoint(path: str) -> Optional[IngestCheckpoint]:
 
 def checkpoint_path_for_jurisdiction(
     jurisdiction_id: str,
-    base_dir: str = "data/checkpoints"
+    base_dir: str = None
 ) -> str:
     """
     Get standard checkpoint file path for a jurisdiction.
 
     Args:
         jurisdiction_id: The jurisdiction (e.g., "city-san-rafael")
-        base_dir: Base directory for checkpoint files
+        base_dir: Base directory for checkpoint files.
+                  Defaults to {CIVIC_DATA_ROOT}/checkpoints.
 
     Returns:
         Path like "data/checkpoints/city-san-rafael.json"
     """
+    if base_dir is None:
+        base_dir = f"{_get_data_root()}/checkpoints"
     return f"{base_dir}/{jurisdiction_id}.json"
 
 
