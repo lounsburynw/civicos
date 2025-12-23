@@ -5683,3 +5683,50 @@ civic-extract snapshot verify -j city-san-rafael -v Q1-2026
 - After: 159/174 items (91.4%)
 
 ---
+
+---
+
+## Session 353: data_dictionary - Complete Data Dictionary Documentation
+
+**Date:** 2025-12-22
+**Item:** data_dictionary (data_standards > documentation)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Updated docs/DATA_DICTIONARY.md with comprehensive documentation for all core data models. Added missing models (CityState, AgendaItem, StaffRecommendation, PublicInput, LegalInstrument) and enhanced existing documentation with source file locations and usage examples.
+
+### Changes to docs/DATA_DICTIONARY.md
+
+1. **Added Overview Section**:
+   - Expanded table to include CityState and AgendaItem
+   - Added source file locations for all models
+
+2. **Added CityState Model**:
+   - 11 fields documented (jurisdiction_id, as_of, active_residents, etc.)
+   - Source: `packages/civic/src/civic/_internal/state/models.py:14`
+
+3. **Added AgendaItem Model**:
+   - 26 fields documented including AI-enriched fields
+   - Source: `packages/civic/src/civic/_internal/state/models.py:80`
+   - Added usage example with `c.prepare()`
+
+4. **Enhanced VoteTally Section**:
+   - Added source file location
+   - Separated computed properties into dedicated table (passed, unanimous, vote_count)
+
+5. **Added Supporting Decision Models**:
+   - StaffRecommendation (5 fields): department, authors, recommendation_text, financial_impact, property_details
+   - PublicInput (3 fields): speaker_count, speaker_names, has_video_transcript
+   - LegalInstrument (6 fields): instrument_type, number, title, purpose, legal_authority, effective_date
+
+### Files Modified
+- `docs/DATA_DICTIONARY.md` (enhanced with 5 new models, source locations, usage examples)
+- `pilot.json` (data_dictionary -> ready)
+
+### Tests
+- 34 smoke tests: passed
+
+### Pilot Progress
+- Before: 159/174 items (91.4%)
+- After: 160/174 items (92.0%)
+
