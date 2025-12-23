@@ -54,6 +54,12 @@ from civic_extraction.pipeline import (
     load_checkpoint,
     checkpoint_path_for_jurisdiction,
 )
+from civic_extraction.meeting_schema import (
+    MeetingValidator,
+    MeetingValidationResult,
+    BatchValidationResult,
+    MEETING_SCHEMA,
+)
 from civic_extraction.platform_detection import (
     DetectionResult,
     detect_platform,
@@ -86,4 +92,8 @@ __all__ = [
     "DetectionResult",
     "detect_platform",
     "detect_platform_batch",
+    "MeetingValidator",
+    "MeetingValidationResult",
+    "BatchValidationResult",
+    "MEETING_SCHEMA",
 ]

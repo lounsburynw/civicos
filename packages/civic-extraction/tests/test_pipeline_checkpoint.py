@@ -351,3 +351,103 @@ class TestPipelineCheckpointIntegration:
         # All meetings are at or before checkpoint, so 0 new
         assert result2.stages["ingest"].items_processed == 0
         assert result2.stages["ingest"].metadata["skipped_count"] == 5
+
+
+class TestPipelineValidation:
+    """Test Pipeline validation on ingest."""
+
+    def test_pipeline_validates_meetings_by_default(self):
+        """Pipeline should validate meetings before storage by default."""
+        meetings = [
+            make_meeting("m1", days_offset=-3),
+            make_meeting("m2", days_offset=-1),
+        ]
+        source = MockDataSource(meetings)
+        pipeline = Pipeline(source, "city-test")
+
+        result = pipeline.run(skip_index=True)
+
+        assert result.success
+        # Validation should have run
+        assert "validation" in result.stages["store"].metadata
+        validation = result.stages["store"].metadata["validation"]
+        assert validation["total"] == 2
+        assert validation["valid"] == 2
+        assert validation["invalid"] == 0
+
+    def test_pipeline_filters_invalid_meetings(self):
+        """Pipeline should filter out invalid meetings from storage."""
+        valid_meeting = make_meeting("m1", days_offset=-3)
+        # Create invalid meeting with empty id (will fail validation)
+        invalid_meeting = Meeting(
+            id="",  # Empty id - invalid
+            title="Invalid Meeting",
+            meeting_datetime=datetime.now(),
+            jurisdiction_id="city-test",
+        )
+        meetings = [valid_meeting, invalid_meeting]
+        source = MockDataSource(meetings)
+        pipeline = Pipeline(source, "city-test")
+
+        result = pipeline.run(skip_index=True)
+
+        # Pipeline still succeeds, but invalid meeting is filtered
+        assert result.success
+        validation = result.stages["store"].metadata["validation"]
+        assert validation["total"] == 2
+        assert validation["valid"] == 1
+        assert validation["invalid"] == 1
+        # Errors should be logged
+        assert len(result.stages["store"].errors) >= 1
+        assert any("invalid meeting" in e.lower() for e in result.stages["store"].errors)
+
+    def test_pipeline_validation_can_be_disabled(self):
+        """Pipeline validation can be disabled via validate_on_ingest=False."""
+        valid_meeting = make_meeting("m1", days_offset=-3)
+        invalid_meeting = Meeting(
+            id="",  # Empty id - would fail validation
+            title="Would Be Invalid",
+            meeting_datetime=datetime.now(),
+            jurisdiction_id="city-test",
+        )
+        meetings = [valid_meeting, invalid_meeting]
+        source = MockDataSource(meetings)
+        pipeline = Pipeline(source, "city-test", validate_on_ingest=False)
+
+        result = pipeline.run(skip_index=True)
+
+        # No validation metadata when disabled
+        assert "validation" not in result.stages["store"].metadata
+        # Both meetings should be stored (no filtering)
+        assert result.stages["store"].items_processed == 2
+
+    def test_pipeline_all_invalid_meetings_still_succeeds(self):
+        """Pipeline should succeed even if all meetings are invalid."""
+        invalid_meetings = [
+            Meeting(id="", title="Invalid 1", meeting_datetime=datetime.now(), jurisdiction_id="city-test"),
+            Meeting(id="", title="Invalid 2", meeting_datetime=datetime.now(), jurisdiction_id="city-test"),
+        ]
+        source = MockDataSource(invalid_meetings)
+        pipeline = Pipeline(source, "city-test")
+
+        result = pipeline.run(skip_index=True)
+
+        # Pipeline succeeds but stores 0 meetings
+        assert result.success
+        validation = result.stages["store"].metadata["validation"]
+        assert validation["valid"] == 0
+        assert validation["invalid"] == 2
+        assert result.stages["store"].items_processed == 0
+
+    def test_pipeline_validation_time_recorded(self):
+        """Pipeline should record validation time in metadata."""
+        meetings = [make_meeting("m1", days_offset=-1)]
+        source = MockDataSource(meetings)
+        pipeline = Pipeline(source, "city-test")
+
+        result = pipeline.run(skip_index=True)
+
+        assert result.success
+        validation = result.stages["store"].metadata["validation"]
+        assert "validation_time_ms" in validation
+        assert validation["validation_time_ms"] >= 0

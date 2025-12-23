@@ -469,13 +469,14 @@ class TestPipeline:
         assert status["is_running"] is False
         assert status["stages"]["discover"]["state"] == StageState.PENDING.value
         assert status["stages"]["ingest"]["state"] == StageState.PENDING.value
+        assert status["stages"]["store"]["state"] == StageState.PENDING.value
         assert status["stages"]["index"]["state"] == StageState.PENDING.value
 
-    def test_pipeline_has_three_stages(self):
-        """Test Pipeline has discover, ingest, index stages."""
+    def test_pipeline_has_four_stages(self):
+        """Test Pipeline has discover, ingest, store, index stages."""
         from civic_extraction.pipeline import Pipeline
 
-        assert Pipeline.STAGES == ["discover", "ingest", "index"]
+        assert Pipeline.STAGES == ["discover", "ingest", "store", "index"]
 
     def test_pipeline_status_method(self):
         """Test Pipeline.status() returns dashboard-consumable dict."""
@@ -492,13 +493,14 @@ class TestPipeline:
         assert "is_running" in status
         assert "stages" in status
 
-        # All three stages present
+        # All four stages present
         assert "discover" in status["stages"]
         assert "ingest" in status["stages"]
+        assert "store" in status["stages"]
         assert "index" in status["stages"]
 
         # Each stage has required fields
-        for stage_name in ["discover", "ingest", "index"]:
+        for stage_name in ["discover", "ingest", "store", "index"]:
             stage = status["stages"][stage_name]
             assert "state" in stage
             assert "items_found" in stage

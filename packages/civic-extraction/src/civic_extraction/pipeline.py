@@ -27,6 +27,7 @@ Usage:
     status = pipeline.status()
 """
 
+import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -42,6 +43,10 @@ from typing import (
     runtime_checkable,
 )
 import time
+
+from civic_extraction.meeting_schema import MeetingValidator, BatchValidationResult
+
+logger = logging.getLogger(__name__)
 
 
 def _get_data_root() -> str:
@@ -242,6 +247,7 @@ class Pipeline:
         jurisdiction_id: str,
         storage_target: Optional[Any] = None,  # StorageBackend protocol
         index_target: Optional[IndexTarget] = None,
+        validate_on_ingest: bool = True,
     ):
         """
         Initialize pipeline for a data source.
@@ -251,11 +257,14 @@ class Pipeline:
             jurisdiction_id: Jurisdiction being processed (e.g., "city-san-rafael")
             storage_target: Optional StorageBackend for persistence (SQLite, Postgres)
             index_target: Optional target for indexing (defaults to no-op)
+            validate_on_ingest: If True, validate meetings before storage (default True)
         """
         self.source = source
         self.jurisdiction_id = jurisdiction_id
         self.storage_target = storage_target
         self.index_target = index_target
+        self.validate_on_ingest = validate_on_ingest
+        self._validator = MeetingValidator(strict=False) if validate_on_ingest else None
 
         # Initialize stage statuses
         self._stages: Dict[str, StageStatus] = {
@@ -564,7 +573,7 @@ class Pipeline:
         on_stage_complete: Optional[StageCompleteCallback],
         on_error: Optional[ErrorCallback],
     ) -> None:
-        """Run the store stage: persist data to storage backend."""
+        """Run the store stage: validate and persist data to storage backend."""
         stage = "store"
         status = self._stages[stage]
         status.state = StageState.RUNNING
@@ -575,21 +584,48 @@ class Pipeline:
             on_stage_start(stage)
 
         try:
+            # Validate meetings before storage
+            meetings_to_store = self._ingested_meetings
+            validation_result: Optional[BatchValidationResult] = None
+
+            if self._validator is not None and len(meetings_to_store) > 0:
+                validation_result = self._validator.validate_batch(
+                    meetings_to_store, filter_invalid=True
+                )
+
+                # Record validation stats
+                status.metadata["validation"] = {
+                    "total": validation_result.total_count,
+                    "valid": validation_result.valid_count,
+                    "invalid": validation_result.invalid_count,
+                    "validation_time_ms": validation_result.validation_time_ms,
+                }
+
+                if validation_result.invalid_count > 0:
+                    # Log invalid meetings as warnings in stage errors
+                    for invalid in validation_result.invalid_results:
+                        error_msg = f"Skipped invalid meeting [{invalid.meeting_id}]: {'; '.join(invalid.errors)}"
+                        status.errors.append(error_msg)
+                        logger.warning(error_msg)
+
+                # Use only valid meetings for storage
+                meetings_to_store = validation_result.valid_meetings
+
             if self.storage_target is None:
                 # No storage target - mark as completed with note
                 # This maintains backward compatibility with pipelines
                 # that don't have storage configured
                 status.items_found = len(self._ingested_meetings)
-                status.items_processed = len(self._ingested_meetings)
+                status.items_processed = len(meetings_to_store)
                 status.state = StageState.COMPLETED
                 status.progress_percent = 100.0
                 status.metadata["note"] = "No storage target configured (using in-memory)"
-                self._stored_count = len(self._ingested_meetings)
+                self._stored_count = len(meetings_to_store)
             else:
-                # Store the meetings to persistent storage
+                # Store the validated meetings to persistent storage
                 stored_count = self.storage_target.store_meetings(
                     jurisdiction_id=self.jurisdiction_id,
-                    meetings=self._ingested_meetings,
+                    meetings=meetings_to_store,
                 )
                 self._stored_count = stored_count
                 status.items_found = len(self._ingested_meetings)

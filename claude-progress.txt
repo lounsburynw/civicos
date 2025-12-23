@@ -1,3 +1,69 @@
+## Session 349: validate_meetings_on_ingest - JSON Schema Validation for Pipeline
+
+**Date:** 2025-12-22
+**Item:** validate_meetings_on_ingest (data_standards > schema_validation)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Added JSON schema validation to the meeting ingestion pipeline. Meetings are now validated before storage, with invalid meetings filtered and logged.
+
+### Implementation
+
+1. **Meeting Schema Module** (`packages/civic-extraction/src/civic_extraction/meeting_schema.py`):
+   - `MEETING_SCHEMA`: JSON Schema for Meeting objects (required fields: id, title, meeting_datetime, jurisdiction_id)
+   - `MeetingValidator`: Validates single meetings or batches using jsonschema library
+   - `MeetingValidationResult`: Per-meeting validation result (is_valid, errors, warnings)
+   - `BatchValidationResult`: Batch summary (total/valid/invalid counts, timing, valid_meetings list)
+
+2. **Pipeline Integration** (`packages/civic-extraction/src/civic_extraction/pipeline.py`):
+   - Added `validate_on_ingest: bool = True` parameter to Pipeline.__init__
+   - Modified `_run_store()` to validate meetings before storage
+   - Validation metadata stored in stage status: total/valid/invalid counts, timing
+   - Invalid meetings logged as warnings with details
+   - Filter by default (invalid meetings excluded from storage)
+
+3. **Exports** (`packages/civic-extraction/src/civic_extraction/__init__.py`):
+   - Exported MeetingValidator, MeetingValidationResult, BatchValidationResult, MEETING_SCHEMA
+
+4. **Tests** (26 total):
+   - `test_meeting_schema.py`: 21 tests for schema, validator, batch validation, strict mode, datetime handling
+   - `test_pipeline_checkpoint.py`: 5 new tests for pipeline validation integration
+
+5. **Test Fix**:
+   - Updated `test_clients.py` to expect 4 stages (discover, ingest, store, index) instead of 3
+
+### Key Features
+- Non-blocking by default: Invalid meetings are logged and filtered, pipeline continues
+- Strict mode available: `MeetingValidator(strict=True)` raises on invalid
+- Graceful degradation: Works without jsonschema installed (warning only)
+- Performance tracking: Validation time recorded in stage metadata
+- Disable option: `Pipeline(..., validate_on_ingest=False)` skips validation
+
+### Testing
+- 21 schema validation tests: passed
+- 5 pipeline validation tests: passed
+- 119 extraction package tests: passed
+- 34 smoke tests: passed
+
+### Pilot Progress
+- Before: 153/174 items (87.9%)
+- After: 154/174 items (88.5%)
+- 1 item completed: validate_meetings_on_ingest
+
+### Files Changed
+- `packages/civic-extraction/src/civic_extraction/meeting_schema.py` (new)
+- `packages/civic-extraction/src/civic_extraction/pipeline.py` (validation integration)
+- `packages/civic-extraction/src/civic_extraction/__init__.py` (exports)
+- `packages/civic-extraction/tests/test_meeting_schema.py` (new, 21 tests)
+- `packages/civic-extraction/tests/test_pipeline_checkpoint.py` (5 new tests)
+- `packages/civic-extraction/tests/test_clients.py` (4-stage fix)
+- `pilot.json` (validate_meetings_on_ingest -> ready)
+
+### Next P0: validate_decisions_on_ingest
+Add JSON schema validation to decision extraction (same pattern as meetings - create DecisionValidator in civic_extraction).
+
+---
+
 ## Session 339: storage_stats_abstraction - Fix Layer Boundary Violation
 
 **Date:** 2025-12-22

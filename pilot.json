@@ -925,16 +925,18 @@
     "description": "FAIR data practices and reproducibility - to be finalized after pilot ingestion complete",
     "schema_validation": {
       "validate_meetings_on_ingest": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "Validate Meeting objects against civic-app-schema.json during extraction",
-        "note": "Add JSON schema validation to meeting ingestion pipeline"
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Validate Meeting objects against JSON schema during extraction",
+        "note": "Session 349: Created MeetingValidator class in civic_extraction/meeting_schema.py. Pipeline validates meetings before storage, filters invalid meetings, logs validation errors. 26 tests pass (21 schema + 5 pipeline).",
+        "completed": "2025-12-22",
+        "test_file": "packages/civic-extraction/tests/test_meeting_schema.py"
       },
       "validate_decisions_on_ingest": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 0,
         "artifact": "Validate Decision objects during extraction",
-        "note": "Post-ingestion: finalize schema once battle-tested"
+        "note": "Add JSON schema validation to decision extraction (similar pattern to validate_meetings_on_ingest)"
       }
     },
     "provenance": {
@@ -1324,7 +1326,8 @@
       "feedback_channel": {
         "status": "not_ready",
         "priority": 2,
-        "check": "Way for users to report issues"
+        "check": "Way for users to report issues",
+        "note": "Add feedback mechanism (GitHub link, email, or in-app form) for pilot users to report bugs"
       },
       "pilot_users_identified": {
         "status": "ready",
@@ -1360,6 +1363,6 @@
       "frontend_refinement": 3,
       "pilot_validation": 10
     },
-    "notes": "Updated 2025-12-22: Session 339 - FIXED storage_stats_abstraction P0 (layer violation). Added Civic.get_storage_stats() method to core API. API server now uses civic.Civic instead of importing SQLiteBackend directly. StorageStats includes backend_type in metadata and size_bytes. Next P0: postgres_backend_implementation."
+    "notes": "Updated 2025-12-22: Session 349 - COMPLETED validate_meetings_on_ingest P0. Created MeetingValidator class with JSON schema validation. Pipeline now validates meetings before storage, filters invalid meetings, logs validation errors. Added 26 tests (21 schema + 5 pipeline). Next P0: validate_decisions_on_ingest."
   }
 }
