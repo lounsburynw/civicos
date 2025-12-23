@@ -642,6 +642,12 @@
         "priority": 0,
         "artifact": "Complete VectorBackend protocol with embedding_model property and pgvector stub",
         "note": "VectorBackend protocol exists but is incomplete. Need to: (1) Add embedding_model and embedding_dimension properties, (2) Create PgVectorBackend stub for future Postgres migration, (3) Document ChromaDB \u2192 pgvector migration path. Currently ChromaDB is hardcoded in embeddings.py and cli.py."
+      },
+      "shared_config_package": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Move JurisdictionRegistry to shared package for clean layer separation",
+        "note": "civic-services imports JurisdictionRegistry/CITY_CONFIGS from civic (cross-layer). Options: (1) Create packages/civic-config/, (2) Duplicate config in civic-services. Low priority - config sharing is pragmatic."
       }
     },
     "schema_documentation": {
