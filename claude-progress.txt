@@ -5296,3 +5296,44 @@ Created `DataPathResolver` class to centralize all data file paths with environm
 Read embedding model from CIVIC_EMBEDDING_MODEL environment variable.
 
 ---
+
+## Session 346: Embedding Model Environment Configuration
+**Date:** 2025-12-22
+**Phase:** PILOT
+**Item:** embedding_model_env_config (P0 -> ready)
+
+### Summary
+Added CIVIC_EMBEDDING_MODEL environment variable support for configuring the embedding model in containerized deployments.
+
+### Implementation
+
+1. **Updated embeddings.py** (line 180):
+   ```python
+   DEFAULT_MODEL = os.environ.get(
+       "CIVIC_EMBEDDING_MODEL",
+       "nomic-ai/nomic-embed-text-v1.5"
+   )
+   ```
+   - Reads from environment with fallback to default
+   - Enables swapping embedding models without code changes
+
+2. **Tests** (`test_paths.py::TestEmbeddingModelConfiguration`, 3 tests):
+   - `test_default_model_without_env`: Verifies nomic default when env not set
+   - `test_custom_model_from_env`: Verifies custom model from CIVIC_EMBEDDING_MODEL
+   - `test_instance_respects_default_model`: Verifies class attribute propagation
+
+**Files Changed:**
+- `packages/civic/src/civic/_internal/meetings/embeddings.py` (line 177-183)
+- `packages/civic/tests/test_paths.py` (3 new tests)
+- `pilot.json` (embedding_model_env_config -> ready)
+
+**Tests:** 39 paths tests (36 existing + 3 new) + 34 smoke tests pass
+
+### Pilot Progress
+- Before: 150/173 items (86.7%)
+- After: 151/173 items (87.3%)
+
+### Next P0: error_logs
+Show errors/failures with log output in admin dashboard.
+
+---

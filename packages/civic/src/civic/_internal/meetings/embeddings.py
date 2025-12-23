@@ -176,7 +176,11 @@ class CivicEmbeddings:
 
     # Default embedding model - high quality with 8192 token context
     # Alternatives: all-MiniLM-L6-v2 (smaller/faster), all-mpnet-base-v2 (PyTorch)
-    DEFAULT_MODEL = "nomic-ai/nomic-embed-text-v1.5"
+    # Read from environment for container deployment, fallback to nomic for local dev
+    DEFAULT_MODEL = os.environ.get(
+        "CIVIC_EMBEDDING_MODEL",
+        "nomic-ai/nomic-embed-text-v1.5"
+    )
 
     # Canonical topic configurations for semantic classification
     # Each topic has: description (for embedding), bias (additive adjustment)
