@@ -321,10 +321,20 @@ class TestVectorBackendProtocol:
         @dataclass
         class MockVectorBackend:
             _backend_type: str = "mock"
+            _embedding_model: str = "test-model"
+            _embedding_dimension: int = 768
 
             @property
             def backend_type(self) -> str:
                 return self._backend_type
+
+            @property
+            def embedding_model(self) -> str:
+                return self._embedding_model
+
+            @property
+            def embedding_dimension(self) -> int:
+                return self._embedding_dimension
 
             def validate(self) -> VectorValidationResult:
                 return VectorValidationResult(
@@ -372,6 +382,80 @@ class TestVectorBackendProtocol:
         mock = MockVectorBackend()
         assert isinstance(mock, VectorBackend)
 
+    def test_embedding_properties_required(self):
+        """VectorBackend requires embedding_model and embedding_dimension properties."""
+
+        @dataclass
+        class CompleteVectorBackend:
+            """Backend with all required properties including embeddings."""
+
+            @property
+            def backend_type(self) -> str:
+                return "complete"
+
+            @property
+            def embedding_model(self) -> str:
+                return "nomic-ai/nomic-embed-text-v1.5"
+
+            @property
+            def embedding_dimension(self) -> int:
+                return 768
+
+            def validate(self) -> VectorValidationResult:
+                return VectorValidationResult(
+                    is_valid=True, connected=True, index_exists=True
+                )
+
+            def index_from_storage(
+                self,
+                storage_backend: StorageBackend,
+                jurisdiction_id: str,
+                corpus_type: str = "meetings",
+                batch_size: int = 100,
+            ) -> int:
+                return 0
+
+            def search(
+                self,
+                query: str,
+                jurisdiction_id: str,
+                corpus_type: str = "meetings",
+                top_k: int = 5,
+                min_score: Optional[float] = None,
+            ) -> List[SearchResult]:
+                return []
+
+            def get_stats(
+                self,
+                jurisdiction_id: str,
+                corpus_type: str = "meetings",
+                storage_backend: Optional[StorageBackend] = None,
+            ) -> VectorStats:
+                return VectorStats(
+                    jurisdiction_id=jurisdiction_id,
+                    corpus_type=corpus_type,
+                    document_count=0,
+                    embedding_model=self.embedding_model,
+                    embedding_dimension=self.embedding_dimension,
+                )
+
+            def delete_index(
+                self,
+                jurisdiction_id: str,
+                corpus_type: Optional[str] = None,
+            ) -> int:
+                return 0
+
+        backend = CompleteVectorBackend()
+        assert isinstance(backend, VectorBackend)
+        assert backend.embedding_model == "nomic-ai/nomic-embed-text-v1.5"
+        assert backend.embedding_dimension == 768
+
+        # Stats should include embedding info
+        stats = backend.get_stats("city-san-rafael")
+        assert stats.embedding_model == "nomic-ai/nomic-embed-text-v1.5"
+        assert stats.embedding_dimension == 768
+
     def test_incomplete_vector_implementation_fails(self):
         """Incomplete VectorBackend fails runtime check."""
 
@@ -381,6 +465,63 @@ class TestVectorBackendProtocol:
                 return "incomplete"
 
         incomplete = IncompleteVector()
+        assert not isinstance(incomplete, VectorBackend)
+
+    def test_missing_embedding_properties_fails(self):
+        """VectorBackend without embedding properties fails runtime check."""
+
+        class MissingEmbeddingVector:
+            """Backend missing embedding_model and embedding_dimension."""
+
+            @property
+            def backend_type(self) -> str:
+                return "incomplete"
+
+            def validate(self) -> VectorValidationResult:
+                return VectorValidationResult(
+                    is_valid=True, connected=True, index_exists=True
+                )
+
+            def index_from_storage(
+                self,
+                storage_backend: StorageBackend,
+                jurisdiction_id: str,
+                corpus_type: str = "meetings",
+                batch_size: int = 100,
+            ) -> int:
+                return 0
+
+            def search(
+                self,
+                query: str,
+                jurisdiction_id: str,
+                corpus_type: str = "meetings",
+                top_k: int = 5,
+                min_score: Optional[float] = None,
+            ) -> List[SearchResult]:
+                return []
+
+            def get_stats(
+                self,
+                jurisdiction_id: str,
+                corpus_type: str = "meetings",
+                storage_backend: Optional[StorageBackend] = None,
+            ) -> VectorStats:
+                return VectorStats(
+                    jurisdiction_id=jurisdiction_id,
+                    corpus_type=corpus_type,
+                    document_count=0,
+                )
+
+            def delete_index(
+                self,
+                jurisdiction_id: str,
+                corpus_type: Optional[str] = None,
+            ) -> int:
+                return 0
+
+        incomplete = MissingEmbeddingVector()
+        # Should fail because missing embedding_model and embedding_dimension
         assert not isinstance(incomplete, VectorBackend)
 
 
@@ -486,6 +627,8 @@ class TestProtocolIntegration:
         class InMemoryVector:
             _index: Dict[str, List[Dict]] = None
             _backend_type: str = "memory"
+            _embedding_model: str = "test-model"
+            _embedding_dimension: int = 768
 
             def __post_init__(self):
                 self._index = {}
@@ -493,6 +636,14 @@ class TestProtocolIntegration:
             @property
             def backend_type(self) -> str:
                 return self._backend_type
+
+            @property
+            def embedding_model(self) -> str:
+                return self._embedding_model
+
+            @property
+            def embedding_dimension(self) -> int:
+                return self._embedding_dimension
 
             def validate(self) -> VectorValidationResult:
                 return VectorValidationResult(
@@ -568,3 +719,69 @@ class TestProtocolIntegration:
         vector_stats = vector.get_stats("city-san-rafael")
         assert storage_stats.meeting_count == 2
         assert vector_stats.document_count == 2
+
+
+class TestPgVectorBackend:
+    """Tests for PgVectorBackend stub implementation."""
+
+    def test_pgvector_backend_has_required_properties(self):
+        """PgVectorBackend exposes embedding_model and embedding_dimension."""
+        from civic.storage import PgVectorBackend
+
+        backend = PgVectorBackend(
+            connection_string="postgresql://localhost/test",
+            embedding_model="nomic-ai/nomic-embed-text-v1.5",
+            embedding_dimension=768,
+        )
+
+        assert backend.backend_type == "pgvector"
+        assert backend.embedding_model == "nomic-ai/nomic-embed-text-v1.5"
+        assert backend.embedding_dimension == 768
+
+    def test_pgvector_backend_uses_defaults(self):
+        """PgVectorBackend uses default embedding model and dimension."""
+        from civic.storage import PgVectorBackend
+
+        backend = PgVectorBackend(
+            connection_string="postgresql://localhost/test"
+        )
+
+        assert backend.backend_type == "pgvector"
+        # Default model (may be overridden by CIVIC_EMBEDDING_MODEL env var)
+        assert backend.embedding_model is not None
+        assert len(backend.embedding_model) > 0
+        # Default dimension for nomic-embed-text-v1.5
+        assert backend.embedding_dimension == 768
+
+    def test_pgvector_backend_methods_raise_not_implemented(self):
+        """PgVectorBackend methods raise NotImplementedError (stub)."""
+        from civic.storage import PgVectorBackend
+
+        backend = PgVectorBackend(
+            connection_string="postgresql://localhost/test"
+        )
+
+        # All methods should raise NotImplementedError
+        with pytest.raises(NotImplementedError):
+            backend.validate()
+
+        with pytest.raises(NotImplementedError):
+            backend.index_from_storage(None, "city-san-rafael")
+
+        with pytest.raises(NotImplementedError):
+            backend.search("housing", "city-san-rafael")
+
+        with pytest.raises(NotImplementedError):
+            backend.get_stats("city-san-rafael")
+
+        with pytest.raises(NotImplementedError):
+            backend.delete_index("city-san-rafael")
+
+    def test_pgvector_backend_is_importable(self):
+        """PgVectorBackend can be imported from civic.storage."""
+        from civic.storage import PgVectorBackend
+
+        # Verify it's the correct class
+        assert hasattr(PgVectorBackend, 'embedding_model')
+        assert hasattr(PgVectorBackend, 'embedding_dimension')
+        assert hasattr(PgVectorBackend, 'backend_type')
