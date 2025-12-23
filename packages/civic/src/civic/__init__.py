@@ -47,6 +47,9 @@ from civic.history import UnifiedSearchResult, HybridSearchResult
 # Storage types (for dashboard/admin use)
 from civic.storage import StorageStats
 
+# Jurisdiction registry (centralized config)
+from civic.jurisdiction import JurisdictionRegistry, JurisdictionConfig, CITY_CONFIGS
+
 # Optional MCP support - lazy import to avoid circular dependencies
 MCP_AVAILABLE = False
 mcp_server = None
@@ -88,6 +91,10 @@ __all__ = [
     "HybridSearchResult",
     # Storage types
     "StorageStats",
+    # Jurisdiction registry
+    "JurisdictionRegistry",
+    "JurisdictionConfig",
+    "CITY_CONFIGS",
     # MCP
     "MCP_AVAILABLE",
     "mcp_server",
