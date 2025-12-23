@@ -5337,3 +5337,51 @@ Added CIVIC_EMBEDDING_MODEL environment variable support for configuring the emb
 Show errors/failures with log output in admin dashboard.
 
 ---
+## Session 347: error_logs - Add Detailed Error Logging for Operations
+
+**Date:** 2025-12-22
+**Item:** error_logs (admin_operations > operation_status)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Enhanced operation error handling to capture detailed error information (error type, stack trace, timestamp) in result_json for dashboard display. This enables administrators to debug failed operations without needing server logs.
+
+### Implementation
+
+1. **Main Error Handler** (`civic_api_integrated.py:7842-7859`):
+   - Captures `error_type` (e.g., ValueError, HTTPError)
+   - Captures `error_traceback` (full stack trace)
+   - Captures `failed_at` timestamp
+   - Stores all in result_json via `complete_operation()`
+
+2. **Operation Handler Error Blocks** (5 handlers updated):
+   - `_trigger_fetch_meetings` - ImportError and general exceptions
+   - `_trigger_discover_videos` - General exceptions
+   - `_trigger_download_audio` - yt_dlp ImportError and general exceptions
+   - `_trigger_transcribe_videos` - youtube_transcript_api ImportError and general exceptions
+   - `_trigger_refresh_seeclickfix` - ImportError and general exceptions
+
+3. **Tests** (`test_admin_status.py::TestOperationErrorLogs`, 4 tests):
+   - `test_operation_error_includes_traceback`: Verifies error details stored
+   - `test_operation_success_has_no_error_fields`: Verifies clean success results
+   - `test_api_returns_error_details`: Verifies API response includes error info
+   - `test_error_logs_pilot_artifact`: Validates pilot.json artifact requirements
+
+### Files Changed
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py` (10 error blocks)
+- `packages/civic/tests/test_admin_status.py` (4 new tests)
+- `pilot.json` (error_logs -> ready)
+
+### Tests
+- 4 new error logs tests: passed
+- 16 total admin status tests: passed
+- 34 smoke tests: passed
+
+### Pilot Progress
+- Before: 151/173 items (87.3%)
+- After: 152/173 items (87.9%)
+
+### Next P0: vector_backend_protocol_completion
+Complete VectorBackend protocol with embedding_model property and pgvector stub.
+
+---

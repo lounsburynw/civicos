@@ -488,8 +488,8 @@
         "note": "SESSION 341: Operations table stores (id, name, status, started_at, completed_at, result_json, error). GET /api/admin/operations endpoint exposed."
       },
       "error_logs": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Show errors/failures with log output",
         "note": "Store error details in operation_history result_json. Display expandable error details in dashboard."
       },
@@ -639,9 +639,9 @@
       },
       "vector_backend_protocol_completion": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Complete VectorBackend protocol with embedding_model property and pgvector stub",
-        "note": "VectorBackend protocol exists but is incomplete. Need to: (1) Add embedding_model and embedding_dimension properties, (2) Create PgVectorBackend stub for future Postgres migration, (3) Document ChromaDB → pgvector migration path. Currently ChromaDB is hardcoded in embeddings.py and cli.py."
+        "note": "VectorBackend protocol exists but is incomplete. Need to: (1) Add embedding_model and embedding_dimension properties, (2) Create PgVectorBackend stub for future Postgres migration, (3) Document ChromaDB \u2192 pgvector migration path. Currently ChromaDB is hardcoded in embeddings.py and cli.py."
       }
     },
     "schema_documentation": {
