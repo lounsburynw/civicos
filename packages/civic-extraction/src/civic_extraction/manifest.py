@@ -502,3 +502,198 @@ def get_latest_manifest(
     if not manifests:
         return None
     return load_manifest(manifests[0]["filepath"])
+
+
+@dataclass
+class AuditEntry:
+    """
+    Aggregated extraction metrics for a single platform/source type.
+
+    Attributes:
+        source_type: Platform type (e.g., "proudcity", "legistar", "seeclickfix")
+        run_count: Total number of extraction runs
+        success_count: Number of successful runs
+        failure_count: Number of failed runs
+        total_records: Total records processed across all runs
+        last_run: Timestamp of most recent run
+        first_run: Timestamp of first run
+        avg_records_per_run: Average records per run
+    """
+    source_type: str
+    run_count: int = 0
+    success_count: int = 0
+    failure_count: int = 0
+    total_records: int = 0
+    last_run: Optional[datetime] = None
+    first_run: Optional[datetime] = None
+    avg_records_per_run: float = 0.0
+
+    @property
+    def success_rate(self) -> float:
+        """Calculate success rate as percentage."""
+        if self.run_count == 0:
+            return 0.0
+        return (self.success_count / self.run_count) * 100
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "source_type": self.source_type,
+            "run_count": self.run_count,
+            "success_count": self.success_count,
+            "failure_count": self.failure_count,
+            "success_rate": round(self.success_rate, 1),
+            "total_records": self.total_records,
+            "avg_records_per_run": round(self.avg_records_per_run, 1),
+            "last_run": self.last_run.isoformat() if self.last_run else None,
+            "first_run": self.first_run.isoformat() if self.first_run else None,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "AuditEntry":
+        """Create from dictionary."""
+        return cls(
+            source_type=data["source_type"],
+            run_count=data.get("run_count", 0),
+            success_count=data.get("success_count", 0),
+            failure_count=data.get("failure_count", 0),
+            total_records=data.get("total_records", 0),
+            last_run=datetime.fromisoformat(data["last_run"]) if data.get("last_run") else None,
+            first_run=datetime.fromisoformat(data["first_run"]) if data.get("first_run") else None,
+            avg_records_per_run=data.get("avg_records_per_run", 0.0),
+        )
+
+
+@dataclass
+class AuditLog:
+    """
+    Extraction audit log aggregating metrics across platforms.
+
+    Provides an audit trail for extraction runs:
+    - Per-platform success/failure tracking
+    - Aggregated record counts
+    - Run frequency and timing
+
+    Usage:
+        audit = AuditLog.from_manifests(jurisdiction_id="city-san-rafael")
+        print(audit.summary())
+    """
+    jurisdiction_id: str
+    generated_at: datetime = field(default_factory=datetime.now)
+    entries: Dict[str, AuditEntry] = field(default_factory=dict)
+    total_runs: int = 0
+    total_records: int = 0
+
+    @classmethod
+    def from_manifests(
+        cls,
+        jurisdiction_id: str,
+        manifest_dir: Optional[str] = None,
+        limit: int = 100,
+    ) -> "AuditLog":
+        """
+        Build audit log from manifest history.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            manifest_dir: Optional custom directory
+            limit: Maximum manifests to process
+
+        Returns:
+            AuditLog with aggregated metrics per platform
+        """
+        audit = cls(jurisdiction_id=jurisdiction_id)
+
+        manifest_summaries = list_manifests(jurisdiction_id, manifest_dir, limit=limit)
+
+        for summary in manifest_summaries:
+            try:
+                manifest = load_manifest(summary["filepath"])
+                audit._add_manifest(manifest)
+            except Exception as e:
+                logger.warning(f"Failed to process manifest {summary['filepath']}: {e}")
+
+        # Calculate averages
+        for entry in audit.entries.values():
+            if entry.run_count > 0:
+                entry.avg_records_per_run = entry.total_records / entry.run_count
+
+        return audit
+
+    def _add_manifest(self, manifest: IngestionManifest) -> None:
+        """Add a manifest to the audit log."""
+        self.total_runs += 1
+
+        for source in manifest.sources:
+            source_type = source.source_type
+
+            if source_type not in self.entries:
+                self.entries[source_type] = AuditEntry(source_type=source_type)
+
+            entry = self.entries[source_type]
+            entry.run_count += 1
+
+            if manifest.success:
+                entry.success_count += 1
+            else:
+                entry.failure_count += 1
+
+            entry.total_records += source.records_ingested
+            self.total_records += source.records_ingested
+
+            # Track run timestamps
+            if entry.last_run is None or manifest.timestamp > entry.last_run:
+                entry.last_run = manifest.timestamp
+            if entry.first_run is None or manifest.timestamp < entry.first_run:
+                entry.first_run = manifest.timestamp
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "jurisdiction_id": self.jurisdiction_id,
+            "generated_at": self.generated_at.isoformat(),
+            "total_runs": self.total_runs,
+            "total_records": self.total_records,
+            "platforms": {k: v.to_dict() for k, v in self.entries.items()},
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "AuditLog":
+        """Create from dictionary."""
+        audit = cls(
+            jurisdiction_id=data["jurisdiction_id"],
+            generated_at=datetime.fromisoformat(data["generated_at"]),
+            total_runs=data.get("total_runs", 0),
+            total_records=data.get("total_records", 0),
+        )
+        for source_type, entry_data in data.get("platforms", {}).items():
+            audit.entries[source_type] = AuditEntry.from_dict(entry_data)
+        return audit
+
+    def summary(self) -> str:
+        """Generate human-readable summary."""
+        lines = [
+            "=" * 60,
+            "EXTRACTION AUDIT LOG",
+            "=" * 60,
+            f"Jurisdiction: {self.jurisdiction_id}",
+            f"Generated: {self.generated_at.strftime('%Y-%m-%d %H:%M:%S')}",
+            f"Total runs: {self.total_runs}",
+            f"Total records: {self.total_records:,}",
+            "",
+            "-" * 60,
+            f"{'Platform':<20} {'Runs':<8} {'Success':<10} {'Records':<12} {'Last Run':<15}",
+            "-" * 60,
+        ]
+
+        for source_type in sorted(self.entries.keys()):
+            entry = self.entries[source_type]
+            success_str = f"{entry.success_rate:.0f}%"
+            last_run_str = entry.last_run.strftime("%Y-%m-%d") if entry.last_run else "N/A"
+            lines.append(
+                f"{source_type:<20} {entry.run_count:<8} {success_str:<10} "
+                f"{entry.total_records:<12,} {last_run_str:<15}"
+            )
+
+        lines.extend(["-" * 60, ""])
+        return "\n".join(lines)

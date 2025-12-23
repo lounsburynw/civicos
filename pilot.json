@@ -951,16 +951,18 @@
         "test_file": "packages/civic-extraction/tests/test_manifest.py"
       },
       "extraction_audit_log": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Log extraction runs with success/failure counts per platform",
-        "note": "Build on IngestionManifest: add structured logging of extraction runs per platform"
+        "note": "Session 351: Created AuditEntry and AuditLog classes in manifest.py. AuditLog.from_manifests() aggregates metrics per platform (run count, success rate, total records, first/last run). CLI: civic-extract audit --jurisdiction city-san-rafael. 13 new tests.",
+        "completed": "2025-12-22",
+        "test_file": "packages/civic-extraction/tests/test_manifest.py"
       }
     },
     "versioning": {
       "data_snapshot_releases": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Quarterly tagged data releases with version numbers",
         "note": "Post-ingestion: first release after pilot data stable"
       }
@@ -1368,6 +1370,6 @@
       "frontend_refinement": 3,
       "pilot_validation": 10
     },
-    "notes": "Updated 2025-12-22: Session 350 - COMPLETED ingestion_manifest (157/174, 90.2%). Created IngestionManifest in civic_extraction/manifest.py with provenance tracking, checksums, Pipeline integration, CLI command. 20 new tests. Next P0: extraction_audit_log."
+    "notes": "Updated 2025-12-22: Session 351 - COMPLETED extraction_audit_log (158/174, 90.8%). Created AuditEntry and AuditLog classes building on IngestionManifest. Aggregates metrics per platform with CLI: civic-extract audit. 13 new tests."
   }
 }
