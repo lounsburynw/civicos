@@ -5634,3 +5634,52 @@ civic-extract audit --jurisdiction city-san-rafael --limit 50
 - After: 158/174 items (90.8%)
 
 ---
+
+## Session 352: Data Snapshot Releases
+
+**Date:** 2025-12-22
+**Item:** data_snapshot_releases (P0)
+**Status:** COMPLETE
+
+### Summary
+Added versioned data snapshot system for quarterly tagged data releases.
+
+### Implementation
+
+**DataSnapshot class** - Versioned data snapshot:
+- snapshot_id, version, jurisdiction_id, created_at
+- release_type (quarterly, urgent, manual)
+- Aggregated metrics from AuditLog
+- File checksums for integrity verification
+- data_range_start/end tracking
+- validate_version() supports Q1-2026, 2026-01-15, v1.0.0 formats
+
+**Utility functions:**
+- save_snapshot()/load_snapshot()
+- list_snapshots()/get_snapshot()
+
+**CLI commands:**
+```bash
+civic-extract snapshot create -j city-san-rafael -v Q1-2026
+civic-extract snapshot create -j city-san-rafael -v Q1-2026 --description "Initial pilot release" --include-files
+civic-extract snapshot list -j city-san-rafael
+civic-extract snapshot info -j city-san-rafael -v Q1-2026
+civic-extract snapshot verify -j city-san-rafael -v Q1-2026
+```
+
+### Files Modified
+- `packages/civic-extraction/src/civic_extraction/manifest.py` (added DataSnapshot, save_snapshot, load_snapshot, list_snapshots, get_snapshot)
+- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` (snapshot routing)
+- `packages/civic-extraction/src/civic_extraction/cli/snapshot_cli.py` (new)
+- `packages/civic-extraction/tests/test_manifest.py` (25 new tests)
+- `pilot.json` (data_snapshot_releases -> ready)
+
+### Tests
+- 58 manifest tests: passed (33 original + 25 new snapshot tests)
+- 34 smoke tests: passed
+
+### Pilot Progress
+- Before: 158/174 items (90.8%)
+- After: 159/174 items (91.4%)
+
+---
