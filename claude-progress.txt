@@ -81,6 +81,25 @@ Completed both schema_validation items in data_standards:
 - validate_meetings_on_ingest: 26 tests (21 schema + 5 pipeline)
 - validate_decisions_on_ingest: 21 tests
 
+### End-to-End Pipeline Test
+
+Ran full pipeline test for San Rafael to validate complete ETL flow:
+
+**Results:**
+- discover: 850/850 meetings discovered from ProudCity
+- ingest: 4/4 meetings in 7-day window
+- store: 4/4 meetings stored (validation: 4/4 valid)
+- index: skipped (temp test directory)
+
+**Bug Found & Fixed:**
+- `SQLiteBackend.store_meetings()` failed with "datetime is not JSON serializable"
+- Added `DateTimeEncoder` class for JSON serialization
+- Convert datetime fields to ISO strings before SQLite insert
+
+**Validation Confirmed Working:**
+- MeetingValidator correctly validates all 4 meetings before storage
+- Validation metadata tracked in stage status
+
 ### Next P0: feedback_channel
 Add feedback mechanism (GitHub link, email, or in-app form) for pilot users to report bugs.
 
