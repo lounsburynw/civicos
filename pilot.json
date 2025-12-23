@@ -907,7 +907,7 @@
       },
       "marin_county_code": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Index relevant Marin County code sections (housing, land use)"
       }
     },
@@ -1334,7 +1334,7 @@
       },
       "feedback_channel": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 2,
         "check": "Way for users to report issues",
         "note": "Add feedback mechanism (GitHub link, email, or in-app form) for pilot users to report bugs"
       },
