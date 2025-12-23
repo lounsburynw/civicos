@@ -8,25 +8,24 @@ Supports:
 - Single-query research (fast, less comprehensive)
 - Ensemble research (multiple focused queries, more comprehensive)
 - Municipality-specific configuration via research_config.yaml
+
+This module extends the generic BaseResearcher with housing-specific
+prompt building, parsing, and result merging logic.
 """
 
-import json
 import re
-import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
-from datetime import datetime
-from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
-import yaml
-
-from ..providers import SearchProvider, SearchResult, get_provider
-from .query_templates import (
+from ..base import (
+    BaseResearcher,
+    EnsembleResearchResult,
+    MunicipalityConfig,
+    QueryResult,
     QueryTemplate,
-    build_queries_from_templates,
-    get_templates_for_topic,
+    ResearchResult,
 )
+from ..providers import SearchProvider
+from .query_templates import get_templates_for_topic
 from .schemas import (
     BallotMeasure,
     ContactInfo,
@@ -35,88 +34,26 @@ from .schemas import (
 )
 
 
-@dataclass
-class MunicipalityConfig:
-    """Configuration for municipality-specific research."""
-
-    known_programs: list[str] = field(default_factory=list)
-    """Known program names to search for specifically."""
-
-    custom_queries: list[str] = field(default_factory=list)
-    """Custom queries specific to this municipality."""
-
-    query_overrides: dict[str, str] = field(default_factory=dict)
-    """Override default query templates."""
-
-    skip_queries: list[str] = field(default_factory=list)
-    """Query keys to skip."""
-
-    @classmethod
-    def from_yaml(cls, path: Path) -> "MunicipalityConfig":
-        """Load config from YAML file."""
-        if not path.exists():
-            return cls()
-        with open(path) as f:
-            data = yaml.safe_load(f) or {}
-        return cls(
-            known_programs=data.get("known_programs", []),
-            custom_queries=data.get("custom_queries", []),
-            query_overrides=data.get("query_overrides", {}),
-            skip_queries=data.get("skip_queries", []),
-        )
+# Re-export base classes for backward compatibility
+__all__ = [
+    "MunicipalFundingResearcher",
+    "MunicipalFundingPrograms",
+    "MunicipalityConfig",
+    "QueryResult",
+    "ResearchResult",
+    "EnsembleResearchResult",
+    "QueryTemplate",
+]
 
 
-@dataclass
-class QueryResult:
-    """Result from a single query in an ensemble."""
-
-    query: str
-    template_key: Optional[str]
-    program_type: Optional[str]
-    response: SearchResult
-    timestamp: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class ResearchResult:
-    """Result from municipal funding research."""
-
-    municipality: str
-    state: str
-    topic: str
-    raw_response: SearchResult
-    parsed_data: Optional[MunicipalFundingPrograms] = None
-    audit_file: Optional[str] = None
-    timestamp: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class EnsembleResearchResult:
-    """Result from ensemble municipal funding research."""
-
-    municipality: str
-    state: str
-    topic: str
-    query_results: list[QueryResult] = field(default_factory=list)
-    """Results from individual queries."""
-
-    merged_data: Optional[MunicipalFundingPrograms] = None
-    """Merged and deduplicated data from all queries."""
-
-    audit_file: Optional[str] = None
-    total_cost: float = 0.0
-    timestamp: datetime = field(default_factory=datetime.now)
-
-
-class MunicipalFundingResearcher:
+class MunicipalFundingResearcher(BaseResearcher):
     """
     Researches municipal funding programs using web search.
 
-    This class orchestrates the research process:
-    1. Constructs structured prompts for comprehensive funding research
-    2. Executes searches via the configured provider
-    3. Saves audit trails for reproducibility
-    4. Parses results into structured schemas
+    This class extends BaseResearcher with housing-specific logic:
+    1. Housing-focused prompts for comprehensive funding research
+    2. Parsing into MunicipalFundingPrograms schema
+    3. Program merging and deduplication
 
     Example:
         researcher = MunicipalFundingResearcher()
@@ -152,6 +89,7 @@ class MunicipalFundingResearcher:
         self,
         provider: Optional[SearchProvider] = None,
         data_dir: str = "data/funding/municipal",
+        topic: str = "housing",
     ):
         """
         Initialize the researcher.
@@ -159,14 +97,43 @@ class MunicipalFundingResearcher:
         Args:
             provider: Search provider to use. If None, uses default from env.
             data_dir: Base directory for saving research data.
+            topic: Topic area to research (housing, transportation, environment).
         """
-        self._provider = provider or get_provider()
-        self._data_dir = Path(data_dir)
+        super().__init__(provider=provider, data_dir=data_dir)
+        self._topic = topic
 
-    @property
-    def provider(self) -> SearchProvider:
-        """The search provider being used."""
-        return self._provider
+    # =========================================================================
+    # BaseResearcher abstract method implementations
+    # =========================================================================
+
+    def _get_topic(self) -> str:
+        """Return the topic identifier for this researcher."""
+        return self._topic
+
+    def _get_query_templates(self) -> list[QueryTemplate]:
+        """Return the query templates for housing research."""
+        return [
+            QueryTemplate(
+                key=t.key,
+                template=t.template,
+                description=t.description,
+                program_type=t.program_type,
+                priority=t.priority,
+            )
+            for t in get_templates_for_topic(self._topic)
+        ]
+
+    def _get_topic_context(self) -> dict[str, str]:
+        """Return topic context descriptions for prompts."""
+        return self.TOPIC_CONTEXT
+
+    def _get_output_schema(self) -> type[MunicipalFundingPrograms]:
+        """Return the Pydantic model class for output."""
+        return MunicipalFundingPrograms
+
+    # =========================================================================
+    # Backward compatibility: Override base methods to accept topic parameter
+    # =========================================================================
 
     def research(
         self,
@@ -188,28 +155,10 @@ class MunicipalFundingResearcher:
         Returns:
             ResearchResult with raw response and parsed data.
         """
-        # Build the research prompt
-        prompt = self._build_prompt(municipality, state, topic)
-
-        # Execute search
-        search_result = self._provider.search(prompt)
-
-        # Create result object
-        result = ResearchResult(
-            municipality=municipality,
-            state=state,
-            topic=topic,
-            raw_response=search_result,
-        )
-
-        # Save audit trail
-        if save_audit:
-            result.audit_file = self._save_audit(result)
-
-        # Attempt to parse into structured format
-        result.parsed_data = self._parse_response(result)
-
-        return result
+        # Set topic for this research call
+        self._topic = topic
+        # Delegate to base class
+        return super().research(municipality, state, save_audit=save_audit)
 
     def research_ensemble(
         self,
@@ -225,9 +174,6 @@ class MunicipalFundingResearcher:
         """
         Research municipal funding programs using multiple focused queries.
 
-        This method runs multiple targeted queries in parallel, then merges
-        the results for more comprehensive coverage.
-
         Args:
             municipality: City name (e.g., "San Rafael").
             state: State name (e.g., "California").
@@ -240,170 +186,164 @@ class MunicipalFundingResearcher:
         Returns:
             EnsembleResearchResult with merged data from all queries.
         """
-        # Load municipality config
-        config = self._load_municipality_config(municipality)
-
-        # Build queries from templates + config
-        queries = self._build_ensemble_queries(
-            municipality, state, topic, config, max_priority
+        # Set topic for this research call
+        self._topic = topic
+        # Delegate to base class
+        return super().research_ensemble(
+            municipality,
+            state,
+            save_audit=save_audit,
+            max_workers=max_workers,
+            delay_between_queries=delay_between_queries,
+            max_priority=max_priority,
         )
 
-        # Execute queries
-        query_results = self._execute_queries(
-            queries, max_workers, delay_between_queries
-        )
+    # =========================================================================
+    # Housing-specific implementation of abstract methods
+    # =========================================================================
 
-        # Create result
-        result = EnsembleResearchResult(
-            municipality=municipality,
-            state=state,
-            topic=topic,
-            query_results=query_results,
-            total_cost=sum(qr.response.cost for qr in query_results),
-        )
+    def _build_prompt(self, jurisdiction: str, state: str, **kwargs: Any) -> str:
+        """Build the housing-specific research prompt."""
+        topic = self._topic
+        topic_desc = self.TOPIC_CONTEXT.get(topic, topic)
 
-        # Save audit trail
-        if save_audit:
-            result.audit_file = self._save_ensemble_audit(result)
+        return f"""Research the City of {jurisdiction}, {state}'s municipal funding programs related to {topic_desc}.
 
-        # Merge results
-        result.merged_data = self._merge_results(result)
+Return a structured response using EXACTLY this format for each program found. Use "NOT_FOUND" for any field where data is unavailable.
 
-        return result
+---
+PROGRAM: Affordable Housing Trust Fund
+program_name: [Official name]
+administering_agency: [City department name]
+description: [2-3 sentence description]
+fund_sources: [List sources: in-lieu fees, general fund, grants, etc.]
+annual_funding_available: [Dollar amount or NOT_FOUND]
+eligible_activities:
+- [Activity 1]
+- [Activity 2]
+- [Activity 3]
+application_process: [Description of how to apply]
+application_deadline: [Date or "Rolling" or NOT_FOUND]
+affordability_period_years: [Number or NOT_FOUND]
+governing_resolution: [Resolution number or NOT_FOUND]
+official_url: [URL or NOT_FOUND]
+contact_phone: [Phone or NOT_FOUND]
+contact_email: [Email or NOT_FOUND]
+resident_input_opportunities:
+- [Opportunity 1]
+- [Opportunity 2]
+leverage_point: [How residents can influence this program]
 
-    def _load_municipality_config(self, municipality: str) -> MunicipalityConfig:
-        """Load municipality-specific configuration if available."""
-        slug = municipality.lower().replace(" ", "-")
-        config_path = self._data_dir / slug / "research_config.yaml"
-        return MunicipalityConfig.from_yaml(config_path)
+---
+PROGRAM: Inclusionary Housing Program
+program_name: [Official name]
+administering_agency: [City department]
+description: [2-3 sentence description]
+affordable_percentage_required: [e.g., "5%" or NOT_FOUND]
+project_threshold: [e.g., "10+ units" or NOT_FOUND]
+in_lieu_fee_current_amount: [Dollar amount per unit]
+in_lieu_fee_effective_date: [Date]
+fee_adjustment_method: [e.g., "California Construction Cost Index" or NOT_FOUND]
+compliance_options:
+- [Option 1: on-site units]
+- [Option 2: off-site units]
+- [Option 3: in-lieu fee]
+governing_ordinance: [Municipal code section, e.g., "Section 14.16.030"]
+governing_resolutions: [Resolution numbers]
+official_url: [URL or NOT_FOUND]
+resident_input_opportunities:
+- [Opportunity 1]
+leverage_point: [How residents can influence]
 
-    def _build_ensemble_queries(
-        self,
-        municipality: str,
-        state: str,
-        topic: str,
-        config: MunicipalityConfig,
-        max_priority: int,
-    ) -> list[tuple[str, Optional[QueryTemplate]]]:
-        """
-        Build list of queries from templates and config.
+---
+PROGRAM: Commercial Linkage Fee
+program_name: [Official name]
+administering_agency: [City department]
+description: [2-3 sentence description]
+fee_rates:
+- office_per_sqft: [Dollar amount]
+- retail_per_sqft: [Dollar amount]
+- hotel_per_sqft: [Dollar amount]
+exemption_threshold_sqft: [e.g., "2500" or NOT_FOUND]
+effective_date: [Date]
+nexus_study: [Study name and year or NOT_FOUND]
+governing_ordinance: [Municipal code section]
+official_url: [URL or NOT_FOUND]
 
-        Returns list of (query_string, template_or_none) tuples.
-        """
-        queries = []
+---
+PROGRAM: Ballot Measure [Letter]
+measure_name: [e.g., "Measure P"]
+full_title: [Official ballot title]
+election_date: [Date]
+status: [passed/failed]
+description: [What it funds]
+tax_rate: [e.g., "$0.145 per sqft" or NOT_FOUND]
+annual_revenue: [Dollar amount or NOT_FOUND]
+duration_years: [Number or NOT_FOUND]
+exemptions:
+- [Exemption 1]
+official_url: [URL or NOT_FOUND]
 
-        # Get base templates for topic
-        templates = get_templates_for_topic(topic)
+---
+PROGRAM: CDBG/HOME Pass-Through
+program_name: [Official name]
+administering_agency: [City department + county partner if applicable]
+description: [2-3 sentence description]
+cdbg_allocation: [Dollar amount or NOT_FOUND]
+home_allocation: [Dollar amount or NOT_FOUND]
+cooperative_agreement: [Description of county relationship or NOT_FOUND]
+application_deadline: [Date or NOT_FOUND]
+official_url: [URL or NOT_FOUND]
+resident_input_opportunities:
+- [Opportunity 1]
 
-        # Filter and apply overrides
-        for template in templates:
-            if template.key in config.skip_queries:
-                continue
-            if template.priority > max_priority:
-                continue
+---
+PROGRAM: Below Market Rate Rental Program
+program_name: [Official name or NOT_FOUND if no dedicated program]
+administering_agency: [City department]
+description: [Description or NOT_FOUND]
+income_limits: [e.g., "80% AMI" or NOT_FOUND]
+official_url: [URL or NOT_FOUND]
 
-            # Check for override
-            if template.key in config.query_overrides:
-                query = config.query_overrides[template.key].format(
-                    municipality=municipality,
-                    state=state,
-                    year=datetime.now().year,
-                )
-            else:
-                query = template.template.format(
-                    municipality=municipality,
-                    state=state,
-                    year=datetime.now().year,
-                    year_range=f"2020-{datetime.now().year}",
-                )
+---
 
-            queries.append((query, template))
+Include ALL programs you find evidence of. If a program category doesn't exist for this city, write:
+PROGRAM: [Category]
+status: NOT_FOUND
 
-        # Add custom queries from config
-        for custom_query in config.custom_queries:
-            queries.append((custom_query, None))
+Cite official .gov sources whenever possible. Be precise with dollar amounts, dates, and ordinance numbers."""
 
-        # Add known program searches
-        for program in config.known_programs:
-            query = f"{municipality} {state} {program}"
-            queries.append((query, None))
+    def _parse_response(self, result: ResearchResult) -> Optional[MunicipalFundingPrograms]:
+        """Parse the raw response into MunicipalFundingPrograms."""
+        try:
+            slug = self._slugify(result.jurisdiction)
 
-        return queries
-
-    def _execute_queries(
-        self,
-        queries: list[tuple[str, Optional[QueryTemplate]]],
-        max_workers: int,
-        delay: float,
-    ) -> list[QueryResult]:
-        """Execute queries with rate limiting."""
-        results = []
-
-        def execute_single(query_tuple: tuple[str, Optional[QueryTemplate]]) -> QueryResult:
-            query, template = query_tuple
-            response = self._provider.search(query)
-            return QueryResult(
-                query=query,
-                template_key=template.key if template else None,
-                program_type=template.program_type if template else None,
-                response=response,
+            # Create base structure
+            data = MunicipalFundingPrograms(
+                jurisdiction=f"city-{slug}",
+                jurisdiction_type="municipal",
+                topic=result.topic,
+                last_updated=result.timestamp,
+                data_sources=[
+                    f"{self._provider.name} ({result.raw_response.model})",
+                    "NEEDS HUMAN VERIFICATION",
+                ],
+                verification_status="DRAFT - NOT VERIFIED",
+                source_citations=result.raw_response.citations,
             )
 
-        # Execute with thread pool for parallelism
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = []
-            for i, query_tuple in enumerate(queries):
-                # Submit with staggered start for rate limiting
-                if i > 0:
-                    time.sleep(delay)
-                future = executor.submit(execute_single, query_tuple)
-                futures.append(future)
+            # Extract programs from structured response
+            content = result.raw_response.content
+            data.programs = self._extract_programs_structured(content, result.jurisdiction)
+            data.ballot_measures = self._extract_ballot_measures_structured(content)
 
-            # Collect results
-            for future in as_completed(futures):
-                try:
-                    result = future.result()
-                    results.append(result)
-                except Exception as e:
-                    # Log error but continue with other queries
-                    print(f"Query failed: {e}")
+            # Extract contact info
+            data.contact_information = self._extract_contact_info(content)
 
-        return results
+            return data
 
-    def _save_ensemble_audit(self, result: EnsembleResearchResult) -> str:
-        """Save ensemble audit trail to disk."""
-        slug = result.municipality.lower().replace(" ", "-")
-        municipality_dir = self._data_dir / slug
-        municipality_dir.mkdir(parents=True, exist_ok=True)
-
-        audit_file = municipality_dir / f"{result.topic}_ensemble_audit.json"
-
-        # Build audit data
-        audit_data = {
-            "municipality": result.municipality,
-            "state": result.state,
-            "topic": result.topic,
-            "timestamp": result.timestamp.isoformat(),
-            "total_cost": result.total_cost,
-            "provider": self._provider.name,
-            "queries": [
-                {
-                    "query": qr.query,
-                    "template_key": qr.template_key,
-                    "program_type": qr.program_type,
-                    "response": qr.response.content,
-                    "citations": qr.response.citations,
-                    "cost": qr.response.cost,
-                    "timestamp": qr.timestamp.isoformat(),
-                }
-                for qr in result.query_results
-            ],
-        }
-
-        with open(audit_file, "w") as f:
-            json.dump(audit_data, f, indent=2)
-
-        return str(audit_file)
+        except Exception:
+            return None
 
     def _merge_results(
         self, result: EnsembleResearchResult
@@ -572,210 +512,28 @@ class MunicipalFundingResearcher:
         result: EnsembleResearchResult,
         output_file: Optional[str] = None,
     ) -> str:
-        """Save merged ensemble data to structured JSON file."""
-        if result.merged_data is None:
-            raise ValueError(
-                "No merged data available. Raw responses saved to audit file: "
-                f"{result.audit_file}"
-            )
-
-        if output_file is None:
-            slug = result.municipality.lower().replace(" ", "-")
-            output_file = str(
-                self._data_dir / slug / f"{result.topic}_programs.json"
-            )
-
-        Path(output_file).parent.mkdir(parents=True, exist_ok=True)
-
-        with open(output_file, "w") as f:
-            json.dump(result.merged_data.model_dump(mode="json"), f, indent=2)
-
-        return output_file
-
-    def _build_prompt(self, municipality: str, state: str, topic: str) -> str:
-        """Build the research prompt for the given municipality and topic."""
-        topic_desc = self.TOPIC_CONTEXT.get(topic, topic)
-
-        return f"""Research the City of {municipality}, {state}'s municipal funding programs related to {topic_desc}.
-
-Return a structured response using EXACTLY this format for each program found. Use "NOT_FOUND" for any field where data is unavailable.
-
----
-PROGRAM: Affordable Housing Trust Fund
-program_name: [Official name]
-administering_agency: [City department name]
-description: [2-3 sentence description]
-fund_sources: [List sources: in-lieu fees, general fund, grants, etc.]
-annual_funding_available: [Dollar amount or NOT_FOUND]
-eligible_activities:
-- [Activity 1]
-- [Activity 2]
-- [Activity 3]
-application_process: [Description of how to apply]
-application_deadline: [Date or "Rolling" or NOT_FOUND]
-affordability_period_years: [Number or NOT_FOUND]
-governing_resolution: [Resolution number or NOT_FOUND]
-official_url: [URL or NOT_FOUND]
-contact_phone: [Phone or NOT_FOUND]
-contact_email: [Email or NOT_FOUND]
-resident_input_opportunities:
-- [Opportunity 1]
-- [Opportunity 2]
-leverage_point: [How residents can influence this program]
-
----
-PROGRAM: Inclusionary Housing Program
-program_name: [Official name]
-administering_agency: [City department]
-description: [2-3 sentence description]
-affordable_percentage_required: [e.g., "5%" or NOT_FOUND]
-project_threshold: [e.g., "10+ units" or NOT_FOUND]
-in_lieu_fee_current_amount: [Dollar amount per unit]
-in_lieu_fee_effective_date: [Date]
-fee_adjustment_method: [e.g., "California Construction Cost Index" or NOT_FOUND]
-compliance_options:
-- [Option 1: on-site units]
-- [Option 2: off-site units]
-- [Option 3: in-lieu fee]
-governing_ordinance: [Municipal code section, e.g., "Section 14.16.030"]
-governing_resolutions: [Resolution numbers]
-official_url: [URL or NOT_FOUND]
-resident_input_opportunities:
-- [Opportunity 1]
-leverage_point: [How residents can influence]
-
----
-PROGRAM: Commercial Linkage Fee
-program_name: [Official name]
-administering_agency: [City department]
-description: [2-3 sentence description]
-fee_rates:
-- office_per_sqft: [Dollar amount]
-- retail_per_sqft: [Dollar amount]
-- hotel_per_sqft: [Dollar amount]
-exemption_threshold_sqft: [e.g., "2500" or NOT_FOUND]
-effective_date: [Date]
-nexus_study: [Study name and year or NOT_FOUND]
-governing_ordinance: [Municipal code section]
-official_url: [URL or NOT_FOUND]
-
----
-PROGRAM: Ballot Measure [Letter]
-measure_name: [e.g., "Measure P"]
-full_title: [Official ballot title]
-election_date: [Date]
-status: [passed/failed]
-description: [What it funds]
-tax_rate: [e.g., "$0.145 per sqft" or NOT_FOUND]
-annual_revenue: [Dollar amount or NOT_FOUND]
-duration_years: [Number or NOT_FOUND]
-exemptions:
-- [Exemption 1]
-official_url: [URL or NOT_FOUND]
-
----
-PROGRAM: CDBG/HOME Pass-Through
-program_name: [Official name]
-administering_agency: [City department + county partner if applicable]
-description: [2-3 sentence description]
-cdbg_allocation: [Dollar amount or NOT_FOUND]
-home_allocation: [Dollar amount or NOT_FOUND]
-cooperative_agreement: [Description of county relationship or NOT_FOUND]
-application_deadline: [Date or NOT_FOUND]
-official_url: [URL or NOT_FOUND]
-resident_input_opportunities:
-- [Opportunity 1]
-
----
-PROGRAM: Below Market Rate Rental Program
-program_name: [Official name or NOT_FOUND if no dedicated program]
-administering_agency: [City department]
-description: [Description or NOT_FOUND]
-income_limits: [e.g., "80% AMI" or NOT_FOUND]
-official_url: [URL or NOT_FOUND]
-
----
-
-Include ALL programs you find evidence of. If a program category doesn't exist for this city, write:
-PROGRAM: [Category]
-status: NOT_FOUND
-
-Cite official .gov sources whenever possible. Be precise with dollar amounts, dates, and ordinance numbers."""
-
-    def _save_audit(self, result: ResearchResult) -> str:
-        """Save audit trail to disk."""
-        # Create municipality directory
-        slug = result.municipality.lower().replace(" ", "-")
-        municipality_dir = self._data_dir / slug
-        municipality_dir.mkdir(parents=True, exist_ok=True)
-
-        # Audit file path
-        audit_file = municipality_dir / f"{result.topic}_perplexity_audit.json"
-
-        # Load existing or create new
-        if audit_file.exists():
-            with open(audit_file) as f:
-                audit_data = json.load(f)
-        else:
-            audit_data = {"queries": []}
-
-        # Add this query
-        audit_data["queries"].append(
-            {
-                "municipality": result.municipality,
-                "state": result.state,
-                "topic": result.topic,
-                "response": result.raw_response.content,
-                "citations": result.raw_response.citations,
-                "model": result.raw_response.model,
-                "cost": result.raw_response.cost,
-                "timestamp": result.timestamp.isoformat(),
-                "provider": self._provider.name,
-            }
-        )
-
-        # Save
-        with open(audit_file, "w") as f:
-            json.dump(audit_data, f, indent=2)
-
-        return str(audit_file)
-
-    def _parse_response(self, result: ResearchResult) -> Optional[MunicipalFundingPrograms]:
         """
-        Parse the raw response into structured data.
+        Save merged ensemble data to structured JSON file.
 
-        Parses the structured YAML-like format from the prompt.
+        Backward-compatible alias for save_data().
         """
-        try:
-            slug = result.municipality.lower().replace(" ", "-")
+        return self.save_data(result, output_file)
 
-            # Create base structure
-            data = MunicipalFundingPrograms(
-                jurisdiction=f"city-{slug}",
-                jurisdiction_type="municipal",
-                topic=result.topic,
-                last_updated=result.timestamp,
-                data_sources=[
-                    f"{self._provider.name} ({result.raw_response.model})",
-                    "NEEDS HUMAN VERIFICATION",
-                ],
-                verification_status="DRAFT - NOT VERIFIED",
-                source_citations=result.raw_response.citations,
-            )
+    def save_structured_data(
+        self,
+        result: ResearchResult,
+        output_file: Optional[str] = None,
+    ) -> str:
+        """
+        Save parsed data to structured JSON file.
 
-            # Extract programs from structured response
-            content = result.raw_response.content
-            data.programs = self._extract_programs_structured(content, result.municipality)
-            data.ballot_measures = self._extract_ballot_measures_structured(content)
+        Backward-compatible alias for save_data().
+        """
+        return self.save_data(result, output_file)
 
-            # Extract contact info
-            data.contact_information = self._extract_contact_info(content)
-
-            return data
-
-        except Exception:
-            # Parsing failed, return None - raw data is still available
-            return None
+    # =========================================================================
+    # Housing-specific extraction methods
+    # =========================================================================
 
     def _extract_programs_structured(
         self, content: str, municipality: str
@@ -1012,56 +770,3 @@ Cite official .gov sources whenever possible. Be precise with dollar amounts, da
 
         return contacts
 
-    def _slugify(self, text: str) -> str:
-        """Convert text to a slug identifier."""
-        # Remove special characters, lowercase, replace spaces with underscores
-        slug = re.sub(r'[^\w\s-]', '', text.lower())
-        slug = re.sub(r'[-\s]+', '_', slug)
-        return slug.strip('_')
-
-    def _generate_keywords(self, program_type: str) -> list[str]:
-        """Generate keywords from program type."""
-        # Split on spaces and common separators
-        words = re.split(r'[\s/]+', program_type.lower())
-        # Filter out common words
-        stopwords = {'the', 'a', 'an', 'and', 'or', 'of', 'for', 'to', 'in'}
-        return [w for w in words if w and w not in stopwords]
-
-    def save_structured_data(
-        self,
-        result: ResearchResult,
-        output_file: Optional[str] = None,
-    ) -> str:
-        """
-        Save parsed data to structured JSON file.
-
-        Args:
-            result: Research result with parsed data.
-            output_file: Output file path. If None, uses default location.
-
-        Returns:
-            Path to the saved file.
-
-        Raises:
-            ValueError: If result has no parsed data.
-        """
-        if result.parsed_data is None:
-            raise ValueError(
-                "No parsed data available. Raw response saved to audit file: "
-                f"{result.audit_file}"
-            )
-
-        if output_file is None:
-            slug = result.municipality.lower().replace(" ", "-")
-            output_file = str(
-                self._data_dir / slug / f"{result.topic}_programs.json"
-            )
-
-        # Ensure directory exists
-        Path(output_file).parent.mkdir(parents=True, exist_ok=True)
-
-        # Save as JSON
-        with open(output_file, "w") as f:
-            json.dump(result.parsed_data.model_dump(mode="json"), f, indent=2)
-
-        return output_file
