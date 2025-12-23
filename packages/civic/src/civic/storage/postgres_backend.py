@@ -8,10 +8,21 @@ Part of the 4-stage pipeline: discover -> ingest -> store -> index.
 
 import json
 import time
-from datetime import datetime
+from datetime import datetime, date
 from typing import Any, Dict, List, Optional
 
 from .backend import StorageBackend, StorageStats, StorageValidationResult
+
+
+class DateTimeEncoder(json.JSONEncoder):
+    """JSON encoder that handles datetime objects."""
+
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, date):
+            return obj.isoformat()
+        return super().default(obj)
 
 # Optional import - psycopg2 only required if PostgresBackend is used
 try:
@@ -336,6 +347,19 @@ class PostgresBackend:
                 else:
                     meeting_dict = meeting
 
+                # Convert datetime fields to ISO strings for consistency
+                meeting_dt = meeting_dict.get('meeting_datetime')
+                if isinstance(meeting_dt, datetime):
+                    meeting_dt = meeting_dt.isoformat()
+                elif isinstance(meeting_dt, date):
+                    meeting_dt = meeting_dt.isoformat()
+
+                comment_dl = meeting_dict.get('comment_deadline')
+                if isinstance(comment_dl, datetime):
+                    comment_dl = comment_dl.isoformat()
+                elif isinstance(comment_dl, date):
+                    comment_dl = comment_dl.isoformat()
+
                 cursor.execute("""
                     INSERT INTO meetings (
                         id, jurisdiction_id, title, meeting_datetime,
@@ -348,7 +372,7 @@ class PostgresBackend:
                     meeting_dict.get('id'),
                     jurisdiction_id,
                     meeting_dict.get('title'),
-                    meeting_dict.get('meeting_datetime'),
+                    meeting_dt,
                     meeting_dict.get('meeting_type'),
                     meeting_dict.get('status'),
                     meeting_dict.get('location'),
@@ -356,13 +380,13 @@ class PostgresBackend:
                     meeting_dict.get('agenda_url'),
                     meeting_dict.get('minutes_url'),
                     meeting_dict.get('video_url'),
-                    meeting_dict.get('comment_deadline'),
+                    comment_dl,
                     meeting_dict.get('source_platform', 'unknown'),
                     meeting_dict.get('source_url'),
                     as_of.isoformat(),
                     meeting_dict.get('data_quality_score', 0.0),
                     as_of.isoformat(),
-                    json.dumps(meeting_dict)
+                    json.dumps(meeting_dict, cls=DateTimeEncoder)
                 ))
 
             # Update city_state timestamp
