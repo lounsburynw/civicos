@@ -5771,3 +5771,74 @@ what_applies("housing") now returns:
 
 ### Next P0
 - `san_rafael_municipal_funding` - Research city-specific funding programs
+
+## Session 356 (2025-12-23)
+
+### Task: research_abstraction
+
+Created extensible research infrastructure by extracting generic orchestration from housing-specific code.
+
+### Changes
+
+1. **Created `base.py`** - `BaseResearcher` abstract class with:
+   - Common orchestration: `research()`, `research_ensemble()`
+   - Rate limiting and parallel query execution
+   - Audit trail persistence
+   - Municipality config loading
+   - Utility methods: `_slugify()`, `_generate_keywords()`, `_extract_relevant_text()`
+
+2. **Refactored `funding.py`** - `MunicipalFundingResearcher(BaseResearcher)`:
+   - Implements abstract methods for housing-specific logic
+   - `_get_topic()` → returns "housing"
+   - `_build_prompt()` → housing-specific structured format
+   - `_parse_response()` → MunicipalFundingPrograms parsing
+   - `_merge_results()` → program deduplication and merging
+   - Backward-compatible API: same `research()` and `research_ensemble()` signatures
+
+3. **Updated `__init__.py`** - Export `BaseResearcher` for extensibility
+
+### Architecture
+
+```
+research/
+├── __init__.py          # Export BaseResearcher + MunicipalFundingResearcher
+├── base.py              # NEW: BaseResearcher abstract class
+├── providers/           # Unchanged
+└── municipal/
+    ├── funding.py       # MunicipalFundingResearcher(BaseResearcher)
+    ├── schemas.py       # Housing-specific schemas
+    └── query_templates.py
+```
+
+### Extensibility Pattern
+
+```python
+from civic_extraction.research import BaseResearcher
+
+class TransportationResearcher(BaseResearcher):
+    def _get_topic(self) -> str:
+        return "transportation"
+    
+    def _get_query_templates(self) -> list[QueryTemplate]:
+        return TRANSPORTATION_TEMPLATES
+    
+    def _build_prompt(self, jurisdiction, state, **kwargs) -> str:
+        return "..."
+    
+    def _parse_response(self, result) -> Optional[BaseModel]:
+        return TransportationPrograms(...)
+    
+    def _merge_results(self, result) -> Optional[BaseModel]:
+        return merged_data
+```
+
+### Tests
+- 34 smoke tests: passed
+- Method validation: all abstract and inherited methods present
+
+### Pilot Progress
+- Before: 162/175 items (92.6%)
+- After: 163/175 items (93.1%)
+
+### Next P0
+- `e2e_data_ingestion_verification` - Verify end-to-end data ingestion pipeline including status dashboard

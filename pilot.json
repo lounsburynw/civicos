@@ -909,7 +909,12 @@
         "status": "ready",
         "priority": 2,
         "artifact": "Index relevant Marin County code sections (housing, land use)",
-        "indexed_titles": ["TIT22DECO", "TIT24DEST", "TIT19MACOBUCO", "TIT20COZOCO"],
+        "indexed_titles": [
+          "TIT22DECO",
+          "TIT24DEST",
+          "TIT19MACOBUCO",
+          "TIT20COZOCO"
+        ],
         "total_sections": 776,
         "completed_session": 354
       }
@@ -925,8 +930,8 @@
         "completed_session": 355
       },
       "research_abstraction": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Abstract research infrastructure across document types",
         "note": "Refactor research/ to separate core orchestration (ensemble, rate-limiting, audit) from topic-specific logic (prompts, parsing, schemas). See docs/next_session_prompt.md for design proposal.",
         "key_files": [
@@ -1360,6 +1365,15 @@
         "artifact": "docs/user_guides/PILOT_USER_IDENTIFICATION.md",
         "completed": "2025-12-15",
         "note": "Identification guide with criteria (SeeClickFix, geographic), process, and outreach templates"
+      }
+    },
+    "data_pipeline": {
+      "e2e_data_ingestion_verification": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Verify end-to-end data ingestion pipeline including status dashboard",
+        "test": "Manual verification of full pipeline flow",
+        "manual_step": "Run data ingestion for a municipality and verify in status dashboard"
       }
     }
   },
