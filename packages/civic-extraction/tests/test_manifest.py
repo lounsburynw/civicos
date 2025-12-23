@@ -10,6 +10,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from civic_extraction.manifest import (
+    AuditEntry,
+    AuditLog,
     IngestionManifest,
     SourceEntry,
     ValidationSummary,
@@ -420,3 +422,268 @@ class TestManifestCLI:
         )
         assert add_manifest_parser is not None
         assert run_manifest is not None
+
+
+class TestAuditEntry:
+    """Tests for AuditEntry dataclass."""
+
+    def test_create_audit_entry(self):
+        """Test creating an audit entry."""
+        entry = AuditEntry(
+            source_type="proudcity",
+            run_count=10,
+            success_count=9,
+            failure_count=1,
+            total_records=500,
+        )
+        assert entry.source_type == "proudcity"
+        assert entry.run_count == 10
+        assert entry.success_count == 9
+        assert entry.failure_count == 1
+        assert entry.total_records == 500
+
+    def test_success_rate(self):
+        """Test success rate calculation."""
+        entry = AuditEntry(
+            source_type="legistar",
+            run_count=10,
+            success_count=8,
+            failure_count=2,
+        )
+        assert entry.success_rate == 80.0
+
+    def test_success_rate_zero_runs(self):
+        """Test success rate with zero runs."""
+        entry = AuditEntry(source_type="test")
+        assert entry.success_rate == 0.0
+
+    def test_audit_entry_roundtrip(self):
+        """Test serializing and deserializing audit entry."""
+        entry = AuditEntry(
+            source_type="civicclerk",
+            run_count=5,
+            success_count=4,
+            failure_count=1,
+            total_records=200,
+            last_run=datetime(2025, 12, 22, 12, 0, 0),
+            first_run=datetime(2025, 12, 1, 10, 0, 0),
+            avg_records_per_run=40.0,
+        )
+        data = entry.to_dict()
+        restored = AuditEntry.from_dict(data)
+
+        assert restored.source_type == "civicclerk"
+        assert restored.run_count == 5
+        assert restored.success_count == 4
+        assert restored.total_records == 200
+        assert restored.last_run == datetime(2025, 12, 22, 12, 0, 0)
+        assert restored.first_run == datetime(2025, 12, 1, 10, 0, 0)
+
+
+class TestAuditLog:
+    """Tests for AuditLog dataclass."""
+
+    def test_create_audit_log(self):
+        """Test creating an audit log."""
+        audit = AuditLog(jurisdiction_id="city-san-rafael")
+        assert audit.jurisdiction_id == "city-san-rafael"
+        assert audit.total_runs == 0
+        assert audit.total_records == 0
+        assert audit.entries == {}
+
+    def test_from_manifests_empty(self, tmp_path):
+        """Test building audit log with no manifests."""
+        audit = AuditLog.from_manifests(
+            jurisdiction_id="city-nonexistent",
+            manifest_dir=str(tmp_path),
+        )
+        assert audit.total_runs == 0
+        assert audit.entries == {}
+
+    def test_from_manifests_single(self, tmp_path):
+        """Test building audit log from a single manifest."""
+        # Create a manifest
+        manifest = IngestionManifest.create(
+            jurisdiction_id="city-test",
+            run_type="scheduled",
+            timestamp=datetime(2025, 12, 22, 10, 0, 0),
+        )
+        manifest.success = True
+        manifest.sources.append(SourceEntry(
+            source_id="proudcity-test",
+            source_type="proudcity",
+            records_ingested=50,
+        ))
+        save_manifest(manifest, manifest_dir=str(tmp_path))
+
+        # Build audit log
+        audit = AuditLog.from_manifests(
+            jurisdiction_id="city-test",
+            manifest_dir=str(tmp_path),
+        )
+
+        assert audit.total_runs == 1
+        assert audit.total_records == 50
+        assert "proudcity" in audit.entries
+        assert audit.entries["proudcity"].run_count == 1
+        assert audit.entries["proudcity"].success_count == 1
+        assert audit.entries["proudcity"].total_records == 50
+
+    def test_from_manifests_multiple_platforms(self, tmp_path):
+        """Test building audit log with multiple platforms."""
+        # Create manifests with different source types
+        for i, source_type in enumerate(["proudcity", "legistar", "seeclickfix"]):
+            ts = datetime(2025, 12, 22, 10 + i, 0, 0)
+            manifest = IngestionManifest.create(
+                jurisdiction_id="city-test",
+                run_type="scheduled",
+                timestamp=ts,
+            )
+            manifest.success = True
+            manifest.sources.append(SourceEntry(
+                source_id=f"{source_type}-test",
+                source_type=source_type,
+                records_ingested=10 * (i + 1),
+            ))
+            save_manifest(manifest, manifest_dir=str(tmp_path))
+
+        # Build audit log
+        audit = AuditLog.from_manifests(
+            jurisdiction_id="city-test",
+            manifest_dir=str(tmp_path),
+        )
+
+        assert audit.total_runs == 3
+        assert len(audit.entries) == 3
+        assert "proudcity" in audit.entries
+        assert "legistar" in audit.entries
+        assert "seeclickfix" in audit.entries
+
+    def test_from_manifests_aggregates_runs(self, tmp_path):
+        """Test that audit log aggregates multiple runs of same platform."""
+        # Create 5 manifests for same source
+        for i in range(5):
+            ts = datetime(2025, 12, 22, 10 + i, 0, 0)
+            manifest = IngestionManifest.create(
+                jurisdiction_id="city-test",
+                run_type="scheduled",
+                timestamp=ts,
+            )
+            manifest.success = i < 4  # 4 success, 1 failure
+            manifest.sources.append(SourceEntry(
+                source_id="proudcity-test",
+                source_type="proudcity",
+                records_ingested=20,
+            ))
+            save_manifest(manifest, manifest_dir=str(tmp_path))
+
+        # Build audit log
+        audit = AuditLog.from_manifests(
+            jurisdiction_id="city-test",
+            manifest_dir=str(tmp_path),
+        )
+
+        assert audit.total_runs == 5
+        assert audit.total_records == 100
+        assert audit.entries["proudcity"].run_count == 5
+        assert audit.entries["proudcity"].success_count == 4
+        assert audit.entries["proudcity"].failure_count == 1
+        assert audit.entries["proudcity"].success_rate == 80.0
+        assert audit.entries["proudcity"].avg_records_per_run == 20.0
+
+    def test_from_manifests_tracks_timestamps(self, tmp_path):
+        """Test that audit log tracks first and last run timestamps."""
+        # Create manifests at different times
+        first_ts = datetime(2025, 12, 1, 10, 0, 0)
+        last_ts = datetime(2025, 12, 22, 12, 0, 0)
+
+        for ts in [first_ts, datetime(2025, 12, 10, 10, 0, 0), last_ts]:
+            manifest = IngestionManifest.create(
+                jurisdiction_id="city-test",
+                run_type="scheduled",
+                timestamp=ts,
+            )
+            manifest.success = True
+            manifest.sources.append(SourceEntry(
+                source_id="test-source",
+                source_type="test",
+                records_ingested=10,
+            ))
+            save_manifest(manifest, manifest_dir=str(tmp_path))
+
+        audit = AuditLog.from_manifests(
+            jurisdiction_id="city-test",
+            manifest_dir=str(tmp_path),
+        )
+
+        assert audit.entries["test"].first_run == first_ts
+        assert audit.entries["test"].last_run == last_ts
+
+    def test_audit_log_roundtrip(self):
+        """Test serializing and deserializing audit log."""
+        audit = AuditLog(
+            jurisdiction_id="city-test",
+            generated_at=datetime(2025, 12, 22, 12, 0, 0),
+            total_runs=10,
+            total_records=500,
+        )
+        audit.entries["proudcity"] = AuditEntry(
+            source_type="proudcity",
+            run_count=6,
+            success_count=5,
+            failure_count=1,
+            total_records=300,
+        )
+        audit.entries["legistar"] = AuditEntry(
+            source_type="legistar",
+            run_count=4,
+            success_count=4,
+            failure_count=0,
+            total_records=200,
+        )
+
+        data = audit.to_dict()
+        restored = AuditLog.from_dict(data)
+
+        assert restored.jurisdiction_id == "city-test"
+        assert restored.total_runs == 10
+        assert restored.total_records == 500
+        assert len(restored.entries) == 2
+        assert restored.entries["proudcity"].run_count == 6
+        assert restored.entries["legistar"].total_records == 200
+
+    def test_audit_log_summary(self):
+        """Test generating human-readable summary."""
+        audit = AuditLog(
+            jurisdiction_id="city-san-rafael",
+            generated_at=datetime(2025, 12, 22, 12, 0, 0),
+            total_runs=10,
+            total_records=500,
+        )
+        audit.entries["proudcity"] = AuditEntry(
+            source_type="proudcity",
+            run_count=6,
+            success_count=6,
+            failure_count=0,
+            total_records=300,
+            last_run=datetime(2025, 12, 22, 10, 0, 0),
+        )
+
+        summary = audit.summary()
+        assert "city-san-rafael" in summary
+        assert "proudcity" in summary
+        assert "300" in summary
+        assert "100%" in summary  # success rate
+
+
+class TestAuditCLI:
+    """Tests for audit CLI functionality."""
+
+    def test_cli_import(self):
+        """Test that CLI module can be imported."""
+        from civic_extraction.cli.audit_cli import (
+            add_audit_parser,
+            run_audit,
+        )
+        assert add_audit_parser is not None
+        assert run_audit is not None
