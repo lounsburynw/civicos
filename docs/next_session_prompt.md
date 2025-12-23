@@ -1,55 +1,61 @@
-# Recommended: Feedback Channel
+# Recommended: Marin County Code
 
 **Priority:** P0 (IMMEDIATE)
-**Area:** pilot_validation > user_readiness
+**Area:** data_readiness > county_context
 **Date:** 2025-12-22
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 353 completed `data_dictionary` - updated docs/DATA_DICTIONARY.md with all core models (CityState, Meeting, AgendaItem, Decision, VoteTally, Issue, StaffRecommendation, PublicInput, LegalInstrument). Added source file locations, field types, and usage examples. (160/174 items ready, 92.0%)
+Session 353 completed `data_dictionary` - updated docs/DATA_DICTIONARY.md with all core models. (160/174 items ready, 92.0%)
 
-**The opportunity:** Add a feedback mechanism for pilot users to report bugs and issues during the Jan 2026 pilot.
+**The opportunity:** Index Marin County code sections relevant to San Rafael pilot (housing, land use). County regulations often supersede or complement city code.
+
+## Existing Municode Infrastructure
+
+The codebase already has `MunicipalCodeCorpus` that fetches from Municode's public API:
+
+```
+packages/civic/src/civic/_internal/legal/corpus/municipal.py
+```
+
+Key features:
+- `JURISDICTION_MAP` - Add `"county-marin": {"state": "CA", "name": "Marin County"}`
+- `stream_sections()` - Fetches structured code via API
+- `to_documents()` - Converts to ChromaDB-ready format
+- Rate limiting and caching built-in
 
 ## Recommended Task
 
-Implement a user feedback channel. Options to consider:
+1. **Check Municode** - Verify Marin County is available: https://www.municode.com/library/ca
+2. **Extend JURISDICTION_MAP** - Add county-marin entry
+3. **Create indexing script** - Similar to San Rafael municipal code
+4. **Filter relevant titles** - Housing (Title 22?), Land Use, Health & Safety
+5. **Index to ChromaDB** - `county-marin_municipal_code` collection
+6. **Wire into what_applies()** - Include county results in regulatory stack
 
-1. **GitHub Issues link** - Direct users to create issues on the repo
-2. **Email contact** - Simple mailto link for feedback
-3. **In-app form** - Embedded feedback form that sends to email/webhook
-
-## Key Files to Reference
+## Key Files
 
 ```
-apps/civic-workspace/                    # Vue frontend
-packages/civic-services/src/civic_services/servers/  # API server
-docs/user_guides/GETTING_STARTED.md      # User-facing docs
+packages/civic/src/civic/_internal/legal/corpus/municipal.py  # MunicipalCodeCorpus class
+packages/civic/src/civic/storage/embeddings.py               # CivicEmbeddings.build_municipal_code_index()
+packages/civic/tests/test_integration_rag_san_rafael.py      # Test patterns
 ```
-
-## Suggested Approach
-
-1. **Choose mechanism** - GitHub link is simplest, in-app form is best UX
-2. **Add to frontend** - Feedback button/link in header or footer
-3. **Update user docs** - Document how to report issues
-4. **Test the flow** - Verify feedback reaches intended destination
 
 ## Success Criteria
 
-- [ ] Users have a clear way to report issues
-- [ ] Feedback mechanism documented in user guides
-- [ ] pilot.json `feedback_channel` marked as ready
+- [ ] Marin County code sections indexed in ChromaDB
+- [ ] Relevant sections appear in `what_applies()` queries
+- [ ] pilot.json `marin_county_code` marked as ready
 
-## Upcoming P1 Items (Newly Prioritized)
+## Upcoming P1 Items
 
-After feedback_channel, consider these data items (bumped from P3 to P1):
-
-1. **marin_county_code** - Index relevant Marin County code sections (housing, land use)
-2. **san_rafael_municipal_funding** - Research and index city funding programs (housing trust fund, inclusionary housing, general fund allocations)
+1. **san_rafael_municipal_funding** - City funding programs (housing trust, inclusionary housing)
+2. **feedback_channel** - User feedback mechanism (P2)
 
 ## Pilot Progress
 
 - 160/174 items ready (92.0%)
 - 14 items remaining
-- P0: feedback_channel (this item)
+- P0: marin_county_code (this item)
