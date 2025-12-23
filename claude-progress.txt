@@ -5842,3 +5842,31 @@ class TransportationResearcher(BaseResearcher):
 
 ### Next P0
 - `e2e_data_ingestion_verification` - Verify end-to-end data ingestion pipeline including status dashboard
+
+## Session 357 (2025-12-23): E2E Data Ingestion Verification
+
+### Completed
+- `e2e_data_ingestion_verification` - Verified full pipeline for San Rafael
+
+### Pipeline Verification Results
+- **Discover**: 850 meetings found across 15 archive types
+- **Ingest**: 17 meetings within date range (30 days past, 90 days ahead)
+- **Store**: 17 meetings persisted to SQLite (100% validation)
+- **Index**: No index target configured (would need ChromaDB)
+
+### Key Findings
+1. Pipeline 4-stage ETL works correctly (discover→ingest→store→index)
+2. Manifests saved to `data/manifests/city-san-rafael/`
+3. Civic API reads from StateManager correctly
+4. Dashboard (`scripts/city_status_dashboard.py`) uses separate `data/events/` path (legacy)
+
+### Issue Identified
+- Data Pipeline dashboard UI is overwhelming and lacks clarity
+- Added new P0: `dashboard_visual_hierarchy` in `frontend_refinement > interface_clarity`
+
+### Pilot Progress
+- Before: 163/176 items (92.6%)
+- After: 164/177 items (92.7%)
+
+### Next P0
+- `dashboard_visual_hierarchy` - Simplify Data Pipeline dashboard UI with clearer visual hierarchy and inline help
