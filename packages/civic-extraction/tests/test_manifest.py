@@ -12,13 +12,18 @@ import pytest
 from civic_extraction.manifest import (
     AuditEntry,
     AuditLog,
+    DataSnapshot,
     IngestionManifest,
     SourceEntry,
     ValidationSummary,
+    get_snapshot,
+    list_snapshots,
+    load_snapshot,
     save_manifest,
     load_manifest,
     list_manifests,
     get_latest_manifest,
+    save_snapshot,
 )
 from civic_extraction.pipeline import PipelineResult, StageStatus, StageState
 
@@ -687,3 +692,385 @@ class TestAuditCLI:
         )
         assert add_audit_parser is not None
         assert run_audit is not None
+
+
+class TestDataSnapshot:
+    """Tests for DataSnapshot dataclass."""
+
+    def test_generate_snapshot_id(self):
+        """Test snapshot ID generation."""
+        snapshot_id = DataSnapshot.generate_id("city-san-rafael", "Q1-2026")
+        assert snapshot_id == "snapshot_city-san-rafael_Q1-2026"
+
+    def test_validate_version_quarterly(self):
+        """Test quarterly version format validation."""
+        assert DataSnapshot.validate_version("Q1-2026") is True
+        assert DataSnapshot.validate_version("Q2-2026") is True
+        assert DataSnapshot.validate_version("Q3-2026") is True
+        assert DataSnapshot.validate_version("Q4-2026") is True
+        assert DataSnapshot.validate_version("Q5-2026") is False
+        assert DataSnapshot.validate_version("Q0-2026") is False
+
+    def test_validate_version_date_based(self):
+        """Test date-based version format validation."""
+        assert DataSnapshot.validate_version("2026-01-15") is True
+        assert DataSnapshot.validate_version("2025-12-22") is True
+        assert DataSnapshot.validate_version("2026-1-15") is False
+        assert DataSnapshot.validate_version("26-01-15") is False
+
+    def test_validate_version_semantic(self):
+        """Test semantic version format validation."""
+        assert DataSnapshot.validate_version("v1.0.0") is True
+        assert DataSnapshot.validate_version("v0.2.0-pilot") is True
+        assert DataSnapshot.validate_version("v10.20.30") is True
+        assert DataSnapshot.validate_version("1.0.0") is False
+
+    def test_validate_version_invalid(self):
+        """Test invalid version formats."""
+        assert DataSnapshot.validate_version("invalid") is False
+        assert DataSnapshot.validate_version("2026-Q1") is False
+        assert DataSnapshot.validate_version("") is False
+
+    def test_create_snapshot(self):
+        """Test creating a snapshot with defaults."""
+        snapshot = DataSnapshot.create(
+            jurisdiction_id="city-san-rafael",
+            version="Q1-2026",
+        )
+        assert snapshot.jurisdiction_id == "city-san-rafael"
+        assert snapshot.version == "Q1-2026"
+        assert snapshot.release_type == "quarterly"
+        assert snapshot.snapshot_id == "snapshot_city-san-rafael_Q1-2026"
+        assert "hostname" in snapshot.metadata
+        assert "extraction_version" in snapshot.metadata
+
+    def test_create_snapshot_with_description(self):
+        """Test creating a snapshot with description."""
+        snapshot = DataSnapshot.create(
+            jurisdiction_id="city-san-rafael",
+            version="Q1-2026",
+            release_type="urgent",
+            description="Emergency data release",
+        )
+        assert snapshot.release_type == "urgent"
+        assert snapshot.description == "Emergency data release"
+
+    def test_create_snapshot_invalid_version(self):
+        """Test creating a snapshot with invalid version."""
+        with pytest.raises(ValueError, match="Invalid version format"):
+            DataSnapshot.create(
+                jurisdiction_id="city-san-rafael",
+                version="invalid-version",
+            )
+
+    def test_create_snapshot_with_audit_log(self):
+        """Test creating a snapshot from audit log."""
+        audit = AuditLog(
+            jurisdiction_id="city-san-rafael",
+            total_runs=10,
+            total_records=500,
+        )
+        audit.entries["proudcity"] = AuditEntry(
+            source_type="proudcity",
+            run_count=6,
+            success_count=6,
+            failure_count=0,
+            total_records=300,
+            first_run=datetime(2025, 12, 1, 10, 0, 0),
+            last_run=datetime(2025, 12, 22, 10, 0, 0),
+        )
+        audit.entries["legistar"] = AuditEntry(
+            source_type="legistar",
+            run_count=4,
+            success_count=4,
+            failure_count=0,
+            total_records=200,
+            first_run=datetime(2025, 12, 5, 10, 0, 0),
+            last_run=datetime(2025, 12, 20, 10, 0, 0),
+        )
+
+        snapshot = DataSnapshot.create(
+            jurisdiction_id="city-san-rafael",
+            version="Q1-2026",
+            audit_log=audit,
+        )
+
+        assert snapshot.total_records == 500
+        assert len(snapshot.platform_metrics) == 2
+        assert "proudcity" in snapshot.platform_metrics
+        assert "legistar" in snapshot.platform_metrics
+        assert snapshot.data_range_start == datetime(2025, 12, 1, 10, 0, 0)
+        assert snapshot.data_range_end == datetime(2025, 12, 22, 10, 0, 0)
+
+    def test_add_file(self, tmp_path):
+        """Test adding a file to the snapshot."""
+        snapshot = DataSnapshot.create(
+            jurisdiction_id="city-san-rafael",
+            version="Q1-2026",
+        )
+
+        # Create a test file
+        test_file = tmp_path / "test.json"
+        test_file.write_text('{"records": [1, 2, 3]}')
+
+        snapshot.add_file(
+            name="test_data",
+            path=str(test_file),
+            file_type="data",
+            record_count=3,
+        )
+
+        assert len(snapshot.included_files) == 1
+        assert snapshot.included_files[0]["name"] == "test_data"
+        assert snapshot.included_files[0]["file_type"] == "data"
+        assert snapshot.included_files[0]["record_count"] == 3
+        assert "checksum" in snapshot.included_files[0]
+        assert "test_data" in snapshot.checksums
+
+    def test_add_file_not_found(self):
+        """Test adding a non-existent file."""
+        snapshot = DataSnapshot.create(
+            jurisdiction_id="city-san-rafael",
+            version="Q1-2026",
+        )
+
+        with pytest.raises(FileNotFoundError):
+            snapshot.add_file(
+                name="missing",
+                path="/nonexistent/file.json",
+            )
+
+    def test_verify_integrity_success(self, tmp_path):
+        """Test integrity verification with valid files."""
+        snapshot = DataSnapshot.create(
+            jurisdiction_id="city-san-rafael",
+            version="Q1-2026",
+        )
+
+        # Create test files
+        file1 = tmp_path / "file1.json"
+        file1.write_text('{"data": 1}')
+        file2 = tmp_path / "file2.json"
+        file2.write_text('{"data": 2}')
+
+        snapshot.add_file("file1", str(file1))
+        snapshot.add_file("file2", str(file2))
+
+        result = snapshot.verify_integrity()
+        assert result["verified"] is True
+        assert result["files_checked"] == 2
+        assert result["files_missing"] == []
+        assert result["files_modified"] == []
+
+    def test_verify_integrity_missing_file(self, tmp_path):
+        """Test integrity verification with missing file."""
+        snapshot = DataSnapshot.create(
+            jurisdiction_id="city-san-rafael",
+            version="Q1-2026",
+        )
+
+        # Create and add a file, then delete it
+        test_file = tmp_path / "temp.json"
+        test_file.write_text('{"data": 1}')
+        snapshot.add_file("temp", str(test_file))
+        test_file.unlink()  # Delete the file
+
+        result = snapshot.verify_integrity()
+        assert result["verified"] is False
+        assert result["files_missing"] == ["temp"]
+
+    def test_verify_integrity_modified_file(self, tmp_path):
+        """Test integrity verification with modified file."""
+        snapshot = DataSnapshot.create(
+            jurisdiction_id="city-san-rafael",
+            version="Q1-2026",
+        )
+
+        # Create and add a file
+        test_file = tmp_path / "test.json"
+        test_file.write_text('{"original": true}')
+        snapshot.add_file("test", str(test_file))
+
+        # Modify the file
+        test_file.write_text('{"modified": true}')
+
+        result = snapshot.verify_integrity()
+        assert result["verified"] is False
+        assert result["files_modified"] == ["test"]
+
+    def test_snapshot_to_dict(self):
+        """Test serializing snapshot to dict."""
+        snapshot = DataSnapshot.create(
+            jurisdiction_id="city-san-rafael",
+            version="Q1-2026",
+            description="Test release",
+        )
+        snapshot.total_records = 100
+        snapshot.data_range_start = datetime(2025, 12, 1, 10, 0, 0)
+        snapshot.data_range_end = datetime(2025, 12, 22, 10, 0, 0)
+
+        data = snapshot.to_dict()
+        assert data["snapshot_id"] == "snapshot_city-san-rafael_Q1-2026"
+        assert data["version"] == "Q1-2026"
+        assert data["jurisdiction_id"] == "city-san-rafael"
+        assert data["description"] == "Test release"
+        assert data["total_records"] == 100
+        assert data["data_range_start"] == "2025-12-01T10:00:00"
+        assert data["data_range_end"] == "2025-12-22T10:00:00"
+
+    def test_snapshot_from_dict(self):
+        """Test deserializing snapshot from dict."""
+        data = {
+            "snapshot_id": "snapshot_city-test_Q2-2026",
+            "version": "Q2-2026",
+            "jurisdiction_id": "city-test",
+            "created_at": "2025-12-22T12:00:00",
+            "release_type": "manual",
+            "description": "Manual release",
+            "total_records": 250,
+            "platform_metrics": {
+                "proudcity": {"total_records": 250}
+            },
+            "data_range_start": "2025-12-01T10:00:00",
+            "data_range_end": "2025-12-22T10:00:00",
+            "included_files": [],
+            "checksums": {},
+            "metadata": {"hostname": "test"},
+        }
+        snapshot = DataSnapshot.from_dict(data)
+        assert snapshot.snapshot_id == "snapshot_city-test_Q2-2026"
+        assert snapshot.version == "Q2-2026"
+        assert snapshot.jurisdiction_id == "city-test"
+        assert snapshot.release_type == "manual"
+        assert snapshot.description == "Manual release"
+        assert snapshot.total_records == 250
+        assert snapshot.data_range_start == datetime(2025, 12, 1, 10, 0, 0)
+        assert snapshot.data_range_end == datetime(2025, 12, 22, 10, 0, 0)
+
+    def test_snapshot_from_dict_optional_fields(self):
+        """Test deserializing snapshot with missing optional fields."""
+        data = {
+            "snapshot_id": "snapshot_city-test_Q1-2026",
+            "version": "Q1-2026",
+            "jurisdiction_id": "city-test",
+            "created_at": "2025-12-22T12:00:00",
+        }
+        snapshot = DataSnapshot.from_dict(data)
+        assert snapshot.release_type == "quarterly"
+        assert snapshot.description == ""
+        assert snapshot.total_records == 0
+        assert snapshot.data_range_start is None
+        assert snapshot.data_range_end is None
+
+    def test_snapshot_summary(self):
+        """Test generating human-readable summary."""
+        snapshot = DataSnapshot.create(
+            jurisdiction_id="city-san-rafael",
+            version="Q1-2026",
+            description="First quarterly release",
+        )
+        snapshot.total_records = 500
+        snapshot.data_range_start = datetime(2025, 12, 1, 10, 0, 0)
+        snapshot.data_range_end = datetime(2025, 12, 22, 10, 0, 0)
+        snapshot.platform_metrics = {
+            "proudcity": {"total_records": 300, "success_rate": 100.0},
+            "legistar": {"total_records": 200, "success_rate": 95.0},
+        }
+
+        summary = snapshot.summary()
+        assert "Q1-2026" in summary
+        assert "city-san-rafael" in summary
+        assert "First quarterly release" in summary
+        assert "500" in summary
+        assert "proudcity" in summary
+        assert "legistar" in summary
+
+
+class TestSnapshotPersistence:
+    """Tests for snapshot save/load functionality."""
+
+    def test_save_and_load_snapshot(self, tmp_path):
+        """Test saving and loading a snapshot."""
+        snapshot = DataSnapshot.create(
+            jurisdiction_id="city-test",
+            version="Q1-2026",
+            description="Test snapshot",
+        )
+        snapshot.total_records = 100
+
+        # Save snapshot
+        filepath = save_snapshot(snapshot, snapshot_dir=str(tmp_path))
+
+        # Verify file exists
+        assert os.path.exists(filepath)
+        assert "city-test" in filepath
+
+        # Load and verify
+        loaded = load_snapshot(filepath)
+        assert loaded.snapshot_id == snapshot.snapshot_id
+        assert loaded.version == "Q1-2026"
+        assert loaded.jurisdiction_id == "city-test"
+        assert loaded.description == "Test snapshot"
+        assert loaded.total_records == 100
+
+    def test_list_snapshots_empty(self, tmp_path):
+        """Test listing snapshots when none exist."""
+        snapshots = list_snapshots("city-nonexistent", snapshot_dir=str(tmp_path))
+        assert snapshots == []
+
+    def test_list_snapshots_multiple(self, tmp_path):
+        """Test listing multiple snapshots."""
+        # Create several snapshots
+        for version in ["Q1-2026", "Q2-2026", "Q3-2026"]:
+            snapshot = DataSnapshot.create(
+                jurisdiction_id="city-test",
+                version=version,
+            )
+            save_snapshot(snapshot, snapshot_dir=str(tmp_path))
+
+        # List and verify
+        snapshots = list_snapshots("city-test", snapshot_dir=str(tmp_path))
+        assert len(snapshots) == 3
+        versions = [s["version"] for s in snapshots]
+        assert "Q1-2026" in versions
+        assert "Q2-2026" in versions
+        assert "Q3-2026" in versions
+
+    def test_get_snapshot_exists(self, tmp_path):
+        """Test getting a specific snapshot by version."""
+        # Create a snapshot
+        snapshot = DataSnapshot.create(
+            jurisdiction_id="city-test",
+            version="Q1-2026",
+        )
+        snapshot.total_records = 500
+        save_snapshot(snapshot, snapshot_dir=str(tmp_path))
+
+        # Get by version
+        retrieved = get_snapshot("city-test", "Q1-2026", snapshot_dir=str(tmp_path))
+        assert retrieved is not None
+        assert retrieved.version == "Q1-2026"
+        assert retrieved.total_records == 500
+
+    def test_get_snapshot_not_found(self, tmp_path):
+        """Test getting a non-existent snapshot."""
+        result = get_snapshot("city-test", "Q4-2099", snapshot_dir=str(tmp_path))
+        assert result is None
+
+
+class TestSnapshotCLI:
+    """Tests for snapshot CLI functionality."""
+
+    def test_cli_import(self):
+        """Test that CLI module can be imported."""
+        from civic_extraction.cli.snapshot_cli import (
+            add_snapshot_parser,
+            run_snapshot,
+        )
+        assert add_snapshot_parser is not None
+        assert run_snapshot is not None
+
+    def test_cli_main_import(self):
+        """Test that snapshot CLI is registered in main CLI."""
+        from civic_extraction.cli import main
+        assert main is not None
