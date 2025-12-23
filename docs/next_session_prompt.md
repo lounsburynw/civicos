@@ -1,61 +1,67 @@
-# Recommended: Marin County Code
+# Recommended: San Rafael Municipal Funding
 
 **Priority:** P0 (IMMEDIATE)
-**Area:** data_readiness > county_context
-**Date:** 2025-12-22
+**Area:** data_readiness > municipal_context
+**Date:** 2025-12-23
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 353 completed `data_dictionary` - updated docs/DATA_DICTIONARY.md with all core models. (160/174 items ready, 92.0%)
+Session 354 completed `marin_county_code` - indexed 776 Marin County code sections and integrated county ordinances into `what_applies()`. Also added configurable parsing patterns for municipality extensibility. (161/174 items ready, 92.5%)
 
-**The opportunity:** Index Marin County code sections relevant to San Rafael pilot (housing, land use). County regulations often supersede or complement city code.
+**The opportunity:** Research and index San Rafael municipal funding programs (housing trust fund, inclusionary housing, general fund allocations, local tax measures) to complete the local funding picture.
 
-## Existing Municode Infrastructure
+## Existing Infrastructure
 
-The codebase already has `MunicipalCodeCorpus` that fetches from Municode's public API:
+The codebase has patterns for funding program indexing:
 
 ```
-packages/civic/src/civic/_internal/legal/corpus/municipal.py
+data/funding/county/marin/housing_programs.json     # County housing programs (existing)
+data/funding/county/marin/homelessness_programs.json # County homelessness (existing)
+packages/civic/src/civic/_internal/meetings/embeddings.py:1701-1835  # build_county_programs_index()
 ```
-
-Key features:
-- `JURISDICTION_MAP` - Add `"county-marin": {"state": "CA", "name": "Marin County"}`
-- `stream_sections()` - Fetches structured code via API
-- `to_documents()` - Converts to ChromaDB-ready format
-- Rate limiting and caching built-in
 
 ## Recommended Task
 
-1. **Check Municode** - Verify Marin County is available: https://www.municode.com/library/ca
-2. **Extend JURISDICTION_MAP** - Add county-marin entry
-3. **Create indexing script** - Similar to San Rafael municipal code
-4. **Filter relevant titles** - Housing (Title 22?), Land Use, Health & Safety
-5. **Index to ChromaDB** - `county-marin_municipal_code` collection
-6. **Wire into what_applies()** - Include county results in regulatory stack
+1. **Research** - Find San Rafael municipal funding programs:
+   - Housing trust fund
+   - Inclusionary housing requirements/in-lieu fees
+   - General fund housing allocations
+   - Local tax measures (Measure A, etc.)
+
+2. **Create data file** - `data/funding/municipal/san-rafael/housing_programs.json`
+
+3. **Index to ChromaDB** - Adapt `build_county_programs_index()` pattern or create `build_municipal_programs_index()`
+
+4. **Integrate into what_applies()** - Add municipal funding to regulatory stack
 
 ## Key Files
 
 ```
-packages/civic/src/civic/_internal/legal/corpus/municipal.py  # MunicipalCodeCorpus class
-packages/civic/src/civic/storage/embeddings.py               # CivicEmbeddings.build_municipal_code_index()
-packages/civic/tests/test_integration_rag_san_rafael.py      # Test patterns
+data/funding/county/marin/housing_programs.json              # Pattern to follow
+packages/civic/src/civic/_internal/meetings/embeddings.py    # Indexing infrastructure
+packages/civic/src/civic/context.py:177-213                  # County code integration (pattern)
+pilot.json:918-924                                           # Item definition
 ```
+
+## Suggested Approach
+
+1. Search San Rafael city website for housing programs, budget documents
+2. Check city council meeting minutes for funding allocations
+3. Structure as JSON following county programs pattern
+4. Create indexing method for municipal programs
+5. Test integration with `what_applies("housing")`
 
 ## Success Criteria
 
-- [ ] Marin County code sections indexed in ChromaDB
-- [ ] Relevant sections appear in `what_applies()` queries
-- [ ] pilot.json `marin_county_code` marked as ready
-
-## Upcoming P1 Items
-
-1. **san_rafael_municipal_funding** - City funding programs (housing trust, inclusionary housing)
-2. **feedback_channel** - User feedback mechanism (P2)
+- [ ] `data/funding/municipal/san-rafael/housing_programs.json` created with program data
+- [ ] Municipal programs indexed in ChromaDB
+- [ ] Programs appear in `what_applies()` results
+- [ ] pilot.json `san_rafael_municipal_funding` marked as ready
 
 ## Pilot Progress
 
-- 160/174 items ready (92.0%)
-- 14 items remaining
-- P0: marin_county_code (this item)
+- 161/174 items ready (92.5%)
+- 13 items remaining
+- P0: san_rafael_municipal_funding (this item)
