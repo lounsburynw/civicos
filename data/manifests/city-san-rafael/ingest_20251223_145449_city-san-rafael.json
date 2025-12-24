@@ -1,0 +1,124 @@
+{
+  "ingestion_id": "ingest_20251223_145449_city-san-rafael",
+  "timestamp": "2025-12-23T14:54:49.943045",
+  "jurisdiction_id": "city-san-rafael",
+  "run_type": "verification",
+  "pipeline_stages": {
+    "discover": {
+      "state": "completed",
+      "items_found": 850,
+      "items_processed": 850,
+      "duration_ms": 30242.24090576172,
+      "errors": [],
+      "started_at": "2025-12-23T14:54:49.943052",
+      "completed_at": "2025-12-23T14:55:20.185287",
+      "progress_percent": 100.0,
+      "metadata": {
+        "health": {
+          "source_id": "proudcity-city-san-rafael",
+          "source_type": "proudcity",
+          "jurisdiction_id": "city-san-rafael",
+          "is_available": true,
+          "available_count": 850,
+          "last_checked": "2025-12-23T22:55:20.185219",
+          "check_duration_ms": 30242.16,
+          "errors": [],
+          "last_successful": "2025-12-23T22:55:20.185236",
+          "coverage_percent": 100.0,
+          "metadata": {
+            "by_type": {
+              "city_council": 239,
+              "planning_commission": 125,
+              "fire_commission": 71,
+              "tax_oversight": 7,
+              "zoning_administrator": 50,
+              "council_subcommittees": 89,
+              "ada_access_advisory_committee": 24,
+              "bicycle_pedestrian_advisory_committee": 34,
+              "board_of_library_trustees": 75,
+              "design_review_board": 0,
+              "paac": 19,
+              "park_and_recreation_commission": 69,
+              "pickleweed_advisory_committee": 33,
+              "public_art_review_board": 15,
+              "board_and_commission": 0
+            },
+            "configured_count": 15,
+            "discovered_count": 15,
+            "missing_types": [
+              "council_subcommittee",
+              "guide_public",
+              "voter_approved_tax_oversight_committee"
+            ]
+          }
+        }
+      }
+    },
+    "ingest": {
+      "state": "completed",
+      "items_found": 2,
+      "items_processed": 2,
+      "duration_ms": 24314.263105392456,
+      "errors": [],
+      "started_at": "2025-12-23T14:55:20.185299",
+      "completed_at": "2025-12-23T14:55:44.499554",
+      "progress_percent": 100.0,
+      "metadata": {}
+    },
+    "store": {
+      "state": "completed",
+      "items_found": 2,
+      "items_processed": 2,
+      "duration_ms": 4.652738571166992,
+      "errors": [],
+      "started_at": "2025-12-23T14:55:44.499565",
+      "completed_at": "2025-12-23T14:55:44.504218",
+      "progress_percent": 100.0,
+      "metadata": {
+        "validation": {
+          "total": 2,
+          "valid": 2,
+          "invalid": 0,
+          "validation_time_ms": 0.16999244689941406
+        }
+      }
+    },
+    "index": {
+      "state": "completed",
+      "items_found": 2,
+      "items_processed": 0,
+      "duration_ms": 0.00095367431640625,
+      "errors": [],
+      "started_at": "2025-12-23T14:55:44.504223",
+      "completed_at": "2025-12-23T14:55:44.504225",
+      "progress_percent": 100.0,
+      "metadata": {
+        "note": "No index target configured"
+      }
+    }
+  },
+  "total_duration_ms": 54561.17606163025,
+  "success": true,
+  "sources": [
+    {
+      "source_id": "proudcity-city-san-rafael",
+      "source_type": "proudcity",
+      "records_ingested": 2,
+      "records_failed": 0,
+      "records_skipped": 0,
+      "checkpoint": {},
+      "errors": []
+    }
+  ],
+  "validation": {
+    "total_records": 0,
+    "valid_records": 0,
+    "invalid_records": 0,
+    "validation_errors": []
+  },
+  "checksums": {},
+  "metadata": {
+    "hostname": "Nicolass-MacBook-Pro.local",
+    "version": "0.1.0"
+  }
+}

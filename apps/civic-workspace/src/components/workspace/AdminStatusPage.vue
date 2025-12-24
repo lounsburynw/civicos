@@ -59,34 +59,102 @@
         <span class="status-timestamp">Updated {{ formatTimeAgo(statusData.timestamp) }}</span>
       </div>
 
-      <!-- Quick Stats Summary (always visible) -->
-      <div class="quick-stats">
-        <div class="quick-stat" :title="getMeetingsTooltip()">
-          <Calendar :size="16" />
-          <span class="stat-value">{{ statusData.database.meetings.count }}</span>
-          <span class="stat-label">meetings</span>
-          <span class="stat-freshness" :class="getMeetingsFreshness()">
-            {{ getMeetingsFreshnessLabel() }}
-          </span>
+      <!-- Data Cards with Preview (SESSION 358) -->
+      <div class="data-cards">
+        <!-- Meetings Card -->
+        <div class="data-card" :class="getMeetingsCardStatus()">
+          <div class="card-header">
+            <div class="card-title">
+              <Calendar :size="18" />
+              <span>Meetings</span>
+            </div>
+            <span class="card-status-badge" :class="getMeetingsCardStatus()">
+              {{ getMeetingsCardStatusLabel() }}
+            </span>
+          </div>
+          <div class="card-stat">
+            <span class="stat-number">{{ getStorageMeetingsCount() }}</span>
+            <span class="stat-label">tracked</span>
+          </div>
+          <!-- Meeting samples preview -->
+          <div v-if="statusData.samples?.meetings?.length" class="card-preview">
+            <div class="preview-label">Recent:</div>
+            <div class="preview-table">
+              <div
+                v-for="meeting in statusData.samples.meetings.slice(0, 3)"
+                :key="meeting.id"
+                class="preview-row"
+              >
+                <span class="preview-date">{{ formatPreviewDate(meeting.date) }}</span>
+                <span class="preview-title">{{ meeting.title }}</span>
+              </div>
+            </div>
+          </div>
+          <div v-else class="card-empty">
+            No meetings loaded
+          </div>
+          <button class="card-action" @click="triggerFetchMeetings" :disabled="!!operationInProgress">
+            <RefreshCw :size="14" :class="{ 'spinning': operationInProgress === 'fetch_meetings' }" />
+            {{ operationInProgress === 'fetch_meetings' ? 'Fetching...' : 'Fetch New' }}
+          </button>
         </div>
-        <div class="quick-stat" :title="getAgendaTooltip()">
-          <FileText :size="16" />
-          <span class="stat-value">{{ statusData.database.agenda_items.count }}</span>
-          <span class="stat-label">agenda items</span>
-        </div>
-        <div class="quick-stat" :title="getIssuesSummary()">
-          <AlertCircle :size="16" />
-          <span class="stat-value">{{ getOpenIssuesCount() }}</span>
-          <span class="stat-label">open issues</span>
-        </div>
-      </div>
 
-      <!-- Actionable Guidance (if not healthy) -->
-      <div v-if="statusData.status !== 'healthy'" class="action-guidance">
-        <HelpCircle :size="16" />
-        <div class="guidance-text">
-          <span class="guidance-title">{{ getGuidanceTitle() }}</span>
-          <span class="guidance-action">{{ getGuidanceAction() }}</span>
+        <!-- Search Card -->
+        <div class="data-card" :class="getSearchCardStatus()">
+          <div class="card-header">
+            <div class="card-title">
+              <Search :size="18" />
+              <span>Search Index</span>
+            </div>
+            <span class="card-status-badge" :class="getSearchCardStatus()">
+              {{ getSearchCardStatusLabel() }}
+            </span>
+          </div>
+          <div class="card-stat">
+            <span class="stat-number">{{ getTotalIndexedDocs() }}</span>
+            <span class="stat-label">documents indexed</span>
+          </div>
+          <!-- Search test preview -->
+          <div v-if="statusData.samples?.search_test?.results?.length" class="card-preview">
+            <div class="preview-label">Test: "{{ statusData.samples.search_test.query }}"</div>
+            <div class="preview-table">
+              <div
+                v-for="(result, idx) in statusData.samples.search_test.results.slice(0, 2)"
+                :key="idx"
+                class="preview-row"
+              >
+                <span class="preview-score">{{ (1 - (result.distance || 0)).toFixed(2) }}</span>
+                <span class="preview-title">{{ result.preview }}</span>
+              </div>
+            </div>
+          </div>
+          <div v-else class="card-empty">
+            {{ statusData.chromadb?.status === 'connected' ? 'No search results' : 'Index not available' }}
+          </div>
+        </div>
+
+        <!-- Issues Card -->
+        <div class="data-card" :class="getIssuesCardStatus()">
+          <div class="card-header">
+            <div class="card-title">
+              <AlertCircle :size="18" />
+              <span>311 Issues</span>
+            </div>
+            <span class="card-status-badge" :class="getIssuesCardStatus()">
+              {{ getIssuesCardStatusLabel() }}
+            </span>
+          </div>
+          <div class="card-stat">
+            <span class="stat-number">{{ getOpenIssuesCount() }}</span>
+            <span class="stat-label">open issues</span>
+          </div>
+          <div class="card-empty">
+            {{ statusData.database.issues.count > 0 ? `${statusData.database.issues.count} total from SeeClickFix` : 'Not configured' }}
+          </div>
+          <button class="card-action" @click="triggerRefreshSeeClickFix" :disabled="!!operationInProgress">
+            <RefreshCw :size="14" :class="{ 'spinning': operationInProgress === 'refresh_seeclickfix' }" />
+            {{ operationInProgress === 'refresh_seeclickfix' ? 'Fetching...' : 'Refresh' }}
+          </button>
         </div>
       </div>
 
@@ -613,7 +681,8 @@ import {
   ChevronDown,
   ChevronRight,
   HelpCircle,
-  Layers
+  Layers,
+  Search
 } from 'lucide-vue-next';
 import { api } from '@/services/api';
 import type { AdminStatusResponse, AdminTriggerResponse, RunningOperation, OperationStatus, OperationResult, OperationListItem } from '@/types/civic';
@@ -822,7 +891,7 @@ async function loadStatus(includeSources: boolean = false) {
   try {
     statusData.value = await api.getAdminStatus(
       props.jurisdiction || 'san-rafael',
-      { includeSources }
+      { includeSources, includeSamples: true }
     );
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load status';
@@ -1056,6 +1125,71 @@ function getSearchableMeta(dataType: string): string {
     return 'indexed';
   }
   return '';
+}
+
+// SESSION 358: Data card helper functions
+function getStorageMeetingsCount(): number {
+  return statusData.value?.storage?.meetings?.count || 0;
+}
+
+function getMeetingsCardStatus(): string {
+  const count = getStorageMeetingsCount();
+  if (count === 0) return 'empty';
+  const lastUpdated = statusData.value?.storage?.meetings?.last_updated;
+  if (lastUpdated) {
+    const days = differenceInDays(new Date(), new Date(lastUpdated));
+    if (days < 7) return 'healthy';
+    if (days < 14) return 'warning';
+  }
+  return 'stale';
+}
+
+function getMeetingsCardStatusLabel(): string {
+  const status = getMeetingsCardStatus();
+  if (status === 'healthy') return 'Current';
+  if (status === 'warning') return 'Aging';
+  if (status === 'stale') return 'Stale';
+  return 'Empty';
+}
+
+function getSearchCardStatus(): string {
+  if (statusData.value?.chromadb?.status !== 'connected') return 'empty';
+  const total = getTotalIndexedDocs();
+  if (total === 0) return 'empty';
+  return 'healthy';
+}
+
+function getSearchCardStatusLabel(): string {
+  if (statusData.value?.chromadb?.status !== 'connected') return 'Unavailable';
+  const total = getTotalIndexedDocs();
+  if (total === 0) return 'Empty';
+  return 'Ready';
+}
+
+function getTotalIndexedDocs(): number {
+  return statusData.value?.chromadb?.total_documents || 0;
+}
+
+function getIssuesCardStatus(): string {
+  const count = statusData.value?.database.issues.count || 0;
+  if (count === 0) return 'empty';
+  return 'healthy';
+}
+
+function getIssuesCardStatusLabel(): string {
+  const count = statusData.value?.database.issues.count || 0;
+  if (count === 0) return 'Not Set Up';
+  return 'Active';
+}
+
+function formatPreviewDate(dateStr: string): string {
+  if (!dateStr) return '';
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch {
+    return dateStr.slice(5, 10);
+  }
 }
 
 function getOpenIssuesCount(): number {
@@ -1413,95 +1547,191 @@ onUnmounted(() => {
   opacity: 0.7;
 }
 
-/* Quick Stats Summary (SESSION 358) */
-.quick-stats {
-  display: flex;
+/* Data Cards with Preview (SESSION 358) */
+.data-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   margin-bottom: 16px;
 }
 
-.quick-stat {
-  flex: 1;
+.data-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 16px;
+  transition: border-color 0.15s ease;
+}
+
+.data-card.healthy {
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.data-card.warning {
+  border-color: rgba(234, 179, 8, 0.4);
+}
+
+.data-card.stale, .data-card.empty {
+  border-color: var(--color-border);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.card-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  cursor: default;
-}
-
-.quick-stat svg {
-  color: var(--color-text-secondary);
-}
-
-.stat-value {
-  font-size: 20px;
   font-weight: 600;
   color: var(--color-text-primary);
 }
 
-.stat-label {
-  font-size: 13px;
+.card-title svg {
   color: var(--color-text-secondary);
 }
 
-.stat-freshness {
-  margin-left: auto;
+.card-status-badge {
   font-size: 11px;
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-radius: 12px;
   font-weight: 500;
 }
 
-.stat-freshness.fresh {
+.card-status-badge.healthy {
   background: rgba(34, 197, 94, 0.15);
   color: #22c55e;
 }
 
-.stat-freshness.aging {
+.card-status-badge.warning {
   background: rgba(234, 179, 8, 0.15);
   color: #eab308;
 }
 
-.stat-freshness.stale {
+.card-status-badge.stale {
   background: rgba(239, 68, 68, 0.15);
   color: #ef4444;
 }
 
-/* Action Guidance (SESSION 358) */
-.action-guidance {
+.card-status-badge.empty {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+}
+
+.card-stat {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px 16px;
-  margin-bottom: 16px;
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  border-radius: 8px;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
-.action-guidance svg {
-  color: #3b82f6;
-  flex-shrink: 0;
-  margin-top: 2px;
+.card-stat .stat-number {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1;
 }
 
-.guidance-text {
+.card-stat .stat-label {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.card-preview {
+  flex: 1;
+  min-height: 80px;
+  margin-bottom: 12px;
+}
+
+.preview-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-secondary);
+  margin-bottom: 8px;
+}
+
+.preview-table {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
-.guidance-title {
+.preview-row {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.preview-row:last-child {
+  border-bottom: none;
+}
+
+.preview-date {
+  flex-shrink: 0;
+  width: 50px;
+  color: var(--color-text-secondary);
   font-weight: 500;
+}
+
+.preview-score {
+  flex-shrink: 0;
+  width: 36px;
+  font-family: monospace;
+  color: #22c55e;
+}
+
+.preview-title {
+  flex: 1;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-empty {
+  flex: 1;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  opacity: 0.7;
+  margin-bottom: 12px;
+}
+
+.card-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.card-action:hover:not(:disabled) {
+  background: var(--color-bg-hover);
   color: var(--color-text-primary);
 }
 
-.guidance-action {
-  font-size: 13px;
-  color: var(--color-text-secondary);
+.card-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Pipeline Details (collapsible, SESSION 358) */

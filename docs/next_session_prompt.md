@@ -1,57 +1,122 @@
-# Recommended: Dashboard Visual Hierarchy & Inline Help
+# Recommended: Interactive Database Viewer for Pipeline Dashboard
 
 **Priority:** P0 (IMMEDIATE)
 **Area:** frontend_refinement > interface_clarity
-**Date:** 2025-12-23
+**Item:** dashboard_visual_hierarchy (continued iteration)
+**Date:** 2025-12-24
 
-> This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 358. The dashboard UX work is ongoing - continue iterating.
 
-## Context
+## Session 358 Progress
 
-Session 357 completed `e2e_data_ingestion_verification` - verified the full data pipeline works end-to-end for San Rafael. However, reviewing the Data Pipeline dashboard revealed UX issues that need immediate attention before pilot.
+Implemented first iteration of outcome-focused dashboard:
+- **Data Cards** with status badges (Meetings, Search Index, 311 Issues)
+- **Sample data preview** showing 3 recent meetings with dates/titles
+- **API endpoint** `include_samples=true` returns actual meeting data
+- **Collapsible pipeline details** - technical 4x4 grid hidden by default
 
-**This task:** Simplify the Data Pipeline dashboard interface. Current state is overwhelming and lacks clarity for users.
+**User feedback:** "Better! We need to workshop this ALOT more."
 
-## Current Problems
+## Next Phase: Embeddable Database Viewer Widget
 
-The dashboard shows a 4×4 grid of data (Meetings, Agenda Items, Issues, Initiatives × Coverage, Ingested, Stored, Indexed):
+The user envisions an **interactive database viewer** that makes the backend data tangible and navigable. This isn't necessarily the final product, but helps build intuition for presenting ETL status.
 
-1. **Too much information competing for attention** - 16 cells with arrows between them
-2. **Unclear visual hierarchy** - Nothing tells users what's important vs informational
-3. **No inline help** - Users don't understand what "COVERAGE" or "INDEXED" means
-4. **Status indicators unclear** - "Degraded" shown but no explanation of why or what to do
+### Concept: Table Widget
 
-## Screenshot Reference
+A mini-spreadsheet component embedded in each data card that lets users:
+1. **Browse rows** - See actual database records, not just counts
+2. **Sort/filter** - By date, status, type
+3. **Pagination** - Navigate large datasets
+4. **Click to expand** - View full record details
 
-See screenshot from Session 357 showing the overwhelming interface with:
-- Multiple rows (Meetings, Agenda Items, Issues, Initiatives)
-- Multiple columns (COVERAGE → INGESTED → STORED → INDEXED)
-- Numeric values and timestamps scattered throughout
-- "Degraded" status with no actionable guidance
+### Design Questions to Explore
 
-## Suggested Improvements
+1. **Scope**: Just meetings? Or all data types (agenda items, issues, initiatives)?
+2. **Interaction depth**: Read-only viewer? Or allow inline edits?
+3. **Relationship navigation**: Click a meeting → see its agenda items?
+4. **Search within table**: Filter by keyword?
+5. **Export**: Download as CSV/JSON?
 
-1. **Collapse by default** - Show only summary status, expand for details
-2. **Highlight actionable items** - Clear visual distinction for items needing attention
-3. **Add help tooltips** - Explain what each metric means on hover
-4. **Simplify status indicators** - "Healthy" / "Needs attention" / "Error" with clear next steps
-5. **Reduce visual noise** - Remove or de-emphasize less critical information
+### Expert Panel Insights (from Session 358)
 
-## Key Files
+**UX perspective**: Users don't care about pipeline stages. They care about:
+- "Is my data fresh?"
+- "Is search working?"
+- "What's broken?"
 
-- `apps/civic-workspace/src/components/DataPipeline.vue` - Main dashboard component
-- `apps/civic-workspace/src/components/` - Related UI components
+**Data engineering perspective**: The current grid mixes two audiences:
+- Operators need "is it healthy?"
+- Developers need "which stage broke?"
 
-## Success Criteria
+**Information architecture perspective**: Inconsistent column headers across rows make pattern recognition impossible.
 
-- [ ] Dashboard has clear visual hierarchy
-- [ ] Most important information is immediately visible
-- [ ] Help text/tooltips explain each section
-- [ ] Status indicators have clear meaning
-- [ ] Interface feels approachable, not overwhelming
+### Proposed Widget Architecture
 
-## Pilot Progress
+```
+┌─────────────────────────────────────────────────────┐
+│  Meetings                          [Current] ✓     │
+│  17 tracked                                        │
+├─────────────────────────────────────────────────────┤
+│  Date       │ Body            │ Title              │
+│─────────────┼─────────────────┼────────────────────│
+│  Dec 1      │ City Council    │ Regular Meeting    │
+│  Dec 2      │ Finance Sub...  │ Special Meeting    │
+│  Dec 3      │ Zoning Admin    │ Hearing            │
+│             │ [Load more...]                       │
+├─────────────────────────────────────────────────────┤
+│  [Fetch New]           Last updated: 6 hours ago   │
+└─────────────────────────────────────────────────────┘
+```
 
-- 164/177 items ready (92.7%)
-- 13 items remaining
-- P0: dashboard_visual_hierarchy (this item)
+### Implementation Approach
+
+1. **Create `<DataTableWidget>` component**
+   - Props: dataType, columns, fetchFn
+   - State: rows, loading, pagination
+   - Reusable across Meetings/Issues/Initiatives
+
+2. **Extend API for pagination**
+   - `GET /admin/data/meetings?page=1&per_page=10`
+   - Return total count for pagination
+
+3. **Add detail modal**
+   - Click row → show full record JSON
+   - Link to related data (meeting → agenda items)
+
+4. **Consider existing patterns**
+   - Check if Vue data table libraries are already used
+   - Maintain consistency with rest of app
+
+### Key Files
+
+- `apps/civic-workspace/src/components/workspace/AdminStatusPage.vue` - Current dashboard
+- `apps/civic-workspace/src/components/shared/` - Shared components
+- `apps/civic-workspace/src/services/api.ts` - API client
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py` - Backend
+
+### Questions for User
+
+Before implementing, clarify:
+1. Which data types need the table widget first? (Meetings only, or all?)
+2. Is row-click expansion important, or just viewing the list?
+3. Any preference on table library (native HTML, or use a Vue table component)?
+
+### Success Criteria
+
+- [ ] Users can browse actual database records, not just counts
+- [ ] Data feels "real" and navigable
+- [ ] Clear visual connection between count and underlying data
+- [ ] Technical pipeline details remain accessible but not dominant
+
+## Current State
+
+- **Frontend**: http://localhost:5173 (running)
+- **API**: http://localhost:8001 (running with `include_samples`)
+- **Pilot Progress**: 165/177 items (93.2%)
+
+## Files Modified in Session 358
+
+1. `AdminStatusPage.vue` - New data cards with sample preview
+2. `api.ts` - Added `includeSamples` option
+3. `civic.ts` - Added samples type to AdminStatusResponse
+4. `civic_api_integrated.py` - Added sample data fetching with `include_samples=true`
