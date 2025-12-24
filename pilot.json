@@ -1274,10 +1274,10 @@
     "description": "Frontend polish for pilot quality",
     "interface_clarity": {
       "dashboard_visual_hierarchy": {
-        "status": "ready",
+        "status": "not_ready",
         "priority": 0,
         "artifact": "Simplify Data Pipeline dashboard - clearer visual hierarchy and inline help",
-        "note": "Current interface is overwhelming: 4 data types \u00d7 4 stages = 16 cells competing for attention. Needs: (1) collapse less important rows, (2) highlight actionable items, (3) reduce visual noise, (4) clearer status indicators, (5) add help blurbs/tooltips explaining what each section means and how to use it",
+        "note": "Session 358: First iteration complete (data cards with samples). Next: Interactive database viewer widget for browsing actual records.",
         "session": 358
       }
     },

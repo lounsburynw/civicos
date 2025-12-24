@@ -807,6 +807,24 @@ export interface AdminStatusResponse {
     _cached_at?: number;
     _from_cache?: boolean;
   } | null;
+  // SESSION 358: Sample data for interactive previews
+  samples?: {
+    meetings: Array<{
+      id: string;
+      title: string;
+      date: string;
+      body: string;
+    }>;
+    search_test?: {
+      query: string;
+      collection: string;
+      results: Array<{
+        id: string;
+        distance: number | null;
+        preview: string;
+      }>;
+    } | null;
+  } | null;
 }
 
 /**

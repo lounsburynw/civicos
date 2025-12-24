@@ -7355,6 +7355,7 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
         jurisdiction_id = params.get('jurisdiction', ['san-rafael'])[0]
         include_sources = params.get('include_sources', ['false'])[0].lower() == 'true'
         refresh_sources = params.get('refresh_sources', ['false'])[0].lower() == 'true'
+        include_samples = params.get('include_samples', ['false'])[0].lower() == 'true'
 
         result = {
             'status': 'healthy',
@@ -7364,7 +7365,8 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             'storage': {},  # SESSION 338: StorageBackend stats (4-stage pipeline)
             'chromadb': {},
             'files': {},
-            'sources': None  # Populated if include_sources=true
+            'sources': None,  # Populated if include_sources=true
+            'samples': None   # SESSION 358: Populated if include_samples=true
         }
 
         # 1. State database stats (meetings, agenda_items, issues, initiatives)
@@ -7617,7 +7619,91 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                     logger.error(f"Source inventory error: {e}", exc_info=True)
                     result['sources'] = {'error': str(e)}
 
-        # 5. Determine overall status
+        # 5. Sample data for interactive previews (SESSION 358)
+        if include_samples:
+            result['samples'] = {'meetings': [], 'search_test': None}
+
+            # Get sample meetings from storage backend
+            try:
+                from civic import Civic
+                from civic._internal.jurisdiction import normalize_jurisdiction
+                civic = Civic(jurisdiction_id, db_path=str(state_db_path))
+
+                # Use canonical jurisdiction ID format
+                canonical_jurisdiction = normalize_jurisdiction(jurisdiction_id)
+
+                # Get 5 most recent meetings
+                from datetime import timedelta
+                now = datetime.now()
+                meetings = civic._storage.get_meetings(
+                    jurisdiction_id=canonical_jurisdiction,
+                    since=now - timedelta(days=90),
+                    until=now + timedelta(days=90),
+                    limit=5
+                )
+
+                # Simplify for display
+                result['samples']['meetings'] = [
+                    {
+                        'id': m.get('id', '')[:8] if m.get('id') else '',
+                        'title': m.get('title', 'Untitled'),
+                        'date': m.get('meeting_datetime', '')[:10] if m.get('meeting_datetime') else '',
+                        'body': m.get('body_name', m.get('meeting_type', '')),
+                    }
+                    for m in meetings
+                ]
+            except Exception as e:
+                logger.warning("sample_meetings_error", extra={"error": str(e)})
+                result['samples']['meetings'] = []
+
+            # Test vector search if ChromaDB is available
+            if result['chromadb'].get('status') == 'connected':
+                try:
+                    import chromadb
+                    from chromadb.config import Settings
+
+                    vectors_dir = Path(get_user_path('')) / 'pilot' / 'vectors'
+                    persist_dir = vectors_dir / jurisdiction_id
+
+                    client = chromadb.PersistentClient(
+                        path=str(persist_dir),
+                        settings=Settings(anonymized_telemetry=False)
+                    )
+
+                    # Try to search the decisions collection
+                    collection_name = f'{jurisdiction_id}_decisions'
+                    try:
+                        collection = client.get_collection(collection_name)
+                        if collection.count() > 0:
+                            # Do a sample query
+                            results = collection.query(
+                                query_texts=["housing development"],
+                                n_results=3
+                            )
+
+                            result['samples']['search_test'] = {
+                                'query': 'housing development',
+                                'collection': collection_name,
+                                'results': [
+                                    {
+                                        'id': doc_id[:8] if doc_id else '',
+                                        'distance': round(dist, 3) if dist else None,
+                                        'preview': (meta.get('title', '') or meta.get('content', ''))[:80] + '...'
+                                            if meta else ''
+                                    }
+                                    for doc_id, dist, meta in zip(
+                                        results['ids'][0] if results['ids'] else [],
+                                        results['distances'][0] if results.get('distances') else [None]*3,
+                                        results['metadatas'][0] if results.get('metadatas') else [{}]*3
+                                    )
+                                ]
+                            }
+                    except Exception:
+                        pass  # Collection doesn't exist or query failed
+                except Exception as e:
+                    logger.warning("sample_search_error", extra={"error": str(e)})
+
+        # 6. Determine overall status
         if result['database'].get('status') == 'error' or result['chromadb'].get('status') == 'error':
             result['status'] = 'unhealthy'
         elif result['database'].get('status') == 'missing' or result['chromadb'].get('status') == 'no_storage':
