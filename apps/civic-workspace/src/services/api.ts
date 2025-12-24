@@ -1156,7 +1156,7 @@ class CivicAPI {
    */
   async getAdminStatus(
     jurisdiction: string = 'san-rafael',
-    options?: { includeSources?: boolean; refreshSources?: boolean }
+    options?: { includeSources?: boolean; refreshSources?: boolean; includeSamples?: boolean }
   ): Promise<AdminStatusResponse> {
     const params = new URLSearchParams({
       jurisdiction: jurisdiction
@@ -1167,6 +1167,9 @@ class CivicAPI {
     }
     if (options?.refreshSources) {
       params.set('refresh_sources', 'true');
+    }
+    if (options?.includeSamples) {
+      params.set('include_samples', 'true');
     }
 
     const response = await fetch(
