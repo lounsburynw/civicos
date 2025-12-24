@@ -5870,3 +5870,51 @@ class TransportationResearcher(BaseResearcher):
 
 ### Next P0
 - `dashboard_visual_hierarchy` - Simplify Data Pipeline dashboard UI with clearer visual hierarchy and inline help
+
+## Session 358: Dashboard Visual Hierarchy & Inline Help
+
+**Date:** 2025-12-23
+**Item:** dashboard_visual_hierarchy (frontend_refinement > interface_clarity)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Simplified the Data Pipeline dashboard with clearer visual hierarchy, a summary view, and inline help. The overwhelming 4×4 grid is now collapsed by default with key stats prominently displayed.
+
+### Changes to AdminStatusPage.vue
+
+1. **Quick Stats Summary** (always visible):
+   - 3 cards showing: Meetings count, Agenda Items count, Open Issues
+   - Freshness badge on meetings (current/aging/outdated)
+   - Tooltips explaining each metric on hover
+
+2. **Status Banner with Plain Language**:
+   - "Healthy" → "X meetings tracked and up to date"
+   - "Degraded" → "Data is X days old - consider refreshing"
+   - Shows timestamp in less prominent style
+
+3. **Actionable Guidance** (when not healthy):
+   - Blue info box appears with specific next step
+   - Examples: "Run 'Fetch Meetings' in Manual Operations below"
+   - Helps users know what to do when status is degraded
+
+4. **Collapsible Pipeline Details**:
+   - Technical 4×4 grid now inside `<details>` element
+   - Collapsed by default - expand for technical details
+   - Help icon tooltip explains the 4-stage pipeline
+
+5. **New Helper Functions**:
+   - `getStatusSummary()` - Plain language status description
+   - `getMeetingsFreshness()` - fresh/aging/stale classification
+   - `getGuidanceTitle()/getGuidanceAction()` - Contextual help text
+   - Tooltips for all stats explaining what they mean
+
+### User Experience Improvements
+- First impression: Simple stats instead of overwhelming grid
+- Status is explained in plain language, not just "Degraded"
+- When action needed, user knows exactly what to do
+- Technical details available but not in the way
+- Help tooltips explain jargon (Coverage, Ingested, Stored, Indexed)
+
+### Pilot Progress
+- Before: 164/177 items (92.7%)
+- After: 165/177 items (93.2%)

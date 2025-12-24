@@ -45,7 +45,7 @@
 
     <!-- Pipeline Content -->
     <div v-else-if="statusData" class="pipeline-content">
-      <!-- Overall Status Banner -->
+      <!-- Overall Status Banner with Plain Language Summary -->
       <div class="status-banner" :class="statusData.status">
         <div class="status-indicator">
           <CheckCircle v-if="statusData.status === 'healthy'" :size="20" />
@@ -54,17 +54,59 @@
         </div>
         <div class="status-text">
           <span class="status-value">{{ formatStatus(statusData.status) }}</span>
-          <span class="status-timestamp">Updated {{ formatTimeAgo(statusData.timestamp) }}</span>
+          <span class="status-summary">{{ getStatusSummary() }}</span>
+        </div>
+        <span class="status-timestamp">Updated {{ formatTimeAgo(statusData.timestamp) }}</span>
+      </div>
+
+      <!-- Quick Stats Summary (always visible) -->
+      <div class="quick-stats">
+        <div class="quick-stat" :title="getMeetingsTooltip()">
+          <Calendar :size="16" />
+          <span class="stat-value">{{ statusData.database.meetings.count }}</span>
+          <span class="stat-label">meetings</span>
+          <span class="stat-freshness" :class="getMeetingsFreshness()">
+            {{ getMeetingsFreshnessLabel() }}
+          </span>
+        </div>
+        <div class="quick-stat" :title="getAgendaTooltip()">
+          <FileText :size="16" />
+          <span class="stat-value">{{ statusData.database.agenda_items.count }}</span>
+          <span class="stat-label">agenda items</span>
+        </div>
+        <div class="quick-stat" :title="getIssuesSummary()">
+          <AlertCircle :size="16" />
+          <span class="stat-value">{{ getOpenIssuesCount() }}</span>
+          <span class="stat-label">open issues</span>
         </div>
       </div>
 
-      <!-- Pipeline Legend -->
-      <div class="pipeline-legend">
-        <span class="legend-label">Pipeline stages:</span>
-        <span class="legend-item"><span class="node empty"></span> Empty</span>
-        <span class="legend-item"><span class="node has-data"></span> Has data</span>
-        <span class="legend-item"><span class="node fresh"></span> Fresh (&lt;7d)</span>
+      <!-- Actionable Guidance (if not healthy) -->
+      <div v-if="statusData.status !== 'healthy'" class="action-guidance">
+        <HelpCircle :size="16" />
+        <div class="guidance-text">
+          <span class="guidance-title">{{ getGuidanceTitle() }}</span>
+          <span class="guidance-action">{{ getGuidanceAction() }}</span>
+        </div>
       </div>
+
+      <!-- Detailed Pipeline View (collapsed by default) -->
+      <details class="pipeline-details">
+        <summary>
+          <Layers :size="16" />
+          Pipeline Details
+          <span class="help-hint" title="Shows the flow of data through 4 stages: Discovery → Ingestion → Storage → Indexing">
+            <HelpCircle :size="12" />
+          </span>
+        </summary>
+
+        <!-- Pipeline Legend (inside details) -->
+        <div class="pipeline-legend">
+          <span class="legend-label">Stage health:</span>
+          <span class="legend-item"><span class="node fresh"></span> Up to date</span>
+          <span class="legend-item"><span class="node has-data"></span> Has data</span>
+          <span class="legend-item"><span class="node empty"></span> Empty</span>
+        </div>
 
       <!-- Data Pipelines -->
       <div class="pipelines">
@@ -290,6 +332,7 @@
           </div>
         </div>
       </div>
+      </details>
 
       <!-- Running Operation Indicator (SESSION 309/341) -->
       <div v-if="runningOperation" class="running-operation-banner">
@@ -568,7 +611,9 @@ import {
   Clock,
   History,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  HelpCircle,
+  Layers
 } from 'lucide-vue-next';
 import { api } from '@/services/api';
 import type { AdminStatusResponse, AdminTriggerResponse, RunningOperation, OperationStatus, OperationResult, OperationListItem } from '@/types/civic';
@@ -1017,6 +1062,90 @@ function getOpenIssuesCount(): number {
   return statusData.value?.database.issues.by_status?.open ?? 0;
 }
 
+// SESSION 358: Plain language summary helpers for improved UX
+function getStatusSummary(): string {
+  if (!statusData.value) return '';
+
+  const meetingsCount = statusData.value.database.meetings.count;
+  const lastUpdated = statusData.value.database.meetings.last_updated;
+
+  if (statusData.value.status === 'healthy') {
+    return `${meetingsCount} meetings tracked and up to date`;
+  } else if (statusData.value.status === 'degraded') {
+    // Check what's degraded
+    if (!lastUpdated) return 'Some data sources need attention';
+    const days = differenceInDays(new Date(), new Date(lastUpdated));
+    if (days > 7) return `Data is ${days} days old - consider refreshing`;
+    return 'Some pipeline stages need attention';
+  } else {
+    return 'Pipeline has errors that need resolution';
+  }
+}
+
+function getMeetingsTooltip(): string {
+  if (!statusData.value) return '';
+  const count = statusData.value.database.meetings.count;
+  const lastUpdated = statusData.value.database.meetings.last_updated;
+  return `${count} meetings in database. Last updated: ${formatTimeAgo(lastUpdated)}`;
+}
+
+function getMeetingsFreshness(): string {
+  if (!statusData.value?.database.meetings.last_updated) return 'stale';
+  const days = differenceInDays(new Date(), new Date(statusData.value.database.meetings.last_updated));
+  if (days < 7) return 'fresh';
+  if (days < 14) return 'aging';
+  return 'stale';
+}
+
+function getMeetingsFreshnessLabel(): string {
+  const freshness = getMeetingsFreshness();
+  if (freshness === 'fresh') return 'current';
+  if (freshness === 'aging') return 'aging';
+  return 'outdated';
+}
+
+function getAgendaTooltip(): string {
+  if (!statusData.value) return '';
+  const count = statusData.value.database.agenda_items.count;
+  const lastEnriched = statusData.value.database.agenda_items.last_enriched;
+  return `${count} agenda items extracted from meetings. Last enriched: ${formatTimeAgo(lastEnriched)}`;
+}
+
+function getIssuesSummary(): string {
+  if (!statusData.value) return '';
+  const total = statusData.value.database.issues.count;
+  const open = getOpenIssuesCount();
+  return `${open} open of ${total} total issues from SeeClickFix`;
+}
+
+function getGuidanceTitle(): string {
+  if (!statusData.value) return '';
+  if (statusData.value.status === 'degraded') return 'Data may be outdated';
+  return 'Pipeline needs attention';
+}
+
+function getGuidanceAction(): string {
+  if (!statusData.value) return '';
+
+  // Check meetings freshness
+  const lastUpdated = statusData.value.database.meetings.last_updated;
+  if (lastUpdated) {
+    const days = differenceInDays(new Date(), new Date(lastUpdated));
+    if (days > 7) {
+      return 'Run "Fetch Meetings" in Manual Operations below to update data.';
+    }
+  }
+
+  // Check vector index
+  const indexed = getCollectionCount('decisions');
+  const stored = statusData.value.database.meetings.count;
+  if (indexed < stored) {
+    return 'Some meetings are not indexed for search. Check the pipeline details.';
+  }
+
+  return 'Expand Pipeline Details below to identify the issue.';
+}
+
 // SESSION 341: Generic async operation trigger with polling
 async function triggerOperation(
   operation: string,
@@ -1263,8 +1392,9 @@ onUnmounted(() => {
 
 .status-text {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
 }
 
 .status-value {
@@ -1272,9 +1402,153 @@ onUnmounted(() => {
   color: var(--color-text-primary);
 }
 
-.status-timestamp {
+.status-summary {
   font-size: 13px;
   color: var(--color-text-secondary);
+}
+
+.status-timestamp {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  opacity: 0.7;
+}
+
+/* Quick Stats Summary (SESSION 358) */
+.quick-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.quick-stat {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: default;
+}
+
+.quick-stat svg {
+  color: var(--color-text-secondary);
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.stat-freshness {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.stat-freshness.fresh {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.stat-freshness.aging {
+  background: rgba(234, 179, 8, 0.15);
+  color: #eab308;
+}
+
+.stat-freshness.stale {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+/* Action Guidance (SESSION 358) */
+.action-guidance {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+}
+
+.action-guidance svg {
+  color: #3b82f6;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.guidance-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.guidance-title {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.guidance-action {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+/* Pipeline Details (collapsible, SESSION 358) */
+.pipeline-details {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.pipeline-details summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  list-style: none;
+  background: var(--color-bg-secondary);
+}
+
+.pipeline-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.pipeline-details[open] summary {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.pipeline-details .pipeline-legend {
+  margin: 12px 16px;
+}
+
+.pipeline-details .pipelines {
+  padding: 0 16px 16px;
+}
+
+.help-hint {
+  margin-left: auto;
+  color: var(--color-text-secondary);
+  opacity: 0.5;
+  cursor: help;
+}
+
+.help-hint:hover {
+  opacity: 1;
 }
 
 /* Pipeline Legend */
