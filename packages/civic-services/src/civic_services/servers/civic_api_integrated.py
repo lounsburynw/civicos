@@ -699,6 +699,14 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
         elif base_path == '/api/admin/operations':
             # SESSION 341: List operations endpoint
             self.serve_operations_list()
+        elif base_path.startswith('/api/admin/data/'):
+            # SESSION 359: Data browser endpoint for schema exploration
+            path_parts = base_path.split('/')
+            if len(path_parts) >= 5:
+                data_type = path_parts[4]
+                self.serve_admin_data_browser(data_type)
+            else:
+                self.send_error(404)
         elif base_path.startswith('/api/operational-issues/'):
             # SESSION 90: SeeClickFix operational complaints
             # GET /api/operational-issues/{jurisdiction_id}?per_page=20&page=1&status=open
@@ -7710,6 +7718,253 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             result['status'] = 'degraded'
 
         self.send_json(result)
+
+    def serve_admin_data_browser(self, data_type: str):
+        """SESSION 359: Paginated data browser for schema exploration.
+
+        GET /api/admin/data/{data_type}?page=1&per_page=10&jurisdiction=san-rafael
+
+        Supports data types:
+        - meetings: All meeting records with full schema
+        - agenda_items: Extracted agenda items
+        - decisions: Decision records from minutes
+        - issues: SeeClickFix 311 issues
+
+        Returns paginated results with full schema-faithful data for the
+        data browser widget.
+        """
+        from urllib.parse import parse_qs, urlparse
+
+        parsed = urlparse(self.path)
+        params = parse_qs(parsed.query)
+
+        # Parse query params
+        jurisdiction_id = params.get('jurisdiction', ['san-rafael'])[0]
+        page = int(params.get('page', ['1'])[0])
+        per_page = min(int(params.get('per_page', ['10'])[0]), 100)  # Max 100
+        offset = (page - 1) * per_page
+
+        # SESSION 360: FK navigation filter support
+        filter_column = params.get('filter_column', [None])[0]
+        filter_value = params.get('filter_value', [None])[0]
+
+        # Whitelist of allowed filter columns to prevent SQL injection
+        allowed_filter_columns = {'id', 'meeting_id', 'agenda_item_id'}
+
+        # Validate data type
+        valid_types = ['meetings', 'agenda_items', 'decisions', 'issues']
+        if data_type not in valid_types:
+            self.send_json({
+                'error': f'Invalid data type: {data_type}',
+                'valid_types': valid_types
+            }, status=400)
+            return
+
+        try:
+            from civic import Civic
+            from civic._internal.jurisdiction import normalize_jurisdiction
+
+            state_db_path = get_user_path('civic_state.db')
+            if not Path(state_db_path).exists():
+                self.send_json({
+                    'error': f'No database found at: {state_db_path}',
+                    'data_type': data_type,
+                    'items': [],
+                    'total': 0,
+                    'page': page,
+                    'per_page': per_page
+                })
+                return
+
+            civic = Civic(jurisdiction_id, db_path=str(state_db_path))
+            canonical_jurisdiction = normalize_jurisdiction(jurisdiction_id)
+
+            items = []
+            total = 0
+            schema = {}
+
+            if data_type == 'meetings':
+                # Get total count first
+                conn = civic._storage._get_connection()
+                cursor = conn.cursor()
+
+                # Build filter clause if specified
+                filter_clause = ""
+                filter_params = [canonical_jurisdiction]
+                if filter_column and filter_value and filter_column in allowed_filter_columns:
+                    filter_clause = f" AND {filter_column} = ?"
+                    filter_params.append(filter_value)
+
+                cursor.execute(f"""
+                    SELECT COUNT(*) FROM meetings
+                    WHERE jurisdiction_id = ?
+                    AND valid_to IS NULL
+                    {filter_clause}
+                """, filter_params)
+                total = cursor.fetchone()[0]
+
+                # Get paginated meetings with all columns
+                cursor.execute(f"""
+                    SELECT * FROM meetings
+                    WHERE jurisdiction_id = ?
+                    AND valid_to IS NULL
+                    {filter_clause}
+                    ORDER BY meeting_datetime DESC
+                    LIMIT ? OFFSET ?
+                """, filter_params + [per_page, offset])
+
+                columns = [desc[0] for desc in cursor.description]
+                schema = {col: 'text' for col in columns}  # Simplified types
+
+                for row in cursor.fetchall():
+                    item = dict(zip(columns, row))
+                    # Parse full_data JSON if present
+                    if item.get('full_data'):
+                        try:
+                            item['full_data'] = json.loads(item['full_data'])
+                        except json.JSONDecodeError:
+                            pass
+                    items.append(item)
+                conn.close()
+
+            elif data_type == 'agenda_items':
+                conn = civic._storage._get_connection()
+                cursor = conn.cursor()
+
+                # Build filter clause if specified
+                filter_clause = ""
+                filter_params = []
+                if filter_column and filter_value and filter_column in allowed_filter_columns:
+                    filter_clause = f" AND {filter_column} = ?"
+                    filter_params.append(filter_value)
+
+                cursor.execute(f"""
+                    SELECT COUNT(*) FROM agenda_items
+                    WHERE valid_to IS NULL
+                    {filter_clause}
+                """, filter_params)
+                total = cursor.fetchone()[0]
+
+                cursor.execute(f"""
+                    SELECT * FROM agenda_items
+                    WHERE valid_to IS NULL
+                    {filter_clause}
+                    ORDER BY extracted_at DESC
+                    LIMIT ? OFFSET ?
+                """, filter_params + [per_page, offset])
+
+                columns = [desc[0] for desc in cursor.description]
+                schema = {col: 'text' for col in columns}
+
+                for row in cursor.fetchall():
+                    item = dict(zip(columns, row))
+                    if item.get('full_data'):
+                        try:
+                            item['full_data'] = json.loads(item['full_data'])
+                        except json.JSONDecodeError:
+                            pass
+                    items.append(item)
+                conn.close()
+
+            elif data_type == 'decisions':
+                conn = civic._storage._get_connection()
+                cursor = conn.cursor()
+
+                # Check if decisions table exists
+                cursor.execute("""
+                    SELECT name FROM sqlite_master
+                    WHERE type='table' AND name='decisions'
+                """)
+                if not cursor.fetchone():
+                    conn.close()
+                    self.send_json({
+                        'data_type': data_type,
+                        'items': [],
+                        'total': 0,
+                        'page': page,
+                        'per_page': per_page,
+                        'schema': {},
+                        'note': 'decisions table does not exist'
+                    })
+                    return
+
+                # Build filter clause if specified
+                filter_clause = ""
+                filter_params = [canonical_jurisdiction]
+                if filter_column and filter_value and filter_column in allowed_filter_columns:
+                    filter_clause = f" AND {filter_column} = ?"
+                    filter_params.append(filter_value)
+
+                cursor.execute(f"""
+                    SELECT COUNT(*) FROM decisions
+                    WHERE jurisdiction_id = ?
+                    {filter_clause}
+                """, filter_params)
+                total = cursor.fetchone()[0]
+
+                cursor.execute(f"""
+                    SELECT * FROM decisions
+                    WHERE jurisdiction_id = ?
+                    {filter_clause}
+                    ORDER BY meeting_date DESC
+                    LIMIT ? OFFSET ?
+                """, filter_params + [per_page, offset])
+
+                columns = [desc[0] for desc in cursor.description]
+                schema = {col: 'text' for col in columns}
+
+                for row in cursor.fetchall():
+                    item = dict(zip(columns, row))
+                    items.append(item)
+                conn.close()
+
+            elif data_type == 'issues':
+                # SeeClickFix issues - loaded from JSON checkpoint
+                issues_path = Path(get_user_path('')) / 'data' / 'checkpoints' / f'seeclickfix_{jurisdiction_id}.json'
+
+                if issues_path.exists():
+                    with open(issues_path, 'r') as f:
+                        all_issues = json.load(f)
+                    total = len(all_issues)
+                    items = all_issues[offset:offset + per_page]
+                    if items:
+                        schema = {key: 'text' for key in items[0].keys()}
+                else:
+                    # Try the alternative path
+                    alt_path = Path(get_data_path('')) / 'seeclickfix_sample.json'
+                    if alt_path.exists():
+                        with open(alt_path, 'r') as f:
+                            all_issues = json.load(f)
+                        total = len(all_issues)
+                        items = all_issues[offset:offset + per_page]
+                        if items:
+                            schema = {key: 'text' for key in items[0].keys()}
+
+            # Build response with schema metadata
+            result = {
+                'data_type': data_type,
+                'jurisdiction': jurisdiction_id,
+                'items': items,
+                'total': total,
+                'page': page,
+                'per_page': per_page,
+                'total_pages': (total + per_page - 1) // per_page if per_page > 0 else 0,
+                'schema': schema
+            }
+
+            self.send_json(result)
+
+        except Exception as e:
+            logger.error("data_browser_error", extra={
+                "data_type": data_type,
+                "error": str(e)
+            })
+            self.send_json({
+                'error': str(e),
+                'data_type': data_type,
+                'items': [],
+                'total': 0
+            }, status=500)
 
     def serve_operation_status(self, operation_id: str):
         """SESSION 341: Get status of a specific operation.
