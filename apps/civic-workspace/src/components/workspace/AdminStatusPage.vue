@@ -653,6 +653,15 @@
           </div>
         </div>
       </details>
+
+      <!-- Data Browser -->
+      <section class="data-browser-section">
+        <h3 class="section-title">
+          <Search :size="16" />
+          Data Browser
+        </h3>
+        <DataBrowserWidget :jurisdiction="jurisdiction" />
+      </section>
     </div>
   </div>
 </template>
@@ -685,6 +694,7 @@ import {
   Search
 } from 'lucide-vue-next';
 import { api } from '@/services/api';
+import DataBrowserWidget from '@/components/shared/DataBrowserWidget.vue';
 import type { AdminStatusResponse, AdminTriggerResponse, RunningOperation, OperationStatus, OperationResult, OperationListItem } from '@/types/civic';
 
 const props = defineProps<{
@@ -2311,5 +2321,10 @@ onUnmounted(() => {
 
 .detail-row.error .detail-value {
   color: #ef4444;
+}
+
+/* Data Browser Section */
+.data-browser-section {
+  margin-top: 24px;
 }
 </style>
