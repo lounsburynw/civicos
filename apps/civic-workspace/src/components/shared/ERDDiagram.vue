@@ -1,8 +1,8 @@
 <template>
-  <div class="erd-diagram">
+  <div class="erd-diagram" :style="{ height: `${diagramHeight}px` }">
     <svg
       ref="svgRef"
-      :viewBox="`0 0 ${svgWidth} 240`"
+      :viewBox="`0 0 ${svgWidth} ${diagramHeight}`"
       class="erd-svg"
       preserveAspectRatio="xMidYMid meet"
       @mousemove="onMouseMove"
@@ -215,6 +215,11 @@
         <text class="drag-hint" x="140" y="12">⋮⋮</text>
       </g>
     </svg>
+    <!-- Resize handle (bottom-right corner) -->
+    <div
+      class="resize-handle"
+      @mousedown.prevent="startResize"
+    ></div>
   </div>
 </template>
 
@@ -226,6 +231,14 @@ type TableName = 'meetings' | 'agenda_items' | 'decisions' | 'issues';
 // SVG sizing
 const svgRef = ref<SVGSVGElement | null>(null);
 const svgWidth = ref(900);
+const diagramHeight = ref(240);
+const minHeight = 150;
+const maxHeight = 600;
+
+// Resize state
+const isResizing = ref(false);
+const resizeStartY = ref(0);
+const resizeStartHeight = ref(0);
 
 function updateSvgWidth() {
   if (svgRef.value) {
@@ -235,6 +248,27 @@ function updateSvgWidth() {
   }
 }
 
+function startResize(event: MouseEvent) {
+  isResizing.value = true;
+  resizeStartY.value = event.clientY;
+  resizeStartHeight.value = diagramHeight.value;
+  document.addEventListener('mousemove', onResizeMove);
+  document.addEventListener('mouseup', stopResize);
+}
+
+function onResizeMove(event: MouseEvent) {
+  if (!isResizing.value) return;
+  const deltaY = event.clientY - resizeStartY.value;
+  const newHeight = Math.max(minHeight, Math.min(maxHeight, resizeStartHeight.value + deltaY));
+  diagramHeight.value = newHeight;
+}
+
+function stopResize() {
+  isResizing.value = false;
+  document.removeEventListener('mousemove', onResizeMove);
+  document.removeEventListener('mouseup', stopResize);
+}
+
 onMounted(() => {
   updateSvgWidth();
   window.addEventListener('resize', updateSvgWidth);
@@ -242,6 +276,9 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', updateSvgWidth);
+  // Clean up resize listeners if component unmounts during resize
+  document.removeEventListener('mousemove', onResizeMove);
+  document.removeEventListener('mouseup', stopResize);
 });
 
 const props = defineProps<{
@@ -297,9 +334,9 @@ function onMouseMove(event: MouseEvent) {
   pt.y = event.clientY;
   const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse());
 
-  // Constrain to viewBox bounds (dynamic width x 240, minus node size 150x45)
+  // Constrain to viewBox bounds (dynamic width x height, minus node size 150x45)
   const newX = Math.max(5, Math.min(svgWidth.value - 155, svgP.x - dragOffset.value.x));
-  const newY = Math.max(5, Math.min(190, svgP.y - dragOffset.value.y));
+  const newY = Math.max(5, Math.min(diagramHeight.value - 50, svgP.y - dragOffset.value.y));
 
   nodePositions[draggingNode.value].x = newX;
   nodePositions[draggingNode.value].y = newY;
@@ -319,6 +356,7 @@ function selectNode(node: TableName) {
 
 <style scoped>
 .erd-diagram {
+  position: relative;
   padding: 0;
   background: #f8fafc;
   border-bottom: 1px solid #e2e8f0;
@@ -326,9 +364,40 @@ function selectNode(node: TableName) {
 
 .erd-svg {
   width: 100%;
-  height: 240px;
+  height: 100%;
   display: block;
   user-select: none;
+}
+
+/* Resize handle - bottom right corner */
+.resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  background: linear-gradient(
+    135deg,
+    transparent 30%,
+    #cbd5e1 30%,
+    #cbd5e1 40%,
+    transparent 40%,
+    transparent 50%,
+    #cbd5e1 50%,
+    #cbd5e1 60%,
+    transparent 60%,
+    transparent 70%,
+    #cbd5e1 70%,
+    #cbd5e1 80%,
+    transparent 80%
+  );
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+.resize-handle:hover {
+  opacity: 1;
 }
 
 /* Table nodes */
