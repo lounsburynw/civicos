@@ -21,7 +21,8 @@ import type {
   AdminStatusResponse,
   AdminTriggerResponse,
   OperationStatus,
-  OperationsListResponse
+  OperationsListResponse,
+  DataBrowserResponse
 } from '@/types/civic';
 
 /**
@@ -1420,6 +1421,51 @@ class CivicAPI {
     } catch {
       return null;
     }
+  }
+
+  // =========================================================================
+  // Data Browser API (SESSION 359)
+  // =========================================================================
+
+  /**
+   * Get paginated data for schema exploration
+   * GET /api/admin/data/{data_type}?page=1&per_page=10&jurisdiction=san-rafael
+   *
+   * SESSION 359: Full schema-faithful data browser for SaaS architect view.
+   * SESSION 360: Added filter_column/filter_value for FK navigation.
+   * Supports: meetings, agenda_items, decisions, issues
+   */
+  async getDataBrowser(
+    dataType: 'meetings' | 'agenda_items' | 'decisions' | 'issues',
+    options?: {
+      page?: number;
+      perPage?: number;
+      jurisdiction?: string;
+      filterColumn?: string;
+      filterValue?: string;
+    }
+  ): Promise<DataBrowserResponse> {
+    const params = new URLSearchParams();
+    if (options?.page) params.append('page', options.page.toString());
+    if (options?.perPage) params.append('per_page', options.perPage.toString());
+    if (options?.jurisdiction) params.append('jurisdiction', options.jurisdiction);
+    if (options?.filterColumn) params.append('filter_column', options.filterColumn);
+    if (options?.filterValue) params.append('filter_value', options.filterValue);
+
+    const queryString = params.toString();
+    const url = `${this.baseURL}/api/admin/data/${dataType}${queryString ? `?${queryString}` : ''}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || `Failed to fetch ${dataType} data: ${response.statusText}`);
+    }
+
+    return response.json();
   }
 }
 
