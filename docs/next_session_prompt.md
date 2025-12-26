@@ -1,65 +1,71 @@
-# Session 366: Decisions from SQL (P0)
+# Session 368: Vector Rebuild from SQL (P0)
+
+**Priority:** P0
+**Area:** data_architecture > vector_sql_linkage
+**Date:** 2025-12-26
+
+> This is recommended context from Session 367. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 365 completed **dashboard_visual_hierarchy**:
-- Added sortable columns to DataBrowserWidget
-- Added quick-filter by cell value (hover to see filter icon)
-- Added SQL/Corpus source badges to distinguish data types
+Session 367 completed **chunks_from_sql**:
+- Added `chunks` table to SQLiteBackend with temporal versioning
+- Methods: `store_chunks()`, `get_chunks()`, `get_chunk_count()`
+- Added `build_chunks_index_from_sql()` to CivicEmbeddings
 
-Session 364 completed **data architecture unification**:
-- Issues endpoint now queries SQL (1340 records)
-- Agenda items properly filtered by jurisdiction via JOIN
-- Vector stats show `issues: 1340/1340 (100%) - linked`
+## Current P0: vector_rebuild_from_sql
 
-## Current P0: decisions_from_sql
-
-Build the decisions table in SQL via ETL pipeline.
+Make the INDEX stage of the ETL pipeline use SQL as the source of truth for all vector collections, not JSON files.
 
 **Current state:**
-- Decisions exist in vector DB (corpus_only)
-- Vector stats show `decisions: corpus_only`
-- No SQL table for decisions → can't browse in DataBrowser
-- ERD shows decisions as 0 records
+- `build_chunks_index()` reads from JSON files
+- `build_chunks_index_from_sql()` reads from SQL (new in Session 367)
+- `build_decisions_index()` reads from JSON files
+- Similar pattern for issues, transcripts
 
 **Goal:**
-- Create decisions table in SQL schema
-- Populate via ETL from meeting minutes/transcripts
-- Link to agenda_items table (decisions.agenda_item_id → agenda_items.id)
-- Enable DataBrowser to show actual decision records
+- Pipeline INDEX stage should read from SQL (via storage backend)
+- Vector collections derived from SQL = source of truth
+- Enables accurate linkage_status tracking in ERD
 
 ## Key Files
 
-- `packages/civic/src/civic/storage.py` - StorageBackend with table definitions
-- `packages/civic-extraction/src/civic_extraction/decisions/` - Decision extraction
-- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py` - API endpoints
-- Schema in `docs/critical/FINAL_PACKAGE_ARCHITECTURE.md`
+- `packages/civic-extraction/src/civic_extraction/pipeline.py` - Pipeline class with INDEX stage
+- `packages/civic/src/civic/_internal/meetings/embeddings.py:755-833` - `build_chunks_index_from_sql()` (pattern to follow)
+- `packages/civic/src/civic/storage/sqlite_backend.py` - SQL methods for chunks, decisions, meetings
 
-## Data Flow
+## Suggested Approach
 
-```
-meeting transcript/minutes → decision extraction → SQL decisions table → vector index
-```
+1. **Add `_from_sql` variants for all index builders**
+   - `build_decisions_index_from_sql()` - use `get_decisions()` from storage backend
+   - `build_issues_index_from_sql()` - similar pattern
+   - Transcripts may need different handling
 
-The current flow extracts decisions to JSON files. We need:
-1. SQL table schema for decisions
-2. ETL step to insert into SQL during extraction
-3. API endpoint to query decisions from SQL
-4. Vector reindex from SQL source (future: vector_rebuild_from_sql)
+2. **Update Pipeline.index_target**
+   - IndexTarget protocol should pass storage_backend to embeddings
+   - Or: embeddings should have storage_backend reference
+
+3. **Update INDEX stage in Pipeline._run_index**
+   - Call `_from_sql` variants instead of file-based variants
+   - Log source as "sql" in stage metadata
+
+4. **Preserve backward compatibility**
+   - Keep file-based methods for corpus building/testing
+   - Use SQL methods when storage_backend is available
 
 ## Success Criteria
 
-- [ ] decisions table exists in SQLite schema
-- [ ] ETL populates decisions from existing extracted data
-- [ ] DataBrowser shows decision records (not just 0)
-- [ ] Vector stats show `decisions: linked` (not corpus_only)
+- [ ] `build_decisions_index_from_sql()` implemented
+- [ ] Pipeline INDEX stage uses SQL methods when storage_backend available
+- [ ] Vector stats endpoint shows "sql" as source
+- [ ] Existing file-based workflows still work
 
-## Architecture Notes
+## Data Architecture Note
 
-Follow the 4-stage pipeline pattern:
-1. **Discover** - Find meeting sources
-2. **Ingest** - Extract decisions from transcripts
-3. **Store** - Persist to SQL decisions table
-4. **Index** - Update vector embeddings
+The 4-stage pattern is:
+1. **DISCOVER** - Check what's available
+2. **INGEST** - Fetch and normalize
+3. **STORE** - Persist to SQL (source of truth)
+4. **INDEX** - Build vectors from SQL (derived data)
 
-Use StorageBackend protocol for SQL operations.
+This session completes the INDEX stage's SQL integration.
