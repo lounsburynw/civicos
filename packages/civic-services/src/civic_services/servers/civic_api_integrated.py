@@ -7831,28 +7831,36 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                 conn.close()
 
             elif data_type == 'agenda_items':
+                # SESSION 364: Filter by jurisdiction via JOIN with meetings
                 conn = civic._storage._get_connection()
                 cursor = conn.cursor()
 
                 # Build filter clause if specified
                 filter_clause = ""
-                filter_params = []
+                filter_params = [canonical_jurisdiction]
                 if filter_column and filter_value and filter_column in allowed_filter_columns:
-                    filter_clause = f" AND {filter_column} = ?"
+                    # Prefix with 'a.' for agenda_items table
+                    filter_clause = f" AND a.{filter_column} = ?"
                     filter_params.append(filter_value)
 
                 cursor.execute(f"""
-                    SELECT COUNT(*) FROM agenda_items
-                    WHERE valid_to IS NULL
+                    SELECT COUNT(*) FROM agenda_items a
+                    JOIN meetings m ON a.meeting_id = m.id
+                    WHERE m.jurisdiction_id = ?
+                    AND a.valid_to IS NULL
+                    AND m.valid_to IS NULL
                     {filter_clause}
                 """, filter_params)
                 total = cursor.fetchone()[0]
 
                 cursor.execute(f"""
-                    SELECT * FROM agenda_items
-                    WHERE valid_to IS NULL
+                    SELECT a.* FROM agenda_items a
+                    JOIN meetings m ON a.meeting_id = m.id
+                    WHERE m.jurisdiction_id = ?
+                    AND a.valid_to IS NULL
+                    AND m.valid_to IS NULL
                     {filter_clause}
-                    ORDER BY extracted_at DESC
+                    ORDER BY a.extracted_at DESC
                     LIMIT ? OFFSET ?
                 """, filter_params + [per_page, offset])
 
@@ -7922,26 +7930,42 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                 conn.close()
 
             elif data_type == 'issues':
-                # SeeClickFix issues - loaded from JSON checkpoint
-                issues_path = Path(get_user_path('')) / 'data' / 'checkpoints' / f'seeclickfix_{jurisdiction_id}.json'
+                # SESSION 364: Query issues from SQL (not JSON checkpoint)
+                conn = civic._storage._get_connection()
+                cursor = conn.cursor()
 
-                if issues_path.exists():
-                    with open(issues_path, 'r') as f:
-                        all_issues = json.load(f)
-                    total = len(all_issues)
-                    items = all_issues[offset:offset + per_page]
-                    if items:
-                        schema = {key: 'text' for key in items[0].keys()}
-                else:
-                    # Try the alternative path
-                    alt_path = Path(get_data_path('')) / 'seeclickfix_sample.json'
-                    if alt_path.exists():
-                        with open(alt_path, 'r') as f:
-                            all_issues = json.load(f)
-                        total = len(all_issues)
-                        items = all_issues[offset:offset + per_page]
-                        if items:
-                            schema = {key: 'text' for key in items[0].keys()}
+                # Build filter clause if specified
+                filter_clause = ""
+                filter_params = [canonical_jurisdiction]
+                if filter_column and filter_value and filter_column in allowed_filter_columns:
+                    filter_clause = f" AND {filter_column} = ?"
+                    filter_params.append(filter_value)
+
+                cursor.execute(f"""
+                    SELECT COUNT(*) FROM issues
+                    WHERE jurisdiction_id = ?
+                    AND valid_to IS NULL
+                    {filter_clause}
+                """, filter_params)
+                total = cursor.fetchone()[0]
+
+                # Get paginated issues with all columns
+                cursor.execute(f"""
+                    SELECT * FROM issues
+                    WHERE jurisdiction_id = ?
+                    AND valid_to IS NULL
+                    {filter_clause}
+                    ORDER BY created_at DESC
+                    LIMIT ? OFFSET ?
+                """, filter_params + [per_page, offset])
+
+                columns = [desc[0] for desc in cursor.description]
+                schema = {col: 'text' for col in columns}
+
+                for row in cursor.fetchall():
+                    item = dict(zip(columns, row))
+                    items.append(item)
+                conn.close()
 
             # Build response with schema metadata
             result = {
@@ -8063,19 +8087,20 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                     # decisions table may not exist
                     source_counts['decisions'] = 0
 
+                # SESSION 363: Count issues from SQL (not JSON file)
+                cursor.execute("""
+                    SELECT COUNT(*) FROM issues
+                    WHERE jurisdiction_id = ? AND valid_to IS NULL
+                """, (canonical_jurisdiction,))
+                source_counts['issues'] = cursor.fetchone()[0]
+
                 conn.close()
 
-            # Count issues from JSON file (SeeClickFix data)
-            issues_path = Path(get_data_path('pilot')) / 'seeclickfix' / f'{canonical_jurisdiction}.json'
-            if issues_path.exists():
-                with open(issues_path, 'r') as f:
-                    issues_data = json.load(f)
-                source_counts['issues'] = len(issues_data) if isinstance(issues_data, list) else 0
-
-            # Build collection stats with coverage
+            # Build collection stats with linkage status
+            # SESSION 363: Compute ACTUAL linkage by checking ID overlap
             collections = {}
 
-            # Map collection names to their source tables and count keys
+            # Map collection names to their source tables
             collection_mapping = {
                 'decisions': {'source_table': 'decisions', 'one_to_one': True},
                 'chunks': {'source_table': 'agenda_items', 'one_to_one': False},
@@ -8085,30 +8110,101 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
 
             vector_collections = vector_stats.get('collections', {})
 
+            # Check actual issues linkage by comparing IDs
+            issues_linked_count = 0
+            if source_counts.get('issues', 0) > 0:
+                try:
+                    # Get SQL source_ids (strip 'scf-' prefix to match vector format)
+                    conn = sqlite3.connect(state_db_path)
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        SELECT source_id FROM issues
+                        WHERE jurisdiction_id = ? AND valid_to IS NULL
+                    """, (canonical_jurisdiction,))
+                    sql_ids = set()
+                    for row in cursor.fetchall():
+                        if row[0]:
+                            # Extract numeric part from "scf-20481816"
+                            parts = row[0].split('-')
+                            if len(parts) >= 2:
+                                sql_ids.add(parts[-1])
+                    conn.close()
+
+                    # Get vector source_ids
+                    issues_collection_name = f"{canonical_jurisdiction}_issues"
+                    if issues_collection_name in [c.name for c in embedder._client.list_collections()]:
+                        collection = embedder._client.get_collection(issues_collection_name)
+                        vector_docs = collection.get(limit=10000, include=['metadatas'])
+                        vector_ids = set(
+                            str(m.get('source_id'))
+                            for m in vector_docs['metadatas'] if m
+                        )
+                        issues_linked_count = len(sql_ids & vector_ids)
+                except Exception as e:
+                    logger.warning(f"Could not compute issues linkage: {e}")
+
+            # SESSION 363: Get all raw collection names to check existence
+            raw_collection_names = [c.name for c in embedder._client.list_collections()]
+
             for corpus_type, mapping in collection_mapping.items():
                 collection_name = f"{canonical_jurisdiction}_{corpus_type}"
                 source_table = mapping['source_table']
                 one_to_one = mapping['one_to_one']
 
                 # Get vector count and metadata
+                # First check get_stats(), then fallback to raw query
                 collection_info = vector_collections.get(collection_name, {})
                 vector_count = collection_info.get('count', 0) if collection_info else 0
+
+                # SESSION 363: If not in get_stats but collection exists, query directly
+                if vector_count == 0 and collection_name in raw_collection_names:
+                    try:
+                        raw_collection = embedder._client.get_collection(collection_name)
+                        vector_count = raw_collection.count()
+                    except Exception:
+                        pass
 
                 # Get corpus source from vector metadata (if available)
                 corpus_source = None
                 if collection_info and collection_info.get('metadata'):
                     raw_source = collection_info['metadata'].get('source', '')
                     if raw_source:
-                        # Extract just the filename from the path
                         corpus_source = raw_source.split('/')[-1] if '/' in raw_source else raw_source
 
                 # Get source count from SQL
                 source_count = source_counts.get(source_table, 0)
 
-                # Calculate coverage (only for 1:1 mappings where SQL has data)
+                # SESSION 363: Compute linkage_status based on actual data
+                # - "linked": SQL records have matching vector embeddings
+                # - "corpus_only": Vector docs exist but no SQL linkage
+                # - "not_indexed": SQL records exist but no vectors
+                # - "empty": No SQL records and no vectors
+                linkage_status = "empty"
+                linked_count = 0
+
+                if corpus_type == 'issues':
+                    if issues_linked_count > 0:
+                        linkage_status = "linked"
+                        linked_count = issues_linked_count
+                    elif vector_count > 0:
+                        linkage_status = "corpus_only"
+                    elif source_count > 0:
+                        linkage_status = "not_indexed"
+                elif vector_count > 0 and source_count == 0:
+                    # Vectors exist but no SQL data (decisions, chunks)
+                    linkage_status = "corpus_only"
+                elif vector_count == 0 and source_count > 0:
+                    # SQL exists but no vectors (transcripts)
+                    linkage_status = "not_indexed"
+                elif vector_count > 0 and source_count > 0:
+                    # Both exist - would need ID check (future)
+                    linkage_status = "linked"
+                    linked_count = min(vector_count, source_count)
+
+                # Calculate coverage only for linked collections
                 coverage_percent = None
-                if one_to_one and source_count > 0:
-                    coverage_percent = round((vector_count / source_count) * 100, 1)
+                if linkage_status == "linked" and source_count > 0:
+                    coverage_percent = round((linked_count / source_count) * 100, 1)
 
                 collections[corpus_type] = {
                     'vector_count': vector_count,
@@ -8116,7 +8212,9 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                     'coverage_percent': coverage_percent,
                     'source_table': source_table,
                     'one_to_one': one_to_one,
-                    'corpus_source': corpus_source  # e.g., "nov17_chunks.json"
+                    'corpus_source': corpus_source,
+                    'linkage_status': linkage_status,  # SESSION 363: New field
+                    'linked_count': linked_count       # SESSION 363: Actual linked records
                 }
 
             response = {

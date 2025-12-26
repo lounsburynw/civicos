@@ -763,6 +763,54 @@
         "completed": "2025-12-22",
         "test_file": "packages/civic/tests/test_paths.py::TestEmbeddingModelConfiguration"
       }
+    },
+    "data_source_unification": {
+      "issues_query_sql": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Data browser issues endpoint queries SQL instead of JSON checkpoint",
+        "note": "Session 364: Fixed civic_api_integrated.py:7924-7960. Issues now queried from SQL (1340 records) instead of JSON checkpoint file. ERD shows correct count.",
+        "completed": "2025-12-26"
+      },
+      "agenda_items_jurisdiction_filter": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Data browser agenda_items endpoint filters by jurisdiction via JOIN",
+        "note": "Session 364: Fixed civic_api_integrated.py:7833-7878. Agenda items now filtered by meeting.jurisdiction_id via JOIN.",
+        "completed": "2025-12-26"
+      },
+      "decisions_from_sql": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Build decisions table in SQL via ETL pipeline",
+        "note": "Currently decisions are extracted to JSON files. Need: parse meeting minutes → decisions table in SQL."
+      },
+      "chunks_from_sql": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Store agenda PDF chunks in SQL via ETL pipeline",
+        "note": "Currently chunks built from PDF files. Need: agenda_chunks table built during ingest stage."
+      }
+    },
+    "vector_sql_linkage": {
+      "vector_rebuild_from_sql": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "INDEX stage builds vectors from SQL tables, not JSON files",
+        "note": "ChromaDB collections should be derived from SQL (source of truth). Enables linkage_status tracking."
+      },
+      "erd_all_corpora": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "ERD diagram shows all 9 corpus types with linkage status",
+        "note": "Currently shows 4 of 9 corpus types. Missing: municipal_code, legislation, federal_programs, county_programs, transcripts."
+      },
+      "corpus_type_registry": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Pluggable CorpusType enum with metadata per corpus",
+        "note": "Extend CORPUS_TYPES frozenset with metadata: source_table, vector_collection, has_sql_source, etc."
+      }
     }
   },
   "data_readiness": {
@@ -1284,9 +1332,9 @@
     "social_features": {
       "user_identity_in_messages": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Show user identity in coordination thread messages",
-        "note": "Demoted from P0 - storage backend protocol is the critical path blocker."
+        "note": "Session 364: Demoted from P0 - storage backend protocol is the critical path blocker."
       },
       "public_profiles": {
         "status": "not_ready",
