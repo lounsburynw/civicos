@@ -269,6 +269,49 @@ class SQLiteBackend:
             "ON decisions(outcome)"
         )
 
+        # Chunks table (SESSION 367)
+        # Stores PDF chunks from agenda packets for RAG retrieval
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS chunks (
+                id TEXT NOT NULL,
+                jurisdiction_id TEXT NOT NULL,
+                meeting_id TEXT,
+                agenda_item TEXT,
+                agenda_title TEXT,
+                text TEXT NOT NULL,
+                page_start INTEGER,
+                page_end INTEGER,
+                chunk_index INTEGER NOT NULL,
+                total_chunks INTEGER,
+                source_file TEXT,
+                source_type TEXT DEFAULT 'agenda_packet',
+                extracted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                PRIMARY KEY (id, jurisdiction_id, valid_from),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                CHECK (valid_to IS NULL OR valid_to > valid_from)
+            )
+        """)
+
+        # Chunk indexes
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_chunks_jurisdiction "
+            "ON chunks(jurisdiction_id)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_chunks_meeting "
+            "ON chunks(meeting_id)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_chunks_agenda_item "
+            "ON chunks(agenda_item)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_chunks_source_type "
+            "ON chunks(source_type)"
+        )
+
         # Create indexes
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_meetings_jurisdiction "
@@ -805,6 +848,173 @@ class SQLiteBackend:
 
         cursor.execute("""
             SELECT COUNT(*) FROM decisions
+            WHERE jurisdiction_id = ? AND valid_to IS NULL
+        """, (jurisdiction_id,))
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
+    # ========== Chunk Methods (SESSION 367) ==========
+
+    def store_chunks(
+        self,
+        jurisdiction_id: str,
+        chunks: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store PDF chunks with temporal versioning.
+
+        Atomic operation: either all chunks are stored or none.
+        Updates existing chunks if IDs match, inserts new ones.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            chunks: List of chunk dictionaries with text, agenda_item, etc.
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of chunks successfully stored
+
+        Raises:
+            sqlite3.Error: If atomic store operation fails
+        """
+        as_of = as_of or datetime.now()
+
+        conn = sqlite3.connect(self._db_path)
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Close previous versions (set valid_to)
+            cursor.execute("""
+                UPDATE chunks
+                SET valid_to = ?
+                WHERE jurisdiction_id = ?
+                  AND valid_to IS NULL
+            """, (as_of.isoformat(), jurisdiction_id))
+
+            # Insert new versions
+            for i, chunk in enumerate(chunks):
+                # Generate chunk ID if not present
+                chunk_id = chunk.get('id') or f"chunk-{i}"
+
+                cursor.execute("""
+                    INSERT INTO chunks (
+                        id, jurisdiction_id, meeting_id, agenda_item,
+                        agenda_title, text, page_start, page_end,
+                        chunk_index, total_chunks, source_file, source_type,
+                        extracted_at, valid_from, valid_to
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+                """, (
+                    chunk_id,
+                    jurisdiction_id,
+                    chunk.get('meeting_id'),
+                    chunk.get('agenda_item'),
+                    chunk.get('agenda_title'),
+                    chunk.get('text', ''),
+                    chunk.get('page_start'),
+                    chunk.get('page_end'),
+                    chunk.get('chunk_index', i),
+                    chunk.get('total_chunks'),
+                    chunk.get('source_file'),
+                    chunk.get('source_type', 'agenda_packet'),
+                    as_of.isoformat(),
+                    as_of.isoformat(),
+                ))
+
+            conn.commit()
+            return len(chunks)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_chunks(
+        self,
+        jurisdiction_id: str,
+        as_of: Optional[datetime] = None,
+        meeting_id: Optional[str] = None,
+        agenda_item: Optional[str] = None,
+        source_type: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve chunks with optional filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            as_of: Point-in-time query (for temporal versioning)
+            meeting_id: Filter by meeting ID
+            agenda_item: Filter by agenda item
+            source_type: Filter by source type (agenda_packet, staff_report)
+            limit: Maximum number of chunks to return
+
+        Returns:
+            List of chunk dictionaries
+        """
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        # Build query with temporal filtering
+        query = """
+            SELECT * FROM chunks
+            WHERE jurisdiction_id = ?
+              AND valid_from <= ?
+              AND (valid_to IS NULL OR valid_to > ?)
+        """
+        params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+
+        if meeting_id:
+            query += " AND meeting_id = ?"
+            params.append(meeting_id)
+
+        if agenda_item:
+            query += " AND agenda_item = ?"
+            params.append(agenda_item)
+
+        if source_type:
+            query += " AND source_type = ?"
+            params.append(source_type)
+
+        query += " ORDER BY chunk_index ASC"
+
+        if limit:
+            query += " LIMIT ?"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to dictionaries
+        chunks = []
+        for row in rows:
+            chunks.append(dict(row))
+
+        return chunks
+
+    def get_chunk_count(self, jurisdiction_id: str) -> int:
+        """
+        Get count of current chunks for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+
+        Returns:
+            Number of current (non-expired) chunks
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT COUNT(*) FROM chunks
             WHERE jurisdiction_id = ? AND valid_to IS NULL
         """, (jurisdiction_id,))
         count = cursor.fetchone()[0]
