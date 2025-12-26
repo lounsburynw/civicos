@@ -7878,6 +7878,7 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                 conn.close()
 
             elif data_type == 'decisions':
+                # SESSION 366: Query decisions from SQL
                 conn = civic._storage._get_connection()
                 cursor = conn.cursor()
 
@@ -7909,6 +7910,7 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                 cursor.execute(f"""
                     SELECT COUNT(*) FROM decisions
                     WHERE jurisdiction_id = ?
+                    AND valid_to IS NULL
                     {filter_clause}
                 """, filter_params)
                 total = cursor.fetchone()[0]
@@ -7916,6 +7918,7 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                 cursor.execute(f"""
                     SELECT * FROM decisions
                     WHERE jurisdiction_id = ?
+                    AND valid_to IS NULL
                     {filter_clause}
                     ORDER BY meeting_date DESC
                     LIMIT ? OFFSET ?
@@ -7995,6 +7998,7 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
 
     def serve_vector_stats(self):
         """SESSION 362: Vector collection statistics for ERD visualization.
+        SESSION 366: Refactored to use UnifiedSearch.get_available_corpora() for auto-discovery.
 
         GET /api/admin/vector-stats?jurisdiction=san-rafael
 
@@ -8005,23 +8009,19 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
         {
             "jurisdiction_id": "city-san-rafael",
             "collections": {
-                "decisions": {
-                    "vector_count": 892,
-                    "source_count": 892,
+                "decision": {
+                    "vector_count": 186,
+                    "source_count": 186,
                     "coverage_percent": 100.0,
-                    "source_table": "decisions"
+                    "source_table": "decisions",
+                    "linkage_status": "linked"
                 },
-                "chunks": {
-                    "vector_count": 3421,
-                    "source_count": 312,
+                "municipal_code": {
+                    "vector_count": 2121,
+                    "source_count": 0,
                     "coverage_percent": null,
-                    "source_table": "agenda_items"
-                },
-                "issues": {
-                    "vector_count": 647,
-                    "source_count": 647,
-                    "coverage_percent": 100.0,
-                    "source_table": "issues"
+                    "source_table": null,
+                    "linkage_status": "corpus_only"
                 }
             },
             "embedding_model": "nomic-ai/nomic-embed-text-v1.5",
@@ -8036,170 +8036,110 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
 
         try:
             from civic._internal.jurisdiction import normalize_jurisdiction
-            from civic._internal.meetings.embeddings import CivicEmbeddings
+            from civic._internal.search.unified import UnifiedSearch
 
             canonical_jurisdiction = normalize_jurisdiction(jurisdiction_id)
 
-            # Get vector stats from embeddings
-            try:
-                embedder = CivicEmbeddings(canonical_jurisdiction)
-                vector_stats = embedder.get_stats()
-            except Exception as e:
-                logger.warning(f"Could not initialize embeddings: {e}")
-                vector_stats = {"collections": {}}
+            # SESSION 366: Use UnifiedSearch for auto-discovery of all corpora
+            unified_search = UnifiedSearch(canonical_jurisdiction)
+            available_corpora = unified_search.get_available_corpora(refresh=True)
+
+            # Corpus type metadata: maps corpus types to their SQL source tables
+            # source_table=None means corpus-only (no SQL backing)
+            CORPUS_METADATA = {
+                'decision': {'source_table': 'decisions', 'collection_suffix': 'decisions', 'one_to_one': True},
+                'pdf': {'source_table': 'agenda_items', 'collection_suffix': 'chunks', 'one_to_one': False},
+                'transcript': {'source_table': 'meetings', 'collection_suffix': 'transcripts', 'one_to_one': False},
+                'issue': {'source_table': 'issues', 'collection_suffix': 'issues', 'one_to_one': True},
+                'municipal_code': {'source_table': None, 'collection_suffix': 'municipal_code', 'one_to_one': False},
+                'legislation': {'source_table': None, 'collection_suffix': 'legislation', 'one_to_one': False},
+                'programs': {'source_table': None, 'collection_suffix': 'programs', 'one_to_one': False},
+            }
 
             # Get source table counts from storage
             state_db_path = get_user_path('civic_state.db')
-            source_counts = {
-                'meetings': 0,
-                'agenda_items': 0,
-                'decisions': 0,
-                'issues': 0
-            }
+            source_counts = {}
 
             if Path(state_db_path).exists():
                 conn = sqlite3.connect(state_db_path)
                 cursor = conn.cursor()
 
                 # Count meetings
-                cursor.execute("""
-                    SELECT COUNT(*) FROM meetings
-                    WHERE jurisdiction_id = ? AND valid_to IS NULL
-                """, (canonical_jurisdiction,))
-                source_counts['meetings'] = cursor.fetchone()[0]
+                try:
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM meetings
+                        WHERE jurisdiction_id = ? AND valid_to IS NULL
+                    """, (canonical_jurisdiction,))
+                    source_counts['meetings'] = cursor.fetchone()[0]
+                except sqlite3.OperationalError:
+                    source_counts['meetings'] = 0
 
                 # Count agenda_items (linked via meetings.jurisdiction_id)
-                cursor.execute("""
-                    SELECT COUNT(*) FROM agenda_items a
-                    JOIN meetings m ON a.meeting_id = m.id
-                    WHERE m.jurisdiction_id = ? AND a.valid_to IS NULL AND m.valid_to IS NULL
-                """, (canonical_jurisdiction,))
-                source_counts['agenda_items'] = cursor.fetchone()[0]
+                try:
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM agenda_items a
+                        JOIN meetings m ON a.meeting_id = m.id
+                        WHERE m.jurisdiction_id = ? AND a.valid_to IS NULL AND m.valid_to IS NULL
+                    """, (canonical_jurisdiction,))
+                    source_counts['agenda_items'] = cursor.fetchone()[0]
+                except sqlite3.OperationalError:
+                    source_counts['agenda_items'] = 0
 
-                # Count decisions (has its own jurisdiction_id)
+                # Count decisions
                 try:
                     cursor.execute("""
                         SELECT COUNT(*) FROM decisions
-                        WHERE jurisdiction_id = ?
+                        WHERE jurisdiction_id = ? AND valid_to IS NULL
                     """, (canonical_jurisdiction,))
                     source_counts['decisions'] = cursor.fetchone()[0]
                 except sqlite3.OperationalError:
-                    # decisions table may not exist
                     source_counts['decisions'] = 0
 
-                # SESSION 363: Count issues from SQL (not JSON file)
-                cursor.execute("""
-                    SELECT COUNT(*) FROM issues
-                    WHERE jurisdiction_id = ? AND valid_to IS NULL
-                """, (canonical_jurisdiction,))
-                source_counts['issues'] = cursor.fetchone()[0]
+                # Count issues
+                try:
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM issues
+                        WHERE jurisdiction_id = ? AND valid_to IS NULL
+                    """, (canonical_jurisdiction,))
+                    source_counts['issues'] = cursor.fetchone()[0]
+                except sqlite3.OperationalError:
+                    source_counts['issues'] = 0
 
                 conn.close()
 
-            # Build collection stats with linkage status
-            # SESSION 363: Compute ACTUAL linkage by checking ID overlap
+            # Build collection stats from auto-discovered corpora
             collections = {}
 
-            # Map collection names to their source tables
-            collection_mapping = {
-                'decisions': {'source_table': 'decisions', 'one_to_one': True},
-                'chunks': {'source_table': 'agenda_items', 'one_to_one': False},
-                'issues': {'source_table': 'issues', 'one_to_one': True},
-                'transcripts': {'source_table': 'meetings', 'one_to_one': False},
-            }
+            for corpus_type, corpus_info in available_corpora.items():
+                metadata = CORPUS_METADATA.get(corpus_type, {})
+                source_table = metadata.get('source_table')
+                collection_suffix = metadata.get('collection_suffix', corpus_type)
+                one_to_one = metadata.get('one_to_one', False)
 
-            vector_collections = vector_stats.get('collections', {})
+                vector_count = corpus_info.document_count
+                source_count = source_counts.get(source_table, 0) if source_table else 0
 
-            # Check actual issues linkage by comparing IDs
-            issues_linked_count = 0
-            if source_counts.get('issues', 0) > 0:
-                try:
-                    # Get SQL source_ids (strip 'scf-' prefix to match vector format)
-                    conn = sqlite3.connect(state_db_path)
-                    cursor = conn.cursor()
-                    cursor.execute("""
-                        SELECT source_id FROM issues
-                        WHERE jurisdiction_id = ? AND valid_to IS NULL
-                    """, (canonical_jurisdiction,))
-                    sql_ids = set()
-                    for row in cursor.fetchall():
-                        if row[0]:
-                            # Extract numeric part from "scf-20481816"
-                            parts = row[0].split('-')
-                            if len(parts) >= 2:
-                                sql_ids.add(parts[-1])
-                    conn.close()
-
-                    # Get vector source_ids
-                    issues_collection_name = f"{canonical_jurisdiction}_issues"
-                    if issues_collection_name in [c.name for c in embedder._client.list_collections()]:
-                        collection = embedder._client.get_collection(issues_collection_name)
-                        vector_docs = collection.get(limit=10000, include=['metadatas'])
-                        vector_ids = set(
-                            str(m.get('source_id'))
-                            for m in vector_docs['metadatas'] if m
-                        )
-                        issues_linked_count = len(sql_ids & vector_ids)
-                except Exception as e:
-                    logger.warning(f"Could not compute issues linkage: {e}")
-
-            # SESSION 363: Get all raw collection names to check existence
-            raw_collection_names = [c.name for c in embedder._client.list_collections()]
-
-            for corpus_type, mapping in collection_mapping.items():
-                collection_name = f"{canonical_jurisdiction}_{corpus_type}"
-                source_table = mapping['source_table']
-                one_to_one = mapping['one_to_one']
-
-                # Get vector count and metadata
-                # First check get_stats(), then fallback to raw query
-                collection_info = vector_collections.get(collection_name, {})
-                vector_count = collection_info.get('count', 0) if collection_info else 0
-
-                # SESSION 363: If not in get_stats but collection exists, query directly
-                if vector_count == 0 and collection_name in raw_collection_names:
-                    try:
-                        raw_collection = embedder._client.get_collection(collection_name)
-                        vector_count = raw_collection.count()
-                    except Exception:
-                        pass
-
-                # Get corpus source from vector metadata (if available)
-                corpus_source = None
-                if collection_info and collection_info.get('metadata'):
-                    raw_source = collection_info['metadata'].get('source', '')
-                    if raw_source:
-                        corpus_source = raw_source.split('/')[-1] if '/' in raw_source else raw_source
-
-                # Get source count from SQL
-                source_count = source_counts.get(source_table, 0)
-
-                # SESSION 363: Compute linkage_status based on actual data
+                # Compute linkage_status based on actual data
                 # - "linked": SQL records have matching vector embeddings
                 # - "corpus_only": Vector docs exist but no SQL linkage
                 # - "not_indexed": SQL records exist but no vectors
                 # - "empty": No SQL records and no vectors
-                linkage_status = "empty"
-                linked_count = 0
-
-                if corpus_type == 'issues':
-                    if issues_linked_count > 0:
-                        linkage_status = "linked"
-                        linked_count = issues_linked_count
-                    elif vector_count > 0:
-                        linkage_status = "corpus_only"
-                    elif source_count > 0:
-                        linkage_status = "not_indexed"
-                elif vector_count > 0 and source_count == 0:
-                    # Vectors exist but no SQL data (decisions, chunks)
-                    linkage_status = "corpus_only"
-                elif vector_count == 0 and source_count > 0:
-                    # SQL exists but no vectors (transcripts)
-                    linkage_status = "not_indexed"
+                if source_table is None:
+                    # Corpus-only types (no SQL backing)
+                    linkage_status = "corpus_only" if vector_count > 0 else "empty"
+                    linked_count = 0
                 elif vector_count > 0 and source_count > 0:
-                    # Both exist - would need ID check (future)
                     linkage_status = "linked"
                     linked_count = min(vector_count, source_count)
+                elif vector_count > 0 and source_count == 0:
+                    linkage_status = "corpus_only"
+                    linked_count = 0
+                elif vector_count == 0 and source_count > 0:
+                    linkage_status = "not_indexed"
+                    linked_count = 0
+                else:
+                    linkage_status = "empty"
+                    linked_count = 0
 
                 # Calculate coverage only for linked collections
                 coverage_percent = None
@@ -8211,23 +8151,41 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                     'source_count': source_count,
                     'coverage_percent': coverage_percent,
                     'source_table': source_table,
+                    'collection_suffix': collection_suffix,
                     'one_to_one': one_to_one,
-                    'corpus_source': corpus_source,
-                    'linkage_status': linkage_status,  # SESSION 363: New field
-                    'linked_count': linked_count       # SESSION 363: Actual linked records
+                    'linkage_status': linkage_status,
+                    'linked_count': linked_count,
+                    'available': corpus_info.available,
                 }
+
+            # Add backwards-compatible aliases for frontend ERD
+            # Frontend expects: decisions, chunks, issues, transcripts
+            # API returns: decision, pdf, issue, transcript, municipal_code, legislation, programs
+            ALIAS_MAP = {
+                'decisions': 'decision',
+                'chunks': 'pdf',
+                'issues': 'issue',
+                'transcripts': 'transcript',
+            }
+            for alias, corpus_type in ALIAS_MAP.items():
+                if corpus_type in collections:
+                    collections[alias] = collections[corpus_type]
+
+            # Get embedding model info from UnifiedSearch stats
+            search_stats = unified_search.get_stats()
 
             response = {
                 'jurisdiction_id': canonical_jurisdiction,
                 'collections': collections,
-                'embedding_model': vector_stats.get('model', 'nomic-ai/nomic-embed-text-v1.5'),
-                'embedding_dimension': vector_stats.get('embedding_dimension', 768)
+                'embedding_model': search_stats.get('model', 'nomic-ai/nomic-embed-text-v1.5'),
+                'embedding_dimension': search_stats.get('embedding_dimension', 768)
             }
 
             self.send_json(response)
             logger.info("vector_stats_served", extra={
                 "jurisdiction_id": canonical_jurisdiction,
-                "collections": list(collections.keys())
+                "collections": list(collections.keys()),
+                "available_count": sum(1 for c in collections.values() if c['available'])
             })
 
         except Exception as e:

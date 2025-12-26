@@ -6009,3 +6009,42 @@ Enhanced DataBrowserWidget with improved visual hierarchy and interactivity:
 
 - Before: 166/184 items (90.2%)
 - After: 167/184 items (90.8%)
+
+## Session 366 (2025-12-26)
+
+### Completed: decisions_from_sql (P0)
+
+Created SQL decisions table and populated from existing JSON corpus.
+
+**Changes:**
+
+1. **sqlite_backend.py** - Added decisions table schema with temporal versioning
+   - New table: `decisions` with id, jurisdiction_id, meeting_date, agenda_item, title, summary, outcome, vote_json, etc.
+   - New methods: `store_decisions()`, `get_decisions()`, `get_decision_count()`
+   - Indexes on jurisdiction_id, meeting_date, outcome
+
+2. **civic_api_integrated.py** - Updated data browser and vector_stats endpoints
+   - Data browser decisions query now uses `valid_to IS NULL` for temporal filtering
+   - Vector stats refactored to use `UnifiedSearch.get_available_corpora()` for auto-discovery
+   - Now returns 7 corpus types: decision, pdf, transcript, issue, municipal_code, legislation, programs
+   - Added backwards-compatible aliases (decisions, chunks, issues, transcripts) for frontend
+
+3. **Populated data** - 186 decisions from `city-san-rafael_decisions.json` stored in SQL
+   - Vector stats now shows decisions as "linked" with 100% coverage
+
+### Investigation: Data Architecture Gaps
+
+- **agenda_items table is empty** (0 records) - extraction not implemented yet
+- **chunks are corpus_only** - linked to agenda_items which doesn't exist in SQL
+- **municipal_programs** (4 docs) not included in UnifiedSearch registry (separate from federal/county programs)
+
+### Files Changed
+
+- `packages/civic/src/civic/storage/sqlite_backend.py` - decisions table + methods
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py` - data browser + vector_stats
+- `pilot.json` - marked decisions_from_sql ready, set erd_all_corpora as P0
+
+### Progress
+
+- Before: 167/184 items (90.8%)
+- After: 168/184 items (91.3%)

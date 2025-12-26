@@ -228,6 +228,47 @@ class SQLiteBackend:
             )
         """)
 
+        # Decisions table (SESSION 366)
+        # Stores extracted decisions from meeting minutes
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS decisions (
+                id TEXT NOT NULL,
+                jurisdiction_id TEXT NOT NULL,
+                meeting_date TEXT NOT NULL,
+                agenda_item TEXT,
+                title TEXT NOT NULL,
+                summary TEXT,
+                outcome TEXT,
+                vote_json TEXT,
+                staff_recommendation_json TEXT,
+                public_input_json TEXT,
+                legal_instruments_json TEXT,
+                topics TEXT,
+                source_documents TEXT,
+                extraction_method TEXT,
+                extracted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                PRIMARY KEY (id, jurisdiction_id, valid_from),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                CHECK (valid_to IS NULL OR valid_to > valid_from)
+            )
+        """)
+
+        # Decision indexes
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_decisions_jurisdiction "
+            "ON decisions(jurisdiction_id)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_decisions_meeting_date "
+            "ON decisions(meeting_date)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_decisions_outcome "
+            "ON decisions(outcome)"
+        )
+
         # Create indexes
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_meetings_jurisdiction "
@@ -600,6 +641,176 @@ class SQLiteBackend:
             raise
         finally:
             conn.close()
+
+    # ========== Decision Methods (SESSION 366) ==========
+
+    def store_decisions(
+        self,
+        jurisdiction_id: str,
+        decisions: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store decisions with temporal versioning.
+
+        Atomic operation: either all decisions are stored or none.
+        Updates existing decisions if IDs match, inserts new ones.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            decisions: List of decision dictionaries from JSON or extraction
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of decisions successfully stored
+
+        Raises:
+            sqlite3.Error: If atomic store operation fails
+        """
+        as_of = as_of or datetime.now()
+
+        conn = sqlite3.connect(self._db_path)
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Close previous versions (set valid_to)
+            cursor.execute("""
+                UPDATE decisions
+                SET valid_to = ?
+                WHERE jurisdiction_id = ?
+                  AND valid_to IS NULL
+            """, (as_of.isoformat(), jurisdiction_id))
+
+            # Insert new versions
+            for decision in decisions:
+                cursor.execute("""
+                    INSERT INTO decisions (
+                        id, jurisdiction_id, meeting_date, agenda_item,
+                        title, summary, outcome, vote_json,
+                        staff_recommendation_json, public_input_json,
+                        legal_instruments_json, topics, source_documents,
+                        extraction_method, extracted_at, valid_from, valid_to
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+                """, (
+                    decision.get('decision_id'),
+                    jurisdiction_id,
+                    decision.get('meeting_date'),
+                    decision.get('agenda_item'),
+                    decision.get('title'),
+                    decision.get('summary'),
+                    decision.get('outcome'),
+                    json.dumps(decision.get('vote')) if decision.get('vote') else None,
+                    json.dumps(decision.get('staff_recommendation')) if decision.get('staff_recommendation') else None,
+                    json.dumps(decision.get('public_input')) if decision.get('public_input') else None,
+                    json.dumps(decision.get('legal_instruments')) if decision.get('legal_instruments') else None,
+                    json.dumps(decision.get('topics')) if decision.get('topics') else None,
+                    json.dumps(decision.get('source_documents')) if decision.get('source_documents') else None,
+                    decision.get('extraction_method'),
+                    as_of.isoformat(),
+                    as_of.isoformat(),
+                ))
+
+            conn.commit()
+            return len(decisions)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_decisions(
+        self,
+        jurisdiction_id: str,
+        as_of: Optional[datetime] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve decisions with optional filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            as_of: Point-in-time query (for temporal versioning)
+            since: Filter decisions on/after this date (YYYY-MM-DD)
+            until: Filter decisions on/before this date (YYYY-MM-DD)
+            limit: Maximum number of decisions to return
+
+        Returns:
+            List of decision dictionaries
+        """
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        # Build query with temporal filtering
+        query = """
+            SELECT * FROM decisions
+            WHERE jurisdiction_id = ?
+              AND valid_from <= ?
+              AND (valid_to IS NULL OR valid_to > ?)
+        """
+        params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+
+        if since:
+            query += " AND meeting_date >= ?"
+            params.append(since)
+
+        if until:
+            query += " AND meeting_date <= ?"
+            params.append(until)
+
+        query += " ORDER BY meeting_date DESC"
+
+        if limit:
+            query += " LIMIT ?"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to dictionaries, parsing JSON fields
+        decisions = []
+        for row in rows:
+            decision = dict(row)
+            # Parse JSON fields back to Python objects
+            for json_field in ['vote_json', 'staff_recommendation_json', 'public_input_json',
+                               'legal_instruments_json', 'topics', 'source_documents']:
+                if decision.get(json_field):
+                    try:
+                        decision[json_field] = json.loads(decision[json_field])
+                    except json.JSONDecodeError:
+                        pass
+            decisions.append(decision)
+
+        return decisions
+
+    def get_decision_count(self, jurisdiction_id: str) -> int:
+        """
+        Get count of current decisions for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+
+        Returns:
+            Number of current (non-expired) decisions
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT COUNT(*) FROM decisions
+            WHERE jurisdiction_id = ? AND valid_to IS NULL
+        """, (jurisdiction_id,))
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
 
     # ========== Operation Tracking Methods ==========
 
