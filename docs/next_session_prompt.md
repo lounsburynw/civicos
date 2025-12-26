@@ -1,88 +1,65 @@
-# Session 363: Fix Vector-SQL Sync Visualization in ERD
+# Session 366: Decisions from SQL (P0)
 
 ## Context
-Session 362 added vector collection nodes to the Data Browser ERD. However, the current implementation has **accuracy issues** - the numbers are misleading and imply relationships that don't exist.
 
-## The Core Problem
+Session 365 completed **dashboard_visual_hierarchy**:
+- Added sortable columns to DataBrowserWidget
+- Added quick-filter by cell value (hover to see filter icon)
+- Added SQL/Corpus source badges to distinguish data types
 
-The ERD shows dashed lines connecting SQL tables to vector collections, implying a sync relationship. But:
+Session 364 completed **data architecture unification**:
+- Issues endpoint now queries SQL (1340 records)
+- Agenda items properly filtered by jurisdiction via JOIN
+- Vector stats show `issues: 1340/1340 (100%) - linked`
 
-| SQL Table | Records | Vector Collection | Docs | **Actual Relationship** |
-|-----------|---------|-------------------|------|-------------------------|
-| decisions | 0 | decisions | 186 | **NONE** - vectors from corpus JSON file |
-| agenda_items | 0 | chunks | 724 | **NONE** - vectors from corpus JSON file |
-| issues | 5 | issues | 0 | **NONE** - not indexed yet |
-| meetings | 17 | transcripts | 0 | **NONE** - not indexed yet |
+## Current P0: decisions_from_sql
 
-The vector embeddings were loaded from `data/pilot/rag_corpus/city-san-rafael/*.json` files on Dec 15th, completely independent of the SQL tables.
+Build the decisions table in SQL via ETL pipeline.
 
-## What's Wrong
+**Current state:**
+- Decisions exist in vector DB (corpus_only)
+- Vector stats show `decisions: corpus_only`
+- No SQL table for decisions → can't browse in DataBrowser
+- ERD shows decisions as 0 records
 
-1. **Misleading lines** - Dashed connections imply SQL→Vector relationship that doesn't exist
-2. **Confusing numbers** - "724 docs from nov17 chunks" doesn't explain the data lineage
-3. **No way to verify** - Can't click to inspect what's actually in the vector store
-4. **No true cardinality** - Should show "0 SQL records have embeddings" not fake coverage
+**Goal:**
+- Create decisions table in SQL schema
+- Populate via ETL from meeting minutes/transcripts
+- Link to agenda_items table (decisions.agenda_item_id → agenda_items.id)
+- Enable DataBrowser to show actual decision records
 
-## What Needs to Be Built
+## Key Files
 
-### 1. Investigate Actual Data Model
-```python
-from civic._internal.meetings.embeddings import CivicEmbeddings
-embedder = CivicEmbeddings('city-san-rafael')
-collection = embedder._client.get_collection('city-san-rafael_decisions')
-sample = collection.peek(5)  # See document IDs and metadata
+- `packages/civic/src/civic/storage.py` - StorageBackend with table definitions
+- `packages/civic-extraction/src/civic_extraction/decisions/` - Decision extraction
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py` - API endpoints
+- Schema in `docs/critical/FINAL_PACKAGE_ARCHITECTURE.md`
+
+## Data Flow
+
 ```
-Questions to answer:
-- What's the `document_id` format? Can it link to SQL IDs?
-- What metadata is stored per document?
-- Is there any FK-like relationship possible?
+meeting transcript/minutes → decision extraction → SQL decisions table → vector index
+```
 
-### 2. Fix the Visual Model
-Options:
-- **A**: Only draw lines when actual linkage exists
-- **B**: Use different line styles (solid=linked, dotted=derived)
-- **C**: Remove lines entirely, show vector collections as standalone
+The current flow extracts decisions to JSON files. We need:
+1. SQL table schema for decisions
+2. ETL step to insert into SQL during extraction
+3. API endpoint to query decisions from SQL
+4. Vector reindex from SQL source (future: vector_rebuild_from_sql)
 
-### 3. Add Click-to-Inspect for Vector Nodes
-When clicking a vector node, show a panel with:
-- Collection metadata (created_at, source file, embedding model)
-- Sample documents with their IDs and metadata
-- Document count and storage info
+## Success Criteria
 
-### 4. Show Accurate Sync Status
-If SQL↔Vector linkage exists:
-- "186/200 synced (93%)"
-- "14 records missing embeddings"
+- [ ] decisions table exists in SQLite schema
+- [ ] ETL populates decisions from existing extracted data
+- [ ] DataBrowser shows decision records (not just 0)
+- [ ] Vector stats show `decisions: linked` (not corpus_only)
 
-If no linkage:
-- "186 docs from corpus file"
-- "Source: city-san-rafael_decisions.json"
+## Architecture Notes
 
-## Files to Modify
+Follow the 4-stage pipeline pattern:
+1. **Discover** - Find meeting sources
+2. **Ingest** - Extract decisions from transcripts
+3. **Store** - Persist to SQL decisions table
+4. **Index** - Update vector embeddings
 
-**Backend** (`packages/civic-services/src/civic_services/servers/civic_api_integrated.py`):
-- `serve_vector_stats()` at line ~8000 - Add document sample endpoint
-- New endpoint: `GET /api/admin/vector-stats/{collection}/sample`
-
-**Frontend** (`apps/civic-workspace/src/components/shared/`):
-- `ERDDiagram.vue` - Fix visual model, add click handlers
-- `DataBrowserWidget.vue` - Add vector detail panel
-- New component: `VectorCollectionDetail.vue`
-
-**Data locations**:
-- SQL: `data/civic_state.db`
-- Vectors: `data/pilot/vectors/city-san-rafael/chroma.sqlite3`
-- Corpus: `data/pilot/rag_corpus/city-san-rafael/*.json`
-
-## Session Goal
-
-Make the ERD vector visualization **accurate and trustworthy**:
-1. Show real relationships, not implied ones
-2. Make vector data inspectable via click
-3. Display honest sync status or "no linkage" clearly
-
-## Current State
-- Frontend: http://localhost:5173
-- API: http://localhost:8001
-- ERD has vector nodes with neutral gray FK lines and green vector lines
-- Numbers displayed are accurate but relationship lines are misleading
+Use StorageBackend protocol for SQL operations.

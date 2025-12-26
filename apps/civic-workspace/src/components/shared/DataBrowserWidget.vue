@@ -19,8 +19,26 @@
             <X :size="12" />
           </button>
         </div>
+        <!-- Sort indicator -->
+        <div v-if="sortColumn" class="sort-badge">
+          <ArrowUp v-if="sortDirection === 'asc'" :size="10" />
+          <ArrowDown v-else :size="10" />
+          <span>{{ sortColumn }}</span>
+          <button class="clear-sort-btn" @click="sortColumn = null" title="Clear sort">
+            <X :size="12" />
+          </button>
+        </div>
       </div>
       <div class="header-meta">
+        <!-- Data source indicator -->
+        <span v-if="dataSourceType === 'sql'" class="source-badge sql">
+          <Database :size="10" />
+          SQL
+        </span>
+        <span v-else-if="dataSourceType === 'corpus'" class="source-badge corpus">
+          <Database :size="10" />
+          Corpus
+        </span>
         <span v-if="data" class="record-count">
           {{ data.total }} records
         </span>
@@ -52,16 +70,26 @@
             <th
               v-for="col in visibleColumns"
               :key="col"
-              class="col-header"
-              :class="{ primary: isPrimaryColumn(col), fk: isForeignKey(col) }"
+              class="col-header sortable"
+              :class="{
+                primary: isPrimaryColumn(col),
+                fk: isForeignKey(col),
+                sorted: sortColumn === col
+              }"
+              @click="toggleSort(col)"
             >
-              {{ col }}
+              <span class="col-name">{{ col }}</span>
               <ExternalLink v-if="isForeignKey(col)" :size="10" class="fk-icon" />
+              <span class="sort-icon">
+                <ArrowUp v-if="sortColumn === col && sortDirection === 'asc'" :size="12" />
+                <ArrowDown v-else-if="sortColumn === col && sortDirection === 'desc'" :size="12" />
+                <ArrowUpDown v-else :size="12" class="sort-hint" />
+              </span>
             </th>
           </tr>
         </thead>
         <tbody>
-          <template v-for="(item, idx) in data.items" :key="item.id || idx">
+          <template v-for="(item, idx) in sortedItems" :key="item.id || idx">
             <tr
               class="data-row"
               :class="{ expanded: expandedRows[idx] }"
@@ -77,7 +105,8 @@
                 class="data-cell"
                 :class="{
                   'null-value': item[col] === null,
-                  'fk-cell': isForeignKey(col) && item[col] !== null
+                  'fk-cell': isForeignKey(col) && item[col] !== null,
+                  'filterable': item[col] !== null && !isForeignKey(col)
                 }"
                 @click.stop="isForeignKey(col) && item[col] !== null ? navigateToFK(col, item[col]) : toggleRow(idx)"
               >
@@ -86,7 +115,15 @@
                   <ExternalLink :size="10" class="fk-link-icon" />
                 </template>
                 <template v-else>
-                  {{ formatCellValue(item[col]) }}
+                  <span class="cell-value">{{ formatCellValue(item[col]) }}</span>
+                  <button
+                    v-if="item[col] !== null && col !== 'id'"
+                    class="filter-cell-btn"
+                    @click.stop="quickFilter(col, item[col])"
+                    :title="`Filter by ${col} = ${formatCellValue(item[col])}`"
+                  >
+                    <Filter :size="10" />
+                  </button>
                 </template>
               </td>
             </tr>
@@ -183,7 +220,11 @@ import {
   ChevronLeft,
   Database,
   ExternalLink,
-  X
+  X,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  Filter
 } from 'lucide-vue-next';
 import { api } from '@/services/api';
 import ERDDiagram from './ERDDiagram.vue';
@@ -215,6 +256,10 @@ const perPage = ref(10);
 const filterColumn = ref<string | null>(null);
 const filterValue = ref<string | null>(null);
 
+// Sorting state
+const sortColumn = ref<string | null>(null);
+const sortDirection = ref<'asc' | 'desc'>('asc');
+
 // Table stats for ERD (will be populated from individual API calls or cached)
 const tableStats = ref({
   meetings: 0,
@@ -230,6 +275,9 @@ interface VectorCollectionStats {
   coverage_percent: number | null;
   source_table: string;
   one_to_one: boolean;
+  corpus_source?: string | null;  // e.g., "nov17_chunks.json"
+  linkage_status: 'linked' | 'corpus_only' | 'not_indexed' | 'empty';  // SESSION 363
+  linked_count: number;  // SESSION 363: Actual linked records
 }
 
 interface VectorStats {
@@ -254,6 +302,25 @@ const primaryColumns: Record<string, string[]> = {
   issues: ['id', 'title', 'status', 'category', 'created_at']
 };
 
+// Data source type for each table
+const dataSourceType = computed(() => {
+  // SQL-backed tables have actual records
+  if (data.value?.total && data.value.total > 0) {
+    return 'sql';
+  }
+  // Check vector stats for corpus-only data
+  const vStats = vectorStats.value?.collections;
+  const dt = selectedDataType.value;
+  if (dt === 'decisions' && vStats?.decisions?.linkage_status === 'corpus_only') {
+    return 'corpus';
+  }
+  if (dt === 'issues' && vStats?.issues?.linkage_status === 'linked') {
+    return 'sql';
+  }
+  // Default - if empty, it's unknown
+  return data.value?.total === 0 ? 'empty' : 'sql';
+});
+
 const visibleColumns = computed(() => {
   if (!data.value?.schema) return [];
   const primary = primaryColumns[selectedDataType.value] || [];
@@ -261,6 +328,42 @@ const visibleColumns = computed(() => {
   const allCols = Object.keys(data.value.schema);
   const ordered = primary.filter(c => allCols.includes(c));
   return ordered.length > 0 ? ordered : allCols.slice(0, 5);
+});
+
+// Client-side sorted data
+const sortedItems = computed(() => {
+  if (!data.value?.items) return [];
+  if (!sortColumn.value) return data.value.items;
+
+  const col = sortColumn.value;
+  const dir = sortDirection.value;
+
+  return [...data.value.items].sort((a, b) => {
+    const valA = a[col];
+    const valB = b[col];
+
+    // Handle nulls - always sort to end
+    if (valA === null && valB === null) return 0;
+    if (valA === null) return 1;
+    if (valB === null) return -1;
+
+    // String comparison
+    if (typeof valA === 'string' && typeof valB === 'string') {
+      const cmp = valA.localeCompare(valB);
+      return dir === 'asc' ? cmp : -cmp;
+    }
+
+    // Numeric comparison
+    if (typeof valA === 'number' && typeof valB === 'number') {
+      return dir === 'asc' ? valA - valB : valB - valA;
+    }
+
+    // Mixed types - convert to string
+    const strA = String(valA);
+    const strB = String(valB);
+    const cmp = strA.localeCompare(strB);
+    return dir === 'asc' ? cmp : -cmp;
+  });
 });
 
 function isPrimaryColumn(col: string): boolean {
@@ -272,6 +375,21 @@ function isForeignKey(col: string): boolean {
   return fkDef?.column === col;
 }
 
+function toggleSort(col: string) {
+  if (sortColumn.value === col) {
+    // Toggle direction or clear if already desc
+    if (sortDirection.value === 'asc') {
+      sortDirection.value = 'desc';
+    } else {
+      sortColumn.value = null;
+      sortDirection.value = 'asc';
+    }
+  } else {
+    sortColumn.value = col;
+    sortDirection.value = 'asc';
+  }
+}
+
 function selectDataType(dt: DataType) {
   selectedDataType.value = dt;
   currentPage.value = 1;
@@ -279,6 +397,8 @@ function selectDataType(dt: DataType) {
   viewMode.value = {};
   filterColumn.value = null;
   filterValue.value = null;
+  sortColumn.value = null;
+  sortDirection.value = 'asc';
   loadData();
 }
 
@@ -299,6 +419,14 @@ function navigateToFK(col: string, value: any) {
 function clearFilter() {
   filterColumn.value = null;
   filterValue.value = null;
+  currentPage.value = 1;
+  loadData();
+}
+
+function quickFilter(col: string, value: any) {
+  if (value === null || value === undefined) return;
+  filterColumn.value = col;
+  filterValue.value = String(value);
   currentPage.value = 1;
   loadData();
 }
@@ -469,10 +597,65 @@ onMounted(() => {
   background: rgba(59, 130, 246, 0.2);
 }
 
+.sort-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: monospace;
+  color: #10b981;
+}
+
+.clear-sort-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+  color: #10b981;
+  cursor: pointer;
+}
+
+.clear-sort-btn:hover {
+  background: rgba(16, 185, 129, 0.2);
+}
+
 .header-meta {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.source-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.source-badge.sql {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.source-badge.corpus {
+  background: rgba(168, 85, 247, 0.1);
+  color: #a855f7;
+  border: 1px solid rgba(168, 85, 247, 0.3);
 }
 
 .record-count {
@@ -569,8 +752,46 @@ onMounted(() => {
   white-space: nowrap;
 }
 
+.data-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease;
+}
+
+.data-table th.sortable:hover {
+  background: var(--color-bg-hover);
+}
+
+.data-table th.sorted {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.col-name {
+  display: inline;
+}
+
+.sort-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.sort-hint {
+  opacity: 0.3;
+}
+
+.data-table th.sortable:hover .sort-hint {
+  opacity: 0.6;
+}
+
 .data-table th.primary {
   color: var(--color-text-primary);
+}
+
+.data-table th.primary.sorted {
+  color: #3b82f6;
 }
 
 .data-table th.fk {
@@ -615,6 +836,45 @@ onMounted(() => {
   color: var(--color-text-secondary);
   font-style: italic;
   opacity: 0.6;
+}
+
+.data-cell.filterable {
+  position: relative;
+}
+
+.cell-value {
+  display: inline-block;
+  max-width: calc(100% - 20px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filter-cell-btn {
+  display: none;
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 2px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.data-cell.filterable:hover .filter-cell-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-cell-btn:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: #3b82f6;
+  color: #3b82f6;
+  opacity: 1;
 }
 
 .data-cell.fk-cell {
