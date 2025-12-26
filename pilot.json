@@ -787,24 +787,26 @@
         "completed": "2025-12-26"
       },
       "chunks_from_sql": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "Store agenda PDF chunks in SQL via ETL pipeline",
-        "note": "Currently chunks built from PDF files. Need: agenda_chunks table built during ingest stage."
+        "note": "Session 367: Added chunks table to SQLiteBackend with temporal versioning. Methods: store_chunks, get_chunks, get_chunk_count. Added build_chunks_index_from_sql to CivicEmbeddings for SQL-first vector indexing.",
+        "completed": "2025-12-26"
       }
     },
     "vector_sql_linkage": {
       "vector_rebuild_from_sql": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "INDEX stage builds vectors from SQL tables, not JSON files",
-        "note": "ChromaDB collections should be derived from SQL (source of truth). Enables linkage_status tracking."
+        "note": "ChromaDB collections should be derived from SQL (source of truth). Enables linkage_status tracking. Session 367 added build_chunks_index_from_sql as foundation."
       },
       "erd_all_corpora": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "ERD diagram shows all 7 corpus types with linkage status",
-        "note": "Session 366: Backend auto-discovery done via UnifiedSearch.get_available_corpora(). Frontend ERDDiagram.vue needs update to dynamically render all corpus types instead of hardcoded 3."
+        "note": "Session 367: ERDDiagram.vue dynamically renders corpus types from API. Visual distinction: green=linked, amber=corpus-only, dimmed=empty. Shows decision (186), issue (1340), pdf (724), municipal_code (2121).",
+        "completed": "2025-12-26"
       },
       "corpus_type_registry": {
         "status": "not_ready",

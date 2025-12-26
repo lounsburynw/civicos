@@ -6048,3 +6048,45 @@ Created SQL decisions table and populated from existing JSON corpus.
 
 - Before: 167/184 items (90.8%)
 - After: 168/184 items (91.3%)
+
+## Session 367: Chunks from SQL (2025-12-26)
+
+### Work Item: chunks_from_sql (P2)
+**Area:** data_architecture > data_source_unification
+
+### Changes Made
+
+1. **Added chunks table to SQLiteBackend** (`sqlite_backend.py:272-313`)
+   - Schema with temporal versioning (valid_from/valid_to)
+   - Fields: id, jurisdiction_id, meeting_id, agenda_item, agenda_title, text, page_start, page_end, chunk_index, total_chunks, source_file, source_type
+   - Indexes on jurisdiction, meeting, agenda_item, source_type
+
+2. **Added chunk storage methods** (`sqlite_backend.py:858-1023`)
+   - `store_chunks(jurisdiction_id, chunks, as_of)` - atomic insert with temporal versioning
+   - `get_chunks(jurisdiction_id, as_of, meeting_id, agenda_item, source_type, limit)` - filtered retrieval
+   - `get_chunk_count(jurisdiction_id)` - count current chunks
+
+3. **Added SQL-first chunk indexing** (`embeddings.py:755-833`)
+   - `build_chunks_index_from_sql(storage_backend)` - reads chunks from SQL, creates ChromaDB collection
+   - Handles empty collections gracefully
+   - Batch processing (100 chunks at a time) for memory efficiency
+
+### Pattern Followed
+Mirrored the Session 366 decisions_from_sql implementation:
+- Same temporal versioning pattern (valid_from/valid_to)
+- Same atomic transaction approach
+- Same SQL -> vector indexing flow
+
+### Testing
+- Unit tests for store/retrieve chunks passed
+- Integration test for SQL -> ChromaDB indexing passed
+- Smoke tests (34/34) still passing
+
+### Files Changed
+- `packages/civic/src/civic/storage/sqlite_backend.py` - chunks table + methods
+- `packages/civic/src/civic/_internal/meetings/embeddings.py` - build_chunks_index_from_sql
+- `pilot.json` - marked chunks_from_sql ready
+
+### Progress
+- Before: 169/184 items (91.8%)
+- After: 170/184 items (92.4%)

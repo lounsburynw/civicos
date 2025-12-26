@@ -752,6 +752,86 @@ class CivicEmbeddings:
         except Exception:
             return False
 
+    def build_chunks_index_from_sql(
+        self,
+        storage_backend: Any,  # SQLiteBackend
+    ) -> Any:  # Returns chromadb.Collection
+        """
+        Build vector index for text chunks from SQL storage.
+
+        Reads chunks from the storage backend and creates embeddings
+        in ChromaDB. This is the SQL-first version of build_chunks_index.
+
+        Args:
+            storage_backend: SQLiteBackend instance with get_chunks method
+
+        Returns:
+            ChromaDB collection with embedded chunks
+        """
+        # Get chunks from SQL
+        chunks = storage_backend.get_chunks(self.jurisdiction_id)
+
+        if not chunks:
+            logger.warning(f"No chunks found in SQL for {self.jurisdiction_id}")
+            # Create empty collection
+            try:
+                self._client.delete_collection(self.chunks_collection_name)
+            except Exception:
+                pass
+
+            return self._client.create_collection(
+                name=self.chunks_collection_name,
+                metadata={
+                    "hnsw:space": "cosine",
+                    "description": f"{self.jurisdiction_id} text chunks for RAG (empty)",
+                    "jurisdiction_id": self.jurisdiction_id,
+                    "embedding_model": self.model_name,
+                    "embedding_dimension": self.embedding_dimension,
+                    "created_at": datetime.now().isoformat(),
+                    "source": "sql",
+                }
+            )
+
+        # Create collection (delete existing if present)
+        try:
+            self._client.delete_collection(self.chunks_collection_name)
+        except Exception:
+            pass
+
+        collection = self._client.create_collection(
+            name=self.chunks_collection_name,
+            metadata={
+                "hnsw:space": "cosine",
+                "description": f"{self.jurisdiction_id} text chunks for RAG",
+                "jurisdiction_id": self.jurisdiction_id,
+                "embedding_model": self.model_name,
+                "embedding_dimension": self.embedding_dimension,
+                "created_at": datetime.now().isoformat(),
+                "source": "sql",
+                "chunk_count": len(chunks),
+            }
+        )
+
+        # Process chunks in batches for memory efficiency
+        batch_size = 100
+        for i in range(0, len(chunks), batch_size):
+            batch = chunks[i:i + batch_size]
+
+            texts = [chunk.get("text", "") for chunk in batch]
+            ids = [chunk.get("id", f"chunk-{i + j}") for j, chunk in enumerate(batch)]
+            metadatas = [self._chunk_to_metadata(chunk) for chunk in batch]
+
+            embeddings = self.model.encode(texts, show_progress_bar=False)
+
+            collection.add(
+                ids=ids,
+                documents=texts,
+                embeddings=embeddings.tolist(),
+                metadatas=metadatas,
+            )
+
+        return collection
+
     def build_transcripts_index(
         self,
         testimony_dir: Union[str, Path],
