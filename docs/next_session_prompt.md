@@ -1,71 +1,98 @@
-# Session 368: Vector Rebuild from SQL (P0)
+# Recommended: blob_storage_abstraction
 
 **Priority:** P0
-**Area:** data_architecture > vector_sql_linkage
+**Area:** deployment_artifacts > cloud_storage
 **Date:** 2025-12-26
 
-> This is recommended context from Session 367. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 369. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 367 completed **chunks_from_sql**:
-- Added `chunks` table to SQLiteBackend with temporal versioning
-- Methods: `store_chunks()`, `get_chunks()`, `get_chunk_count()`
-- Added `build_chunks_index_from_sql()` to CivicEmbeddings
+Session 369 completed **postgres_backend** - PostgresBackend now has full parity with SQLiteBackend (meetings, operations, decisions, chunks). Also extended StorageBackend protocol and added `get_storage_backend()` factory for transparent backend selection via DATABASE_URL.
 
-## Current P0: vector_rebuild_from_sql
+**Next step:** Blob storage for large files (PDFs, audio, transcripts).
 
-Make the INDEX stage of the ETL pipeline use SQL as the source of truth for all vector collections, not JSON files.
+## Recommended Task: blob_storage_abstraction
 
-**Current state:**
-- `build_chunks_index()` reads from JSON files
-- `build_chunks_index_from_sql()` reads from SQL (new in Session 367)
-- `build_decisions_index()` reads from JSON files
-- Similar pattern for issues, transcripts
+Create a `BlobStorage` protocol and `R2Backend` implementation for offloading large files to Cloudflare R2.
 
-**Goal:**
-- Pipeline INDEX stage should read from SQL (via storage backend)
-- Vector collections derived from SQL = source of truth
-- Enables accurate linkage_status tracking in ERD
+**Why R2:**
+- 10GB free tier with zero egress fees
+- S3-compatible API (boto3 works out of box)
+- Offloads PDFs/audio from local disk and Fly.io volumes
 
 ## Key Files
 
-- `packages/civic-extraction/src/civic_extraction/pipeline.py` - Pipeline class with INDEX stage
-- `packages/civic/src/civic/_internal/meetings/embeddings.py:755-833` - `build_chunks_index_from_sql()` (pattern to follow)
-- `packages/civic/src/civic/storage/sqlite_backend.py` - SQL methods for chunks, decisions, meetings
+- `packages/civic/src/civic/storage/backend.py` - StorageBackend protocol pattern
+- `packages/civic/src/civic/storage/__init__.py` - Export location
+- `.env.example:124-142` - DATABASE section as pattern for R2 config
 
 ## Suggested Approach
 
-1. **Add `_from_sql` variants for all index builders**
-   - `build_decisions_index_from_sql()` - use `get_decisions()` from storage backend
-   - `build_issues_index_from_sql()` - similar pattern
-   - Transcripts may need different handling
+1. **Define BlobStorage protocol** in `packages/civic/src/civic/storage/blob.py`:
+   ```python
+   @runtime_checkable
+   class BlobStorage(Protocol):
+       @property
+       def backend_type(self) -> str: ...
 
-2. **Update Pipeline.index_target**
-   - IndexTarget protocol should pass storage_backend to embeddings
-   - Or: embeddings should have storage_backend reference
+       def upload(self, key: str, data: bytes, content_type: str = None) -> str: ...
+       def download(self, key: str) -> bytes: ...
+       def exists(self, key: str) -> bool: ...
+       def delete(self, key: str) -> bool: ...
+       def list_keys(self, prefix: str = "") -> List[str]: ...
+   ```
 
-3. **Update INDEX stage in Pipeline._run_index**
-   - Call `_from_sql` variants instead of file-based variants
-   - Log source as "sql" in stage metadata
+2. **Create R2Backend** implementing BlobStorage:
+   ```python
+   class R2Backend:
+       def __init__(self, account_id: str, access_key_id: str,
+                    secret_access_key: str, bucket_name: str):
+           # Use boto3 with R2 endpoint
+           self.s3 = boto3.client('s3',
+               endpoint_url=f'https://{account_id}.r2.cloudflarestorage.com',
+               aws_access_key_id=access_key_id,
+               aws_secret_access_key=secret_access_key
+           )
+   ```
 
-4. **Preserve backward compatibility**
-   - Keep file-based methods for corpus building/testing
-   - Use SQL methods when storage_backend is available
+3. **Add LocalBlobBackend** for development (filesystem-based)
+
+4. **Add factory function**:
+   ```python
+   def get_blob_storage(url: str = None) -> BlobStorage:
+       url = url or os.getenv("BLOB_STORAGE_URL")
+       if url and url.startswith("r2://"):
+           return R2Backend.from_url(url)
+       return LocalBlobBackend("data/blobs")
+   ```
+
+5. **Environment configuration** in `.env.example`:
+   ```
+   # Blob Storage (for PDFs, audio, transcripts)
+   # BLOB_STORAGE_URL=r2://account_id/bucket_name
+   # R2_ACCESS_KEY_ID=...
+   # R2_SECRET_ACCESS_KEY=...
+   ```
+
+## Install Dependencies
+
+```bash
+pip install boto3
+```
+
+## Tests to Run
+
+```bash
+pytest packages/civic/tests/test_storage_protocols.py -v
+pytest packages/civic/tests/test_civic.py -q
+```
 
 ## Success Criteria
 
-- [ ] `build_decisions_index_from_sql()` implemented
-- [ ] Pipeline INDEX stage uses SQL methods when storage_backend available
-- [ ] Vector stats endpoint shows "sql" as source
-- [ ] Existing file-based workflows still work
-
-## Data Architecture Note
-
-The 4-stage pattern is:
-1. **DISCOVER** - Check what's available
-2. **INGEST** - Fetch and normalize
-3. **STORE** - Persist to SQL (source of truth)
-4. **INDEX** - Build vectors from SQL (derived data)
-
-This session completes the INDEX stage's SQL integration.
+- [ ] `BlobStorage` protocol defined in storage/blob.py
+- [ ] `R2Backend` implements BlobStorage with boto3
+- [ ] `LocalBlobBackend` for local development
+- [ ] `get_blob_storage()` factory function
+- [ ] Environment variables documented in .env.example
+- [ ] Basic tests for upload/download/list
