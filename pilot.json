@@ -780,10 +780,11 @@
         "completed": "2025-12-26"
       },
       "decisions_from_sql": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Build decisions table in SQL via ETL pipeline",
-        "note": "Session 365: P0 for next session. Currently decisions are corpus_only in vector DB. Need ETL to populate decisions table in SQL."
+        "note": "Session 366: Created decisions table schema, store_decisions()/get_decisions() methods, populated 186 decisions from JSON. Vector stats show linked status.",
+        "completed": "2025-12-26"
       },
       "chunks_from_sql": {
         "status": "not_ready",
@@ -801,9 +802,9 @@
       },
       "erd_all_corpora": {
         "status": "not_ready",
-        "priority": 2,
-        "artifact": "ERD diagram shows all 9 corpus types with linkage status",
-        "note": "Currently shows 4 of 9 corpus types. Missing: municipal_code, legislation, federal_programs, county_programs, transcripts."
+        "priority": 0,
+        "artifact": "ERD diagram shows all 7 corpus types with linkage status",
+        "note": "Session 366: Backend auto-discovery done via UnifiedSearch.get_available_corpora(). Frontend ERDDiagram.vue needs update to dynamically render all corpus types instead of hardcoded 3."
       },
       "corpus_type_registry": {
         "status": "not_ready",
