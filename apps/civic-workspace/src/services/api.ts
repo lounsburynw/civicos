@@ -1467,6 +1467,70 @@ class CivicAPI {
 
     return response.json();
   }
+
+  // =========================================================================
+  // Vector Stats API (SESSION 362)
+  // =========================================================================
+
+  /**
+   * Get vector collection statistics for ERD visualization
+   * GET /api/admin/vector-stats?jurisdiction=san-rafael
+   *
+   * SESSION 362: Vector collection stats with coverage metrics.
+   * Returns document counts, source record counts, and coverage percentages.
+   */
+  async getVectorStats(jurisdiction: string = 'san-rafael'): Promise<{
+    jurisdiction_id: string;
+    collections: {
+      decisions?: {
+        vector_count: number;
+        source_count: number;
+        coverage_percent: number | null;
+        source_table: string;
+        one_to_one: boolean;
+      };
+      chunks?: {
+        vector_count: number;
+        source_count: number;
+        coverage_percent: number | null;
+        source_table: string;
+        one_to_one: boolean;
+      };
+      issues?: {
+        vector_count: number;
+        source_count: number;
+        coverage_percent: number | null;
+        source_table: string;
+        one_to_one: boolean;
+      };
+      transcripts?: {
+        vector_count: number;
+        source_count: number;
+        coverage_percent: number | null;
+        source_table: string;
+        one_to_one: boolean;
+      };
+    };
+    embedding_model: string;
+    embedding_dimension: number;
+  }> {
+    const params = new URLSearchParams();
+    params.append('jurisdiction', jurisdiction);
+
+    const url = `${this.baseURL}/api/admin/vector-stats?${params.toString()}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || `Failed to fetch vector stats: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
 }
 
 // Export singleton instance

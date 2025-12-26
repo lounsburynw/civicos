@@ -1,122 +1,88 @@
-# Recommended: Interactive Database Viewer for Pipeline Dashboard
+# Session 363: Fix Vector-SQL Sync Visualization in ERD
 
-**Priority:** P0 (IMMEDIATE)
-**Area:** frontend_refinement > interface_clarity
-**Item:** dashboard_visual_hierarchy (continued iteration)
-**Date:** 2025-12-24
+## Context
+Session 362 added vector collection nodes to the Data Browser ERD. However, the current implementation has **accuracy issues** - the numbers are misleading and imply relationships that don't exist.
 
-> This is recommended context from Session 358. The dashboard UX work is ongoing - continue iterating.
+## The Core Problem
 
-## Session 358 Progress
+The ERD shows dashed lines connecting SQL tables to vector collections, implying a sync relationship. But:
 
-Implemented first iteration of outcome-focused dashboard:
-- **Data Cards** with status badges (Meetings, Search Index, 311 Issues)
-- **Sample data preview** showing 3 recent meetings with dates/titles
-- **API endpoint** `include_samples=true` returns actual meeting data
-- **Collapsible pipeline details** - technical 4x4 grid hidden by default
+| SQL Table | Records | Vector Collection | Docs | **Actual Relationship** |
+|-----------|---------|-------------------|------|-------------------------|
+| decisions | 0 | decisions | 186 | **NONE** - vectors from corpus JSON file |
+| agenda_items | 0 | chunks | 724 | **NONE** - vectors from corpus JSON file |
+| issues | 5 | issues | 0 | **NONE** - not indexed yet |
+| meetings | 17 | transcripts | 0 | **NONE** - not indexed yet |
 
-**User feedback:** "Better! We need to workshop this ALOT more."
+The vector embeddings were loaded from `data/pilot/rag_corpus/city-san-rafael/*.json` files on Dec 15th, completely independent of the SQL tables.
 
-## Next Phase: Embeddable Database Viewer Widget
+## What's Wrong
 
-The user envisions an **interactive database viewer** that makes the backend data tangible and navigable. This isn't necessarily the final product, but helps build intuition for presenting ETL status.
+1. **Misleading lines** - Dashed connections imply SQL→Vector relationship that doesn't exist
+2. **Confusing numbers** - "724 docs from nov17 chunks" doesn't explain the data lineage
+3. **No way to verify** - Can't click to inspect what's actually in the vector store
+4. **No true cardinality** - Should show "0 SQL records have embeddings" not fake coverage
 
-### Concept: Table Widget
+## What Needs to Be Built
 
-A mini-spreadsheet component embedded in each data card that lets users:
-1. **Browse rows** - See actual database records, not just counts
-2. **Sort/filter** - By date, status, type
-3. **Pagination** - Navigate large datasets
-4. **Click to expand** - View full record details
-
-### Design Questions to Explore
-
-1. **Scope**: Just meetings? Or all data types (agenda items, issues, initiatives)?
-2. **Interaction depth**: Read-only viewer? Or allow inline edits?
-3. **Relationship navigation**: Click a meeting → see its agenda items?
-4. **Search within table**: Filter by keyword?
-5. **Export**: Download as CSV/JSON?
-
-### Expert Panel Insights (from Session 358)
-
-**UX perspective**: Users don't care about pipeline stages. They care about:
-- "Is my data fresh?"
-- "Is search working?"
-- "What's broken?"
-
-**Data engineering perspective**: The current grid mixes two audiences:
-- Operators need "is it healthy?"
-- Developers need "which stage broke?"
-
-**Information architecture perspective**: Inconsistent column headers across rows make pattern recognition impossible.
-
-### Proposed Widget Architecture
-
+### 1. Investigate Actual Data Model
+```python
+from civic._internal.meetings.embeddings import CivicEmbeddings
+embedder = CivicEmbeddings('city-san-rafael')
+collection = embedder._client.get_collection('city-san-rafael_decisions')
+sample = collection.peek(5)  # See document IDs and metadata
 ```
-┌─────────────────────────────────────────────────────┐
-│  Meetings                          [Current] ✓     │
-│  17 tracked                                        │
-├─────────────────────────────────────────────────────┤
-│  Date       │ Body            │ Title              │
-│─────────────┼─────────────────┼────────────────────│
-│  Dec 1      │ City Council    │ Regular Meeting    │
-│  Dec 2      │ Finance Sub...  │ Special Meeting    │
-│  Dec 3      │ Zoning Admin    │ Hearing            │
-│             │ [Load more...]                       │
-├─────────────────────────────────────────────────────┤
-│  [Fetch New]           Last updated: 6 hours ago   │
-└─────────────────────────────────────────────────────┘
-```
+Questions to answer:
+- What's the `document_id` format? Can it link to SQL IDs?
+- What metadata is stored per document?
+- Is there any FK-like relationship possible?
 
-### Implementation Approach
+### 2. Fix the Visual Model
+Options:
+- **A**: Only draw lines when actual linkage exists
+- **B**: Use different line styles (solid=linked, dotted=derived)
+- **C**: Remove lines entirely, show vector collections as standalone
 
-1. **Create `<DataTableWidget>` component**
-   - Props: dataType, columns, fetchFn
-   - State: rows, loading, pagination
-   - Reusable across Meetings/Issues/Initiatives
+### 3. Add Click-to-Inspect for Vector Nodes
+When clicking a vector node, show a panel with:
+- Collection metadata (created_at, source file, embedding model)
+- Sample documents with their IDs and metadata
+- Document count and storage info
 
-2. **Extend API for pagination**
-   - `GET /admin/data/meetings?page=1&per_page=10`
-   - Return total count for pagination
+### 4. Show Accurate Sync Status
+If SQL↔Vector linkage exists:
+- "186/200 synced (93%)"
+- "14 records missing embeddings"
 
-3. **Add detail modal**
-   - Click row → show full record JSON
-   - Link to related data (meeting → agenda items)
+If no linkage:
+- "186 docs from corpus file"
+- "Source: city-san-rafael_decisions.json"
 
-4. **Consider existing patterns**
-   - Check if Vue data table libraries are already used
-   - Maintain consistency with rest of app
+## Files to Modify
 
-### Key Files
+**Backend** (`packages/civic-services/src/civic_services/servers/civic_api_integrated.py`):
+- `serve_vector_stats()` at line ~8000 - Add document sample endpoint
+- New endpoint: `GET /api/admin/vector-stats/{collection}/sample`
 
-- `apps/civic-workspace/src/components/workspace/AdminStatusPage.vue` - Current dashboard
-- `apps/civic-workspace/src/components/shared/` - Shared components
-- `apps/civic-workspace/src/services/api.ts` - API client
-- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py` - Backend
+**Frontend** (`apps/civic-workspace/src/components/shared/`):
+- `ERDDiagram.vue` - Fix visual model, add click handlers
+- `DataBrowserWidget.vue` - Add vector detail panel
+- New component: `VectorCollectionDetail.vue`
 
-### Questions for User
+**Data locations**:
+- SQL: `data/civic_state.db`
+- Vectors: `data/pilot/vectors/city-san-rafael/chroma.sqlite3`
+- Corpus: `data/pilot/rag_corpus/city-san-rafael/*.json`
 
-Before implementing, clarify:
-1. Which data types need the table widget first? (Meetings only, or all?)
-2. Is row-click expansion important, or just viewing the list?
-3. Any preference on table library (native HTML, or use a Vue table component)?
+## Session Goal
 
-### Success Criteria
-
-- [ ] Users can browse actual database records, not just counts
-- [ ] Data feels "real" and navigable
-- [ ] Clear visual connection between count and underlying data
-- [ ] Technical pipeline details remain accessible but not dominant
+Make the ERD vector visualization **accurate and trustworthy**:
+1. Show real relationships, not implied ones
+2. Make vector data inspectable via click
+3. Display honest sync status or "no linkage" clearly
 
 ## Current State
-
-- **Frontend**: http://localhost:5173 (running)
-- **API**: http://localhost:8001 (running with `include_samples`)
-- **Pilot Progress**: 165/177 items (93.2%)
-
-## Files Modified in Session 358
-
-1. `AdminStatusPage.vue` - New data cards with sample preview
-2. `api.ts` - Added `includeSamples` option
-3. `civic.ts` - Added samples type to AdminStatusResponse
-4. `civic_api_integrated.py` - Added sample data fetching with `include_samples=true`
+- Frontend: http://localhost:5173
+- API: http://localhost:8001
+- ERD has vector nodes with neutral gray FK lines and green vector lines
+- Numbers displayed are accurate but relationship lines are misleading

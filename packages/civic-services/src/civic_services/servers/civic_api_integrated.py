@@ -707,6 +707,9 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
                 self.serve_admin_data_browser(data_type)
             else:
                 self.send_error(404)
+        elif base_path == '/api/admin/vector-stats':
+            # SESSION 362: Vector collection statistics for ERD visualization
+            self.serve_vector_stats()
         elif base_path.startswith('/api/operational-issues/'):
             # SESSION 90: SeeClickFix operational complaints
             # GET /api/operational-issues/{jurisdiction_id}?per_page=20&page=1&status=open
@@ -7965,6 +7968,177 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                 'items': [],
                 'total': 0
             }, status=500)
+
+    def serve_vector_stats(self):
+        """SESSION 362: Vector collection statistics for ERD visualization.
+
+        GET /api/admin/vector-stats?jurisdiction=san-rafael
+
+        Returns vector collection stats with coverage metrics showing
+        the proportion of source SQL records that have vector embeddings.
+
+        Response format:
+        {
+            "jurisdiction_id": "city-san-rafael",
+            "collections": {
+                "decisions": {
+                    "vector_count": 892,
+                    "source_count": 892,
+                    "coverage_percent": 100.0,
+                    "source_table": "decisions"
+                },
+                "chunks": {
+                    "vector_count": 3421,
+                    "source_count": 312,
+                    "coverage_percent": null,
+                    "source_table": "agenda_items"
+                },
+                "issues": {
+                    "vector_count": 647,
+                    "source_count": 647,
+                    "coverage_percent": 100.0,
+                    "source_table": "issues"
+                }
+            },
+            "embedding_model": "nomic-ai/nomic-embed-text-v1.5",
+            "embedding_dimension": 768
+        }
+        """
+        from urllib.parse import parse_qs, urlparse
+
+        parsed = urlparse(self.path)
+        params = parse_qs(parsed.query)
+        jurisdiction_id = params.get('jurisdiction', ['san-rafael'])[0]
+
+        try:
+            from civic._internal.jurisdiction import normalize_jurisdiction
+            from civic._internal.meetings.embeddings import CivicEmbeddings
+
+            canonical_jurisdiction = normalize_jurisdiction(jurisdiction_id)
+
+            # Get vector stats from embeddings
+            try:
+                embedder = CivicEmbeddings(canonical_jurisdiction)
+                vector_stats = embedder.get_stats()
+            except Exception as e:
+                logger.warning(f"Could not initialize embeddings: {e}")
+                vector_stats = {"collections": {}}
+
+            # Get source table counts from storage
+            state_db_path = get_user_path('civic_state.db')
+            source_counts = {
+                'meetings': 0,
+                'agenda_items': 0,
+                'decisions': 0,
+                'issues': 0
+            }
+
+            if Path(state_db_path).exists():
+                conn = sqlite3.connect(state_db_path)
+                cursor = conn.cursor()
+
+                # Count meetings
+                cursor.execute("""
+                    SELECT COUNT(*) FROM meetings
+                    WHERE jurisdiction_id = ? AND valid_to IS NULL
+                """, (canonical_jurisdiction,))
+                source_counts['meetings'] = cursor.fetchone()[0]
+
+                # Count agenda_items (linked via meetings.jurisdiction_id)
+                cursor.execute("""
+                    SELECT COUNT(*) FROM agenda_items a
+                    JOIN meetings m ON a.meeting_id = m.id
+                    WHERE m.jurisdiction_id = ? AND a.valid_to IS NULL AND m.valid_to IS NULL
+                """, (canonical_jurisdiction,))
+                source_counts['agenda_items'] = cursor.fetchone()[0]
+
+                # Count decisions (has its own jurisdiction_id)
+                try:
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM decisions
+                        WHERE jurisdiction_id = ?
+                    """, (canonical_jurisdiction,))
+                    source_counts['decisions'] = cursor.fetchone()[0]
+                except sqlite3.OperationalError:
+                    # decisions table may not exist
+                    source_counts['decisions'] = 0
+
+                conn.close()
+
+            # Count issues from JSON file (SeeClickFix data)
+            issues_path = Path(get_data_path('pilot')) / 'seeclickfix' / f'{canonical_jurisdiction}.json'
+            if issues_path.exists():
+                with open(issues_path, 'r') as f:
+                    issues_data = json.load(f)
+                source_counts['issues'] = len(issues_data) if isinstance(issues_data, list) else 0
+
+            # Build collection stats with coverage
+            collections = {}
+
+            # Map collection names to their source tables and count keys
+            collection_mapping = {
+                'decisions': {'source_table': 'decisions', 'one_to_one': True},
+                'chunks': {'source_table': 'agenda_items', 'one_to_one': False},
+                'issues': {'source_table': 'issues', 'one_to_one': True},
+                'transcripts': {'source_table': 'meetings', 'one_to_one': False},
+            }
+
+            vector_collections = vector_stats.get('collections', {})
+
+            for corpus_type, mapping in collection_mapping.items():
+                collection_name = f"{canonical_jurisdiction}_{corpus_type}"
+                source_table = mapping['source_table']
+                one_to_one = mapping['one_to_one']
+
+                # Get vector count and metadata
+                collection_info = vector_collections.get(collection_name, {})
+                vector_count = collection_info.get('count', 0) if collection_info else 0
+
+                # Get corpus source from vector metadata (if available)
+                corpus_source = None
+                if collection_info and collection_info.get('metadata'):
+                    raw_source = collection_info['metadata'].get('source', '')
+                    if raw_source:
+                        # Extract just the filename from the path
+                        corpus_source = raw_source.split('/')[-1] if '/' in raw_source else raw_source
+
+                # Get source count from SQL
+                source_count = source_counts.get(source_table, 0)
+
+                # Calculate coverage (only for 1:1 mappings where SQL has data)
+                coverage_percent = None
+                if one_to_one and source_count > 0:
+                    coverage_percent = round((vector_count / source_count) * 100, 1)
+
+                collections[corpus_type] = {
+                    'vector_count': vector_count,
+                    'source_count': source_count,
+                    'coverage_percent': coverage_percent,
+                    'source_table': source_table,
+                    'one_to_one': one_to_one,
+                    'corpus_source': corpus_source  # e.g., "nov17_chunks.json"
+                }
+
+            response = {
+                'jurisdiction_id': canonical_jurisdiction,
+                'collections': collections,
+                'embedding_model': vector_stats.get('model', 'nomic-ai/nomic-embed-text-v1.5'),
+                'embedding_dimension': vector_stats.get('embedding_dimension', 768)
+            }
+
+            self.send_json(response)
+            logger.info("vector_stats_served", extra={
+                "jurisdiction_id": canonical_jurisdiction,
+                "collections": list(collections.keys())
+            })
+
+        except Exception as e:
+            logger.error(f"Error serving vector stats: {e}", exc_info=True)
+            self.send_json({
+                'error': str(e),
+                'jurisdiction_id': jurisdiction_id,
+                'collections': {}
+            }, status_code=500)
 
     def serve_operation_status(self, operation_id: str):
         """SESSION 341: Get status of a specific operation.

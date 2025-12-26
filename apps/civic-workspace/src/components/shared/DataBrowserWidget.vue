@@ -4,6 +4,7 @@
     <ERDDiagram
       :tableStats="tableStats"
       :selectedTable="selectedDataType"
+      :vectorStats="vectorStats"
       @table-selected="selectDataType"
     />
 
@@ -222,6 +223,29 @@ const tableStats = ref({
   issues: 0
 });
 
+// Vector stats for ERD vector layer
+interface VectorCollectionStats {
+  vector_count: number;
+  source_count: number;
+  coverage_percent: number | null;
+  source_table: string;
+  one_to_one: boolean;
+}
+
+interface VectorStats {
+  jurisdiction_id: string;
+  collections: {
+    decisions?: VectorCollectionStats;
+    chunks?: VectorCollectionStats;
+    issues?: VectorCollectionStats;
+    transcripts?: VectorCollectionStats;
+  };
+  embedding_model: string;
+  embedding_dimension: number;
+}
+
+const vectorStats = ref<VectorStats | null>(null);
+
 // Primary columns to show in compact table view (schema-faithful)
 const primaryColumns: Record<string, string[]> = {
   meetings: ['id', 'meeting_datetime', 'title', 'status', 'source_platform'],
@@ -321,6 +345,16 @@ async function loadAllStats() {
   await Promise.all(promises);
 }
 
+async function loadVectorStats() {
+  try {
+    const result = await api.getVectorStats(props.jurisdiction || 'san-rafael');
+    vectorStats.value = result;
+  } catch (e) {
+    console.warn('Could not load vector stats:', e);
+    vectorStats.value = null;
+  }
+}
+
 function toggleRow(idx: number) {
   expandedRows.value[idx] = !expandedRows.value[idx];
   if (expandedRows.value[idx] && !viewMode.value[idx]) {
@@ -366,6 +400,7 @@ function getValueType(value: any): string {
 
 onMounted(() => {
   loadAllStats();
+  loadVectorStats();
   loadData();
 });
 </script>
