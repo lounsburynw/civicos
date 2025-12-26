@@ -325,3 +325,128 @@ class StorageBackend(Protocol):
             List of operation dicts, most recent first (by started_at)
         """
         ...
+
+    # ========== Decision Methods ==========
+    #
+    # Decisions are extracted from meeting minutes and stored for
+    # what_happened() queries and vector indexing.
+
+    def store_decisions(
+        self,
+        jurisdiction_id: str,
+        decisions: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store decisions with temporal versioning.
+
+        Atomic operation: either all decisions are stored or none.
+        Updates existing decisions if IDs match, inserts new ones.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            decisions: List of decision dictionaries
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of decisions successfully stored
+        """
+        ...
+
+    def get_decisions(
+        self,
+        jurisdiction_id: str,
+        as_of: Optional[datetime] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve decisions with optional filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            as_of: Point-in-time query (for temporal versioning)
+            since: Filter decisions on/after this date (YYYY-MM-DD)
+            until: Filter decisions on/before this date (YYYY-MM-DD)
+            limit: Maximum number of decisions to return
+
+        Returns:
+            List of decision dictionaries
+        """
+        ...
+
+    def get_decision_count(self, jurisdiction_id: str) -> int:
+        """
+        Get count of current decisions for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+
+        Returns:
+            Number of current (non-expired) decisions
+        """
+        ...
+
+    # ========== Chunk Methods ==========
+    #
+    # Chunks are PDF text segments from agenda packets, stored for
+    # RAG retrieval and semantic search.
+
+    def store_chunks(
+        self,
+        jurisdiction_id: str,
+        chunks: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store PDF chunks with temporal versioning.
+
+        Atomic operation: either all chunks are stored or none.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            chunks: List of chunk dictionaries with text, agenda_item, etc.
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of chunks successfully stored
+        """
+        ...
+
+    def get_chunks(
+        self,
+        jurisdiction_id: str,
+        as_of: Optional[datetime] = None,
+        meeting_id: Optional[str] = None,
+        agenda_item: Optional[str] = None,
+        source_type: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve chunks with optional filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            as_of: Point-in-time query (for temporal versioning)
+            meeting_id: Filter by meeting ID
+            agenda_item: Filter by agenda item
+            source_type: Filter by source type (agenda_packet, staff_report)
+            limit: Maximum number of chunks to return
+
+        Returns:
+            List of chunk dictionaries
+        """
+        ...
+
+    def get_chunk_count(self, jurisdiction_id: str) -> int:
+        """
+        Get count of current chunks for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+
+        Returns:
+            Number of current (non-expired) chunks
+        """
+        ...

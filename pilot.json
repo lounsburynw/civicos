@@ -219,6 +219,38 @@
         "completed": "2025-12-17",
         "note": "Using Fly.io auto-assigned subdomains: civic-api.fly.dev (REST API), civic-websocket.fly.dev (WebSocket). Zero cost, SSL included, sufficient for pilot. Custom domain can be added later via fly certs create without breaking changes."
       }
+    },
+    "cloud_storage": {
+      "turso_backend": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "TursoBackend implements StorageBackend protocol for cloud SQLite",
+        "note": "Turso (libSQL) is SQLite-compatible with 9GB free tier. DEPRIORITIZED: Using PostgresBackend instead for cloud."
+      },
+      "postgres_backend": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "PostgresBackend implements StorageBackend protocol for cloud Postgres",
+        "note": "Industry standard. SQLiteBackend for local dev/test, PostgresBackend for production. Options: Supabase (500MB free), Neon (512MB free), Fly.io Postgres."
+      },
+      "blob_storage_abstraction": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "BlobStorage protocol with R2Backend for PDFs/audio",
+        "note": "Cloudflare R2 has 10GB free tier with zero egress fees. S3-compatible API. Offloads large files (PDFs, audio, transcripts) from local/Fly.io volumes."
+      },
+      "vector_storage_decision": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Document vector storage strategy: self-hosted ChromaDB vs Qdrant Cloud",
+        "note": "Options: (1) ChromaDB on Fly.io volume (~$0.45/mo for 3GB), (2) Qdrant Cloud free tier (1GB), (3) pgvector in Turso/Postgres. Current 880MB fits all options."
+      },
+      "storage_migration_script": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Script to migrate local SQLite/blobs to cloud storage",
+        "note": "One-time migration tool: local SQLite -> Turso, local files -> R2. Enables dev->prod promotion without manual data copying."
+      }
     }
   },
   "monitoring_observability": {
@@ -796,10 +828,11 @@
     },
     "vector_sql_linkage": {
       "vector_rebuild_from_sql": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "INDEX stage builds vectors from SQL tables, not JSON files",
-        "note": "ChromaDB collections should be derived from SQL (source of truth). Enables linkage_status tracking. Session 367 added build_chunks_index_from_sql as foundation."
+        "note": "Session 368: Added build_decisions_index_from_sql(), SqlIndexTarget protocol, SqlIndexAdapter class. Pipeline._run_index() prefers SQL-first indexing when storage_backend available. Collection metadata includes source:'sql'.",
+        "completed": "2025-12-26"
       },
       "erd_all_corpora": {
         "status": "ready",
@@ -1053,6 +1086,20 @@
         "artifact": "Document BaseExtractor protocol and adapter pattern",
         "note": "Session 349: Created docs/EXTRACTOR_PROTOCOL.md documenting DataSource, Extractor, BaseExtractor protocols and Meeting data type",
         "completed": "2025-12-22"
+      }
+    },
+    "jurisdiction_handling": {
+      "strict_jurisdiction_normalization": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "normalize_jurisdiction() only normalizes known aliases, rejects unknown",
+        "note": "Current fallback adds 'city-' prefix to unknown IDs (line 84). Should reference _JURISDICTION_ALIASES and reject/return-as-is for unknown. Prevents silent data corruption from typos."
+      },
+      "jurisdiction_registry": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Central registry of supported jurisdictions with metadata",
+        "note": "Single source of truth for: canonical ID, display name, state, platform type, config. Could be JSON file or database table. Replaces scattered _JURISDICTION_ALIASES dict."
       }
     }
   },

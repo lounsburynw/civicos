@@ -295,6 +295,51 @@ class TestStorageBackendProtocol:
             ) -> List[Dict[str, Any]]:
                 return []
 
+            # Decision methods
+            def store_decisions(
+                self,
+                jurisdiction_id: str,
+                decisions: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(decisions)
+
+            def get_decisions(
+                self,
+                jurisdiction_id: str,
+                as_of: Optional[datetime] = None,
+                since: Optional[str] = None,
+                until: Optional[str] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_decision_count(self, jurisdiction_id: str) -> int:
+                return 0
+
+            # Chunk methods
+            def store_chunks(
+                self,
+                jurisdiction_id: str,
+                chunks: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(chunks)
+
+            def get_chunks(
+                self,
+                jurisdiction_id: str,
+                as_of: Optional[datetime] = None,
+                meeting_id: Optional[str] = None,
+                agenda_item: Optional[str] = None,
+                source_type: Optional[str] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_chunk_count(self, jurisdiction_id: str) -> int:
+                return 0
+
         mock = MockStorageBackend()
         assert isinstance(mock, StorageBackend)
 
@@ -623,6 +668,51 @@ class TestProtocolIntegration:
             ) -> List[Dict[str, Any]]:
                 return []
 
+            # Decision methods
+            def store_decisions(
+                self,
+                jurisdiction_id: str,
+                decisions: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(decisions)
+
+            def get_decisions(
+                self,
+                jurisdiction_id: str,
+                as_of: Optional[datetime] = None,
+                since: Optional[str] = None,
+                until: Optional[str] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_decision_count(self, jurisdiction_id: str) -> int:
+                return 0
+
+            # Chunk methods
+            def store_chunks(
+                self,
+                jurisdiction_id: str,
+                chunks: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(chunks)
+
+            def get_chunks(
+                self,
+                jurisdiction_id: str,
+                as_of: Optional[datetime] = None,
+                meeting_id: Optional[str] = None,
+                agenda_item: Optional[str] = None,
+                source_type: Optional[str] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_chunk_count(self, jurisdiction_id: str) -> int:
+                return 0
+
         @dataclass
         class InMemoryVector:
             _index: Dict[str, List[Dict]] = None
@@ -785,3 +875,131 @@ class TestPgVectorBackend:
         assert hasattr(PgVectorBackend, 'embedding_model')
         assert hasattr(PgVectorBackend, 'embedding_dimension')
         assert hasattr(PgVectorBackend, 'backend_type')
+
+
+class TestGetStorageBackend:
+    """Tests for get_storage_backend factory function."""
+
+    def test_factory_is_importable(self):
+        """get_storage_backend can be imported from civic.storage."""
+        from civic.storage import get_storage_backend
+
+        assert callable(get_storage_backend)
+
+    def test_returns_sqlite_by_default(self, monkeypatch):
+        """Returns SQLiteBackend when no DATABASE_URL is set."""
+        from civic.storage import SQLiteBackend, get_storage_backend
+
+        # Ensure DATABASE_URL is not set
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+
+        backend = get_storage_backend()
+        assert isinstance(backend, SQLiteBackend)
+        assert backend.backend_type == "sqlite"
+
+    def test_returns_sqlite_for_sqlite_url(self, tmp_path):
+        """Returns SQLiteBackend for sqlite:/// URLs."""
+        from civic.storage import SQLiteBackend, get_storage_backend
+
+        db_path = str(tmp_path / "test.db")
+        backend = get_storage_backend(f"sqlite:///{db_path}")
+
+        assert isinstance(backend, SQLiteBackend)
+        assert backend.backend_type == "sqlite"
+
+    def test_returns_postgres_for_postgresql_url(self):
+        """Returns PostgresBackend for postgresql:// URLs."""
+        from civic.storage import PostgresBackend, get_storage_backend
+
+        backend = get_storage_backend("postgresql://user:pass@localhost:5432/civic")
+
+        assert isinstance(backend, PostgresBackend)
+        assert backend.backend_type == "postgres"
+
+    def test_returns_postgres_for_postgres_url(self):
+        """Returns PostgresBackend for postgres:// URLs (alternate scheme)."""
+        from civic.storage import PostgresBackend, get_storage_backend
+
+        backend = get_storage_backend("postgres://user:pass@localhost:5432/civic")
+
+        assert isinstance(backend, PostgresBackend)
+        assert backend.backend_type == "postgres"
+
+    def test_uses_environment_variable(self, monkeypatch, tmp_path):
+        """Uses DATABASE_URL environment variable when no URL provided."""
+        from civic.storage import SQLiteBackend, get_storage_backend
+
+        db_path = str(tmp_path / "env_test.db")
+        monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_path}")
+
+        backend = get_storage_backend()
+
+        assert isinstance(backend, SQLiteBackend)
+
+    def test_explicit_url_overrides_env(self, monkeypatch):
+        """Explicit URL parameter overrides DATABASE_URL env var."""
+        from civic.storage import PostgresBackend, get_storage_backend
+
+        # Set env to SQLite
+        monkeypatch.setenv("DATABASE_URL", "sqlite:///data/test.db")
+
+        # But pass Postgres URL explicitly
+        backend = get_storage_backend("postgresql://user:pass@localhost:5432/civic")
+
+        assert isinstance(backend, PostgresBackend)
+
+    def test_fallback_treats_path_as_sqlite(self, tmp_path):
+        """Falls back to SQLite for plain paths (backwards compatibility)."""
+        from civic.storage import SQLiteBackend, get_storage_backend
+
+        db_path = str(tmp_path / "plain_path.db")
+        backend = get_storage_backend(db_path)
+
+        assert isinstance(backend, SQLiteBackend)
+
+
+class TestPostgresBackendStructure:
+    """Tests for PostgresBackend class structure (without real connection)."""
+
+    def test_postgres_backend_is_importable(self):
+        """PostgresBackend can be imported from civic.storage."""
+        from civic.storage import PostgresBackend
+
+        assert PostgresBackend is not None
+
+    def test_postgres_backend_has_required_methods(self):
+        """PostgresBackend has all StorageBackend methods."""
+        from civic.storage import PostgresBackend
+
+        required_methods = [
+            'backend_type',
+            'validate',
+            'store_meetings',
+            'get_meetings',
+            'get_stats',
+            'delete_meetings',
+            # Operation tracking methods
+            'create_operation',
+            'update_operation_status',
+            'complete_operation',
+            'get_operation',
+            'get_operations',
+            # Decision methods (SESSION 366)
+            'store_decisions',
+            'get_decisions',
+            'get_decision_count',
+            # Chunk methods (SESSION 367)
+            'store_chunks',
+            'get_chunks',
+            'get_chunk_count',
+        ]
+
+        for method in required_methods:
+            assert hasattr(PostgresBackend, method), f"Missing method: {method}"
+
+    def test_postgres_backend_type_property(self):
+        """PostgresBackend.backend_type returns 'postgres'."""
+        from civic.storage import PostgresBackend
+
+        backend = PostgresBackend("postgresql://localhost/test")
+        assert backend.backend_type == "postgres"

@@ -286,6 +286,90 @@ class PostgresBackend:
             ON operations(started_at DESC)
         """)
 
+        # Decisions table (SESSION 366)
+        # Stores extracted decisions from meeting minutes
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS decisions (
+                id TEXT NOT NULL,
+                jurisdiction_id TEXT NOT NULL,
+                meeting_date TEXT NOT NULL,
+                agenda_item TEXT,
+                title TEXT NOT NULL,
+                summary TEXT,
+                outcome TEXT,
+                vote_json TEXT,
+                staff_recommendation_json TEXT,
+                public_input_json TEXT,
+                legal_instruments_json TEXT,
+                topics TEXT,
+                source_documents TEXT,
+                extraction_method TEXT,
+                extracted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                PRIMARY KEY (id, jurisdiction_id, valid_from),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                CHECK (valid_to IS NULL OR valid_to > valid_from)
+            )
+        """)
+
+        # Decision indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_decisions_jurisdiction
+            ON decisions(jurisdiction_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_decisions_meeting_date
+            ON decisions(meeting_date)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_decisions_outcome
+            ON decisions(outcome)
+        """)
+
+        # Chunks table (SESSION 367)
+        # Stores PDF chunks from agenda packets for RAG retrieval
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS chunks (
+                id TEXT NOT NULL,
+                jurisdiction_id TEXT NOT NULL,
+                meeting_id TEXT,
+                agenda_item TEXT,
+                agenda_title TEXT,
+                text TEXT NOT NULL,
+                page_start INTEGER,
+                page_end INTEGER,
+                chunk_index INTEGER NOT NULL,
+                total_chunks INTEGER,
+                source_file TEXT,
+                source_type TEXT DEFAULT 'agenda_packet',
+                extracted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                PRIMARY KEY (id, jurisdiction_id, valid_from),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                CHECK (valid_to IS NULL OR valid_to > valid_from)
+            )
+        """)
+
+        # Chunk indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_chunks_jurisdiction
+            ON chunks(jurisdiction_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_chunks_meeting
+            ON chunks(meeting_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_chunks_agenda_item
+            ON chunks(agenda_item)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_chunks_source_type
+            ON chunks(source_type)
+        """)
+
         conn.commit()
 
     def store_meetings(
@@ -886,6 +970,354 @@ class PostgresBackend:
         finally:
             conn.close()
 
+    # ========== Decision Methods (SESSION 366) ==========
+
+    def store_decisions(
+        self,
+        jurisdiction_id: str,
+        decisions: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store decisions with temporal versioning.
+
+        Atomic operation: either all decisions are stored or none.
+        Updates existing decisions if IDs match, inserts new ones.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            decisions: List of decision dictionaries from JSON or extraction
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of decisions successfully stored
+
+        Raises:
+            psycopg2.Error: If atomic store operation fails
+        """
+        as_of = as_of or datetime.now()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Close previous versions (set valid_to)
+            cursor.execute("""
+                UPDATE decisions
+                SET valid_to = %s
+                WHERE jurisdiction_id = %s
+                  AND valid_to IS NULL
+            """, (as_of.isoformat(), jurisdiction_id))
+
+            # Insert new versions
+            for decision in decisions:
+                cursor.execute("""
+                    INSERT INTO decisions (
+                        id, jurisdiction_id, meeting_date, agenda_item,
+                        title, summary, outcome, vote_json,
+                        staff_recommendation_json, public_input_json,
+                        legal_instruments_json, topics, source_documents,
+                        extraction_method, extracted_at, valid_from, valid_to
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)
+                """, (
+                    decision.get('decision_id'),
+                    jurisdiction_id,
+                    decision.get('meeting_date'),
+                    decision.get('agenda_item'),
+                    decision.get('title'),
+                    decision.get('summary'),
+                    decision.get('outcome'),
+                    json.dumps(decision.get('vote')) if decision.get('vote') else None,
+                    json.dumps(decision.get('staff_recommendation')) if decision.get('staff_recommendation') else None,
+                    json.dumps(decision.get('public_input')) if decision.get('public_input') else None,
+                    json.dumps(decision.get('legal_instruments')) if decision.get('legal_instruments') else None,
+                    json.dumps(decision.get('topics')) if decision.get('topics') else None,
+                    json.dumps(decision.get('source_documents')) if decision.get('source_documents') else None,
+                    decision.get('extraction_method'),
+                    as_of.isoformat(),
+                    as_of.isoformat(),
+                ))
+
+            conn.commit()
+            return len(decisions)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_decisions(
+        self,
+        jurisdiction_id: str,
+        as_of: Optional[datetime] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve decisions with optional filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            as_of: Point-in-time query (for temporal versioning)
+            since: Filter decisions on/after this date (YYYY-MM-DD)
+            until: Filter decisions on/before this date (YYYY-MM-DD)
+            limit: Maximum number of decisions to return
+
+        Returns:
+            List of decision dictionaries
+        """
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Build query with temporal filtering
+        query = """
+            SELECT * FROM decisions
+            WHERE jurisdiction_id = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+        """
+        params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+
+        if since:
+            query += " AND meeting_date >= %s"
+            params.append(since)
+
+        if until:
+            query += " AND meeting_date <= %s"
+            params.append(until)
+
+        query += " ORDER BY meeting_date DESC"
+
+        if limit:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to dictionaries, parsing JSON fields
+        decisions = []
+        for row in rows:
+            decision = dict(row)
+            # Convert datetime objects to ISO strings
+            for key in ['extracted_at', 'valid_from', 'valid_to']:
+                if key in decision and decision[key] is not None:
+                    if isinstance(decision[key], datetime):
+                        decision[key] = decision[key].isoformat()
+            # Parse JSON fields back to Python objects
+            for json_field in ['vote_json', 'staff_recommendation_json', 'public_input_json',
+                               'legal_instruments_json', 'topics', 'source_documents']:
+                if decision.get(json_field):
+                    try:
+                        decision[json_field] = json.loads(decision[json_field])
+                    except json.JSONDecodeError:
+                        pass
+            decisions.append(decision)
+
+        return decisions
+
+    def get_decision_count(self, jurisdiction_id: str) -> int:
+        """
+        Get count of current decisions for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+
+        Returns:
+            Number of current (non-expired) decisions
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT COUNT(*) FROM decisions
+            WHERE jurisdiction_id = %s AND valid_to IS NULL
+        """, (jurisdiction_id,))
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
+    # ========== Chunk Methods (SESSION 367) ==========
+
+    def store_chunks(
+        self,
+        jurisdiction_id: str,
+        chunks: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store PDF chunks with temporal versioning.
+
+        Atomic operation: either all chunks are stored or none.
+        Updates existing chunks if IDs match, inserts new ones.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            chunks: List of chunk dictionaries with text, agenda_item, etc.
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of chunks successfully stored
+
+        Raises:
+            psycopg2.Error: If atomic store operation fails
+        """
+        as_of = as_of or datetime.now()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Close previous versions (set valid_to)
+            cursor.execute("""
+                UPDATE chunks
+                SET valid_to = %s
+                WHERE jurisdiction_id = %s
+                  AND valid_to IS NULL
+            """, (as_of.isoformat(), jurisdiction_id))
+
+            # Insert new versions
+            for i, chunk in enumerate(chunks):
+                # Generate chunk ID if not present
+                chunk_id = chunk.get('id') or f"chunk-{i}"
+
+                cursor.execute("""
+                    INSERT INTO chunks (
+                        id, jurisdiction_id, meeting_id, agenda_item,
+                        agenda_title, text, page_start, page_end,
+                        chunk_index, total_chunks, source_file, source_type,
+                        extracted_at, valid_from, valid_to
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)
+                """, (
+                    chunk_id,
+                    jurisdiction_id,
+                    chunk.get('meeting_id'),
+                    chunk.get('agenda_item'),
+                    chunk.get('agenda_title'),
+                    chunk.get('text', ''),
+                    chunk.get('page_start'),
+                    chunk.get('page_end'),
+                    chunk.get('chunk_index', i),
+                    chunk.get('total_chunks'),
+                    chunk.get('source_file'),
+                    chunk.get('source_type', 'agenda_packet'),
+                    as_of.isoformat(),
+                    as_of.isoformat(),
+                ))
+
+            conn.commit()
+            return len(chunks)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_chunks(
+        self,
+        jurisdiction_id: str,
+        as_of: Optional[datetime] = None,
+        meeting_id: Optional[str] = None,
+        agenda_item: Optional[str] = None,
+        source_type: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve chunks with optional filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            as_of: Point-in-time query (for temporal versioning)
+            meeting_id: Filter by meeting ID
+            agenda_item: Filter by agenda item
+            source_type: Filter by source type (agenda_packet, staff_report)
+            limit: Maximum number of chunks to return
+
+        Returns:
+            List of chunk dictionaries
+        """
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Build query with temporal filtering
+        query = """
+            SELECT * FROM chunks
+            WHERE jurisdiction_id = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+        """
+        params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+
+        if meeting_id:
+            query += " AND meeting_id = %s"
+            params.append(meeting_id)
+
+        if agenda_item:
+            query += " AND agenda_item = %s"
+            params.append(agenda_item)
+
+        if source_type:
+            query += " AND source_type = %s"
+            params.append(source_type)
+
+        query += " ORDER BY chunk_index ASC"
+
+        if limit:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to dictionaries
+        chunks = []
+        for row in rows:
+            chunk = dict(row)
+            # Convert datetime objects to ISO strings
+            for key in ['extracted_at', 'valid_from', 'valid_to']:
+                if key in chunk and chunk[key] is not None:
+                    if isinstance(chunk[key], datetime):
+                        chunk[key] = chunk[key].isoformat()
+            chunks.append(chunk)
+
+        return chunks
+
+    def get_chunk_count(self, jurisdiction_id: str) -> int:
+        """
+        Get count of current chunks for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+
+        Returns:
+            Number of current (non-expired) chunks
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT COUNT(*) FROM chunks
+            WHERE jurisdiction_id = %s AND valid_to IS NULL
+        """, (jurisdiction_id,))
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
 
 # Verify protocol compliance at import time (only if psycopg2 available)
 # StorageBackend is @runtime_checkable, so isinstance() works
@@ -900,7 +1332,11 @@ def _verify_protocol_compliance() -> None:
         'get_meetings', 'get_stats', 'delete_meetings',
         # Operation tracking methods
         'create_operation', 'update_operation_status', 'complete_operation',
-        'get_operation', 'get_operations'
+        'get_operation', 'get_operations',
+        # Decision methods (SESSION 366)
+        'store_decisions', 'get_decisions', 'get_decision_count',
+        # Chunk methods (SESSION 367)
+        'store_chunks', 'get_chunks', 'get_chunk_count'
     ]
     for method in required_methods:
         assert hasattr(PostgresBackend, method), (
