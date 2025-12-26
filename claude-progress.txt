@@ -5936,3 +5936,36 @@ Handoff prepared in `docs/next_session_prompt.md` with:
 - Success criteria
 
 Item reset to not_ready P0 for continued iteration.
+
+## Session 364: Data Architecture Unification
+
+**Date:** 2025-12-26
+
+### Completed
+
+1. **Fixed issues endpoint** (`civic_api_integrated.py:7924-7960`)
+   - Changed from JSON checkpoint file to SQL query
+   - Now returns 1340 issues (vs 5 from old JSON)
+   - Filters by `jurisdiction_id` using `canonical_jurisdiction`
+
+2. **Fixed agenda_items endpoint** (`civic_api_integrated.py:7833-7878`)
+   - Added JOIN with meetings table for jurisdiction filtering
+   - Prevents returning agenda items from other jurisdictions
+
+3. **Added data architecture tracking to pilot.json**
+   - `data_source_unification` subcategory with 4 items
+   - `vector_sql_linkage` subcategory with 3 items
+   - Marked completed items (issues_query_sql, agenda_items_jurisdiction_filter)
+   - Tracked future work (decisions_from_sql, chunks_from_sql, etc.)
+
+### Verification
+
+- API returns `total: 1340` for issues endpoint ✓
+- Vector stats show `issues: 1340/1340 (100%) - linked` ✓
+- decisions/chunks show `corpus_only` (future work) ✓
+
+### Progress
+
+- Before: 165/177 items (93.2%)
+- After: 167/179 items (93.3%) - 2 new items completed, 5 new items added
+
