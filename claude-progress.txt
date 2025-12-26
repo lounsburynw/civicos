@@ -6090,3 +6090,78 @@ Mirrored the Session 366 decisions_from_sql implementation:
 ### Progress
 - Before: 169/184 items (91.8%)
 - After: 170/184 items (92.4%)
+
+## Session 368: Vector Rebuild from SQL (2025-12-26)
+
+### P0 Completed: vector_rebuild_from_sql
+Made INDEX stage use SQL as source of truth for vector collections.
+
+### Implementation
+- Added `build_decisions_index_from_sql()` in embeddings.py (mirrors chunks pattern)
+- Added `SqlIndexTarget` protocol in pipeline.py
+- Updated `Pipeline._run_index()` to prefer SQL-first when storage_backend available
+- Added `SqlIndexAdapter` class implementing the protocol
+
+### Key Pattern
+```python
+# Pipeline INDEX stage now checks:
+if hasattr(index_target, 'index_from_storage') and storage_target:
+    result = index_target.index_from_storage(storage_target, jurisdiction_id)
+    # Result: {"decisions": 186, "chunks": 724}
+    # Metadata: source: "sql"
+```
+
+### Disk Space Issue
+- Ran out of disk space during testing (down to 266MB)
+- Deleted dist/, youtube_audio/, vectors/, rag_corpus/, caches
+- Now at 12GB available
+
+### New pilot.json Items Added
+- cloud_storage: turso_backend (P1), blob_storage_abstraction (P1), vector_storage_decision (P2), storage_migration_script (P2)
+- jurisdiction_handling: strict_jurisdiction_normalization (P1), jurisdiction_registry (P2)
+
+### Files Changed
+- `packages/civic/src/civic/_internal/meetings/embeddings.py` - build_decisions_index_from_sql(), SqlIndexAdapter
+- `packages/civic-extraction/src/civic_extraction/pipeline.py` - SqlIndexTarget protocol, _run_index() update
+- `pilot.json` - marked vector_rebuild_from_sql ready, added 6 new items
+
+### Progress
+- Before: 170/184 items (92.4%)
+- After: 171/190 items (90.0%) - net progress despite 6 new items
+
+### Architecture Decision Update
+- Changed P0 from turso_backend to postgres_backend
+- Strategy: SQLite for local dev/test, Postgres for production
+- Turso deprioritized to P3
+
+## Session 369: Postgres Backend (2025-12-26)
+
+### Completed
+- **postgres_backend** (P0 -> ready)
+  - Added `decisions` and `chunks` tables to PostgresBackend schema
+  - Implemented `store_decisions()`, `get_decisions()`, `get_decision_count()`
+  - Implemented `store_chunks()`, `get_chunks()`, `get_chunk_count()`
+  - Created `get_storage_backend()` factory function in civic.storage
+  - Added DATABASE_URL section to .env.example
+  - Installed psycopg2-binary dependency
+  - Added 11 new tests for factory function and PostgresBackend structure
+
+### Changes Made
+- `packages/civic/src/civic/storage/postgres_backend.py` - Added decisions/chunks tables and methods
+- `packages/civic/src/civic/storage/__init__.py` - Added get_storage_backend() factory
+- `packages/civic/tests/test_storage_protocols.py` - Added 11 tests
+- `.env.example` - Added DATABASE_URL documentation
+- `pilot.json` - Marked postgres_backend ready
+
+### Architecture Decision
+PostgresBackend now has full parity with SQLiteBackend for:
+- Meetings (store/get/delete)
+- Operations (create/update/complete/get)
+- Decisions (store/get/count)
+- Chunks (store/get/count)
+
+The `get_storage_backend()` factory allows transparent backend selection via DATABASE_URL.
+
+### Progress
+- Before: 171/191 items ready (89.5%)
+- After: 172/191 items ready (90.1%)
