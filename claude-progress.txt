@@ -5969,3 +5969,43 @@ Item reset to not_ready P0 for continued iteration.
 - Before: 165/177 items (93.2%)
 - After: 167/179 items (93.3%) - 2 new items completed, 5 new items added
 
+
+## Session 365 (2025-12-26): Dashboard Visual Hierarchy
+
+### P0: dashboard_visual_hierarchy
+
+Enhanced DataBrowserWidget with improved visual hierarchy and interactivity:
+
+1. **Sortable columns**
+   - Click column headers to sort (asc → desc → none)
+   - Sort indicator badge in header shows active sort
+   - Client-side sorting via computed `sortedItems`
+
+2. **Quick-filter by cell value**
+   - Hover over any cell to see filter icon
+   - Click to filter table by that column/value
+   - Filter badge in header with clear button
+
+3. **SQL/Corpus source badges**
+   - Shows "SQL" badge (blue) for SQL-backed data
+   - Shows "Corpus" badge (purple) for vector-only data
+   - Helps users understand data architecture at a glance
+
+4. **Updated pilot.json**
+   - Marked `dashboard_visual_hierarchy` as ready
+   - Set `decisions_from_sql` as P0 for next session (data engineering)
+
+### Files Changed
+
+- `apps/civic-workspace/src/components/shared/DataBrowserWidget.vue`
+  - Added sort state and toggle function
+  - Added computed sortedItems
+  - Added quickFilter function
+  - Added filter icon button on cell hover
+  - Added source badge (SQL/Corpus) in header
+  - Added CSS for all new features
+
+### Progress
+
+- Before: 166/184 items (90.2%)
+- After: 167/184 items (90.8%)

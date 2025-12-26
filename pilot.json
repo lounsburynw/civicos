@@ -3,7 +3,7 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2025-12-22",
+  "last_updated": "2025-12-26",
   "category_order": [
     "test_infrastructure",
     "data_architecture",
@@ -781,9 +781,9 @@
       },
       "decisions_from_sql": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Build decisions table in SQL via ETL pipeline",
-        "note": "Currently decisions are extracted to JSON files. Need: parse meeting minutes → decisions table in SQL."
+        "note": "Session 365: P0 for next session. Currently decisions are corpus_only in vector DB. Need ETL to populate decisions table in SQL."
       },
       "chunks_from_sql": {
         "status": "not_ready",
@@ -1322,19 +1322,20 @@
     "description": "Frontend polish for pilot quality",
     "interface_clarity": {
       "dashboard_visual_hierarchy": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Simplify Data Pipeline dashboard - clearer visual hierarchy and inline help",
-        "note": "Session 358: First iteration complete (data cards with samples). Next: Interactive database viewer widget for browsing actual records.",
-        "session": 358
+        "note": "Session 365: Added sortable columns, quick-filter by cell value, SQL/Corpus source badges. Previous: ERD, FK navigation, expandable rows.",
+        "session": 365,
+        "completed": "2025-12-26"
       }
     },
     "social_features": {
       "user_identity_in_messages": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 2,
         "artifact": "Show user identity in coordination thread messages",
-        "note": "Session 364: Demoted from P0 - storage backend protocol is the critical path blocker."
+        "note": "Add display names or identifiers to messages in coordination threads."
       },
       "public_profiles": {
         "status": "not_ready",
