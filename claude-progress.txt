@@ -1,3 +1,75 @@
+## Session 378: r2_source_caching - Cache Scraped Content in R2
+
+**Date:** 2025-12-27
+**Item:** r2_source_caching (pipeline_automation > cloud_integration)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Added SourceCache class for caching raw scraped content (HTML pages, PDFs) in blob storage (R2/local). This reduces repeat HTTP requests during development and pipeline reruns.
+
+### Implementation
+
+1. **SourceCache class** (`packages/civic-extraction/src/civic_extraction/cache.py`):
+   - `cache_key(url)`: Generates deterministic SHA256 hash key for URL
+   - `get(url)`: Returns cached content if not expired, None otherwise
+   - `put(url, content, ttl_hours)`: Stores content with TTL metadata
+   - `invalidate(url)`: Removes specific cached entry
+   - `clear()`: Removes all cached entries
+   - `stats()`: Returns hits, misses, hit_rate, entry_count
+   - Works with both LocalBlobBackend and R2Backend
+   - Cache key format: `source-cache/{url_hash[:16]}`
+
+2. **CachedSession class** (`cache.py`):
+   - Drop-in replacement for requests.Session with automatic caching
+   - Checks cache before HTTP requests
+   - Caches successful responses automatically
+   - Supports force_refresh to bypass cache
+
+3. **ProudCityClient integration** (`clients/proudcity.py`):
+   - Added optional `cache: SourceCache` parameter to `__init__`
+   - `_make_request()` checks cache before HTTP requests
+   - Caches successful responses with configurable TTL
+   - Logs cache hits/misses for debugging
+
+4. **ProudCitySource integration** (`clients/proudcity.py`):
+   - Added `cache` param to constructor and factory methods
+   - `cache_stats()` method returns cache statistics
+   - Updated docs with cache usage example
+
+5. **CLI integration** (`cli/discover.py`):
+   - Added `--cache` flag to enable caching
+   - Added `--cache-ttl` option (default 24 hours)
+   - Added `--clear-cache` flag to clear before run
+   - Logs cache stats after pipeline completion
+
+6. **Tests** (`test_source_cache.py`, 20 tests):
+   - SourceCache: key generation, get/put, expiration, invalidate, clear, stats
+   - CachedSession: cache hit/miss, force refresh
+   - R2/Local backend metadata handling
+   - ProudCityClient/Source cache integration
+
+### Usage
+
+```bash
+# Enable caching for discovery pipeline
+civic-extract discover --jurisdiction city-san-rafael --cache
+
+# With custom TTL
+civic-extract discover --jurisdiction city-san-rafael --cache --cache-ttl 48
+
+# Clear cache before running
+civic-extract discover --jurisdiction city-san-rafael --cache --clear-cache
+```
+
+### Results
+
+- 20 cache tests: ✅ passed
+- 34 smoke tests: ✅ passed
+- 52 client tests: ✅ passed
+
+### Next P0: youtube_cloud_storage
+Wire youtube.py CLI to store video metadata in Postgres instead of local JSON.
+
 ## Session 349: validate_meetings_on_ingest - JSON Schema Validation for Pipeline
 
 **Date:** 2025-12-22
