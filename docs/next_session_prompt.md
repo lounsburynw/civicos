@@ -1,49 +1,89 @@
-# Session 375 Handoff
+# Recommended: r2_source_caching
 
-## P0: Set Up Supabase (Postgres + pgvector) - User has no local disk space
+**Priority:** P0
+**Area:** pipeline_automation > cloud_integration
+**Date:** 2025-12-27
 
-### Why Cloud-First
-User doesn't have local disk space, so we need full cloud storage:
-- **SQL**: Supabase Postgres (free 500MB)
-- **Vectors**: Supabase pgvector (included)
-- **Blobs**: Cloudflare R2 ✅ Done
+> This is recommended context from Session 377. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
-### Task 1: Create Supabase Project
-1. Go to https://supabase.com and sign up (free)
-2. Create new project (name: `civic-pilot`, region: US West)
-3. Get connection string from Settings → Database → Connection string (URI)
-4. Add to `.env`: `DATABASE_URL=postgresql://...`
+## Context
 
-### Task 2: Implement PgVectorBackend
-Currently a stub at `packages/civic/src/civic/storage/postgres_backend.py`.
-Need to add pgvector support for embeddings.
+Session 377 completed **pipeline_cloud_storage** - the ETL pipeline CLI now uses cloud storage (PostgresBackend) when DATABASE_URL is set. The factory function `get_storage_backend()` automatically selects the right backend.
 
-Alternative: Use Qdrant Cloud free tier (1GB) if pgvector is too much work.
+Now the pipeline stores structured data to Supabase, but **raw scraped content is not cached**. Each pipeline run re-scrapes ProudCity pages, which is slow and wasteful.
 
-### Task 3: Migrate Data to Cloud
+## Cloud Storage Status
+
+| Data Type | Backend | Status |
+|-----------|---------|--------|
+| SQL (meetings, decisions) | PostgresBackend (Supabase) | **READY** |
+| Vectors (embeddings) | PgVectorBackend (Supabase pgvector) | **READY** |
+| Blobs (PDFs, audio) | R2Backend (Cloudflare R2) | **READY** |
+| Source cache (HTML, API) | R2Backend | **NOT IMPLEMENTED** |
+
+## Recommended Task
+
+Add a caching layer to the ETL pipeline that stores raw scraped content in R2:
+- Cache scraped HTML pages with URL hash as key
+- Cache downloaded PDFs before parsing
+- Cache API responses from external services
+- Add TTL-based expiration (e.g., 24 hours for meeting pages)
+
+## Key Files
+
+- `packages/civic-extraction/src/civic_extraction/clients/proudcity.py` - ProudCity scraper to add caching
+- `packages/civic/src/civic/storage/blob.py:144-280` - R2Backend implementation (already ready)
+- `packages/civic/src/civic/storage/__init__.py:60` - `get_blob_storage()` factory function
+
+## Suggested Approach
+
+1. **Create SourceCache class** in `civic_extraction/cache.py`:
+   - `cache_key(url: str) -> str` - SHA256 hash of URL
+   - `get(url: str) -> Optional[bytes]` - Check R2 for cached content
+   - `put(url: str, content: bytes, ttl_hours: int)` - Store with metadata
+   - Use `get_blob_storage()` to get R2/Local backend from environment
+
+2. **Integrate with ProudCitySource**:
+   - Add `source_cache: Optional[SourceCache]` parameter
+   - Check cache before HTTP requests in `_fetch_page()` and `_fetch_json()`
+   - Store responses after successful fetches
+
+3. **CLI integration**:
+   - Load blob storage from `BLOB_STORAGE_URL` env var
+   - Pass cache to source constructor
+
+## Environment Variables
+
 ```bash
-# After Supabase is configured
-python scripts/migrate_storage.py \
-  --target-postgres "$DATABASE_URL" \
-  --target-r2 "r2://2bdd8aed2560f0a2632f4178adfe6d9f/civic-pilot"
+# Already configured in .env
+BLOB_STORAGE_URL=r2://[account_id]/civic-blobs
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
 ```
 
-### Cloud Config (R2 already in .env)
-```
-R2_ACCESS_KEY_ID=0eeaaf1f463636b068b2c78dad0af05c
-R2_SECRET_ACCESS_KEY=***
-BLOB_STORAGE_URL=r2://2bdd8aed2560f0a2632f4178adfe6d9f/civic-pilot
-# Add after Supabase setup:
-DATABASE_URL=postgresql://...
+## Tests to Run
+
+```bash
+# Blob storage tests
+pytest packages/civic/tests/test_storage_protocols.py::TestR2Backend -v
+
+# Source cache tests (to be created)
+pytest packages/civic-extraction/tests/test_source_cache.py -v
+
+# Smoke tests
+pytest packages/civic/tests/test_civic.py -q
 ```
 
-### Session 374 Accomplishments
-1. Created `scripts/migrate_storage.py` for cloud migration
-2. Fixed CLI pipeline bug (wasn't persisting to SQLite)
-3. Set up Cloudflare R2 and verified connection
-4. Tested end-to-end pipeline ingestion (17 meetings)
+## Success Criteria
 
-### Current Data (needs migration)
-- 17 meetings, 186 decisions in SQLite
-- 1340 issues
-- Vectors not yet indexed
+- [ ] SourceCache class with get/put operations
+- [ ] ProudCitySource uses cache when provided
+- [ ] Cache key format: `source-cache/{url_hash}.{ext}`
+- [ ] TTL metadata stored with cached content
+- [ ] Second pipeline run is significantly faster (cached)
+- [ ] Existing tests pass
+
+## Related P1 Items (After P0 Complete)
+
+1. `e2e_fresh_ingestion` - Full E2E data pull from scratch with cloud storage
+2. `assemblyai_transcript_storage` - Store transcripts in Postgres, audio in R2
