@@ -1,14 +1,14 @@
-# Recommended: assemblyai_transcript_storage
+# Recommended: decision_extraction_pipeline
 
 **Priority:** P0
 **Area:** pipeline_automation > cloud_integration
 **Date:** 2025-12-27
 
-> This is recommended context from Session 380. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 381. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 380 completed `audio_cloud_storage` (audio.py CLI now uploads audio files to R2, reads videos from Postgres). The next item is `assemblyai_transcript_storage` - store AssemblyAI transcripts in Postgres with R2 audio backup.
+Session 381 completed `assemblyai_transcript_storage` (transcribe.py CLI now reads audio from R2 and stores transcripts in Postgres). The next item is `decision_extraction_pipeline` - automate decision extraction from minutes PDFs in the ETL pipeline.
 
 ## E2E Cloud ETL Roadmap (10 items)
 
@@ -18,8 +18,8 @@ Session 380 completed `audio_cloud_storage` (audio.py CLI now uploads audio file
 | 2 | `r2_source_caching` | Done | Cache HTML/PDFs in R2 |
 | 3 | `youtube_cloud_storage` | Done | Video metadata -> Postgres |
 | 4 | `audio_cloud_storage` | Done | Audio files -> R2 |
-| 5 | **`assemblyai_transcript_storage`** | **P0** | Transcripts -> Postgres |
-| 6 | `decision_extraction_pipeline` | P1 | Minutes PDF -> Decisions |
+| 5 | `assemblyai_transcript_storage` | Done | Transcripts -> Postgres |
+| 6 | **`decision_extraction_pipeline`** | **P0** | Minutes PDF -> Decisions |
 | 7 | `chunks_cloud_storage` | P1 | PDF chunks -> Postgres |
 | 8 | `seeclickfix_cloud_storage` | P1 | Issues -> Postgres |
 | 9 | `vector_indexing_cloud` | P1 | All data -> pgvector |
@@ -27,82 +27,59 @@ Session 380 completed `audio_cloud_storage` (audio.py CLI now uploads audio file
 
 ## Current State
 
-**transcribe.py CLI** (`packages/civic-extraction/src/civic_extraction/cli/transcribe.py`):
-- Transcribes audio files using AssemblyAI
-- Stores transcripts to local JSON files
-- Uses `TranscriptionResult` dataclass
-- Tracks progress with checkpoints
+**Decision storage already exists:**
+- `PostgresBackend.store_decisions()` at `postgres_backend.py:1042-1130`
+- `PostgresBackend.get_decisions()` at `postgres_backend.py:1131-1180`
+- `PostgresBackend.get_decision_count()` at `postgres_backend.py:1181-1200`
+- 186 decisions already in local SQLite from manual batch extraction
 
-**Audio is now in R2:**
-- Key convention: `audio/{jurisdiction_id}/{video_id}.mp3`
-- audio.py with `--cloud` flag uploads to R2
+**Decision extraction logic exists in:**
+- `retrospective_analyzer.py` - Full extraction with LLM (Gemini 2.5 Pro)
+- `docling_retrospective_analyzer.py` - PDF parsing with docling
+- `fast_retrospective_analyzer.py` - Lighter-weight extraction
+
+**Missing pieces:**
+- No CLI command to trigger decision extraction
+- No integration with cloud storage pipeline
+- Minutes PDFs need to be downloaded, parsed, and decisions stored to Postgres
 
 ## Recommended Task
 
-Wire transcribe.py to store transcripts in Postgres and read audio from R2:
-
-1. **Add transcripts table to PostgresBackend**:
-   ```python
-   # Similar pattern to videos table
-   def store_transcripts(self, jurisdiction_id: str, transcripts: List[dict]) -> int:
-       """Store transcripts with upsert semantics."""
-
-   def get_transcripts(self, jurisdiction_id: str) -> List[dict]:
-       """Get all transcripts for jurisdiction."""
-
-   def get_transcript(self, video_id: str) -> Optional[dict]:
-       """Get specific transcript by video_id."""
-   ```
-
-2. **Add `--cloud` flag to transcribe.py CLI**:
-   ```python
-   parser.add_argument(
-       "--cloud",
-       action="store_true",
-       help="Store transcripts in cloud storage (requires DATABASE_URL)",
-   )
-   ```
-
-3. **Update transcription logic**:
-   - Read audio from R2 when `--cloud` enabled
-   - Store transcript JSON in Postgres after successful transcription
-   - Keep local file fallback
-
-4. **Table schema suggestion**:
-   ```sql
-   CREATE TABLE transcripts (
-       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-       jurisdiction_id TEXT NOT NULL,
-       video_id TEXT NOT NULL UNIQUE,
-       transcript JSONB NOT NULL,  -- Full AssemblyAI response
-       text TEXT,  -- Plain text for search
-       duration_seconds INTEGER,
-       word_count INTEGER,
-       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-   );
-   ```
+Create a `decisions.py` CLI command that:
+1. Finds meeting minutes PDFs (from meetings in Postgres or local data)
+2. Downloads/parses the PDF content
+3. Extracts decisions using existing RetrospectiveAnalyzer
+4. Stores decisions in Postgres via `store_decisions()`
+5. Supports `--cloud` flag for cloud storage integration
 
 ## Key Files
 
-- `packages/civic-extraction/src/civic_extraction/cli/transcribe.py` - CLI to update
-- `packages/civic/src/civic/storage/postgres_backend.py:1352-1513` - Videos pattern to follow
-- `packages/civic/src/civic/storage/blob.py` - R2 download for audio
+- `packages/civic-services/src/civic_services/processing/retrospective_analyzer.py:100-200` - Decision extraction logic
+- `packages/civic/src/civic/storage/postgres_backend.py:1042-1200` - Decision storage methods
+- `packages/civic-extraction/src/civic_extraction/cli/audio.py` - Pattern for `--cloud` flag
+- `packages/civic-extraction/src/civic_extraction/cli/transcribe.py` - Recent cloud integration pattern
 
-## Pattern from audio.py (Session 380)
+## Suggested Approach
 
-```python
-# Read audio from R2 when cloud enabled
-if cloud or os.environ.get("BLOB_STORAGE_URL"):
-    try:
-        from civic.storage import get_blob_storage
-        blob = get_blob_storage()
-        r2_key = f"audio/{jurisdiction_id}/{video_id}.mp3"
-        audio_data = blob.download(r2_key)
-        # Use audio_data for transcription...
-    except Exception as e:
-        logger.warning(f"Cloud read failed: {e}, using local fallback")
-```
+1. **Create `decisions.py` CLI** in `packages/civic-extraction/src/civic_extraction/cli/`:
+   ```python
+   # civic-extract decisions --jurisdiction city-san-rafael --cloud
+   parser.add_argument("--cloud", action="store_true",
+       help="Store decisions in cloud storage")
+   ```
+
+2. **Integrate with existing extractors:**
+   - Use `RetrospectiveAnalyzer.extract_high_stakes_decisions()` for LLM extraction
+   - Or use simpler pattern-based extraction for cost efficiency
+
+3. **Wire to PostgresBackend:**
+   ```python
+   from civic.storage import get_storage_backend
+   backend = get_storage_backend()
+   backend.store_decisions(jurisdiction_id, decisions)
+   ```
+
+4. **Add checkpoint support** (same pattern as audio.py, transcribe.py)
 
 ## Tests to Run
 
@@ -116,18 +93,16 @@ pytest packages/civic/tests/test_civic.py -q
 
 ## Success Criteria
 
-- [ ] `transcripts` table added to PostgresBackend
-- [ ] `store_transcripts()`, `get_transcripts()`, `get_transcript()` methods
-- [ ] `--cloud` flag added to transcribe.py CLI
-- [ ] Transcripts stored in Postgres when DATABASE_URL set
-- [ ] Audio read from R2 when BLOB_STORAGE_URL set
-- [ ] Local file fallback still works
+- [ ] `decisions.py` CLI command created
+- [ ] Minutes PDFs can be parsed for decisions
+- [ ] Decisions stored in Postgres with `--cloud` flag
+- [ ] Checkpoint/resume support for large batches
+- [ ] Local fallback still works
 - [ ] Existing tests pass
 
 ## Why This Next?
 
-Continuing the cloud storage integration path:
-- Transcripts are needed for decision extraction and semantic search
-- Having transcripts in Postgres enables SQL queries and full-text search
-- Audio in R2 + transcripts in Postgres = complete meeting content in cloud
-- This is the 5th of 10 items in the E2E cloud ETL roadmap
+- Decisions are the core civic data - what got approved, rejected, voted on
+- Having decisions in Postgres enables SQL queries for "what_happened" API
+- This completes the meeting content pipeline: transcripts + decisions
+- The 186 existing decisions prove the extraction logic works, just needs CLI automation
