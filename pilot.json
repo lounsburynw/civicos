@@ -1099,10 +1099,10 @@
         "note": "Added JurisdictionError exception. strict=True (default) validates against JurisdictionRegistry and raises for unknown IDs. Cleaned up stale aliases. 18 new tests in test_jurisdiction.py."
       },
       "jurisdiction_registry": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "artifact": "Central registry of supported jurisdictions with metadata",
-        "note": "Single source of truth for: canonical ID, display name, state, platform type, config. JurisdictionRegistry class exists but needs alias map integration and documentation."
+        "note": "Complete registry with: JurisdictionRegistry (25 jurisdictions), comprehensive alias map (underscore/hyphen conversion, BART, Sonoma County aliases), display name overrides, strict validation with JurisdictionError. 49 tests passing."
       }
     }
   },

@@ -294,3 +294,78 @@ class TestDisplayJurisdiction:
         """Display names are generated from canonical IDs."""
         assert display_jurisdiction("city-oakland") == "Oakland"
         assert display_jurisdiction("sonoma-county") == "Sonoma County"
+
+    def test_display_bart(self):
+        """BART displays as all caps."""
+        assert display_jurisdiction("bart") == "BART"
+
+    def test_display_multi_word_cities(self):
+        """Multi-word cities display correctly."""
+        assert display_jurisdiction("city-el-cerrito") == "El Cerrito"
+        assert display_jurisdiction("city-los-altos") == "Los Altos"
+        assert display_jurisdiction("city-daly-city") == "Daly City"
+
+
+class TestJurisdictionRegistryAliases:
+    """Test comprehensive alias coverage (Session 373)."""
+
+    # ─────────── Underscore to hyphen conversion ───────────
+
+    def test_underscore_normalization(self):
+        """Underscores are converted to hyphens."""
+        assert normalize_jurisdiction("san_rafael") == "city-san-rafael"
+        assert normalize_jurisdiction("el_cerrito") == "city-el-cerrito"
+        assert normalize_jurisdiction("daly_city") == "city-daly-city"
+        assert normalize_jurisdiction("los_altos") == "city-los-altos"
+
+    def test_underscore_with_prefix(self):
+        """Underscores work with city- prefix too."""
+        assert normalize_jurisdiction("city_san_rafael") == "city-san-rafael"
+        assert normalize_jurisdiction("city_oakland") == "city-oakland"
+
+    # ─────────── Special entity aliases ───────────
+
+    def test_sonoma_alias(self):
+        """'sonoma' normalizes to 'sonoma-county' (not city-sonoma)."""
+        assert normalize_jurisdiction("sonoma") == "sonoma-county"
+        assert normalize_jurisdiction("sonoma-ca") == "sonoma-county"
+
+    def test_bart_aliases(self):
+        """BART has multiple alias forms."""
+        assert normalize_jurisdiction("bart") == "bart"
+        assert normalize_jurisdiction("sf-bart") == "bart"
+        assert normalize_jurisdiction("bay-area-rapid-transit") == "bart"
+        assert normalize_jurisdiction("BART") == "bart"
+
+    # ─────────── Multi-word city aliases ───────────
+
+    def test_multi_word_city_aliases(self):
+        """Multi-word cities have explicit aliases."""
+        # These are covered by explicit aliases
+        assert normalize_jurisdiction("los-altos") == "city-los-altos"
+        assert normalize_jurisdiction("los-altos-hills") == "city-los-altos-hills"
+        assert normalize_jurisdiction("el-cerrito") == "city-el-cerrito"
+        assert normalize_jurisdiction("daly-city") == "city-daly-city"
+        assert normalize_jurisdiction("union-city") == "city-union-city"
+
+    # ─────────── Combined format variations ───────────
+
+    def test_all_format_variations_san_rafael(self):
+        """San Rafael works in all input formats."""
+        expected = "city-san-rafael"
+        assert normalize_jurisdiction("san-rafael") == expected
+        assert normalize_jurisdiction("san_rafael") == expected
+        assert normalize_jurisdiction("sanrafael") == expected
+        assert normalize_jurisdiction("san-rafael-ca") == expected
+        assert normalize_jurisdiction("city-san-rafael") == expected
+        assert normalize_jurisdiction("SAN-RAFAEL") == expected
+        assert normalize_jurisdiction("SAN_RAFAEL") == expected
+
+    def test_all_registered_cities_normalize(self):
+        """All registered jurisdictions can be normalized from short form."""
+        # Get all city keys and test normalization
+        for city_key, config in JurisdictionRegistry.all_configs().items():
+            # Test hyphenated form of city key
+            hyphenated = city_key.replace("_", "-")
+            result = normalize_jurisdiction(hyphenated)
+            assert result == config.jurisdiction_id, f"Failed for {city_key}"
