@@ -6230,3 +6230,31 @@ Mirrors the existing StorageBackend pattern:
 ### Progress
 - Before: 172/191 items ready (90.1%)
 - After: 173/191 items ready (90.6%)
+
+## Session 371 (2025-12-26): vector_storage_decision
+
+### Summary
+Created decision document for production vector storage strategy.
+
+### Decision
+**ChromaDB on Fly.io volume** ($0.45/month for 3GB)
+
+Rejected alternatives:
+- Qdrant Cloud: Free tier auto-deletes after 4 weeks of inactivity (unacceptable for civic tool)
+- pgvector: PgVectorBackend is a stub, requires implementation work
+
+### Key Files
+- `docs/decisions/vector_storage.md` - Decision document with full analysis
+- `pilot.json` - Marked vector_storage_decision as ready
+
+### Research Summary
+- Current index size: ~13MB (San Rafael corpus)
+- Embedding model: nomic-ai/nomic-embed-text-v1.5 (768 dimensions)
+- VectorBackend protocol allows future backend switching
+
+### Progress
+- Before: 173/191 items ready (90%)
+- After: 174/191 items ready (91%)
+
+### Next P0
+strict_jurisdiction_normalization - Fix normalize_jurisdiction() to reject unknown IDs instead of silently adding 'city-' prefix.
