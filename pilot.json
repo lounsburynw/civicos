@@ -249,7 +249,7 @@
       },
       "storage_migration_script": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Script to migrate local SQLite/blobs to cloud storage",
         "note": "One-time migration tool: local SQLite -> Turso, local files -> R2. Enables dev->prod promotion without manual data copying."
       }
@@ -1100,7 +1100,7 @@
       },
       "jurisdiction_registry": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Central registry of supported jurisdictions with metadata",
         "note": "Complete registry with: JurisdictionRegistry (25 jurisdictions), comprehensive alias map (underscore/hyphen conversion, BART, Sonoma County aliases), display name overrides, strict validation with JurisdictionError. 49 tests passing."
       }
