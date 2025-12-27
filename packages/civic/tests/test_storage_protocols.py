@@ -1003,3 +1003,418 @@ class TestPostgresBackendStructure:
 
         backend = PostgresBackend("postgresql://localhost/test")
         assert backend.backend_type == "postgres"
+
+
+# ============================================================================
+# Blob Storage Tests (SESSION 370)
+# ============================================================================
+
+
+class TestBlobStats:
+    """Tests for BlobStats dataclass."""
+
+    def test_basic_blob_stats(self):
+        """BlobStats holds basic counts."""
+        from civic.storage import BlobStats
+
+        stats = BlobStats(
+            total_objects=100,
+            total_bytes=1024 * 1024,  # 1 MB
+        )
+        assert stats.total_objects == 100
+        assert stats.total_bytes == 1024 * 1024
+
+    def test_blob_stats_with_content_types(self):
+        """BlobStats includes content type breakdown."""
+        from civic.storage import BlobStats
+
+        stats = BlobStats(
+            total_objects=60,
+            total_bytes=1024 * 1024 * 10,
+            by_content_type={
+                "application/pdf": 50,
+                "audio/mpeg": 10,
+            },
+        )
+        assert stats.by_content_type["application/pdf"] == 50
+        assert stats.by_content_type["audio/mpeg"] == 10
+
+    def test_blob_stats_to_dict(self):
+        """BlobStats serializes to JSON-compatible dict."""
+        from civic.storage import BlobStats
+
+        stats = BlobStats(
+            total_objects=10,
+            total_bytes=500,
+            by_content_type={"text/plain": 10},
+            metadata={"bucket": "test-bucket"},
+        )
+        d = stats.to_dict()
+        assert d["total_objects"] == 10
+        assert d["total_bytes"] == 500
+        assert d["by_content_type"]["text/plain"] == 10
+        assert d["metadata"]["bucket"] == "test-bucket"
+
+
+class TestBlobValidationResult:
+    """Tests for BlobValidationResult dataclass."""
+
+    def test_valid_blob_result(self):
+        """Valid blob storage passes all checks."""
+        from civic.storage import BlobValidationResult
+
+        result = BlobValidationResult(
+            is_valid=True,
+            connected=True,
+            writable=True,
+            check_duration_ms=5.0,
+        )
+        assert result.is_valid
+        assert result.connected
+        assert result.writable
+        assert len(result.errors) == 0
+
+    def test_invalid_blob_result(self):
+        """Invalid blob storage has errors."""
+        from civic.storage import BlobValidationResult
+
+        result = BlobValidationResult(
+            is_valid=False,
+            connected=False,
+            writable=False,
+            errors=["Bucket not found", "Access denied"],
+            check_duration_ms=50.0,
+        )
+        assert not result.is_valid
+        assert len(result.errors) == 2
+
+    def test_blob_validation_to_dict(self):
+        """BlobValidationResult serializes correctly."""
+        from civic.storage import BlobValidationResult
+
+        result = BlobValidationResult(
+            is_valid=True,
+            connected=True,
+            writable=True,
+            warnings=["Using free tier"],
+        )
+        d = result.to_dict()
+        assert d["is_valid"]
+        assert d["warnings"] == ["Using free tier"]
+
+
+class TestBlobStorageProtocol:
+    """Tests for BlobStorage protocol."""
+
+    def test_protocol_is_runtime_checkable(self):
+        """BlobStorage can be checked at runtime."""
+        from civic.storage import BlobStats, BlobStorage, BlobValidationResult
+
+        @dataclass
+        class MockBlobStorage:
+            _backend_type: str = "mock"
+
+            @property
+            def backend_type(self) -> str:
+                return self._backend_type
+
+            def validate(self) -> BlobValidationResult:
+                return BlobValidationResult(
+                    is_valid=True, connected=True, writable=True
+                )
+
+            def upload(
+                self,
+                key: str,
+                data: bytes,
+                content_type: Optional[str] = None,
+                metadata: Optional[Dict[str, str]] = None,
+            ) -> str:
+                return f"mock://{key}"
+
+            def download(self, key: str) -> bytes:
+                return b"test data"
+
+            def exists(self, key: str) -> bool:
+                return True
+
+            def delete(self, key: str) -> bool:
+                return True
+
+            def list_keys(self, prefix: str = "") -> List[str]:
+                return []
+
+            def get_stats(self) -> BlobStats:
+                return BlobStats(total_objects=0, total_bytes=0)
+
+        mock = MockBlobStorage()
+        assert isinstance(mock, BlobStorage)
+
+    def test_incomplete_blob_implementation_fails_check(self):
+        """Incomplete BlobStorage implementation fails runtime check."""
+        from civic.storage import BlobStorage
+
+        class IncompleteBlobBackend:
+            @property
+            def backend_type(self) -> str:
+                return "incomplete"
+
+            # Missing: validate, upload, download, exists, delete, list_keys, get_stats
+
+        incomplete = IncompleteBlobBackend()
+        assert not isinstance(incomplete, BlobStorage)
+
+
+class TestLocalBlobBackend:
+    """Tests for LocalBlobBackend implementation."""
+
+    def test_local_backend_type(self, tmp_path):
+        """LocalBlobBackend has correct backend_type."""
+        from civic.storage import LocalBlobBackend
+
+        backend = LocalBlobBackend(str(tmp_path / "blobs"))
+        assert backend.backend_type == "local"
+
+    def test_local_validate_success(self, tmp_path):
+        """LocalBlobBackend validates writable directory."""
+        from civic.storage import LocalBlobBackend
+
+        backend = LocalBlobBackend(str(tmp_path / "blobs"))
+        result = backend.validate()
+
+        assert result.is_valid
+        assert result.connected
+        assert result.writable
+        assert len(result.errors) == 0
+
+    def test_local_upload_and_download(self, tmp_path):
+        """LocalBlobBackend can upload and download files."""
+        from civic.storage import LocalBlobBackend
+
+        backend = LocalBlobBackend(str(tmp_path / "blobs"))
+
+        # Upload
+        test_data = b"Hello, World!"
+        path = backend.upload("test/file.txt", test_data, "text/plain")
+        assert "test/file.txt" in path
+
+        # Download
+        downloaded = backend.download("test/file.txt")
+        assert downloaded == test_data
+
+    def test_local_exists(self, tmp_path):
+        """LocalBlobBackend.exists checks for file presence."""
+        from civic.storage import LocalBlobBackend
+
+        backend = LocalBlobBackend(str(tmp_path / "blobs"))
+
+        assert not backend.exists("nonexistent.txt")
+
+        backend.upload("exists.txt", b"data")
+        assert backend.exists("exists.txt")
+
+    def test_local_delete(self, tmp_path):
+        """LocalBlobBackend.delete removes files."""
+        from civic.storage import LocalBlobBackend
+
+        backend = LocalBlobBackend(str(tmp_path / "blobs"))
+
+        backend.upload("to_delete.txt", b"data")
+        assert backend.exists("to_delete.txt")
+
+        result = backend.delete("to_delete.txt")
+        assert result is True
+        assert not backend.exists("to_delete.txt")
+
+        # Deleting non-existent returns False
+        result = backend.delete("nonexistent.txt")
+        assert result is False
+
+    def test_local_list_keys(self, tmp_path):
+        """LocalBlobBackend.list_keys returns matching files."""
+        from civic.storage import LocalBlobBackend
+
+        backend = LocalBlobBackend(str(tmp_path / "blobs"))
+
+        # Upload some files
+        backend.upload("dir1/file1.txt", b"data1")
+        backend.upload("dir1/file2.txt", b"data2")
+        backend.upload("dir2/file3.txt", b"data3")
+
+        # List all
+        all_keys = backend.list_keys()
+        assert len(all_keys) == 3
+
+        # List with prefix
+        dir1_keys = backend.list_keys("dir1/")
+        assert len(dir1_keys) == 2
+        assert all(k.startswith("dir1/") for k in dir1_keys)
+
+    def test_local_get_stats(self, tmp_path):
+        """LocalBlobBackend.get_stats returns correct counts."""
+        from civic.storage import LocalBlobBackend
+
+        backend = LocalBlobBackend(str(tmp_path / "blobs"))
+
+        # Empty initially
+        stats = backend.get_stats()
+        assert stats.total_objects == 0
+        assert stats.total_bytes == 0
+
+        # Add files
+        backend.upload("file1.txt", b"data1")
+        backend.upload("file2.txt", b"data2data2")
+
+        stats = backend.get_stats()
+        assert stats.total_objects == 2
+        assert stats.total_bytes == 15  # 5 + 10 bytes
+
+    def test_local_download_nonexistent_raises(self, tmp_path):
+        """LocalBlobBackend.download raises KeyError for missing files."""
+        from civic.storage import LocalBlobBackend
+
+        backend = LocalBlobBackend(str(tmp_path / "blobs"))
+
+        with pytest.raises(KeyError):
+            backend.download("nonexistent.txt")
+
+    def test_local_nested_directories(self, tmp_path):
+        """LocalBlobBackend handles nested directory structures."""
+        from civic.storage import LocalBlobBackend
+
+        backend = LocalBlobBackend(str(tmp_path / "blobs"))
+
+        # Deep path
+        backend.upload("city/san-rafael/2024/01/15/agenda.pdf", b"pdf data")
+
+        assert backend.exists("city/san-rafael/2024/01/15/agenda.pdf")
+        data = backend.download("city/san-rafael/2024/01/15/agenda.pdf")
+        assert data == b"pdf data"
+
+
+class TestR2Backend:
+    """Tests for R2Backend class structure (without real connection)."""
+
+    def test_r2_backend_is_importable(self):
+        """R2Backend can be imported from civic.storage."""
+        from civic.storage import R2Backend
+
+        assert R2Backend is not None
+
+    def test_r2_backend_has_required_methods(self):
+        """R2Backend has all BlobStorage methods."""
+        from civic.storage import R2Backend
+
+        required_attrs = [
+            'backend_type',
+            'validate',
+            'upload',
+            'download',
+            'exists',
+            'delete',
+            'list_keys',
+            'get_stats',
+            'from_env',
+            'from_url',
+        ]
+
+        for attr in required_attrs:
+            assert hasattr(R2Backend, attr), f"Missing: {attr}"
+
+    def test_r2_from_url_validates_format(self):
+        """R2Backend.from_url validates URL format."""
+        from civic.storage import R2Backend
+
+        # Invalid format (missing scheme)
+        with pytest.raises(ValueError, match="Invalid R2 URL format"):
+            R2Backend.from_url("account/bucket")
+
+        # Invalid format (missing bucket)
+        with pytest.raises(ValueError, match="Invalid R2 URL format"):
+            R2Backend.from_url("r2://account_only")
+
+    def test_r2_from_env_requires_url(self, monkeypatch):
+        """R2Backend.from_env requires BLOB_STORAGE_URL."""
+        from civic.storage import R2Backend
+
+        monkeypatch.delenv("BLOB_STORAGE_URL", raising=False)
+
+        with pytest.raises(ValueError, match="BLOB_STORAGE_URL"):
+            R2Backend.from_env()
+
+
+class TestGetBlobStorage:
+    """Tests for get_blob_storage factory function."""
+
+    def test_factory_is_importable(self):
+        """get_blob_storage can be imported from civic.storage."""
+        from civic.storage import get_blob_storage
+
+        assert callable(get_blob_storage)
+
+    def test_returns_local_by_default(self, monkeypatch):
+        """Returns LocalBlobBackend when no BLOB_STORAGE_URL is set."""
+        from civic.storage import LocalBlobBackend, get_blob_storage
+
+        monkeypatch.delenv("BLOB_STORAGE_URL", raising=False)
+
+        backend = get_blob_storage()
+        assert isinstance(backend, LocalBlobBackend)
+        assert backend.backend_type == "local"
+
+    def test_returns_local_for_local_url(self, tmp_path):
+        """Returns LocalBlobBackend for local:// URLs."""
+        from civic.storage import LocalBlobBackend, get_blob_storage
+
+        path = str(tmp_path / "blobs")
+        backend = get_blob_storage(f"local://{path}")
+
+        assert isinstance(backend, LocalBlobBackend)
+        assert backend.backend_type == "local"
+
+    def test_returns_r2_for_r2_url(self, monkeypatch):
+        """Returns R2Backend for r2:// URLs (with credentials)."""
+        from civic.storage import R2Backend, get_blob_storage
+
+        # Set required credentials
+        monkeypatch.setenv("R2_ACCESS_KEY_ID", "test_key")
+        monkeypatch.setenv("R2_SECRET_ACCESS_KEY", "test_secret")
+
+        backend = get_blob_storage("r2://account123/bucket-name")
+
+        assert isinstance(backend, R2Backend)
+        assert backend.backend_type == "r2"
+
+    def test_uses_environment_variable(self, monkeypatch, tmp_path):
+        """Uses BLOB_STORAGE_URL environment variable when no URL provided."""
+        from civic.storage import LocalBlobBackend, get_blob_storage
+
+        path = str(tmp_path / "env_blobs")
+        monkeypatch.setenv("BLOB_STORAGE_URL", f"local://{path}")
+
+        backend = get_blob_storage()
+
+        assert isinstance(backend, LocalBlobBackend)
+
+    def test_explicit_url_overrides_env(self, monkeypatch, tmp_path):
+        """Explicit URL parameter overrides BLOB_STORAGE_URL env var."""
+        from civic.storage import LocalBlobBackend, get_blob_storage
+
+        # Set env to one path
+        monkeypatch.setenv("BLOB_STORAGE_URL", "local:///some/other/path")
+
+        # But pass different path explicitly
+        path = str(tmp_path / "explicit_blobs")
+        backend = get_blob_storage(f"local://{path}")
+
+        assert isinstance(backend, LocalBlobBackend)
+        assert str(path) in str(backend.base_path)
+
+    def test_fallback_treats_path_as_local(self, tmp_path):
+        """Falls back to LocalBlobBackend for plain paths."""
+        from civic.storage import LocalBlobBackend, get_blob_storage
+
+        path = str(tmp_path / "plain_path")
+        backend = get_blob_storage(path)
+
+        assert isinstance(backend, LocalBlobBackend)
