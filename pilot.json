@@ -703,7 +703,7 @@
         "status": "not_ready",
         "priority": 1,
         "artifact": "Wire pipeline INDEX stage to use PgVectorBackend instead of ChromaDB",
-        "note": "PgVectorBackend is implemented and tested (186 decisions indexed). Need to update Pipeline to use pgvector for cloud deployments. SqlIndexTarget protocol already supports this pattern."
+        "note": "PgVectorBackend is implemented and tested. Need to update Pipeline to use pgvector for cloud deployments. SqlIndexTarget protocol already supports this pattern."
       },
       "seeclickfix_cloud_storage": {
         "status": "not_ready",
@@ -881,7 +881,7 @@
         "status": "ready",
         "priority": 1,
         "artifact": "Build decisions table in SQL via ETL pipeline",
-        "note": "Session 366: Created decisions table schema, store_decisions()/get_decisions() methods, populated 186 decisions from JSON. Vector stats show linked status.",
+        "note": "Session 366: Created decisions table schema, store_decisions()/get_decisions() methods. Decisions should be populated via E2E pipeline (decision_extraction_pipeline).",
         "completed": "2025-12-26"
       },
       "chunks_from_sql": {
@@ -1585,7 +1585,7 @@
       "pgvector_backend": {
         "status": "ready",
         "priority": 1,
-        "note": "Implemented PgVectorBackend with validate, index_from_storage, search, get_stats, delete_index. Tested against Supabase pgvector - 186 decisions indexed with 100% coverage.",
+        "note": "Implemented PgVectorBackend with validate, index_from_storage, search, get_stats, delete_index. Tested against Supabase pgvector. Vectors should be populated via E2E pipeline (vector_indexing_cloud).",
         "test": "packages/civic/tests/test_storage_protocols.py::TestPgVectorBackend",
         "completed": "2025-12-27"
       }
