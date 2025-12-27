@@ -28,6 +28,11 @@ Usage:
     civic-extract chunks --jurisdiction city-san-rafael --dry-run
     civic-extract chunks --jurisdiction city-san-rafael --cloud
 
+    civic-extract vectors --jurisdiction city-san-rafael
+    civic-extract vectors --jurisdiction city-san-rafael --corpus decisions
+    civic-extract vectors --jurisdiction city-san-rafael --stats
+    civic-extract vectors --jurisdiction city-san-rafael --dry-run
+
     civic-extract seeclickfix --jurisdiction city-san-rafael
     civic-extract seeclickfix --jurisdiction city-san-rafael --schedule
     civic-extract seeclickfix --jurisdiction city-san-rafael --dry-run
@@ -67,6 +72,7 @@ from civic_extraction.cli.research import add_research_parser, run_research
 from civic_extraction.cli.seeclickfix import add_seeclickfix_parser, run_seeclickfix
 from civic_extraction.cli.snapshot_cli import add_snapshot_parser, run_snapshot
 from civic_extraction.cli.transcribe import add_transcribe_parser, run_transcribe
+from civic_extraction.cli.vectors import add_vectors_parser, run_vectors
 from civic_extraction.cli.youtube import add_youtube_parser, run_youtube
 
 
@@ -98,6 +104,7 @@ def main() -> int:
     add_seeclickfix_parser(subparsers)
     add_snapshot_parser(subparsers)
     add_transcribe_parser(subparsers)
+    add_vectors_parser(subparsers)
     add_youtube_parser(subparsers)
 
     args = parser.parse_args()
@@ -131,6 +138,8 @@ def main() -> int:
         return run_snapshot(args)
     elif args.command == "transcribe":
         return run_transcribe(args)
+    elif args.command == "vectors":
+        return run_vectors(args)
     elif args.command == "youtube":
         return run_youtube(args)
 

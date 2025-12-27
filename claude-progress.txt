@@ -6875,3 +6875,48 @@ Wire PDF chunk extraction to store in Postgres. chunks table exists in PostgresB
 
 ### Next P0: vector_indexing_cloud
 Wire pipeline INDEX stage to use PgVectorBackend instead of ChromaDB. Now that meetings, chunks, decisions, transcripts, videos, and audio are all in cloud storage, enable vector search on cloud data.
+
+## Session 384 (2025-12-27): vector_indexing_cloud
+
+### What Was Done
+- Created `vectors.py` CLI command for cloud vector indexing
+- Indexes chunks/decisions from Postgres into pgvector
+- Supports multiple corpus types: `--corpus chunks/decisions/meetings/all`
+- Stats mode: `--stats` shows index coverage
+- Dry-run mode: `--dry-run` shows indexing plan
+- Test search: `--test-search "query"` runs semantic search
+- Reindex: `--reindex` forces rebuild
+
+### Usage
+```bash
+# Index chunks into pgvector
+civic-extract vectors --jurisdiction city-san-rafael --corpus chunks
+
+# Check statistics
+civic-extract vectors --jurisdiction city-san-rafael --stats
+
+# Dry run to see plan
+civic-extract vectors --jurisdiction city-san-rafael --dry-run
+
+# Test semantic search
+civic-extract vectors --jurisdiction city-san-rafael --test-search "housing development"
+```
+
+### Key Files Changed
+- `packages/civic-extraction/src/civic_extraction/cli/vectors.py` (new)
+- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` (registered command)
+
+### Tests
+- 68 storage protocol tests: ✅ passed
+- 34 smoke tests: ✅ passed
+- CLI --help verified
+- CLI --stats verified (23 chunks indexed, 100% coverage)
+- CLI --test-search verified (semantic results returned)
+
+### Progress
+- Before: 185/202 items ready (91.6%)
+- After: 186/202 items ready (92.1%)
+- 1 item completed: vector_indexing_cloud
+
+### Next P0: seeclickfix_cloud_storage
+Wire seeclickfix.py CLI to store issues in Postgres. 1,340 issues currently in local SQLite.
