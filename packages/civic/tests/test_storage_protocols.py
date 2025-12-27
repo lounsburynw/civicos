@@ -340,6 +340,31 @@ class TestStorageBackendProtocol:
             def get_chunk_count(self, jurisdiction_id: str) -> int:
                 return 0
 
+            # Issue methods
+            def store_issues(
+                self,
+                jurisdiction_id: str,
+                issues: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(issues)
+
+            def get_issues(
+                self,
+                jurisdiction_id: str,
+                as_of: Optional[datetime] = None,
+                provider: Optional[str] = None,
+                status: Optional[str] = None,
+                issue_type: Optional[str] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_issue_count(
+                self, jurisdiction_id: str, provider: Optional[str] = None
+            ) -> int:
+                return 0
+
         mock = MockStorageBackend()
         assert isinstance(mock, StorageBackend)
 
@@ -711,6 +736,31 @@ class TestProtocolIntegration:
                 return []
 
             def get_chunk_count(self, jurisdiction_id: str) -> int:
+                return 0
+
+            # Issue methods
+            def store_issues(
+                self,
+                jurisdiction_id: str,
+                issues: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(issues)
+
+            def get_issues(
+                self,
+                jurisdiction_id: str,
+                as_of: Optional[datetime] = None,
+                provider: Optional[str] = None,
+                status: Optional[str] = None,
+                issue_type: Optional[str] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_issue_count(
+                self, jurisdiction_id: str, provider: Optional[str] = None
+            ) -> int:
                 return 0
 
         @dataclass

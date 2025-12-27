@@ -667,7 +667,7 @@
       },
       "e2e_fresh_ingestion": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Full E2E data pull from scratch with cloud storage",
         "note": "Run complete pipeline: discover -> youtube -> audio -> transcribe with all data stored in Supabase/R2. Verify data flows correctly."
       },
@@ -714,8 +714,8 @@
         "completed_session": 384
       },
       "issues_cloud_storage": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Create portable 311 abstraction and store issues in Postgres",
         "note": "Create IssueProvider protocol for multi-provider support (SeeClickFix, PublicStuff, CitySourced). Add NormalizedIssue dataclass, store_issues()/get_issues() to StorageBackend, unified civic-extract issues CLI with --provider flag. SeeClickFix first implementation. 1,340 issues ready to migrate."
       }

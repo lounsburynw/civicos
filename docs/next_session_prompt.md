@@ -1,14 +1,14 @@
-# Recommended: issues_cloud_storage
+# Recommended: e2e_fresh_ingestion
 
 **Priority:** P0
 **Area:** pipeline_automation > cloud_integration
 **Date:** 2025-12-27
 
-> This is recommended context from Session 384. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 385. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 384 completed `vector_indexing_cloud`. The user requested a proper 311 abstraction layer for future portability (PublicStuff, CitySourced, custom APIs) rather than a SeeClickFix-specific implementation.
+Session 385 completed `issues_cloud_storage` - the 9th of 10 cloud ETL items. All data types now have cloud storage paths. The final step is to verify the complete E2E pipeline works from scratch.
 
 ## E2E Cloud ETL Roadmap (10 items)
 
@@ -21,147 +21,81 @@ Session 384 completed `vector_indexing_cloud`. The user requested a proper 311 a
 | 5 | `assemblyai_transcript_storage` | Done | Transcripts -> Postgres |
 | 6 | `decision_extraction_pipeline` | Done | Agendas -> Decisions |
 | 7 | `chunks_cloud_storage` | Done | PDF chunks -> Postgres |
-| 8 | **`issues_cloud_storage`** | **P0** | 311 Issues -> Postgres |
+| 8 | `issues_cloud_storage` | Done | 311 Issues -> Postgres |
 | 9 | `vector_indexing_cloud` | Done | All data -> pgvector |
-| 10 | `e2e_fresh_ingestion` | P1 | Full verification |
-
-## Current State
-
-**SeeClickFix is tightly coupled:**
-- `seeclickfix_client.py` (423 lines) - provider-specific API wrapper
-- `seeclickfix.py` CLI - stores to local JSON in `data/pilot/`
-- No StorageBackend integration for issues
-
-**Portable foundation exists:**
-- `Issue` dataclass in `civic/_internal/state/models.py` - already generic
-- `issue_matcher.py` - provider-agnostic matching logic
+| 10 | **`e2e_fresh_ingestion`** | **P0** | Full verification |
 
 ## Recommended Task
 
-Create a portable 311 abstraction layer:
+Run the complete pipeline from scratch to verify all data flows correctly through cloud storage:
 
-1. **IssueProvider protocol** - abstract interface for 311 providers
-2. **NormalizedIssue dataclass** - provider-agnostic issue representation
-3. **StorageBackend methods** - `store_issues()` / `get_issues()`
-4. **Unified CLI** - `civic-extract issues --provider seeclickfix`
-5. **SeeclickfixProvider** - refactor existing client as first implementation
-
-## Suggested Architecture
-
-```
-packages/civic/src/civic/issues/
-├── __init__.py
-├── provider.py          # IssueProvider protocol + NormalizedIssue
-└── providers/
-    ├── __init__.py
-    └── seeclickfix.py   # Refactored from civic-services
-
-packages/civic-extraction/src/civic_extraction/cli/
-└── issues.py            # Unified CLI with --provider flag
-```
+1. **discover** - Fetch meeting metadata, store to Postgres
+2. **youtube** - Discover video URLs, store to Postgres
+3. **audio** - Download audio files, store to R2
+4. **transcribe** - Process audio with AssemblyAI, store to Postgres
+5. **decisions** - Extract decisions from agendas, store to Postgres
+6. **chunks** - Extract PDF chunks, store to Postgres
+7. **issues** - Fetch 311 issues, store to Postgres
+8. **vectors** - Index all data to pgvector
 
 ## Key Files
 
-- `packages/civic-services/src/civic_services/clients/seeclickfix_client.py` - Existing client to refactor
-- `packages/civic/src/civic/_internal/state/models.py:123-158` - Existing Issue dataclass
-- `packages/civic/src/civic/storage/backend.py` - StorageBackend protocol (add issue methods)
-- `packages/civic/src/civic/storage/postgres_backend.py:1225-1380` - Chunks pattern to follow
+- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` - All CLI commands
+- `packages/civic/src/civic/storage/postgres_backend.py` - Cloud storage methods
+- `scripts/dev.sh` - Development server launcher
 
 ## Suggested Approach
 
-### Step 1: Create IssueProvider Protocol
-```python
-# packages/civic/src/civic/issues/provider.py
-@dataclass
-class NormalizedIssue:
-    provider: str           # "seeclickfix", "publicstuff", etc.
-    external_id: str        # Provider's issue ID
-    title: str
-    description: str
-    issue_type: str         # Normalized category
-    status: str             # "open", "closed", "acknowledged"
-    address: Optional[str]
-    latitude: Optional[float]
-    longitude: Optional[float]
-    created_at: datetime
-    updated_at: Optional[datetime]
-    closed_at: Optional[datetime]
-    reporter_name: Optional[str]
-    images: List[str]
-    provider_metadata: Dict[str, Any]  # Passthrough for provider-specific fields
-
-class IssueProvider(Protocol):
-    def get_issues(self, jurisdiction: str, **filters) -> List[NormalizedIssue]: ...
-    def get_issue(self, issue_id: str) -> Optional[NormalizedIssue]: ...
-    @property
-    def provider_name(self) -> str: ...
-```
-
-### Step 2: Add StorageBackend Methods
-```python
-# Add to PostgresBackend
-def store_issues(self, jurisdiction_id: str, issues: List[Dict], as_of=None) -> int
-def get_issues(self, jurisdiction_id: str, provider=None, status=None, limit=None) -> List[Dict]
-```
-
-### Step 3: Create Issues Table
-```sql
-CREATE TABLE IF NOT EXISTS issues (
-    id TEXT PRIMARY KEY,
-    jurisdiction_id TEXT NOT NULL,
-    provider TEXT NOT NULL,           -- "seeclickfix", "publicstuff", etc.
-    external_id TEXT,
-    title TEXT,
-    description TEXT,
-    issue_type TEXT,
-    status TEXT,
-    address TEXT,
-    latitude REAL,
-    longitude REAL,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP,
-    closed_at TIMESTAMP,
-    reporter_name TEXT,
-    images JSONB,
-    provider_metadata JSONB,
-    valid_from TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    valid_to TIMESTAMP,
-    UNIQUE(provider, external_id)     -- Prevent duplicates per provider
-);
-```
-
-### Step 4: Create Unified CLI
+### Step 1: Clear existing data (optional - for true fresh start)
 ```bash
-civic-extract issues --provider seeclickfix --jurisdiction city-san-rafael --cloud
-civic-extract issues --provider all --jurisdiction city-san-rafael  # Future: all providers
+# Check current counts
+civic-extract vectors --jurisdiction city-san-rafael --stats --cloud
 ```
 
-### Step 5: Refactor SeeclickfixProvider
-Move normalization logic from `seeclickfix_client.py` to implement `IssueProvider` protocol.
+### Step 2: Run pipeline stages in order
+```bash
+# Each stage with --cloud flag for cloud storage
+civic-extract discover --jurisdiction city-san-rafael --cloud
+civic-extract youtube --jurisdiction city-san-rafael --cloud
+civic-extract audio --jurisdiction city-san-rafael --cloud
+civic-extract transcribe --jurisdiction city-san-rafael --cloud
+civic-extract decisions --jurisdiction city-san-rafael --cloud
+civic-extract chunks --jurisdiction city-san-rafael --cloud
+civic-extract issues --jurisdiction city-san-rafael --cloud
+civic-extract vectors --jurisdiction city-san-rafael --cloud
+```
+
+### Step 3: Verify data counts
+```bash
+civic-extract vectors --jurisdiction city-san-rafael --stats --cloud
+```
+
+### Step 4: Test search functionality
+```bash
+civic-extract vectors --jurisdiction city-san-rafael --test-search --cloud
+```
 
 ## Tests to Run
 
 ```bash
-# Storage protocol tests
-pytest packages/civic/tests/test_storage_protocols.py -v
-
 # Smoke tests
 pytest packages/civic/tests/test_civic.py -q
+
+# Storage protocol tests
+pytest packages/civic/tests/test_storage_protocols.py -v
 ```
 
 ## Success Criteria
 
-- [ ] `IssueProvider` protocol defined with `NormalizedIssue` dataclass
-- [ ] `store_issues()` / `get_issues()` added to StorageBackend
-- [ ] Issues table with `provider` field and `(provider, external_id)` unique constraint
-- [ ] `SeeclickfixProvider` implements `IssueProvider`
-- [ ] `civic-extract issues --provider seeclickfix --cloud` works
-- [ ] 1,340 existing issues migrated to Postgres
+- [ ] All 8 pipeline stages run successfully with --cloud flag
+- [ ] Data counts verified in Postgres (meetings, decisions, chunks, issues)
+- [ ] Vector search returns relevant results
+- [ ] No data loss between stages
 - [ ] Existing tests pass
 
-## Why This Approach?
+## Notes
 
-- **Portability**: Adding PublicStuff or CitySourced = new provider file + register
-- **Single storage path**: All 311 data flows through same StorageBackend
-- **Future-proof**: `provider` field enables multi-source queries
-- **Minimal breaking changes**: Existing seeclickfix CLI can remain as deprecated alias
+- This is a verification step, not a feature implementation
+- Focus on running commands and verifying output
+- Document any failures or issues for follow-up
+- May require running individual stages with --dry-run first

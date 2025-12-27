@@ -33,7 +33,13 @@ Usage:
     civic-extract vectors --jurisdiction city-san-rafael --stats
     civic-extract vectors --jurisdiction city-san-rafael --dry-run
 
-    civic-extract seeclickfix --jurisdiction city-san-rafael
+    civic-extract issues --jurisdiction city-san-rafael
+    civic-extract issues --jurisdiction city-san-rafael --provider seeclickfix
+    civic-extract issues --jurisdiction city-san-rafael --cloud
+    civic-extract issues --jurisdiction city-san-rafael --migrate --cloud
+    civic-extract issues --jurisdiction city-san-rafael --stats --cloud
+
+    civic-extract seeclickfix --jurisdiction city-san-rafael  # deprecated, use issues
     civic-extract seeclickfix --jurisdiction city-san-rafael --schedule
     civic-extract seeclickfix --jurisdiction city-san-rafael --dry-run
 
@@ -65,6 +71,7 @@ from civic_extraction.cli.audit_cli import add_audit_parser, run_audit
 from civic_extraction.cli.chunks import add_chunks_parser, run_chunks
 from civic_extraction.cli.decisions import add_decisions_parser, run_decisions
 from civic_extraction.cli.discover import add_discover_parser, run_discover
+from civic_extraction.cli.issues import add_issues_parser, run_issues
 from civic_extraction.cli.legislative import add_legislative_parser, run_legislative
 from civic_extraction.cli.manifest_cli import add_manifest_parser, run_manifest
 from civic_extraction.cli.monitor import add_monitor_parser, run_monitor
@@ -97,6 +104,7 @@ def main() -> int:
     add_chunks_parser(subparsers)
     add_decisions_parser(subparsers)
     add_discover_parser(subparsers)
+    add_issues_parser(subparsers)
     add_legislative_parser(subparsers)
     add_manifest_parser(subparsers)
     add_monitor_parser(subparsers)
@@ -124,6 +132,8 @@ def main() -> int:
         return run_decisions(args)
     elif args.command == "discover":
         return run_discover(args)
+    elif args.command == "issues":
+        return run_issues(args)
     elif args.command == "legislative":
         return run_legislative(args)
     elif args.command == "manifest":

@@ -437,6 +437,63 @@ class PostgresBackend:
             ON transcripts(created_at DESC)
         """)
 
+        # Issues table (SESSION 385)
+        # Stores 311 issues from providers like SeeClickFix, PublicStuff, etc.
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS issues (
+                id TEXT NOT NULL,
+                jurisdiction_id TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                external_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                issue_type TEXT,
+                status TEXT DEFAULT 'open',
+                address TEXT,
+                latitude REAL,
+                longitude REAL,
+                created_at TIMESTAMP,
+                updated_at TIMESTAMP,
+                closed_at TIMESTAMP,
+                reporter_name TEXT,
+                images JSONB,
+                provider_metadata JSONB,
+                stored_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                PRIMARY KEY (id, jurisdiction_id, valid_from),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                UNIQUE (provider, external_id, valid_from),
+                CHECK (valid_to IS NULL OR valid_to > valid_from)
+            )
+        """)
+
+        # Issue indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_issues_jurisdiction
+            ON issues(jurisdiction_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_issues_provider
+            ON issues(provider)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_issues_status
+            ON issues(status)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_issues_type
+            ON issues(issue_type)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_issues_created
+            ON issues(created_at DESC)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_issues_location
+            ON issues(latitude, longitude) WHERE latitude IS NOT NULL
+        """)
+
         conn.commit()
 
     def store_meetings(
@@ -1801,6 +1858,245 @@ class PostgresBackend:
 
         return count
 
+    # ========== Issue Methods (SESSION 385) ==========
+
+    def store_issues(
+        self,
+        jurisdiction_id: str,
+        issues: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store 311 issues with temporal versioning.
+
+        Atomic operation: either all issues are stored or none.
+        Uses upsert semantics based on (provider, external_id).
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            issues: List of issue dictionaries (from NormalizedIssue.to_dict())
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of issues successfully stored
+
+        Raises:
+            psycopg2.Error: If atomic store operation fails
+        """
+        as_of = as_of or datetime.now()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Ensure city_state exists
+            cursor.execute("""
+                INSERT INTO city_states (jurisdiction_id, jurisdiction_name, as_of)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (jurisdiction_id) DO NOTHING
+            """, (
+                jurisdiction_id,
+                jurisdiction_id.replace('-', ' ').title(),
+                as_of.isoformat()
+            ))
+
+            # Close previous versions for issues being updated
+            # Group by (provider, external_id) to handle updates
+            for issue in issues:
+                provider = issue.get('provider')
+                external_id = issue.get('external_id')
+                if provider and external_id:
+                    cursor.execute("""
+                        UPDATE issues
+                        SET valid_to = %s
+                        WHERE jurisdiction_id = %s
+                          AND provider = %s
+                          AND external_id = %s
+                          AND valid_to IS NULL
+                    """, (as_of.isoformat(), jurisdiction_id, provider, external_id))
+
+            # Insert new versions
+            count = 0
+            for issue in issues:
+                provider = issue.get('provider')
+                external_id = issue.get('external_id')
+                if not provider or not external_id:
+                    continue  # Skip issues without required fields
+
+                # Generate issue ID if not present
+                issue_id = issue.get('id') or f"{provider}-{external_id}"
+
+                # Parse datetime strings if needed
+                created_at = issue.get('created_at')
+                if isinstance(created_at, str):
+                    try:
+                        created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                    except ValueError:
+                        created_at = None
+
+                updated_at = issue.get('updated_at')
+                if isinstance(updated_at, str):
+                    try:
+                        updated_at = datetime.fromisoformat(updated_at.replace('Z', '+00:00'))
+                    except ValueError:
+                        updated_at = None
+
+                closed_at = issue.get('closed_at')
+                if isinstance(closed_at, str):
+                    try:
+                        closed_at = datetime.fromisoformat(closed_at.replace('Z', '+00:00'))
+                    except ValueError:
+                        closed_at = None
+
+                cursor.execute("""
+                    INSERT INTO issues (
+                        id, jurisdiction_id, provider, external_id,
+                        title, description, issue_type, status,
+                        address, latitude, longitude,
+                        created_at, updated_at, closed_at,
+                        reporter_name, images, provider_metadata,
+                        stored_at, valid_from, valid_to
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)
+                """, (
+                    issue_id,
+                    jurisdiction_id,
+                    provider,
+                    external_id,
+                    issue.get('title', ''),
+                    issue.get('description', ''),
+                    issue.get('issue_type'),
+                    issue.get('status', 'open'),
+                    issue.get('address'),
+                    issue.get('latitude'),
+                    issue.get('longitude'),
+                    created_at.isoformat() if isinstance(created_at, datetime) else created_at,
+                    updated_at.isoformat() if isinstance(updated_at, datetime) else updated_at,
+                    closed_at.isoformat() if isinstance(closed_at, datetime) else closed_at,
+                    issue.get('reporter_name'),
+                    json.dumps(issue.get('images', []), cls=DateTimeEncoder),
+                    json.dumps(issue.get('provider_metadata', {}), cls=DateTimeEncoder),
+                    as_of.isoformat(),
+                    as_of.isoformat(),
+                ))
+                count += 1
+
+            conn.commit()
+            return count
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_issues(
+        self,
+        jurisdiction_id: str,
+        as_of: Optional[datetime] = None,
+        provider: Optional[str] = None,
+        status: Optional[str] = None,
+        issue_type: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve 311 issues with optional filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            as_of: Point-in-time query (for temporal versioning)
+            provider: Filter by provider ("seeclickfix", "publicstuff", etc.)
+            status: Filter by status ("open", "closed", "acknowledged")
+            issue_type: Filter by issue type
+            limit: Maximum number of issues to return
+
+        Returns:
+            List of issue dictionaries
+        """
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Build query with temporal filtering
+        query = """
+            SELECT * FROM issues
+            WHERE jurisdiction_id = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+        """
+        params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+
+        if provider:
+            query += " AND provider = %s"
+            params.append(provider)
+
+        if status:
+            query += " AND status = %s"
+            params.append(status)
+
+        if issue_type:
+            query += " AND issue_type = %s"
+            params.append(issue_type)
+
+        query += " ORDER BY created_at DESC"
+
+        if limit:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to dictionaries
+        issues = []
+        for row in rows:
+            issue = dict(row)
+            # Parse JSONB fields
+            if 'images' in issue and isinstance(issue['images'], str):
+                issue['images'] = json.loads(issue['images'])
+            if 'provider_metadata' in issue and isinstance(issue['provider_metadata'], str):
+                issue['provider_metadata'] = json.loads(issue['provider_metadata'])
+            # Convert datetime objects to ISO strings
+            for key in ['created_at', 'updated_at', 'closed_at', 'stored_at', 'valid_from', 'valid_to']:
+                if key in issue and issue[key] is not None:
+                    if isinstance(issue[key], datetime):
+                        issue[key] = issue[key].isoformat()
+            issues.append(issue)
+
+        return issues
+
+    def get_issue_count(self, jurisdiction_id: str, provider: Optional[str] = None) -> int:
+        """
+        Get count of current issues for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            provider: Optional filter by provider
+
+        Returns:
+            Number of current (non-expired) issues
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        if provider:
+            cursor.execute("""
+                SELECT COUNT(*) FROM issues
+                WHERE jurisdiction_id = %s AND provider = %s AND valid_to IS NULL
+            """, (jurisdiction_id, provider))
+        else:
+            cursor.execute("""
+                SELECT COUNT(*) FROM issues
+                WHERE jurisdiction_id = %s AND valid_to IS NULL
+            """, (jurisdiction_id,))
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
 
 # Verify protocol compliance at import time (only if psycopg2 available)
 # StorageBackend is @runtime_checkable, so isinstance() works
@@ -1823,7 +2119,9 @@ def _verify_protocol_compliance() -> None:
         # Video methods (SESSION 379)
         'store_videos', 'get_videos', 'get_video_count',
         # Transcript methods (SESSION 381)
-        'store_transcripts', 'get_transcripts', 'get_transcript', 'get_transcript_count'
+        'store_transcripts', 'get_transcripts', 'get_transcript', 'get_transcript_count',
+        # Issue methods (SESSION 385)
+        'store_issues', 'get_issues', 'get_issue_count',
     ]
     for method in required_methods:
         assert hasattr(PostgresBackend, method), (

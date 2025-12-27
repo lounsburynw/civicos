@@ -1290,6 +1290,56 @@ class SQLiteBackend:
         finally:
             conn.close()
 
+    # ========== Issue Methods (SESSION 385) ==========
+    # Note: Issues are primarily stored in Postgres for production.
+    # SQLite implementation is a stub for protocol compliance.
+
+    def store_issues(
+        self,
+        jurisdiction_id: str,
+        issues: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store 311 issues (stub for SQLite - issues use Postgres in production).
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            issues: List of issue dictionaries
+            as_of: Timestamp for versioning
+
+        Returns:
+            Number of issues stored (0 for SQLite stub)
+        """
+        # SQLite implementation is a stub - issues are stored in Postgres
+        return 0
+
+    def get_issues(
+        self,
+        jurisdiction_id: str,
+        as_of: Optional[datetime] = None,
+        provider: Optional[str] = None,
+        status: Optional[str] = None,
+        issue_type: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve 311 issues (stub for SQLite - issues use Postgres in production).
+
+        Returns:
+            Empty list (SQLite stub)
+        """
+        return []
+
+    def get_issue_count(self, jurisdiction_id: str, provider: Optional[str] = None) -> int:
+        """
+        Get issue count (stub for SQLite - issues use Postgres in production).
+
+        Returns:
+            0 (SQLite stub)
+        """
+        return 0
+
 
 # Verify protocol compliance at import time
 # StorageBackend is @runtime_checkable, so isinstance() works
