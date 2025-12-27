@@ -241,10 +241,11 @@
         "completed": "2025-12-26"
       },
       "vector_storage_decision": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Document vector storage strategy: self-hosted ChromaDB vs Qdrant Cloud",
-        "note": "Options: (1) ChromaDB on Fly.io volume (~$0.45/mo for 3GB), (2) Qdrant Cloud free tier (1GB), (3) pgvector in Turso/Postgres. Current 880MB fits all options."
+        "note": "Decided: ChromaDB on Fly.io volume ($0.45/mo). Decision doc: docs/decisions/vector_storage.md. Qdrant rejected (auto-delete risk), pgvector rejected (implementation not ready).",
+        "completed": "2025-12-26"
       },
       "storage_migration_script": {
         "status": "not_ready",
@@ -1092,7 +1093,7 @@
     "jurisdiction_handling": {
       "strict_jurisdiction_normalization": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "normalize_jurisdiction() only normalizes known aliases, rejects unknown",
         "note": "Current fallback adds 'city-' prefix to unknown IDs (line 84). Should reference _JURISDICTION_ALIASES and reject/return-as-is for unknown. Prevents silent data corruption from typos."
       },
