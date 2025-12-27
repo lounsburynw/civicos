@@ -249,15 +249,13 @@ User context: {json.dumps(context or {})}"""
 
 def normalize_jurisdiction(llm_jurisdiction: str) -> str:
     """
-    Minimal normalization - LLM already handles this via dynamic system prompt (Session 60).
+    Normalize LLM jurisdiction output to canonical format.
 
-    Just ensure consistent format:
-    - Lowercase
-    - Hyphenate spaces
-    - Prepend "city-" if needed
+    Uses the core normalize_jurisdiction() with strict=False for chat context,
+    where LLM output may include special values like "all".
 
     Args:
-        llm_jurisdiction: Already-normalized jurisdiction from LLM
+        llm_jurisdiction: Jurisdiction from LLM (may be "all", alias, or canonical)
 
     Returns:
         Final jurisdiction ID for database queries
@@ -267,18 +265,14 @@ def normalize_jurisdiction(llm_jurisdiction: str) -> str:
         "city-berkeley" → "city-berkeley"
         "berkeley" → "city-berkeley" (adds prefix)
     """
-    # Handle special case
+    from civic._internal.jurisdiction import normalize_jurisdiction as core_normalize
+
+    # Handle special case for "all jurisdictions" queries
     if llm_jurisdiction.lower() in ['all', 'everywhere']:
         return 'all'
 
-    # LLM should output correct format, but ensure consistency
-    normalized = llm_jurisdiction.lower().strip()
-
-    # If LLM forgot "city-" prefix, add it (unless county/special district)
-    if not normalized.startswith('city-') and not normalized.endswith('-county') and normalized != 'bart':
-        normalized = f'city-{normalized}'
-
-    return normalized
+    # Use core normalize with strict=False for chat (LLM may produce edge cases)
+    return core_normalize(llm_jurisdiction, strict=False)
 
 
 # ============================================================================

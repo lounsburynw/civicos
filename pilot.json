@@ -1092,16 +1092,17 @@
     },
     "jurisdiction_handling": {
       "strict_jurisdiction_normalization": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "normalize_jurisdiction() only normalizes known aliases, rejects unknown",
-        "note": "Current fallback adds 'city-' prefix to unknown IDs (line 84). Should reference _JURISDICTION_ALIASES and reject/return-as-is for unknown. Prevents silent data corruption from typos."
+        "completed": "2025-12-26",
+        "note": "Added JurisdictionError exception. strict=True (default) validates against JurisdictionRegistry and raises for unknown IDs. Cleaned up stale aliases. 18 new tests in test_jurisdiction.py."
       },
       "jurisdiction_registry": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Central registry of supported jurisdictions with metadata",
-        "note": "Single source of truth for: canonical ID, display name, state, platform type, config. Could be JSON file or database table. Replaces scattered _JURISDICTION_ALIASES dict."
+        "note": "Single source of truth for: canonical ID, display name, state, platform type, config. JurisdictionRegistry class exists but needs alias map integration and documentation."
       }
     }
   },

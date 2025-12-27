@@ -1,5 +1,6 @@
 """
 Tests for JurisdictionRegistry - centralized jurisdiction configuration.
+Tests for normalize_jurisdiction - strict jurisdiction ID validation.
 """
 
 import pytest
@@ -8,6 +9,11 @@ from civic.jurisdiction import (
     JurisdictionConfig,
     GranicusConfig,
     CITY_CONFIGS,
+)
+from civic._internal.jurisdiction import (
+    JurisdictionError,
+    normalize_jurisdiction,
+    display_jurisdiction,
 )
 
 
@@ -184,3 +190,107 @@ class TestAgentTypes:
             config = JurisdictionRegistry.get(city)
             assert config is not None, f"Missing config for {city}"
             assert config.agent_type == "civicplus_cms", f"{city} should use civicplus_cms"
+
+
+class TestNormalizeJurisdiction:
+    """Test normalize_jurisdiction strict validation (Session 372)."""
+
+    # ─────────── Valid jurisdiction tests ───────────
+
+    def test_normalize_valid_alias(self):
+        """Known aliases normalize correctly."""
+        assert normalize_jurisdiction("san-rafael") == "city-san-rafael"
+        assert normalize_jurisdiction("berkeley") == "city-berkeley"
+
+    def test_normalize_canonical_format(self):
+        """Already-canonical IDs are idempotent."""
+        assert normalize_jurisdiction("city-san-rafael") == "city-san-rafael"
+        assert normalize_jurisdiction("city-oakland") == "city-oakland"
+
+    def test_normalize_with_state_suffix(self):
+        """State suffixes are stripped correctly."""
+        assert normalize_jurisdiction("san-rafael-ca") == "city-san-rafael"
+        assert normalize_jurisdiction("berkeley-ca") == "city-berkeley"
+
+    def test_normalize_case_insensitive(self):
+        """Normalization is case-insensitive."""
+        assert normalize_jurisdiction("SAN-RAFAEL") == "city-san-rafael"
+        assert normalize_jurisdiction("City-San-Rafael") == "city-san-rafael"
+
+    def test_normalize_registered_cities(self):
+        """All registered jurisdiction IDs normalize correctly."""
+        for jid in JurisdictionRegistry.all_jurisdiction_ids():
+            result = normalize_jurisdiction(jid)
+            assert result == jid, f"Canonical ID should be idempotent: {jid}"
+
+    def test_normalize_special_ids(self):
+        """Special IDs without city- prefix work (e.g., bart)."""
+        assert normalize_jurisdiction("bart") == "bart"
+
+    # ─────────── Invalid jurisdiction tests (strict mode) ───────────
+
+    def test_reject_unknown_jurisdiction(self):
+        """Unknown jurisdiction IDs raise JurisdictionError in strict mode."""
+        with pytest.raises(JurisdictionError) as exc_info:
+            normalize_jurisdiction("bogus-city")
+        assert "Unknown jurisdiction ID" in str(exc_info.value)
+        assert "bogus-city" in str(exc_info.value)
+
+    def test_reject_typo_in_known_city(self):
+        """Typos in known city names are rejected."""
+        with pytest.raises(JurisdictionError):
+            normalize_jurisdiction("san-rafeal")  # typo: rafeal vs rafael
+
+    def test_reject_unknown_with_city_prefix(self):
+        """Unknown IDs with city- prefix are still rejected."""
+        with pytest.raises(JurisdictionError):
+            normalize_jurisdiction("city-atlantis")
+
+    def test_reject_unknown_with_state_suffix(self):
+        """Unknown IDs with state suffix are rejected."""
+        with pytest.raises(JurisdictionError):
+            normalize_jurisdiction("atlantis-ca")
+
+    def test_error_message_includes_valid_ids(self):
+        """Error message includes examples of valid IDs."""
+        with pytest.raises(JurisdictionError) as exc_info:
+            normalize_jurisdiction("invalid-city")
+        error_msg = str(exc_info.value)
+        assert "Valid IDs:" in error_msg
+        # Should include some real IDs
+        assert "city-" in error_msg or "bart" in error_msg
+
+    # ─────────── Non-strict mode tests ───────────
+
+    def test_nonstrict_allows_unknown(self):
+        """Non-strict mode returns unknown IDs with city- prefix (legacy behavior)."""
+        result = normalize_jurisdiction("bogus-city", strict=False)
+        assert result == "city-bogus-city"
+
+    def test_nonstrict_still_normalizes_valid(self):
+        """Non-strict mode still normalizes valid IDs correctly."""
+        assert normalize_jurisdiction("san-rafael", strict=False) == "city-san-rafael"
+        assert normalize_jurisdiction("city-oakland", strict=False) == "city-oakland"
+
+    # ─────────── Edge cases ───────────
+
+    def test_empty_string_passthrough(self):
+        """Empty string returns empty string."""
+        assert normalize_jurisdiction("") == ""
+
+    def test_whitespace_handling(self):
+        """Whitespace is trimmed."""
+        assert normalize_jurisdiction("  san-rafael  ") == "city-san-rafael"
+
+
+class TestDisplayJurisdiction:
+    """Test display_jurisdiction formatting."""
+
+    def test_display_known_jurisdiction(self):
+        """Known jurisdictions have proper display names."""
+        assert display_jurisdiction("city-san-rafael") == "San Rafael"
+
+    def test_display_generates_name_from_id(self):
+        """Display names are generated from canonical IDs."""
+        assert display_jurisdiction("city-oakland") == "Oakland"
+        assert display_jurisdiction("sonoma-county") == "Sonoma County"
