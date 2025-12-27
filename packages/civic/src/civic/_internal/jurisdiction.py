@@ -12,42 +12,52 @@ This module normalizes various input formats to the canonical form:
     - "san-rafael" -> "city-san-rafael"
     - "san-rafael-ca" -> "city-san-rafael"
     - "city-san-rafael" -> "city-san-rafael" (idempotent)
+
+Strict validation: Unknown jurisdiction IDs raise JurisdictionError.
 """
 
 from typing import Optional
 import re
 
 
-# Known jurisdiction mappings (extend as needed)
+class JurisdictionError(Exception):
+    """Raised when an invalid or unknown jurisdiction ID is provided."""
+    pass
+
+
+# Known jurisdiction mappings for common short forms.
+# All aliases MUST map to jurisdiction IDs that exist in JurisdictionRegistry.
 # Format: short_form -> canonical_form
 _JURISDICTION_ALIASES = {
     "san-rafael": "city-san-rafael",
     "san-rafael-ca": "city-san-rafael",
     "berkeley": "city-berkeley",
     "berkeley-ca": "city-berkeley",
-    "marin": "county-marin",
-    "marin-ca": "county-marin",
 }
 
-# Display names for jurisdictions
+# Display names for jurisdictions (override generated names)
 _DISPLAY_NAMES = {
     "city-san-rafael": "San Rafael",
     "city-berkeley": "Berkeley",
-    "county-marin": "Marin County",
 }
 
 
-def normalize_jurisdiction(jurisdiction_id: str) -> str:
+def normalize_jurisdiction(jurisdiction_id: str, strict: bool = True) -> str:
     """
     Normalize jurisdiction ID to canonical format.
 
     Converts various input formats to canonical "city-{name}" or "county-{name}".
+    With strict=True (default), raises JurisdictionError for unknown jurisdictions.
 
     Args:
         jurisdiction_id: Input jurisdiction ID in any supported format
+        strict: If True, raise JurisdictionError for unknown IDs (default: True)
 
     Returns:
         Canonical jurisdiction ID
+
+    Raises:
+        JurisdictionError: If strict=True and jurisdiction is not in the registry
 
     Examples:
         >>> normalize_jurisdiction("san-rafael")
@@ -56,15 +66,29 @@ def normalize_jurisdiction(jurisdiction_id: str) -> str:
         'city-san-rafael'
         >>> normalize_jurisdiction("city-san-rafael")
         'city-san-rafael'
+        >>> normalize_jurisdiction("bogus-city")
+        JurisdictionError: Unknown jurisdiction ID: 'bogus-city'
     """
+    # Import here to avoid circular import
+    from civic.jurisdiction import JurisdictionRegistry
+
     if not jurisdiction_id:
         return jurisdiction_id
 
     # Normalize to lowercase
     normalized = jurisdiction_id.lower().strip()
 
-    # Already canonical format
+    # Already canonical format - validate against registry
     if normalized.startswith(("city-", "county-")):
+        if JurisdictionRegistry.has_jurisdiction(normalized):
+            return normalized
+        # Special case: some IDs like "bart" or "sonoma-county" don't have prefix
+        # Check without assuming prefix format
+        if strict:
+            raise JurisdictionError(
+                f"Unknown jurisdiction ID: '{jurisdiction_id}'. "
+                f"Valid IDs: {', '.join(sorted(JurisdictionRegistry.all_jurisdiction_ids())[:5])}..."
+            )
         return normalized
 
     # Check known aliases
@@ -77,10 +101,28 @@ def normalize_jurisdiction(jurisdiction_id: str) -> str:
         base = normalized[:-3]  # Remove "-ca" etc.
         if base in _JURISDICTION_ALIASES:
             return _JURISDICTION_ALIASES[base]
-        # Default to city if not found
-        return f"city-{base}"
+        # Try with city- prefix
+        candidate = f"city-{base}"
+        if JurisdictionRegistry.has_jurisdiction(candidate):
+            return candidate
 
-    # Default to city prefix for unknown formats
+    # Try with city- prefix as last resort
+    candidate = f"city-{normalized}"
+    if JurisdictionRegistry.has_jurisdiction(candidate):
+        return candidate
+
+    # Check for special jurisdiction IDs without prefix (e.g., "bart", "sonoma-county")
+    if JurisdictionRegistry.has_jurisdiction(normalized):
+        return normalized
+
+    # Strict mode: reject unknown jurisdictions
+    if strict:
+        raise JurisdictionError(
+            f"Unknown jurisdiction ID: '{jurisdiction_id}'. "
+            f"Valid IDs: {', '.join(sorted(JurisdictionRegistry.all_jurisdiction_ids())[:5])}..."
+        )
+
+    # Non-strict mode: return with city- prefix (legacy behavior)
     return f"city-{normalized}"
 
 

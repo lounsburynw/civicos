@@ -6258,3 +6258,48 @@ Rejected alternatives:
 
 ### Next P0
 strict_jurisdiction_normalization - Fix normalize_jurisdiction() to reject unknown IDs instead of silently adding 'city-' prefix.
+
+## Session 372: Strict Jurisdiction Normalization
+Date: 2025-12-26
+
+### Completed
+- `strict_jurisdiction_normalization`: Fixed normalize_jurisdiction() to reject unknown jurisdiction IDs
+
+### Changes Made
+1. **Added JurisdictionError exception** (`_internal/jurisdiction.py:23-25`)
+   - New exception class for invalid jurisdiction IDs
+
+2. **Implemented strict validation** (`_internal/jurisdiction.py:45-128`)
+   - Added `strict` parameter (default=True)
+   - Validates against JurisdictionRegistry.has_jurisdiction()
+   - Raises JurisdictionError for unknown IDs with helpful message
+   - Non-strict mode (strict=False) preserves legacy behavior
+
+3. **Fixed duplicate in civic_chat_router.py** (lines 250-275)
+   - Now delegates to core normalize_jurisdiction with strict=False
+   - Preserves special "all" handling for chat context
+
+4. **Cleaned up stale aliases**
+   - Removed county-marin from _JURISDICTION_ALIASES (not a registered jurisdiction)
+   - Updated _DISPLAY_NAMES to match
+
+5. **Added comprehensive tests** (test_jurisdiction.py:195-296)
+   - 18 new tests covering:
+     - Valid alias normalization
+     - Canonical format idempotence
+     - State suffix stripping
+     - Case insensitivity
+     - Strict mode rejection of unknown IDs
+     - Non-strict mode fallback
+     - Error message content
+   - All 40 tests pass
+
+### Key Files
+- `packages/civic/src/civic/_internal/jurisdiction.py` - Core implementation
+- `packages/civic-services/src/civic_services/chat/civic_chat_router.py` - Fixed duplicate
+- `packages/civic/tests/test_jurisdiction.py` - New tests
+- `pilot.json` - Marked strict_jurisdiction_normalization as ready
+
+### Progress
+- Before: 174/191 items ready (91%)
+- After: 175/191 items ready (92%)
