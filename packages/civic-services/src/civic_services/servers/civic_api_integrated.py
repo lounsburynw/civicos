@@ -7735,6 +7735,9 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
 
         Returns paginated results with full schema-faithful data for the
         data browser widget.
+
+        SESSION 387: Supports both SQLite and Postgres backends via DATABASE_URL.
+        Uses backend_type property to determine SQL syntax (? vs %s placeholders).
         """
         from urllib.parse import parse_qs, urlparse
 
@@ -7768,7 +7771,17 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
             from civic._internal.jurisdiction import normalize_jurisdiction
 
             state_db_path = get_user_path('civic_state.db')
-            if not Path(state_db_path).exists():
+
+            # SESSION 387: Create Civic instance - will use PostgresBackend if DATABASE_URL is set
+            civic = Civic(jurisdiction_id, db_path=str(state_db_path))
+            canonical_jurisdiction = normalize_jurisdiction(jurisdiction_id)
+
+            # Detect backend type for SQL syntax differences
+            is_postgres = civic._storage.backend_type == 'postgres'
+            ph = '%s' if is_postgres else '?'  # Placeholder syntax
+
+            # For SQLite-only: check if local db exists
+            if not is_postgres and not Path(state_db_path).exists():
                 self.send_json({
                     'error': f'No database found at: {state_db_path}',
                     'data_type': data_type,
@@ -7778,9 +7791,6 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                     'per_page': per_page
                 })
                 return
-
-            civic = Civic(jurisdiction_id, db_path=str(state_db_path))
-            canonical_jurisdiction = normalize_jurisdiction(jurisdiction_id)
 
             items = []
             total = 0
@@ -7795,12 +7805,12 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                 filter_clause = ""
                 filter_params = [canonical_jurisdiction]
                 if filter_column and filter_value and filter_column in allowed_filter_columns:
-                    filter_clause = f" AND {filter_column} = ?"
+                    filter_clause = f" AND {filter_column} = {ph}"
                     filter_params.append(filter_value)
 
                 cursor.execute(f"""
                     SELECT COUNT(*) FROM meetings
-                    WHERE jurisdiction_id = ?
+                    WHERE jurisdiction_id = {ph}
                     AND valid_to IS NULL
                     {filter_clause}
                 """, filter_params)
@@ -7809,11 +7819,11 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                 # Get paginated meetings with all columns
                 cursor.execute(f"""
                     SELECT * FROM meetings
-                    WHERE jurisdiction_id = ?
+                    WHERE jurisdiction_id = {ph}
                     AND valid_to IS NULL
                     {filter_clause}
                     ORDER BY meeting_datetime DESC
-                    LIMIT ? OFFSET ?
+                    LIMIT {ph} OFFSET {ph}
                 """, filter_params + [per_page, offset])
 
                 columns = [desc[0] for desc in cursor.description]
@@ -7840,13 +7850,13 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                 filter_params = [canonical_jurisdiction]
                 if filter_column and filter_value and filter_column in allowed_filter_columns:
                     # Prefix with 'a.' for agenda_items table
-                    filter_clause = f" AND a.{filter_column} = ?"
+                    filter_clause = f" AND a.{filter_column} = {ph}"
                     filter_params.append(filter_value)
 
                 cursor.execute(f"""
                     SELECT COUNT(*) FROM agenda_items a
                     JOIN meetings m ON a.meeting_id = m.id
-                    WHERE m.jurisdiction_id = ?
+                    WHERE m.jurisdiction_id = {ph}
                     AND a.valid_to IS NULL
                     AND m.valid_to IS NULL
                     {filter_clause}
@@ -7856,12 +7866,12 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                 cursor.execute(f"""
                     SELECT a.* FROM agenda_items a
                     JOIN meetings m ON a.meeting_id = m.id
-                    WHERE m.jurisdiction_id = ?
+                    WHERE m.jurisdiction_id = {ph}
                     AND a.valid_to IS NULL
                     AND m.valid_to IS NULL
                     {filter_clause}
                     ORDER BY a.extracted_at DESC
-                    LIMIT ? OFFSET ?
+                    LIMIT {ph} OFFSET {ph}
                 """, filter_params + [per_page, offset])
 
                 columns = [desc[0] for desc in cursor.description]
@@ -7879,14 +7889,21 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
 
             elif data_type == 'decisions':
                 # SESSION 366: Query decisions from SQL
+                # SESSION 387: Support both SQLite and Postgres backends
                 conn = civic._storage._get_connection()
                 cursor = conn.cursor()
 
-                # Check if decisions table exists
-                cursor.execute("""
-                    SELECT name FROM sqlite_master
-                    WHERE type='table' AND name='decisions'
-                """)
+                # Check if decisions table exists (backend-agnostic)
+                if is_postgres:
+                    cursor.execute("""
+                        SELECT table_name FROM information_schema.tables
+                        WHERE table_schema = 'public' AND table_name = 'decisions'
+                    """)
+                else:
+                    cursor.execute("""
+                        SELECT name FROM sqlite_master
+                        WHERE type='table' AND name='decisions'
+                    """)
                 if not cursor.fetchone():
                     conn.close()
                     self.send_json({
@@ -7904,12 +7921,12 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                 filter_clause = ""
                 filter_params = [canonical_jurisdiction]
                 if filter_column and filter_value and filter_column in allowed_filter_columns:
-                    filter_clause = f" AND {filter_column} = ?"
+                    filter_clause = f" AND {filter_column} = {ph}"
                     filter_params.append(filter_value)
 
                 cursor.execute(f"""
                     SELECT COUNT(*) FROM decisions
-                    WHERE jurisdiction_id = ?
+                    WHERE jurisdiction_id = {ph}
                     AND valid_to IS NULL
                     {filter_clause}
                 """, filter_params)
@@ -7917,11 +7934,11 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
 
                 cursor.execute(f"""
                     SELECT * FROM decisions
-                    WHERE jurisdiction_id = ?
+                    WHERE jurisdiction_id = {ph}
                     AND valid_to IS NULL
                     {filter_clause}
                     ORDER BY meeting_date DESC
-                    LIMIT ? OFFSET ?
+                    LIMIT {ph} OFFSET {ph}
                 """, filter_params + [per_page, offset])
 
                 columns = [desc[0] for desc in cursor.description]
@@ -7934,6 +7951,7 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
 
             elif data_type == 'issues':
                 # SESSION 364: Query issues from SQL (not JSON checkpoint)
+                # SESSION 387: Support both SQLite and Postgres backends
                 conn = civic._storage._get_connection()
                 cursor = conn.cursor()
 
@@ -7941,12 +7959,12 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                 filter_clause = ""
                 filter_params = [canonical_jurisdiction]
                 if filter_column and filter_value and filter_column in allowed_filter_columns:
-                    filter_clause = f" AND {filter_column} = ?"
+                    filter_clause = f" AND {filter_column} = {ph}"
                     filter_params.append(filter_value)
 
                 cursor.execute(f"""
                     SELECT COUNT(*) FROM issues
-                    WHERE jurisdiction_id = ?
+                    WHERE jurisdiction_id = {ph}
                     AND valid_to IS NULL
                     {filter_clause}
                 """, filter_params)
@@ -7955,11 +7973,11 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                 # Get paginated issues with all columns
                 cursor.execute(f"""
                     SELECT * FROM issues
-                    WHERE jurisdiction_id = ?
+                    WHERE jurisdiction_id = {ph}
                     AND valid_to IS NULL
                     {filter_clause}
                     ORDER BY created_at DESC
-                    LIMIT ? OFFSET ?
+                    LIMIT {ph} OFFSET {ph}
                 """, filter_params + [per_page, offset])
 
                 columns = [desc[0] for desc in cursor.description]
@@ -7970,11 +7988,22 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                     items.append(item)
                 conn.close()
 
+            # SESSION 387: Serialize datetime objects for Postgres (returns native datetime, not strings)
+            def serialize_value(v):
+                if isinstance(v, datetime):
+                    return v.isoformat()
+                return v
+
+            serialized_items = [
+                {k: serialize_value(v) for k, v in item.items()}
+                for item in items
+            ]
+
             # Build response with schema metadata
             result = {
                 'data_type': data_type,
                 'jurisdiction': jurisdiction_id,
-                'items': items,
+                'items': serialized_items,
                 'total': total,
                 'page': page,
                 'per_page': per_page,
@@ -7994,7 +8023,7 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
                 'data_type': data_type,
                 'items': [],
                 'total': 0
-            }, status=500)
+            }, status_code=500)
 
     def serve_vector_stats(self):
         """SESSION 362: Vector collection statistics for ERD visualization.
