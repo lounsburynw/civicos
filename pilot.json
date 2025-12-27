@@ -707,14 +707,15 @@
         "completed_session": 380
       },
       "vector_indexing_cloud": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Wire pipeline INDEX stage to use PgVectorBackend instead of ChromaDB",
-        "note": "PgVectorBackend is implemented and tested. Need to update Pipeline to use pgvector for cloud deployments. SqlIndexTarget protocol already supports this pattern."
+        "note": "Created civic-extract vectors CLI command. Indexes chunks/decisions from Postgres into pgvector. Supports --stats, --dry-run, --test-search. Uses PgVectorBackend.index_from_storage().",
+        "completed_session": 384
       },
       "seeclickfix_cloud_storage": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Wire seeclickfix.py CLI to store issues in Postgres",
         "note": "Currently seeclickfix.py stores to local JSON checkpoint. Need issues table in PostgresBackend and update CLI to use get_storage_backend(). 1,340 issues currently in local SQLite."
       }
