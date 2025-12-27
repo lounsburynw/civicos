@@ -7,11 +7,13 @@ Usage:
     civic-extract youtube --jurisdiction city-san-rafael
     civic-extract youtube --jurisdiction city-san-rafael --schedule
     civic-extract youtube --jurisdiction city-san-rafael --dry-run
+    civic-extract youtube --jurisdiction city-san-rafael --cloud  # Store in Supabase
 """
 
 import argparse
 import json
 import logging
+import os
 import re
 import sys
 from dataclasses import dataclass, asdict
@@ -112,6 +114,11 @@ def add_youtube_parser(subparsers: argparse._SubParsersAction) -> None:
         default=10,
         help="Request timeout in seconds (default: 10)",
     )
+    parser.add_argument(
+        "--cloud",
+        action="store_true",
+        help="Store results in cloud storage (requires DATABASE_URL)",
+    )
 
 
 def run_youtube(args: argparse.Namespace) -> int:
@@ -127,6 +134,7 @@ def run_youtube(args: argparse.Namespace) -> int:
             args.output_dir,
             args.checkpoint_dir,
             args.timeout,
+            cloud=args.cloud,
         )
         return 0  # Never reached (scheduler runs forever)
     else:
@@ -138,6 +146,7 @@ def run_youtube(args: argparse.Namespace) -> int:
             checkpoint_dir=args.checkpoint_dir,
             timeout=args.timeout,
             dry_run=args.dry_run,
+            cloud=args.cloud,
         )
 
         if results is None and not args.dry_run:
@@ -285,6 +294,7 @@ def run_youtube_discovery(
     checkpoint_dir: str = "data/checkpoints",
     timeout: int = 10,
     dry_run: bool = False,
+    cloud: bool = False,
 ) -> Optional[List[VideoResult]]:
     """
     Run YouTube video discovery for a jurisdiction.
@@ -297,6 +307,7 @@ def run_youtube_discovery(
         checkpoint_dir: Directory for checkpoint files
         timeout: Request timeout in seconds
         dry_run: If True, validate only - don't fetch pages
+        cloud: If True, store results in cloud storage (requires DATABASE_URL)
 
     Returns:
         List of VideoResult if successful, None if failed
@@ -405,6 +416,26 @@ def run_youtube_discovery(
     # Save final results
     if results:
         all_results = existing_results + [asdict(r) for r in results]
+
+        # Try cloud storage first if enabled
+        cloud_success = False
+        if cloud or os.environ.get("DATABASE_URL"):
+            try:
+                from civic.storage import get_storage_backend
+                backend = get_storage_backend()
+                if backend.backend_type == "postgres":
+                    # Store all videos (upsert semantics handles duplicates)
+                    count = backend.store_videos(jurisdiction_id, all_results)
+                    logger.info(f"Stored {count} videos in cloud storage ({backend.backend_type})")
+                    cloud_success = True
+                else:
+                    logger.info(f"Cloud storage not postgres ({backend.backend_type}), using JSON fallback")
+            except ImportError:
+                logger.warning("civic.storage not available, using JSON fallback")
+            except Exception as e:
+                logger.warning(f"Cloud storage failed: {e}, using JSON fallback")
+
+        # Always save local JSON as backup/cache (unless --cloud only mode in future)
         output_path.mkdir(parents=True, exist_ok=True)
         with open(output_file, "w") as f:
             json.dump(all_results, f, indent=2)
@@ -447,6 +478,7 @@ def run_scheduled(
     output_dir: str,
     checkpoint_dir: str,
     timeout: int,
+    cloud: bool = False,
 ) -> None:
     """
     Run YouTube discovery on a schedule.
@@ -473,6 +505,7 @@ def run_scheduled(
             output_dir=output_dir,
             checkpoint_dir=checkpoint_dir,
             timeout=timeout,
+            cloud=cloud,
         )
         logger.info("Scheduled run complete")
         logger.info("=" * 50)

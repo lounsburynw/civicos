@@ -6644,3 +6644,48 @@ Wired the ETL pipeline CLI to use cloud storage (PostgresBackend) when DATABASE_
 
 ### Next P0: r2_source_caching
 Cache raw scraped content (HTML, PDFs, API responses) in R2 to reduce repeat requests.
+
+## Session 379 (2025-12-27)
+
+**P0 Completed: youtube_cloud_storage**
+
+### Changes Made
+
+1. **PostgresBackend videos table** (`postgres_backend.py:373-400`)
+   - Added `videos` table with temporal versioning (id, jurisdiction_id, valid_from/to)
+   - Fields: meeting_url, title, date, youtube_url, discovered_at
+   - Indexes on jurisdiction_id and discovered_at
+
+2. **Video storage methods** (`postgres_backend.py:1352-1513`)
+   - `store_videos(jurisdiction_id, videos, as_of)` - upsert with temporal versioning
+   - `get_videos(jurisdiction_id, as_of, limit)` - temporal query
+   - `get_video_count(jurisdiction_id)` - count current videos
+   - Updated protocol verification to include video methods
+
+3. **youtube.py CLI cloud integration** (`youtube.py:117-121, 420-436`)
+   - Added `--cloud` flag to parser
+   - Auto-detects DATABASE_URL for cloud storage
+   - Stores to Postgres when available, falls back to local JSON
+   - Local JSON always written as cache/backup
+
+4. **Tests** (`test_storage_protocols.py:1430-1479`)
+   - Added TestVideoStorageMethods class (4 tests)
+   - Verifies method signatures and presence
+   - All 68 storage protocol tests passing
+   - All 34 smoke tests passing
+
+### Cloud Storage Status
+| Data Type | Backend | Status |
+|-----------|---------|--------|
+| SQL | PostgresBackend (Supabase) | ✅ 1 meeting, 186 decisions |
+| Vectors | PgVectorBackend (Supabase pgvector) | ✅ 186 embeddings |
+| Blobs | R2Backend (Cloudflare R2) | ✅ Ready |
+| Videos | PostgresBackend.videos | ✅ NEW: Ready |
+
+### Progress
+- Before: 180/202 items ready (89%)
+- After: 181/202 items ready (89.6%)
+- 1 item completed: youtube_cloud_storage
+
+### Next P0: audio_cloud_storage
+Wire audio.py CLI to store audio files in R2 with metadata in Postgres.

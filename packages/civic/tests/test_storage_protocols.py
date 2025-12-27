@@ -812,7 +812,7 @@ class TestProtocolIntegration:
 
 
 class TestPgVectorBackend:
-    """Tests for PgVectorBackend stub implementation."""
+    """Tests for PgVectorBackend implementation."""
 
     def test_pgvector_backend_has_required_properties(self):
         """PgVectorBackend exposes embedding_model and embedding_dimension."""
@@ -843,29 +843,32 @@ class TestPgVectorBackend:
         # Default dimension for nomic-embed-text-v1.5
         assert backend.embedding_dimension == 768
 
-    def test_pgvector_backend_methods_raise_not_implemented(self):
-        """PgVectorBackend methods raise NotImplementedError (stub)."""
+    def test_pgvector_backend_has_implemented_methods(self):
+        """PgVectorBackend has all required methods implemented."""
         from civic.storage import PgVectorBackend
 
         backend = PgVectorBackend(
             connection_string="postgresql://localhost/test"
         )
 
-        # All methods should raise NotImplementedError
-        with pytest.raises(NotImplementedError):
-            backend.validate()
+        # Verify methods exist and are callable
+        assert callable(backend.validate)
+        assert callable(backend.index_from_storage)
+        assert callable(backend.search)
+        assert callable(backend.get_stats)
+        assert callable(backend.delete_index)
 
-        with pytest.raises(NotImplementedError):
-            backend.index_from_storage(None, "city-san-rafael")
+    def test_pgvector_backend_validate_without_connection(self):
+        """PgVectorBackend.validate returns error when cannot connect."""
+        from civic.storage import PgVectorBackend
 
-        with pytest.raises(NotImplementedError):
-            backend.search("housing", "city-san-rafael")
+        backend = PgVectorBackend(
+            connection_string="postgresql://localhost:5432/nonexistent_db"
+        )
 
-        with pytest.raises(NotImplementedError):
-            backend.get_stats("city-san-rafael")
-
-        with pytest.raises(NotImplementedError):
-            backend.delete_index("city-san-rafael")
+        # Should not raise, but return validation result with errors
+        result = backend.validate()
+        assert result.connected is False or len(result.errors) > 0
 
     def test_pgvector_backend_is_importable(self):
         """PgVectorBackend can be imported from civic.storage."""
@@ -992,6 +995,10 @@ class TestPostgresBackendStructure:
             'store_chunks',
             'get_chunks',
             'get_chunk_count',
+            # Video methods (SESSION 379)
+            'store_videos',
+            'get_videos',
+            'get_video_count',
         ]
 
         for method in required_methods:
@@ -1418,3 +1425,54 @@ class TestGetBlobStorage:
         backend = get_blob_storage(path)
 
         assert isinstance(backend, LocalBlobBackend)
+
+
+# ============================================================================
+# Video Storage Tests (SESSION 379)
+# ============================================================================
+
+
+class TestVideoStorageMethods:
+    """Tests for video storage methods on PostgresBackend."""
+
+    def test_postgres_backend_has_video_methods(self):
+        """PostgresBackend has video storage methods."""
+        from civic.storage import PostgresBackend
+
+        assert hasattr(PostgresBackend, 'store_videos')
+        assert hasattr(PostgresBackend, 'get_videos')
+        assert hasattr(PostgresBackend, 'get_video_count')
+
+    def test_store_videos_signature(self):
+        """store_videos has correct signature."""
+        from civic.storage import PostgresBackend
+        import inspect
+
+        sig = inspect.signature(PostgresBackend.store_videos)
+        params = list(sig.parameters.keys())
+        assert 'self' in params
+        assert 'jurisdiction_id' in params
+        assert 'videos' in params
+        assert 'as_of' in params
+
+    def test_get_videos_signature(self):
+        """get_videos has correct signature."""
+        from civic.storage import PostgresBackend
+        import inspect
+
+        sig = inspect.signature(PostgresBackend.get_videos)
+        params = list(sig.parameters.keys())
+        assert 'self' in params
+        assert 'jurisdiction_id' in params
+        assert 'as_of' in params
+        assert 'limit' in params
+
+    def test_get_video_count_signature(self):
+        """get_video_count has correct signature."""
+        from civic.storage import PostgresBackend
+        import inspect
+
+        sig = inspect.signature(PostgresBackend.get_video_count)
+        params = list(sig.parameters.keys())
+        assert 'self' in params
+        assert 'jurisdiction_id' in params
