@@ -1,75 +1,49 @@
-# Recommended: vector_storage_decision
+# Session 375 Handoff
 
-**Priority:** P0
-**Area:** deployment_artifacts > cloud_storage
-**Date:** 2025-12-26
+## P0: Set Up Supabase (Postgres + pgvector) - User has no local disk space
 
-> This is recommended context from Session 370. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+### Why Cloud-First
+User doesn't have local disk space, so we need full cloud storage:
+- **SQL**: Supabase Postgres (free 500MB)
+- **Vectors**: Supabase pgvector (included)
+- **Blobs**: Cloudflare R2 ✅ Done
 
-## Context
+### Task 1: Create Supabase Project
+1. Go to https://supabase.com and sign up (free)
+2. Create new project (name: `civic-pilot`, region: US West)
+3. Get connection string from Settings → Database → Connection string (URI)
+4. Add to `.env`: `DATABASE_URL=postgresql://...`
 
-Session 370 completed **blob_storage_abstraction** - BlobStorage protocol with LocalBlobBackend (development) and R2Backend (production) for large files (PDFs, audio, transcripts). This completes the storage abstraction layer:
-- StorageBackend: Structured data (SQLite/Postgres)
-- BlobStorage: Binary files (local/R2)
-- VectorBackend: Embeddings (ChromaDB/pgvector - needs production decision)
+### Task 2: Implement PgVectorBackend
+Currently a stub at `packages/civic/src/civic/storage/postgres_backend.py`.
+Need to add pgvector support for embeddings.
 
-**Next step:** Document the vector storage strategy for production deployment.
+Alternative: Use Qdrant Cloud free tier (1GB) if pgvector is too much work.
 
-## Recommended Task: vector_storage_decision
+### Task 3: Migrate Data to Cloud
+```bash
+# After Supabase is configured
+python scripts/migrate_storage.py \
+  --target-postgres "$DATABASE_URL" \
+  --target-r2 "r2://2bdd8aed2560f0a2632f4178adfe6d9f/civic-pilot"
+```
 
-Document the vector storage strategy for production. This is a **decision document**, not code implementation.
+### Cloud Config (R2 already in .env)
+```
+R2_ACCESS_KEY_ID=0eeaaf1f463636b068b2c78dad0af05c
+R2_SECRET_ACCESS_KEY=***
+BLOB_STORAGE_URL=r2://2bdd8aed2560f0a2632f4178adfe6d9f/civic-pilot
+# Add after Supabase setup:
+DATABASE_URL=postgresql://...
+```
 
-**Options to evaluate:**
-1. **ChromaDB on Fly.io volume** (~$0.45/mo for 3GB)
-   - Already implemented and working
-   - Self-hosted, full control
-   - Requires volume management
+### Session 374 Accomplishments
+1. Created `scripts/migrate_storage.py` for cloud migration
+2. Fixed CLI pipeline bug (wasn't persisting to SQLite)
+3. Set up Cloudflare R2 and verified connection
+4. Tested end-to-end pipeline ingestion (17 meetings)
 
-2. **Qdrant Cloud free tier** (1GB)
-   - Managed service, no ops
-   - Free tier may be sufficient
-   - Would need new backend implementation
-
-3. **pgvector in Postgres** (shared with StorageBackend)
-   - Single database for everything
-   - Already have PostgresBackend
-   - PgVectorBackend is a stub (needs implementation)
-
-**Current state:** 880MB vector index fits all options.
-
-## Key Files
-
-- `packages/civic/src/civic/storage/vector.py` - VectorBackend protocol
-- `packages/civic/src/civic/storage/pgvector_backend.py` - PgVectorBackend stub (NotImplementedError)
-- `packages/civic/src/civic/_internal/meetings/chroma_backend.py` - Working ChromaDB implementation
-- `docs/critical/FINAL_PACKAGE_ARCHITECTURE.md` - Architecture context
-
-## Suggested Approach
-
-1. **Research current ChromaDB usage**:
-   - How is it deployed locally?
-   - What's the index size and query patterns?
-   - What would Fly.io volume setup look like?
-
-2. **Evaluate Qdrant Cloud**:
-   - Check free tier limits
-   - API compatibility with current VectorBackend protocol
-   - Migration complexity
-
-3. **Evaluate pgvector**:
-   - Would consolidate to single Postgres database
-   - PgVectorBackend needs implementation (currently stub)
-   - Check Supabase/Neon pgvector support
-
-4. **Write decision document**:
-   - Create `docs/decisions/vector_storage.md`
-   - Document pros/cons of each option
-   - Make a recommendation with rationale
-
-## Success Criteria
-
-- [ ] Decision document created in `docs/decisions/`
-- [ ] All three options evaluated with pros/cons
-- [ ] Clear recommendation with rationale
-- [ ] Cost analysis (must stay under $7/month total)
-- [ ] Migration path documented if changing from ChromaDB
+### Current Data (needs migration)
+- 17 meetings, 186 decisions in SQLite
+- 1340 issues
+- Vectors not yet indexed
