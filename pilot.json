@@ -686,10 +686,11 @@
         "completed_session": 382
       },
       "chunks_cloud_storage": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Wire PDF chunk extraction to store in Postgres",
-        "note": "chunks table exists in PostgresBackend with store_chunks()/get_chunks(). Need to wire PDF parsing pipeline to use cloud storage instead of local ChromaDB."
+        "note": "Session 383: Created chunks.py CLI command. Usage: civic-extract chunks --jurisdiction city-san-rafael --cloud. Downloads agenda PDFs, parses with AgendaPacketParser, stores chunks via PostgresBackend.store_chunks() with incremental meeting_id support. Features: --dry-run, --limit, --since, --until, --schedule. Fixed store_chunks() to support incremental storage (meeting_id parameter) instead of snapshot mode.",
+        "completed_session": 383
       },
       "youtube_cloud_storage": {
         "status": "ready",
@@ -707,7 +708,7 @@
       },
       "vector_indexing_cloud": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Wire pipeline INDEX stage to use PgVectorBackend instead of ChromaDB",
         "note": "PgVectorBackend is implemented and tested. Need to update Pipeline to use pgvector for cloud deployments. SqlIndexTarget protocol already supports this pattern."
       },
