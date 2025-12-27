@@ -679,14 +679,15 @@
         "completed_session": 381
       },
       "decision_extraction_pipeline": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "Automate decision extraction from minutes PDFs in ETL pipeline",
-        "note": "Currently decisions are extracted manually via retrospective_analyzer.py. Need CLI command or pipeline stage: download minutes PDF -> parse -> extract decisions -> PostgresBackend.store_decisions(). The 186 existing decisions came from manual batch extraction."
+        "status": "ready",
+        "priority": 2,
+        "artifact": "Automate decision extraction from meeting agendas in ETL pipeline",
+        "note": "Session 382: Created decisions.py CLI command. Usage: civic-extract decisions --jurisdiction city-san-rafael --cloud. Features: --dry-run, --limit, --since, --until, --schedule, --min-stakes, --min-budget. Uses RetrospectiveAnalyzer to extract high-stakes decisions from agendas and stores via PostgresBackend.store_decisions(). Checkpoint/resume support included.",
+        "completed_session": 382
       },
       "chunks_cloud_storage": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Wire PDF chunk extraction to store in Postgres",
         "note": "chunks table exists in PostgresBackend with store_chunks()/get_chunks(). Need to wire PDF parsing pipeline to use cloud storage instead of local ChromaDB."
       },
