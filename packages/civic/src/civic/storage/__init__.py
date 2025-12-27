@@ -51,6 +51,14 @@ from .backend import (
     StorageStats,
     StorageValidationResult,
 )
+from .blob import (
+    BlobStats,
+    BlobStorage,
+    BlobValidationResult,
+    LocalBlobBackend,
+    R2Backend,
+    get_blob_storage,
+)
 from .pgvector_backend import PgVectorBackend
 from .postgres_backend import PostgresBackend
 from .sqlite_backend import SQLiteBackend
@@ -116,6 +124,13 @@ __all__ = [
     "SQLiteBackend",
     # PostgreSQL implementation
     "PostgresBackend",
+    # Blob storage
+    "BlobStorage",
+    "BlobStats",
+    "BlobValidationResult",
+    "LocalBlobBackend",
+    "R2Backend",
+    "get_blob_storage",
     # Vector backend
     "VectorBackend",
     "VectorStats",

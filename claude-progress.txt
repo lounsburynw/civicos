@@ -6165,3 +6165,68 @@ The `get_storage_backend()` factory allows transparent backend selection via DAT
 ### Progress
 - Before: 171/191 items ready (89.5%)
 - After: 172/191 items ready (90.1%)
+
+## Session 370: blob_storage_abstraction - BlobStorage Protocol for Large Files
+
+**Date:** 2025-12-26
+**Item:** blob_storage_abstraction (deployment_artifacts > cloud_storage)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Created BlobStorage protocol and implementations for storing large binary files (PDFs, audio, transcripts) outside the database. This complements StorageBackend (structured data) with blob-optimized storage.
+
+### Implementation
+
+1. **BlobStorage Protocol** (`packages/civic/src/civic/storage/blob.py`):
+   - `BlobStorage`: Protocol for binary object storage with upload/download/list/delete
+   - `BlobStats`: Statistics dataclass (total_objects, total_bytes, by_content_type)
+   - `BlobValidationResult`: Preflight validation result (connected, writable, errors)
+
+2. **LocalBlobBackend** (development):
+   - Filesystem-based storage for local development
+   - Creates nested directory structures automatically
+   - Stores metadata in memory (content types)
+
+3. **R2Backend** (production):
+   - Cloudflare R2 (S3-compatible) using boto3
+   - 10GB free tier with zero egress fees
+   - Factory methods: `from_env()` and `from_url()`
+   - Full CRUD operations via S3 API
+
+4. **Factory Function**:
+   - `get_blob_storage(url)`: Auto-selects backend based on URL scheme
+   - `r2://` → R2Backend
+   - `local://` → LocalBlobBackend
+   - Default → LocalBlobBackend("data/blobs")
+
+5. **Environment Configuration** (`.env.example`):
+   - `BLOB_STORAGE_URL`: Storage URL (r2:// or local://)
+   - `R2_ACCESS_KEY_ID`: R2 API token access key
+   - `R2_SECRET_ACCESS_KEY`: R2 API token secret
+
+### Tests Added
+24 new tests in `test_storage_protocols.py`:
+- BlobStats dataclass tests (3)
+- BlobValidationResult tests (3)
+- BlobStorage protocol tests (2)
+- LocalBlobBackend tests (9)
+- R2Backend structure tests (4)
+- get_blob_storage factory tests (7)
+
+### Architecture Pattern
+Mirrors the existing StorageBackend pattern:
+- Protocol defines interface
+- Multiple implementations (Local, R2)
+- Factory function for environment-based selection
+- Dataclasses for stats and validation
+
+### Changes Made
+- `packages/civic/src/civic/storage/blob.py` - New file: BlobStorage protocol + implementations
+- `packages/civic/src/civic/storage/__init__.py` - Added exports for blob types
+- `.env.example` - Added BLOB_STORAGE section
+- `packages/civic/tests/test_storage_protocols.py` - Added 24 blob storage tests
+- `pilot.json` - Marked blob_storage_abstraction as ready
+
+### Progress
+- Before: 172/191 items ready (90.1%)
+- After: 173/191 items ready (90.6%)
