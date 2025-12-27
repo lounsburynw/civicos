@@ -1271,6 +1271,198 @@ class PostgresBackend:
 
         return count
 
+    # ========== Agenda Item Methods (SESSION 388) ==========
+
+    def store_agenda_items(
+        self,
+        meeting_id: str,
+        agenda_items: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store agenda items with temporal versioning.
+
+        Atomic operation: either all items are stored or none.
+        Closes existing items for this meeting and inserts new versions.
+
+        Args:
+            meeting_id: Meeting ID these agenda items belong to
+            agenda_items: List of agenda item dictionaries from extraction
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of agenda items successfully stored
+
+        Raises:
+            psycopg2.Error: If atomic store operation fails
+        """
+        as_of = as_of or datetime.now()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Close previous versions for this meeting (set valid_to)
+            cursor.execute("""
+                UPDATE agenda_items
+                SET valid_to = %s
+                WHERE meeting_id = %s
+                  AND valid_to IS NULL
+            """, (as_of.isoformat(), meeting_id))
+
+            # Insert new versions
+            for item in agenda_items:
+                # Generate ID if not provided
+                item_id = item.get('id') or f"{meeting_id}-{item.get('item_number', item.get('item_ref', 'unknown'))}"
+
+                # Handle project_types (array -> first element for project_type column)
+                project_types = item.get('project_types', [])
+                project_type = project_types[0] if project_types else item.get('project_type')
+
+                cursor.execute("""
+                    INSERT INTO agenda_items (
+                        id, meeting_id, item_number, title, description,
+                        project_type, actionability, impact_level,
+                        financial_impact_cents, summary, why_it_matters,
+                        participation_guide, extracted_at, valid_from, valid_to, full_data
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s)
+                """, (
+                    item_id,
+                    meeting_id,
+                    item.get('item_number') or item.get('item_ref'),
+                    item.get('title'),
+                    item.get('description'),
+                    project_type,
+                    'actionable' if item.get('actionable') else 'informational',
+                    item.get('impact_level'),
+                    item.get('financial_impact_cents'),
+                    item.get('summary'),
+                    item.get('why_it_matters') or item.get('actionable_reason'),
+                    item.get('participation_guide') or item.get('public_comment_info'),
+                    as_of.isoformat(),
+                    as_of.isoformat(),
+                    json.dumps(item, cls=DateTimeEncoder),
+                ))
+
+            conn.commit()
+            return len(agenda_items)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_agenda_items(
+        self,
+        meeting_id: Optional[str] = None,
+        jurisdiction_id: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve agenda items with optional filtering.
+
+        Args:
+            meeting_id: Filter by specific meeting ID
+            jurisdiction_id: Filter by jurisdiction (requires join with meetings)
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of items to return
+
+        Returns:
+            List of agenda item dictionaries
+        """
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Build query based on filters
+        if meeting_id:
+            query = """
+                SELECT * FROM agenda_items
+                WHERE meeting_id = %s
+                  AND valid_from <= %s
+                  AND (valid_to IS NULL OR valid_to > %s)
+                ORDER BY item_number
+            """
+            params = [meeting_id, as_of.isoformat(), as_of.isoformat()]
+        elif jurisdiction_id:
+            # Join with meetings to filter by jurisdiction
+            query = """
+                SELECT a.* FROM agenda_items a
+                JOIN meetings m ON a.meeting_id = m.id
+                WHERE m.jurisdiction_id = %s
+                  AND a.valid_from <= %s
+                  AND (a.valid_to IS NULL OR a.valid_to > %s)
+                  AND m.valid_to IS NULL
+                ORDER BY m.meeting_datetime DESC, a.item_number
+            """
+            params = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+        else:
+            query = """
+                SELECT * FROM agenda_items
+                WHERE valid_from <= %s
+                  AND (valid_to IS NULL OR valid_to > %s)
+                ORDER BY meeting_id, item_number
+            """
+            params = [as_of.isoformat(), as_of.isoformat()]
+
+        if limit:
+            query += f" LIMIT {int(limit)}"
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to regular dicts
+        items = []
+        for row in rows:
+            item = dict(row)
+            # Parse full_data if present
+            if item.get('full_data'):
+                try:
+                    item['full_data'] = json.loads(item['full_data'])
+                except json.JSONDecodeError:
+                    pass
+            items.append(item)
+
+        return items
+
+    def get_agenda_item_count(self, jurisdiction_id: Optional[str] = None) -> int:
+        """
+        Get count of current agenda items.
+
+        Args:
+            jurisdiction_id: Filter by jurisdiction (optional)
+
+        Returns:
+            Number of current (non-expired) agenda items
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        if jurisdiction_id:
+            cursor.execute("""
+                SELECT COUNT(*) FROM agenda_items a
+                JOIN meetings m ON a.meeting_id = m.id
+                WHERE m.jurisdiction_id = %s
+                  AND a.valid_to IS NULL
+                  AND m.valid_to IS NULL
+            """, (jurisdiction_id,))
+        else:
+            cursor.execute("""
+                SELECT COUNT(*) FROM agenda_items
+                WHERE valid_to IS NULL
+            """)
+
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
     # ========== Chunk Methods (SESSION 367) ==========
 
     def store_chunks(

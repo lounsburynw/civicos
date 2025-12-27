@@ -7043,3 +7043,35 @@ Query: "housing development"
 
 ### Next P0: agenda_items_e2e_cloud
 Run agenda item extraction pipeline against cloud Postgres storage.
+
+### Session 388: agenda_items_e2e_cloud (2025-12-27)
+**P0 Completed:** agenda_items_e2e_cloud
+
+**Implemented:**
+1. Added `store_agenda_items()`, `get_agenda_items()`, `get_agenda_item_count()` methods to PostgresBackend
+2. Created `civic-extract agenda` CLI command for extracting agenda items from meeting pages
+3. Fixed broken import in `agenda_integration.py` (`llm_provider` -> `civic_services.core.llm_provider`)
+4. Ran full extraction on 46 cloud meetings:
+   - 43 meetings with items extracted
+   - 44 agenda items stored in cloud Postgres
+   - 8 cancelled meetings correctly detected
+   - Distribution: governance(15), housing(8), community(5), budget(4), public_safety(4), transportation(4), education(2), development(1), environment(1)
+
+**Files Modified:**
+- `packages/civic/src/civic/storage/postgres_backend.py` - Added agenda_items methods
+- `packages/civic-extraction/src/civic_extraction/cli/agenda.py` - New CLI command
+- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` - Registered agenda command
+- `packages/civic-services/src/civic_services/processing/agenda_integration.py` - Fixed import
+- `pilot.json` - Updated agenda_items_e2e_cloud status
+
+**E2E Cloud Data Status:**
+| Data Type | Count | Status |
+|-----------|-------|--------|
+| Meetings | 46 | ready |
+| Issues | 1,330 | ready |
+| **Agenda Items** | **44** | **ready** |
+| Decisions | 0 | P0 NEXT |
+| Chunks | 49 | pending |
+| Transcripts | 0 | pending |
+
+**Next P0:** decisions_e2e_cloud
