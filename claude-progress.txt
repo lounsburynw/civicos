@@ -6803,3 +6803,45 @@ civic-extract transcribe --jurisdiction city-san-rafael --cloud
 
 ### Next P0: decision_extraction_pipeline
 Automate decision extraction from minutes PDFs in ETL pipeline.
+
+## Session 382 (2025-12-27)
+### Task: decision_extraction_pipeline (P0)
+
+Created `decisions.py` CLI command for automated decision extraction from meeting agendas.
+
+### Usage
+```bash
+# Dry run to see what meetings would be processed
+civic-extract decisions --jurisdiction city-san-rafael --dry-run
+
+# Extract decisions and store in cloud
+civic-extract decisions --jurisdiction city-san-rafael --cloud
+
+# With limits and date filtering
+civic-extract decisions --jurisdiction city-san-rafael --cloud --limit 5 --since 2025-01-01
+
+# Scheduled mode (runs daily at 10am)
+civic-extract decisions --jurisdiction city-san-rafael --cloud --schedule
+```
+
+### Implementation
+- Created `/packages/civic-extraction/src/civic_extraction/cli/decisions.py`
+- Registered in CLI `__init__.py`
+- Uses `RetrospectiveAnalyzer.extract_high_stakes_decisions()` for LLM extraction
+- Stores via `PostgresBackend.store_decisions()`
+- Checkpoint/resume support for batch processing
+- Local fallback if cloud unavailable
+
+### Tests
+- 68 storage protocol tests: ✅ passed
+- 34 smoke tests: ✅ passed
+- CLI --help verified
+- CLI --dry-run verified (found 46 meetings in cloud)
+
+### Progress
+- Before: 183/202 items ready (90.6%)
+- After: 184/202 items ready (91.1%)
+- 1 item completed: decision_extraction_pipeline
+
+### Next P0: chunks_cloud_storage
+Wire PDF chunk extraction to store in Postgres. chunks table exists in PostgresBackend with store_chunks()/get_chunks().
