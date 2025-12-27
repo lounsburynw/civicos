@@ -6752,3 +6752,54 @@ civic-extract audio --jurisdiction city-san-rafael --cloud
 
 ### Next P0: assemblyai_transcript_storage
 Store AssemblyAI transcripts in Postgres with R2 audio backup.
+
+## Session 381: assemblyai_transcript_storage - Store Transcripts in Cloud
+
+**Date:** 2025-12-27
+**Item:** assemblyai_transcript_storage (pipeline_automation > cloud_integration)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Added cloud storage support for AssemblyAI transcripts. Transcripts are stored in Postgres (via PostgresBackend), with audio files read from R2 cloud storage.
+
+### Implementation
+
+1. **PostgresBackend transcript methods** (`packages/civic/src/civic/storage/postgres_backend.py`):
+   - `store_transcripts()`: Store transcripts with temporal versioning (upsert semantics)
+   - `get_transcripts()`: Get all transcripts for a jurisdiction
+   - `get_transcript()`: Get specific transcript by video_id
+   - `get_transcript_count()`: Count transcripts for jurisdiction
+   - Added `transcripts` table with: id, jurisdiction_id, video_id, transcript (JSONB), text, duration_seconds, word_count, speakers_count, utterances_count, processing_service, cost_usd, created_at, valid_from, valid_to
+   - Indexes on jurisdiction_id, video_id, and created_at
+
+2. **transcribe.py CLI updates** (`packages/civic-extraction/src/civic_extraction/cli/transcribe.py`):
+   - Added `--cloud` flag to enable cloud storage mode
+   - `find_audio_files()`: Returns videos from Postgres + R2 check in cloud mode
+   - `transcribe_audio_file()`: Downloads audio from R2, stores transcript in Postgres
+   - `load_audio_from_cloud()`: Downloads audio bytes from R2
+   - `store_transcript_to_cloud()`: Stores transcript in Postgres
+   - `transcript_exists_in_cloud()`: Checks if transcript exists in Postgres
+   - Temp file cleanup for cloud audio downloads
+   - Local file fallback still works
+
+### Usage
+```bash
+# Download audio from R2, transcribe, store in Postgres
+civic-extract transcribe --jurisdiction city-san-rafael --cloud
+
+# Transcript stored in: Postgres transcripts table
+# Audio read from: r2://bucket/audio/city-san-rafael/{video_id}.mp3
+```
+
+### Tests
+- 68 storage protocol tests: ✅ passed
+- 34 smoke tests: ✅ passed
+- CLI import and help verified
+
+### Progress
+- Before: 182/202 items ready (90.1%)
+- After: 183/202 items ready (90.6%)
+- 1 item completed: assemblyai_transcript_storage
+
+### Next P0: decision_extraction_pipeline
+Automate decision extraction from minutes PDFs in ETL pipeline.

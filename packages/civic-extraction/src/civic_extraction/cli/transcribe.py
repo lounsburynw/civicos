@@ -8,6 +8,12 @@ Usage:
     civic-extract transcribe --jurisdiction city-san-rafael --schedule
     civic-extract transcribe --jurisdiction city-san-rafael --dry-run
     civic-extract transcribe --jurisdiction city-san-rafael --limit 5
+    civic-extract transcribe --jurisdiction city-san-rafael --cloud
+
+Cloud mode (--cloud):
+    - Reads audio files from R2 blob storage
+    - Stores transcripts in Postgres (requires DATABASE_URL)
+    - Falls back to local storage if cloud unavailable
 
 Cost: $0.02/minute ($0.015 transcription + $0.005 diarization)
 2-hour meeting = $2.40
@@ -126,6 +132,11 @@ def add_transcribe_parser(subparsers: argparse._SubParsersAction) -> None:
         default=10,
         help="Maximum expected speakers for diarization (default: 10)",
     )
+    parser.add_argument(
+        "--cloud",
+        action="store_true",
+        help="Store transcripts in cloud storage (requires DATABASE_URL)",
+    )
 
 
 def run_transcribe(args: argparse.Namespace) -> int:
@@ -141,6 +152,7 @@ def run_transcribe(args: argparse.Namespace) -> int:
             args.checkpoint_dir,
             args.min_speakers,
             args.max_speakers,
+            cloud=args.cloud,
         )
         return 0  # Never reached (scheduler runs forever)
     else:
@@ -153,6 +165,7 @@ def run_transcribe(args: argparse.Namespace) -> int:
             limit=args.limit,
             min_speakers=args.min_speakers,
             max_speakers=args.max_speakers,
+            cloud=args.cloud,
         )
 
         if results is None and not args.dry_run:
@@ -188,20 +201,57 @@ def setup_assemblyai() -> bool:
     return True
 
 
-def find_audio_files(jurisdiction_id: str, input_dir: str) -> Optional[List[Path]]:
+def find_audio_files(
+    jurisdiction_id: str, input_dir: str, cloud: bool = False
+) -> Optional[List]:
     """
-    Find audio files for a jurisdiction.
+    Find audio files for a jurisdiction from local storage or cloud.
 
-    First tries to use the manifest from audio command, then falls back
-    to finding all .mp3 files in the directory.
+    In cloud mode, returns list of video dicts from Postgres.
+    In local mode, returns list of Path objects from local filesystem.
 
     Args:
         jurisdiction_id: Jurisdiction ID (e.g., "city-san-rafael")
-        input_dir: Directory containing audio files
+        input_dir: Directory containing audio files (local mode)
+        cloud: If True, try cloud storage first
 
     Returns:
-        List of audio file paths or None if none found
+        List of audio file paths (local) or video dicts (cloud), or None if none found
     """
+    # Try cloud storage first if enabled
+    if cloud or os.environ.get("DATABASE_URL"):
+        try:
+            from civic.storage import get_storage_backend, get_blob_storage
+
+            backend = get_storage_backend()
+            if backend.backend_type == "postgres":
+                videos = backend.get_videos(jurisdiction_id)
+                if videos:
+                    # Filter to videos that have audio in R2
+                    blob = get_blob_storage()
+                    audio_videos = []
+                    for video in videos:
+                        video_id = video.get("id") or video.get("video_id")
+                        if video_id:
+                            r2_key = f"audio/{jurisdiction_id}/{video_id}.mp3"
+                            if blob.exists(r2_key):
+                                # Add video_id to the dict for consistency
+                                video["video_id"] = video_id
+                                audio_videos.append(video)
+
+                    if audio_videos:
+                        logger.info(
+                            f"Found {len(audio_videos)} audio files in cloud storage (R2)"
+                        )
+                        return audio_videos
+                    else:
+                        logger.info("No audio files in R2, trying local fallback")
+        except ImportError:
+            logger.debug("civic.storage not available, using local fallback")
+        except Exception as e:
+            logger.warning(f"Cloud storage check failed: {e}, using local fallback")
+
+    # Local mode fallback
     input_path = Path(input_dir)
 
     if not input_path.exists():
@@ -273,47 +323,83 @@ def transcript_exists(video_id: str, output_dir: str) -> bool:
 
 
 def transcribe_audio_file(
-    audio_path: Path,
+    audio_source,
     output_dir: str,
     min_speakers: int = 5,
     max_speakers: int = 10,
+    jurisdiction_id: Optional[str] = None,
+    cloud: bool = False,
 ) -> TranscribeResult:
     """
     Transcribe an audio file with AssemblyAI.
 
     Args:
-        audio_path: Path to audio file
-        output_dir: Directory to save transcript
+        audio_source: Path to audio file (Path) or video dict (cloud mode)
+        output_dir: Directory to save transcript (local mode)
         min_speakers: Minimum expected speakers
         max_speakers: Maximum expected speakers
+        jurisdiction_id: Jurisdiction ID (required for cloud mode)
+        cloud: If True, use cloud storage
 
     Returns:
         TranscribeResult with status and details
     """
     import time
+    import tempfile
 
     try:
         import assemblyai as aai
     except ImportError:
+        video_id = audio_source.stem if isinstance(audio_source, Path) else audio_source.get("video_id")
         return TranscribeResult(
-            video_id=audio_path.stem,
+            video_id=video_id,
             status="error",
             error="assemblyai not installed",
         )
 
-    video_id = audio_path.stem
+    # Handle both Path (local) and dict (cloud) inputs
+    if isinstance(audio_source, Path):
+        video_id = audio_source.stem
+        audio_path = audio_source
+    else:
+        video_id = audio_source.get("video_id") or audio_source.get("id")
+        audio_path = None  # Will load from cloud
 
-    # Skip if already transcribed
+    cloud_mode = cloud or os.environ.get("DATABASE_URL")
+
+    # Check if already transcribed (local first, then cloud)
     output_path = Path(output_dir) / f"testimony_{video_id}.json"
     if output_path.exists():
-        logger.info(f"  Skipping (already transcribed): {video_id}")
+        logger.info(f"  Skipping (already transcribed locally): {video_id}")
         return TranscribeResult(
             video_id=video_id,
             status="skipped",
             file_path=str(output_path),
         )
 
+    if cloud_mode and transcript_exists_in_cloud(video_id):
+        logger.info(f"  Skipping (already transcribed in cloud): {video_id}")
+        return TranscribeResult(
+            video_id=video_id,
+            status="skipped",
+        )
+
     try:
+        # Load audio from cloud if needed
+        temp_audio_path = None
+        if audio_path is None and cloud_mode and jurisdiction_id:
+            audio_data = load_audio_from_cloud(jurisdiction_id, video_id)
+            if audio_data is None:
+                raise Exception(f"Audio not found in cloud for {video_id}")
+
+            # Write to temp file for AssemblyAI
+            temp_audio_path = tempfile.NamedTemporaryFile(
+                suffix=".mp3", delete=False
+            )
+            temp_audio_path.write(audio_data)
+            temp_audio_path.close()
+            audio_path = Path(temp_audio_path.name)
+
         logger.info(f"  Uploading to AssemblyAI...")
 
         # Configure transcription with speaker diarization
@@ -375,10 +461,23 @@ def transcribe_audio_file(
             "processing_time_seconds": round(processing_time, 2),
         }
 
-        # Save transcript
-        os.makedirs(output_dir, exist_ok=True)
-        with open(output_path, "w") as f:
-            json.dump(result_data, f, indent=2)
+        # Store transcript (cloud or local)
+        stored_to_cloud = False
+        if cloud_mode and jurisdiction_id:
+            stored_to_cloud = store_transcript_to_cloud(jurisdiction_id, result_data)
+
+        # Also save to local file if not using cloud, or as fallback
+        if not stored_to_cloud:
+            os.makedirs(output_dir, exist_ok=True)
+            with open(output_path, "w") as f:
+                json.dump(result_data, f, indent=2)
+
+        # Clean up temp file if we created one
+        if temp_audio_path:
+            try:
+                os.unlink(temp_audio_path.name)
+            except Exception:
+                pass
 
         logger.info(f"  ✓ Complete: {len(speakers)} speakers, {len(utterances)} utterances")
         logger.info(f"    Duration: {audio_duration_minutes:.1f} min, Cost: ${cost_usd:.2f}")
@@ -386,7 +485,7 @@ def transcribe_audio_file(
         return TranscribeResult(
             video_id=video_id,
             status="success",
-            file_path=str(output_path),
+            file_path=str(output_path) if not stored_to_cloud else None,
             speakers_count=len(speakers),
             utterances_count=len(utterances),
             duration_minutes=audio_duration_minutes,
@@ -395,11 +494,93 @@ def transcribe_audio_file(
 
     except Exception as e:
         logger.error(f"  Error transcribing {video_id}: {e}")
+        # Clean up temp file on error
+        if temp_audio_path:
+            try:
+                os.unlink(temp_audio_path.name)
+            except Exception:
+                pass
         return TranscribeResult(
             video_id=video_id,
             status="error",
             error=str(e),
         )
+
+
+def transcript_exists_in_cloud(video_id: str) -> bool:
+    """Check if transcript exists in cloud storage."""
+    try:
+        from civic.storage import get_storage_backend
+
+        backend = get_storage_backend()
+        if backend.backend_type == "postgres":
+            transcript = backend.get_transcript(video_id)
+            return transcript is not None
+    except ImportError:
+        logger.debug("civic.storage not available for cloud check")
+    except Exception as e:
+        logger.debug(f"Cloud check failed: {e}")
+    return False
+
+
+def load_audio_from_cloud(jurisdiction_id: str, video_id: str) -> Optional[bytes]:
+    """
+    Load audio file from R2 cloud storage.
+
+    Args:
+        jurisdiction_id: Jurisdiction ID (e.g., "city-san-rafael")
+        video_id: YouTube video ID
+
+    Returns:
+        Audio file bytes or None if not found
+    """
+    try:
+        from civic.storage import get_blob_storage
+
+        blob = get_blob_storage()
+        r2_key = f"audio/{jurisdiction_id}/{video_id}.mp3"
+
+        if not blob.exists(r2_key):
+            logger.debug(f"Audio not found in cloud: {r2_key}")
+            return None
+
+        audio_data = blob.download(r2_key)
+        logger.info(f"  Loaded audio from cloud: {r2_key}")
+        return audio_data
+    except ImportError:
+        logger.debug("civic.storage not available for cloud audio")
+    except Exception as e:
+        logger.warning(f"Failed to load audio from cloud: {e}")
+    return None
+
+
+def store_transcript_to_cloud(
+    jurisdiction_id: str, transcript_data: dict
+) -> bool:
+    """
+    Store transcript to cloud storage.
+
+    Args:
+        jurisdiction_id: Jurisdiction ID
+        transcript_data: Transcript dictionary with video_id, utterances, etc.
+
+    Returns:
+        True if stored successfully, False otherwise
+    """
+    try:
+        from civic.storage import get_storage_backend
+
+        backend = get_storage_backend()
+        if backend.backend_type == "postgres":
+            count = backend.store_transcripts(jurisdiction_id, [transcript_data])
+            if count > 0:
+                logger.info(f"  Stored transcript in cloud storage")
+                return True
+    except ImportError:
+        logger.warning("civic.storage not available, keeping local file only")
+    except Exception as e:
+        logger.warning(f"Cloud storage failed: {e}, keeping local file only")
+    return False
 
 
 def run_transcription(
@@ -411,6 +592,7 @@ def run_transcription(
     limit: int = 0,
     min_speakers: int = 5,
     max_speakers: int = 10,
+    cloud: bool = False,
 ) -> Optional[List[TranscribeResult]]:
     """
     Run transcription for audio files from a jurisdiction.
@@ -424,19 +606,24 @@ def run_transcription(
         limit: Maximum files to transcribe (0 = no limit)
         min_speakers: Minimum expected speakers
         max_speakers: Maximum expected speakers
+        cloud: If True, use cloud storage (R2 for audio, Postgres for transcripts)
 
     Returns:
         List of TranscribeResult if successful, None if failed
     """
     logger.info(f"Starting transcription for {jurisdiction_id}")
 
+    cloud_mode = cloud or os.environ.get("DATABASE_URL")
+    if cloud_mode:
+        logger.info("Cloud storage mode enabled")
+
     # Setup AssemblyAI (skip for dry run)
     if not dry_run:
         if not setup_assemblyai():
             return None
 
-    # Find audio files
-    audio_files = find_audio_files(jurisdiction_id, input_dir)
+    # Find audio files (local or cloud)
+    audio_files = find_audio_files(jurisdiction_id, input_dir, cloud=cloud_mode)
     if not audio_files:
         return None
 
@@ -449,7 +636,8 @@ def run_transcription(
         logger.info(f"Found checkpoint: {resume_from.items_processed} items processed")
         # Find the index to resume from
         for i, audio_file in enumerate(audio_files):
-            if audio_file.stem == resume_from.last_video_id:
+            file_id = audio_file.stem if isinstance(audio_file, Path) else audio_file.get("video_id")
+            if file_id == resume_from.last_video_id:
                 start_index = i + 1
                 break
         if start_index > 0:
@@ -467,8 +655,11 @@ def run_transcription(
         total_to_transcribe = 0
 
         for i, audio_file in enumerate(files_to_process, start=1):
-            video_id = audio_file.stem
+            video_id = audio_file.stem if isinstance(audio_file, Path) else audio_file.get("video_id")
+            # Check both local and cloud
             exists = transcript_exists(video_id, output_dir)
+            if cloud_mode and not exists:
+                exists = transcript_exists_in_cloud(video_id)
             status = "(already transcribed)" if exists else ""
 
             if exists:
@@ -493,7 +684,7 @@ def run_transcription(
     total_cost = 0.0
 
     for i, audio_file in enumerate(files_to_process, start=start_index + 1):
-        video_id = audio_file.stem
+        video_id = audio_file.stem if isinstance(audio_file, Path) else audio_file.get("video_id")
         logger.info(f"[{i}/{len(audio_files)}] {video_id}")
 
         result = transcribe_audio_file(
@@ -501,6 +692,8 @@ def run_transcription(
             output_dir,
             min_speakers=min_speakers,
             max_speakers=max_speakers,
+            jurisdiction_id=jurisdiction_id,
+            cloud=cloud_mode,
         )
         results.append(result)
 
@@ -531,7 +724,7 @@ def run_transcription(
 
     # Final checkpoint
     if files_to_process:
-        last_video_id = files_to_process[-1].stem
+        last_video_id = files_to_process[-1].stem if isinstance(files_to_process[-1], Path) else files_to_process[-1].get("video_id")
         checkpoint = TranscribeCheckpoint(
             jurisdiction_id=jurisdiction_id,
             last_video_id=last_video_id,
@@ -552,6 +745,10 @@ def run_transcription(
     logger.info(f"Skipped (already exist): {items_skipped}")
     logger.info(f"Failed: {items_failed}")
     logger.info(f"Total cost: ${total_cost:.2f}")
+    if cloud_mode:
+        logger.info("Transcripts stored in: cloud (Postgres)")
+    else:
+        logger.info(f"Transcripts stored in: {output_dir}")
     logger.info("=" * 50)
 
     return results
@@ -564,6 +761,7 @@ def run_scheduled(
     checkpoint_dir: str,
     min_speakers: int,
     max_speakers: int,
+    cloud: bool = False,
 ) -> None:
     """
     Run transcription on a schedule.
@@ -579,6 +777,8 @@ def run_scheduled(
 
     logger.info(f"Starting transcription scheduler for {jurisdiction_id}")
     logger.info("Will run daily at 09:00")
+    if cloud:
+        logger.info("Cloud storage mode enabled")
 
     def job():
         logger.info("=" * 50)
@@ -590,6 +790,7 @@ def run_scheduled(
             checkpoint_dir=checkpoint_dir,
             min_speakers=min_speakers,
             max_speakers=max_speakers,
+            cloud=cloud,
         )
         logger.info("Scheduled run complete")
         logger.info("=" * 50)

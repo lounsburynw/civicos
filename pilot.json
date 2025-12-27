@@ -672,14 +672,15 @@
         "note": "Run complete pipeline: discover -> youtube -> audio -> transcribe with all data stored in Supabase/R2. Verify data flows correctly."
       },
       "assemblyai_transcript_storage": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Store AssemblyAI transcripts in Postgres with R2 audio backup",
-        "note": "Transcripts should persist in Supabase, audio files in R2. Currently local-only."
+        "note": "Session 381: Added transcripts table to PostgresBackend with store_transcripts()/get_transcripts()/get_transcript()/get_transcript_count(). Updated transcribe.py CLI with --cloud flag. Audio reads from R2, transcripts stored in Postgres. Local fallback still works.",
+        "completed_session": 381
       },
       "decision_extraction_pipeline": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Automate decision extraction from minutes PDFs in ETL pipeline",
         "note": "Currently decisions are extracted manually via retrospective_analyzer.py. Need CLI command or pipeline stage: download minutes PDF -> parse -> extract decisions -> PostgresBackend.store_decisions(). The 186 existing decisions came from manual batch extraction."
       },
