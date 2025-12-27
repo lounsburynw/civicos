@@ -690,14 +690,15 @@
         "note": "chunks table exists in PostgresBackend with store_chunks()/get_chunks(). Need to wire PDF parsing pipeline to use cloud storage instead of local ChromaDB."
       },
       "youtube_cloud_storage": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Wire youtube.py CLI to store video metadata in Postgres",
-        "note": "Currently youtube.py stores to local JSON (data/city_san_rafael_videos.json). Need videos table in Postgres and update CLI to use get_storage_backend()."
+        "note": "Session 379: Added videos table to PostgresBackend with store_videos()/get_videos()/get_video_count(). Updated youtube.py CLI to use get_storage_backend() when DATABASE_URL is set or --cloud flag used. Local JSON fallback still works.",
+        "completed_session": 379
       },
       "audio_cloud_storage": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Wire audio.py CLI to store audio files in R2",
         "note": "Currently audio.py stores to local files. Need to use get_blob_storage() and store audio in R2 with metadata in Postgres."
       },

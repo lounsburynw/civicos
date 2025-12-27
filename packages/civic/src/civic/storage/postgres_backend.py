@@ -370,6 +370,35 @@ class PostgresBackend:
             ON chunks(source_type)
         """)
 
+        # Videos table (SESSION 379)
+        # Stores YouTube video metadata discovered from meeting pages
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS videos (
+                id TEXT NOT NULL,
+                jurisdiction_id TEXT NOT NULL,
+                meeting_url TEXT,
+                title TEXT,
+                date TEXT,
+                youtube_url TEXT,
+                discovered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                PRIMARY KEY (id, jurisdiction_id, valid_from),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                CHECK (valid_to IS NULL OR valid_to > valid_from)
+            )
+        """)
+
+        # Video indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_videos_jurisdiction
+            ON videos(jurisdiction_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_videos_discovered
+            ON videos(discovered_at DESC)
+        """)
+
         conn.commit()
 
     def store_meetings(
@@ -1012,6 +1041,8 @@ class PostgresBackend:
 
             # Insert new versions
             for decision in decisions:
+                # Support both 'id' and 'decision_id' field names
+                decision_id = decision.get('id') or decision.get('decision_id')
                 cursor.execute("""
                     INSERT INTO decisions (
                         id, jurisdiction_id, meeting_date, agenda_item,
@@ -1021,7 +1052,7 @@ class PostgresBackend:
                         extraction_method, extracted_at, valid_from, valid_to
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)
                 """, (
-                    decision.get('decision_id'),
+                    decision_id,
                     jurisdiction_id,
                     decision.get('meeting_date'),
                     decision.get('agenda_item'),
@@ -1318,6 +1349,169 @@ class PostgresBackend:
 
         return count
 
+    # ========== Video Methods (SESSION 379) ==========
+
+    def store_videos(
+        self,
+        jurisdiction_id: str,
+        videos: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store YouTube video metadata with temporal versioning.
+
+        Atomic operation: either all videos are stored or none.
+        Uses upsert semantics - closes previous versions and inserts new ones.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            videos: List of video dictionaries with id, meeting_url, title, date, youtube_url
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of videos successfully stored
+
+        Raises:
+            psycopg2.Error: If atomic store operation fails
+        """
+        as_of = as_of or datetime.now()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Ensure city_state exists
+            cursor.execute("""
+                INSERT INTO city_states (jurisdiction_id, jurisdiction_name, as_of)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (jurisdiction_id) DO NOTHING
+            """, (
+                jurisdiction_id,
+                jurisdiction_id.replace('-', ' ').title(),
+                as_of.isoformat()
+            ))
+
+            # Close previous versions for videos being updated
+            video_ids = [v.get('id') or v.get('video_id') for v in videos]
+            for video_id in video_ids:
+                if video_id:
+                    cursor.execute("""
+                        UPDATE videos
+                        SET valid_to = %s
+                        WHERE jurisdiction_id = %s
+                          AND id = %s
+                          AND valid_to IS NULL
+                    """, (as_of.isoformat(), jurisdiction_id, video_id))
+
+            # Insert new versions
+            for video in videos:
+                # Support both 'id' and 'video_id' keys
+                video_id = video.get('id') or video.get('video_id')
+                if not video_id:
+                    continue  # Skip videos without ID
+
+                cursor.execute("""
+                    INSERT INTO videos (
+                        id, jurisdiction_id, meeting_url, title,
+                        date, youtube_url, discovered_at, valid_from, valid_to
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NULL)
+                """, (
+                    video_id,
+                    jurisdiction_id,
+                    video.get('meeting_url'),
+                    video.get('title'),
+                    video.get('date'),
+                    video.get('youtube_url'),
+                    as_of.isoformat(),
+                    as_of.isoformat(),
+                ))
+
+            conn.commit()
+            return len([v for v in videos if v.get('id') or v.get('video_id')])
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_videos(
+        self,
+        jurisdiction_id: str,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve videos with temporal filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of videos to return
+
+        Returns:
+            List of video dictionaries
+        """
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Build query with temporal filtering
+        query = """
+            SELECT * FROM videos
+            WHERE jurisdiction_id = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+            ORDER BY discovered_at DESC
+        """
+        params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+
+        if limit:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to dictionaries
+        videos = []
+        for row in rows:
+            video = dict(row)
+            # Convert datetime objects to ISO strings
+            for key in ['discovered_at', 'valid_from', 'valid_to']:
+                if key in video and video[key] is not None:
+                    if isinstance(video[key], datetime):
+                        video[key] = video[key].isoformat()
+            videos.append(video)
+
+        return videos
+
+    def get_video_count(self, jurisdiction_id: str) -> int:
+        """
+        Get count of current videos for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+
+        Returns:
+            Number of current (non-expired) videos
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT COUNT(*) FROM videos
+            WHERE jurisdiction_id = %s AND valid_to IS NULL
+        """, (jurisdiction_id,))
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
 
 # Verify protocol compliance at import time (only if psycopg2 available)
 # StorageBackend is @runtime_checkable, so isinstance() works
@@ -1336,7 +1530,9 @@ def _verify_protocol_compliance() -> None:
         # Decision methods (SESSION 366)
         'store_decisions', 'get_decisions', 'get_decision_count',
         # Chunk methods (SESSION 367)
-        'store_chunks', 'get_chunks', 'get_chunk_count'
+        'store_chunks', 'get_chunks', 'get_chunk_count',
+        # Video methods (SESSION 379)
+        'store_videos', 'get_videos', 'get_video_count'
     ]
     for method in required_methods:
         assert hasattr(PostgresBackend, method), (
