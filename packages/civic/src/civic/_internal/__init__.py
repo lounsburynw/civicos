@@ -23,6 +23,7 @@ from civic._internal.coordination import (
     SuggestionState,
 )
 from civic._internal.jurisdiction import (
+    JurisdictionError,
     normalize_jurisdiction,
     display_jurisdiction,
     extract_state,
@@ -52,6 +53,7 @@ __all__ = [
     "get_suggestion_state",
     "SuggestionState",
     # Jurisdiction utilities
+    "JurisdictionError",
     "normalize_jurisdiction",
     "display_jurisdiction",
     "extract_state",
