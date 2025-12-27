@@ -6920,3 +6920,36 @@ civic-extract vectors --jurisdiction city-san-rafael --test-search "housing deve
 
 ### Next P0: seeclickfix_cloud_storage
 Wire seeclickfix.py CLI to store issues in Postgres. 1,340 issues currently in local SQLite.
+
+## Session 385 - 2025-12-27
+
+### Item: issues_cloud_storage
+
+Created portable 311 issue abstraction layer for multi-provider support (SeeClickFix, PublicStuff, CitySourced, etc.)
+
+### Key Files Created/Modified
+- `packages/civic/src/civic/issues/__init__.py` (new)
+- `packages/civic/src/civic/issues/provider.py` (new) - IssueProvider protocol + NormalizedIssue dataclass
+- `packages/civic/src/civic/issues/providers/__init__.py` (new) - provider registry
+- `packages/civic/src/civic/issues/providers/seeclickfix.py` (new) - SeeclickfixProvider implementation
+- `packages/civic/src/civic/storage/backend.py` - added store_issues(), get_issues(), get_issue_count()
+- `packages/civic/src/civic/storage/postgres_backend.py` - implemented issues table + methods
+- `packages/civic/src/civic/storage/sqlite_backend.py` - added stub methods for protocol compliance
+- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` - registered issues command
+- `packages/civic-extraction/src/civic_extraction/cli/issues.py` (new) - unified issues CLI
+- `packages/civic/tests/test_storage_protocols.py` - updated mock backends
+
+### Tests
+- 34 smoke tests: PASSED
+- 68 storage protocol tests: PASSED
+- CLI --dry-run verified
+- CLI --migrate --cloud verified
+
+### Migration
+- 1,330 issues migrated from local JSON to Postgres
+- `civic-extract issues --stats --cloud` verified: 1,330 SeeClickFix issues stored
+
+### Progress
+- Before: 186/202 items ready (92.1%)
+- After: 187/202 items ready (92.6%)
+- 1 item completed: issues_cloud_storage

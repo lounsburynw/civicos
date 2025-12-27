@@ -450,3 +450,68 @@ class StorageBackend(Protocol):
             Number of current (non-expired) chunks
         """
         ...
+
+    # ========== Issue Methods (SESSION 385) ==========
+    #
+    # Issues are 311 complaints from providers like SeeClickFix, PublicStuff, etc.
+    # Stored with provider field for multi-source queries.
+
+    def store_issues(
+        self,
+        jurisdiction_id: str,
+        issues: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store 311 issues with temporal versioning.
+
+        Atomic operation: either all issues are stored or none.
+        Uses upsert semantics based on (provider, external_id).
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            issues: List of issue dictionaries (from NormalizedIssue.to_dict())
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of issues successfully stored
+        """
+        ...
+
+    def get_issues(
+        self,
+        jurisdiction_id: str,
+        as_of: Optional[datetime] = None,
+        provider: Optional[str] = None,
+        status: Optional[str] = None,
+        issue_type: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve 311 issues with optional filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            as_of: Point-in-time query (for temporal versioning)
+            provider: Filter by provider ("seeclickfix", "publicstuff", etc.)
+            status: Filter by status ("open", "closed", "acknowledged")
+            issue_type: Filter by issue type
+            limit: Maximum number of issues to return
+
+        Returns:
+            List of issue dictionaries
+        """
+        ...
+
+    def get_issue_count(self, jurisdiction_id: str, provider: Optional[str] = None) -> int:
+        """
+        Get count of current issues for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            provider: Optional filter by provider
+
+        Returns:
+            Number of current (non-expired) issues
+        """
+        ...
