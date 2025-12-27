@@ -6347,3 +6347,78 @@ Enhanced the JurisdictionRegistry with comprehensive alias map integration, unde
 ### Progress
 - Before: 175/191 items ready (91%)
 - After: 176/191 items ready (92%)
+
+## Session 374: storage_migration_script - Cloud Storage Migration Tool
+
+**Date:** 2025-12-26
+**Item:** storage_migration_script (deployment_artifacts > cloud_storage)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Created a storage migration script to promote local development data to cloud storage for pilot deployment. The script handles SQLite→PostgreSQL, Local→R2 blob, and ChromaDB→Fly.io volume migrations.
+
+### Implementation
+
+1. **Migration Script** (`scripts/migrate_storage.py`):
+   - Full CLI with argparse: `--dry-run`, `--verbose`, `--only`, `--verify`
+   - Environment variable support: TARGET_POSTGRES_URL, TARGET_R2_URL
+   - MigrationManifest class for idempotent resume and audit trails
+   - StorageMigration orchestrator class
+
+2. **Database Migration (SQLite → PostgreSQL)**:
+   - Uses existing StorageBackend protocol implementations
+   - Migrates: meetings, decisions, chunks
+   - Atomic transactions per jurisdiction
+   - Count verification after migration
+
+3. **Blob Migration (Local → R2)**:
+   - Uses existing BlobStorage protocol implementations
+   - Skips already-migrated files (idempotent)
+   - Content type inference from file extensions
+   - Progress reporting for large migrations
+
+4. **Vector Migration (ChromaDB → Fly.io Volume)**:
+   - Generates deployment instructions for Fly.io volume mount
+   - Calculates storage requirements
+   - Documents alternative re-indexing approach
+
+5. **Features**:
+   - Dry-run mode: Shows what would be migrated without changes
+   - Progress reporting with percentages
+   - Manifest persistence for resume capability
+   - Source/target validation before migration
+   - Post-migration verification
+
+### Key Files
+- `scripts/migrate_storage.py` - Migration script (450+ lines)
+- `packages/civic/src/civic/storage/postgres_backend.py` - PostgreSQL implementation (fully implemented)
+- `packages/civic/src/civic/storage/blob.py` - R2/Local blob implementations
+
+### Usage Examples
+```bash
+# Dry run (show what would be migrated)
+python scripts/migrate_storage.py --dry-run
+
+# Full migration
+python scripts/migrate_storage.py --target-postgres "postgresql://..." --target-r2 "r2://..."
+
+# Migrate specific data type
+python scripts/migrate_storage.py --only database
+
+# Verify migration
+python scripts/migrate_storage.py --verify
+```
+
+### Progress
+- Before: 176/191 items ready (92%)
+- After: 177/191 items ready (92%)
+
+### Bonus: Pipeline Storage Bug Fix
+
+During end-to-end testing, discovered that `civic-extract discover` CLI was not persisting data to SQLite because it didn't pass `storage_target` to the Pipeline constructor.
+
+**Fixed in** `packages/civic-extraction/src/civic_extraction/cli/discover.py`:
+- Added `from civic.storage import SQLiteBackend` import
+- Changed `Pipeline(source, jurisdiction_id)` to `Pipeline(source, jurisdiction_id, storage_target=SQLiteBackend())`
+
+**Verified**: Clean ingestion now correctly stores 17 meetings to `data/civic_state.db`.
