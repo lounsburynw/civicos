@@ -7000,3 +7000,46 @@ Query: "housing development"
 - Video/audio/transcript/decision pipelines ready but not run (cost considerations)
 - Chunks and issues demonstrate full cloud storage path
 - pgvector search working with nomic-embed-text-v1.5 (768 dims)
+
+## Session 387 - 2025-12-27
+
+### P0 Completed: api_cloud_storage_backend
+**Goal:** Wire API server to use cloud Postgres when DATABASE_URL is set
+
+**Changes Made:**
+1. **packages/civic/src/civic/civic.py** (lines 315-344)
+   - Updated `Civic.__post_init__` to check `DATABASE_URL` env var
+   - Uses `get_storage_backend()` factory when DATABASE_URL is set
+   - Falls back to SQLiteBackend when no DATABASE_URL
+
+2. **packages/civic-services/.../civic_api_integrated.py** (lines 7725-8026)
+   - Added backend detection: `is_postgres = civic._storage.backend_type == 'postgres'`
+   - Dynamic placeholder syntax: `%s` for Postgres, `?` for SQLite
+   - Backend-agnostic table existence check (information_schema vs sqlite_master)
+   - Datetime serialization for Postgres (returns native datetime objects)
+
+**Verification:**
+- `/admin/status` shows: `storage.backend_type = 'postgres'`, `meetings.count = 46`
+- Data browser returns 46 meetings, 1,330 issues from cloud
+- All 34 smoke tests pass, 68 storage protocol tests pass
+
+### New pilot.json Section: e2e_cloud_data_verification
+**Added explicit items for ALL data types that must be ingested E2E to cloud:**
+
+| Item | Status | Priority | Notes |
+|------|--------|----------|-------|
+| meetings_e2e_cloud | ready | P1 | 46 meetings verified |
+| issues_e2e_cloud | ready | P1 | 1,330 issues verified |
+| agenda_items_e2e_cloud | not_ready | **P0** | 0 in cloud - NEXT |
+| decisions_e2e_cloud | not_ready | P1 | 0 in cloud |
+| chunks_e2e_cloud | not_ready | P1 | Must extract from PDFs |
+| transcripts_e2e_cloud | not_ready | P1 | Must run AssemblyAI |
+| municipal_code_e2e_cloud | not_ready | P1 | Must scrape Municode |
+| legislation_e2e_cloud | not_ready | P2 | CA state bills |
+| vectors_e2e_cloud | not_ready | P1 | Build AFTER SQL data |
+| api_reads_from_cloud | ready | P1 | This session's work |
+
+**CRITICAL NOTE:** All data must be ingested E2E from scratch. NO MIGRATION from local. This validates the production pipeline actually works.
+
+### Next P0: agenda_items_e2e_cloud
+Run agenda item extraction pipeline against cloud Postgres storage.
