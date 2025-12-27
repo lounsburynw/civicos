@@ -8,6 +8,7 @@ Usage:
     civic-extract audio --jurisdiction city-san-rafael --schedule
     civic-extract audio --jurisdiction city-san-rafael --dry-run
     civic-extract audio --jurisdiction city-san-rafael --limit 5
+    civic-extract audio --jurisdiction city-san-rafael --cloud  # Store in R2
 """
 
 import argparse
@@ -39,6 +40,7 @@ class DownloadResult:
     file_size_mb: Optional[float] = None
     duration_minutes: Optional[int] = None
     error: Optional[str] = None
+    r2_key: Optional[str] = None  # Cloud storage key if uploaded to R2
 
 
 @dataclass
@@ -115,6 +117,11 @@ def add_audio_parser(subparsers: argparse._SubParsersAction) -> None:
         default="128",
         help="Audio quality in kbps (default: 128)",
     )
+    parser.add_argument(
+        "--cloud",
+        action="store_true",
+        help="Store audio in cloud storage (requires BLOB_STORAGE_URL)",
+    )
 
 
 def run_audio(args: argparse.Namespace) -> int:
@@ -130,6 +137,7 @@ def run_audio(args: argparse.Namespace) -> int:
             args.cookies,
             args.checkpoint_dir,
             args.quality,
+            cloud=args.cloud,
         )
         return 0  # Never reached (scheduler runs forever)
     else:
@@ -142,6 +150,7 @@ def run_audio(args: argparse.Namespace) -> int:
             dry_run=args.dry_run,
             limit=args.limit,
             quality=args.quality,
+            cloud=args.cloud,
         )
 
         if results is None and not args.dry_run:
@@ -150,17 +159,41 @@ def run_audio(args: argparse.Namespace) -> int:
         return 0
 
 
-def load_videos(jurisdiction_id: str, input_dir: str) -> Optional[List[Dict]]:
+def load_videos(
+    jurisdiction_id: str, input_dir: str, cloud: bool = False
+) -> Optional[List[Dict]]:
     """
-    Load videos from the JSON file created by the youtube command.
+    Load videos from cloud storage or local JSON file.
 
     Args:
         jurisdiction_id: Jurisdiction ID (e.g., "city-san-rafael")
-        input_dir: Directory containing the videos JSON
+        input_dir: Directory containing the videos JSON (fallback)
+        cloud: If True, try cloud storage first
 
     Returns:
-        List of video dicts or None if file not found
+        List of video dicts or None if not found
     """
+    # Try cloud storage first if enabled
+    if cloud or os.environ.get("DATABASE_URL"):
+        try:
+            from civic.storage import get_storage_backend
+
+            backend = get_storage_backend()
+            if backend.backend_type == "postgres":
+                videos = backend.get_videos(jurisdiction_id)
+                if videos:
+                    logger.info(
+                        f"Loaded {len(videos)} videos from cloud storage ({backend.backend_type})"
+                    )
+                    return videos
+                else:
+                    logger.info("No videos in cloud storage, trying local fallback")
+        except ImportError:
+            logger.debug("civic.storage not available, using local fallback")
+        except Exception as e:
+            logger.warning(f"Cloud storage read failed: {e}, using local fallback")
+
+    # Fallback to local JSON file
     input_path = Path(input_dir)
     videos_file = input_path / f"{jurisdiction_id.replace('-', '_')}_videos.json"
 
@@ -210,15 +243,19 @@ def download_audio(
     output_dir: str,
     cookies_file: Optional[str] = None,
     quality: str = "128",
+    cloud: bool = False,
+    jurisdiction_id: Optional[str] = None,
 ) -> DownloadResult:
     """
     Download audio from a YouTube video using yt-dlp.
 
     Args:
         video_id: YouTube video ID
-        output_dir: Directory to save audio files
+        output_dir: Directory to save audio files (local fallback)
         cookies_file: Path to cookies file (optional)
         quality: Audio quality in kbps
+        cloud: If True, upload to R2 cloud storage
+        jurisdiction_id: Jurisdiction ID for cloud storage key
 
     Returns:
         DownloadResult with status and details
@@ -233,10 +270,30 @@ def download_audio(
             error="yt-dlp not installed",
         )
 
+    # Check if already in cloud storage
+    r2_key = None
+    if cloud or os.environ.get("BLOB_STORAGE_URL"):
+        try:
+            from civic.storage import get_blob_storage
+
+            blob = get_blob_storage()
+            r2_key = f"audio/{jurisdiction_id}/{video_id}.mp3"
+            if blob.exists(r2_key):
+                logger.info(f"  Skipping (already in cloud): {r2_key}")
+                return DownloadResult(
+                    video_id=video_id,
+                    status="skipped",
+                    r2_key=r2_key,
+                )
+        except ImportError:
+            logger.debug("civic.storage not available for cloud check")
+        except Exception as e:
+            logger.debug(f"Cloud check failed: {e}")
+
     output_path = os.path.join(output_dir, f"{video_id}.mp3")
 
-    # Skip if already downloaded
-    if os.path.exists(output_path):
+    # Skip if already downloaded locally (and not using cloud)
+    if not (cloud or os.environ.get("BLOB_STORAGE_URL")) and os.path.exists(output_path):
         file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
         logger.info(f"  Skipping (already exists): {video_id}.mp3 ({file_size_mb:.1f} MB)")
         return DownloadResult(
@@ -275,12 +332,38 @@ def download_audio(
         file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
         logger.info(f"  Downloaded: {video_id}.mp3 ({duration_mins} min, {file_size_mb:.1f} MB)")
 
+        # Upload to cloud storage if enabled
+        r2_key = None
+        if cloud or os.environ.get("BLOB_STORAGE_URL"):
+            try:
+                from civic.storage import get_blob_storage
+
+                blob = get_blob_storage()
+                r2_key = f"audio/{jurisdiction_id}/{video_id}.mp3"
+
+                with open(output_path, "rb") as f:
+                    audio_data = f.read()
+
+                blob.upload(r2_key, audio_data, content_type="audio/mpeg")
+                logger.info(f"  Uploaded to cloud: {r2_key}")
+
+                # Remove local file after successful upload
+                os.remove(output_path)
+                logger.debug(f"  Removed local file: {output_path}")
+
+            except ImportError:
+                logger.warning("civic.storage not available, keeping local file")
+            except Exception as e:
+                logger.warning(f"Cloud upload failed: {e}, keeping local file")
+                r2_key = None
+
         return DownloadResult(
             video_id=video_id,
             status="success",
-            file_path=output_path,
+            file_path=output_path if r2_key is None else None,
             file_size_mb=file_size_mb,
             duration_minutes=duration_mins,
+            r2_key=r2_key,
         )
 
     except Exception as e:
@@ -301,6 +384,7 @@ def run_audio_download(
     dry_run: bool = False,
     limit: int = 0,
     quality: str = "128",
+    cloud: bool = False,
 ) -> Optional[List[DownloadResult]]:
     """
     Run audio download for videos from a jurisdiction.
@@ -314,14 +398,18 @@ def run_audio_download(
         dry_run: If True, show what would be downloaded without downloading
         limit: Maximum videos to download (0 = no limit)
         quality: Audio quality in kbps
+        cloud: If True, upload audio to R2 cloud storage
 
     Returns:
         List of DownloadResult if successful, None if failed
     """
     logger.info(f"Starting audio download for {jurisdiction_id}")
 
-    # Load videos
-    videos = load_videos(jurisdiction_id, input_dir)
+    if cloud or os.environ.get("BLOB_STORAGE_URL"):
+        logger.info("Cloud storage mode enabled")
+
+    # Load videos (tries cloud first if enabled)
+    videos = load_videos(jurisdiction_id, input_dir, cloud=cloud)
     if not videos:
         return None
 
@@ -399,7 +487,14 @@ def run_audio_download(
         title = video.get("title", "Unknown")
         logger.info(f"[{i}/{len(videos)}] {title}")
 
-        result = download_audio(video_id, output_dir, cookies_file, quality)
+        result = download_audio(
+            video_id,
+            output_dir,
+            cookies_file,
+            quality,
+            cloud=cloud,
+            jurisdiction_id=jurisdiction_id,
+        )
         results.append(result)
 
         if result.status == "success":
@@ -465,6 +560,7 @@ def run_scheduled(
     cookies_path: str,
     checkpoint_dir: str,
     quality: str,
+    cloud: bool = False,
 ) -> None:
     """
     Run audio download on a schedule.
@@ -491,6 +587,7 @@ def run_scheduled(
             cookies_path=cookies_path,
             checkpoint_dir=checkpoint_dir,
             quality=quality,
+            cloud=cloud,
         )
         logger.info("Scheduled run complete")
         logger.info("=" * 50)
