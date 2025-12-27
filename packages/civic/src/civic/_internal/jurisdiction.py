@@ -28,17 +28,64 @@ class JurisdictionError(Exception):
 # Known jurisdiction mappings for common short forms.
 # All aliases MUST map to jurisdiction IDs that exist in JurisdictionRegistry.
 # Format: short_form -> canonical_form
+#
+# Note: The normalize_jurisdiction() function also handles:
+# - Automatic city- prefix (e.g., "oakland" -> "city-oakland")
+# - Underscore-to-hyphen conversion (e.g., "san_rafael" -> "san-rafael")
+# - State suffix stripping (e.g., "oakland-ca" -> "city-oakland")
+#
+# Explicit aliases are needed for:
+# - Cases where the short form differs from the canonical name
+# - Cases requiring special handling (e.g., "sonoma" -> "sonoma-county")
 _JURISDICTION_ALIASES = {
+    # San Rafael (pilot city)
     "san-rafael": "city-san-rafael",
     "san-rafael-ca": "city-san-rafael",
+    "sanrafael": "city-san-rafael",
+
+    # Berkeley
     "berkeley": "city-berkeley",
     "berkeley-ca": "city-berkeley",
+
+    # Sonoma County (not city-sonoma)
+    "sonoma": "sonoma-county",
+    "sonoma-ca": "sonoma-county",
+
+    # BART (no city- prefix)
+    "sf-bart": "bart",
+    "bay-area-rapid-transit": "bart",
+
+    # Cities with multi-word names (explicit for clarity)
+    "los-altos": "city-los-altos",
+    "los-altos-hills": "city-los-altos-hills",
+    "el-cerrito": "city-el-cerrito",
+    "daly-city": "city-daly-city",
+    "union-city": "city-union-city",
+    "san-leandro": "city-san-leandro",
+    "santa-rosa": "city-santa-rosa",
+    "pleasant-hill": "city-pleasant-hill",
+    "scotts-valley": "city-scotts-valley",
 }
 
 # Display names for jurisdictions (override generated names)
+# Only needed when the auto-generated name is incorrect or awkward.
+# The display_jurisdiction() function generates names by:
+# - Stripping "city-" prefix and title-casing
+# - Adding " County" suffix for "county-" prefix
 _DISPLAY_NAMES = {
     "city-san-rafael": "San Rafael",
     "city-berkeley": "Berkeley",
+    "city-el-cerrito": "El Cerrito",
+    "city-los-altos": "Los Altos",
+    "city-los-altos-hills": "Los Altos Hills",
+    "city-daly-city": "Daly City",
+    "city-union-city": "Union City",
+    "city-san-leandro": "San Leandro",
+    "city-santa-rosa": "Santa Rosa",
+    "city-pleasant-hill": "Pleasant Hill",
+    "city-scotts-valley": "Scotts Valley",
+    "sonoma-county": "Sonoma County",
+    "bart": "BART",
 }
 
 
@@ -75,8 +122,9 @@ def normalize_jurisdiction(jurisdiction_id: str, strict: bool = True) -> str:
     if not jurisdiction_id:
         return jurisdiction_id
 
-    # Normalize to lowercase
-    normalized = jurisdiction_id.lower().strip()
+    # Normalize to lowercase and convert underscores to hyphens
+    # This allows both "san_rafael" and "san-rafael" to work
+    normalized = jurisdiction_id.lower().strip().replace("_", "-")
 
     # Already canonical format - validate against registry
     if normalized.startswith(("city-", "county-")):

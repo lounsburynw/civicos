@@ -6303,3 +6303,47 @@ Date: 2025-12-26
 ### Progress
 - Before: 174/191 items ready (91%)
 - After: 175/191 items ready (92%)
+
+## Session 373: jurisdiction_registry - Comprehensive Alias Map Integration
+
+**Date:** 2025-12-26
+**Item:** jurisdiction_registry (data_standards > jurisdiction_handling)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Enhanced the JurisdictionRegistry with comprehensive alias map integration, underscore-to-hyphen normalization, and improved display names. The registry now handles all reasonable input formats consistently.
+
+### Implementation
+
+1. **Underscore Normalization** (`packages/civic/src/civic/_internal/jurisdiction.py:80`):
+   - Added automatic underscore-to-hyphen conversion
+   - Allows both "san_rafael" and "san-rafael" to work
+   - Fixes gap between registry keys (underscores) and user input (hyphens)
+
+2. **Expanded Alias Map** (`packages/civic/src/civic/_internal/jurisdiction.py:40-67`):
+   - Added 18 explicit aliases (up from 4)
+   - Special handling for: "sonoma" → "sonoma-county" (not city-sonoma)
+   - BART aliases: "sf-bart", "bay-area-rapid-transit" → "bart"
+   - Multi-word city aliases for all compound names
+   - Added documentation explaining when explicit aliases are needed
+
+3. **Display Names** (`packages/civic/src/civic/_internal/jurisdiction.py:75-88`):
+   - Added 13 display name overrides (up from 2)
+   - "BART" displays as all caps
+   - Multi-word cities display correctly (El Cerrito, Los Altos, etc.)
+
+4. **Tests** (`packages/civic/tests/test_jurisdiction.py:308-371`):
+   - Added TestJurisdictionRegistryAliases class (9 new tests)
+   - Tests underscore normalization, special entity aliases, multi-word cities
+   - Added display name tests for BART and multi-word cities
+   - All 49 jurisdiction tests pass
+
+### Key Files
+- `packages/civic/src/civic/_internal/jurisdiction.py` - Normalization with alias map
+- `packages/civic/src/civic/jurisdiction.py` - JurisdictionRegistry (unchanged)
+- `packages/civic/tests/test_jurisdiction.py` - 9 new tests (49 total)
+- `pilot.json` - Marked jurisdiction_registry as ready
+
+### Progress
+- Before: 175/191 items ready (91%)
+- After: 176/191 items ready (92%)
