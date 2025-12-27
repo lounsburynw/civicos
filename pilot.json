@@ -1590,20 +1590,21 @@
         "note": "1,330 issues in cloud Postgres. Verified via API data browser showing 1,330 records"
       },
       "agenda_items_e2e_cloud": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "All agenda items extracted E2E to Postgres from meeting pages",
         "target_count": "Proportional to meetings (avg 10-20 per meeting)",
         "verification": "SELECT COUNT(*) FROM agenda_items WHERE meeting_id IN (SELECT id FROM meetings WHERE jurisdiction_id = 'city-san-rafael')",
-        "note": "Currently 0 in cloud. Must run agenda extraction pipeline against cloud storage. DO NOT MIGRATE from local."
+        "completed": "2025-12-27",
+        "note": "44 agenda items in cloud. Extracted via civic-extract agenda --cloud. 46 meetings processed, 43 with items (8 cancelled). Distribution: governance(15), housing(8), community(5), budget(4), public_safety(4), transportation(4), education(2), development(1), environment(1)."
       },
       "decisions_e2e_cloud": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "All decisions extracted E2E to Postgres from meeting minutes",
         "target_count": "150+ decisions (from minutes parsing)",
         "verification": "SELECT COUNT(*) FROM decisions WHERE jurisdiction_id = 'city-san-rafael'",
-        "note": "Currently 0 in cloud. Must run decision extraction pipeline against cloud storage. DO NOT MIGRATE from local."
+        "note": "Currently 0 in cloud. Must run decision extraction pipeline against cloud storage (civic-extract decisions --cloud). DO NOT MIGRATE from local."
       },
       "chunks_e2e_cloud": {
         "status": "not_ready",

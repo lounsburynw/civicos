@@ -6,6 +6,11 @@ Usage:
     civic-extract discover --jurisdiction city-san-rafael --schedule
     civic-extract discover --jurisdiction city-san-rafael --dry-run
 
+    civic-extract agenda --jurisdiction city-san-rafael
+    civic-extract agenda --jurisdiction city-san-rafael --dry-run
+    civic-extract agenda --jurisdiction city-san-rafael --cloud
+    civic-extract agenda --jurisdiction city-san-rafael --limit 5
+
     civic-extract youtube --jurisdiction city-san-rafael
     civic-extract youtube --jurisdiction city-san-rafael --schedule
     civic-extract youtube --jurisdiction city-san-rafael --dry-run
@@ -66,6 +71,7 @@ Usage:
 import argparse
 import sys
 
+from civic_extraction.cli.agenda import add_agenda_parser, run_agenda
 from civic_extraction.cli.audio import add_audio_parser, run_audio
 from civic_extraction.cli.audit_cli import add_audit_parser, run_audit
 from civic_extraction.cli.chunks import add_chunks_parser, run_chunks
@@ -99,6 +105,7 @@ def main() -> int:
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Add subcommands
+    add_agenda_parser(subparsers)
     add_audio_parser(subparsers)
     add_audit_parser(subparsers)
     add_chunks_parser(subparsers)
@@ -122,7 +129,9 @@ def main() -> int:
         return 1
 
     # Route to appropriate command
-    if args.command == "audio":
+    if args.command == "agenda":
+        return run_agenda(args)
+    elif args.command == "audio":
         return run_audio(args)
     elif args.command == "audit":
         return run_audit(args)
