@@ -901,10 +901,11 @@
         "completed": "2025-12-26"
       },
       "api_cloud_storage_backend": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "artifact": "Wire API server to use cloud Postgres when DATABASE_URL is set",
-        "note": "Data Browser shows local SQLite (17 meetings) instead of cloud Postgres (46 meetings). API server should use get_storage_backend() factory to pick PostgresBackend when DATABASE_URL env var is present. Affects: civic_api_integrated.py ERD endpoints, admin status endpoints."
+        "note": "Session 387: COMPLETED - moved to pilot_validation.e2e_cloud_data_verification.api_reads_from_cloud",
+        "completed": "2025-12-27"
       }
     },
     "vector_sql_linkage": {
@@ -1566,6 +1567,91 @@
         "manual_step": "Run data ingestion for a municipality and verify in status dashboard",
         "completed": "2025-12-23",
         "note": "Session 357: Pipeline verified for San Rafael. 4-stage ETL works (discover\u2192ingest\u2192store\u2192index). Discovered 850 meetings, ingested 17 in date range, stored to SQLite, validated 100%. Manifests saved to data/manifests/. Civic API reads from StateManager correctly. Dashboard uses separate data/events/ path (legacy integration)."
+      }
+    },
+    "e2e_cloud_data_verification": {
+      "description": "CRITICAL: All data must be ingested E2E to cloud storage (Postgres + R2) from scratch - NO MIGRATION. This validates the production pipeline works. If it fails in production, the project's credibility is at stake.",
+      "meetings_e2e_cloud": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "All meetings ingested E2E to Postgres via discover->ingest->store pipeline",
+        "target_count": "46+ meetings",
+        "verification": "SELECT COUNT(*) FROM meetings WHERE jurisdiction_id = 'city-san-rafael'",
+        "completed": "2025-12-27",
+        "note": "46 meetings in cloud Postgres. Verified via API /admin/status showing storage.meetings.count = 46"
+      },
+      "issues_e2e_cloud": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "All 311 issues ingested E2E to Postgres via SeeClickFix provider",
+        "target_count": "1300+ issues",
+        "verification": "SELECT COUNT(*) FROM issues WHERE jurisdiction_id = 'city-san-rafael'",
+        "completed": "2025-12-27",
+        "note": "1,330 issues in cloud Postgres. Verified via API data browser showing 1,330 records"
+      },
+      "agenda_items_e2e_cloud": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "All agenda items extracted E2E to Postgres from meeting pages",
+        "target_count": "Proportional to meetings (avg 10-20 per meeting)",
+        "verification": "SELECT COUNT(*) FROM agenda_items WHERE meeting_id IN (SELECT id FROM meetings WHERE jurisdiction_id = 'city-san-rafael')",
+        "note": "Currently 0 in cloud. Must run agenda extraction pipeline against cloud storage. DO NOT MIGRATE from local."
+      },
+      "decisions_e2e_cloud": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "All decisions extracted E2E to Postgres from meeting minutes",
+        "target_count": "150+ decisions (from minutes parsing)",
+        "verification": "SELECT COUNT(*) FROM decisions WHERE jurisdiction_id = 'city-san-rafael'",
+        "note": "Currently 0 in cloud. Must run decision extraction pipeline against cloud storage. DO NOT MIGRATE from local."
+      },
+      "chunks_e2e_cloud": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "All PDF chunks extracted E2E to Postgres from agenda packets/staff reports",
+        "target_count": "500+ chunks (from PDF extraction)",
+        "verification": "SELECT COUNT(*) FROM chunks WHERE jurisdiction_id = 'city-san-rafael'",
+        "note": "Must run chunk extraction pipeline (civic-extract chunks --cloud). DO NOT MIGRATE from local."
+      },
+      "transcripts_e2e_cloud": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "All video transcripts ingested E2E to Postgres via AssemblyAI",
+        "target_count": "Proportional to videos with transcripts",
+        "verification": "SELECT COUNT(*) FROM transcripts WHERE jurisdiction_id = 'city-san-rafael'",
+        "note": "Must run transcript pipeline (civic-extract transcripts --cloud). Audio stored in R2. DO NOT MIGRATE from local."
+      },
+      "municipal_code_e2e_cloud": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "San Rafael municipal code scraped E2E to Postgres",
+        "target_count": "2000+ code sections",
+        "verification": "SELECT COUNT(*) FROM municipal_code WHERE jurisdiction_id = 'city-san-rafael'",
+        "note": "Must run municipal code scraper against cloud storage. Source: Municode or city website. DO NOT MIGRATE from local ChromaDB."
+      },
+      "legislation_e2e_cloud": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "California state legislation relevant to local governance ingested to Postgres",
+        "target_count": "Key bills and statutes affecting municipalities",
+        "verification": "SELECT COUNT(*) FROM legislation WHERE state = 'CA'",
+        "note": "Source: CA legislative data API or LegiScan. Enables what_applies() to show state-level context."
+      },
+      "vectors_e2e_cloud": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Vector indexes built in pgvector FROM cloud SQL data (not migrated)",
+        "target_count": "Indexes for: chunks, decisions, issues, municipal_code, transcripts",
+        "verification": "civic-extract vectors --stats --cloud",
+        "note": "Run AFTER all SQL data is ingested. Uses PgVectorBackend.index_from_storage() to embed from Postgres. DO NOT migrate ChromaDB vectors."
+      },
+      "api_reads_from_cloud": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "API server reads from cloud Postgres when DATABASE_URL is set",
+        "verification": "curl /admin/status shows storage.backend_type = 'postgres' and storage.meetings.count = 46",
+        "completed": "2025-12-27",
+        "note": "Session 387: Updated Civic class to check DATABASE_URL and use get_storage_backend(). Updated data browser SQL to use backend-agnostic placeholders. Datetime serialization fixed for Postgres."
       }
     }
   },

@@ -32,7 +32,7 @@ from datetime import datetime
 
 # Import from internal modules (consolidated)
 from civic._internal.state import StateManager
-from civic.storage import StorageBackend, StorageStats, SQLiteBackend
+from civic.storage import StorageBackend, StorageStats, SQLiteBackend, get_storage_backend
 from civic.paths import get_state_db_path
 
 # Optional imports - gracefully degrade if not available
@@ -314,16 +314,27 @@ class Civic:
 
     def __post_init__(self):
         """Initialize internal services."""
+        import os
+
         # Normalize jurisdiction ID to canonical format (e.g., "san-rafael" -> "city-san-rafael")
         from civic._internal.jurisdiction import normalize_jurisdiction
         self.jurisdiction = normalize_jurisdiction(self.jurisdiction)
+
+        # Check for DATABASE_URL environment variable for cloud storage
+        database_url = os.getenv("DATABASE_URL")
 
         # Default db_path using get_state_db_path() which respects CIVIC_DATA_ROOT
         if self.db_path is None:
             self.db_path = get_state_db_path()
 
         self._state = StateManager(self.db_path)
-        self._storage = SQLiteBackend(self.db_path)
+
+        # Use get_storage_backend() factory to support both SQLite and Postgres
+        # DATABASE_URL takes precedence for cloud deployments
+        if database_url:
+            self._storage = get_storage_backend(database_url)
+        else:
+            self._storage = SQLiteBackend(self.db_path)
 
         # LegalSearch requires embeddings - make optional
         if LEGAL_AVAILABLE:
