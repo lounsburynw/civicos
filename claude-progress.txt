@@ -6689,3 +6689,66 @@ Cache raw scraped content (HTML, PDFs, API responses) in R2 to reduce repeat req
 
 ### Next P0: audio_cloud_storage
 Wire audio.py CLI to store audio files in R2 with metadata in Postgres.
+## Session 380: audio_cloud_storage - Store Audio Files in R2
+
+**Date:** 2025-12-27
+**Item:** audio_cloud_storage (pipeline_automation > cloud_integration)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Wired audio.py CLI to store audio files in R2 cloud storage, following the same pattern as youtube.py (Session 379).
+
+### Implementation
+
+1. **Added `--cloud` flag to audio.py CLI**:
+   - When enabled, audio files upload to R2 after download
+   - Also reads videos from Postgres (via `get_storage_backend()`) when DATABASE_URL is set
+   - R2 key convention: `audio/{jurisdiction_id}/{video_id}.mp3`
+
+2. **Updated `download_audio()` function** (`packages/civic-extraction/src/civic_extraction/cli/audio.py`):
+   - Added `cloud` and `jurisdiction_id` parameters
+   - Checks R2 for existing audio before downloading
+   - Uploads to R2 after successful download
+   - Removes local file after successful cloud upload
+   - Graceful fallback: keeps local file if cloud upload fails
+
+3. **Updated `load_videos()` function**:
+   - Tries cloud storage (Postgres `get_videos()`) first when `--cloud` or DATABASE_URL set
+   - Falls back to local JSON file if cloud not available or empty
+
+4. **Added `r2_key` field to `DownloadResult` dataclass**:
+   - Tracks cloud storage key when uploaded to R2
+
+5. **Updated `run_audio_download()` and `run_scheduled()`**:
+   - Pass `cloud` parameter through all layers
+
+### Cloud Storage Status
+| Data Type | Backend | Status |
+|-----------|---------|--------|
+| SQL | PostgresBackend (Supabase) | ✅ 1 meeting, 186 decisions |
+| Vectors | PgVectorBackend (Supabase pgvector) | ✅ 186 embeddings |
+| Blobs | R2Backend (Cloudflare R2) | ✅ Ready |
+| Videos | PostgresBackend.videos | ✅ Ready |
+| Audio | R2Backend (audio/{jurisdiction_id}/{video_id}.mp3) | ✅ NEW: Ready |
+
+### Usage
+
+```bash
+# Download audio and upload to R2
+civic-extract audio --jurisdiction city-san-rafael --cloud
+
+# Audio stored at: r2://account_id/bucket/audio/city-san-rafael/{video_id}.mp3
+```
+
+### Tests
+- 28 blob/R2 storage tests: ✅ passed
+- 34 smoke tests: ✅ passed
+- CLI import and help verified
+
+### Progress
+- Before: 181/202 items ready (89.6%)
+- After: 182/202 items ready (90.1%)
+- 1 item completed: audio_cloud_storage
+
+### Next P0: assemblyai_transcript_storage
+Store AssemblyAI transcripts in Postgres with R2 audio backup.
