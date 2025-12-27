@@ -1,98 +1,75 @@
-# Recommended: blob_storage_abstraction
+# Recommended: vector_storage_decision
 
 **Priority:** P0
 **Area:** deployment_artifacts > cloud_storage
 **Date:** 2025-12-26
 
-> This is recommended context from Session 369. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 370. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 369 completed **postgres_backend** - PostgresBackend now has full parity with SQLiteBackend (meetings, operations, decisions, chunks). Also extended StorageBackend protocol and added `get_storage_backend()` factory for transparent backend selection via DATABASE_URL.
+Session 370 completed **blob_storage_abstraction** - BlobStorage protocol with LocalBlobBackend (development) and R2Backend (production) for large files (PDFs, audio, transcripts). This completes the storage abstraction layer:
+- StorageBackend: Structured data (SQLite/Postgres)
+- BlobStorage: Binary files (local/R2)
+- VectorBackend: Embeddings (ChromaDB/pgvector - needs production decision)
 
-**Next step:** Blob storage for large files (PDFs, audio, transcripts).
+**Next step:** Document the vector storage strategy for production deployment.
 
-## Recommended Task: blob_storage_abstraction
+## Recommended Task: vector_storage_decision
 
-Create a `BlobStorage` protocol and `R2Backend` implementation for offloading large files to Cloudflare R2.
+Document the vector storage strategy for production. This is a **decision document**, not code implementation.
 
-**Why R2:**
-- 10GB free tier with zero egress fees
-- S3-compatible API (boto3 works out of box)
-- Offloads PDFs/audio from local disk and Fly.io volumes
+**Options to evaluate:**
+1. **ChromaDB on Fly.io volume** (~$0.45/mo for 3GB)
+   - Already implemented and working
+   - Self-hosted, full control
+   - Requires volume management
+
+2. **Qdrant Cloud free tier** (1GB)
+   - Managed service, no ops
+   - Free tier may be sufficient
+   - Would need new backend implementation
+
+3. **pgvector in Postgres** (shared with StorageBackend)
+   - Single database for everything
+   - Already have PostgresBackend
+   - PgVectorBackend is a stub (needs implementation)
+
+**Current state:** 880MB vector index fits all options.
 
 ## Key Files
 
-- `packages/civic/src/civic/storage/backend.py` - StorageBackend protocol pattern
-- `packages/civic/src/civic/storage/__init__.py` - Export location
-- `.env.example:124-142` - DATABASE section as pattern for R2 config
+- `packages/civic/src/civic/storage/vector.py` - VectorBackend protocol
+- `packages/civic/src/civic/storage/pgvector_backend.py` - PgVectorBackend stub (NotImplementedError)
+- `packages/civic/src/civic/_internal/meetings/chroma_backend.py` - Working ChromaDB implementation
+- `docs/critical/FINAL_PACKAGE_ARCHITECTURE.md` - Architecture context
 
 ## Suggested Approach
 
-1. **Define BlobStorage protocol** in `packages/civic/src/civic/storage/blob.py`:
-   ```python
-   @runtime_checkable
-   class BlobStorage(Protocol):
-       @property
-       def backend_type(self) -> str: ...
+1. **Research current ChromaDB usage**:
+   - How is it deployed locally?
+   - What's the index size and query patterns?
+   - What would Fly.io volume setup look like?
 
-       def upload(self, key: str, data: bytes, content_type: str = None) -> str: ...
-       def download(self, key: str) -> bytes: ...
-       def exists(self, key: str) -> bool: ...
-       def delete(self, key: str) -> bool: ...
-       def list_keys(self, prefix: str = "") -> List[str]: ...
-   ```
+2. **Evaluate Qdrant Cloud**:
+   - Check free tier limits
+   - API compatibility with current VectorBackend protocol
+   - Migration complexity
 
-2. **Create R2Backend** implementing BlobStorage:
-   ```python
-   class R2Backend:
-       def __init__(self, account_id: str, access_key_id: str,
-                    secret_access_key: str, bucket_name: str):
-           # Use boto3 with R2 endpoint
-           self.s3 = boto3.client('s3',
-               endpoint_url=f'https://{account_id}.r2.cloudflarestorage.com',
-               aws_access_key_id=access_key_id,
-               aws_secret_access_key=secret_access_key
-           )
-   ```
+3. **Evaluate pgvector**:
+   - Would consolidate to single Postgres database
+   - PgVectorBackend needs implementation (currently stub)
+   - Check Supabase/Neon pgvector support
 
-3. **Add LocalBlobBackend** for development (filesystem-based)
-
-4. **Add factory function**:
-   ```python
-   def get_blob_storage(url: str = None) -> BlobStorage:
-       url = url or os.getenv("BLOB_STORAGE_URL")
-       if url and url.startswith("r2://"):
-           return R2Backend.from_url(url)
-       return LocalBlobBackend("data/blobs")
-   ```
-
-5. **Environment configuration** in `.env.example`:
-   ```
-   # Blob Storage (for PDFs, audio, transcripts)
-   # BLOB_STORAGE_URL=r2://account_id/bucket_name
-   # R2_ACCESS_KEY_ID=...
-   # R2_SECRET_ACCESS_KEY=...
-   ```
-
-## Install Dependencies
-
-```bash
-pip install boto3
-```
-
-## Tests to Run
-
-```bash
-pytest packages/civic/tests/test_storage_protocols.py -v
-pytest packages/civic/tests/test_civic.py -q
-```
+4. **Write decision document**:
+   - Create `docs/decisions/vector_storage.md`
+   - Document pros/cons of each option
+   - Make a recommendation with rationale
 
 ## Success Criteria
 
-- [ ] `BlobStorage` protocol defined in storage/blob.py
-- [ ] `R2Backend` implements BlobStorage with boto3
-- [ ] `LocalBlobBackend` for local development
-- [ ] `get_blob_storage()` factory function
-- [ ] Environment variables documented in .env.example
-- [ ] Basic tests for upload/download/list
+- [ ] Decision document created in `docs/decisions/`
+- [ ] All three options evaluated with pros/cons
+- [ ] Clear recommendation with rationale
+- [ ] Cost analysis (must stay under $7/month total)
+- [ ] Migration path documented if changing from ChromaDB
