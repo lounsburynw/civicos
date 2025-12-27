@@ -22,7 +22,8 @@ from civic_extraction.pipeline import (
     checkpoint_path_for_jurisdiction,
 )
 from civic_extraction.clients.proudcity import ProudCitySource
-from civic.storage import get_storage_backend
+from civic_extraction.cache import SourceCache
+from civic.storage import get_storage_backend, get_blob_storage
 
 # Configure logging
 logging.basicConfig(
@@ -73,6 +74,23 @@ def add_discover_parser(subparsers: argparse._SubParsersAction) -> None:
         default="data/checkpoints",
         help="Directory for checkpoint files (default: data/checkpoints)",
     )
+    parser.add_argument(
+        "--cache",
+        action="store_true",
+        help="Enable source caching in blob storage (R2/local). "
+             "Caches HTML pages and reduces repeat requests.",
+    )
+    parser.add_argument(
+        "--cache-ttl",
+        type=int,
+        default=24,
+        help="Cache TTL in hours (default: 24). Only used with --cache.",
+    )
+    parser.add_argument(
+        "--clear-cache",
+        action="store_true",
+        help="Clear source cache before running. Only used with --cache.",
+    )
 
 
 def run_discover(args: argparse.Namespace) -> int:
@@ -81,7 +99,14 @@ def run_discover(args: argparse.Namespace) -> int:
         logging.getLogger().setLevel(logging.DEBUG)
 
     if args.schedule:
-        run_scheduled(args.jurisdiction, args.days_past, args.days_ahead, args.checkpoint_dir)
+        run_scheduled(
+            args.jurisdiction,
+            args.days_past,
+            args.days_ahead,
+            args.checkpoint_dir,
+            use_cache=args.cache,
+            cache_ttl=args.cache_ttl,
+        )
         return 0  # Never reached (scheduler runs forever)
     else:
         result = run_meeting_discovery(
@@ -90,6 +115,9 @@ def run_discover(args: argparse.Namespace) -> int:
             days_ahead=args.days_ahead,
             checkpoint_dir=args.checkpoint_dir,
             dry_run=args.dry_run,
+            use_cache=args.cache,
+            cache_ttl=args.cache_ttl,
+            clear_cache=args.clear_cache,
         )
 
         if result is None and not args.dry_run:
@@ -107,6 +135,9 @@ def run_meeting_discovery(
     checkpoint_dir: str = "data/checkpoints",
     skip_index: bool = True,
     dry_run: bool = False,
+    use_cache: bool = False,
+    cache_ttl: int = 24,
+    clear_cache: bool = False,
 ) -> Optional[PipelineResult]:
     """
     Run meeting discovery for a jurisdiction.
@@ -118,6 +149,9 @@ def run_meeting_discovery(
         checkpoint_dir: Directory for checkpoint files
         skip_index: Skip index stage (for cron, we just discover/ingest)
         dry_run: If True, validate only - don't run pipeline
+        use_cache: If True, cache source responses in blob storage
+        cache_ttl: Cache TTL in hours (default 24)
+        clear_cache: If True, clear cache before running
 
     Returns:
         PipelineResult if successful, None if failed
@@ -125,9 +159,26 @@ def run_meeting_discovery(
     logger.info(f"Starting meeting discovery for {jurisdiction_id}")
     logger.info(f"Date range: {days_past} days past to {days_ahead} days ahead")
 
+    # Initialize cache if enabled
+    cache: Optional[SourceCache] = None
+    if use_cache:
+        try:
+            blob = get_blob_storage()
+            if blob:
+                cache = SourceCache(blob)
+                logger.info(f"Source caching enabled: {blob.backend_type} (TTL: {cache_ttl}h)")
+
+                if clear_cache:
+                    cleared = cache.clear()
+                    logger.info(f"Cleared {cleared} cached entries")
+            else:
+                logger.warning("Caching requested but no blob storage configured")
+        except Exception as e:
+            logger.warning(f"Failed to initialize cache: {e}")
+
     # Load source from config
     try:
-        source = ProudCitySource.from_jurisdiction(jurisdiction_id)
+        source = ProudCitySource.from_jurisdiction(jurisdiction_id, cache=cache)
         logger.info(f"Loaded source: {source.source_id}")
     except Exception as e:
         logger.error(f"Failed to load source config: {e}")
@@ -210,6 +261,14 @@ def run_meeting_discovery(
                 f"Summary: discovered {discover.items_found} meetings, "
                 f"ingested {ingest.items_processed} meetings"
             )
+
+        # Cache stats
+        if cache:
+            stats = cache.stats()
+            logger.info(
+                f"Cache: {stats['hits']} hits, {stats['misses']} misses "
+                f"({stats['hit_rate']}% hit rate, {stats['entry_count']} entries)"
+            )
     else:
         logger.error("Pipeline failed")
         for stage_name, stage in result.stages.items():
@@ -224,6 +283,8 @@ def run_scheduled(
     days_past: int,
     days_ahead: int,
     checkpoint_dir: str,
+    use_cache: bool = False,
+    cache_ttl: int = 24,
 ) -> None:
     """
     Run the discovery pipeline on a schedule.
@@ -239,6 +300,8 @@ def run_scheduled(
 
     logger.info(f"Starting scheduler for {jurisdiction_id}")
     logger.info("Will run daily at 06:00")
+    if use_cache:
+        logger.info(f"Caching enabled with {cache_ttl}h TTL")
 
     def job():
         logger.info("=" * 50)
@@ -248,6 +311,8 @@ def run_scheduled(
             days_past=days_past,
             days_ahead=days_ahead,
             checkpoint_dir=checkpoint_dir,
+            use_cache=use_cache,
+            cache_ttl=cache_ttl,
         )
         logger.info("Scheduled run complete")
         logger.info("=" * 50)

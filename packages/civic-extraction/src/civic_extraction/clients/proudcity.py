@@ -19,9 +19,12 @@ from bs4 import BeautifulSoup
 import time
 import re
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import TYPE_CHECKING, Dict, List, Optional, Any
 
 from civic_extraction.clients.base import BaseExtractor, Meeting, HealthStatus, ValidationResult
+
+if TYPE_CHECKING:
+    from civic_extraction.cache import SourceCache
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +57,8 @@ class ProudCityClient(BaseExtractor):
         self,
         base_url: str,
         jurisdiction_id: str,
-        archives: Optional[Dict[str, str]] = None
+        archives: Optional[Dict[str, str]] = None,
+        cache: Optional["SourceCache"] = None,
     ):
         """
         Initialize ProudCity client.
@@ -64,10 +68,13 @@ class ProudCityClient(BaseExtractor):
             jurisdiction_id: Identifier for the jurisdiction (e.g., "city-san-rafael")
             archives: Optional dict mapping meeting_type to archive path.
                      Defaults to DEFAULT_ARCHIVES.
+            cache: Optional SourceCache for caching HTTP responses in blob storage.
+                   When provided, responses are cached with 24h TTL by default.
         """
         super().__init__(jurisdiction_id)
         self.base_url = base_url.rstrip('/')
         self.archives = archives or self.DEFAULT_ARCHIVES
+        self.cache = cache
 
         self.session = requests.Session()
         self.session.headers.update({
@@ -169,15 +176,69 @@ class ProudCityClient(BaseExtractor):
         self,
         url: str,
         retries: int = 3,
-        timeout: int = 30
+        timeout: int = 30,
+        use_cache: bool = True,
+        cache_ttl_hours: int = 24,
     ) -> Optional[requests.Response]:
-        """Make HTTP request with retries and exponential backoff."""
+        """
+        Make HTTP request with retries, exponential backoff, and optional caching.
+
+        Args:
+            url: URL to fetch
+            retries: Number of retry attempts
+            timeout: Request timeout in seconds
+            use_cache: Whether to use cache (default True, requires self.cache)
+            cache_ttl_hours: TTL for cached responses (default 24 hours)
+
+        Returns:
+            Response object or None if request failed
+        """
+        # Check cache first (if enabled and cache is configured)
+        if use_cache and self.cache is not None:
+            cached_content = self.cache.get(url)
+            if cached_content is not None:
+                logger.debug(
+                    "Cache hit",
+                    extra={
+                        "url": url,
+                        "jurisdiction_id": self.jurisdiction_id,
+                        "platform": self.platform_name,
+                    }
+                )
+                # Create a synthetic Response object
+                response = requests.Response()
+                response.status_code = 200
+                response._content = cached_content
+                response.url = url
+                return response
+
         self._throttle_request()
 
         for attempt in range(retries):
             try:
                 response = self.session.get(url, timeout=timeout)
                 response.raise_for_status()
+
+                # Cache successful response (if caching enabled)
+                if use_cache and self.cache is not None:
+                    content_type = response.headers.get("Content-Type", "").split(";")[0]
+                    self.cache.put(
+                        url=url,
+                        content=response.content,
+                        ttl_hours=cache_ttl_hours,
+                        content_type=content_type or None,
+                    )
+                    logger.debug(
+                        "Cached response",
+                        extra={
+                            "url": url,
+                            "content_type": content_type,
+                            "ttl_hours": cache_ttl_hours,
+                            "jurisdiction_id": self.jurisdiction_id,
+                            "platform": self.platform_name,
+                        }
+                    )
+
                 return response
             except requests.exceptions.Timeout as e:
                 logger.warning(
@@ -807,52 +868,68 @@ class ProudCitySource:
         source = ProudCitySource.from_jurisdiction("city-san-rafael")
         client = source.client
         health = source.health()
+
+        # With caching:
+        from civic.storage import get_blob_storage
+        from civic_extraction.cache import SourceCache
+        blob = get_blob_storage()
+        cache = SourceCache(blob) if blob else None
+        source = ProudCitySource.from_jurisdiction("city-san-rafael", cache=cache)
     """
 
-    def __init__(self, config: "ExtractionConfig"):
+    def __init__(self, config: "ExtractionConfig", cache: Optional["SourceCache"] = None):
         """
         Initialize ProudCitySource from an ExtractionConfig.
 
         Args:
             config: ExtractionConfig loaded from JSON
+            cache: Optional SourceCache for caching HTTP responses
         """
         from civic_extraction.clients.base import ExtractionConfig
         self._config = config
+        self._cache = cache
         self._client = ProudCityClient(
             base_url=config.base_url,
             jurisdiction_id=config.jurisdiction_id,
-            archives=config.archives if config.archives else None
+            archives=config.archives if config.archives else None,
+            cache=cache,
         )
 
     @classmethod
-    def from_jurisdiction(cls, jurisdiction_id: str) -> "ProudCitySource":
+    def from_jurisdiction(
+        cls, jurisdiction_id: str, cache: Optional["SourceCache"] = None
+    ) -> "ProudCitySource":
         """
         Create ProudCitySource from jurisdiction ID, loading config from file.
 
         Args:
             jurisdiction_id: Jurisdiction ID (e.g., "city-san-rafael")
+            cache: Optional SourceCache for caching HTTP responses
 
         Returns:
             Configured ProudCitySource
         """
         from civic_extraction.clients.base import ExtractionConfig
         config = ExtractionConfig.from_jurisdiction(jurisdiction_id)
-        return cls(config)
+        return cls(config, cache=cache)
 
     @classmethod
-    def from_config_file(cls, path: str) -> "ProudCitySource":
+    def from_config_file(
+        cls, path: str, cache: Optional["SourceCache"] = None
+    ) -> "ProudCitySource":
         """
         Create ProudCitySource from a specific config file path.
 
         Args:
             path: Path to extraction config JSON file
+            cache: Optional SourceCache for caching HTTP responses
 
         Returns:
             Configured ProudCitySource
         """
         from civic_extraction.clients.base import ExtractionConfig
         config = ExtractionConfig.from_file(path)
-        return cls(config)
+        return cls(config, cache=cache)
 
     @property
     def client(self) -> ProudCityClient:
@@ -863,6 +940,22 @@ class ProudCitySource:
     def config(self) -> "ExtractionConfig":
         """Get the extraction configuration."""
         return self._config
+
+    @property
+    def cache(self) -> Optional["SourceCache"]:
+        """Get the source cache (if configured)."""
+        return self._cache
+
+    def cache_stats(self) -> Optional[dict]:
+        """
+        Get cache statistics.
+
+        Returns:
+            Dict with hits, misses, hit_rate, entry_count, or None if no cache
+        """
+        if self._cache is not None:
+            return self._cache.stats()
+        return None
 
     @property
     def source_id(self) -> str:
