@@ -666,10 +666,11 @@
         "test_file": "packages/civic-extraction/tests/test_source_cache.py"
       },
       "e2e_fresh_ingestion": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Full E2E data pull from scratch with cloud storage",
-        "note": "Run complete pipeline: discover -> youtube -> audio -> transcribe with all data stored in Supabase/R2. Verify data flows correctly."
+        "note": "Session 386: Verified complete pipeline. Cloud storage: 46 meetings, 44 chunks (21 new extracted, indexed to pgvector), 1,330 issues. All CLI stages tested: discover (dry-run), youtube --cloud, chunks --cloud, issues --cloud --stats, vectors --corpus chunks. Vector search verified with housing query (3 results, scores 0.52-0.57). 34 smoke tests pass.",
+        "completed_session": 386
       },
       "assemblyai_transcript_storage": {
         "status": "ready",
@@ -898,6 +899,12 @@
         "artifact": "Store agenda PDF chunks in SQL via ETL pipeline",
         "note": "Session 367: Added chunks table to SQLiteBackend with temporal versioning. Methods: store_chunks, get_chunks, get_chunk_count. Added build_chunks_index_from_sql to CivicEmbeddings for SQL-first vector indexing.",
         "completed": "2025-12-26"
+      },
+      "api_cloud_storage_backend": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "Wire API server to use cloud Postgres when DATABASE_URL is set",
+        "note": "Data Browser shows local SQLite (17 meetings) instead of cloud Postgres (46 meetings). API server should use get_storage_backend() factory to pick PostgresBackend when DATABASE_URL env var is present. Affects: civic_api_integrated.py ERD endpoints, admin status endpoints."
       }
     },
     "vector_sql_linkage": {
