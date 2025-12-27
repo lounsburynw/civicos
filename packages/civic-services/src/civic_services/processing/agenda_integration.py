@@ -77,11 +77,11 @@ class AgendaIntegrator:
         """
         # Priority 1: Use explicit model if provided
         if model:
-            from llm_provider import get_model
+            from civic_services.core.llm_provider import get_model
             self.provider = get_model(model)
         # Priority 2: Resolve from task_type
         else:
-            from llm_provider import get_model_for_task
+            from civic_services.core.llm_provider import get_model_for_task
             self.provider = get_model_for_task(task_type)
 
         self.session = requests.Session()
