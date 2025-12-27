@@ -674,6 +674,42 @@
         "priority": 1,
         "artifact": "Store AssemblyAI transcripts in Postgres with R2 audio backup",
         "note": "Transcripts should persist in Supabase, audio files in R2. Currently local-only."
+      },
+      "decision_extraction_pipeline": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Automate decision extraction from minutes PDFs in ETL pipeline",
+        "note": "Currently decisions are extracted manually via retrospective_analyzer.py. Need CLI command or pipeline stage: download minutes PDF -> parse -> extract decisions -> PostgresBackend.store_decisions(). The 186 existing decisions came from manual batch extraction."
+      },
+      "chunks_cloud_storage": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Wire PDF chunk extraction to store in Postgres",
+        "note": "chunks table exists in PostgresBackend with store_chunks()/get_chunks(). Need to wire PDF parsing pipeline to use cloud storage instead of local ChromaDB."
+      },
+      "youtube_cloud_storage": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Wire youtube.py CLI to store video metadata in Postgres",
+        "note": "Currently youtube.py stores to local JSON (data/city_san_rafael_videos.json). Need videos table in Postgres and update CLI to use get_storage_backend()."
+      },
+      "audio_cloud_storage": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Wire audio.py CLI to store audio files in R2",
+        "note": "Currently audio.py stores to local files. Need to use get_blob_storage() and store audio in R2 with metadata in Postgres."
+      },
+      "vector_indexing_cloud": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Wire pipeline INDEX stage to use PgVectorBackend instead of ChromaDB",
+        "note": "PgVectorBackend is implemented and tested (186 decisions indexed). Need to update Pipeline to use pgvector for cloud deployments. SqlIndexTarget protocol already supports this pattern."
+      },
+      "seeclickfix_cloud_storage": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Wire seeclickfix.py CLI to store issues in Postgres",
+        "note": "Currently seeclickfix.py stores to local JSON checkpoint. Need issues table in PostgresBackend and update CLI to use get_storage_backend(). 1,340 issues currently in local SQLite."
       }
     }
   },
