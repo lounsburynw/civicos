@@ -8,58 +8,84 @@
 
 ## Context
 
-Session 377 completed **pipeline_cloud_storage** - the ETL pipeline CLI now uses cloud storage (PostgresBackend) when DATABASE_URL is set. The factory function `get_storage_backend()` automatically selects the right backend.
+Session 377 completed `pipeline_cloud_storage` and identified **9 remaining items** needed for complete E2E cloud ETL. The `r2_source_caching` item is P0 because caching scraped content will speed up development iterations for all subsequent items.
 
-Now the pipeline stores structured data to Supabase, but **raw scraped content is not cached**. Each pipeline run re-scrapes ProudCity pages, which is slow and wasteful.
+## E2E Cloud ETL Roadmap (10 items)
 
-## Cloud Storage Status
+| # | Item | Status | Data Flow |
+|---|------|--------|-----------|
+| 1 | `pipeline_cloud_storage` | ✅ Done | Meetings → Postgres |
+| 2 | **`r2_source_caching`** | **P0** | Cache HTML/PDFs in R2 |
+| 3 | `youtube_cloud_storage` | P1 | Video metadata → Postgres |
+| 4 | `audio_cloud_storage` | P1 | Audio files → R2 |
+| 5 | `assemblyai_transcript_storage` | P1 | Transcripts → Postgres |
+| 6 | `decision_extraction_pipeline` | P1 | Minutes PDF → Decisions |
+| 7 | `chunks_cloud_storage` | P1 | PDF chunks → Postgres |
+| 8 | `seeclickfix_cloud_storage` | P1 | Issues → Postgres |
+| 9 | `vector_indexing_cloud` | P1 | All data → pgvector |
+| 10 | `e2e_fresh_ingestion` | P1 | Full verification |
 
-| Data Type | Backend | Status |
-|-----------|---------|--------|
-| SQL (meetings, decisions) | PostgresBackend (Supabase) | **READY** |
-| Vectors (embeddings) | PgVectorBackend (Supabase pgvector) | **READY** |
-| Blobs (PDFs, audio) | R2Backend (Cloudflare R2) | **READY** |
-| Source cache (HTML, API) | R2Backend | **NOT IMPLEMENTED** |
+## Current Cloud Status
+
+| Data Type | Backend | Count |
+|-----------|---------|-------|
+| Meetings | PostgresBackend (Supabase) | 46 |
+| Decisions | PostgresBackend (migrated) | 186 |
+| Vectors | PgVectorBackend (Supabase) | 186 embeddings |
+| Blobs | R2Backend | Ready, not used yet |
 
 ## Recommended Task
 
-Add a caching layer to the ETL pipeline that stores raw scraped content in R2:
-- Cache scraped HTML pages with URL hash as key
+Add a caching layer that stores raw scraped content in R2:
+- Cache HTML pages with URL hash as key
 - Cache downloaded PDFs before parsing
-- Cache API responses from external services
-- Add TTL-based expiration (e.g., 24 hours for meeting pages)
+- TTL-based expiration (24h for meeting pages)
+- Speeds up re-runs during development of other ETL items
 
 ## Key Files
 
-- `packages/civic-extraction/src/civic_extraction/clients/proudcity.py` - ProudCity scraper to add caching
-- `packages/civic/src/civic/storage/blob.py:144-280` - R2Backend implementation (already ready)
-- `packages/civic/src/civic/storage/__init__.py:60` - `get_blob_storage()` factory function
+- `packages/civic-extraction/src/civic_extraction/clients/proudcity.py` - Scraper to add caching
+- `packages/civic/src/civic/storage/blob.py:144-280` - R2Backend (ready)
+- `packages/civic/src/civic/storage/__init__.py:60` - `get_blob_storage()` factory
 
 ## Suggested Approach
 
 1. **Create SourceCache class** in `civic_extraction/cache.py`:
-   - `cache_key(url: str) -> str` - SHA256 hash of URL
-   - `get(url: str) -> Optional[bytes]` - Check R2 for cached content
-   - `put(url: str, content: bytes, ttl_hours: int)` - Store with metadata
-   - Use `get_blob_storage()` to get R2/Local backend from environment
+   ```python
+   class SourceCache:
+       def __init__(self, blob_storage: BlobStorage):
+           self.storage = blob_storage
+
+       def cache_key(self, url: str) -> str:
+           return f"source-cache/{hashlib.sha256(url.encode()).hexdigest()[:16]}"
+
+       def get(self, url: str) -> Optional[bytes]:
+           key = self.cache_key(url)
+           if self.storage.exists(key):
+               metadata = self.storage.get_metadata(key)
+               if not self._is_expired(metadata):
+                   return self.storage.download(key)
+           return None
+
+       def put(self, url: str, content: bytes, ttl_hours: int = 24):
+           key = self.cache_key(url)
+           self.storage.upload(key, content, metadata={"url": url, "expires": ...})
+   ```
 
 2. **Integrate with ProudCitySource**:
-   - Add `source_cache: Optional[SourceCache]` parameter
-   - Check cache before HTTP requests in `_fetch_page()` and `_fetch_json()`
+   - Add `cache: Optional[SourceCache]` parameter
+   - Check cache before HTTP requests
    - Store responses after successful fetches
 
-3. **CLI integration**:
-   - Load blob storage from `BLOB_STORAGE_URL` env var
-   - Pass cache to source constructor
+3. **CLI integration** in `discover.py`:
+   ```python
+   from civic.storage import get_blob_storage
+   from civic_extraction.cache import SourceCache
 
-## Environment Variables
-
-```bash
-# Already configured in .env
-BLOB_STORAGE_URL=r2://[account_id]/civic-blobs
-R2_ACCESS_KEY_ID=...
-R2_SECRET_ACCESS_KEY=...
-```
+   blob = get_blob_storage()  # Returns R2Backend if BLOB_STORAGE_URL set
+   cache = SourceCache(blob) if blob else None
+   source = ProudCitySource(jurisdiction_id, cache=cache)
+   ```
 
 ## Tests to Run
 
@@ -67,23 +93,26 @@ R2_SECRET_ACCESS_KEY=...
 # Blob storage tests
 pytest packages/civic/tests/test_storage_protocols.py::TestR2Backend -v
 
-# Source cache tests (to be created)
+# After creating cache tests
 pytest packages/civic-extraction/tests/test_source_cache.py -v
 
-# Smoke tests
+# Full smoke tests
 pytest packages/civic/tests/test_civic.py -q
 ```
 
 ## Success Criteria
 
-- [ ] SourceCache class with get/put operations
+- [ ] SourceCache class with get/put/is_expired operations
 - [ ] ProudCitySource uses cache when provided
-- [ ] Cache key format: `source-cache/{url_hash}.{ext}`
+- [ ] Cache key format: `source-cache/{url_hash}`
 - [ ] TTL metadata stored with cached content
-- [ ] Second pipeline run is significantly faster (cached)
+- [ ] Second pipeline run is faster (cache hits logged)
 - [ ] Existing tests pass
 
-## Related P1 Items (After P0 Complete)
+## Why This First?
 
-1. `e2e_fresh_ingestion` - Full E2E data pull from scratch with cloud storage
-2. `assemblyai_transcript_storage` - Store transcripts in Postgres, audio in R2
+Caching raw content accelerates development of all remaining items:
+- `youtube_cloud_storage` - won't re-scrape video IDs
+- `decision_extraction_pipeline` - won't re-download PDFs
+- `chunks_cloud_storage` - same PDF caching benefit
+- Testing iterations become much faster
