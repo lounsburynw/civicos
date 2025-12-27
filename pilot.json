@@ -673,7 +673,7 @@
       },
       "assemblyai_transcript_storage": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Store AssemblyAI transcripts in Postgres with R2 audio backup",
         "note": "Transcripts should persist in Supabase, audio files in R2. Currently local-only."
       },
@@ -697,10 +697,11 @@
         "completed_session": 379
       },
       "audio_cloud_storage": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Wire audio.py CLI to store audio files in R2",
-        "note": "Currently audio.py stores to local files. Need to use get_blob_storage() and store audio in R2 with metadata in Postgres."
+        "note": "Session 380: Added --cloud flag to audio.py CLI. Audio files upload to R2 with key convention audio/{jurisdiction_id}/{video_id}.mp3. load_videos() tries cloud storage (Postgres) first when DATABASE_URL set. Existing local file fallback still works.",
+        "completed_session": 380
       },
       "vector_indexing_cloud": {
         "status": "not_ready",
