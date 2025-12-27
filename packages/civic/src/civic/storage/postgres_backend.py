@@ -399,6 +399,44 @@ class PostgresBackend:
             ON videos(discovered_at DESC)
         """)
 
+        # Transcripts table (SESSION 381)
+        # Stores AssemblyAI transcripts with speaker diarization
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS transcripts (
+                id TEXT NOT NULL,
+                jurisdiction_id TEXT NOT NULL,
+                video_id TEXT NOT NULL,
+                transcript JSONB NOT NULL,
+                text TEXT,
+                duration_seconds INTEGER,
+                word_count INTEGER,
+                speakers_count INTEGER,
+                utterances_count INTEGER,
+                processing_service TEXT DEFAULT 'assemblyai',
+                cost_usd REAL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                PRIMARY KEY (id, jurisdiction_id, valid_from),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                CHECK (valid_to IS NULL OR valid_to > valid_from)
+            )
+        """)
+
+        # Transcript indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_transcripts_jurisdiction
+            ON transcripts(jurisdiction_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_transcripts_video
+            ON transcripts(video_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_transcripts_created
+            ON transcripts(created_at DESC)
+        """)
+
         conn.commit()
 
     def store_meetings(
@@ -1512,6 +1550,243 @@ class PostgresBackend:
 
         return count
 
+    # ========== Transcript Methods (SESSION 381) ==========
+
+    def store_transcripts(
+        self,
+        jurisdiction_id: str,
+        transcripts: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store AssemblyAI transcripts with temporal versioning.
+
+        Atomic operation: either all transcripts are stored or none.
+        Uses upsert semantics - closes previous versions and inserts new ones.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            transcripts: List of transcript dictionaries with video_id, utterances, etc.
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of transcripts successfully stored
+
+        Raises:
+            psycopg2.Error: If atomic store operation fails
+        """
+        as_of = as_of or datetime.now()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Ensure city_state exists
+            cursor.execute("""
+                INSERT INTO city_states (jurisdiction_id, jurisdiction_name, as_of)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (jurisdiction_id) DO NOTHING
+            """, (
+                jurisdiction_id,
+                jurisdiction_id.replace('-', ' ').title(),
+                as_of.isoformat()
+            ))
+
+            # Close previous versions for transcripts being updated
+            video_ids = [t.get('video_id') for t in transcripts]
+            for video_id in video_ids:
+                if video_id:
+                    cursor.execute("""
+                        UPDATE transcripts
+                        SET valid_to = %s
+                        WHERE jurisdiction_id = %s
+                          AND video_id = %s
+                          AND valid_to IS NULL
+                    """, (as_of.isoformat(), jurisdiction_id, video_id))
+
+            # Insert new versions
+            count = 0
+            for transcript in transcripts:
+                video_id = transcript.get('video_id')
+                if not video_id:
+                    continue  # Skip transcripts without video_id
+
+                # Extract text from utterances if not provided
+                text = transcript.get('text')
+                if not text and transcript.get('utterances'):
+                    text = ' '.join(
+                        u.get('text', '') for u in transcript['utterances']
+                    )
+
+                # Calculate word count if not provided
+                word_count = transcript.get('word_count')
+                if word_count is None and text:
+                    word_count = len(text.split())
+
+                # Generate a unique ID for this transcript version
+                import uuid
+                transcript_id = str(uuid.uuid4())
+
+                cursor.execute("""
+                    INSERT INTO transcripts (
+                        id, jurisdiction_id, video_id, transcript,
+                        text, duration_seconds, word_count, speakers_count,
+                        utterances_count, processing_service, cost_usd,
+                        created_at, valid_from, valid_to
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)
+                """, (
+                    transcript_id,
+                    jurisdiction_id,
+                    video_id,
+                    json.dumps(transcript, cls=DateTimeEncoder),
+                    text,
+                    int(transcript.get('audio_duration_minutes', 0) * 60) if transcript.get('audio_duration_minutes') else None,
+                    word_count,
+                    transcript.get('speakers_count'),
+                    transcript.get('utterances_count'),
+                    transcript.get('processing_service', 'assemblyai'),
+                    transcript.get('cost_usd'),
+                    transcript.get('processed_at', as_of.isoformat()),
+                    as_of.isoformat(),
+                ))
+                count += 1
+
+            conn.commit()
+            return count
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_transcripts(
+        self,
+        jurisdiction_id: str,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve transcripts with temporal filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of transcripts to return
+
+        Returns:
+            List of transcript dictionaries
+        """
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Build query with temporal filtering
+        query = """
+            SELECT * FROM transcripts
+            WHERE jurisdiction_id = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+            ORDER BY created_at DESC
+        """
+        params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+
+        if limit:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to dictionaries
+        transcripts = []
+        for row in rows:
+            transcript = dict(row)
+            # Parse the JSONB transcript field
+            if 'transcript' in transcript and isinstance(transcript['transcript'], str):
+                transcript['transcript'] = json.loads(transcript['transcript'])
+            # Convert datetime objects to ISO strings
+            for key in ['created_at', 'valid_from', 'valid_to']:
+                if key in transcript and transcript[key] is not None:
+                    if isinstance(transcript[key], datetime):
+                        transcript[key] = transcript[key].isoformat()
+            transcripts.append(transcript)
+
+        return transcripts
+
+    def get_transcript(
+        self,
+        video_id: str,
+        as_of: Optional[datetime] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get specific transcript by video_id.
+
+        Args:
+            video_id: YouTube video ID
+            as_of: Point-in-time query (for temporal versioning)
+
+        Returns:
+            Transcript dictionary or None if not found
+        """
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        cursor.execute("""
+            SELECT * FROM transcripts
+            WHERE video_id = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+            ORDER BY created_at DESC
+            LIMIT 1
+        """, (video_id, as_of.isoformat(), as_of.isoformat()))
+
+        row = cursor.fetchone()
+        conn.close()
+
+        if not row:
+            return None
+
+        transcript = dict(row)
+        # Parse the JSONB transcript field
+        if 'transcript' in transcript and isinstance(transcript['transcript'], str):
+            transcript['transcript'] = json.loads(transcript['transcript'])
+        # Convert datetime objects to ISO strings
+        for key in ['created_at', 'valid_from', 'valid_to']:
+            if key in transcript and transcript[key] is not None:
+                if isinstance(transcript[key], datetime):
+                    transcript[key] = transcript[key].isoformat()
+
+        return transcript
+
+    def get_transcript_count(self, jurisdiction_id: str) -> int:
+        """
+        Get count of current transcripts for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+
+        Returns:
+            Number of current (non-expired) transcripts
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT COUNT(*) FROM transcripts
+            WHERE jurisdiction_id = %s AND valid_to IS NULL
+        """, (jurisdiction_id,))
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
 
 # Verify protocol compliance at import time (only if psycopg2 available)
 # StorageBackend is @runtime_checkable, so isinstance() works
@@ -1532,7 +1807,9 @@ def _verify_protocol_compliance() -> None:
         # Chunk methods (SESSION 367)
         'store_chunks', 'get_chunks', 'get_chunk_count',
         # Video methods (SESSION 379)
-        'store_videos', 'get_videos', 'get_video_count'
+        'store_videos', 'get_videos', 'get_video_count',
+        # Transcript methods (SESSION 381)
+        'store_transcripts', 'get_transcripts', 'get_transcript', 'get_transcript_count'
     ]
     for method in required_methods:
         assert hasattr(PostgresBackend, method), (
