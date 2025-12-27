@@ -234,14 +234,15 @@
         "note": "Industry standard. SQLiteBackend for local dev/test, PostgresBackend for production. Options: Supabase (500MB free), Neon (512MB free), Fly.io Postgres."
       },
       "blob_storage_abstraction": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "BlobStorage protocol with R2Backend for PDFs/audio",
-        "note": "Cloudflare R2 has 10GB free tier with zero egress fees. S3-compatible API. Offloads large files (PDFs, audio, transcripts) from local/Fly.io volumes."
+        "note": "Cloudflare R2 has 10GB free tier with zero egress fees. S3-compatible API. Offloads large files (PDFs, audio, transcripts) from local/Fly.io volumes.",
+        "completed": "2025-12-26"
       },
       "vector_storage_decision": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Document vector storage strategy: self-hosted ChromaDB vs Qdrant Cloud",
         "note": "Options: (1) ChromaDB on Fly.io volume (~$0.45/mo for 3GB), (2) Qdrant Cloud free tier (1GB), (3) pgvector in Turso/Postgres. Current 880MB fits all options."
       },
