@@ -3,7 +3,7 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2025-12-26",
+  "last_updated": "2025-12-27",
   "category_order": [
     "test_infrastructure",
     "data_architecture",
@@ -658,10 +658,12 @@
         "completed": "2025-12-27"
       },
       "r2_source_caching": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Cache raw scraped content (HTML, PDFs, API responses) in R2",
-        "note": "Reduce repeat scraping requests by caching raw source material in R2 with TTL. Key by URL hash."
+        "note": "SourceCache class in civic_extraction/cache.py caches HTTP responses with TTL. Integrated with ProudCityClient via optional cache param. CLI support via --cache flag.",
+        "completed": "2025-12-27",
+        "test_file": "packages/civic-extraction/tests/test_source_cache.py"
       },
       "e2e_fresh_ingestion": {
         "status": "not_ready",
@@ -689,7 +691,7 @@
       },
       "youtube_cloud_storage": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Wire youtube.py CLI to store video metadata in Postgres",
         "note": "Currently youtube.py stores to local JSON (data/city_san_rafael_videos.json). Need videos table in Postgres and update CLI to use get_storage_backend()."
       },
