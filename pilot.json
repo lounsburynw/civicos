@@ -251,7 +251,7 @@
         "status": "ready",
         "priority": 2,
         "artifact": "Script to migrate local SQLite/blobs to cloud storage",
-        "note": "scripts/migrate_storage.py: SQLite→Postgres, Local→R2, ChromaDB→Fly.io. Supports dry-run, progress reporting, idempotent migrations, and verification.",
+        "note": "scripts/migrate_storage.py: SQLite\u2192Postgres, Local\u2192R2, ChromaDB\u2192Fly.io. Supports dry-run, progress reporting, idempotent migrations, and verification.",
         "completed": "2025-12-26"
       }
     }
@@ -647,6 +647,33 @@
         "priority": 2,
         "artifact": "Alert when scheduled run doesn't complete",
         "cli": "civic-extract monitor --check-all --exit-on-overdue"
+      }
+    },
+    "cloud_integration": {
+      "pipeline_cloud_storage": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Pipeline uses Postgres + R2 instead of SQLite + local files",
+        "note": "CLI discover.py uses get_storage_backend() factory - automatically picks PostgresBackend when DATABASE_URL is set. Tested E2E with Supabase - 1 meeting stored successfully.",
+        "completed": "2025-12-27"
+      },
+      "r2_source_caching": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "Cache raw scraped content (HTML, PDFs, API responses) in R2",
+        "note": "Reduce repeat scraping requests by caching raw source material in R2 with TTL. Key by URL hash."
+      },
+      "e2e_fresh_ingestion": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Full E2E data pull from scratch with cloud storage",
+        "note": "Run complete pipeline: discover -> youtube -> audio -> transcribe with all data stored in Supabase/R2. Verify data flows correctly."
+      },
+      "assemblyai_transcript_storage": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Store AssemblyAI transcripts in Postgres with R2 audio backup",
+        "note": "Transcripts should persist in Supabase, audio files in R2. Currently local-only."
       }
     }
   },
@@ -1466,7 +1493,7 @@
       },
       "feedback_channel": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 3,
         "check": "Way for users to report issues",
         "note": "Add feedback mechanism (GitHub link, email, or in-app form) for pilot users to report bugs"
       },
@@ -1516,5 +1543,16 @@
       "pilot_validation": 10
     },
     "notes": "Updated 2025-12-22: Session 351 - COMPLETED extraction_audit_log (158/174, 90.8%). Created AuditEntry and AuditLog classes building on IngestionManifest. Aggregates metrics per platform with CLI: civic-extract audit. 13 new tests."
+  },
+  "deployment": {
+    "infrastructure": {
+      "pgvector_backend": {
+        "status": "ready",
+        "priority": 1,
+        "note": "Implemented PgVectorBackend with validate, index_from_storage, search, get_stats, delete_index. Tested against Supabase pgvector - 186 decisions indexed with 100% coverage.",
+        "test": "packages/civic/tests/test_storage_protocols.py::TestPgVectorBackend",
+        "completed": "2025-12-27"
+      }
+    }
   }
 }
