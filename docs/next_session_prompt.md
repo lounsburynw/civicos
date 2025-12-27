@@ -30,8 +30,8 @@ Session 377 completed `pipeline_cloud_storage` and identified **9 remaining item
 | Data Type | Backend | Count |
 |-----------|---------|-------|
 | Meetings | PostgresBackend (Supabase) | 46 |
-| Decisions | PostgresBackend (migrated) | 186 |
-| Vectors | PgVectorBackend (Supabase) | 186 embeddings |
+| Decisions | PostgresBackend | 0 (cleared, await E2E pipeline) |
+| Vectors | PgVectorBackend (Supabase) | 0 (cleared, await E2E pipeline) |
 | Blobs | R2Backend | Ready, not used yet |
 
 ## Recommended Task
