@@ -1,14 +1,14 @@
-# Recommended: chunks_cloud_storage
+# Recommended: vector_indexing_cloud
 
 **Priority:** P0
 **Area:** pipeline_automation > cloud_integration
 **Date:** 2025-12-27
 
-> This is recommended context from Session 382. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 383. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 382 completed `decision_extraction_pipeline` - created `decisions.py` CLI command for automated decision extraction from meeting agendas. The next item is `chunks_cloud_storage` - wire PDF chunk extraction to use Postgres instead of local ChromaDB.
+Session 383 completed `chunks_cloud_storage` - created `chunks.py` CLI command for extracting PDF chunks from meeting agendas and storing them in Postgres. Now all major data types are in cloud storage. The next critical step is enabling vector search on this cloud data.
 
 ## E2E Cloud ETL Roadmap (10 items)
 
@@ -20,71 +20,69 @@ Session 382 completed `decision_extraction_pipeline` - created `decisions.py` CL
 | 4 | `audio_cloud_storage` | Done | Audio files -> R2 |
 | 5 | `assemblyai_transcript_storage` | Done | Transcripts -> Postgres |
 | 6 | `decision_extraction_pipeline` | Done | Agendas -> Decisions |
-| 7 | **`chunks_cloud_storage`** | **P0** | PDF chunks -> Postgres |
+| 7 | `chunks_cloud_storage` | Done | PDF chunks -> Postgres |
 | 8 | `seeclickfix_cloud_storage` | P1 | Issues -> Postgres |
-| 9 | `vector_indexing_cloud` | P1 | All data -> pgvector |
+| 9 | **`vector_indexing_cloud`** | **P0** | All data -> pgvector |
 | 10 | `e2e_fresh_ingestion` | P1 | Full verification |
 
 ## Current State
 
-**Chunk storage already exists:**
-- `PostgresBackend.store_chunks()` at `postgres_backend.py:1219`
-- `PostgresBackend.get_chunks()` at `postgres_backend.py:1295`
-- `PostgresBackend.get_chunk_count()` at `postgres_backend.py:1350`
+**PgVectorBackend already exists:**
+- `PgVectorBackend.index_from_storage()` at `pgvector_backend.py:373`
+- `PgVectorBackend.search()` at `pgvector_backend.py:283`
+- Implements `VectorBackend` protocol
 
-**Chunk extraction currently uses local storage:**
-- `CivicEmbeddings.build_chunks_index_from_sql()` reads from SQLite at `embeddings.py:766-800`
-- Vector indexing with pgvector at `pgvector_backend.py:373`
-- No CLI command for cloud chunk extraction
+**Pipeline currently uses ChromaDB:**
+- `Pipeline.run_index()` at `pipeline.py:287` uses local ChromaDB
+- `CivicEmbeddings.build_index_from_sql()` at `embeddings.py:686` builds ChromaDB index
+- Need to add cloud vector indexing path
 
-**Missing pieces:**
-- No `chunks.py` CLI command (like decisions.py, transcribe.py)
-- PDF parsing and chunk extraction not wired to Postgres
-- Need to extract chunks from agenda PDFs and store via `store_chunks()`
+**Chunks now in Postgres:**
+- `PostgresBackend.get_chunks()` returns chunks with text, meeting_id, agenda_item
+- Ready for vector embedding
 
 ## Recommended Task
 
-Create a `chunks.py` CLI command that:
-1. Finds meeting agendas with PDF URLs (from meetings in Postgres)
-2. Downloads and parses PDF content
-3. Chunks the text (similar to existing docling parsing)
-4. Stores chunks in Postgres via `store_chunks()`
-5. Supports `--cloud` flag for cloud storage integration
+Wire the INDEX stage to use PgVectorBackend when DATABASE_URL is set:
+1. Add a vector indexing CLI command or extend existing pipeline
+2. Read chunks from Postgres via `get_chunks()`
+3. Embed and store in pgvector via `PgVectorBackend.index_from_storage()`
+4. Enable semantic search on cloud-stored chunks
 
 ## Key Files
 
-- `packages/civic/src/civic/storage/postgres_backend.py:1219-1380` - Chunk storage methods
-- `packages/civic/src/civic/_internal/meetings/embeddings.py:766-800` - Current chunk indexing from SQL
-- `packages/civic-extraction/src/civic_extraction/cli/decisions.py` - Pattern for new CLI (just created)
-- `packages/civic-extraction/src/civic_extraction/cli/transcribe.py` - Cloud integration pattern
+- `packages/civic/src/civic/storage/pgvector_backend.py:283-400` - PgVector index/search methods
+- `packages/civic/src/civic/_internal/meetings/embeddings.py:686-760` - Current index building
+- `packages/civic-extraction/src/civic_extraction/pipeline.py:287` - Pipeline INDEX stage
+- `packages/civic/src/civic/storage/postgres_backend.py:1295-1365` - get_chunks() method
 
 ## Suggested Approach
 
-1. **Create `chunks.py` CLI** in `packages/civic-extraction/src/civic_extraction/cli/`:
+1. **Create `vectors.py` CLI** or extend pipeline with `--cloud-vectors` flag:
    ```python
-   # civic-extract chunks --jurisdiction city-san-rafael --cloud
-   parser.add_argument("--cloud", action="store_true",
-       help="Store chunks in cloud storage")
+   # civic-extract vectors --jurisdiction city-san-rafael --cloud
    ```
 
-2. **PDF chunk extraction:**
-   - Use docling or pypdf2 to parse PDFs
-   - Chunk into ~500 token segments with overlap
-   - Include metadata: meeting_id, agenda_item, page_num, chunk_index
-
-3. **Wire to PostgresBackend:**
+2. **Vector index from SQL:**
    ```python
    from civic.storage import get_storage_backend
+   from civic.storage.pgvector_backend import PgVectorBackend
+
    backend = get_storage_backend()
-   backend.store_chunks(jurisdiction_id, chunks)
+   chunks = backend.get_chunks(jurisdiction_id)
+
+   pgvector = PgVectorBackend()
+   pgvector.index_from_storage(backend, jurisdiction_id)
    ```
 
-4. **Add checkpoint support** (same pattern as decisions.py, transcribe.py)
+3. **Update search to use pgvector:**
+   - When DATABASE_URL set, use PgVectorBackend for semantic search
+   - Local fallback to ChromaDB still works
 
 ## Tests to Run
 
 ```bash
-# Storage protocol tests
+# Storage protocol tests (includes PgVectorBackend)
 pytest packages/civic/tests/test_storage_protocols.py -v
 
 # Full smoke tests
@@ -93,16 +91,15 @@ pytest packages/civic/tests/test_civic.py -q
 
 ## Success Criteria
 
-- [ ] `chunks.py` CLI command created
-- [ ] Agenda PDFs can be parsed and chunked
-- [ ] Chunks stored in Postgres with `--cloud` flag
-- [ ] Checkpoint/resume support for large batches
-- [ ] Local fallback still works
+- [ ] Vector indexing CLI or pipeline stage created
+- [ ] Chunks from Postgres embedded into pgvector
+- [ ] Semantic search works on cloud-stored vectors
+- [ ] Local ChromaDB fallback still works
 - [ ] Existing tests pass
 
 ## Why This Next?
 
-- Chunks are needed for RAG/vector search on meeting content
-- Having chunks in Postgres enables SQL-first vector indexing via pgvector
-- This enables `vector_indexing_cloud` (next item in pipeline)
-- Pattern is identical to decisions.py - fast to implement
+- Completes the cloud data pipeline (store + index + search)
+- Enables RAG queries on cloud-stored meeting content
+- Required before `e2e_fresh_ingestion` can fully verify the pipeline
+- PgVectorBackend already implemented and tested - just needs wiring

@@ -1221,6 +1221,7 @@ class PostgresBackend:
         jurisdiction_id: str,
         chunks: List[Dict[str, Any]],
         as_of: Optional[datetime] = None,
+        meeting_id: Optional[str] = None,
     ) -> int:
         """
         Store PDF chunks with temporal versioning.
@@ -1232,6 +1233,8 @@ class PostgresBackend:
             jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
             chunks: List of chunk dictionaries with text, agenda_item, etc.
             as_of: Timestamp for temporal versioning (default: now)
+            meeting_id: If provided, only close/replace chunks for this meeting.
+                       If None, close ALL chunks for jurisdiction (snapshot mode).
 
         Returns:
             Number of chunks successfully stored
@@ -1247,12 +1250,23 @@ class PostgresBackend:
 
         try:
             # Close previous versions (set valid_to)
-            cursor.execute("""
-                UPDATE chunks
-                SET valid_to = %s
-                WHERE jurisdiction_id = %s
-                  AND valid_to IS NULL
-            """, (as_of.isoformat(), jurisdiction_id))
+            # If meeting_id provided, only close chunks for that meeting (incremental)
+            # Otherwise, close all chunks for jurisdiction (snapshot mode)
+            if meeting_id:
+                cursor.execute("""
+                    UPDATE chunks
+                    SET valid_to = %s
+                    WHERE jurisdiction_id = %s
+                      AND meeting_id = %s
+                      AND valid_to IS NULL
+                """, (as_of.isoformat(), jurisdiction_id, meeting_id))
+            else:
+                cursor.execute("""
+                    UPDATE chunks
+                    SET valid_to = %s
+                    WHERE jurisdiction_id = %s
+                      AND valid_to IS NULL
+                """, (as_of.isoformat(), jurisdiction_id))
 
             # Insert new versions
             for i, chunk in enumerate(chunks):
