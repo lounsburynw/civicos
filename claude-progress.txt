@@ -6845,3 +6845,33 @@ civic-extract decisions --jurisdiction city-san-rafael --cloud --schedule
 
 ### Next P0: chunks_cloud_storage
 Wire PDF chunk extraction to store in Postgres. chunks table exists in PostgresBackend with store_chunks()/get_chunks().
+
+## Session 383 (2025-12-27): chunks_cloud_storage
+
+### What Was Done
+- Created `chunks.py` CLI command in `packages/civic-extraction/src/civic_extraction/cli/`
+- Registered in CLI `__init__.py`
+- Downloads agenda PDFs from meeting URLs
+- Parses with `AgendaPacketParser.parse_to_chunks()`
+- Stores via `PostgresBackend.store_chunks()` with incremental `meeting_id` support
+- Fixed `store_chunks()` to support incremental storage (per-meeting) instead of snapshot mode
+- Checkpoint/resume support for batch processing
+
+### Key Files Changed
+- `packages/civic-extraction/src/civic_extraction/cli/chunks.py` (new)
+- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` (registered command)
+- `packages/civic/src/civic/storage/postgres_backend.py` (added meeting_id param to store_chunks)
+
+### Tests
+- 68 storage protocol tests: ✅ passed
+- 34 smoke tests: ✅ passed
+- CLI --help verified
+- CLI --cloud --limit 5 verified (28 chunks extracted from 5 meetings)
+
+### Progress
+- Before: 184/202 items ready (91.1%)
+- After: 185/202 items ready (91.6%)
+- 1 item completed: chunks_cloud_storage
+
+### Next P0: vector_indexing_cloud
+Wire pipeline INDEX stage to use PgVectorBackend instead of ChromaDB. Now that meetings, chunks, decisions, transcripts, videos, and audio are all in cloud storage, enable vector search on cloud data.
