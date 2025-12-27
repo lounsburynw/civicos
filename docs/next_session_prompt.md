@@ -1,22 +1,22 @@
-# Recommended: r2_source_caching
+# Recommended: youtube_cloud_storage
 
 **Priority:** P0
 **Area:** pipeline_automation > cloud_integration
 **Date:** 2025-12-27
 
-> This is recommended context from Session 377. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 378. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 377 completed `pipeline_cloud_storage` and identified **9 remaining items** needed for complete E2E cloud ETL. The `r2_source_caching` item is P0 because caching scraped content will speed up development iterations for all subsequent items.
+Session 378 completed `r2_source_caching` (SourceCache class for caching HTTP responses). The next item is `youtube_cloud_storage` - wire youtube.py CLI to store video metadata in Postgres instead of local JSON.
 
 ## E2E Cloud ETL Roadmap (10 items)
 
 | # | Item | Status | Data Flow |
 |---|------|--------|-----------|
 | 1 | `pipeline_cloud_storage` | ✅ Done | Meetings → Postgres |
-| 2 | **`r2_source_caching`** | **P0** | Cache HTML/PDFs in R2 |
-| 3 | `youtube_cloud_storage` | P1 | Video metadata → Postgres |
+| 2 | `r2_source_caching` | ✅ Done | Cache HTML/PDFs in R2 |
+| 3 | **`youtube_cloud_storage`** | **P0** | Video metadata → Postgres |
 | 4 | `audio_cloud_storage` | P1 | Audio files → R2 |
 | 5 | `assemblyai_transcript_storage` | P1 | Transcripts → Postgres |
 | 6 | `decision_extraction_pipeline` | P1 | Minutes PDF → Decisions |
@@ -25,76 +25,66 @@ Session 377 completed `pipeline_cloud_storage` and identified **9 remaining item
 | 9 | `vector_indexing_cloud` | P1 | All data → pgvector |
 | 10 | `e2e_fresh_ingestion` | P1 | Full verification |
 
-## Current Cloud Status
+## Current State
 
-| Data Type | Backend | Count |
-|-----------|---------|-------|
-| Meetings | PostgresBackend (Supabase) | 46 |
-| Decisions | PostgresBackend | 0 (cleared, await E2E pipeline) |
-| Vectors | PgVectorBackend (Supabase) | 0 (cleared, await E2E pipeline) |
-| Blobs | R2Backend | Ready, not used yet |
+**youtube.py CLI** (`packages/civic-extraction/src/civic_extraction/cli/youtube.py`):
+- Scrapes meeting pages for YouTube video IDs
+- Stores results to local JSON: `data/{jurisdiction}_videos.json`
+- Uses `VideoResult` dataclass: video_id, meeting_url, title, date, youtube_url
+- Uses `YouTubeCheckpoint` for progress tracking
+
+**PostgresBackend** already has:
+- `meetings` table with `video_url` column
+- No dedicated `videos` table yet
 
 ## Recommended Task
 
-Add a caching layer that stores raw scraped content in R2:
-- Cache HTML pages with URL hash as key
-- Cache downloaded PDFs before parsing
-- TTL-based expiration (24h for meeting pages)
-- Speeds up re-runs during development of other ETL items
+Wire youtube.py to store video metadata in Postgres:
+
+1. **Add `videos` table to PostgresBackend**:
+   ```python
+   # In _ensure_tables()
+   CREATE TABLE IF NOT EXISTS videos (
+       id TEXT PRIMARY KEY,  -- video_id
+       jurisdiction_id TEXT NOT NULL,
+       meeting_url TEXT,
+       title TEXT,
+       date TEXT,
+       youtube_url TEXT,
+       discovered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+       metadata JSONB DEFAULT '{}'
+   )
+   ```
+
+2. **Add storage methods**:
+   ```python
+   def store_videos(self, jurisdiction_id: str, videos: List[Dict]) -> int:
+       """Store video records, upsert on video_id."""
+
+   def get_videos(self, jurisdiction_id: str, limit: int = 100) -> List[Dict]:
+       """Get videos for jurisdiction."""
+   ```
+
+3. **Update youtube.py CLI**:
+   - Import `get_storage_backend`
+   - Replace JSON file operations with `storage.store_videos()`
+   - Add `--cloud` flag (or auto-detect from DATABASE_URL)
+   - Keep JSON fallback for local development
 
 ## Key Files
 
-- `packages/civic-extraction/src/civic_extraction/clients/proudcity.py` - Scraper to add caching
-- `packages/civic/src/civic/storage/blob.py:144-280` - R2Backend (ready)
-- `packages/civic/src/civic/storage/__init__.py:60` - `get_blob_storage()` factory
-
-## Suggested Approach
-
-1. **Create SourceCache class** in `civic_extraction/cache.py`:
-   ```python
-   class SourceCache:
-       def __init__(self, blob_storage: BlobStorage):
-           self.storage = blob_storage
-
-       def cache_key(self, url: str) -> str:
-           return f"source-cache/{hashlib.sha256(url.encode()).hexdigest()[:16]}"
-
-       def get(self, url: str) -> Optional[bytes]:
-           key = self.cache_key(url)
-           if self.storage.exists(key):
-               metadata = self.storage.get_metadata(key)
-               if not self._is_expired(metadata):
-                   return self.storage.download(key)
-           return None
-
-       def put(self, url: str, content: bytes, ttl_hours: int = 24):
-           key = self.cache_key(url)
-           self.storage.upload(key, content, metadata={"url": url, "expires": ...})
-   ```
-
-2. **Integrate with ProudCitySource**:
-   - Add `cache: Optional[SourceCache]` parameter
-   - Check cache before HTTP requests
-   - Store responses after successful fetches
-
-3. **CLI integration** in `discover.py`:
-   ```python
-   from civic.storage import get_blob_storage
-   from civic_extraction.cache import SourceCache
-
-   blob = get_blob_storage()  # Returns R2Backend if BLOB_STORAGE_URL set
-   cache = SourceCache(blob) if blob else None
-   source = ProudCitySource(jurisdiction_id, cache=cache)
-   ```
+- `packages/civic-extraction/src/civic_extraction/cli/youtube.py` - CLI to update
+- `packages/civic/src/civic/storage/postgres_backend.py` - Add videos table/methods
+- `packages/civic/src/civic/storage/backend.py` - Add protocol methods if needed
 
 ## Tests to Run
 
 ```bash
-# Blob storage tests
-pytest packages/civic/tests/test_storage_protocols.py::TestR2Backend -v
+# Storage protocol tests (add video tests)
+pytest packages/civic/tests/test_storage_protocols.py -v -k video
 
-# After creating cache tests
-pytest packages/civic-extraction/tests/test_source_cache.py -v
+# YouTube CLI tests (if any exist)
+pytest packages/civic-extraction/tests/ -v -k youtube
 
 # Full smoke tests
 pytest packages/civic/tests/test_civic.py -q
@@ -102,17 +92,17 @@ pytest packages/civic/tests/test_civic.py -q
 
 ## Success Criteria
 
-- [ ] SourceCache class with get/put/is_expired operations
-- [ ] ProudCitySource uses cache when provided
-- [ ] Cache key format: `source-cache/{url_hash}`
-- [ ] TTL metadata stored with cached content
-- [ ] Second pipeline run is faster (cache hits logged)
+- [ ] `videos` table created in PostgresBackend
+- [ ] `store_videos()` and `get_videos()` methods work
+- [ ] youtube.py CLI uses `get_storage_backend()` when DATABASE_URL set
+- [ ] Video discovery writes to Supabase in cloud mode
+- [ ] Local JSON fallback still works
 - [ ] Existing tests pass
 
-## Why This First?
+## Why This Next?
 
-Caching raw content accelerates development of all remaining items:
-- `youtube_cloud_storage` - won't re-scrape video IDs
-- `decision_extraction_pipeline` - won't re-download PDFs
-- `chunks_cloud_storage` - same PDF caching benefit
-- Testing iterations become much faster
+Continuing the cloud storage integration path:
+- Videos are discovered from meeting pages (already scraped)
+- Audio extraction (`audio_cloud_storage`) depends on video metadata
+- Transcription (`assemblyai_transcript_storage`) depends on audio
+- This unblocks the audio → transcribe pipeline
