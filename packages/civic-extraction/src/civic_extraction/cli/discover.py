@@ -22,7 +22,7 @@ from civic_extraction.pipeline import (
     checkpoint_path_for_jurisdiction,
 )
 from civic_extraction.clients.proudcity import ProudCitySource
-from civic.storage import SQLiteBackend
+from civic.storage import get_storage_backend
 
 # Configure logging
 logging.basicConfig(
@@ -157,8 +157,10 @@ def run_meeting_discovery(
         logger.info(f"Resuming from checkpoint: {resume_from.last_meeting_id}")
         logger.info(f"Last processed: {resume_from.last_meeting_datetime.isoformat()}")
 
-    # Create pipeline with SQLite storage
-    storage = SQLiteBackend()
+    # Create pipeline with storage backend from environment
+    # Uses DATABASE_URL env var: postgres:// -> PostgresBackend, else SQLiteBackend
+    storage = get_storage_backend()
+    logger.info(f"Using storage backend: {storage.backend_type}")
     pipeline = Pipeline(source, jurisdiction_id, storage_target=storage)
 
     # Define callbacks for logging
