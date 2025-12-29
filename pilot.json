@@ -1754,16 +1754,17 @@
         "note": "Session 402: Complete. 2,839 CA bills via bulk ingestion (1 API call). Vectors indexed for RAG semantic search. CLI: civic-extract legislative --bulk --cloud. Also supports --migrate-json for curated bills."
       },
       "federal_legislation_e2e_cloud": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Federal legislation and grant programs affecting local governance ingested to Postgres",
         "target_count": "Key federal programs (CDBG, HUD, IIJA) and regulations",
         "verification": "SELECT COUNT(*) FROM legislation WHERE state = 'US'",
-        "note": "LegiScan supports state='US' for Congress. Lower priority than CA state legislation which is more directly actionable at local level."
+        "note": "Session 404: Complete. 12,355 US Congress bills via bulk ingestion (1 API call). CLI: civic-extract legislative --bulk --cloud --state US. Key programs verified: 161 housing, 100 infrastructure, 240 climate/energy, 182 grant program bills.",
+        "completed": "2025-12-29"
       },
       "vectors_e2e_cloud": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Vector indexes built in pgvector FROM cloud SQL data (not migrated)",
         "target_count": "Indexes for: chunks, decisions, issues, municipal_code, transcripts, legislation",
         "verification": "civic-extract vectors --stats --cloud",
