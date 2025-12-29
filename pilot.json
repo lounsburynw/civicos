@@ -1608,11 +1608,12 @@
         "note": "44 decisions extracted via civic-extract decisions --cloud from 19 meetings. Fixed store_decisions() temporal versioning bug (was closing all decisions per jurisdiction, now only closes matching IDs). Topic distribution: budget(20), development(15), community(15), housing(12)."
       },
       "chunks_pdf_extraction_fix": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Fix chunks CLI to extract from actual PDFs, not HTML meeting pages",
         "verification": "Chunks extracted from PDFs with valid content (>100KB source files, PDF magic bytes)",
-        "note": "BUG: agenda_url contains meeting page HTML, not PDF links. CLI downloads HTML (~90KB) instead of actual agenda packets (1-15MB). Need to: 1) Parse HTML to find PDF links, 2) Download actual PDFs, 3) Add degenerate case detection (content-type, file size, PDF magic bytes)."
+        "completed": "2025-12-28",
+        "note": "Added extract_pdf_urls_from_meeting_page() to parse HTML meeting pages and find actual PDF links. Degenerate detection (HTML content-type, PDF magic bytes, file size) triggers automatic PDF URL extraction. Flow: detect HTML -> parse meeting page -> find agenda_packet_url -> download real PDF -> extract chunks."
       },
       "chunks_e2e_cloud": {
         "status": "not_ready",
@@ -1620,7 +1621,14 @@
         "artifact": "All PDF chunks extracted E2E to Postgres from agenda packets/staff reports",
         "target_count": "1000+ chunks (from actual PDF extraction)",
         "verification": "SELECT COUNT(*) FROM chunks WHERE jurisdiction_id = 'city-san-rafael'",
-        "note": "BLOCKED by chunks_pdf_extraction_fix. Current 239 chunks are from HTML pages, not real PDFs. Each meeting page has 10-24 PDF links (staff reports, agenda packet, minutes). Re-run after fix."
+        "note": "PARTIAL: 4115 chunks from 27/46 meetings. Extraction stalled at meeting 36 (23MB PDF). Issues: 1) Large PDFs cause timeout/hang, 2) Full extraction takes 2+ hours locally. NEEDS: Remote compute evaluation, parallelization, timeout handling for large PDFs."
+      },
+      "chunks_extraction_reliability": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "Reliable chunks extraction with timeout handling and remote compute options",
+        "verification": "Full extraction completes without stalls, reasonable time (<30 min)",
+        "note": "Address: 1) PDF parsing timeout for large files (23MB+), 2) Evaluate remote compute/parallelization for 2+ hour extraction, 3) Add per-meeting timeout with graceful skip, 4) Consider chunked processing or worker queues."
       },
       "transcripts_e2e_cloud": {
         "status": "not_ready",

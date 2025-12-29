@@ -7148,3 +7148,27 @@ Investigation revealed that current chunks are extracted from HTML meeting pages
 **Reverted:**
 - chunks_e2e_cloud -> not_ready (blocked by chunks_pdf_extraction_fix)
 - transcripts_e2e_cloud -> P1 (deferred)
+
+## Session 392 (2025-12-28)
+
+### Completed: chunks_pdf_extraction_fix
+
+Added `extract_pdf_urls_from_meeting_page()` to parse HTML meeting pages and find actual PDF links when degenerate case detected. Flow: detect HTML -> parse page -> find agenda_packet_url -> download real PDF -> extract chunks.
+
+**Key file:** `packages/civic-extraction/src/civic_extraction/cli/chunks.py:448-574`
+
+### Partial: chunks_e2e_cloud
+
+Extracted 4,115 chunks from 27/46 meetings before stall at meeting 36 (23MB PDF).
+
+### Created P0: chunks_extraction_reliability
+
+**Issues identified:**
+1. Large PDFs (23MB+) cause timeout/hang during parsing
+2. Full extraction takes 2+ hours locally
+3. No graceful timeout handling per meeting
+
+**Future work:**
+- Evaluate remote compute/parallelization options
+- Add per-meeting timeout with graceful skip
+- Consider worker queues or chunked processing

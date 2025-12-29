@@ -445,6 +445,135 @@ def download_pdf(url: str, timeout: int = 60) -> Optional[bytes]:
         return None
 
 
+def extract_pdf_urls_from_meeting_page(meeting_page_url: str) -> dict[str, Optional[str]]:
+    """
+    Parse an HTML meeting page to extract actual PDF URLs.
+
+    When agenda_url points to an HTML meeting page (not a direct PDF),
+    this function scrapes the page to find links to actual PDFs.
+
+    Args:
+        meeting_page_url: URL of the meeting page (HTML)
+
+    Returns:
+        Dict with 'agenda_packet_url' and 'minutes_url' (both may be None)
+    """
+    from bs4 import BeautifulSoup
+
+    result = {
+        'agenda_packet_url': None,
+        'minutes_url': None,
+    }
+
+    try:
+        response = requests.get(meeting_page_url, timeout=30)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to fetch meeting page: {e}")
+        return result
+
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    # Extract all PDF URLs from the page
+    pdf_urls = []
+
+    # Links with .pdf in href
+    for link in soup.find_all('a', href=True):
+        href = link.get('href', '')
+        if '.pdf' in href.lower():
+            # Make absolute URL
+            if href.startswith('http'):
+                pdf_urls.append(href)
+            elif href.startswith('/'):
+                # Extract base URL from meeting_page_url
+                from urllib.parse import urlparse
+                parsed = urlparse(meeting_page_url)
+                base_url = f"{parsed.scheme}://{parsed.netloc}"
+                pdf_urls.append(f"{base_url}{href}")
+
+    # Embeds and iframes
+    for tag in soup.find_all(['embed', 'iframe']):
+        src = tag.get('src', '')
+        if '.pdf' in src.lower():
+            if src.startswith('http'):
+                pdf_urls.append(src)
+            elif src.startswith('/'):
+                from urllib.parse import urlparse
+                parsed = urlparse(meeting_page_url)
+                base_url = f"{parsed.scheme}://{parsed.netloc}"
+                pdf_urls.append(f"{base_url}{src}")
+
+    logger.debug(f"Found {len(pdf_urls)} PDF links on meeting page")
+
+    # Pattern match for agenda packet
+    import re
+    agenda_packet_patterns = [
+        r'agenda-packet.*\.pdf',
+        r'full.*packet.*\.pdf',
+        r'complete.*agenda.*\.pdf',
+        r'packet.*\d{4}-\d{2}-\d{2}.*\.pdf',
+    ]
+
+    for pattern in agenda_packet_patterns:
+        for url in pdf_urls:
+            if re.search(pattern, url, re.I):
+                result['agenda_packet_url'] = url
+                logger.info(f"  Found agenda packet: {url[:80]}...")
+                break
+        if result['agenda_packet_url']:
+            break
+
+    # Try #tab-agenda-packet section (ProudCity pattern)
+    if not result['agenda_packet_url']:
+        agenda_packet_tab = soup.find('div', {'id': 'tab-agenda-packet'})
+        if agenda_packet_tab:
+            for link in agenda_packet_tab.find_all('a', href=True):
+                href = link.get('href', '')
+                if '.pdf' in href.lower():
+                    if href.startswith('http'):
+                        result['agenda_packet_url'] = href
+                    elif href.startswith('/'):
+                        from urllib.parse import urlparse
+                        parsed = urlparse(meeting_page_url)
+                        base_url = f"{parsed.scheme}://{parsed.netloc}"
+                        result['agenda_packet_url'] = f"{base_url}{href}"
+                    logger.info(f"  Found agenda packet in tab: {result['agenda_packet_url'][:80]}...")
+                    break
+
+    # Pattern match for minutes
+    minutes_patterns = [
+        r'cc-minutes.*\d{4}-\d{2}-\d{2}.*\.pdf',
+        r'minutes-\d{4}-\d{2}-\d{2}.*\.pdf',
+        r'\d{8}-cc-minutes.*\.pdf',
+    ]
+
+    for pattern in minutes_patterns:
+        for url in pdf_urls:
+            if re.search(pattern, url, re.I):
+                result['minutes_url'] = url
+                break
+        if result['minutes_url']:
+            break
+
+    # Try #tab-minutes section
+    if not result['minutes_url']:
+        minutes_tab = soup.find('div', {'id': 'tab-minutes'})
+        if minutes_tab:
+            for link in minutes_tab.find_all('a', href=True):
+                href = link.get('href', '')
+                if '.pdf' in href.lower():
+                    if href.startswith('http'):
+                        result['minutes_url'] = href
+                    elif href.startswith('/'):
+                        from urllib.parse import urlparse
+                        parsed = urlparse(meeting_page_url)
+                        base_url = f"{parsed.scheme}://{parsed.netloc}"
+                        result['minutes_url'] = f"{base_url}{href}"
+                    break
+
+    return result
+
+
 def download_and_validate_pdf(url: str, timeout: int = 60) -> DownloadResult:
     """
     Download a PDF from URL with full validation.
@@ -565,17 +694,56 @@ def extract_chunks_from_meeting(
         if not download_result.is_valid_pdf:
             degenerate_warnings = [w for w in download_result.validation_warnings if "DEGENERATE" in w]
             if degenerate_warnings:
-                logger.error(
-                    f"  SKIPPING {meeting_id}: Downloaded HTML page instead of PDF. "
-                    "agenda_url points to meeting page, not direct PDF link."
+                logger.info(
+                    f"  Detected HTML meeting page (not direct PDF). "
+                    "Parsing page to find actual PDF links..."
                 )
-                return ChunksResult(
-                    meeting_id=meeting_id,
-                    meeting_date=meeting_date,
-                    status="error",
-                    error="Degenerate case: HTML page downloaded instead of PDF. "
-                    "Need to parse meeting page to find actual PDF links.",
-                )
+
+                # Parse the meeting page to extract actual PDF URLs
+                pdf_urls = extract_pdf_urls_from_meeting_page(agenda_url)
+
+                actual_pdf_url = pdf_urls.get('agenda_packet_url')
+                if not actual_pdf_url:
+                    # Try minutes as fallback
+                    actual_pdf_url = pdf_urls.get('minutes_url')
+                    if actual_pdf_url:
+                        logger.info(f"  No agenda packet found, using minutes PDF")
+
+                if not actual_pdf_url:
+                    logger.warning(
+                        f"  No PDF links found on meeting page: {agenda_url[:60]}..."
+                    )
+                    return ChunksResult(
+                        meeting_id=meeting_id,
+                        meeting_date=meeting_date,
+                        status="error",
+                        error="No PDF links found on meeting page",
+                    )
+
+                # Download the actual PDF
+                logger.info(f"  Downloading actual PDF: {actual_pdf_url[:60]}...")
+                download_result = download_and_validate_pdf(actual_pdf_url)
+                if not download_result.content:
+                    return ChunksResult(
+                        meeting_id=meeting_id,
+                        meeting_date=meeting_date,
+                        status="error",
+                        error=f"Failed to download PDF from {actual_pdf_url[:60]}",
+                    )
+
+                if not download_result.is_valid_pdf:
+                    logger.warning(
+                        f"  Downloaded content still not a valid PDF"
+                    )
+                    return ChunksResult(
+                        meeting_id=meeting_id,
+                        meeting_date=meeting_date,
+                        status="error",
+                        error="Extracted PDF URL did not return valid PDF content",
+                    )
+
+                # Update agenda_url for source tracking
+                agenda_url = actual_pdf_url
 
         pdf_bytes = download_result.content
 
