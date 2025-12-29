@@ -7075,3 +7075,31 @@ Run agenda item extraction pipeline against cloud Postgres storage.
 | Transcripts | 0 | pending |
 
 **Next P0:** decisions_e2e_cloud
+
+## Session 390: decisions_e2e_cloud P0 Complete
+**Date**: 2025-12-28
+**Focus**: Run decision extraction E2E to cloud storage
+
+### Changes
+1. Fixed critical bug in `store_decisions()` (postgres_backend.py:1128-1141)
+   - Bug: Was closing ALL decisions for jurisdiction before inserting new ones
+   - Fix: Now only closes decisions with matching IDs (proper temporal versioning)
+   - Impact: Previous runs only kept last meeting's decisions, now all accumulate
+
+2. Ran `civic-extract decisions --jurisdiction city-san-rafael --cloud`
+   - Extracted 44 decisions from 46 meetings
+   - 19 meetings had high-stakes decisions
+   - Topic distribution: budget(20), development(15), community(15), housing(12)
+   - Notable: Nov 17 council meeting captured 9 related decisions for 350 Merrydale shelter project
+
+3. Verified decision quality via spot-checking:
+   - Random samples show accurate titles, summaries, and topic assignments
+   - Agenda item numbering preserved (e.g., 6.a.i through 6.a.v)
+   - Temporal versioning correct: 44 active, 0 historical
+
+### Updated
+- pilot.json: decisions_e2e_cloud -> ready
+- pilot.json: chunks_e2e_cloud -> P0 (next priority)
+
+### Next P0: chunks_e2e_cloud
+Run `civic-extract chunks --jurisdiction city-san-rafael --cloud` to extract PDF chunks.
