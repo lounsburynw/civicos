@@ -1,0 +1,478 @@
+[
+  {
+    "item_ref": "5.b",
+    "title": "Agreement for Environmental Consulting Services for the Dominican Residential Development Project and Associated Supplemental Fiscal Year 2025-2026 Budget Appropriation",
+    "description": "This item authorizes the City Manager to execute a professional services agreement with Environmental Science Associates (ESA) for environmental consulting services for the Dominican Residential Development Project (PLAN23-081) located at APN 015-163-03. It also approves a supplemental FY 2025-2026 budget appropriation to fund the agreement.",
+    "meeting_date": "2025-10-06",
+    "meeting_type": "city_council",
+    "is_high_stakes": true,
+    "stakes_score": 7,
+    "decision_type": "budget",
+    "budget_amount": 675221,
+    "budget_description": "Environmental consulting services for the Dominican Residential Development Project",
+    "affected_population_estimate": null,
+    "geographic_scope": "specific_location",
+    "project_size_units": null,
+    "project_location": "APN 015-163-03",
+    "project_types": [
+      "budget",
+      "development",
+      "environment"
+    ],
+    "keywords_for_matching": [
+      "environmental",
+      "consulting",
+      "residential",
+      "development",
+      "budget",
+      "appropriation"
+    ],
+    "participation_mechanisms": [],
+    "agenda_url": "https://www.cityofsanrafael.org/meetings/city-council-october-6-2025/",
+    "staff_report_url": null,
+    "full_agenda_packet_url": null,
+    "minutes_url": null,
+    "testimony_count": null,
+    "speaker_names": [],
+    "vote_results": {},
+    "passed": true,
+    "id": "2025-10-06-5.b",
+    "agenda_item": "5.b",
+    "summary": "This item authorizes the City Manager to execute a professional services agreement with Environmental Science Associates (ESA) for environmental consulting services for the Dominican Residential Development Project (PLAN23-081) located at APN 015-163-03. It also approves a supplemental FY 2025-2026 budget appropriation to fund the agreement.",
+    "outcome": "approved",
+    "vote": {},
+    "topics": [
+      "budget",
+      "development",
+      "environment",
+      "environmental",
+      "consulting",
+      "residential",
+      "development",
+      "budget",
+      "appropriation"
+    ],
+    "source_documents": [
+      {
+        "url": "https://www.cityofsanrafael.org/meetings/city-council-october-6-2025/",
+        "type": "agenda"
+      }
+    ],
+    "extraction_method": "retrospective_analyzer_gemini"
+  },
+  {
+    "item_ref": "5.c",
+    "title": "Replacement of Fire Hoses and Nozzles",
+    "description": "This item authorizes the City Manager to execute purchase orders for firefighting hoses from L.N. Curtis & Sons, Inc., and for hoses and nozzles from Allstar Fire Equipment Inc. This will ensure the fire department has the necessary equipment for firefighting operations.",
+    "meeting_date": "2025-10-06",
+    "meeting_type": "city_council",
+    "is_high_stakes": true,
+    "stakes_score": 6,
+    "decision_type": "budget",
+    "budget_amount": 235224,
+    "budget_description": "Purchase of firefighting hoses and nozzles",
+    "affected_population_estimate": null,
+    "geographic_scope": "citywide",
+    "project_size_units": null,
+    "project_location": null,
+    "project_types": [
+      "budget",
+      "public_safety"
+    ],
+    "keywords_for_matching": [
+      "fire",
+      "hoses",
+      "nozzles",
+      "purchase",
+      "equipment"
+    ],
+    "participation_mechanisms": [],
+    "agenda_url": "https://www.cityofsanrafael.org/meetings/city-council-october-6-2025/",
+    "staff_report_url": null,
+    "full_agenda_packet_url": null,
+    "minutes_url": null,
+    "testimony_count": null,
+    "speaker_names": [],
+    "vote_results": {},
+    "passed": true,
+    "id": "2025-10-06-5.c",
+    "agenda_item": "5.c",
+    "summary": "This item authorizes the City Manager to execute purchase orders for firefighting hoses from L.N. Curtis & Sons, Inc., and for hoses and nozzles from Allstar Fire Equipment Inc. This will ensure the fire department has the necessary equipment for firefighting operations.",
+    "outcome": "approved",
+    "vote": {},
+    "topics": [
+      "budget",
+      "public_safety",
+      "fire",
+      "hoses",
+      "nozzles",
+      "purchase",
+      "equipment"
+    ],
+    "source_documents": [
+      {
+        "url": "https://www.cityofsanrafael.org/meetings/city-council-october-6-2025/",
+        "type": "agenda"
+      }
+    ],
+    "extraction_method": "retrospective_analyzer_gemini"
+  },
+  {
+    "item_ref": "5.d",
+    "title": "Wireless Access Point Upgrade",
+    "description": "This item authorizes the City Manager to execute a purchase order for the replacement of wireless access points. This upgrade will improve the city's wireless network infrastructure.",
+    "meeting_date": "2025-10-06",
+    "meeting_type": "city_council",
+    "is_high_stakes": true,
+    "stakes_score": 6,
+    "decision_type": "budget",
+    "budget_amount": 128299,
+    "budget_description": "Replacement of wireless access points",
+    "affected_population_estimate": null,
+    "geographic_scope": "citywide",
+    "project_size_units": null,
+    "project_location": null,
+    "project_types": [
+      "budget",
+      "governance"
+    ],
+    "keywords_for_matching": [
+      "wireless",
+      "access",
+      "points",
+      "upgrade",
+      "network"
+    ],
+    "participation_mechanisms": [],
+    "agenda_url": "https://www.cityofsanrafael.org/meetings/city-council-october-6-2025/",
+    "staff_report_url": null,
+    "full_agenda_packet_url": null,
+    "minutes_url": null,
+    "testimony_count": null,
+    "speaker_names": [],
+    "vote_results": {},
+    "passed": true,
+    "id": "2025-10-06-5.d",
+    "agenda_item": "5.d",
+    "summary": "This item authorizes the City Manager to execute a purchase order for the replacement of wireless access points. This upgrade will improve the city's wireless network infrastructure.",
+    "outcome": "approved",
+    "vote": {},
+    "topics": [
+      "budget",
+      "governance",
+      "wireless",
+      "access",
+      "points",
+      "upgrade",
+      "network"
+    ],
+    "source_documents": [
+      {
+        "url": "https://www.cityofsanrafael.org/meetings/city-council-october-6-2025/",
+        "type": "agenda"
+      }
+    ],
+    "extraction_method": "retrospective_analyzer_gemini"
+  },
+  {
+    "item_ref": "5.e",
+    "title": "Information Technology Services Agreement Renewal",
+    "description": "This item authorizes the City Manager to execute a general service agreement with Xantrion, Inc., for information technology services from November 1, 2025, through October 31, 2026. This agreement ensures the city's IT infrastructure is maintained and supported.",
+    "meeting_date": "2025-10-06",
+    "meeting_type": "city_council",
+    "is_high_stakes": true,
+    "stakes_score": 7,
+    "decision_type": "budget",
+    "budget_amount": 1207200,
+    "budget_description": "Information technology services",
+    "affected_population_estimate": null,
+    "geographic_scope": "citywide",
+    "project_size_units": null,
+    "project_location": null,
+    "project_types": [
+      "budget",
+      "governance"
+    ],
+    "keywords_for_matching": [
+      "information",
+      "technology",
+      "services",
+      "agreement",
+      "IT"
+    ],
+    "participation_mechanisms": [],
+    "agenda_url": "https://www.cityofsanrafael.org/meetings/city-council-october-6-2025/",
+    "staff_report_url": null,
+    "full_agenda_packet_url": null,
+    "minutes_url": null,
+    "testimony_count": null,
+    "speaker_names": [],
+    "vote_results": {},
+    "passed": true,
+    "id": "2025-10-06-5.e",
+    "agenda_item": "5.e",
+    "summary": "This item authorizes the City Manager to execute a general service agreement with Xantrion, Inc., for information technology services from November 1, 2025, through October 31, 2026. This agreement ensures the city's IT infrastructure is maintained and supported.",
+    "outcome": "approved",
+    "vote": {},
+    "topics": [
+      "budget",
+      "governance",
+      "information",
+      "technology",
+      "services",
+      "agreement",
+      "IT"
+    ],
+    "source_documents": [
+      {
+        "url": "https://www.cityofsanrafael.org/meetings/city-council-october-6-2025/",
+        "type": "agenda"
+      }
+    ],
+    "extraction_method": "retrospective_analyzer_gemini"
+  },
+  {
+    "item_ref": "5.g",
+    "title": "Measure C \u2013 Wildfire Prevention Fund",
+    "description": "This item authorizes a Fiscal Year (FY) 2025-26 supplemental budget appropriation from Measure C, Wildfire Prevention Fund (242) Fund Balance to support ongoing wildfire prevention efforts. This funding will be used to implement various wildfire prevention and protection measures.",
+    "meeting_date": "2025-10-06",
+    "meeting_type": "city_council",
+    "is_high_stakes": true,
+    "stakes_score": 8,
+    "decision_type": "budget",
+    "budget_amount": 1108319,
+    "budget_description": "Supplemental budget appropriation for wildfire prevention efforts",
+    "affected_population_estimate": null,
+    "geographic_scope": "citywide",
+    "project_size_units": null,
+    "project_location": null,
+    "project_types": [
+      "budget",
+      "environment",
+      "public_safety"
+    ],
+    "keywords_for_matching": [
+      "wildfire",
+      "prevention",
+      "fund",
+      "budget",
+      "appropriation",
+      "measure C"
+    ],
+    "participation_mechanisms": [],
+    "agenda_url": "https://www.cityofsanrafael.org/meetings/city-council-october-6-2025/",
+    "staff_report_url": null,
+    "full_agenda_packet_url": null,
+    "minutes_url": null,
+    "testimony_count": null,
+    "speaker_names": [],
+    "vote_results": {},
+    "passed": true,
+    "id": "2025-10-06-5.g",
+    "agenda_item": "5.g",
+    "summary": "This item authorizes a Fiscal Year (FY) 2025-26 supplemental budget appropriation from Measure C, Wildfire Prevention Fund (242) Fund Balance to support ongoing wildfire prevention efforts. This funding will be used to implement various wildfire prevention and protection measures.",
+    "outcome": "approved",
+    "vote": {},
+    "topics": [
+      "budget",
+      "environment",
+      "public_safety",
+      "wildfire",
+      "prevention",
+      "fund",
+      "budget",
+      "appropriation",
+      "measure C"
+    ],
+    "source_documents": [
+      {
+        "url": "https://www.cityofsanrafael.org/meetings/city-council-october-6-2025/",
+        "type": "agenda"
+      }
+    ],
+    "extraction_method": "retrospective_analyzer_gemini"
+  },
+  {
+    "item_ref": "7.a",
+    "title": "Capital Project Management Services Contract for Albert Park Library & Community Center and Measure P Project Update",
+    "description": "This item authorizes the City Manager to execute a professional services agreement with Griffin Structures for Albert Park Library & Community Center Capital Project Management Services. The agreement covers FY 2025-26 and subsequent amendments based on each fiscal year\u2019s appropriation through project completion.",
+    "meeting_date": "2025-10-06",
+    "meeting_type": "city_council",
+    "is_high_stakes": true,
+    "stakes_score": 8,
+    "decision_type": "budget",
+    "budget_amount": 4440606,
+    "budget_description": "Capital project management services for Albert Park Library & Community Center",
+    "affected_population_estimate": null,
+    "geographic_scope": "citywide",
+    "project_size_units": null,
+    "project_location": "Albert Park",
+    "project_types": [
+      "budget",
+      "community",
+      "education"
+    ],
+    "keywords_for_matching": [
+      "capital",
+      "project",
+      "management",
+      "library",
+      "community",
+      "center",
+      "measure P"
+    ],
+    "participation_mechanisms": [],
+    "agenda_url": "https://www.cityofsanrafael.org/meetings/city-council-october-6-2025/",
+    "staff_report_url": null,
+    "full_agenda_packet_url": null,
+    "minutes_url": null,
+    "testimony_count": null,
+    "speaker_names": [],
+    "vote_results": {},
+    "passed": true,
+    "id": "2025-10-06-7.a",
+    "agenda_item": "7.a",
+    "summary": "This item authorizes the City Manager to execute a professional services agreement with Griffin Structures for Albert Park Library & Community Center Capital Project Management Services. The agreement covers FY 2025-26 and subsequent amendments based on each fiscal year\u2019s appropriation through project completion.",
+    "outcome": "approved",
+    "vote": {},
+    "topics": [
+      "budget",
+      "community",
+      "education",
+      "capital",
+      "project",
+      "management",
+      "library",
+      "community",
+      "center",
+      "measure P"
+    ],
+    "source_documents": [
+      {
+        "url": "https://www.cityofsanrafael.org/meetings/city-council-october-6-2025/",
+        "type": "agenda"
+      }
+    ],
+    "extraction_method": "retrospective_analyzer_gemini"
+  },
+  {
+    "item_ref": "Unknown",
+    "title": "Art Park Library & Community Center Capital Project Management Services",
+    "description": "Budget for capital project management services for the Art Park Library & Community Center.",
+    "meeting_date": "2025-10-06",
+    "meeting_type": "city_council",
+    "is_high_stakes": true,
+    "stakes_score": 7,
+    "decision_type": "budget",
+    "budget_amount": 350000,
+    "budget_description": "Funding for project management services related to the Art Park Library & Community Center capital project. Includes potential amendments based on future fiscal year appropriations.",
+    "affected_population_estimate": null,
+    "geographic_scope": "unknown",
+    "project_size_units": null,
+    "project_location": null,
+    "project_types": [
+      "Capital Improvement",
+      "Library",
+      "Community Center"
+    ],
+    "keywords_for_matching": [
+      "Art Park",
+      "Library",
+      "Community Center",
+      "Capital Project",
+      "Management Services"
+    ],
+    "participation_mechanisms": [],
+    "agenda_url": "https://www.cityofsanrafael.org/meetings/city-council-october-6-2025/",
+    "staff_report_url": null,
+    "full_agenda_packet_url": null,
+    "minutes_url": null,
+    "testimony_count": null,
+    "speaker_names": [],
+    "vote_results": {},
+    "passed": true,
+    "id": "2025-10-06-Unknown",
+    "agenda_item": "Unknown",
+    "summary": "Budget for capital project management services for the Art Park Library & Community Center.",
+    "outcome": "approved",
+    "vote": {},
+    "topics": [
+      "Capital Improvement",
+      "Library",
+      "Community Center",
+      "Art Park",
+      "Library",
+      "Community Center",
+      "Capital Project",
+      "Management Services"
+    ],
+    "source_documents": [
+      {
+        "url": "https://www.cityofsanrafael.org/meetings/city-council-october-6-2025/",
+        "type": "agenda"
+      }
+    ],
+    "extraction_method": "retrospective_analyzer_gemini"
+  },
+  {
+    "item_ref": "Unknown",
+    "title": "Hoses and Nozzles from Allstar Fire Equipment Inc. and Wireless Access Point Upgrade",
+    "description": "Budget for fire hoses and nozzles, and a wireless access point upgrade.",
+    "meeting_date": "2025-10-06",
+    "meeting_type": "city_council",
+    "is_high_stakes": true,
+    "stakes_score": 6,
+    "decision_type": "budget",
+    "budget_amount": 152718,
+    "budget_description": "Funding for fire hoses and nozzles from Allstar Fire Equipment Inc. (amount includes $82,506) and a wireless access point upgrade.  Resolution adoption recommended.",
+    "affected_population_estimate": null,
+    "geographic_scope": "unknown",
+    "project_size_units": null,
+    "project_location": null,
+    "project_types": [
+      "Public Safety",
+      "Infrastructure",
+      "Technology"
+    ],
+    "keywords_for_matching": [
+      "Fire Department",
+      "Hoses",
+      "Nozzles",
+      "Allstar Fire Equipment",
+      "Wireless Access Point",
+      "Upgrade"
+    ],
+    "participation_mechanisms": [],
+    "agenda_url": "https://www.cityofsanrafael.org/meetings/city-council-october-6-2025/",
+    "staff_report_url": null,
+    "full_agenda_packet_url": null,
+    "minutes_url": null,
+    "testimony_count": null,
+    "speaker_names": [],
+    "vote_results": {},
+    "passed": true,
+    "id": "2025-10-06-Unknown",
+    "agenda_item": "Unknown",
+    "summary": "Budget for fire hoses and nozzles, and a wireless access point upgrade.",
+    "outcome": "approved",
+    "vote": {},
+    "topics": [
+      "Public Safety",
+      "Infrastructure",
+      "Technology",
+      "Fire Department",
+      "Hoses",
+      "Nozzles",
+      "Allstar Fire Equipment",
+      "Wireless Access Point",
+      "Upgrade"
+    ],
+    "source_documents": [
+      {
+        "url": "https://www.cityofsanrafael.org/meetings/city-council-october-6-2025/",
+        "type": "agenda"
+      }
+    ],
+    "extraction_method": "retrospective_analyzer_gemini"
+  }
+]
