@@ -1755,7 +1755,7 @@
       },
       "federal_legislation_e2e_cloud": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Federal legislation and grant programs affecting local governance ingested to Postgres",
         "target_count": "Key federal programs (CDBG, HUD, IIJA) and regulations",
         "verification": "SELECT COUNT(*) FROM legislation WHERE state = 'US'",
@@ -1763,7 +1763,7 @@
       },
       "vectors_e2e_cloud": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Vector indexes built in pgvector FROM cloud SQL data (not migrated)",
         "target_count": "Indexes for: chunks, decisions, issues, municipal_code, transcripts, legislation",
         "verification": "civic-extract vectors --stats --cloud",
