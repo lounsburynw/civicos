@@ -52,6 +52,11 @@ Usage:
     civic-extract legislative --topic all --schedule
     civic-extract legislative --topic housing --dry-run
 
+    civic-extract municipal-code --jurisdiction city-san-rafael
+    civic-extract municipal-code --jurisdiction city-san-rafael --cloud
+    civic-extract municipal-code --jurisdiction city-san-rafael --stats --cloud
+    civic-extract municipal-code --jurisdiction city-san-rafael --dry-run
+
     civic-extract research municipal-funding "San Rafael" "California"
     civic-extract research municipal-funding "San Rafael" "California" --topic housing
     civic-extract research municipal-funding "San Rafael" "California" --provider perplexity
@@ -88,6 +93,7 @@ from civic_extraction.cli.issues import add_issues_parser, run_issues
 from civic_extraction.cli.legislative import add_legislative_parser, run_legislative
 from civic_extraction.cli.manifest_cli import add_manifest_parser, run_manifest
 from civic_extraction.cli.monitor import add_monitor_parser, run_monitor
+from civic_extraction.cli.municipal_code import add_municipal_code_parser, run_municipal_code
 from civic_extraction.cli.research import add_research_parser, run_research
 from civic_extraction.cli.seeclickfix import add_seeclickfix_parser, run_seeclickfix
 from civic_extraction.cli.snapshot_cli import add_snapshot_parser, run_snapshot
@@ -122,6 +128,7 @@ def main() -> int:
     add_legislative_parser(subparsers)
     add_manifest_parser(subparsers)
     add_monitor_parser(subparsers)
+    add_municipal_code_parser(subparsers)
     add_research_parser(subparsers)
     add_seeclickfix_parser(subparsers)
     add_snapshot_parser(subparsers)
@@ -156,6 +163,8 @@ def main() -> int:
         return run_manifest(args)
     elif args.command == "monitor":
         return run_monitor(args)
+    elif args.command == "municipal-code":
+        return run_municipal_code(args)
     elif args.command == "research":
         return run_research(args)
     elif args.command == "seeclickfix":
