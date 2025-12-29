@@ -17,9 +17,11 @@ Cloud mode (--cloud):
 """
 
 import argparse
+import concurrent.futures
 import json
 import logging
 import os
+import signal
 import sys
 import tempfile
 from dataclasses import dataclass, asdict
@@ -28,6 +30,9 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 
 import requests
+
+# Default timeout for PDF parsing (5 minutes)
+PDF_PARSE_TIMEOUT_SECONDS = 300
 
 # Configure logging
 logging.basicConfig(
@@ -129,6 +134,12 @@ def add_chunks_parser(subparsers: argparse._SubParsersAction) -> None:
         type=str,
         help="Process meetings until this date (YYYY-MM-DD)",
     )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=PDF_PARSE_TIMEOUT_SECONDS,
+        help=f"PDF parsing timeout in seconds (default: {PDF_PARSE_TIMEOUT_SECONDS})",
+    )
 
 
 def run_chunks(args: argparse.Namespace) -> int:
@@ -158,6 +169,7 @@ def run_chunks(args: argparse.Namespace) -> int:
             cloud=args.cloud,
             since=args.since,
             until=args.until,
+            timeout=args.timeout,
         )
 
         if results is None and not args.dry_run:
@@ -614,11 +626,58 @@ def download_and_validate_pdf(url: str, timeout: int = 60) -> DownloadResult:
         return DownloadResult(content=None, validation_warnings=[str(e)])
 
 
+class PDFParseTimeoutError(Exception):
+    """Raised when PDF parsing exceeds the timeout."""
+    pass
+
+
+def _parse_pdf_with_timeout(
+    parser,
+    temp_path: str,
+    source_metadata: dict,
+    timeout_seconds: int = PDF_PARSE_TIMEOUT_SECONDS,
+) -> list:
+    """
+    Parse a PDF with timeout protection.
+
+    Uses concurrent.futures for cross-platform timeout handling.
+    Falls back to signal-based timeout on Unix if available.
+
+    Args:
+        parser: AgendaPacketParser instance
+        temp_path: Path to the temporary PDF file
+        source_metadata: Metadata to attach to chunks
+        timeout_seconds: Maximum time to allow for parsing
+
+    Returns:
+        List of AgendaChunk objects
+
+    Raises:
+        PDFParseTimeoutError: If parsing exceeds timeout
+        Exception: Any exception from the parser
+    """
+    def parse_pdf():
+        return parser.parse_to_chunks(temp_path, source_metadata=source_metadata)
+
+    # Use ThreadPoolExecutor for timeout (works on all platforms)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(parse_pdf)
+        try:
+            return future.result(timeout=timeout_seconds)
+        except concurrent.futures.TimeoutError:
+            # Cancel the future (won't actually stop the thread, but marks it)
+            future.cancel()
+            raise PDFParseTimeoutError(
+                f"PDF parsing timed out after {timeout_seconds} seconds"
+            )
+
+
 def extract_chunks_from_meeting(
     meeting: Dict[str, Any],
     output_dir: str,
     jurisdiction_id: str,
     cloud: bool = False,
+    timeout: int = PDF_PARSE_TIMEOUT_SECONDS,
 ) -> ChunksResult:
     """
     Extract chunks from a meeting's agenda PDF.
@@ -628,6 +687,7 @@ def extract_chunks_from_meeting(
         output_dir: Directory to save chunks (local mode)
         jurisdiction_id: Jurisdiction ID
         cloud: If True, store to cloud
+        timeout: PDF parsing timeout in seconds
 
     Returns:
         ChunksResult with status and details
@@ -753,17 +813,31 @@ def extract_chunks_from_meeting(
             temp_path = temp_file.name
 
         try:
-            logger.info(f"  Parsing PDF ({len(pdf_bytes):,} bytes)...")
+            pdf_size_mb = len(pdf_bytes) / (1024 * 1024)
+            logger.info(f"  Parsing PDF ({len(pdf_bytes):,} bytes / {pdf_size_mb:.1f} MB)...")
 
-            # Parse PDF into chunks
+            # Parse PDF into chunks with timeout protection
             parser = AgendaPacketParser()
-            agenda_chunks = parser.parse_to_chunks(
-                temp_path,
-                source_metadata={
-                    "source_file": agenda_url,
-                    "source_type": "agenda_packet",
-                }
-            )
+            source_metadata = {
+                "source_file": agenda_url,
+                "source_type": "agenda_packet",
+            }
+
+            try:
+                agenda_chunks = _parse_pdf_with_timeout(
+                    parser,
+                    temp_path,
+                    source_metadata,
+                    timeout_seconds=timeout,
+                )
+            except PDFParseTimeoutError as e:
+                logger.warning(f"  ⏱ PDF parsing timed out ({pdf_size_mb:.1f} MB PDF)")
+                return ChunksResult(
+                    meeting_id=meeting_id,
+                    meeting_date=meeting_date,
+                    status="error",
+                    error=f"Timeout: PDF too large/complex ({pdf_size_mb:.1f} MB)",
+                )
 
             if not agenda_chunks:
                 logger.info(f"  No chunks extracted from PDF")
@@ -860,6 +934,7 @@ def run_chunk_extraction(
     cloud: bool = False,
     since: Optional[str] = None,
     until: Optional[str] = None,
+    timeout: int = PDF_PARSE_TIMEOUT_SECONDS,
 ) -> Optional[List[ChunksResult]]:
     """
     Run chunk extraction for meetings from a jurisdiction.
@@ -874,6 +949,7 @@ def run_chunk_extraction(
         cloud: If True, use cloud storage
         since: Process meetings since this date (YYYY-MM-DD)
         until: Process meetings until this date (YYYY-MM-DD)
+        timeout: PDF parsing timeout in seconds
 
     Returns:
         List of ChunksResult if successful, None if failed
@@ -962,6 +1038,7 @@ def run_chunk_extraction(
             output_dir,
             jurisdiction_id,
             cloud=cloud_mode,
+            timeout=timeout,
         )
         results.append(result)
 

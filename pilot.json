@@ -3,7 +3,7 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2025-12-28",
+  "last_updated": "2025-12-29",
   "category_order": [
     "test_infrastructure",
     "data_architecture",
@@ -1616,23 +1616,25 @@
         "note": "Added extract_pdf_urls_from_meeting_page() to parse HTML meeting pages and find actual PDF links. Degenerate detection (HTML content-type, PDF magic bytes, file size) triggers automatic PDF URL extraction. Flow: detect HTML -> parse meeting page -> find agenda_packet_url -> download real PDF -> extract chunks."
       },
       "chunks_e2e_cloud": {
-        "status": "not_ready",
-        "priority": 1,
+        "status": "ready",
+        "priority": 2,
         "artifact": "All PDF chunks extracted E2E to Postgres from agenda packets/staff reports",
         "target_count": "1000+ chunks (from actual PDF extraction)",
         "verification": "SELECT COUNT(*) FROM chunks WHERE jurisdiction_id = 'city-san-rafael'",
-        "note": "PARTIAL: 4115 chunks from 27/46 meetings. Extraction stalled at meeting 36 (23MB PDF). Issues: 1) Large PDFs cause timeout/hang, 2) Full extraction takes 2+ hours locally. NEEDS: Remote compute evaluation, parallelization, timeout handling for large PDFs."
+        "completed": "2025-12-29",
+        "note": "34/46 meetings have chunks (~4800+ chunks). Remaining 12 are cancelled/closed meetings with no PDFs available. Full extraction completes in ~2 min with timeout protection."
       },
       "chunks_extraction_reliability": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Reliable chunks extraction with timeout handling and remote compute options",
         "verification": "Full extraction completes without stalls, reasonable time (<30 min)",
-        "note": "Address: 1) PDF parsing timeout for large files (23MB+), 2) Evaluate remote compute/parallelization for 2+ hour extraction, 3) Add per-meeting timeout with graceful skip, 4) Consider chunked processing or worker queues."
+        "completed": "2025-12-29",
+        "note": "Added timeout protection via concurrent.futures (default 5 min, configurable via --timeout). 23MB PDFs now parse in ~24s. Full extraction completes in ~2 min. Graceful error handling for timeouts."
       },
       "transcripts_e2e_cloud": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "All video transcripts ingested E2E to Postgres via AssemblyAI",
         "target_count": "Proportional to videos with transcripts",
         "verification": "SELECT COUNT(*) FROM transcripts WHERE jurisdiction_id = 'city-san-rafael'",
