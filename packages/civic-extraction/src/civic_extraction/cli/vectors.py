@@ -59,7 +59,7 @@ def add_vectors_parser(subparsers: argparse._SubParsersAction) -> None:
     parser.add_argument(
         "--corpus",
         default="chunks",
-        choices=["chunks", "decisions", "meetings", "all"],
+        choices=["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues", "all"],
         help="Type of documents to index (default: chunks)",
     )
     parser.add_argument(
@@ -154,7 +154,7 @@ def show_stats(jurisdiction_id: str, corpus_type: str) -> int:
         logger.info(f"Vector Index Statistics for {jurisdiction_id}")
         logger.info("=" * 50)
 
-        corpus_types = ["chunks", "decisions", "meetings"] if corpus_type == "all" else [corpus_type]
+        corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues"] if corpus_type == "all" else [corpus_type]
 
         for ct in corpus_types:
             stats = pgvector.get_stats(jurisdiction_id, ct, backend)
@@ -197,20 +197,29 @@ def dry_run(jurisdiction_id: str, corpus_type: str) -> int:
         logger.info("Dry-run mode - showing indexing plan:")
         logger.info("=" * 50)
 
-        corpus_types = ["chunks", "decisions", "meetings"] if corpus_type == "all" else [corpus_type]
+        corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues"] if corpus_type == "all" else [corpus_type]
 
         for ct in corpus_types:
             logger.info(f"\n{ct.upper()}:")
 
-            # Get storage count
+            # Get storage count based on corpus type
             if ct == "chunks":
                 docs = backend.get_chunks(jurisdiction_id)
+                storage_count = len(docs) if docs else 0
             elif ct == "decisions":
                 docs = backend.get_decisions(jurisdiction_id)
-            else:
+                storage_count = len(docs) if docs else 0
+            elif ct == "meetings":
                 docs = backend.get_meetings(jurisdiction_id)
-
-            storage_count = len(docs) if docs else 0
+                storage_count = len(docs) if docs else 0
+            elif ct == "transcripts":
+                storage_count = backend.get_transcript_count(jurisdiction_id)
+            elif ct == "municipal_code":
+                storage_count = backend.get_municipal_code_count(jurisdiction_id)
+            elif ct == "issues":
+                storage_count = backend.get_issue_count(jurisdiction_id)
+            else:
+                storage_count = 0
 
             # Get current vector count
             stats = pgvector.get_stats(jurisdiction_id, ct)
@@ -285,7 +294,7 @@ def run_vector_indexing(
         logger.info(f"pgvector ready (check took {validation.check_duration_ms:.1f}ms)")
 
         # Determine corpus types to index
-        corpus_types = ["chunks", "decisions", "meetings"] if corpus_type == "all" else [corpus_type]
+        corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues"] if corpus_type == "all" else [corpus_type]
 
         results = []
 

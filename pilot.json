@@ -1747,17 +1747,25 @@
       },
       "legislation_e2e_cloud": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "California state legislation relevant to local governance ingested to Postgres",
-        "target_count": "Key bills and statutes affecting municipalities",
+        "target_count": "Key bills and statutes affecting municipalities (housing, transportation, environment, budget, education)",
         "verification": "SELECT COUNT(*) FROM legislation WHERE state = 'CA'",
-        "note": "Source: CA legislative data API or LegiScan. Enables what_applies() to show state-level context."
+        "note": "Source: LegiScan API (free 30k queries/month). Existing infra: legiscan_client.py, legislative.py CLI, JSON files in data/legislation/. Need: Postgres table + --cloud mode."
+      },
+      "federal_legislation_e2e_cloud": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Federal legislation and grant programs affecting local governance ingested to Postgres",
+        "target_count": "Key federal programs (CDBG, HUD, IIJA) and regulations",
+        "verification": "SELECT COUNT(*) FROM legislation WHERE state = 'US'",
+        "note": "LegiScan supports state='US' for Congress. Lower priority than CA state legislation which is more directly actionable at local level."
       },
       "vectors_e2e_cloud": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Vector indexes built in pgvector FROM cloud SQL data (not migrated)",
-        "target_count": "Indexes for: chunks, decisions, issues, municipal_code, transcripts",
+        "target_count": "Indexes for: chunks, decisions, issues, municipal_code, transcripts, legislation",
         "verification": "civic-extract vectors --stats --cloud",
         "note": "Run AFTER all SQL data is ingested. Uses PgVectorBackend.index_from_storage() to embed from Postgres. DO NOT migrate ChromaDB vectors."
       },
