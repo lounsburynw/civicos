@@ -1,63 +1,94 @@
-# Recommended: etl_cost_provenance
+# Recommended: transcripts_e2e_cloud
 
 **Priority:** P0
-**Area:** monitoring_observability > cost_tracking
+**Area:** pilot_validation > e2e_cloud_data_verification
 **Date:** 2025-12-29
 
-> This is recommended context from Session 396. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 397. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Before running the $46 transcription job (18 remaining videos × $2.40), we need centralized cost tracking. Currently costs are logged per-run in checkpoint files but not aggregated or queryable.
+ETL cost tracking is now in place (Session 397). Ready to run the $46 transcription job.
 
-This unblocks `transcripts_e2e_cloud` (P1) which is ready to run once we can track the spend.
+Current state:
+- 19 audio files in R2 blob storage
+- 1/19 transcripts complete in Postgres
+- 18 remaining × $2.40 avg = ~$43 estimated cost
 
 ## Recommended Task
 
-Implement minimal ETL cost provenance:
-1. Add `etl_costs` table to Postgres
-2. Update `transcribe.py` to insert cost records after each run
-3. Verify with a test transcription
+Run the full transcription job:
 
-## Schema
-
-```sql
-CREATE TABLE etl_costs (
-    id SERIAL PRIMARY KEY,
-    pipeline VARCHAR(50) NOT NULL,        -- 'transcribe', 'research', etc.
-    jurisdiction_id VARCHAR(100) NOT NULL,
-    run_date TIMESTAMP DEFAULT NOW(),
-    items_processed INTEGER,
-    cost_usd DECIMAL(10,4),
-    duration_seconds INTEGER,
-    notes TEXT
-);
+```bash
+civic-extract transcribe --jurisdiction city-san-rafael --cloud
 ```
 
-## Key Files
+This will:
+1. Read audio files from R2
+2. Transcribe via AssemblyAI with speaker diarization
+3. Store transcripts in Postgres
+4. **Automatically record costs in etl_costs table**
 
-- `packages/civic-extraction/src/civic_extraction/cli/transcribe.py:68` - TranscribeCheckpoint has `total_cost_usd`
-- `packages/civic/src/civic/storage/postgres_backend.py` - Add `store_etl_cost()` method
-- `packages/civic-extraction/src/civic_extraction/research/base.py:132` - Research also tracks `total_cost`
+## Verification
 
-## Suggested Approach
+After completion:
+```python
+from civic.storage import get_storage_backend
+backend = get_storage_backend()
 
-1. **Add table to Postgres schema** (via migration or direct SQL)
-2. **Add `store_etl_cost()` to PostgresBackend**
-3. **Update transcribe.py** to call `store_etl_cost()` after successful runs
-4. **Test with limit 1** to verify cost is recorded
-5. **Run full transcription** (~$46, now tracked)
+# Check transcript count
+backend.get_transcript_count("city-san-rafael")  # Should be 19
+
+# Check recorded costs
+backend.get_etl_cost_summary(pipeline="transcribe")
+# {'total_cost_usd': ~46.0, 'total_items': 18, 'run_count': N}
+```
 
 ## Success Criteria
 
-- [ ] `etl_costs` table exists in Postgres
-- [ ] Test transcription (limit 1) creates cost record
-- [ ] Query shows cost: `SELECT * FROM etl_costs`
-- [ ] Mark `etl_cost_provenance` as ready
-- [ ] Then run `transcripts_e2e_cloud` (now P1)
+- [ ] All 19 transcripts in Postgres
+- [ ] Costs recorded in etl_costs table
+- [ ] Mark `transcripts_e2e_cloud` as ready in pilot.json
 
-## Notes
+---
 
-- Keep it minimal - dashboard and alerts (P2) can come later
-- Also update `research.py` if time permits (Perplexity costs)
-- The $46 transcription spend will be the first tracked cost
+## Future Work: Extend Cost Tracking to Other Pipelines
+
+Session 397 added cost tracking infrastructure. Pattern to follow for other pipelines:
+
+### Integration Pattern (from transcribe.py:758-779)
+
+```python
+# At end of run, after successful processing:
+if items_processed > 0 and cloud_mode:
+    try:
+        from civic.storage import get_storage_backend
+        backend = get_storage_backend()
+        if backend.backend_type == "postgres":
+            cost_id = backend.store_etl_cost(
+                pipeline="your_pipeline_name",  # e.g., "research", "embed"
+                jurisdiction_id=jurisdiction_id,
+                items_processed=items_processed,
+                cost_usd=total_cost,
+                duration_seconds=duration_seconds,  # Optional
+                notes=f"Description of what was processed",
+            )
+            logger.info(f"ETL cost recorded (id={cost_id}): ${total_cost:.2f}")
+    except Exception as e:
+        logger.warning(f"Failed to record ETL cost: {e}")
+```
+
+### Pipelines Needing Integration
+
+| Pipeline | File | Cost Source |
+|----------|------|-------------|
+| research | `research/base.py:132` | Perplexity API (`total_cost`) |
+| embed | Future | Embedding API costs |
+
+### Query Methods Available
+
+```python
+backend.store_etl_cost(...)      # Record a cost
+backend.get_etl_costs(...)       # List recent costs
+backend.get_etl_cost_summary(...) # Aggregate totals
+```
