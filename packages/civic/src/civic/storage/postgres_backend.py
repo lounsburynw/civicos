@@ -562,6 +562,57 @@ class PostgresBackend:
             ON municipal_code(chapter)
         """)
 
+        # Legislation table (SESSION 402)
+        # Stores state and federal legislation affecting local governance
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS legislation (
+                id SERIAL PRIMARY KEY,
+                bill_id TEXT NOT NULL,
+                state TEXT NOT NULL,
+                jurisdiction_id TEXT,
+                bill_number TEXT,
+                bill_name TEXT,
+                status TEXT,
+                enacted_date DATE,
+                summary TEXT,
+                leverage_point TEXT,
+                official_url TEXT,
+                keywords JSONB,
+                topic TEXT,
+                local_implementation_required BOOLEAN,
+                local_deadline DATE,
+                legiscan_id INTEGER,
+                metadata JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                UNIQUE (bill_id, state, valid_from),
+                CHECK (valid_to IS NULL OR valid_to > valid_from)
+            )
+        """)
+
+        # Legislation indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_legislation_state
+            ON legislation(state)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_legislation_topic
+            ON legislation(topic)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_legislation_bill_id
+            ON legislation(bill_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_legislation_status
+            ON legislation(status)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_legislation_temporal
+            ON legislation(state, valid_from, valid_to)
+        """)
+
         conn.commit()
 
     def store_meetings(
@@ -2745,6 +2796,303 @@ class PostgresBackend:
         finally:
             conn.close()
 
+    # ========== Legislation Methods (SESSION 402) ==========
+
+    def store_legislation(
+        self,
+        state: str,
+        bills: List[Dict[str, Any]],
+        topic: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store state/federal legislation with temporal versioning.
+
+        Atomic operation: either all bills are stored or none.
+        Uses upsert semantics based on (bill_id, state).
+
+        Args:
+            state: State code (e.g., "CA", "US" for federal)
+            bills: List of bill dictionaries with bill_id, bill_name, etc.
+            topic: Optional topic to tag all bills with (e.g., "housing")
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of bills successfully stored
+
+        Raises:
+            psycopg2.Error: If atomic store operation fails
+        """
+        as_of = as_of or datetime.now()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Close previous versions for bills being updated
+            for bill in bills:
+                bill_id = bill.get('bill_id') or bill.get('id')
+                if bill_id:
+                    cursor.execute("""
+                        UPDATE legislation
+                        SET valid_to = %s
+                        WHERE state = %s
+                          AND bill_id = %s
+                          AND valid_to IS NULL
+                    """, (as_of.isoformat(), state, bill_id))
+
+            # Insert new versions
+            count = 0
+            for bill in bills:
+                bill_id = bill.get('bill_id') or bill.get('id')
+                if not bill_id:
+                    continue  # Skip bills without ID
+
+                # Parse enacted_date if string
+                enacted_date = bill.get('enacted_date') or bill.get('enacted')
+                if isinstance(enacted_date, str):
+                    try:
+                        enacted_date = datetime.strptime(enacted_date, "%Y-%m-%d").date()
+                    except ValueError:
+                        enacted_date = None
+
+                # Parse local_deadline if string
+                local_deadline = bill.get('local_deadline')
+                if isinstance(local_deadline, str):
+                    try:
+                        local_deadline = datetime.strptime(local_deadline, "%Y-%m-%d").date()
+                    except ValueError:
+                        local_deadline = None
+
+                # Determine topic from argument or bill data
+                bill_topic = topic or bill.get('topic')
+
+                # Extract keywords - handle both list and JSON string
+                keywords = bill.get('keywords', [])
+                if isinstance(keywords, str):
+                    try:
+                        keywords = json.loads(keywords)
+                    except json.JSONDecodeError:
+                        keywords = []
+
+                # Build metadata from extra fields
+                metadata = {
+                    k: v for k, v in bill.items()
+                    if k not in [
+                        'bill_id', 'id', 'bill', 'bill_name', 'bill_number',
+                        'status', 'enacted', 'enacted_date', 'summary',
+                        'leverage_point', 'official_url', 'keywords', 'topic',
+                        'local_implementation_required', 'local_deadline',
+                        'legiscan_id', '_legiscan_id'
+                    ]
+                }
+
+                cursor.execute("""
+                    INSERT INTO legislation (
+                        bill_id, state, jurisdiction_id, bill_number,
+                        bill_name, status, enacted_date, summary,
+                        leverage_point, official_url, keywords, topic,
+                        local_implementation_required, local_deadline,
+                        legiscan_id, metadata, created_at, valid_from, valid_to
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)
+                """, (
+                    bill_id,
+                    state,
+                    bill.get('jurisdiction_id'),
+                    bill.get('bill_number') or bill_id.upper().replace('-', ' '),
+                    bill.get('bill_name') or bill.get('bill'),
+                    bill.get('status'),
+                    enacted_date,
+                    bill.get('summary'),
+                    bill.get('leverage_point'),
+                    bill.get('official_url'),
+                    json.dumps(keywords) if keywords else None,
+                    bill_topic,
+                    bill.get('local_implementation_required'),
+                    local_deadline,
+                    bill.get('legiscan_id') or bill.get('_legiscan_id'),
+                    json.dumps(metadata, cls=DateTimeEncoder) if metadata else None,
+                    as_of.isoformat(),
+                    as_of.isoformat(),
+                ))
+                count += 1
+
+            conn.commit()
+            return count
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_legislation(
+        self,
+        state: str,
+        topic: Optional[str] = None,
+        status: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve legislation with optional filtering.
+
+        Args:
+            state: State code (e.g., "CA", "US")
+            topic: Filter by topic (e.g., "housing")
+            status: Filter by status (e.g., "Active", "Enacted")
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of bills to return
+
+        Returns:
+            List of bill dictionaries
+        """
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Build query with temporal filtering
+        query = """
+            SELECT * FROM legislation
+            WHERE state = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+        """
+        params: List[Any] = [state, as_of.isoformat(), as_of.isoformat()]
+
+        if topic:
+            query += " AND topic = %s"
+            params.append(topic)
+
+        if status:
+            query += " AND status = %s"
+            params.append(status)
+
+        query += " ORDER BY enacted_date DESC NULLS LAST, bill_id"
+
+        if limit:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to dictionaries
+        bills = []
+        for row in rows:
+            bill = dict(row)
+            # Parse JSONB fields
+            if 'keywords' in bill and isinstance(bill['keywords'], str):
+                try:
+                    bill['keywords'] = json.loads(bill['keywords'])
+                except json.JSONDecodeError:
+                    bill['keywords'] = []
+            if 'metadata' in bill and isinstance(bill['metadata'], str):
+                try:
+                    bill['metadata'] = json.loads(bill['metadata'])
+                except json.JSONDecodeError:
+                    bill['metadata'] = {}
+            # Convert datetime/date objects to ISO strings
+            for key in ['enacted_date', 'local_deadline', 'created_at', 'valid_from', 'valid_to']:
+                if key in bill and bill[key] is not None:
+                    if isinstance(bill[key], (datetime, date)):
+                        bill[key] = bill[key].isoformat()
+            bills.append(bill)
+
+        return bills
+
+    def get_legislation_by_bill_id(
+        self,
+        state: str,
+        bill_id: str,
+        as_of: Optional[datetime] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get specific legislation by bill_id.
+
+        Args:
+            state: State code (e.g., "CA")
+            bill_id: Bill identifier (e.g., "ca-sb9")
+            as_of: Point-in-time query (for temporal versioning)
+
+        Returns:
+            Bill dictionary or None if not found
+        """
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        cursor.execute("""
+            SELECT * FROM legislation
+            WHERE state = %s
+              AND bill_id = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+            ORDER BY created_at DESC
+            LIMIT 1
+        """, (state, bill_id, as_of.isoformat(), as_of.isoformat()))
+
+        row = cursor.fetchone()
+        conn.close()
+
+        if not row:
+            return None
+
+        bill = dict(row)
+        # Parse JSONB fields
+        if 'keywords' in bill and isinstance(bill['keywords'], str):
+            try:
+                bill['keywords'] = json.loads(bill['keywords'])
+            except json.JSONDecodeError:
+                bill['keywords'] = []
+        if 'metadata' in bill and isinstance(bill['metadata'], str):
+            try:
+                bill['metadata'] = json.loads(bill['metadata'])
+            except json.JSONDecodeError:
+                bill['metadata'] = {}
+        # Convert datetime/date objects to ISO strings
+        for key in ['enacted_date', 'local_deadline', 'created_at', 'valid_from', 'valid_to']:
+            if key in bill and bill[key] is not None:
+                if isinstance(bill[key], (datetime, date)):
+                    bill[key] = bill[key].isoformat()
+
+        return bill
+
+    def get_legislation_count(self, state: str, topic: Optional[str] = None) -> int:
+        """
+        Get count of current legislation for a state.
+
+        Args:
+            state: State code (e.g., "CA")
+            topic: Optional filter by topic
+
+        Returns:
+            Number of current (non-expired) bills
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        if topic:
+            cursor.execute("""
+                SELECT COUNT(*) FROM legislation
+                WHERE state = %s AND topic = %s AND valid_to IS NULL
+            """, (state, topic))
+        else:
+            cursor.execute("""
+                SELECT COUNT(*) FROM legislation
+                WHERE state = %s AND valid_to IS NULL
+            """, (state,))
+
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
 
 # Verify protocol compliance at import time (only if psycopg2 available)
 # StorageBackend is @runtime_checkable, so isinstance() works
@@ -2772,6 +3120,8 @@ def _verify_protocol_compliance() -> None:
         'store_issues', 'get_issues', 'get_issue_count',
         # ETL cost methods (SESSION 397)
         'store_etl_cost', 'get_etl_costs', 'get_etl_cost_summary',
+        # Legislation methods (SESSION 402)
+        'store_legislation', 'get_legislation', 'get_legislation_by_bill_id', 'get_legislation_count',
     ]
     for method in required_methods:
         assert hasattr(PostgresBackend, method), (

@@ -7399,3 +7399,35 @@ MODEL_REGISTRY (pricing)  ->  calculate_cost()  ->  AgendaIntegrator._call_llm()
 
 ### Next P0
 - municipal_code_e2e_cloud (verify municipal code data in cloud)
+
+## Session 402 (2025-12-29)
+
+**Item:** legislation_e2e_cloud
+**Status:** COMPLETE
+
+### What was done
+1. Added legislation table schema to PostgresBackend with temporal versioning
+2. Added store_legislation(), get_legislation(), get_legislation_by_bill_id(), get_legislation_count() methods
+3. Added --cloud flag to legislative CLI for Postgres storage
+4. Added --migrate-json flag to import curated JSON files
+5. Added --bulk flag for bulk ingestion from LegiScan master list (2,828 bills in 1 API call!)
+6. Added legislation corpus type to pgvector backend for RAG semantic search
+7. Indexed 2,839 CA bills to pgvector
+
+### Key decisions
+- Pivoted from keyword-filtered ingestion to bulk RAG approach
+- Master list API returns all bills for a session in 1 query
+- Semantic search now works for any legislation query (ADU, climate, STR, etc.)
+
+### Test results
+- Smoke tests: 34 passed
+- Semantic search working: ADU queries find ADU bills, climate queries find climate bills
+
+### Next P0
+vectors_e2e_cloud - Build remaining vector indexes for other corpus types
+
+### Files changed
+- packages/civic/src/civic/storage/postgres_backend.py (legislation table + methods)
+- packages/civic/src/civic/storage/pgvector_backend.py (legislation corpus type)
+- packages/civic-extraction/src/civic_extraction/cli/legislative.py (--cloud, --bulk, --migrate-json)
+- pilot.json (legislation_e2e_cloud ready, vectors_e2e_cloud P0)

@@ -1746,12 +1746,12 @@
         "note": "Session 400: Complete. 2366 sections from Municode API stored to Postgres. CLI: civic-extract municipal-code --jurisdiction city-san-rafael --cloud"
       },
       "legislation_e2e_cloud": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "California state legislation relevant to local governance ingested to Postgres",
         "target_count": "Key bills and statutes affecting municipalities (housing, transportation, environment, budget, education)",
         "verification": "SELECT COUNT(*) FROM legislation WHERE state = 'CA'",
-        "note": "Source: LegiScan API (free 30k queries/month). Existing infra: legiscan_client.py, legislative.py CLI, JSON files in data/legislation/. Need: Postgres table + --cloud mode."
+        "note": "Session 402: Complete. 2,839 CA bills via bulk ingestion (1 API call). Vectors indexed for RAG semantic search. CLI: civic-extract legislative --bulk --cloud. Also supports --migrate-json for curated bills."
       },
       "federal_legislation_e2e_cloud": {
         "status": "not_ready",
@@ -1763,11 +1763,11 @@
       },
       "vectors_e2e_cloud": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Vector indexes built in pgvector FROM cloud SQL data (not migrated)",
         "target_count": "Indexes for: chunks, decisions, issues, municipal_code, transcripts, legislation",
         "verification": "civic-extract vectors --stats --cloud",
-        "note": "Run AFTER all SQL data is ingested. Uses PgVectorBackend.index_from_storage() to embed from Postgres. DO NOT migrate ChromaDB vectors."
+        "note": "Run AFTER all SQL data is ingested. Uses PgVectorBackend.index_from_storage() to embed from Postgres. DO NOT migrate ChromaDB vectors. Session 402: legislation vectors done (2,839 indexed)."
       },
       "api_reads_from_cloud": {
         "status": "ready",
