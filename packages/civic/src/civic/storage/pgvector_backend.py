@@ -412,6 +412,40 @@ class PgVectorBackend:
 
         return "\n".join(parts) if parts else ""
 
+    def _legislation_to_text(self, bill: Dict[str, Any]) -> str:
+        """
+        Convert a legislation bill to text for embedding.
+
+        Combines bill number, name, summary, and leverage point into
+        searchable text representation.
+        """
+        parts = []
+
+        if bill.get("bill_number"):
+            parts.append(f"Bill: {bill['bill_number']}")
+
+        if bill.get("bill_name"):
+            parts.append(f"Title: {bill['bill_name']}")
+
+        if bill.get("summary"):
+            parts.append(f"Summary: {bill['summary']}")
+
+        if bill.get("leverage_point"):
+            parts.append(f"Local Impact: {bill['leverage_point']}")
+
+        if bill.get("status"):
+            parts.append(f"Status: {bill['status']}")
+
+        # Include keywords for better semantic matching
+        keywords = bill.get("keywords")
+        if keywords:
+            if isinstance(keywords, list):
+                parts.append(f"Topics: {', '.join(keywords)}")
+            elif isinstance(keywords, str):
+                parts.append(f"Topics: {keywords}")
+
+        return "\n".join(parts) if parts else ""
+
     def index_from_storage(
         self,
         storage_backend: StorageBackend,
@@ -427,9 +461,9 @@ class PgVectorBackend:
 
         Args:
             storage_backend: Source of documents to index
-            jurisdiction_id: Target jurisdiction
+            jurisdiction_id: Target jurisdiction (for legislation, use "state-CA" format)
             corpus_type: Type of documents ("decisions", "chunks", "meetings",
-                        "transcripts", "municipal_code", "issues")
+                        "transcripts", "municipal_code", "issues", "legislation")
             batch_size: Number of documents to process at once
 
         Returns:
@@ -455,6 +489,14 @@ class PgVectorBackend:
             documents = storage_backend.get_municipal_code(jurisdiction_id)
         elif corpus_type == "issues":
             documents = storage_backend.get_issues(jurisdiction_id)
+        elif corpus_type == "legislation":
+            # Legislation uses state code, not jurisdiction_id
+            # Convention: pass "state-CA" as jurisdiction_id -> extracts "CA"
+            if jurisdiction_id.startswith("state-"):
+                state_code = jurisdiction_id.split("-", 1)[1].upper()
+            else:
+                state_code = jurisdiction_id.upper()
+            documents = storage_backend.get_legislation(state=state_code)
         else:
             raise ValueError(f"Unknown corpus_type: {corpus_type}")
 
@@ -513,6 +555,12 @@ class PgVectorBackend:
                     meeting_id = None  # Not meeting-related
                     meeting_title = doc.get("summary") or doc.get("issue_type")
                     meeting_datetime = doc.get("created_at")
+                elif corpus_type == "legislation":
+                    text = self._legislation_to_text(doc)
+                    doc_id = doc.get("bill_id") or doc.get("id", f"bill-{i}-{idx}")
+                    meeting_id = None  # Not meeting-related
+                    meeting_title = doc.get("bill_name") or doc.get("bill_number")
+                    meeting_datetime = doc.get("enacted_date")
 
                 if not text.strip():
                     continue
