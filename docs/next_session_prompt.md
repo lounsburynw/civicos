@@ -1,14 +1,14 @@
-# Recommended: chunks_extraction_reliability
+# Recommended: transcripts_e2e_cloud
 
 **Priority:** P0
 **Area:** pilot_validation > e2e_cloud_data_verification
-**Date:** 2025-12-28
+**Date:** 2025-12-29
 
-> This is recommended context from Session 392. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 394. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 392 fixed the chunks PDF extraction bug (HTML meeting pages -> actual PDFs). The fix works: extracted 4,115 chunks from 27 meetings. However, extraction **stalled at meeting 36/46** (23MB PDF) and **full extraction takes 2+ hours locally**. These reliability/performance issues must be addressed before chunks_e2e_cloud can be marked ready.
+Session 394 completed chunks_extraction_reliability by adding timeout protection to PDF parsing. The chunks pipeline now completes in ~2 minutes (was 2+ hours). 34/46 meetings have chunks in cloud. The next step is transcripts - currently 0 transcripts in cloud storage.
 
 ## Current Cloud Data Status
 
@@ -18,71 +18,54 @@ Session 392 fixed the chunks PDF extraction bug (HTML meeting pages -> actual PD
 | Issues | 1,330 | ready |
 | Agenda Items | 44 | ready |
 | Decisions | 44 | ready |
-| **Chunks** | **4,115 (27/46 meetings)** | **PARTIAL** |
-| Transcripts | 0 | not_ready |
+| Chunks | ~4,800 (34/46 meetings) | ready |
+| **Transcripts** | **0** | **not_ready** |
 
-## Problems to Address
+## Recommended Task
 
-1. **Large PDF timeout/hang**: Meeting 36 (23MB PDF) caused extraction to stall indefinitely
-2. **Slow extraction**: 2+ hours for 46 meetings is too slow for production
-3. **No graceful failure**: When a PDF hangs, the whole pipeline stops
+Run the transcript extraction pipeline using AssemblyAI to populate cloud storage with meeting transcripts. Audio files are in R2 blob storage.
+
+**Cost Warning:** AssemblyAI costs $0.02/minute (~$2.40 per 2-hour meeting). Check how many audio files exist before running full extraction.
 
 ## Key Files
 
-- `packages/civic-extraction/src/civic_extraction/cli/chunks.py:448-574` - PDF extraction logic
-- `packages/civic-extraction/src/civic_extraction/cli/chunks.py:618-800` - extract_chunks_from_meeting()
-- `packages/civic/_internal/meetings/pdf_parser.py` - AgendaPacketParser (the slow part)
+- `packages/civic-extraction/src/civic_extraction/cli/transcribe.py` - Transcript CLI
+- `packages/civic/src/civic/storage/postgres_backend.py` - store_transcripts()
 
 ## Suggested Approach
 
-### Option A: Add timeout handling (quick fix)
-```python
-# In extract_chunks_from_meeting(), wrap PDF parsing with timeout
-import signal
-
-def timeout_handler(signum, frame):
-    raise TimeoutError("PDF parsing timed out")
-
-signal.signal(signal.SIGALRM, timeout_handler)
-signal.alarm(300)  # 5 minute timeout per PDF
-try:
-    chunks = parser.parse_to_chunks(temp_path, ...)
-finally:
-    signal.alarm(0)
-```
-
-### Option B: Evaluate remote compute (longer term)
-- Modal.com: Serverless Python, pay-per-use
-- Render background workers
-- Fly.io machines
-- AWS Lambda (may have memory limits for large PDFs)
-
-### Option C: Parallelization
-- Python multiprocessing for PDF parsing
-- Async download while parsing previous
-
-## Tests to Run
-
+1. **Check audio file count and estimate cost:**
 ```bash
-# Test single large PDF extraction
 source civic-env/bin/activate
-python3 -c "
-from civic_extraction.cli.chunks import extract_chunks_from_meeting
-meeting = {'id': 'test', 'meeting_date': '2025-12-09', 'agenda_url': 'https://www.cityofsanrafael.org/meetings/planning-commission-december-9-2025/'}
-result = extract_chunks_from_meeting(meeting, '/tmp/test', 'city-san-rafael', cloud=False)
-print(f'Status: {result.status}, Chunks: {result.chunks_count}')
-"
+civic-extract transcribe --jurisdiction city-san-rafael --cloud --dry-run
 ```
+
+2. **Run small batch first to verify pipeline:**
+```bash
+civic-extract transcribe --jurisdiction city-san-rafael --cloud --limit 3
+```
+
+3. **If pipeline works, run full extraction:**
+```bash
+civic-extract transcribe --jurisdiction city-san-rafael --cloud
+```
+
+## Environment Requirements
+
+- `ASSEMBLYAI_API_KEY` - Required for transcription
+- `DATABASE_URL` - For cloud storage
+- `R2_*` credentials - For audio file access
 
 ## Success Criteria
 
-- [ ] Extraction handles 23MB+ PDFs without hanging (timeout or success)
-- [ ] Full 46-meeting extraction completes in <30 minutes
-- [ ] Failed/timed-out meetings are logged and skipped gracefully
-- [ ] All 46 meetings processed (chunks or documented failure)
+- [ ] Dry-run shows audio files available in R2
+- [ ] Small batch (3 videos) transcribes successfully
+- [ ] Transcripts stored in cloud (verify with SQL count)
+- [ ] Cost is reasonable (<$50 for pilot data)
 
 ## Notes
 
-- The PDF parser (`AgendaPacketParser`) uses pdfplumber - memory/CPU intensive for large files
-- Some meetings legitimately have no PDFs (cancelled meetings)
-- Consider tracking which meetings failed for manual review
+- Audio is stored in R2 blob storage (DO NOT use local files)
+- The transcribe CLI has `--cloud` flag similar to chunks
+- Consider timeout handling if large audio files cause issues (apply same pattern as chunks)
+- Check if ASSEMBLYAI_API_KEY is set before running
