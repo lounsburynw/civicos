@@ -7431,3 +7431,39 @@ vectors_e2e_cloud - Build remaining vector indexes for other corpus types
 - packages/civic/src/civic/storage/pgvector_backend.py (legislation corpus type)
 - packages/civic-extraction/src/civic_extraction/cli/legislative.py (--cloud, --bulk, --migrate-json)
 - pilot.json (legislation_e2e_cloud ready, vectors_e2e_cloud P0)
+
+## Session 404: federal_legislation_e2e_cloud - Federal Legislation Ingestion
+
+**Date:** 2025-12-29
+**Item:** federal_legislation_e2e_cloud
+**Status:** COMPLETE
+
+### What was done
+1. Tested LegiScan API with state='US' for Congress - returns 12,355 bills in 1 API call
+2. Ran bulk ingestion: `civic-extract legislative --bulk --cloud --state US --topic all`
+3. Verified federal legislation in Postgres
+
+### Key results
+- Total US federal bills: 12,355
+- Total CA state bills: 2,864
+- Combined legislation corpus: 15,194 bills
+- API queries used: 1 (free tier preserved)
+
+### Federal programs verified
+- Housing: 161 bills
+- Infrastructure: 100 bills  
+- Climate/Energy: 240 bills
+- Community/Local: 267 bills
+- Grant Programs: 182 bills
+- Appropriations: 53 bills
+
+### CLI usage
+```bash
+civic-extract legislative --bulk --cloud --state US --topic all
+```
+
+### Next P0
+vectors_e2e_cloud - Build remaining vector indexes for corpus types (chunks, decisions, issues, municipal_code, transcripts). Legislation vectors already done.
+
+### Files changed
+- pilot.json (federal_legislation_e2e_cloud ready, vectors_e2e_cloud P0)
