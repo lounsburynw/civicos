@@ -7172,3 +7172,31 @@ Extracted 4,115 chunks from 27/46 meetings before stall at meeting 36 (23MB PDF)
 - Evaluate remote compute/parallelization options
 - Add per-meeting timeout with graceful skip
 - Consider worker queues or chunked processing
+
+## Session 394 - 2025-12-29
+
+### Completed: chunks_extraction_reliability (P0)
+
+Fixed PDF parsing reliability issues that were causing extraction to hang on large PDFs.
+
+**Changes:**
+- Added `_parse_pdf_with_timeout()` using `concurrent.futures.ThreadPoolExecutor`
+- Default 5 minute timeout per PDF, configurable via `--timeout` CLI flag
+- Added `PDFParseTimeoutError` exception for graceful timeout handling
+- Extraction continues to next meeting on timeout (logs error, doesn't hang)
+
+**Results:**
+- 23MB PDFs now parse in ~24 seconds (was hanging indefinitely)
+- Full extraction completes in ~2 minutes (was 2+ hours)
+- 34/46 meetings now have chunks in cloud
+- 12 meetings without chunks are cancelled/closed sessions (no PDFs)
+
+**Key file:** `packages/civic-extraction/src/civic_extraction/cli/chunks.py:627-672`
+
+### Also completed: chunks_e2e_cloud
+
+Marked ready since all meetings with available PDFs are now processed.
+
+### Next P0: transcripts_e2e_cloud
+
+Run transcript pipeline via AssemblyAI to cloud storage.
