@@ -71,6 +71,13 @@ Usage:
 import argparse
 import sys
 
+# Load environment variables from .env file before any other imports
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv is optional
+
 from civic_extraction.cli.agenda import add_agenda_parser, run_agenda
 from civic_extraction.cli.audio import add_audio_parser, run_audio
 from civic_extraction.cli.audit_cli import add_audit_parser, run_audit
