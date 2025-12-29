@@ -201,6 +201,31 @@ def run_municipal_funding(args: argparse.Namespace) -> int:
             print("⚠️  Parsing incomplete - see audit file for raw data")
             print("   Use LLM post-processing for full structured extraction")
 
+        # Store ETL cost record if we got a cost
+        if result.raw_response.cost > 0:
+            try:
+                from civic.storage import get_storage_backend
+                import os
+
+                # Only record costs if cloud storage is available
+                if os.environ.get("DATABASE_URL"):
+                    backend = get_storage_backend()
+                    if backend.backend_type == "postgres":
+                        # Derive jurisdiction_id from municipality name
+                        jurisdiction_id = f"city-{args.municipality.lower().replace(' ', '-')}"
+                        cost_id = backend.store_etl_cost(
+                            pipeline="research",
+                            jurisdiction_id=jurisdiction_id,
+                            items_processed=1,
+                            cost_usd=result.raw_response.cost,
+                            notes=f"Single research: {args.topic} via Perplexity",
+                        )
+                        print(f"ETL cost recorded (id={cost_id}): ${result.raw_response.cost:.4f}")
+            except ImportError:
+                logger.debug("civic.storage not available for cost tracking")
+            except Exception as e:
+                logger.warning(f"Failed to record ETL cost: {e}")
+
         return 0
 
     except ImportError as e:
@@ -320,6 +345,31 @@ def run_municipal_funding_ensemble(args: argparse.Namespace) -> int:
         elif result.merged_data is None:
             print()
             print("⚠️  Merging incomplete - see audit file for raw data")
+
+        # Store ETL cost record if we ran queries
+        if len(result.query_results) > 0 and result.total_cost > 0:
+            try:
+                from civic.storage import get_storage_backend
+                import os
+
+                # Only record costs if cloud storage is available
+                if os.environ.get("DATABASE_URL"):
+                    backend = get_storage_backend()
+                    if backend.backend_type == "postgres":
+                        # Derive jurisdiction_id from municipality name
+                        jurisdiction_id = f"city-{args.municipality.lower().replace(' ', '-')}"
+                        cost_id = backend.store_etl_cost(
+                            pipeline="research",
+                            jurisdiction_id=jurisdiction_id,
+                            items_processed=len(result.query_results),
+                            cost_usd=result.total_cost,
+                            notes=f"Ensemble research: {args.topic}, {len(result.query_results)} queries via Perplexity",
+                        )
+                        print(f"ETL cost recorded (id={cost_id}): ${result.total_cost:.4f}")
+            except ImportError:
+                logger.debug("civic.storage not available for cost tracking")
+            except Exception as e:
+                logger.warning(f"Failed to record ETL cost: {e}")
 
         return 0
 

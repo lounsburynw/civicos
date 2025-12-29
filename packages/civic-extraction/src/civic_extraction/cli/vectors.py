@@ -340,18 +340,33 @@ def run_vector_indexing(
                     error=str(e),
                 ))
 
+        # Store ETL cost record ($0 for local embeddings, but tracked for pipeline visibility)
+        total_indexed = sum(r.documents_indexed for r in results)
+        if total_indexed > 0:
+            try:
+                cost_id = backend.store_etl_cost(
+                    pipeline="vectors",
+                    jurisdiction_id=jurisdiction_id,
+                    items_processed=total_indexed,
+                    cost_usd=0.0,  # Local sentence-transformers - no API cost
+                    notes=f"Indexed {total_indexed} {corpus_type} documents via local sentence-transformers (no API cost)",
+                )
+                logger.info(f"ETL run recorded (id={cost_id}): $0.00 (local embeddings)")
+            except Exception as e:
+                logger.debug(f"Failed to record ETL run: {e}")
+
         # Summary
         logger.info("")
         logger.info("=" * 50)
         logger.info(f"Vector Indexing Complete for {jurisdiction_id}")
 
-        total_indexed = sum(r.documents_indexed for r in results)
         successful = sum(1 for r in results if r.status == "success")
         skipped = sum(1 for r in results if r.status == "skipped")
         failed = sum(1 for r in results if r.status == "error")
 
         logger.info(f"Total indexed: {total_indexed}")
         logger.info(f"Corpus types: {successful} success, {skipped} skipped, {failed} failed")
+        logger.info(f"Cost: $0.00 (local embeddings)")
         logger.info("=" * 50)
 
         return results
