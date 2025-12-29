@@ -1652,13 +1652,22 @@
         "completed": "2025-12-29",
         "note": "Added timeout protection via concurrent.futures (default 5 min, configurable via --timeout). 23MB PDFs now parse in ~24s. Full extraction completes in ~2 min. Graceful error handling for timeouts."
       },
-      "transcripts_e2e_cloud": {
+      "audio_e2e_cloud": {
         "status": "not_ready",
         "priority": 0,
+        "artifact": "All meeting audio files uploaded to R2 blob storage",
+        "target_count": "19 videos",
+        "verification": "civic-extract audio --jurisdiction city-san-rafael --cloud --dry-run",
+        "note": "Session 395: 3/19 audio files uploaded to R2. Run civic-extract audio --jurisdiction city-san-rafael --cloud to upload remaining 14 videos (~45 min). Prerequisites: YouTube cookies at ~/Downloads/www.youtube.com_cookies.txt"
+      },
+      "transcripts_e2e_cloud": {
+        "status": "not_ready",
+        "priority": 1,
         "artifact": "All video transcripts ingested E2E to Postgres via AssemblyAI",
-        "target_count": "Proportional to videos with transcripts",
+        "target_count": "19 videos",
+        "current_count": 1,
         "verification": "SELECT COUNT(*) FROM transcripts WHERE jurisdiction_id = 'city-san-rafael'",
-        "note": "Must run transcript pipeline (civic-extract transcripts --cloud). Audio stored in R2. DO NOT MIGRATE from local."
+        "note": "Session 395: Fixed find_audio_files() to detect R2 audio directly (not just via Postgres videos). 1/19 transcripts complete. BLOCKED on audio_e2e_cloud. After audio uploaded, run: civic-extract transcribe --jurisdiction city-san-rafael --cloud. Estimated cost: ~$46 total."
       },
       "municipal_code_e2e_cloud": {
         "status": "not_ready",

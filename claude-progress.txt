@@ -7200,3 +7200,49 @@ Marked ready since all meetings with available PDFs are now processed.
 ### Next P0: transcripts_e2e_cloud
 
 Run transcript pipeline via AssemblyAI to cloud storage.
+
+## Session 395 - 2025-12-29
+
+### Working on: transcripts_e2e_cloud (P0)
+
+Discovered a dependency blocker: audio files weren't in R2.
+
+**Root cause analysis:**
+- Previous session noted "Audio stored in R2" but verification showed 0 audio files in R2
+- Videos metadata was also 0 in Postgres
+- `find_audio_files()` in transcribe.py only checked Postgres videos, not R2 directly
+
+**Fix applied:**
+- Modified `find_audio_files()` in `transcribe.py:221-270`
+- Added second code path to list R2 audio files directly when Postgres videos table is empty
+- This allows transcription to work even without video metadata in database
+
+**Testing:**
+1. Downloaded 3 audio files to R2 (~10 min)
+2. Ran transcription on 1 video (MK8wuM9w1Bg) - SUCCESS
+   - 108 minutes, 5 speakers, 343 utterances
+   - Cost: $2.17
+   - Stored in Postgres cloud database
+
+**Current state:**
+- 3/19 audio files in R2
+- 1/19 transcripts in Postgres
+- Remaining: 14 videos need audio download, then all need transcription
+
+**Added to pilot.json:**
+- New item: `audio_e2e_cloud` (P0) - blocking dependency
+- Updated: `transcripts_e2e_cloud` (P1) - blocked on audio
+
+### Next P0: audio_e2e_cloud
+
+Upload remaining 14 audio files to R2:
+```bash
+civic-extract audio --jurisdiction city-san-rafael --cloud
+```
+Estimated time: ~45 minutes
+
+Then run transcription:
+```bash
+civic-extract transcribe --jurisdiction city-san-rafael --cloud
+```
+Estimated cost: ~$46 total

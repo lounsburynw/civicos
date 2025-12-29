@@ -223,12 +223,14 @@ def find_audio_files(
         try:
             from civic.storage import get_storage_backend, get_blob_storage
 
+            blob = get_blob_storage()
             backend = get_storage_backend()
+
+            # First try: get videos from Postgres and check for audio in R2
             if backend.backend_type == "postgres":
                 videos = backend.get_videos(jurisdiction_id)
                 if videos:
                     # Filter to videos that have audio in R2
-                    blob = get_blob_storage()
                     audio_videos = []
                     for video in videos:
                         video_id = video.get("id") or video.get("video_id")
@@ -244,8 +246,24 @@ def find_audio_files(
                             f"Found {len(audio_videos)} audio files in cloud storage (R2)"
                         )
                         return audio_videos
-                    else:
-                        logger.info("No audio files in R2, trying local fallback")
+
+            # Second try: list R2 audio files directly (even without video metadata)
+            r2_prefix = f"audio/{jurisdiction_id}/"
+            audio_keys = blob.list_keys(r2_prefix)
+            if audio_keys:
+                audio_videos = []
+                for key in audio_keys:
+                    if key.endswith(".mp3"):
+                        # Extract video_id from key: audio/city-san-rafael/VIDEO_ID.mp3
+                        video_id = key.replace(r2_prefix, "").replace(".mp3", "")
+                        audio_videos.append({"video_id": video_id})
+                if audio_videos:
+                    logger.info(
+                        f"Found {len(audio_videos)} audio files in R2 (direct listing)"
+                    )
+                    return audio_videos
+
+            logger.info("No audio files in R2, trying local fallback")
         except ImportError:
             logger.debug("civic.storage not available, using local fallback")
         except Exception as e:
