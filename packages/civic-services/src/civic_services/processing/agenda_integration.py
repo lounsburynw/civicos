@@ -79,10 +79,16 @@ class AgendaIntegrator:
         if model:
             from civic_services.core.llm_provider import get_model
             self.provider = get_model(model)
+            self._model_name = model
         # Priority 2: Resolve from task_type
         else:
             from civic_services.core.llm_provider import get_model_for_task
             self.provider = get_model_for_task(task_type)
+            self._model_name = self.provider.default_model
+
+        # Cost tracking: accumulate costs across all LLM calls
+        self._total_cost = 0.0
+        self._total_tokens = 0
 
         self.session = requests.Session()
         self.session.headers.update({
@@ -1268,7 +1274,7 @@ Skip only purely procedural items (meeting minutes approval, internal appointmen
             return False, ""
 
     def _call_llm(self, prompt: str, max_tokens: int = 1500) -> str:
-        """Call LLM via provider abstraction with error handling"""
+        """Call LLM via provider abstraction with error handling and cost tracking."""
         try:
             messages = [
                 {"role": "system", "content": "You are a civic engagement expert specializing in municipal agenda analysis. Provide accurate, conservative assessments of public participation events."},
@@ -1278,13 +1284,35 @@ Skip only purely procedural items (meeting minutes approval, internal appointmen
             response = self.provider.complete(
                 messages=messages,
                 max_tokens=max_tokens,
-                temperature=0.1  # Low temperature for consistent parsing
+                temperature=0  # Zero temperature for deterministic extraction
             )
+
+            # Track cost using model registry pricing
+            if response.usage:
+                from civic_services.core.model_registry import calculate_cost
+                call_cost = calculate_cost(self._model_name, response.usage)
+                self._total_cost += call_cost
+                self._total_tokens += response.usage.get('total_tokens', 0)
 
             return response.content.strip()
         except Exception as e:
             print(f"⚠️ LLM call failed: {type(e).__name__}")
             raise
+
+    @property
+    def total_cost(self) -> float:
+        """Total cost in USD accumulated across all LLM calls."""
+        return self._total_cost
+
+    @property
+    def total_tokens(self) -> int:
+        """Total tokens used across all LLM calls."""
+        return self._total_tokens
+
+    def reset_cost_tracking(self) -> None:
+        """Reset cost tracking counters (useful between batch operations)."""
+        self._total_cost = 0.0
+        self._total_tokens = 0
 
     def _is_safe_url(self, url: str) -> bool:
         """Validate URL safety"""

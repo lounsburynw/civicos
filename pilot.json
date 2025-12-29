@@ -365,11 +365,12 @@
         "note": "Aggregate from etl_costs table. Show daily/weekly/monthly breakdown by pipeline type."
       },
       "etl_cost_tracking_all_pipelines": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "All cost-generating ETL pipelines automatically record costs to etl_costs table",
-        "note": "Session 397 implemented for transcribe.py. Remaining: research.py (Perplexity API), decisions.py (LLM costs), vectors.py (embedding API if paid). Follow pattern in transcribe.py:758-779.",
-        "depends_on": "etl_cost_provenance"
+        "note": "Session 398: Added calculate_cost() to model_registry.py for centralized pricing. AgendaIntegrator now tracks cumulative costs via _call_llm(). Pipelines: transcribe.py (AssemblyAI actual), decisions.py (Gemini actual via MODEL_REGISTRY), research.py (Perplexity actual), vectors.py ($0 local embeddings).",
+        "depends_on": "etl_cost_provenance",
+        "completed": "2025-12-29"
       },
       "cost_alerts": {
         "status": "not_ready",
@@ -1671,7 +1672,7 @@
       },
       "transcripts_e2e_cloud": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "All video transcripts ingested E2E to Postgres via AssemblyAI",
         "target_count": "19 videos",
         "current_count": 1,

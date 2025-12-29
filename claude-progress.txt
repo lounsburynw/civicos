@@ -7322,3 +7322,51 @@ summary = backend.get_etl_cost_summary(jurisdiction_id="city-san-rafael")
 - Run: civic-extract transcribe --jurisdiction city-san-rafael --cloud
 - Estimated cost: ~$46 total (~18 remaining × $2.40 avg per video)
 - Cost tracking now in place to monitor spend
+
+## Session 398: ETL Cost Tracking All Pipelines
+**Date**: 2025-12-29
+**P0 Completed**: etl_cost_tracking_all_pipelines
+
+### Summary
+Implemented proper ETL cost tracking across all pipelines using centralized MODEL_REGISTRY pricing.
+
+### Changes Made
+
+1. **model_registry.py** - Added `calculate_cost(model, usage)` function
+   - Uses MODEL_REGISTRY pricing data (cost_per_1m_tokens)
+   - Calculates actual costs from token usage returned by providers
+   - Single source of truth for all pricing
+
+2. **agenda_integration.py** - Added cumulative cost tracking
+   - `_total_cost` and `_total_tokens` instance variables
+   - `_call_llm()` now tracks cost after each call
+   - `total_cost` and `total_tokens` properties
+   - `reset_cost_tracking()` method
+   - RetrospectiveAnalyzer inherits all cost tracking
+
+3. **cli/decisions.py** - Uses actual costs from analyzer
+   - Creates shared analyzer instance for all meetings
+   - Passes analyzer to `extract_decisions_from_meeting()`
+   - Records actual cost from `analyzer.total_cost`
+
+4. **cli/research.py** - Already had actual costs from Perplexity
+   - Added `store_etl_cost()` calls for both single and ensemble modes
+   - Uses `result.raw_response.cost` and `result.total_cost`
+
+5. **cli/vectors.py** - Records $0 cost (local embeddings)
+   - Documents pipeline in ETL costs for full pipeline visibility
+   - Uses local sentence-transformers (no API cost)
+
+### Architecture
+```
+MODEL_REGISTRY (pricing)  ->  calculate_cost()  ->  AgendaIntegrator._call_llm()
+                                                          |
+                                                          v
+                                              _total_cost accumulator
+                                                          |
+                                                          v
+                                              store_etl_cost() in CLI
+```
+
+### Next P0
+- transcripts_e2e_cloud (run AssemblyAI transcription on 19 cloud audio files)
