@@ -1608,16 +1608,17 @@
         "note": "44 decisions extracted via civic-extract decisions --cloud from 19 meetings. Fixed store_decisions() temporal versioning bug (was closing all decisions per jurisdiction, now only closes matching IDs). Topic distribution: budget(20), development(15), community(15), housing(12)."
       },
       "chunks_e2e_cloud": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "All PDF chunks extracted E2E to Postgres from agenda packets/staff reports",
-        "target_count": "500+ chunks (from PDF extraction)",
+        "target_count": "239 chunks (from PDF extraction)",
         "verification": "SELECT COUNT(*) FROM chunks WHERE jurisdiction_id = 'city-san-rafael'",
-        "note": "Must run chunk extraction pipeline (civic-extract chunks --cloud). DO NOT MIGRATE from local."
+        "completed": "2025-12-28",
+        "note": "239 chunks extracted via civic-extract chunks --cloud from 46 meetings. All meetings processed with 0 failures. City Council meetings have most chunks (10-12 each). Source type: agenda_packet."
       },
       "transcripts_e2e_cloud": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "All video transcripts ingested E2E to Postgres via AssemblyAI",
         "target_count": "Proportional to videos with transcripts",
         "verification": "SELECT COUNT(*) FROM transcripts WHERE jurisdiction_id = 'city-san-rafael'",
