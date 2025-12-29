@@ -1126,18 +1126,20 @@ class PostgresBackend:
         cursor = conn.cursor()
 
         try:
-            # Close previous versions (set valid_to)
-            cursor.execute("""
-                UPDATE decisions
-                SET valid_to = %s
-                WHERE jurisdiction_id = %s
-                  AND valid_to IS NULL
-            """, (as_of.isoformat(), jurisdiction_id))
-
-            # Insert new versions
+            # Insert new versions (close previous versions only for matching IDs)
             for decision in decisions:
                 # Support both 'id' and 'decision_id' field names
                 decision_id = decision.get('id') or decision.get('decision_id')
+
+                # Close previous version of this specific decision only
+                cursor.execute("""
+                    UPDATE decisions
+                    SET valid_to = %s
+                    WHERE jurisdiction_id = %s
+                      AND id = %s
+                      AND valid_to IS NULL
+                """, (as_of.isoformat(), jurisdiction_id, decision_id))
+
                 cursor.execute("""
                     INSERT INTO decisions (
                         id, jurisdiction_id, meeting_date, agenda_item,
