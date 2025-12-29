@@ -364,6 +364,13 @@
         "artifact": "Admin dashboard showing cumulative ETL costs by pipeline and time period",
         "note": "Aggregate from etl_costs table. Show daily/weekly/monthly breakdown by pipeline type."
       },
+      "etl_cost_tracking_all_pipelines": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "All cost-generating ETL pipelines automatically record costs to etl_costs table",
+        "note": "Session 397 implemented for transcribe.py. Remaining: research.py (Perplexity API), decisions.py (LLM costs), vectors.py (embedding API if paid). Follow pattern in transcribe.py:758-779.",
+        "depends_on": "etl_cost_provenance"
+      },
       "cost_alerts": {
         "status": "not_ready",
         "priority": 2,
