@@ -1776,15 +1776,22 @@
         "verification": "curl /admin/status shows storage.backend_type = 'postgres' and storage.meetings.count = 46",
         "completed": "2025-12-27",
         "note": "Session 387: Updated Civic class to check DATABASE_URL and use get_storage_backend(). Updated data browser SQL to use backend-agnostic placeholders. Datetime serialization fixed for Postgres."
+      },
+      "data_refresh_strategy": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Documented refresh cadence and automation for all corpus types",
+        "verification": "docs/operations/DATA_REFRESH.md exists with refresh commands and schedules",
+        "note": "Define refresh strategy: legislation (monthly --bulk), meetings (weekly), municipal_code (quarterly), transcripts (after videos), issues (daily). Add --refresh flag to auto-rebuild vectors after ingestion. Consider GitHub Actions or cron for automation."
       }
     }
   },
   "summary": {
-    "total_items": 174,
+    "total_items": 175,
     "by_priority": {
       "p0": 1,
       "p1": 63,
-      "p2": 75,
+      "p2": 76,
       "p3": 32
     },
     "by_category": {
