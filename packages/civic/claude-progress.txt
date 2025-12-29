@@ -45,3 +45,39 @@
 - 35 items remaining
 
 **Commit:** Session 326: legislative_cron - Legislative refresh CLI for weekly context updates
+
+---
+
+## Session 400 - 2025-12-29
+
+### P0 Completed: municipal_code_e2e_cloud
+
+**Goal:** Verify municipal code data exists in cloud Postgres (not migrated - fetched fresh from Municode API).
+
+**Implementation:**
+1. Added `municipal_code` table to PostgresBackend schema with temporal versioning
+2. Implemented storage methods:
+   - `store_municipal_code()` - atomic batch insert with version control
+   - `get_municipal_code()` - retrieve with temporal filtering
+   - `get_municipal_code_section()` - get specific section
+   - `get_municipal_code_count()` - count current sections
+3. Created new CLI command: `civic-extract municipal-code`
+   - `--jurisdiction city-san-rafael` - target city
+   - `--cloud` - store to Postgres
+   - `--stats --cloud` - show section count
+   - `--dry-run` - validate configuration
+   - `--limit N` - for testing
+
+**Results:**
+- 2,366 municipal code sections from Municode API stored to Postgres
+- Fetch time: ~12 seconds from API
+- Store time: ~3 minutes to Postgres
+- Free API (no cost tracking needed)
+
+### Files Modified
+- `packages/civic/src/civic/storage/postgres_backend.py` - added municipal_code table and methods
+- `packages/civic-extraction/src/civic_extraction/cli/municipal_code.py` - new CLI command
+- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` - registered command
+
+### Next P0
+- vectors_e2e_cloud (build pgvector indexes from cloud SQL data)

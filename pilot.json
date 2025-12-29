@@ -9,6 +9,7 @@
     "data_architecture",
     "data_readiness",
     "data_standards",
+    "data_integrity",
     "city_onboarding",
     "ingestion_visibility",
     "deployment_artifacts",
@@ -1215,6 +1216,63 @@
       }
     }
   },
+  "data_integrity": {
+    "description": "Provenance and integrity infrastructure for future resilience - build now, expensive to retrofit",
+    "content_hashing": {
+      "transcript_content_hash": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "SHA-256 content_hash column on transcripts table",
+        "note": "Enables verification that transcript content hasn't been modified. Computed from utterances JSON."
+      },
+      "chunk_content_hash": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "SHA-256 content_hash column on chunks table",
+        "note": "Enables verification of PDF extraction integrity."
+      },
+      "decision_content_hash": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "SHA-256 content_hash column on decisions table",
+        "note": "Enables verification of decision extraction integrity."
+      }
+    },
+    "source_provenance": {
+      "audio_hash_storage": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Store SHA-256 of source audio file with each transcript",
+        "note": "Ultimate provenance: transcript can be verified against original audio."
+      },
+      "pdf_hash_storage": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Store SHA-256 of source PDF with each chunk",
+        "note": "Enables verification that chunks came from unmodified PDF."
+      },
+      "extraction_versioning": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "extraction_version field on all extracted records",
+        "note": "Track which version of extractor produced each record. Enables re-extraction when extractors improve."
+      }
+    },
+    "audit_infrastructure": {
+      "soft_delete_support": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "deleted_at column on all content tables",
+        "note": "Never hard-delete. Preserve audit trail of what was removed, when, why."
+      },
+      "engagement_tracking_schema": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "civic_engagement table stub for future anti-astroturf measures",
+        "note": "Schema only - don't populate until coordination features built. Tracks 311 reports, meeting testimony, etc."
+      }
+    }
+  },
   "city_onboarding": {
     "description": "Modular ETL pipeline for onboarding new cities - PRIORITY: complete before dashboard redesign",
     "configuration": {
@@ -1672,7 +1730,7 @@
       },
       "transcripts_e2e_cloud": {
         "status": "ready",
-        "priority": 0,
+        "priority": 2,
         "artifact": "All video transcripts ingested E2E to Postgres via AssemblyAI",
         "target_count": "19 videos",
         "current_count": 1,
@@ -1714,12 +1772,12 @@
     }
   },
   "summary": {
-    "total_items": 166,
+    "total_items": 174,
     "by_priority": {
       "p0": 1,
       "p1": 63,
-      "p2": 69,
-      "p3": 30
+      "p2": 75,
+      "p3": 32
     },
     "by_category": {
       "test_infrastructure": 10,
@@ -1731,13 +1789,14 @@
       "data_architecture": 14,
       "data_readiness": 15,
       "data_standards": 7,
+      "data_integrity": 8,
       "city_onboarding": 13,
       "rollback_procedures": 9,
       "user_documentation": 9,
       "frontend_refinement": 3,
       "pilot_validation": 10
     },
-    "notes": "Updated 2025-12-22: Session 351 - COMPLETED extraction_audit_log (158/174, 90.8%). Created AuditEntry and AuditLog classes building on IngestionManifest. Aggregates metrics per platform with CLI: civic-extract audit. 13 new tests."
+    "notes": "Updated 2025-12-29: Session 401 - Added data_integrity category with 8 items for content hashing, source provenance, and audit infrastructure. Created decision doc and migration script 015_data_integrity.sql."
   },
   "deployment": {
     "infrastructure": {
