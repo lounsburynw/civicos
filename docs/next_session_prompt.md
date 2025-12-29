@@ -1,74 +1,59 @@
-# Recommended: etl_cost_tracking_all_pipelines
+# Recommended: vectors_e2e_cloud
 
 **Priority:** P0
-**Area:** monitoring_observability > cost_tracking
+**Area:** pilot_validation > e2e_cloud_data_verification
 **Date:** 2025-12-29
 
-> This is recommended context from Session 397. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 400. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 397 implemented cost tracking for `transcribe.py`. Before running more E2E ingestion (especially the $46 transcription job), we need cost tracking on ALL cost-generating pipelines.
+Session 400 completed `municipal_code_e2e_cloud` - 2,366 municipal code sections are now in Postgres. With SQL data ingestion complete for most data types, the next step is building vector indexes in pgvector from the cloud SQL data.
 
 ## Task
 
-Add `store_etl_cost()` calls to remaining cost-generating pipelines:
+Build vector indexes in pgvector FROM cloud SQL data (not migrated from ChromaDB):
 
-| Pipeline | File | Cost Source | Status |
-|----------|------|-------------|--------|
-| transcribe | `cli/transcribe.py:758-779` | AssemblyAI | ✅ Done |
-| research | `research/base.py` | Perplexity API (`total_cost`) | ❌ TODO |
-| decisions | `cli/decisions.py` | LLM API costs | ❌ TODO |
-| vectors | `cli/vectors.py` | Embedding API (if paid) | ❌ TODO |
+| Data Type | SQL Source | Vector Status |
+|-----------|------------|---------------|
+| chunks | `chunks` table | TODO |
+| decisions | `decisions` table | TODO |
+| issues | `issues` table | TODO |
+| municipal_code | `municipal_code` table (2,366 rows) | TODO |
+| transcripts | `transcripts` table (13 rows) | TODO |
 
-## Pattern to Follow
+## Key Files
 
-From `transcribe.py:758-779`:
+- `packages/civic/src/civic/storage/pgvector_backend.py` - PgVectorBackend class
+- `packages/civic-extraction/src/civic_extraction/cli/vectors.py` - CLI for vector operations
+- `packages/civic/src/civic/storage/postgres_backend.py:527-563` - new municipal_code table schema
 
-```python
-# At end of run, after successful processing:
-if items_processed > 0 and cloud_mode:
-    try:
-        from civic.storage import get_storage_backend
-        backend = get_storage_backend()
-        if backend.backend_type == "postgres":
-            cost_id = backend.store_etl_cost(
-                pipeline="pipeline_name",  # e.g., "research", "decisions"
-                jurisdiction_id=jurisdiction_id,
-                items_processed=items_processed,
-                cost_usd=total_cost,
-                duration_seconds=duration_seconds,  # Optional
-                notes=f"Description of what was processed",
-            )
-            logger.info(f"ETL cost recorded (id={cost_id}): ${total_cost:.2f}")
-    except Exception as e:
-        logger.warning(f"Failed to record ETL cost: {e}")
+## Suggested Approach
+
+1. Check if `PgVectorBackend.index_from_storage()` method exists or needs creation
+2. Verify vectors CLI has `--cloud` mode that uses PgVectorBackend
+3. Run `civic-extract vectors --jurisdiction city-san-rafael --cloud` for each data type
+4. Verify indexes with `civic-extract vectors --stats --cloud`
+
+## Pattern Reference
+
+The note says: "Uses PgVectorBackend.index_from_storage() to embed from Postgres"
+
+This suggests reading from SQL tables and embedding text content into pgvector collections.
+
+## Tests to Run
+
+```bash
+# Verify vectors CLI exists
+civic-extract vectors --help
+
+# Check stats (may need --cloud flag)
+civic-extract vectors --stats --cloud
 ```
-
-## Key Files to Modify
-
-1. **research/base.py** - Look for `total_cost` tracking, add `store_etl_cost()` after research completes
-2. **cli/decisions.py** - Check if LLM costs are tracked, add if applicable
-3. **cli/vectors.py** - Check if using paid embedding API, add if applicable
 
 ## Success Criteria
 
-- [ ] `research.py` records Perplexity costs to etl_costs table
-- [ ] `decisions.py` records LLM costs (if applicable)
-- [ ] `vectors.py` records embedding costs (if using paid API)
-- [ ] Mark `etl_cost_tracking_all_pipelines` as ready
-- [ ] Then proceed with `transcripts_e2e_cloud` (P1)
-
-## Verification
-
-```python
-from civic.storage import get_storage_backend
-backend = get_storage_backend()
-
-# After running a research job:
-backend.get_etl_costs(pipeline="research")
-# Should show cost records
-
-# Summary across all pipelines:
-backend.get_etl_cost_summary()
-```
+- [ ] Vector indexes exist for all data types in pgvector
+- [ ] `civic-extract vectors --stats --cloud` shows counts for each collection
+- [ ] Semantic search works against cloud vectors
+- [ ] Mark `vectors_e2e_cloud` as ready in pilot.json
