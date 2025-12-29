@@ -515,3 +515,79 @@ class StorageBackend(Protocol):
             Number of current (non-expired) issues
         """
         ...
+
+    # ========== Municipal Code Methods ==========
+
+    def store_municipal_code(
+        self,
+        jurisdiction_id: str,
+        sections: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store municipal code sections with temporal versioning.
+
+        Atomic operation: either all sections are stored or none.
+        Uses upsert semantics - closes previous versions and inserts new ones.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            sections: List of section dictionaries with section_number, section_title, etc.
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of sections successfully stored
+        """
+        ...
+
+    def get_municipal_code(
+        self,
+        jurisdiction_id: str,
+        chapter: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve municipal code sections with temporal filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            chapter: Filter to specific chapter (e.g., "1.04")
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of sections to return
+
+        Returns:
+            List of section dictionaries
+        """
+        ...
+
+    def get_municipal_code_section(
+        self,
+        jurisdiction_id: str,
+        section_number: str,
+        as_of: Optional[datetime] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get specific municipal code section by section number.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            section_number: Section identifier (e.g., "1.04.010")
+            as_of: Point-in-time query (for temporal versioning)
+
+        Returns:
+            Section dictionary or None if not found
+        """
+        ...
+
+    def get_municipal_code_count(self, jurisdiction_id: str) -> int:
+        """
+        Get count of current municipal code sections for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+
+        Returns:
+            Number of current (non-expired) sections
+        """
+        ...

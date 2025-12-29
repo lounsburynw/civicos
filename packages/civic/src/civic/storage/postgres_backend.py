@@ -524,6 +524,44 @@ class PostgresBackend:
             ON etl_costs(run_date DESC)
         """)
 
+        # Municipal code table (with temporal versioning)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS municipal_code (
+                id TEXT NOT NULL,
+                jurisdiction_id TEXT NOT NULL,
+                section_number TEXT NOT NULL,
+                section_title TEXT NOT NULL,
+                full_text TEXT NOT NULL,
+                chapter TEXT NOT NULL,
+                chapter_title TEXT,
+                title_number TEXT,
+                title_name TEXT,
+                node_id TEXT,
+                ordinance_history TEXT,
+                source TEXT DEFAULT 'municode',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                PRIMARY KEY (id, jurisdiction_id, valid_from),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                CHECK (valid_to IS NULL OR valid_to > valid_from)
+            )
+        """)
+
+        # Municipal code indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_municipal_code_jurisdiction
+            ON municipal_code(jurisdiction_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_municipal_code_section
+            ON municipal_code(section_number)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_municipal_code_chapter
+            ON municipal_code(chapter)
+        """)
+
         conn.commit()
 
     def store_meetings(
@@ -2075,6 +2113,232 @@ class PostgresBackend:
 
         cursor.execute("""
             SELECT COUNT(*) FROM transcripts
+            WHERE jurisdiction_id = %s AND valid_to IS NULL
+        """, (jurisdiction_id,))
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
+    # ========== Municipal Code Methods (SESSION 400) ==========
+
+    def store_municipal_code(
+        self,
+        jurisdiction_id: str,
+        sections: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store municipal code sections with temporal versioning.
+
+        Atomic operation: either all sections are stored or none.
+        Uses upsert semantics - closes previous versions and inserts new ones.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            sections: List of section dictionaries with section_number, section_title, etc.
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of sections successfully stored
+
+        Raises:
+            psycopg2.Error: If atomic store operation fails
+        """
+        as_of = as_of or datetime.now()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Ensure city_state exists
+            cursor.execute("""
+                INSERT INTO city_states (jurisdiction_id, jurisdiction_name, as_of)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (jurisdiction_id) DO NOTHING
+            """, (
+                jurisdiction_id,
+                jurisdiction_id.replace('-', ' ').title(),
+                as_of.isoformat()
+            ))
+
+            # Close previous versions for this jurisdiction
+            cursor.execute("""
+                UPDATE municipal_code
+                SET valid_to = %s
+                WHERE jurisdiction_id = %s
+                  AND valid_to IS NULL
+            """, (as_of.isoformat(), jurisdiction_id))
+
+            # Insert new versions
+            count = 0
+            for section in sections:
+                section_number = section.get('section_number')
+                if not section_number:
+                    continue  # Skip sections without section_number
+
+                # Generate a unique ID for this section version
+                import uuid
+                section_id = str(uuid.uuid4())
+
+                cursor.execute("""
+                    INSERT INTO municipal_code (
+                        id, jurisdiction_id, section_number, section_title,
+                        full_text, chapter, chapter_title, title_number,
+                        title_name, node_id, ordinance_history, source,
+                        created_at, valid_from, valid_to
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)
+                """, (
+                    section_id,
+                    jurisdiction_id,
+                    section_number,
+                    section.get('section_title', ''),
+                    section.get('full_text', ''),
+                    section.get('chapter', ''),
+                    section.get('chapter_title'),
+                    section.get('title_number'),
+                    section.get('title_name'),
+                    section.get('node_id'),
+                    section.get('ordinance_history'),
+                    section.get('source', 'municode'),
+                    as_of.isoformat(),
+                    as_of.isoformat(),
+                ))
+                count += 1
+
+            conn.commit()
+            return count
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_municipal_code(
+        self,
+        jurisdiction_id: str,
+        chapter: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve municipal code sections with temporal filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            chapter: Filter to specific chapter (e.g., "1.04")
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of sections to return
+
+        Returns:
+            List of section dictionaries
+        """
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Build query with temporal filtering
+        query = """
+            SELECT * FROM municipal_code
+            WHERE jurisdiction_id = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+        """
+        params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+
+        if chapter:
+            query += " AND chapter = %s"
+            params.append(chapter)
+
+        query += " ORDER BY section_number"
+
+        if limit:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to dictionaries
+        sections = []
+        for row in rows:
+            section = dict(row)
+            # Convert datetime objects to ISO strings
+            for key in ['created_at', 'valid_from', 'valid_to']:
+                if key in section and section[key] is not None:
+                    if isinstance(section[key], datetime):
+                        section[key] = section[key].isoformat()
+            sections.append(section)
+
+        return sections
+
+    def get_municipal_code_section(
+        self,
+        jurisdiction_id: str,
+        section_number: str,
+        as_of: Optional[datetime] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get specific municipal code section by section number.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            section_number: Section identifier (e.g., "1.04.010")
+            as_of: Point-in-time query (for temporal versioning)
+
+        Returns:
+            Section dictionary or None if not found
+        """
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        cursor.execute("""
+            SELECT * FROM municipal_code
+            WHERE jurisdiction_id = %s
+              AND section_number = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+            ORDER BY created_at DESC
+            LIMIT 1
+        """, (jurisdiction_id, section_number, as_of.isoformat(), as_of.isoformat()))
+
+        row = cursor.fetchone()
+        conn.close()
+
+        if not row:
+            return None
+
+        section = dict(row)
+        # Convert datetime objects to ISO strings
+        for key in ['created_at', 'valid_from', 'valid_to']:
+            if key in section and section[key] is not None:
+                if isinstance(section[key], datetime):
+                    section[key] = section[key].isoformat()
+
+        return section
+
+    def get_municipal_code_count(self, jurisdiction_id: str) -> int:
+        """
+        Get count of current municipal code sections for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+
+        Returns:
+            Number of current (non-expired) sections
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT COUNT(*) FROM municipal_code
             WHERE jurisdiction_id = %s AND valid_to IS NULL
         """, (jurisdiction_id,))
         count = cursor.fetchone()[0]

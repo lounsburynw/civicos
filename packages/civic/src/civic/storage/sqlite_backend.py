@@ -1340,6 +1340,60 @@ class SQLiteBackend:
         """
         return 0
 
+    # ========== Municipal Code Methods (Stubs) ==========
+
+    def store_municipal_code(
+        self,
+        jurisdiction_id: str,
+        sections: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store municipal code sections (stub for SQLite - uses Postgres in production).
+
+        Returns:
+            0 (SQLite stub)
+        """
+        return 0
+
+    def get_municipal_code(
+        self,
+        jurisdiction_id: str,
+        chapter: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get municipal code sections (stub for SQLite - uses Postgres in production).
+
+        Returns:
+            Empty list (SQLite stub)
+        """
+        return []
+
+    def get_municipal_code_section(
+        self,
+        jurisdiction_id: str,
+        section_number: str,
+        as_of: Optional[datetime] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get specific municipal code section (stub for SQLite - uses Postgres in production).
+
+        Returns:
+            None (SQLite stub)
+        """
+        return None
+
+    def get_municipal_code_count(self, jurisdiction_id: str) -> int:
+        """
+        Get municipal code count (stub for SQLite - uses Postgres in production).
+
+        Returns:
+            0 (SQLite stub)
+        """
+        return 0
+
 
 # Verify protocol compliance at import time
 # StorageBackend is @runtime_checkable, so isinstance() works
