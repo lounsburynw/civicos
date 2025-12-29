@@ -9,11 +9,18 @@ Usage:
     civic-extract transcribe --jurisdiction city-san-rafael --dry-run
     civic-extract transcribe --jurisdiction city-san-rafael --limit 5
     civic-extract transcribe --jurisdiction city-san-rafael --cloud
+    civic-extract transcribe --jurisdiction city-san-rafael --cloud --batch
 
 Cloud mode (--cloud):
     - Reads audio files from R2 blob storage
     - Stores transcripts in Postgres (requires DATABASE_URL)
     - Falls back to local storage if cloud unavailable
+
+Batch mode (--batch):
+    - Submits all files to AssemblyAI at once
+    - AssemblyAI processes them in parallel (up to 32 concurrent)
+    - Total time = longest single file (~20-30 min) instead of sum of all
+    - Recommended for large batches
 
 Cost: $0.02/minute ($0.015 transcription + $0.005 diarization)
 2-hour meeting = $2.40
@@ -137,6 +144,11 @@ def add_transcribe_parser(subparsers: argparse._SubParsersAction) -> None:
         action="store_true",
         help="Store transcripts in cloud storage (requires DATABASE_URL)",
     )
+    parser.add_argument(
+        "--batch",
+        action="store_true",
+        help="Use batch mode for parallel transcription (faster, submits all at once)",
+    )
 
 
 def run_transcribe(args: argparse.Namespace) -> int:
@@ -166,6 +178,7 @@ def run_transcribe(args: argparse.Namespace) -> int:
             min_speakers=args.min_speakers,
             max_speakers=args.max_speakers,
             cloud=args.cloud,
+            batch=args.batch,
         )
 
         if results is None and not args.dry_run:
@@ -601,6 +614,229 @@ def store_transcript_to_cloud(
     return False
 
 
+def transcribe_batch(
+    audio_files: List,
+    jurisdiction_id: str,
+    output_dir: str,
+    min_speakers: int = 5,
+    max_speakers: int = 10,
+    cloud: bool = False,
+) -> List[TranscribeResult]:
+    """
+    Transcribe multiple audio files in parallel using AssemblyAI's transcribe_group.
+
+    This submits all files at once and polls for completion, significantly reducing
+    wall clock time compared to sequential transcription.
+
+    Args:
+        audio_files: List of audio files (Path objects or video dicts)
+        jurisdiction_id: Jurisdiction ID
+        output_dir: Directory for local transcript storage
+        min_speakers: Minimum expected speakers
+        max_speakers: Maximum expected speakers
+        cloud: If True, use cloud storage
+
+    Returns:
+        List of TranscribeResult objects
+    """
+    import time
+    import tempfile
+
+    try:
+        import assemblyai as aai
+    except ImportError:
+        logger.error("assemblyai package not found")
+        return [
+            TranscribeResult(
+                video_id=f.stem if isinstance(f, Path) else f.get("video_id"),
+                status="error",
+                error="assemblyai not installed",
+            )
+            for f in audio_files
+        ]
+
+    cloud_mode = cloud or os.environ.get("DATABASE_URL")
+    results = []
+
+    # Step 1: Prepare audio sources and filter already-transcribed
+    files_to_transcribe = []
+    video_ids_in_order = []  # Track video_ids in submission order
+    temp_files = []  # Track temp files for cleanup
+
+    logger.info(f"Preparing {len(audio_files)} files for batch transcription...")
+
+    for audio_file in audio_files:
+        # Get video_id
+        if isinstance(audio_file, Path):
+            video_id = audio_file.stem
+            audio_path = audio_file
+        else:
+            video_id = audio_file.get("video_id") or audio_file.get("id")
+            audio_path = None
+
+        # Check if already transcribed
+        output_path = Path(output_dir) / f"testimony_{video_id}.json"
+        if output_path.exists():
+            logger.info(f"  Skipping {video_id} (already transcribed locally)")
+            results.append(
+                TranscribeResult(video_id=video_id, status="skipped", file_path=str(output_path))
+            )
+            continue
+
+        if cloud_mode and transcript_exists_in_cloud(video_id):
+            logger.info(f"  Skipping {video_id} (already transcribed in cloud)")
+            results.append(TranscribeResult(video_id=video_id, status="skipped"))
+            continue
+
+        # Load audio from cloud if needed
+        if audio_path is None and cloud_mode:
+            audio_data = load_audio_from_cloud(jurisdiction_id, video_id)
+            if audio_data is None:
+                logger.error(f"  Failed to load audio for {video_id}")
+                results.append(
+                    TranscribeResult(
+                        video_id=video_id, status="error", error="Audio not found in cloud"
+                    )
+                )
+                continue
+
+            # Write to temp file
+            temp_file = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+            temp_file.write(audio_data)
+            temp_file.close()
+            audio_path = Path(temp_file.name)
+            temp_files.append(temp_file.name)
+
+        files_to_transcribe.append(str(audio_path))
+        video_ids_in_order.append(video_id)
+
+    if not files_to_transcribe:
+        logger.info("No files to transcribe (all already done)")
+        return results
+
+    logger.info(f"Submitting {len(files_to_transcribe)} files to AssemblyAI in parallel...")
+
+    # Step 2: Configure and submit batch
+    try:
+        speaker_opts = aai.types.SpeakerOptions(
+            min_speakers_expected=min_speakers,
+            max_speakers_expected=max_speakers,
+        )
+
+        config = aai.TranscriptionConfig(
+            speaker_labels=True,
+            speaker_options=speaker_opts,
+            language_code="en",
+        )
+
+        transcriber = aai.Transcriber()
+        start_time = time.time()
+
+        # Submit all files at once - AssemblyAI processes them in parallel
+        logger.info("  Submitting batch to AssemblyAI (this submits all files at once)...")
+        transcript_group = transcriber.transcribe_group(files_to_transcribe, config=config)
+
+        total_processing_time = time.time() - start_time
+        logger.info(f"  Batch complete in {total_processing_time:.1f}s")
+
+        # Step 3: Process results
+        # transcribe_group returns transcripts in the same order as submission
+        for idx, transcript in enumerate(transcript_group.transcripts):
+            if idx >= len(video_ids_in_order):
+                logger.warning(f"  More transcripts returned than submitted (idx={idx})")
+                continue
+
+            video_id = video_ids_in_order[idx]
+
+            # Check for errors
+            if transcript.status == aai.TranscriptStatus.error:
+                logger.error(f"  Error transcribing {video_id}: {transcript.error}")
+                results.append(
+                    TranscribeResult(
+                        video_id=video_id, status="error", error=str(transcript.error)
+                    )
+                )
+                continue
+
+            # Calculate duration and cost
+            audio_duration_seconds = transcript.audio_duration
+            audio_duration_minutes = audio_duration_seconds / 60
+            cost_usd = audio_duration_minutes * COST_PER_MINUTE
+
+            # Count unique speakers and build utterances
+            speakers = set()
+            utterances = []
+
+            if transcript.utterances:
+                for utt in transcript.utterances:
+                    speakers.add(utt.speaker)
+                    utterances.append({
+                        "speaker": utt.speaker,
+                        "text": utt.text,
+                        "start": utt.start,
+                        "end": utt.end,
+                    })
+
+            # Build result data
+            result_data = {
+                "video_id": video_id,
+                "speakers_count": len(speakers),
+                "utterances_count": len(utterances),
+                "utterances": utterances,
+                "audio_duration_minutes": round(audio_duration_minutes, 2),
+                "language": "en",
+                "processed_at": datetime.now().isoformat(),
+                "processing_service": "assemblyai",
+                "assemblyai_id": transcript.id,
+                "cost_usd": round(cost_usd, 2),
+                "processing_time_seconds": round(total_processing_time / len(files_to_transcribe), 2),
+            }
+
+            # Store transcript
+            stored_to_cloud = False
+            if cloud_mode:
+                stored_to_cloud = store_transcript_to_cloud(jurisdiction_id, result_data)
+
+            if not stored_to_cloud:
+                os.makedirs(output_dir, exist_ok=True)
+                output_path = Path(output_dir) / f"testimony_{video_id}.json"
+                with open(output_path, "w") as f:
+                    json.dump(result_data, f, indent=2)
+
+            logger.info(f"  ✓ {video_id}: {len(speakers)} speakers, {len(utterances)} utterances, ${cost_usd:.2f}")
+
+            results.append(
+                TranscribeResult(
+                    video_id=video_id,
+                    status="success",
+                    file_path=str(output_path) if not stored_to_cloud else None,
+                    speakers_count=len(speakers),
+                    utterances_count=len(utterances),
+                    duration_minutes=audio_duration_minutes,
+                    cost_usd=cost_usd,
+                )
+            )
+
+    except Exception as e:
+        logger.error(f"Batch transcription failed: {e}")
+        # Mark all remaining as failed
+        for video_id in video_ids_in_order:
+            if not any(r.video_id == video_id for r in results):
+                results.append(
+                    TranscribeResult(video_id=video_id, status="error", error=str(e))
+                )
+
+    finally:
+        # Clean up temp files
+        for temp_path in temp_files:
+            try:
+                os.unlink(temp_path)
+            except Exception:
+                pass
+
+    return results
+
+
 def run_transcription(
     jurisdiction_id: str,
     input_dir: str = "data/youtube_audio",
@@ -611,6 +847,7 @@ def run_transcription(
     min_speakers: int = 5,
     max_speakers: int = 10,
     cloud: bool = False,
+    batch: bool = False,
 ) -> Optional[List[TranscribeResult]]:
     """
     Run transcription for audio files from a jurisdiction.
@@ -625,6 +862,7 @@ def run_transcription(
         min_speakers: Minimum expected speakers
         max_speakers: Maximum expected speakers
         cloud: If True, use cloud storage (R2 for audio, Postgres for transcripts)
+        batch: If True, use batch mode for parallel transcription
 
     Returns:
         List of TranscribeResult if successful, None if failed
@@ -691,9 +929,76 @@ def run_transcription(
         logger.info(f"Already transcribed: {already_transcribed}")
         logger.info(f"To transcribe: {total_to_transcribe}")
         logger.info(f"Estimated cost: ${total_to_transcribe * 2.40:.2f} (assuming 2-hour meetings)")
+        if batch:
+            logger.info("Batch mode: Files will be submitted in parallel (~20-30 min total)")
+        else:
+            logger.info("Sequential mode: ~5-10 min per file")
         return None
 
-    # Transcribe files
+    # Use batch mode for parallel transcription
+    if batch:
+        logger.info("=" * 50)
+        logger.info("BATCH MODE: Parallel transcription")
+        logger.info("=" * 50)
+
+        import time
+        batch_start = time.time()
+
+        results = transcribe_batch(
+            files_to_process,
+            jurisdiction_id,
+            output_dir,
+            min_speakers=min_speakers,
+            max_speakers=max_speakers,
+            cloud=cloud_mode,
+        )
+
+        batch_duration = time.time() - batch_start
+
+        # Calculate totals from results
+        items_transcribed = sum(1 for r in results if r.status == "success")
+        items_skipped = sum(1 for r in results if r.status == "skipped")
+        items_failed = sum(1 for r in results if r.status == "error")
+        total_cost = sum(r.cost_usd or 0.0 for r in results if r.status == "success")
+
+        # Store ETL cost record if we transcribed anything
+        if items_transcribed > 0 and cloud_mode:
+            try:
+                from civic.storage import get_storage_backend
+
+                backend = get_storage_backend()
+                if backend.backend_type == "postgres":
+                    cost_id = backend.store_etl_cost(
+                        pipeline="transcribe",
+                        jurisdiction_id=jurisdiction_id,
+                        items_processed=items_transcribed,
+                        cost_usd=total_cost,
+                        duration_seconds=batch_duration,
+                        notes=f"Batch transcribed {items_transcribed} videos via AssemblyAI (parallel)",
+                    )
+                    logger.info(f"ETL cost recorded (id={cost_id}): ${total_cost:.2f}")
+            except ImportError:
+                logger.debug("civic.storage not available for cost tracking")
+            except Exception as e:
+                logger.warning(f"Failed to record ETL cost: {e}")
+
+        # Summary
+        logger.info("=" * 50)
+        logger.info(f"Batch Transcription Complete for {jurisdiction_id}")
+        logger.info(f"Total time: {batch_duration:.1f}s ({batch_duration/60:.1f} min)")
+        logger.info(f"Transcribed: {items_transcribed}")
+        logger.info(f"Skipped (already exist): {items_skipped}")
+        logger.info(f"Failed: {items_failed}")
+        logger.info(f"Total cost: ${total_cost:.2f}")
+        if cloud_mode:
+            logger.info("Transcripts stored in: cloud (Postgres)")
+        else:
+            logger.info(f"Transcripts stored in: {output_dir}")
+        logger.info("=" * 50)
+
+        return results
+
+    # Sequential transcription (original behavior)
     results = []
     items_processed = start_index
     items_transcribed = 0

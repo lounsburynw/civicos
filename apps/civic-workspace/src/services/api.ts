@@ -22,7 +22,8 @@ import type {
   AdminTriggerResponse,
   OperationStatus,
   OperationsListResponse,
-  DataBrowserResponse
+  DataBrowserResponse,
+  VectorStatsResponse
 } from '@/types/civic';
 
 /**
@@ -1477,43 +1478,10 @@ class CivicAPI {
    * GET /api/admin/vector-stats?jurisdiction=san-rafael
    *
    * SESSION 362: Vector collection stats with coverage metrics.
+   * SESSION 367: Returns dynamic corpus types from UnifiedSearch.get_available_corpora()
    * Returns document counts, source record counts, and coverage percentages.
    */
-  async getVectorStats(jurisdiction: string = 'san-rafael'): Promise<{
-    jurisdiction_id: string;
-    collections: {
-      decisions?: {
-        vector_count: number;
-        source_count: number;
-        coverage_percent: number | null;
-        source_table: string;
-        one_to_one: boolean;
-      };
-      chunks?: {
-        vector_count: number;
-        source_count: number;
-        coverage_percent: number | null;
-        source_table: string;
-        one_to_one: boolean;
-      };
-      issues?: {
-        vector_count: number;
-        source_count: number;
-        coverage_percent: number | null;
-        source_table: string;
-        one_to_one: boolean;
-      };
-      transcripts?: {
-        vector_count: number;
-        source_count: number;
-        coverage_percent: number | null;
-        source_table: string;
-        one_to_one: boolean;
-      };
-    };
-    embedding_model: string;
-    embedding_dimension: number;
-  }> {
+  async getVectorStats(jurisdiction: string = 'san-rafael'): Promise<VectorStatsResponse> {
     const params = new URLSearchParams();
     params.append('jurisdiction', jurisdiction);
 

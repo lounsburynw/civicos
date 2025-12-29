@@ -949,3 +949,64 @@ export interface RunningOperation {
   startedAt: Date;
   label: string;
 }
+
+/**
+ * Data browser response for admin data endpoints
+ * SESSION 363: Added missing type for data browser
+ */
+export interface DataBrowserResponse {
+  data_type: string;
+  jurisdiction: string;
+  items: Record<string, any>[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+  schema: Record<string, string>;
+  note?: string;
+}
+
+// ============================================================================
+// Vector Stats Types (SESSION 367: Dynamic corpus support)
+// ============================================================================
+
+/**
+ * Stats for a single vector collection/corpus
+ * SESSION 367: Unified type for all corpus types from API
+ */
+export interface VectorCollectionStats {
+  vector_count: number;
+  source_count: number;
+  coverage_percent: number | null;
+  source_table: string | null;  // null for corpus-only types
+  collection_suffix: string;
+  one_to_one: boolean;
+  linkage_status: 'linked' | 'corpus_only' | 'not_indexed' | 'empty';
+  linked_count: number;
+  available: boolean;
+  corpus_source?: string | null;  // e.g., "nov17_chunks.json"
+}
+
+/**
+ * Corpus type enumeration
+ * SESSION 367: All corpus types returned by UnifiedSearch.get_available_corpora()
+ */
+export type CorpusType =
+  | 'decision'
+  | 'pdf'
+  | 'issue'
+  | 'transcript'
+  | 'municipal_code'
+  | 'legislation'
+  | 'programs';
+
+/**
+ * Vector stats response from /api/admin/vector-stats
+ * SESSION 367: Dynamic collections keyed by CorpusType
+ */
+export interface VectorStatsResponse {
+  jurisdiction_id: string;
+  collections: Record<string, VectorCollectionStats>;  // Keyed by corpus type
+  embedding_model: string;
+  embedding_dimension: number;
+}

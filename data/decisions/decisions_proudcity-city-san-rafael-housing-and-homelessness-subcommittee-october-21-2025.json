@@ -1,0 +1,112 @@
+[
+  {
+    "item_ref": "2.a",
+    "title": "Consideration of Existing Tenant Protections",
+    "description": "The Subcommittee will consider staff analysis and recommendations regarding existing City of San Rafael policies including Cause Required for Eviction, Relocation Assistance, and Mandatory Mediation. This could significantly impact renters and landlords citywide by changing eviction processes and assistance programs.",
+    "meeting_date": "2025-10-21",
+    "meeting_type": "council_subcommittee",
+    "is_high_stakes": true,
+    "stakes_score": 7,
+    "decision_type": "policy",
+    "budget_amount": null,
+    "budget_description": null,
+    "affected_population_estimate": 1000,
+    "geographic_scope": "citywide",
+    "project_size_units": null,
+    "project_location": null,
+    "project_types": [
+      "housing",
+      "community"
+    ],
+    "keywords_for_matching": [
+      "tenant protections",
+      "eviction",
+      "relocation assistance",
+      "mediation"
+    ],
+    "participation_mechanisms": [],
+    "agenda_url": "https://www.cityofsanrafael.org/meetings/housing-and-homelessness-subcommittee-october-21-2025/",
+    "staff_report_url": null,
+    "full_agenda_packet_url": null,
+    "minutes_url": null,
+    "testimony_count": null,
+    "speaker_names": [],
+    "vote_results": {},
+    "passed": true,
+    "id": "2025-10-21-2.a",
+    "agenda_item": "2.a",
+    "summary": "The Subcommittee will consider staff analysis and recommendations regarding existing City of San Rafael policies including Cause Required for Eviction, Relocation Assistance, and Mandatory Mediation. This could significantly impact renters and landlords citywide by changing eviction processes and assistance programs.",
+    "outcome": "approved",
+    "vote": {},
+    "topics": [
+      "housing",
+      "community",
+      "tenant protections",
+      "eviction",
+      "relocation assistance",
+      "mediation"
+    ],
+    "source_documents": [
+      {
+        "url": "https://www.cityofsanrafael.org/meetings/housing-and-homelessness-subcommittee-october-21-2025/",
+        "type": "agenda"
+      }
+    ],
+    "extraction_method": "retrospective_analyzer_gemini"
+  },
+  {
+    "item_ref": "2.c",
+    "title": "ERF3, Homelessness, and Sanctioned Camping Area Update",
+    "description": "The Subcommittee will receive an update on Encampment Resolution Fund (ERF) 3 and the City\u2019s efforts related to homelessness, camping ordinance, enforcement, and interim shelter. This update likely involves discussion of resource allocation and policy decisions affecting the homeless population and the broader community.",
+    "meeting_date": "2025-10-21",
+    "meeting_type": "council_subcommittee",
+    "is_high_stakes": true,
+    "stakes_score": 6,
+    "decision_type": "policy",
+    "budget_amount": null,
+    "budget_description": null,
+    "affected_population_estimate": 1000,
+    "geographic_scope": "citywide",
+    "project_size_units": null,
+    "project_location": null,
+    "project_types": [
+      "housing",
+      "community"
+    ],
+    "keywords_for_matching": [
+      "ERF3",
+      "homelessness",
+      "camping ordinance",
+      "interim shelter"
+    ],
+    "participation_mechanisms": [],
+    "agenda_url": "https://www.cityofsanrafael.org/meetings/housing-and-homelessness-subcommittee-october-21-2025/",
+    "staff_report_url": null,
+    "full_agenda_packet_url": null,
+    "minutes_url": null,
+    "testimony_count": null,
+    "speaker_names": [],
+    "vote_results": {},
+    "passed": true,
+    "id": "2025-10-21-2.c",
+    "agenda_item": "2.c",
+    "summary": "The Subcommittee will receive an update on Encampment Resolution Fund (ERF) 3 and the City\u2019s efforts related to homelessness, camping ordinance, enforcement, and interim shelter. This update likely involves discussion of resource allocation and policy decisions affecting the homeless population and the broader community.",
+    "outcome": "approved",
+    "vote": {},
+    "topics": [
+      "housing",
+      "community",
+      "ERF3",
+      "homelessness",
+      "camping ordinance",
+      "interim shelter"
+    ],
+    "source_documents": [
+      {
+        "url": "https://www.cityofsanrafael.org/meetings/housing-and-homelessness-subcommittee-october-21-2025/",
+        "type": "agenda"
+      }
+    ],
+    "extraction_method": "retrospective_analyzer_gemini"
+  }
+]

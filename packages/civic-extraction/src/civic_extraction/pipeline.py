@@ -208,6 +208,33 @@ class IndexTarget(Protocol):
         ...
 
 
+class SqlIndexTarget(Protocol):
+    """
+    Extended protocol for indexing targets that support SQL as source of truth.
+
+    Implementations should read directly from the storage backend to build
+    vector indexes. This ensures ChromaDB is derived from SQL, not JSON files.
+    """
+
+    def index_from_storage(
+        self,
+        storage_backend: Any,
+        jurisdiction_id: str,
+    ) -> Dict[str, int]:
+        """
+        Build all vector indexes from SQL storage.
+
+        Args:
+            storage_backend: StorageBackend with get_decisions(), get_chunks(), etc.
+            jurisdiction_id: Jurisdiction to index
+
+        Returns:
+            Dict mapping corpus type to count indexed, e.g.:
+            {"decisions": 186, "chunks": 724}
+        """
+        ...
+
+
 class Pipeline:
     """
     Generalized ETL pipeline with stages: discover -> ingest -> store -> index.
@@ -693,29 +720,54 @@ class Pipeline:
                 status.progress_percent = 100.0
                 status.metadata["note"] = "No index target configured"
             else:
-                # Get meetings to index - prefer reading from storage
-                meetings_to_index: List[Any] = []
+                # Prefer SQL-first indexing when:
+                # 1. Index target supports index_from_storage
+                # 2. Storage backend is configured
+                supports_sql = hasattr(self.index_target, 'index_from_storage')
 
-                if self.storage_target is not None:
-                    # Read from storage backend (the correct pattern)
-                    meetings_to_index = self.storage_target.get_meetings(
-                        jurisdiction_id=self.jurisdiction_id
+                if supports_sql and self.storage_target is not None:
+                    # SQL-first indexing: read directly from storage backend
+                    index_result = self.index_target.index_from_storage(
+                        self.storage_target, self.jurisdiction_id
                     )
-                    status.metadata["source"] = "storage_backend"
+                    status.metadata["source"] = "sql"
+                    status.metadata["indexed_corpora"] = index_result
+
+                    # Sum up indexed items across all corpora
+                    total_indexed = sum(index_result.values())
+                    total_found = total_indexed  # In SQL mode, found == indexed
+
+                    status.items_found = total_found
+                    status.items_processed = total_indexed
+                    status.state = StageState.COMPLETED
+                    status.progress_percent = 100.0
+
+                    if on_stage_progress:
+                        on_stage_progress(stage, total_indexed, total_found)
                 else:
-                    # Fallback to in-memory (backward compatibility)
-                    meetings_to_index = self._ingested_meetings
-                    status.metadata["source"] = "in_memory"
+                    # Legacy path: index from meetings list
+                    meetings_to_index: List[Any] = []
 
-                # Index the meetings
-                indexed_count = self.index_target.index_meetings(meetings_to_index)
-                status.items_found = len(meetings_to_index)
-                status.items_processed = indexed_count
-                status.state = StageState.COMPLETED
-                status.progress_percent = 100.0
+                    if self.storage_target is not None:
+                        # Read from storage backend
+                        meetings_to_index = self.storage_target.get_meetings(
+                            jurisdiction_id=self.jurisdiction_id
+                        )
+                        status.metadata["source"] = "storage_backend"
+                    else:
+                        # Fallback to in-memory (backward compatibility)
+                        meetings_to_index = self._ingested_meetings
+                        status.metadata["source"] = "in_memory"
 
-                if on_stage_progress:
-                    on_stage_progress(stage, indexed_count, len(meetings_to_index))
+                    # Index the meetings
+                    indexed_count = self.index_target.index_meetings(meetings_to_index)
+                    status.items_found = len(meetings_to_index)
+                    status.items_processed = indexed_count
+                    status.state = StageState.COMPLETED
+                    status.progress_percent = 100.0
+
+                    if on_stage_progress:
+                        on_stage_progress(stage, indexed_count, len(meetings_to_index))
 
         except Exception as e:
             status.state = StageState.FAILED
