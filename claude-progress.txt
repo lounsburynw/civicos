@@ -7126,3 +7126,25 @@ Ran the PDF chunk extraction pipeline E2E to cloud storage.
 
 ### Next P0: transcripts_e2e_cloud
 Run `civic-extract transcripts --jurisdiction city-san-rafael --cloud` to ingest video transcripts via AssemblyAI.
+
+### Update: chunks_e2e_cloud reverted - found HTML extraction bug
+
+Investigation revealed that current chunks are extracted from HTML meeting pages, not actual PDFs:
+- `agenda_url` in database contains meeting page URLs (https://www.cityofsanrafael.org/meetings/...)
+- These are HTML pages (~90KB), not PDF files
+- Each meeting page has 10-24 PDF links (staff reports, agenda packet, minutes)
+- Real agenda packets are 1-15MB
+
+**Added degenerate case detection to chunks CLI:**
+- `validate_pdf_content()` checks: Content-Type header, PDF magic bytes (%PDF-), file size
+- `download_and_validate_pdf()` returns validation result with warnings
+- Extraction now fails fast with clear error when HTML is downloaded instead of PDF
+
+**Created new P0: chunks_pdf_extraction_fix**
+- Need to parse HTML meeting pages to find actual PDF links
+- Download and process each PDF (agenda packet + staff reports)
+- Re-run extraction after fix
+
+**Reverted:**
+- chunks_e2e_cloud -> not_ready (blocked by chunks_pdf_extraction_fix)
+- transcripts_e2e_cloud -> P1 (deferred)
