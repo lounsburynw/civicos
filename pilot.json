@@ -353,7 +353,7 @@
     "cost_tracking": {
       "etl_cost_provenance": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Centralized cost tracking table for all ETL operations with historical audit trail",
         "note": "Track costs from AssemblyAI ($0.02/min), Perplexity API, future embedding APIs. Schema: etl_costs(id, pipeline, jurisdiction_id, run_date, items_processed, cost_usd, notes). Required for <$7/month operational constraint with ongoing ingestion model."
       },
@@ -1663,12 +1663,12 @@
       },
       "transcripts_e2e_cloud": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "All video transcripts ingested E2E to Postgres via AssemblyAI",
         "target_count": "19 videos",
         "current_count": 1,
         "verification": "SELECT COUNT(*) FROM transcripts WHERE jurisdiction_id = 'city-san-rafael'",
-        "note": "Session 396: UNBLOCKED by audio_e2e_cloud. 19 audio files now in R2. 1/19 transcripts complete. Run: civic-extract transcribe --jurisdiction city-san-rafael --cloud. Estimated cost: ~$46 total (~18 remaining × $2.40 avg)."
+        "note": "Session 396: UNBLOCKED by audio_e2e_cloud. 19 audio files now in R2. 1/19 transcripts complete. Run: civic-extract transcribe --jurisdiction city-san-rafael --cloud. Estimated cost: ~$46 total (~18 remaining × $2.40 avg). BLOCKED BY: etl_cost_provenance (track costs before spending $46)."
       },
       "municipal_code_e2e_cloud": {
         "status": "not_ready",
