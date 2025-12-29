@@ -755,6 +755,29 @@ def run_transcription(
         )
         save_checkpoint(checkpoint, checkpoint_path)
 
+    # Store ETL cost record if we transcribed anything
+    if items_transcribed > 0 and cloud_mode:
+        try:
+            from civic.storage import get_storage_backend
+
+            backend = get_storage_backend()
+            if backend.backend_type == "postgres":
+                # Calculate duration from checkpoint timestamps if available
+                duration_seconds = None
+                cost_id = backend.store_etl_cost(
+                    pipeline="transcribe",
+                    jurisdiction_id=jurisdiction_id,
+                    items_processed=items_transcribed,
+                    cost_usd=total_cost,
+                    duration_seconds=duration_seconds,
+                    notes=f"Transcribed {items_transcribed} videos via AssemblyAI",
+                )
+                logger.info(f"ETL cost recorded (id={cost_id}): ${total_cost:.2f}")
+        except ImportError:
+            logger.debug("civic.storage not available for cost tracking")
+        except Exception as e:
+            logger.warning(f"Failed to record ETL cost: {e}")
+
     # Summary
     logger.info("=" * 50)
     logger.info(f"Transcription Complete for {jurisdiction_id}")

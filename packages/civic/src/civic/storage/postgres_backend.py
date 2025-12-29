@@ -494,6 +494,36 @@ class PostgresBackend:
             ON issues(latitude, longitude) WHERE latitude IS NOT NULL
         """)
 
+        # ETL Costs table (SESSION 397)
+        # Tracks costs for transcription, research, and other ETL pipelines
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS etl_costs (
+                id SERIAL PRIMARY KEY,
+                pipeline VARCHAR(50) NOT NULL,
+                jurisdiction_id VARCHAR(100) NOT NULL,
+                run_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                items_processed INTEGER,
+                cost_usd DECIMAL(10,4),
+                duration_seconds INTEGER,
+                notes TEXT,
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id)
+            )
+        """)
+
+        # ETL costs indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_etl_costs_jurisdiction
+            ON etl_costs(jurisdiction_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_etl_costs_pipeline
+            ON etl_costs(pipeline)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_etl_costs_run_date
+            ON etl_costs(run_date DESC)
+        """)
+
         conn.commit()
 
     def store_meetings(
@@ -2291,6 +2321,166 @@ class PostgresBackend:
 
         return count
 
+    # ========== ETL Cost Methods (SESSION 397) ==========
+
+    def store_etl_cost(
+        self,
+        pipeline: str,
+        jurisdiction_id: str,
+        items_processed: int,
+        cost_usd: float,
+        duration_seconds: Optional[int] = None,
+        notes: Optional[str] = None,
+    ) -> int:
+        """
+        Store ETL cost record for tracking pipeline expenses.
+
+        Args:
+            pipeline: Pipeline name (e.g., "transcribe", "research")
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            items_processed: Number of items processed in this run
+            cost_usd: Total cost in USD for this run
+            duration_seconds: Optional run duration
+            notes: Optional notes about the run
+
+        Returns:
+            ID of the inserted cost record
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("""
+                INSERT INTO etl_costs (
+                    pipeline, jurisdiction_id, items_processed,
+                    cost_usd, duration_seconds, notes
+                ) VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                pipeline,
+                jurisdiction_id,
+                items_processed,
+                cost_usd,
+                duration_seconds,
+                notes,
+            ))
+
+            cost_id = cursor.fetchone()[0]
+            conn.commit()
+            return cost_id
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_etl_costs(
+        self,
+        jurisdiction_id: Optional[str] = None,
+        pipeline: Optional[str] = None,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve ETL cost records with optional filtering.
+
+        Args:
+            jurisdiction_id: Filter by jurisdiction (optional)
+            pipeline: Filter by pipeline name (optional)
+            limit: Maximum records to return (default 100)
+
+        Returns:
+            List of cost record dictionaries
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        try:
+            query = "SELECT * FROM etl_costs WHERE 1=1"
+            params: List[Any] = []
+
+            if jurisdiction_id:
+                query += " AND jurisdiction_id = %s"
+                params.append(jurisdiction_id)
+
+            if pipeline:
+                query += " AND pipeline = %s"
+                params.append(pipeline)
+
+            query += " ORDER BY run_date DESC LIMIT %s"
+            params.append(limit)
+
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+            costs = []
+            for row in rows:
+                cost = dict(row)
+                # Convert datetime to ISO string
+                if 'run_date' in cost and cost['run_date'] is not None:
+                    if isinstance(cost['run_date'], datetime):
+                        cost['run_date'] = cost['run_date'].isoformat()
+                # Convert Decimal to float for JSON serialization
+                if 'cost_usd' in cost and cost['cost_usd'] is not None:
+                    cost['cost_usd'] = float(cost['cost_usd'])
+                costs.append(cost)
+
+            return costs
+
+        finally:
+            conn.close()
+
+    def get_etl_cost_summary(
+        self,
+        jurisdiction_id: Optional[str] = None,
+        pipeline: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Get aggregated ETL cost summary.
+
+        Args:
+            jurisdiction_id: Filter by jurisdiction (optional)
+            pipeline: Filter by pipeline name (optional)
+
+        Returns:
+            Dictionary with total_cost_usd, total_items, run_count
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                SELECT
+                    COALESCE(SUM(cost_usd), 0) as total_cost_usd,
+                    COALESCE(SUM(items_processed), 0) as total_items,
+                    COUNT(*) as run_count
+                FROM etl_costs WHERE 1=1
+            """
+            params: List[Any] = []
+
+            if jurisdiction_id:
+                query += " AND jurisdiction_id = %s"
+                params.append(jurisdiction_id)
+
+            if pipeline:
+                query += " AND pipeline = %s"
+                params.append(pipeline)
+
+            cursor.execute(query, params)
+            row = cursor.fetchone()
+
+            return {
+                "total_cost_usd": float(row[0]) if row[0] else 0.0,
+                "total_items": int(row[1]) if row[1] else 0,
+                "run_count": int(row[2]) if row[2] else 0,
+            }
+
+        finally:
+            conn.close()
+
 
 # Verify protocol compliance at import time (only if psycopg2 available)
 # StorageBackend is @runtime_checkable, so isinstance() works
@@ -2316,6 +2506,8 @@ def _verify_protocol_compliance() -> None:
         'store_transcripts', 'get_transcripts', 'get_transcript', 'get_transcript_count',
         # Issue methods (SESSION 385)
         'store_issues', 'get_issues', 'get_issue_count',
+        # ETL cost methods (SESSION 397)
+        'store_etl_cost', 'get_etl_costs', 'get_etl_cost_summary',
     ]
     for method in required_methods:
         assert hasattr(PostgresBackend, method), (
