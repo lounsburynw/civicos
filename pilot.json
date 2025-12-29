@@ -3,7 +3,7 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2025-12-27",
+  "last_updated": "2025-12-28",
   "category_order": [
     "test_infrastructure",
     "data_architecture",
@@ -902,7 +902,7 @@
       },
       "api_cloud_storage_backend": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Wire API server to use cloud Postgres when DATABASE_URL is set",
         "note": "Session 387: COMPLETED - moved to pilot_validation.e2e_cloud_data_verification.api_reads_from_cloud",
         "completed": "2025-12-27"
@@ -1599,16 +1599,17 @@
         "note": "44 agenda items in cloud. Extracted via civic-extract agenda --cloud. 46 meetings processed, 43 with items (8 cancelled). Distribution: governance(15), housing(8), community(5), budget(4), public_safety(4), transportation(4), education(2), development(1), environment(1)."
       },
       "decisions_e2e_cloud": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "All decisions extracted E2E to Postgres from meeting minutes",
-        "target_count": "150+ decisions (from minutes parsing)",
+        "status": "ready",
+        "priority": 1,
+        "artifact": "All decisions extracted E2E to Postgres from meeting agendas",
+        "target_count": "44 decisions",
         "verification": "SELECT COUNT(*) FROM decisions WHERE jurisdiction_id = 'city-san-rafael'",
-        "note": "Currently 0 in cloud. Must run decision extraction pipeline against cloud storage (civic-extract decisions --cloud). DO NOT MIGRATE from local."
+        "completed": "2025-12-28",
+        "note": "44 decisions extracted via civic-extract decisions --cloud from 19 meetings. Fixed store_decisions() temporal versioning bug (was closing all decisions per jurisdiction, now only closes matching IDs). Topic distribution: budget(20), development(15), community(15), housing(12)."
       },
       "chunks_e2e_cloud": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "All PDF chunks extracted E2E to Postgres from agenda packets/staff reports",
         "target_count": "500+ chunks (from PDF extraction)",
         "verification": "SELECT COUNT(*) FROM chunks WHERE jurisdiction_id = 'city-san-rafael'",
