@@ -1,91 +1,88 @@
-# Recommended: decisions_e2e_cloud
+# Recommended: chunks_extraction_reliability
 
 **Priority:** P0
 **Area:** pilot_validation > e2e_cloud_data_verification
-**Date:** 2025-12-27
+**Date:** 2025-12-28
 
-> This is recommended context from Session 388. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 392. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 388 completed `agenda_items_e2e_cloud` - the agenda item extraction pipeline is now working E2E to cloud:
-- Created `civic-extract agenda --cloud` CLI command
-- Added `store_agenda_items()`, `get_agenda_items()`, `get_agenda_item_count()` to PostgresBackend
-- Fixed broken import in agenda_integration.py
-- Extracted 44 agenda items from 46 meetings (8 cancelled meetings detected)
-
-**CRITICAL REQUIREMENT:** All data must be ingested E2E to cloud storage from scratch. NO MIGRATION from local. This validates the production pipeline actually works.
+Session 392 fixed the chunks PDF extraction bug (HTML meeting pages -> actual PDFs). The fix works: extracted 4,115 chunks from 27 meetings. However, extraction **stalled at meeting 36/46** (23MB PDF) and **full extraction takes 2+ hours locally**. These reliability/performance issues must be addressed before chunks_e2e_cloud can be marked ready.
 
 ## Current Cloud Data Status
 
-| Data Type | Cloud Count | Status | Action |
-|-----------|-------------|--------|--------|
-| Meetings | 46 | ready | Done |
-| Issues | 1,330 | ready | Done |
-| Agenda Items | 44 | ready | Done (Session 388) |
-| **Decisions** | **0** | **P0** | **NEXT** |
-| Chunks | 49 | P1 | Pending |
-| Transcripts | 0 | P1 | Pending |
-| Municipal Code | 0 | P1 | Pending |
-| Legislation | 0 | P2 | Pending |
-| Vector Indexes | 0 | P1 | After SQL data |
+| Data Type | Cloud Count | Status |
+|-----------|-------------|--------|
+| Meetings | 46 | ready |
+| Issues | 1,330 | ready |
+| Agenda Items | 44 | ready |
+| Decisions | 44 | ready |
+| **Chunks** | **4,115 (27/46 meetings)** | **PARTIAL** |
+| Transcripts | 0 | not_ready |
 
-## Recommended Task
+## Problems to Address
 
-Run the decision extraction pipeline to populate cloud Postgres with decisions E2E. The decisions CLI already exists (`civic-extract decisions --cloud`) - just need to run it.
+1. **Large PDF timeout/hang**: Meeting 36 (23MB PDF) caused extraction to stall indefinitely
+2. **Slow extraction**: 2+ hours for 46 meetings is too slow for production
+3. **No graceful failure**: When a PDF hangs, the whole pipeline stops
 
 ## Key Files
 
-1. **Decision CLI:** `packages/civic-extraction/src/civic_extraction/cli/decisions.py` - Already has `--cloud` support
-2. **Storage Backend:** `packages/civic/src/civic/storage/postgres_backend.py` - Has `store_decisions()` method
-3. **Retrospective Analyzer:** `packages/civic-services/src/civic_services/processing/retrospective_analyzer.py` - LLM-based extraction
+- `packages/civic-extraction/src/civic_extraction/cli/chunks.py:448-574` - PDF extraction logic
+- `packages/civic-extraction/src/civic_extraction/cli/chunks.py:618-800` - extract_chunks_from_meeting()
+- `packages/civic/_internal/meetings/pdf_parser.py` - AgendaPacketParser (the slow part)
 
 ## Suggested Approach
 
-### Step 1: Dry-run to see what would be processed
-```bash
-source civic-env/bin/activate
-export DATABASE_URL="postgresql://..."  # from .env
-civic-extract decisions --jurisdiction city-san-rafael --cloud --dry-run
+### Option A: Add timeout handling (quick fix)
+```python
+# In extract_chunks_from_meeting(), wrap PDF parsing with timeout
+import signal
+
+def timeout_handler(signum, frame):
+    raise TimeoutError("PDF parsing timed out")
+
+signal.signal(signal.SIGALRM, timeout_handler)
+signal.alarm(300)  # 5 minute timeout per PDF
+try:
+    chunks = parser.parse_to_chunks(temp_path, ...)
+finally:
+    signal.alarm(0)
 ```
 
-### Step 2: Run extraction
-```bash
-civic-extract decisions --jurisdiction city-san-rafael --cloud
-```
+### Option B: Evaluate remote compute (longer term)
+- Modal.com: Serverless Python, pay-per-use
+- Render background workers
+- Fly.io machines
+- AWS Lambda (may have memory limits for large PDFs)
 
-### Step 3: Verify in cloud
-```bash
-python3 -c "
-import os
-import psycopg2
-conn = psycopg2.connect(os.environ['DATABASE_URL'])
-cursor = conn.cursor()
-cursor.execute('SELECT COUNT(*) FROM decisions WHERE jurisdiction_id = %s', ('city-san-rafael',))
-print(f'Decision count: {cursor.fetchone()[0]}')
-conn.close()
-"
-```
+### Option C: Parallelization
+- Python multiprocessing for PDF parsing
+- Async download while parsing previous
 
 ## Tests to Run
 
 ```bash
-# Smoke tests
-pytest packages/civic/tests/test_civic.py -q
-
-# Storage protocol tests
-pytest packages/civic/tests/test_storage_protocols.py -v
+# Test single large PDF extraction
+source civic-env/bin/activate
+python3 -c "
+from civic_extraction.cli.chunks import extract_chunks_from_meeting
+meeting = {'id': 'test', 'meeting_date': '2025-12-09', 'agenda_url': 'https://www.cityofsanrafael.org/meetings/planning-commission-december-9-2025/'}
+result = extract_chunks_from_meeting(meeting, '/tmp/test', 'city-san-rafael', cloud=False)
+print(f'Status: {result.status}, Chunks: {result.chunks_count}')
+"
 ```
 
 ## Success Criteria
 
-- [ ] Decisions extracted from meeting agendas/minutes and stored in cloud Postgres
-- [ ] Count > 0 (proportional to 46 meetings)
-- [ ] `pilot.json` item `decisions_e2e_cloud` marked as ready
+- [ ] Extraction handles 23MB+ PDFs without hanging (timeout or success)
+- [ ] Full 46-meeting extraction completes in <30 minutes
+- [ ] Failed/timed-out meetings are logged and skipped gracefully
+- [ ] All 46 meetings processed (chunks or documented failure)
 
 ## Notes
 
-- Decision extraction uses Gemini 2.5 Pro (expensive ~$0.50/meeting)
-- Consider using `--limit 5` first to verify it works
-- DO NOT migrate local data - run fresh E2E extraction
-- After decisions, continue with chunks, transcripts, etc.
+- The PDF parser (`AgendaPacketParser`) uses pdfplumber - memory/CPU intensive for large files
+- Some meetings legitimately have no PDFs (cancelled meetings)
+- Consider tracking which meetings failed for manual review
