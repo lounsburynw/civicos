@@ -337,6 +337,81 @@ class PgVectorBackend:
 
         return "\n".join(parts) if parts else str(decision)
 
+    def _transcript_to_text(self, transcript: Dict[str, Any]) -> str:
+        """
+        Convert a transcript dict to text for embedding.
+
+        Extracts plain text from transcript structure.
+        """
+        parts = []
+
+        if transcript.get("video_title"):
+            parts.append(f"Title: {transcript['video_title']}")
+
+        # Extract text from transcript structure
+        transcript_data = transcript.get("transcript", {})
+        if isinstance(transcript_data, dict):
+            text = transcript_data.get("text", "")
+            if text:
+                # Truncate very long transcripts for embedding
+                # (full text still stored in metadata)
+                max_chars = 8000  # ~2000 tokens for embedding
+                if len(text) > max_chars:
+                    text = text[:max_chars] + "..."
+                parts.append(text)
+        elif isinstance(transcript_data, str):
+            parts.append(transcript_data[:8000])
+
+        return "\n".join(parts) if parts else ""
+
+    def _municipal_code_to_text(self, section: Dict[str, Any]) -> str:
+        """
+        Convert a municipal code section to text for embedding.
+        """
+        parts = []
+
+        if section.get("section_number"):
+            parts.append(f"Section {section['section_number']}")
+
+        if section.get("section_name"):
+            parts.append(f": {section['section_name']}")
+
+        if section.get("chapter"):
+            parts.append(f" (Chapter {section['chapter']})")
+
+        if section.get("content"):
+            content = section["content"]
+            # Truncate very long sections
+            max_chars = 4000  # Municipal code sections are usually structured
+            if len(content) > max_chars:
+                content = content[:max_chars] + "..."
+            parts.append(f"\n{content}")
+
+        return "".join(parts) if parts else ""
+
+    def _issue_to_text(self, issue: Dict[str, Any]) -> str:
+        """
+        Convert a 311 issue to text for embedding.
+        """
+        parts = []
+
+        if issue.get("issue_type"):
+            parts.append(f"Type: {issue['issue_type']}")
+
+        if issue.get("summary"):
+            parts.append(f"Summary: {issue['summary']}")
+
+        if issue.get("description"):
+            parts.append(f"Description: {issue['description']}")
+
+        if issue.get("address"):
+            parts.append(f"Location: {issue['address']}")
+
+        if issue.get("status"):
+            parts.append(f"Status: {issue['status']}")
+
+        return "\n".join(parts) if parts else ""
+
     def index_from_storage(
         self,
         storage_backend: StorageBackend,
@@ -353,7 +428,8 @@ class PgVectorBackend:
         Args:
             storage_backend: Source of documents to index
             jurisdiction_id: Target jurisdiction
-            corpus_type: Type of documents ("decisions", "chunks", "meetings")
+            corpus_type: Type of documents ("decisions", "chunks", "meetings",
+                        "transcripts", "municipal_code", "issues")
             batch_size: Number of documents to process at once
 
         Returns:
@@ -373,6 +449,12 @@ class PgVectorBackend:
             documents = storage_backend.get_chunks(jurisdiction_id)
         elif corpus_type == "meetings":
             documents = storage_backend.get_meetings(jurisdiction_id)
+        elif corpus_type == "transcripts":
+            documents = storage_backend.get_transcripts(jurisdiction_id)
+        elif corpus_type == "municipal_code":
+            documents = storage_backend.get_municipal_code(jurisdiction_id)
+        elif corpus_type == "issues":
+            documents = storage_backend.get_issues(jurisdiction_id)
         else:
             raise ValueError(f"Unknown corpus_type: {corpus_type}")
 
@@ -393,26 +475,44 @@ class PgVectorBackend:
             texts = []
             doc_data = []
 
-            for doc in batch:
-                # Generate text representation
+            for idx, doc in enumerate(batch):
+                # Generate text representation based on corpus type
                 if corpus_type == "decisions":
                     text = self._decision_to_text(doc)
-                    doc_id = doc.get("decision_id") or doc.get("id", f"decision-{i}")
+                    doc_id = doc.get("decision_id") or doc.get("id", f"decision-{i}-{idx}")
                     meeting_id = doc.get("meeting_id")
                     meeting_title = doc.get("meeting_title")
                     meeting_datetime = doc.get("meeting_date")
                 elif corpus_type == "chunks":
                     text = doc.get("text", doc.get("content", ""))
-                    doc_id = doc.get("chunk_id") or doc.get("id", f"chunk-{i}")
+                    doc_id = doc.get("chunk_id") or doc.get("id", f"chunk-{i}-{idx}")
                     meeting_id = doc.get("meeting_id")
                     meeting_title = doc.get("meeting_title")
                     meeting_datetime = doc.get("meeting_date")
-                else:  # meetings
+                elif corpus_type == "meetings":
                     text = f"Title: {doc.get('title', '')}\n{doc.get('description', '')}"
-                    doc_id = doc.get("meeting_id") or doc.get("id", f"meeting-{i}")
+                    doc_id = doc.get("meeting_id") or doc.get("id", f"meeting-{i}-{idx}")
                     meeting_id = doc_id
                     meeting_title = doc.get("title")
                     meeting_datetime = doc.get("meeting_datetime")
+                elif corpus_type == "transcripts":
+                    text = self._transcript_to_text(doc)
+                    doc_id = doc.get("video_id") or doc.get("id", f"transcript-{i}-{idx}")
+                    meeting_id = doc.get("meeting_id")
+                    meeting_title = doc.get("video_title")
+                    meeting_datetime = doc.get("meeting_date")
+                elif corpus_type == "municipal_code":
+                    text = self._municipal_code_to_text(doc)
+                    doc_id = f"mc-{doc.get('section_number', f'{i}-{idx}')}"
+                    meeting_id = None  # Not meeting-related
+                    meeting_title = doc.get("section_name")
+                    meeting_datetime = None
+                elif corpus_type == "issues":
+                    text = self._issue_to_text(doc)
+                    doc_id = doc.get("issue_id") or doc.get("id", f"issue-{i}-{idx}")
+                    meeting_id = None  # Not meeting-related
+                    meeting_title = doc.get("summary") or doc.get("issue_type")
+                    meeting_datetime = doc.get("created_at")
 
                 if not text.strip():
                     continue
@@ -622,6 +722,15 @@ class PgVectorBackend:
                 storage_count = storage_backend.get_decision_count(jurisdiction_id)
             elif corpus_type == "chunks":
                 storage_count = storage_backend.get_chunk_count(jurisdiction_id)
+            elif corpus_type == "meetings":
+                meetings = storage_backend.get_meetings(jurisdiction_id)
+                storage_count = len(meetings) if meetings else 0
+            elif corpus_type == "transcripts":
+                storage_count = storage_backend.get_transcript_count(jurisdiction_id)
+            elif corpus_type == "municipal_code":
+                storage_count = storage_backend.get_municipal_code_count(jurisdiction_id)
+            elif corpus_type == "issues":
+                storage_count = storage_backend.get_issue_count(jurisdiction_id)
 
         return VectorStats(
             jurisdiction_id=jurisdiction_id,
