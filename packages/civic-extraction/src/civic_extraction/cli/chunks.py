@@ -343,6 +343,79 @@ def chunks_exist_in_cloud(jurisdiction_id: str, meeting_id: str) -> bool:
     return False
 
 
+class DownloadResult:
+    """Result of downloading a file with validation info."""
+
+    def __init__(
+        self,
+        content: Optional[bytes],
+        content_type: str = "",
+        is_valid_pdf: bool = False,
+        validation_warnings: Optional[list] = None,
+    ):
+        self.content = content
+        self.content_type = content_type
+        self.is_valid_pdf = is_valid_pdf
+        self.validation_warnings = validation_warnings or []
+
+
+def validate_pdf_content(content: bytes, content_type: str, url: str) -> tuple[bool, list]:
+    """
+    Validate that downloaded content is actually a PDF.
+
+    Detects degenerate case where HTML meeting pages are downloaded
+    instead of actual PDF documents.
+
+    Args:
+        content: Downloaded bytes
+        content_type: HTTP Content-Type header
+        url: Source URL (for logging)
+
+    Returns:
+        Tuple of (is_valid_pdf, list of warning messages)
+    """
+    warnings = []
+    is_valid = True
+
+    # Check 1: Content-Type header
+    if "pdf" not in content_type.lower():
+        if "html" in content_type.lower():
+            warnings.append(
+                f"DEGENERATE CASE: Content-Type is HTML ({content_type}), not PDF. "
+                "URL may be a meeting page, not a direct PDF link."
+            )
+            is_valid = False
+        elif content_type:
+            warnings.append(f"Unexpected Content-Type: {content_type}")
+
+    # Check 2: PDF magic bytes (should start with %PDF-)
+    if content[:5] != b"%PDF-":
+        # Check if it looks like HTML
+        content_start = content[:100].lower()
+        if b"<!doctype" in content_start or b"<html" in content_start:
+            warnings.append(
+                "DEGENERATE CASE: Content starts with HTML, not PDF magic bytes. "
+                "Downloaded HTML page instead of PDF document."
+            )
+            is_valid = False
+        else:
+            warnings.append(
+                f"Content does not start with PDF magic bytes. First 20 bytes: {content[:20]}"
+            )
+            is_valid = False
+
+    # Check 3: File size (agenda packets are typically > 100KB, HTML pages are < 200KB)
+    size_kb = len(content) / 1024
+    if size_kb < 50:
+        warnings.append(
+            f"DEGENERATE CASE: File size ({size_kb:.1f}KB) is suspiciously small for an agenda packet. "
+            "Real agenda PDFs are typically 100KB-15MB."
+        )
+        # Don't mark invalid just for size, but flag it
+
+    return is_valid, warnings
+
+
 def download_pdf(url: str, timeout: int = 60) -> Optional[bytes]:
     """
     Download a PDF from URL.
@@ -353,6 +426,9 @@ def download_pdf(url: str, timeout: int = 60) -> Optional[bytes]:
 
     Returns:
         PDF bytes if successful, None otherwise
+
+    Note:
+        Use download_and_validate_pdf() for full validation with degenerate case detection.
     """
     try:
         response = requests.get(url, timeout=timeout)
@@ -367,6 +443,46 @@ def download_pdf(url: str, timeout: int = 60) -> Optional[bytes]:
     except requests.exceptions.RequestException as e:
         logger.error(f"Failed to download PDF: {e}")
         return None
+
+
+def download_and_validate_pdf(url: str, timeout: int = 60) -> DownloadResult:
+    """
+    Download a PDF from URL with full validation.
+
+    Detects degenerate cases where HTML pages are downloaded instead of PDFs.
+
+    Args:
+        url: URL of the PDF
+        timeout: Request timeout in seconds
+
+    Returns:
+        DownloadResult with content, validation status, and any warnings
+    """
+    try:
+        response = requests.get(url, timeout=timeout)
+        response.raise_for_status()
+
+        content_type = response.headers.get("Content-Type", "")
+        content = response.content
+
+        is_valid, warnings = validate_pdf_content(content, content_type, url)
+
+        # Log warnings
+        for warning in warnings:
+            if "DEGENERATE CASE" in warning:
+                logger.error(warning)
+            else:
+                logger.warning(warning)
+
+        return DownloadResult(
+            content=content,
+            content_type=content_type,
+            is_valid_pdf=is_valid,
+            validation_warnings=warnings,
+        )
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to download PDF: {e}")
+        return DownloadResult(content=None, validation_warnings=[str(e)])
 
 
 def extract_chunks_from_meeting(
@@ -435,15 +551,33 @@ def extract_chunks_from_meeting(
 
         logger.info(f"  Downloading PDF from {agenda_url[:60]}...")
 
-        # Download PDF
-        pdf_bytes = download_pdf(agenda_url)
-        if not pdf_bytes:
+        # Download PDF with validation
+        download_result = download_and_validate_pdf(agenda_url)
+        if not download_result.content:
             return ChunksResult(
                 meeting_id=meeting_id,
                 meeting_date=meeting_date,
                 status="error",
                 error="Failed to download PDF",
             )
+
+        # Check for degenerate case (HTML instead of PDF)
+        if not download_result.is_valid_pdf:
+            degenerate_warnings = [w for w in download_result.validation_warnings if "DEGENERATE" in w]
+            if degenerate_warnings:
+                logger.error(
+                    f"  SKIPPING {meeting_id}: Downloaded HTML page instead of PDF. "
+                    "agenda_url points to meeting page, not direct PDF link."
+                )
+                return ChunksResult(
+                    meeting_id=meeting_id,
+                    meeting_date=meeting_date,
+                    status="error",
+                    error="Degenerate case: HTML page downloaded instead of PDF. "
+                    "Need to parse meeting page to find actual PDF links.",
+                )
+
+        pdf_bytes = download_result.content
 
         # Save to temp file for parsing
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_file:
