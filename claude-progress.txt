@@ -7246,3 +7246,37 @@ Then run transcription:
 civic-extract transcribe --jurisdiction city-san-rafael --cloud
 ```
 Estimated cost: ~$46 total
+
+## Session 396: audio_e2e_cloud (2025-12-29)
+
+**Completed:** audio_e2e_cloud - All 19 audio files uploaded to R2
+
+### Summary
+Uploaded all 19 meeting audio files from YouTube to R2 blob storage.
+
+### Work Done
+1. Fixed civic-extraction CLI to load dotenv at entry point (packages/civic-extraction/src/civic_extraction/cli/__init__.py)
+   - CLI was not loading .env, so R2 credentials were missing
+   - Added `load_dotenv()` call before imports
+
+2. Downloaded and uploaded audio files to R2:
+   - Session 395 had 3 audio files partially uploaded
+   - This session uploaded remaining 14 + 2 missing = 16 files
+   - Total: 19 audio files in R2 (~1.2 GB)
+
+3. Fixed checkpoint handling edge cases
+   - Reset checkpoint when some files were in R2 but not tracked
+   - Verified all 19 audio files present
+
+### Verification
+```python
+from civic.storage import get_blob_storage
+blob = get_blob_storage()
+len(blob.list_keys("audio/city-san-rafael/"))  # Returns 19
+```
+
+### Next P0: transcripts_e2e_cloud
+- Run: civic-extract transcribe --jurisdiction city-san-rafael --cloud
+- Estimated cost: ~$46 total (~18 remaining × $2.40 avg per video)
+- Estimated time: ~2-3 hours (depends on AssemblyAI queue)
+
