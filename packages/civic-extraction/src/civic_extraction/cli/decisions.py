@@ -367,6 +367,7 @@ def extract_decisions_from_meeting(
     min_stakes: int = 6,
     min_budget: int = 100000,
     cloud: bool = False,
+    analyzer: Optional[Any] = None,
 ) -> DecisionResult:
     """
     Extract decisions from a meeting using RetrospectiveAnalyzer.
@@ -378,6 +379,7 @@ def extract_decisions_from_meeting(
         min_stakes: Minimum stakes score (1-10)
         min_budget: Minimum budget threshold
         cloud: If True, store to cloud
+        analyzer: Optional RetrospectiveAnalyzer instance (reuse for cost tracking)
 
     Returns:
         DecisionResult with status and details
@@ -406,22 +408,21 @@ def extract_decisions_from_meeting(
         )
 
     try:
-        # Import RetrospectiveAnalyzer
-        try:
-            from civic_services.processing.retrospective_analyzer import RetrospectiveAnalyzer
-        except ImportError:
-            logger.error("civic_services package not available")
-            return DecisionResult(
-                meeting_id=meeting_id,
-                meeting_date=meeting_date,
-                status="error",
-                error="civic_services not installed",
-            )
+        # Use provided analyzer or create new one
+        if analyzer is None:
+            try:
+                from civic_services.processing.retrospective_analyzer import RetrospectiveAnalyzer
+                analyzer = RetrospectiveAnalyzer()
+            except ImportError:
+                logger.error("civic_services package not available")
+                return DecisionResult(
+                    meeting_id=meeting_id,
+                    meeting_date=meeting_date,
+                    status="error",
+                    error="civic_services not installed",
+                )
 
         logger.info(f"  Extracting decisions from agenda...")
-
-        # Initialize analyzer
-        analyzer = RetrospectiveAnalyzer()
 
         # Extract decisions
         high_stakes_decisions = analyzer.extract_high_stakes_decisions(
@@ -615,6 +616,14 @@ def run_decision_extraction(
         logger.info(f"Estimated cost: ${total_to_extract * 0.50:.2f} (assuming ~$0.50/meeting)")
         return None
 
+    # Create shared analyzer for cost tracking across all meetings
+    try:
+        from civic_services.processing.retrospective_analyzer import RetrospectiveAnalyzer
+        analyzer = RetrospectiveAnalyzer()
+    except ImportError:
+        logger.error("civic_services package not available")
+        return None
+
     # Extract decisions
     results = []
     items_processed = start_index
@@ -637,6 +646,7 @@ def run_decision_extraction(
             min_stakes=min_stakes,
             min_budget=min_budget,
             cloud=cloud_mode,
+            analyzer=analyzer,  # Reuse for cost tracking
         )
         results.append(result)
 
@@ -681,6 +691,29 @@ def run_decision_extraction(
         )
         save_checkpoint(checkpoint, checkpoint_path)
 
+    # Store ETL cost record using actual cost from analyzer
+    actual_cost = analyzer.total_cost
+    total_tokens = analyzer.total_tokens
+
+    if items_extracted > 0 and cloud_mode:
+        try:
+            from civic.storage import get_storage_backend
+
+            backend = get_storage_backend()
+            if backend.backend_type == "postgres":
+                cost_id = backend.store_etl_cost(
+                    pipeline="decisions",
+                    jurisdiction_id=jurisdiction_id,
+                    items_processed=items_extracted,
+                    cost_usd=actual_cost,
+                    notes=f"Extracted {total_decisions} decisions from {items_extracted} meetings via {analyzer._model_name} ({total_tokens:,} tokens)",
+                )
+                logger.info(f"ETL cost recorded (id={cost_id}): ${actual_cost:.4f}")
+        except ImportError:
+            logger.debug("civic.storage not available for cost tracking")
+        except Exception as e:
+            logger.warning(f"Failed to record ETL cost: {e}")
+
     # Summary
     logger.info("=" * 50)
     logger.info(f"Decision Extraction Complete for {jurisdiction_id}")
@@ -689,6 +722,8 @@ def run_decision_extraction(
     logger.info(f"Skipped (already exist): {items_skipped}")
     logger.info(f"Failed: {items_failed}")
     logger.info(f"Total decisions extracted: {total_decisions}")
+    logger.info(f"Total tokens: {total_tokens:,}")
+    logger.info(f"Total cost: ${actual_cost:.4f}")
     if cloud_mode:
         logger.info("Decisions stored in: cloud (Postgres)")
     else:

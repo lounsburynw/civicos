@@ -350,6 +350,53 @@ def get_models_by_provider(provider: str) -> List[str]:
     ]
 
 
+def calculate_cost(model: str, usage: Dict[str, int]) -> float:
+    """
+    Calculate cost in USD for an LLM call based on model and token usage.
+
+    Uses the MODEL_REGISTRY pricing data (cost_per_1m_tokens) to calculate
+    actual costs from token usage returned by providers.
+
+    Args:
+        model: Model name from MODEL_REGISTRY (e.g., 'gemini-2.0-flash-exp')
+        usage: Token usage dict with 'total_tokens' or 'prompt_tokens'/'completion_tokens'
+
+    Returns:
+        Cost in USD (float). Returns 0.0 if model not found or usage is empty.
+
+    Example:
+        >>> usage = {'prompt_tokens': 1000, 'completion_tokens': 500, 'total_tokens': 1500}
+        >>> cost = calculate_cost('gemini-2.0-flash-exp', usage)
+        >>> print(f"${cost:.6f}")  # $0.000113 (1500 tokens at $0.075/1M)
+
+        >>> # Works with just total_tokens too
+        >>> cost = calculate_cost('gpt-4o-mini', {'total_tokens': 10000})
+        >>> print(f"${cost:.4f}")  # $0.0060 (10K tokens at $0.60/1M)
+    """
+    if not usage:
+        return 0.0
+
+    info = get_model_info(model)
+    if not info:
+        # Model not in registry - return 0 rather than failing
+        return 0.0
+
+    cost_per_1m = info.get('cost_per_1m_tokens', 0.0)
+    if cost_per_1m == 0.0:
+        return 0.0
+
+    # Get total tokens - prefer explicit total, otherwise sum prompt+completion
+    total_tokens = usage.get('total_tokens', 0)
+    if total_tokens == 0:
+        total_tokens = usage.get('prompt_tokens', 0) + usage.get('completion_tokens', 0)
+
+    if total_tokens == 0:
+        return 0.0
+
+    # Calculate cost: (tokens / 1,000,000) * cost_per_1m
+    return (total_tokens / 1_000_000) * cost_per_1m
+
+
 if __name__ == '__main__':
     # Quick tests
     print("=== Model Registry Demo ===\n")
