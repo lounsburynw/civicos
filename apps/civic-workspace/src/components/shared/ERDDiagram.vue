@@ -22,59 +22,59 @@
       <!-- meetings (1) -> agenda_items (N) -->
       <!-- Main connector line -->
       <line
-        :x1="nodePositions.meetings.x + 150 + 8"
-        :y1="nodePositions.meetings.y + 22"
-        :x2="nodePositions.agenda_items.x + 75"
-        :y2="nodePositions.meetings.y + 22"
+        :x1="tablePositions.meetings.x + 150 + 8"
+        :y1="tablePositions.meetings.y + 22"
+        :x2="tablePositions.agenda_items.x + 75"
+        :y2="tablePositions.meetings.y + 22"
         stroke="#94a3b8"
         stroke-width="2"
       />
       <line
-        :x1="nodePositions.agenda_items.x + 75"
-        :y1="nodePositions.meetings.y + 22"
-        :x2="nodePositions.agenda_items.x + 75"
-        :y2="nodePositions.agenda_items.y - 8"
+        :x1="tablePositions.agenda_items.x + 75"
+        :y1="tablePositions.meetings.y + 22"
+        :x2="tablePositions.agenda_items.x + 75"
+        :y2="tablePositions.agenda_items.y - 8"
         stroke="#94a3b8"
         stroke-width="2"
       />
       <!-- "One" notation at meetings (single vertical line) -->
       <line
-        :x1="nodePositions.meetings.x + 150 + 4"
-        :y1="nodePositions.meetings.y + 14"
-        :x2="nodePositions.meetings.x + 150 + 4"
-        :y2="nodePositions.meetings.y + 30"
+        :x1="tablePositions.meetings.x + 150 + 4"
+        :y1="tablePositions.meetings.y + 14"
+        :x2="tablePositions.meetings.x + 150 + 4"
+        :y2="tablePositions.meetings.y + 30"
         stroke="#94a3b8"
         stroke-width="2"
       />
       <!-- "Many" crow's foot at agenda_items -->
       <line
-        :x1="nodePositions.agenda_items.x + 75"
-        :y1="nodePositions.agenda_items.y - 8"
-        :x2="nodePositions.agenda_items.x + 67"
-        :y2="nodePositions.agenda_items.y"
+        :x1="tablePositions.agenda_items.x + 75"
+        :y1="tablePositions.agenda_items.y - 8"
+        :x2="tablePositions.agenda_items.x + 67"
+        :y2="tablePositions.agenda_items.y"
         stroke="#94a3b8"
         stroke-width="2"
       />
       <line
-        :x1="nodePositions.agenda_items.x + 75"
-        :y1="nodePositions.agenda_items.y - 8"
-        :x2="nodePositions.agenda_items.x + 75"
-        :y2="nodePositions.agenda_items.y"
+        :x1="tablePositions.agenda_items.x + 75"
+        :y1="tablePositions.agenda_items.y - 8"
+        :x2="tablePositions.agenda_items.x + 75"
+        :y2="tablePositions.agenda_items.y"
         stroke="#94a3b8"
         stroke-width="2"
       />
       <line
-        :x1="nodePositions.agenda_items.x + 75"
-        :y1="nodePositions.agenda_items.y - 8"
-        :x2="nodePositions.agenda_items.x + 83"
-        :y2="nodePositions.agenda_items.y"
+        :x1="tablePositions.agenda_items.x + 75"
+        :y1="tablePositions.agenda_items.y - 8"
+        :x2="tablePositions.agenda_items.x + 83"
+        :y2="tablePositions.agenda_items.y"
         stroke="#94a3b8"
         stroke-width="2"
       />
       <!-- FK label -->
       <rect
-        :x="nodePositions.agenda_items.x + 80"
-        :y="nodePositions.meetings.y + 14"
+        :x="tablePositions.agenda_items.x + 80"
+        :y="tablePositions.meetings.y + 14"
         width="75"
         height="18"
         rx="4"
@@ -83,8 +83,8 @@
         stroke-width="1.5"
       />
       <text
-        :x="nodePositions.agenda_items.x + 117"
-        :y="nodePositions.meetings.y + 27"
+        :x="tablePositions.agenda_items.x + 117"
+        :y="tablePositions.meetings.y + 27"
         fill="#64748b"
         font-size="10"
         font-weight="600"
@@ -95,59 +95,59 @@
       <!-- agenda_items (1) -> decisions (N) -->
       <!-- Main connector line -->
       <line
-        :x1="nodePositions.agenda_items.x + 150 + 8"
-        :y1="nodePositions.agenda_items.y + 22"
-        :x2="nodePositions.decisions.x + 75"
-        :y2="nodePositions.agenda_items.y + 22"
+        :x1="tablePositions.agenda_items.x + 150 + 8"
+        :y1="tablePositions.agenda_items.y + 22"
+        :x2="tablePositions.decisions.x + 75"
+        :y2="tablePositions.agenda_items.y + 22"
         stroke="#94a3b8"
         stroke-width="2"
       />
       <line
-        :x1="nodePositions.decisions.x + 75"
-        :y1="nodePositions.agenda_items.y + 22"
-        :x2="nodePositions.decisions.x + 75"
-        :y2="nodePositions.decisions.y - 8"
+        :x1="tablePositions.decisions.x + 75"
+        :y1="tablePositions.agenda_items.y + 22"
+        :x2="tablePositions.decisions.x + 75"
+        :y2="tablePositions.decisions.y - 8"
         stroke="#94a3b8"
         stroke-width="2"
       />
       <!-- "One" notation at agenda_items (single vertical line) -->
       <line
-        :x1="nodePositions.agenda_items.x + 150 + 4"
-        :y1="nodePositions.agenda_items.y + 14"
-        :x2="nodePositions.agenda_items.x + 150 + 4"
-        :y2="nodePositions.agenda_items.y + 30"
+        :x1="tablePositions.agenda_items.x + 150 + 4"
+        :y1="tablePositions.agenda_items.y + 14"
+        :x2="tablePositions.agenda_items.x + 150 + 4"
+        :y2="tablePositions.agenda_items.y + 30"
         stroke="#94a3b8"
         stroke-width="2"
       />
       <!-- "Many" crow's foot at decisions -->
       <line
-        :x1="nodePositions.decisions.x + 75"
-        :y1="nodePositions.decisions.y - 8"
-        :x2="nodePositions.decisions.x + 67"
-        :y2="nodePositions.decisions.y"
+        :x1="tablePositions.decisions.x + 75"
+        :y1="tablePositions.decisions.y - 8"
+        :x2="tablePositions.decisions.x + 67"
+        :y2="tablePositions.decisions.y"
         stroke="#94a3b8"
         stroke-width="2"
       />
       <line
-        :x1="nodePositions.decisions.x + 75"
-        :y1="nodePositions.decisions.y - 8"
-        :x2="nodePositions.decisions.x + 75"
-        :y2="nodePositions.decisions.y"
+        :x1="tablePositions.decisions.x + 75"
+        :y1="tablePositions.decisions.y - 8"
+        :x2="tablePositions.decisions.x + 75"
+        :y2="tablePositions.decisions.y"
         stroke="#94a3b8"
         stroke-width="2"
       />
       <line
-        :x1="nodePositions.decisions.x + 75"
-        :y1="nodePositions.decisions.y - 8"
-        :x2="nodePositions.decisions.x + 83"
-        :y2="nodePositions.decisions.y"
+        :x1="tablePositions.decisions.x + 75"
+        :y1="tablePositions.decisions.y - 8"
+        :x2="tablePositions.decisions.x + 83"
+        :y2="tablePositions.decisions.y"
         stroke="#94a3b8"
         stroke-width="2"
       />
       <!-- FK label -->
       <rect
-        :x="nodePositions.decisions.x + 80"
-        :y="nodePositions.agenda_items.y + 14"
+        :x="tablePositions.decisions.x + 80"
+        :y="tablePositions.agenda_items.y + 14"
         width="95"
         height="18"
         rx="4"
@@ -156,8 +156,8 @@
         stroke-width="1.5"
       />
       <text
-        :x="nodePositions.decisions.x + 127"
-        :y="nodePositions.agenda_items.y + 27"
+        :x="tablePositions.decisions.x + 127"
+        :y="tablePositions.agenda_items.y + 27"
         fill="#64748b"
         font-size="10"
         font-weight="600"
@@ -165,52 +165,27 @@
         font-family="ui-monospace, monospace"
       >agenda_item_id</text>
 
-      <!-- Vector indexing lines (dashed) -->
-      <!-- decisions -> decisions_vector -->
-      <line
-        v-if="vectorStats"
-        :x1="nodePositions.decisions.x + 150 + 8"
-        :y1="nodePositions.decisions.y + 22"
-        :x2="nodePositions.decisions_vector.x - 8"
-        :y2="nodePositions.decisions_vector.y + 27"
-        stroke="#16a34a"
-        stroke-width="2"
-        stroke-dasharray="6 4"
-        class="vector-line"
-      />
-
-      <!-- agenda_items -> chunks_vector -->
-      <line
-        v-if="vectorStats"
-        :x1="nodePositions.agenda_items.x + 150 + 8"
-        :y1="nodePositions.agenda_items.y + 35"
-        :x2="nodePositions.chunks_vector.x - 8"
-        :y2="nodePositions.chunks_vector.y + 27"
-        stroke="#16a34a"
-        stroke-width="2"
-        stroke-dasharray="6 4"
-        class="vector-line"
-      />
-
-      <!-- issues -> issues_vector -->
-      <line
-        v-if="vectorStats"
-        :x1="nodePositions.issues.x + 150 + 8"
-        :y1="nodePositions.issues.y + 22"
-        :x2="nodePositions.issues_vector.x - 8"
-        :y2="nodePositions.issues_vector.y + 27"
-        stroke="#16a34a"
-        stroke-width="2"
-        stroke-dasharray="6 4"
-        class="vector-line"
-      />
+      <!-- SESSION 367: Dynamic vector indexing lines - only shown when corpus is linked to SQL -->
+      <template v-for="corpus in availableCorpusTypes" :key="`line-${corpus.corpusType}`">
+        <line
+          v-if="corpus.linkedTable && isLinked(corpus.corpusType) && vectorPositions[`${corpus.corpusType}_vector`]"
+          :x1="tablePositions[corpus.linkedTable].x + 150 + 8"
+          :y1="tablePositions[corpus.linkedTable].y + 22"
+          :x2="vectorPositions[`${corpus.corpusType}_vector`].x - 8"
+          :y2="vectorPositions[`${corpus.corpusType}_vector`].y + 27"
+          stroke="#16a34a"
+          stroke-width="2"
+          stroke-dasharray="6 4"
+          class="vector-line"
+        />
+      </template>
 
       <!-- Table nodes (draggable) -->
       <!-- Meetings -->
       <g
         class="table-node"
         :class="{ selected: selectedTable === 'meetings', dragging: draggingNode === 'meetings' }"
-        :transform="`translate(${nodePositions.meetings.x}, ${nodePositions.meetings.y})`"
+        :transform="`translate(${tablePositions.meetings.x}, ${tablePositions.meetings.y})`"
         @mousedown.prevent="startDrag($event, 'meetings')"
         @click="selectNode('meetings')"
       >
@@ -224,7 +199,7 @@
       <g
         class="table-node"
         :class="{ selected: selectedTable === 'agenda_items', dragging: draggingNode === 'agenda_items' }"
-        :transform="`translate(${nodePositions.agenda_items.x}, ${nodePositions.agenda_items.y})`"
+        :transform="`translate(${tablePositions.agenda_items.x}, ${tablePositions.agenda_items.y})`"
         @mousedown.prevent="startDrag($event, 'agenda_items')"
         @click="selectNode('agenda_items')"
       >
@@ -238,7 +213,7 @@
       <g
         class="table-node"
         :class="{ selected: selectedTable === 'decisions', dragging: draggingNode === 'decisions' }"
-        :transform="`translate(${nodePositions.decisions.x}, ${nodePositions.decisions.y})`"
+        :transform="`translate(${tablePositions.decisions.x}, ${tablePositions.decisions.y})`"
         @mousedown.prevent="startDrag($event, 'decisions')"
         @click="selectNode('decisions')"
       >
@@ -252,7 +227,7 @@
       <g
         class="table-node standalone"
         :class="{ selected: selectedTable === 'issues', dragging: draggingNode === 'issues' }"
-        :transform="`translate(${nodePositions.issues.x}, ${nodePositions.issues.y})`"
+        :transform="`translate(${tablePositions.issues.x}, ${tablePositions.issues.y})`"
         @mousedown.prevent="startDrag($event, 'issues')"
         @click="selectNode('issues')"
       >
@@ -263,62 +238,37 @@
         <text class="drag-hint" x="140" y="12">⋮⋮</text>
       </g>
 
-      <!-- Vector Collection Nodes -->
-      <!-- Decisions Vector -->
-      <g
-        v-if="vectorStats"
-        class="vector-node"
-        :class="{ dragging: draggingNode === 'decisions_vector' }"
-        :transform="`translate(${nodePositions.decisions_vector.x}, ${nodePositions.decisions_vector.y})`"
-        @mousedown.prevent="startDrag($event, 'decisions_vector')"
-      >
-        <rect x="0" y="0" width="140" height="55" rx="20" />
-        <text class="vector-icon" x="18" y="22">&#9673;</text>
-        <text class="vector-name" x="78" y="22">decisions</text>
-        <text class="vector-count" x="70" y="38">{{ formatVectorCount('decisions') }}</text>
-        <text class="vector-status" x="70" y="50">{{ formatCoverage('decisions') }}</text>
-        <text class="drag-hint" x="130" y="12">⋮⋮</text>
-      </g>
+      <!-- SESSION 367: Dynamic Vector Collection Nodes -->
+      <template v-for="corpus in availableCorpusTypes" :key="`node-${corpus.corpusType}`">
+        <g
+          v-if="vectorPositions[`${corpus.corpusType}_vector`]"
+          class="vector-node"
+          :class="{
+            dragging: draggingNode === `${corpus.corpusType}_vector`,
+            'corpus-only': isCorpusOnly(corpus.corpusType),
+            'is-empty': isEmpty(corpus.corpusType)
+          }"
+          :transform="`translate(${vectorPositions[`${corpus.corpusType}_vector`].x}, ${vectorPositions[`${corpus.corpusType}_vector`].y})`"
+          @mousedown.prevent="startDrag($event, `${corpus.corpusType}_vector`)"
+        >
+          <rect x="0" y="0" width="140" height="55" rx="20" />
+          <text class="vector-icon" x="18" y="22">&#9673;</text>
+          <text class="vector-name" x="78" y="22">{{ corpus.displayName }}</text>
+          <text class="vector-count" x="70" y="38">{{ formatVectorCount(corpus.corpusType) }}</text>
+          <text class="vector-status" x="70" y="50">{{ formatCoverage(corpus.corpusType) }}</text>
+          <text class="drag-hint" x="130" y="12">⋮⋮</text>
+        </g>
+      </template>
 
-      <!-- Chunks Vector -->
-      <g
-        v-if="vectorStats"
-        class="vector-node"
-        :class="{ dragging: draggingNode === 'chunks_vector' }"
-        :transform="`translate(${nodePositions.chunks_vector.x}, ${nodePositions.chunks_vector.y})`"
-        @mousedown.prevent="startDrag($event, 'chunks_vector')"
-      >
-        <rect x="0" y="0" width="140" height="55" rx="20" />
-        <text class="vector-icon" x="18" y="22">&#9673;</text>
-        <text class="vector-name" x="78" y="22">chunks</text>
-        <text class="vector-count" x="70" y="38">{{ formatVectorCount('chunks') }}</text>
-        <text class="vector-status" x="70" y="50">{{ formatCoverage('chunks') }}</text>
-        <text class="drag-hint" x="130" y="12">⋮⋮</text>
-      </g>
-
-      <!-- Issues Vector -->
-      <g
-        v-if="vectorStats"
-        class="vector-node"
-        :class="{ dragging: draggingNode === 'issues_vector' }"
-        :transform="`translate(${nodePositions.issues_vector.x}, ${nodePositions.issues_vector.y})`"
-        @mousedown.prevent="startDrag($event, 'issues_vector')"
-      >
-        <rect x="0" y="0" width="140" height="55" rx="20" />
-        <text class="vector-icon" x="18" y="22">&#9673;</text>
-        <text class="vector-name" x="78" y="22">issues</text>
-        <text class="vector-count" x="70" y="38">{{ formatVectorCount('issues') }}</text>
-        <text class="vector-status" x="70" y="50">{{ formatCoverage('issues') }}</text>
-        <text class="drag-hint" x="130" y="12">⋮⋮</text>
-      </g>
-
-      <!-- Legend -->
+      <!-- Legend (SESSION 367: Updated to show corpus-only distinction) -->
       <g v-if="vectorStats" class="legend" :transform="`translate(${svgWidth - 180}, 10)`">
-        <rect x="0" y="0" width="170" height="50" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+        <rect x="0" y="0" width="170" height="68" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
         <line x1="10" y1="18" x2="40" y2="18" stroke="#94a3b8" stroke-width="2" />
         <text x="48" y="22" fill="#64748b" font-size="10">FK relationship</text>
         <line x1="10" y1="36" x2="40" y2="36" stroke="#16a34a" stroke-width="2" stroke-dasharray="6 4" />
-        <text x="48" y="40" fill="#64748b" font-size="10">Vector indexing</text>
+        <text x="48" y="40" fill="#64748b" font-size="10">SQL→Vector sync</text>
+        <rect x="10" y="48" width="30" height="12" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1" stroke-dasharray="3 2" />
+        <text x="48" y="58" fill="#64748b" font-size="10">Corpus only</text>
       </g>
     </svg>
     <!-- Resize handle (bottom-right corner) -->
@@ -330,32 +280,41 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, computed } from 'vue';
+import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue';
+import type { VectorStatsResponse, VectorCollectionStats } from '@/types/civic';
 
 type TableName = 'meetings' | 'agenda_items' | 'decisions' | 'issues';
-type VectorName = 'decisions_vector' | 'chunks_vector' | 'issues_vector';
-type NodeName = TableName | VectorName;
+type NodeName = TableName | string;  // Vector nodes are dynamic strings like 'decision_vector'
 
-interface VectorCollectionStats {
-  vector_count: number;
-  source_count: number;
-  coverage_percent: number | null;
-  source_table: string;
-  one_to_one: boolean;
-  corpus_source?: string | null;  // e.g., "nov17_chunks.json"
-}
+// Canonical corpus types (from API) and their display names
+const CORPUS_DISPLAY_NAMES: Record<string, string> = {
+  'decision': 'decisions',
+  'pdf': 'chunks',
+  'issue': 'issues',
+  'transcript': 'transcripts',
+  'municipal_code': 'municipal code',
+  'legislation': 'legislation',
+  'programs': 'programs'
+};
 
-interface VectorStats {
-  jurisdiction_id: string;
-  collections: {
-    decisions?: VectorCollectionStats;
-    chunks?: VectorCollectionStats;
-    issues?: VectorCollectionStats;
-    transcripts?: VectorCollectionStats;
-  };
-  embedding_model: string;
-  embedding_dimension: number;
-}
+// Map corpus types to their linked SQL tables (for drawing FK lines)
+const CORPUS_TO_TABLE: Record<string, TableName | null> = {
+  'decision': 'decisions',
+  'pdf': 'agenda_items',
+  'issue': 'issues',
+  'transcript': null,  // transcript links to meetings but not directly FK'd
+  'municipal_code': null,  // corpus-only
+  'legislation': null,  // corpus-only
+  'programs': null  // corpus-only
+};
+
+// Backwards-compatible aliases from API
+const ALIAS_TO_CORPUS: Record<string, string> = {
+  'decisions': 'decision',
+  'chunks': 'pdf',
+  'issues': 'issue',
+  'transcripts': 'transcript'
+};
 
 // SVG sizing
 const svgRef = ref<SVGSVGElement | null>(null);
@@ -418,29 +377,89 @@ const props = defineProps<{
     issues: number;
   };
   selectedTable: TableName | null;
-  vectorStats?: VectorStats | null;
+  vectorStats?: VectorStatsResponse | null;
 }>();
 
 const emit = defineEmits<{
   (e: 'table-selected', table: TableName): void;
 }>();
 
+// SESSION 367: Get canonical corpus types (excluding aliases) that are available
+const availableCorpusTypes = computed(() => {
+  if (!props.vectorStats?.collections) return [];
+
+  // Get canonical types only (filter out aliases like 'decisions', 'chunks', etc.)
+  return Object.entries(props.vectorStats.collections)
+    .filter(([key, stats]) => {
+      // Skip aliases - they duplicate canonical types
+      if (ALIAS_TO_CORPUS[key]) return false;
+      // Only include available collections with data
+      return stats.available || stats.vector_count > 0;
+    })
+    .map(([key, stats]) => ({
+      corpusType: key,
+      stats,
+      displayName: CORPUS_DISPLAY_NAMES[key] || key,
+      linkedTable: CORPUS_TO_TABLE[key] || null
+    }));
+});
+
 // Node positions (reactive for dragging)
-const nodePositions = reactive({
-  // Tables
+// SESSION 367: Tables are static, vector positions computed dynamically
+const tablePositions = reactive({
   meetings: { x: 20, y: 20 },
   agenda_items: { x: 250, y: 95 },
   decisions: { x: 480, y: 170 },
-  issues: { x: 20, y: 170 },
-  // Vector collections
-  decisions_vector: { x: 680, y: 155 },
-  chunks_vector: { x: 450, y: 20 },
-  issues_vector: { x: 200, y: 200 }
+  issues: { x: 20, y: 170 }
 });
+
+// Vector node positions - computed based on available corpus types
+const vectorPositions = reactive<Record<string, { x: number; y: number }>>({});
+
+// Compute initial vector positions when corpus types change
+watch(availableCorpusTypes, (types) => {
+  // Layout vector nodes in a column on the right side of the diagram
+  const startX = 680;
+  const startY = 20;
+  const spacing = 70;  // Vertical spacing between nodes
+
+  types.forEach((type, index) => {
+    const nodeKey = `${type.corpusType}_vector`;
+    if (!vectorPositions[nodeKey]) {
+      vectorPositions[nodeKey] = {
+        x: startX,
+        y: startY + (index * spacing)
+      };
+    }
+  });
+}, { immediate: true });
+
+// Combined node positions for drag operations
+const nodePositions = computed(() => ({
+  ...tablePositions,
+  ...vectorPositions
+}));
 
 // Drag state
 const draggingNode = ref<NodeName | null>(null);
 const dragOffset = ref({ x: 0, y: 0 });
+
+function getNodePosition(node: NodeName): { x: number; y: number } | undefined {
+  if (node in tablePositions) {
+    return tablePositions[node as TableName];
+  }
+  return vectorPositions[node];
+}
+
+function setNodePosition(node: NodeName, x: number, y: number) {
+  if (node in tablePositions) {
+    tablePositions[node as TableName].x = x;
+    tablePositions[node as TableName].y = y;
+  } else if (vectorPositions[node]) {
+    vectorPositions[node].x = x;
+    vectorPositions[node].y = y;
+  }
+}
 
 function startDrag(event: MouseEvent, node: NodeName) {
   draggingNode.value = node;
@@ -452,9 +471,12 @@ function startDrag(event: MouseEvent, node: NodeName) {
   pt.y = event.clientY;
   const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse());
 
+  const pos = getNodePosition(node);
+  if (!pos) return;
+
   dragOffset.value = {
-    x: svgP.x - nodePositions[node].x,
-    y: svgP.y - nodePositions[node].y
+    x: svgP.x - pos.x,
+    y: svgP.y - pos.y
   };
 }
 
@@ -473,8 +495,7 @@ function onMouseMove(event: MouseEvent) {
   const newX = Math.max(5, Math.min(svgWidth.value - 155, svgP.x - dragOffset.value.x));
   const newY = Math.max(5, Math.min(diagramHeight.value - 60, svgP.y - dragOffset.value.y));
 
-  nodePositions[draggingNode.value].x = newX;
-  nodePositions[draggingNode.value].y = newY;
+  setNodePosition(draggingNode.value, newX, newY);
 }
 
 function onMouseUp() {
@@ -488,44 +509,73 @@ function selectNode(node: TableName) {
   }
 }
 
-// Vector stats formatting
-function formatVectorCount(collection: 'decisions' | 'chunks' | 'issues'): string {
-  if (!props.vectorStats?.collections?.[collection]) {
-    return '0 docs';
-  }
-  const count = props.vectorStats.collections[collection]?.vector_count ?? 0;
-  return `${count.toLocaleString()} docs`;
+// SESSION 367: Check if collection is actually linked to SQL (by corpus type)
+function isLinked(corpusType: string): boolean {
+  const stats = props.vectorStats?.collections?.[corpusType];
+  return stats?.linkage_status === 'linked';
 }
 
-function formatCoverage(collection: 'decisions' | 'chunks' | 'issues'): string {
-  if (!props.vectorStats?.collections?.[collection]) {
+// SESSION 367: Check if corpus is corpus-only (no SQL table)
+function isCorpusOnly(corpusType: string): boolean {
+  const stats = props.vectorStats?.collections?.[corpusType];
+  return stats?.linkage_status === 'corpus_only';
+}
+
+// SESSION 367: Check if corpus is empty
+function isEmpty(corpusType: string): boolean {
+  const stats = props.vectorStats?.collections?.[corpusType];
+  return !stats || stats.linkage_status === 'empty' || stats.vector_count === 0;
+}
+
+// Vector stats formatting - now accepts corpus type
+function formatVectorCount(corpusType: string): string {
+  const stats = props.vectorStats?.collections?.[corpusType];
+  if (!stats) {
+    return '0 docs';
+  }
+  return `${stats.vector_count.toLocaleString()} docs`;
+}
+
+// SESSION 367: Updated to show accurate linkage status for any corpus type
+function formatCoverage(corpusType: string): string {
+  const stats = props.vectorStats?.collections?.[corpusType];
+  if (!stats) {
     return 'no data';
   }
-  const stats = props.vectorStats.collections[collection]!;
 
-  // If we have a corpus source file, show that
-  if (stats.corpus_source) {
-    // Shorten filename for display (e.g., "nov17_chunks.json" -> "nov17 corpus")
-    const shortName = stats.corpus_source
-      .replace('.json', '')
-      .replace(/_/g, ' ')
-      .replace(/city-san-rafael/i, '')
-      .trim();
-    return shortName ? `from ${shortName}` : 'from corpus';
+  // Show status based on actual linkage
+  switch (stats.linkage_status) {
+    case 'linked':
+      // Show actual linked count vs source count
+      if (stats.source_count > 0) {
+        return `${stats.linked_count}/${stats.source_count} linked`;
+      }
+      return `${stats.vector_count} linked`;
+
+    case 'corpus_only':
+      // Show corpus source if available
+      if (stats.corpus_source) {
+        const shortName = stats.corpus_source
+          .replace('.json', '')
+          .replace(/_/g, ' ')
+          .replace(/city-san-rafael/i, '')
+          .trim();
+        return shortName ? `from ${shortName}` : 'corpus only';
+      }
+      return 'corpus only';
+
+    case 'not_indexed':
+      return 'not indexed';
+
+    case 'empty':
+    default:
+      return 'no data';
   }
+}
 
-  // If we have SQL data with 1:1 mapping, show coverage
-  if (stats.one_to_one && stats.source_count > 0) {
-    const status = stats.coverage_percent !== null && stats.coverage_percent >= 100 ? '✓' : '⚠';
-    return `${stats.vector_count}/${stats.source_count} ${status}`;
-  }
-
-  // No data case
-  if (stats.vector_count === 0) {
-    return 'not indexed';
-  }
-
-  return `${stats.vector_count} docs`;
+// SESSION 367: Get display name for corpus type
+function getCorpusDisplayName(corpusType: string): string {
+  return CORPUS_DISPLAY_NAMES[corpusType] || corpusType;
 }
 </script>
 
@@ -673,6 +723,49 @@ function formatCoverage(collection: 'decisions' | 'chunks' | 'issues'): string {
   stroke: #15803d;
   stroke-width: 3;
   filter: drop-shadow(0 4px 6px rgba(22, 163, 74, 0.3));
+}
+
+/* SESSION 367: Corpus-only styling (amber/yellow - no SQL linkage) */
+.vector-node.corpus-only rect {
+  fill: #fef3c7;
+  stroke: #f59e0b;
+  stroke-dasharray: 4 2;
+}
+
+.vector-node.corpus-only:hover rect {
+  stroke: #d97706;
+  filter: drop-shadow(0 2px 4px rgba(245, 158, 11, 0.2));
+}
+
+.vector-node.corpus-only .vector-icon {
+  fill: #f59e0b;
+}
+
+.vector-node.corpus-only .vector-name {
+  fill: #b45309;
+}
+
+.vector-node.corpus-only .vector-count {
+  fill: #d97706;
+}
+
+.vector-node.corpus-only .vector-status {
+  fill: #f59e0b;
+}
+
+/* SESSION 367: Empty corpus styling (dimmed) */
+.vector-node.is-empty rect {
+  fill: #f1f5f9;
+  stroke: #cbd5e1;
+  opacity: 0.6;
+}
+
+.vector-node.is-empty .vector-icon,
+.vector-node.is-empty .vector-name,
+.vector-node.is-empty .vector-count,
+.vector-node.is-empty .vector-status {
+  fill: #94a3b8;
+  opacity: 0.6;
 }
 
 .vector-icon {

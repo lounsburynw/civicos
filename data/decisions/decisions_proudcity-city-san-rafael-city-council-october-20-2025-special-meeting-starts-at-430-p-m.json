@@ -1,0 +1,67 @@
+[
+  {
+    "item_ref": "Unknown - City Council \u2013 October 20, 2025 (Special Meeting starts at 4:30 p.m.)",
+    "title": "Byrne State Crisis Intervention Program (SCIP) Grant Funds Appropriation",
+    "description": "Appropriation of Byrne State Crisis Intervention Program (SCIP) Grant Funds to Support the San Rafael Specialized Assistance for Everyone (SAFE) Team and Expand Crisis Response",
+    "meeting_date": "2025-10-20",
+    "meeting_type": "city_council",
+    "is_high_stakes": true,
+    "stakes_score": 7,
+    "decision_type": "budget",
+    "budget_amount": 483282,
+    "budget_description": "Appropriation of grant funds to support the San Rafael Specialized Assistance for Everyone (SAFE) Team and expand crisis response capabilities.",
+    "affected_population_estimate": null,
+    "geographic_scope": "unknown",
+    "project_size_units": null,
+    "project_location": null,
+    "project_types": [
+      "Public Safety",
+      "Crisis Intervention",
+      "Community Support"
+    ],
+    "keywords_for_matching": [
+      "Byrne Grant",
+      "SCIP",
+      "Crisis Intervention",
+      "SAFE Team",
+      "San Rafael",
+      "Specialized Assistance",
+      "Mental Health",
+      "Crisis Response"
+    ],
+    "participation_mechanisms": [],
+    "agenda_url": "https://www.cityofsanrafael.org/meetings/city-council-october-20-2025-special-meeting-starts-at-430-p-m/",
+    "staff_report_url": null,
+    "full_agenda_packet_url": null,
+    "minutes_url": null,
+    "testimony_count": null,
+    "speaker_names": [],
+    "vote_results": {},
+    "passed": true,
+    "id": "2025-10-20-Unknown_-_City_Council_\u2013_October_20,_2025_(Special_Meeting_starts_at_4:30_p.m.)",
+    "agenda_item": "Unknown - City Council \u2013 October 20, 2025 (Special Meeting starts at 4:30 p.m.)",
+    "summary": "Appropriation of Byrne State Crisis Intervention Program (SCIP) Grant Funds to Support the San Rafael Specialized Assistance for Everyone (SAFE) Team and Expand Crisis Response",
+    "outcome": "approved",
+    "vote": {},
+    "topics": [
+      "Public Safety",
+      "Crisis Intervention",
+      "Community Support",
+      "Byrne Grant",
+      "SCIP",
+      "Crisis Intervention",
+      "SAFE Team",
+      "San Rafael",
+      "Specialized Assistance",
+      "Mental Health",
+      "Crisis Response"
+    ],
+    "source_documents": [
+      {
+        "url": "https://www.cityofsanrafael.org/meetings/city-council-october-20-2025-special-meeting-starts-at-430-p-m/",
+        "type": "agenda"
+      }
+    ],
+    "extraction_method": "retrospective_analyzer_gemini"
+  }
+]

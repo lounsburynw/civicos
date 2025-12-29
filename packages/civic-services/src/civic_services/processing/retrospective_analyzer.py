@@ -94,8 +94,9 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
 
     def __init__(self, model: Optional[str] = None):
         """Initialize with model optimized for long documents"""
-        # Use Gemini 2.5 Pro for large agenda packets (2M context, improved reasoning)
-        super().__init__(model=model or 'gemini-2.5-pro', task_type='long_document')
+        # Use Gemini 2.0 Flash for agenda extraction (1M context, no safety filter issues)
+        # Note: Gemini 2.5 Pro triggers safety filters on municipal content (Session 391)
+        super().__init__(model=model or 'gemini-2.0-flash-exp', task_type='long_document')
 
     def extract_high_stakes_decisions(
         self,
@@ -104,7 +105,12 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
         min_stakes_score: int = 6
     ) -> List[HighStakesDecision]:
         """
-        Extract high-stakes decisions from meeting with enhanced metadata
+        Extract high-stakes decisions from meeting with enhanced metadata.
+
+        Uses a two-pass approach for reliability:
+        1. Primary LLM extraction
+        2. Budget validation scan to detect missed items
+        3. Targeted follow-up extraction for gaps
 
         Args:
             event: Event dict from civic_digest.py
@@ -128,10 +134,25 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
         if not text_content:
             return []
 
-        # Use specialized high-stakes extraction prompt
+        # === PASS 1: Primary LLM extraction ===
         high_stakes_items = self._extract_with_high_stakes_prompt(
             text_content, event, meeting_type, min_budget
         )
+
+        # === PASS 2: Budget validation scan ===
+        # Scan text for all dollar amounts >= min_budget
+        scanned_amounts = self._scan_for_budget_amounts(text_content, min_budget)
+
+        # Detect gaps: amounts in text but not extracted
+        gaps = self._detect_extraction_gaps(high_stakes_items, scanned_amounts)
+
+        if gaps:
+            print(f"   🔍 Found {len(gaps)} potential missed budget items, running targeted extraction...")
+            # === PASS 3: Targeted follow-up for gaps ===
+            additional = self._extract_targeted(text_content, gaps, event, meeting_type)
+            if additional:
+                print(f"   ✅ Recovered {len(additional)} additional decisions")
+                high_stakes_items.extend(additional)
 
         # Filter by stakes score
         return [
@@ -190,9 +211,12 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
         agenda_url: str,
         event: Dict[str, Any]
     ) -> Optional[str]:
-        """Download agenda and extract text content"""
+        """Download agenda and extract text content.
+
+        Session 390: For HTML meeting pages, find embedded PDF URLs and
+        extract text from those instead. PDFs have cleaner agenda content.
+        """
         try:
-            # Reuse parent class PDF extraction logic
             response = self.session.get(agenda_url, timeout=20, stream=True)
             response.raise_for_status()
 
@@ -212,10 +236,13 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
                     return None
                 content_bytes += chunk
 
-            # Extract text
+            # Extract text based on content type
             content_type = response.headers.get('content-type', '').lower()
             if 'pdf' in content_type:
                 text_content = self._extract_pdf_text(content_bytes)
+            elif 'html' in content_type:
+                # HTML page - find embedded PDF and extract from that
+                text_content = self._extract_pdf_from_html_page(content_bytes, agenda_url)
             else:
                 text_content = content_bytes.decode('utf-8', errors='ignore')
 
@@ -223,6 +250,75 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
 
         except Exception as e:
             print(f"⚠️ Failed to download agenda: {type(e).__name__}")
+            return None
+
+    def _extract_pdf_from_html_page(
+        self,
+        html_bytes: bytes,
+        base_url: str
+    ) -> Optional[str]:
+        """Extract PDF content from an HTML meeting page.
+
+        Municipal meeting pages often embed agenda PDFs in iframes.
+        This finds and downloads the actual PDF for text extraction.
+        """
+        try:
+            from bs4 import BeautifulSoup
+            from urllib.parse import urljoin, unquote
+            import re
+
+            soup = BeautifulSoup(html_bytes, 'html.parser')
+
+            # Strategy 1: Find PDFs in iframe src (Google Docs viewer pattern)
+            # e.g., //docs.google.com/gview?url=https://storage.googleapis.com/.../agenda.pdf
+            for iframe in soup.find_all('iframe'):
+                src = iframe.get('src', '')
+                if 'gview' in src and 'storage.googleapis.com' in src:
+                    match = re.search(r'url=(https://[^&]+\.pdf)', src)
+                    if match:
+                        pdf_url = unquote(match.group(1))
+                        # Prefer agenda PDF over packet (packet can be huge)
+                        if 'agenda' in pdf_url.lower() and 'packet' not in pdf_url.lower():
+                            print(f"   📄 Found agenda PDF: {pdf_url.split('/')[-1]}")
+                            return self._download_pdf_content(pdf_url)
+
+            # Strategy 2: Find direct PDF links with "agenda" in filename
+            for link in soup.find_all('a', href=True):
+                href = link['href']
+                if '.pdf' in href.lower() and 'agenda' in href.lower() and 'packet' not in href.lower():
+                    pdf_url = urljoin(base_url, href)
+                    print(f"   📄 Found agenda PDF link: {pdf_url.split('/')[-1]}")
+                    return self._download_pdf_content(pdf_url)
+
+            # Strategy 3: Fall back to agenda packet if no simple agenda found
+            for iframe in soup.find_all('iframe'):
+                src = iframe.get('src', '')
+                if 'gview' in src and 'storage.googleapis.com' in src:
+                    match = re.search(r'url=(https://[^&]+\.pdf)', src)
+                    if match:
+                        pdf_url = unquote(match.group(1))
+                        if 'packet' in pdf_url.lower():
+                            print(f"   📄 Using agenda packet: {pdf_url.split('/')[-1]}")
+                            return self._download_pdf_content(pdf_url)
+
+            # Strategy 4: Fallback to HTML text extraction
+            print(f"   ⚠️ No PDF found, using HTML text")
+            for element in soup(['script', 'style', 'nav', 'header', 'footer']):
+                element.decompose()
+            return soup.get_text(separator='\n', strip=True)
+
+        except Exception as e:
+            print(f"   ⚠️ PDF extraction failed: {type(e).__name__}")
+            return None
+
+    def _download_pdf_content(self, pdf_url: str) -> Optional[str]:
+        """Download a PDF and extract its text content."""
+        try:
+            response = self.session.get(pdf_url, timeout=30)
+            response.raise_for_status()
+            return self._extract_pdf_text(response.content)
+        except Exception as e:
+            print(f"   ⚠️ PDF download failed: {type(e).__name__}")
             return None
 
     def _split_agenda_into_items(self, text_content: str) -> List[Tuple[str, str]]:
@@ -277,35 +373,333 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
         min_budget: int
     ) -> List[HighStakesDecision]:
         """
-        Use specialized prompt for high-stakes decision extraction
+        Use LLM to extract ALL high-stakes decisions in a single pass.
 
-        NEW (Session 99): Item-by-item extraction to avoid truncation
+        Session 390: Removed brittle regex splitting. LLM handles variable
+        agenda formats robustly - just like parent class parse_agenda_content().
         """
+        # Sanitize inputs
+        safe_title = html.escape(str(event.get('title', 'Unknown'))[:200])
+        safe_date = html.escape(str(event.get('when_human', 'Unknown'))[:100])
+        safe_meeting_type = html.escape(meeting_type)
+        # Use generous limit - Gemini 2.5 Pro has 2M context
+        safe_text = html.escape(text_content[:150000])
 
-        # Split agenda into individual items
-        items = self._split_agenda_into_items(text_content)
-        print(f"   📄 Split into {len(items)} agenda items")
+        prompt = f"""Analyze this municipal meeting agenda/packet and extract ALL high-stakes decisions.
 
-        all_decisions = []
+Meeting: {safe_title}
+Date: {safe_date}
+Meeting Type: {safe_meeting_type}
 
-        # Process each item separately
-        for item_ref, item_text in items:
-            # Skip if item is too short (likely noise)
-            if len(item_text.strip()) < 100:
-                continue
+FULL AGENDA TEXT:
+{safe_text}
 
-            # Extract from this item
-            decisions = self._extract_from_item(
-                item_ref,
-                item_text,
-                event,
-                meeting_type,
-                min_budget
-            )
+OBJECTIVE: Extract ALL decisions with significant community impact. Return MULTIPLE items if found.
 
-            all_decisions.extend(decisions)
+CRITICAL: Any agenda item mentioning a dollar amount >= ${min_budget:,} MUST be extracted.
 
-        return all_decisions
+HIGH-STAKES CRITERIA (flag if ANY apply):
+1. Budget decisions >= ${min_budget:,} (THIS IS MANDATORY - DO NOT SKIP):
+   - Supplemental appropriations, capital projects, grant allocations, major contracts
+   - EXTRACT SPECIFIC DOLLAR AMOUNTS from text
+   - If you see "$235,224" or "$152,718" or any 6-figure amount, INCLUDE IT
+
+2. Development decisions:
+   - Residential projects >20 units, major commercial developments
+   - Zoning amendments affecting multiple parcels
+   - EXTRACT PROJECT SIZE (# units) from text
+
+3. Environmental/policy decisions affecting >1,000 residents:
+   - Climate action, wildfire/vegetation management, water/infrastructure, service changes
+
+4. Tax/fee decisions:
+   - New taxes, tax increases, fee structure changes, special assessment districts
+
+For EACH high-stakes item found, extract:
+{{
+    "items": [
+        {{
+            "item_ref": "item number from agenda (e.g., '5.a', 'Item 7', 'Consent-3')",
+            "title": "clear, specific title",
+            "description": "detailed description (2-3 sentences) - WHO, WHAT, WHY",
+            "is_high_stakes": true,
+            "stakes_score": 1-10,
+            "decision_type": "budget|development|environmental|policy|tax",
+            "budget_amount": dollar amount as number or null,
+            "budget_description": "what the budget is for" or null,
+            "affected_population_estimate": number or null,
+            "geographic_scope": "citywide|neighborhood|specific_location",
+            "project_size_units": number of housing units or null,
+            "project_location": "street address or area" or null,
+            "project_types": ["primary_type", "secondary_type"],
+            "keywords_for_matching": ["keyword1", "keyword2", ...]
+        }}
+    ]
+}}
+
+DECISION TYPE CLASSIFICATION:
+- budget: Appropriations, contracts, grants, capital projects
+- development: Housing/commercial construction, zoning changes, land use
+- environmental: Climate, wildfire, parks, sustainability, infrastructure
+- policy: Service changes, regulations, programs affecting many residents
+- tax: New taxes, fee changes, assessment districts
+
+PROJECT TYPE TAXONOMY:
+housing, transportation, environment, budget, education, development, public_safety, community, elections, governance
+
+STAKES SCORE RUBRIC:
+- 10: Citywide impact, $1M+ budget, affects all/most residents
+- 8-9: Major neighborhood/district impact, $500K-$1M budget
+- 6-7: Significant local impact, $100K-$500K budget, affects 1,000+ residents
+- 4-5: Moderate impact, <$100K budget, affects 100-1,000 residents
+- 1-3: Low impact, minimal budget, affects <100 residents
+
+IMPORTANT:
+- Return ALL high-stakes items found (can be 0, 1, 5, or more)
+- Focus on DECISIONS (votes, approvals), not reports/updates
+- Extract actual NUMBERS from text (budget amounts, unit counts)
+- Skip purely procedural items (minutes approval, roll call)
+- If NO high-stakes items found, return: {{"items": []}}
+- DOUBLE-CHECK: Did you include EVERY item with budget >= ${min_budget:,}?
+
+Return JSON with items array:"""
+
+        try:
+            # Use higher token limit for multiple items
+            response_text = self._call_llm(prompt, max_tokens=4000)
+            result = self._safe_json_parse(response_text)
+            if not result or 'items' not in result or not result['items']:
+                return []
+
+            # Convert to HighStakesDecision objects
+            decisions = []
+            meeting_date = event.get('when_iso', event.get('when_human', 'Unknown'))
+            agenda_url = self._get_agenda_url(event)
+
+            for item_data in result['items']:
+                # Only include if truly high-stakes
+                if not item_data.get('is_high_stakes', False):
+                    continue
+
+                decision = HighStakesDecision(
+                    item_ref=item_data.get('item_ref', 'unknown'),
+                    title=item_data.get('title', ''),
+                    description=item_data.get('description', ''),
+                    meeting_date=meeting_date,
+                    meeting_type=meeting_type,
+                    is_high_stakes=True,
+                    stakes_score=item_data.get('stakes_score', 6),
+                    decision_type=item_data.get('decision_type', 'policy'),
+                    budget_amount=item_data.get('budget_amount'),
+                    budget_description=item_data.get('budget_description', ''),
+                    affected_population_estimate=item_data.get('affected_population_estimate'),
+                    geographic_scope=item_data.get('geographic_scope', 'unknown'),
+                    project_size_units=item_data.get('project_size_units'),
+                    project_location=item_data.get('project_location'),
+                    project_types=item_data.get('project_types', ['governance']),
+                    keywords_for_matching=item_data.get('keywords_for_matching', []),
+                    participation_mechanisms=event.get('participation_mechanisms', []),
+                    agenda_url=agenda_url,
+                    staff_report_url=None
+                )
+                decisions.append(decision)
+
+            return decisions
+
+        except Exception as e:
+            print(f"   ⚠️ LLM extraction failed: {type(e).__name__}")
+            return []
+
+    def _scan_for_budget_amounts(
+        self,
+        text_content: str,
+        min_budget: int = 100000
+    ) -> List[Tuple[float, str]]:
+        """
+        Scan text for dollar amounts >= min_budget using regex.
+
+        Returns list of (amount, context) tuples where context is
+        surrounding text for identification.
+        """
+        # Match dollar amounts: $1,234,567 or $1234567 or $1.2M etc
+        # Pattern handles: $675,221 | $1,207,200 | $4.4M | $25 million
+        patterns = [
+            # Standard format: $1,234,567 or $1,234,567.89
+            r'\$[\d,]+(?:\.\d{2})?',
+            # Millions shorthand: $4.4M, $25M
+            r'\$[\d.]+\s*[Mm](?:illion)?',
+            # Written out: $25 million
+            r'\$[\d.]+\s+million',
+        ]
+
+        found_amounts = []
+
+        for pattern in patterns:
+            for match in re.finditer(pattern, text_content, re.IGNORECASE):
+                amount_str = match.group()
+
+                # Parse the amount
+                try:
+                    # Remove $ and commas
+                    cleaned = amount_str.replace('$', '').replace(',', '').strip()
+
+                    # Handle millions shorthand
+                    if 'million' in cleaned.lower() or cleaned.lower().endswith('m'):
+                        cleaned = re.sub(r'[Mm](?:illion)?', '', cleaned).strip()
+                        amount = float(cleaned) * 1_000_000
+                    else:
+                        amount = float(cleaned)
+
+                    if amount >= min_budget:
+                        # Get surrounding context (100 chars before/after)
+                        start = max(0, match.start() - 100)
+                        end = min(len(text_content), match.end() + 100)
+                        context = text_content[start:end].replace('\n', ' ').strip()
+
+                        found_amounts.append((amount, context))
+                except (ValueError, AttributeError):
+                    continue
+
+        # Deduplicate by amount (keep first context for each unique amount)
+        seen_amounts = set()
+        unique_amounts = []
+        for amount, context in found_amounts:
+            # Round to avoid float precision issues
+            rounded = round(amount, 2)
+            if rounded not in seen_amounts:
+                seen_amounts.add(rounded)
+                unique_amounts.append((rounded, context))
+
+        return sorted(unique_amounts, key=lambda x: x[0], reverse=True)
+
+    def _detect_extraction_gaps(
+        self,
+        extracted_decisions: List[HighStakesDecision],
+        scanned_amounts: List[Tuple[float, str]],
+        tolerance: float = 0.1
+    ) -> List[Tuple[float, str]]:
+        """
+        Compare extracted budget amounts vs scanned amounts to find gaps.
+
+        Returns list of (amount, context) for amounts found in text but
+        not in extracted decisions.
+        """
+        # Get all extracted budget amounts
+        extracted_amounts = set()
+        for d in extracted_decisions:
+            if d.budget_amount:
+                extracted_amounts.add(round(d.budget_amount, 2))
+
+        # Find gaps: amounts in text but not extracted
+        gaps = []
+        for amount, context in scanned_amounts:
+            # Check if this amount (within tolerance) was extracted
+            found = False
+            for extracted in extracted_amounts:
+                # Allow 10% tolerance for rounding differences
+                if abs(amount - extracted) / max(amount, 1) < tolerance:
+                    found = True
+                    break
+
+            if not found:
+                gaps.append((amount, context))
+
+        return gaps
+
+    def _extract_targeted(
+        self,
+        text_content: str,
+        missed_amounts: List[Tuple[float, str]],
+        event: Dict[str, Any],
+        meeting_type: str
+    ) -> List[HighStakesDecision]:
+        """
+        Targeted extraction for specific missed budget items.
+
+        Uses the context around missed amounts to prompt LLM for extraction.
+        """
+        if not missed_amounts:
+            return []
+
+        # Format missed items for prompt
+        missed_items_text = "\n".join([
+            f"- ${amount:,.0f}: ...{context}..."
+            for amount, context in missed_amounts[:5]  # Limit to top 5
+        ])
+
+        safe_title = html.escape(str(event.get('title', 'Unknown'))[:200])
+        safe_date = html.escape(str(event.get('when_human', 'Unknown'))[:100])
+
+        prompt = f"""The following budget items were found in a municipal agenda but may have been missed in initial extraction.
+
+Meeting: {safe_title}
+Date: {safe_date}
+
+MISSED BUDGET ITEMS TO EXTRACT:
+{missed_items_text}
+
+For EACH item above, find the corresponding agenda item and extract:
+{{
+    "items": [
+        {{
+            "item_ref": "agenda item reference",
+            "title": "item title",
+            "description": "what this budget is for",
+            "is_high_stakes": true,
+            "stakes_score": 6-10,
+            "decision_type": "budget",
+            "budget_amount": dollar amount as number,
+            "budget_description": "purpose of budget",
+            "project_types": ["relevant", "types"],
+            "keywords_for_matching": ["keywords"]
+        }}
+    ]
+}}
+
+Return JSON with items array. If an item cannot be found or isn't a decision, omit it."""
+
+        try:
+            response_text = self._call_llm(prompt, max_tokens=2000)
+            result = self._safe_json_parse(response_text)
+            if not result or 'items' not in result:
+                return []
+
+            decisions = []
+            meeting_date = event.get('when_iso', event.get('when_human', 'Unknown'))
+            agenda_url = self._get_agenda_url(event)
+
+            for item_data in result['items']:
+                if not item_data.get('is_high_stakes', False):
+                    continue
+
+                decision = HighStakesDecision(
+                    item_ref=item_data.get('item_ref', 'unknown'),
+                    title=item_data.get('title', ''),
+                    description=item_data.get('description', ''),
+                    meeting_date=meeting_date,
+                    meeting_type=meeting_type,
+                    is_high_stakes=True,
+                    stakes_score=item_data.get('stakes_score', 6),
+                    decision_type=item_data.get('decision_type', 'budget'),
+                    budget_amount=item_data.get('budget_amount'),
+                    budget_description=item_data.get('budget_description', ''),
+                    affected_population_estimate=item_data.get('affected_population_estimate'),
+                    geographic_scope=item_data.get('geographic_scope', 'unknown'),
+                    project_size_units=item_data.get('project_size_units'),
+                    project_location=item_data.get('project_location'),
+                    project_types=item_data.get('project_types', ['budget']),
+                    keywords_for_matching=item_data.get('keywords_for_matching', []),
+                    participation_mechanisms=event.get('participation_mechanisms', []),
+                    agenda_url=agenda_url,
+                    staff_report_url=None
+                )
+                decisions.append(decision)
+
+            return decisions
+
+        except Exception as e:
+            print(f"   ⚠️ Targeted extraction failed: {type(e).__name__}")
+            return []
 
     def _extract_from_item(
         self,

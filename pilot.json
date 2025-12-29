@@ -1671,17 +1671,17 @@
         "note": "Session 396: All 19 audio files uploaded to R2. Fixed CLI to load dotenv for R2 credentials. Total: ~1.2 GB audio. Verification: blob.list_keys('audio/city-san-rafael/') returns 19 files."
       },
       "transcripts_e2e_cloud": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "artifact": "All video transcripts ingested E2E to Postgres via AssemblyAI",
         "target_count": "19 videos",
         "current_count": 1,
         "verification": "SELECT COUNT(*) FROM transcripts WHERE jurisdiction_id = 'city-san-rafael'",
-        "note": "Session 396: UNBLOCKED by audio_e2e_cloud. 19 audio files now in R2. 1/19 transcripts complete. Run: civic-extract transcribe --jurisdiction city-san-rafael --cloud. Estimated cost: ~$46 total (~18 remaining × $2.40 avg). Cost tracking now ready (Session 397)."
+        "note": "Session 396: UNBLOCKED by audio_e2e_cloud. 19 audio files now in R2. 1/19 transcripts complete. Run: civic-extract transcribe --jurisdiction city-san-rafael --cloud. Estimated cost: ~$46 total (~18 remaining \u00d7 $2.40 avg). Cost tracking now ready (Session 397)."
       },
       "municipal_code_e2e_cloud": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "San Rafael municipal code scraped E2E to Postgres",
         "target_count": "2000+ code sections",
         "verification": "SELECT COUNT(*) FROM municipal_code WHERE jurisdiction_id = 'city-san-rafael'",

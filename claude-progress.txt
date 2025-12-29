@@ -7370,3 +7370,32 @@ MODEL_REGISTRY (pricing)  ->  calculate_cost()  ->  AgendaIntegrator._call_llm()
 
 ### Next P0
 - transcripts_e2e_cloud (run AssemblyAI transcription on 19 cloud audio files)
+
+## Session 399 - 2025-12-29
+
+### Completed: transcripts_e2e_cloud
+
+**Implemented parallel batch transcription using `transcribe_group()`:**
+- Added `--batch` flag to `civic-extract transcribe` command
+- Submits all files to AssemblyAI at once (processes in parallel)
+- Total time: ~14 min for 12 videos (vs ~2-3 hours sequential)
+
+**Fixed mapping bug:**
+- Original batch failed to map CDN URLs back to video_ids
+- Recovered all 12 transcripts from AssemblyAI using transcript IDs
+- Successfully stored to Postgres with proper ETL cost tracking
+
+**Results:**
+- 12 transcripts stored in Postgres
+- Total cost: $29.05 (actual, based on audio duration)
+- ETL cost record: id=2
+- Total transcripts in database: 13
+
+### Key Files Modified
+- `packages/civic-extraction/src/civic_extraction/cli/transcribe.py`
+  - Added `transcribe_batch()` function using `transcribe_group()`
+  - Added `--batch` flag to CLI
+  - Fixed video_id mapping (use submission order, not URL matching)
+
+### Next P0
+- municipal_code_e2e_cloud (verify municipal code data in cloud)

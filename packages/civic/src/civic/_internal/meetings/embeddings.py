@@ -832,6 +832,104 @@ class CivicEmbeddings:
 
         return collection
 
+    def build_decisions_index_from_sql(
+        self,
+        storage_backend: Any,  # SQLiteBackend
+    ) -> Any:  # Returns chromadb.Collection
+        """
+        Build vector index for decisions from SQL storage.
+
+        Reads decisions from the storage backend and creates embeddings
+        in ChromaDB. This is the SQL-first version of build_decisions_index.
+
+        Args:
+            storage_backend: SQLiteBackend instance with get_decisions method
+
+        Returns:
+            ChromaDB collection with embedded decisions
+        """
+        # Get decisions from SQL
+        decisions = storage_backend.get_decisions(self.jurisdiction_id)
+
+        if not decisions:
+            logger.warning(f"No decisions found in SQL for {self.jurisdiction_id}")
+            # Create empty collection
+            try:
+                self._client.delete_collection(self.decisions_collection_name)
+            except Exception:
+                pass
+
+            return self._client.create_collection(
+                name=self.decisions_collection_name,
+                metadata={
+                    "hnsw:space": "cosine",
+                    "description": f"{self.jurisdiction_id} decisions for RAG (empty)",
+                    "jurisdiction_id": self.jurisdiction_id,
+                    "embedding_model": self.model_name,
+                    "embedding_dimension": self.embedding_dimension,
+                    "created_at": datetime.now().isoformat(),
+                    "source": "sql",
+                }
+            )
+
+        # Map SQL field names to expected format for metadata helpers
+        normalized_decisions = []
+        for decision in decisions:
+            normalized = {
+                "decision_id": decision.get("id", ""),
+                "meeting_date": decision.get("meeting_date", ""),
+                "agenda_item": decision.get("agenda_item", ""),
+                "title": decision.get("title", ""),
+                "summary": decision.get("summary", ""),
+                "outcome": decision.get("outcome", ""),
+                "vote": decision.get("vote_json", {}),
+                "staff_recommendation": decision.get("staff_recommendation_json", {}),
+                "public_input": decision.get("public_input_json", {}),
+                "legal_instruments": decision.get("legal_instruments_json", []),
+                "topics": decision.get("topics", []),
+            }
+            normalized_decisions.append(normalized)
+
+        # Create collection (delete existing if present)
+        try:
+            self._client.delete_collection(self.decisions_collection_name)
+        except Exception:
+            pass
+
+        collection = self._client.create_collection(
+            name=self.decisions_collection_name,
+            metadata={
+                "hnsw:space": "cosine",
+                "description": f"{self.jurisdiction_id} decisions for RAG",
+                "jurisdiction_id": self.jurisdiction_id,
+                "embedding_model": self.model_name,
+                "embedding_dimension": self.embedding_dimension,
+                "created_at": datetime.now().isoformat(),
+                "source": "sql",
+                "decision_count": len(normalized_decisions),
+            }
+        )
+
+        # Process decisions in batches for memory efficiency
+        batch_size = 100
+        for i in range(0, len(normalized_decisions), batch_size):
+            batch = normalized_decisions[i:i + batch_size]
+
+            texts = [self._decision_to_text(decision) for decision in batch]
+            ids = [decision.get("decision_id", f"decision-{i + j}") for j, decision in enumerate(batch)]
+            metadatas = [self._decision_to_metadata(decision) for decision in batch]
+
+            embeddings = self.model.encode(texts, show_progress_bar=False)
+
+            collection.add(
+                ids=ids,
+                documents=texts,
+                embeddings=embeddings.tolist(),
+                metadatas=metadatas,
+            )
+
+        return collection
+
     def build_transcripts_index(
         self,
         testimony_dir: Union[str, Path],
@@ -2901,3 +2999,116 @@ def search_merrydale(
         top_k=top_k,
         persist_directory=persist_directory,
     )
+
+
+# ============================================================================
+# SQL-First Index Adapter
+# ============================================================================
+# Implements SqlIndexTarget protocol for Pipeline integration
+
+class SqlIndexAdapter:
+    """
+    Adapter that implements SqlIndexTarget protocol for CivicEmbeddings.
+
+    Wraps CivicEmbeddings to enable SQL-first vector indexing in the Pipeline.
+    Reads from SQL storage backend and builds ChromaDB collections.
+
+    Usage:
+        from civic._internal.meetings.embeddings import SqlIndexAdapter
+
+        adapter = SqlIndexAdapter(persist_directory="data/pilot/vectors")
+        pipeline = Pipeline(source, jurisdiction_id,
+                           storage_target=storage,
+                           index_target=adapter)
+
+        # Pipeline INDEX stage will call:
+        # adapter.index_from_storage(storage, jurisdiction_id)
+    """
+
+    def __init__(
+        self,
+        persist_directory: Optional[str] = None,
+        model_name: str = CivicEmbeddings.DEFAULT_MODEL,
+    ):
+        """
+        Initialize adapter.
+
+        Args:
+            persist_directory: ChromaDB persistence directory (default: auto)
+            model_name: SentenceTransformer model name
+        """
+        self.persist_directory = persist_directory
+        self.model_name = model_name
+        self._embedders: Dict[str, CivicEmbeddings] = {}
+
+    def _get_embedder(self, jurisdiction_id: str) -> CivicEmbeddings:
+        """Get or create CivicEmbeddings for a jurisdiction."""
+        if jurisdiction_id not in self._embedders:
+            persist_dir = self.persist_directory
+            if persist_dir is None:
+                persist_dir = str(get_vectors_dir(jurisdiction_id))
+
+            self._embedders[jurisdiction_id] = CivicEmbeddings(
+                jurisdiction_id=jurisdiction_id,
+                model_name=self.model_name,
+                persist_directory=persist_dir,
+            )
+        return self._embedders[jurisdiction_id]
+
+    def index_from_storage(
+        self,
+        storage_backend: Any,
+        jurisdiction_id: str,
+    ) -> Dict[str, int]:
+        """
+        Build all vector indexes from SQL storage.
+
+        Implements SqlIndexTarget protocol. Reads decisions and chunks
+        from SQL and builds ChromaDB collections.
+
+        Args:
+            storage_backend: SQLiteBackend with get_decisions(), get_chunks()
+            jurisdiction_id: Jurisdiction to index
+
+        Returns:
+            Dict mapping corpus type to count indexed
+        """
+        embedder = self._get_embedder(jurisdiction_id)
+        result: Dict[str, int] = {}
+
+        # Index decisions from SQL
+        try:
+            decisions_collection = embedder.build_decisions_index_from_sql(storage_backend)
+            result["decisions"] = decisions_collection.count()
+            logger.info(f"Indexed {result['decisions']} decisions from SQL for {jurisdiction_id}")
+        except Exception as e:
+            logger.error(f"Failed to index decisions from SQL: {e}")
+            result["decisions"] = 0
+
+        # Index chunks from SQL
+        try:
+            chunks_collection = embedder.build_chunks_index_from_sql(storage_backend)
+            result["chunks"] = chunks_collection.count()
+            logger.info(f"Indexed {result['chunks']} chunks from SQL for {jurisdiction_id}")
+        except Exception as e:
+            logger.error(f"Failed to index chunks from SQL: {e}")
+            result["chunks"] = 0
+
+        return result
+
+    def index_meetings(self, meetings: List[Any]) -> int:
+        """
+        Fallback: index from meetings list (legacy interface).
+
+        This method satisfies the IndexTarget protocol for backward
+        compatibility but is not used when storage_backend is available.
+
+        Args:
+            meetings: List of Meeting objects
+
+        Returns:
+            Number of meetings processed (not indexed - legacy path)
+        """
+        # Legacy path - just return count
+        # Real indexing happens via index_from_storage
+        return len(meetings)

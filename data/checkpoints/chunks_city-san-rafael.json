@@ -1,0 +1,10 @@
+{
+  "jurisdiction_id": "city-san-rafael",
+  "last_meeting_id": "proudcity-city-san-rafael-city-council-january-6-2026-cancelled",
+  "items_processed": 46,
+  "items_extracted": 6,
+  "items_skipped": 3,
+  "items_failed": 4,
+  "total_chunks": 741,
+  "timestamp": "2025-12-29T08:30:43.125847"
+}

@@ -1,0 +1,20 @@
+{
+  "started_at": "2025-12-27T09:27:02.705594",
+  "completed_at": "2025-12-27T09:29:26.261723",
+  "status": "completed",
+  "source_meetings": 34,
+  "source_decisions": 372,
+  "source_chunks": 0,
+  "source_blobs": 0,
+  "source_vectors": 4,
+  "migrated_meetings": 17,
+  "migrated_decisions": 186,
+  "migrated_chunks": 0,
+  "migrated_blobs": 0,
+  "migrated_vectors": 0,
+  "checksums": {},
+  "errors": [
+    "null value in column \"id\" of relation \"decisions\" violates not-null constraint\nDETAIL:  Failing row contains (null, city-san-rafael, 2025-11-12, a, Approve the City Council Governance, Agreements and Roles & Resp..., Approved: Approve the City Council Governance, Agreements and Ro..., approved, null, null, null, null, [\"governance\"], [\"/Users/nicolaslounsbury/projects/civic/data/pilot/minutes_cach..., simple, 2025-12-27 09:27:07.421425, 2025-12-27 09:27:07.421425, null).\n"
+  ],
+  "warnings": []
+}
