@@ -7280,3 +7280,45 @@ len(blob.list_keys("audio/city-san-rafael/"))  # Returns 19
 - Estimated cost: ~$46 total (~18 remaining × $2.40 avg per video)
 - Estimated time: ~2-3 hours (depends on AssemblyAI queue)
 
+
+## Session 397: etl_cost_provenance - Centralized ETL Cost Tracking
+
+**Date:** 2025-12-29
+**Item:** etl_cost_provenance (monitoring_observability > cost_tracking)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Implemented centralized cost tracking for ETL pipelines before running the $46 transcription job. Costs are now recorded in the `etl_costs` Postgres table with full audit trail.
+
+### Implementation
+
+1. **Added etl_costs table to PostgresBackend** (`packages/civic/src/civic/storage/postgres_backend.py`):
+   - Schema: `etl_costs(id, pipeline, jurisdiction_id, run_date, items_processed, cost_usd, duration_seconds, notes)`
+   - Foreign key to `city_states.jurisdiction_id`
+   - Indexes on jurisdiction_id, pipeline, run_date
+
+2. **Added cost tracking methods** (`postgres_backend.py:2326-2482`):
+   - `store_etl_cost(pipeline, jurisdiction_id, items_processed, cost_usd, duration_seconds, notes)` → returns cost_id
+   - `get_etl_costs(jurisdiction_id, pipeline, limit)` → returns list of cost records
+   - `get_etl_cost_summary(jurisdiction_id, pipeline)` → returns aggregate {total_cost_usd, total_items, run_count}
+
+3. **Integrated with transcribe.py** (`packages/civic-extraction/src/civic_extraction/cli/transcribe.py:758-779`):
+   - After successful transcriptions, calls `backend.store_etl_cost()` to record the run
+   - Logs the cost record ID for audit trail
+
+### Verification
+```python
+from civic.storage import get_storage_backend
+backend = get_storage_backend()
+cost_id = backend.store_etl_cost("test", "city-san-rafael", 1, 0.01)
+# Returns: 1
+costs = backend.get_etl_costs(pipeline="test")
+# Returns: [{'id': 1, 'pipeline': 'test', 'jurisdiction_id': 'city-san-rafael', ...}]
+summary = backend.get_etl_cost_summary(jurisdiction_id="city-san-rafael")
+# Returns: {'total_cost_usd': 0.01, 'total_items': 1, 'run_count': 1}
+```
+
+### Next P0: transcripts_e2e_cloud
+- Run: civic-extract transcribe --jurisdiction city-san-rafael --cloud
+- Estimated cost: ~$46 total (~18 remaining × $2.40 avg per video)
+- Cost tracking now in place to monitor spend
