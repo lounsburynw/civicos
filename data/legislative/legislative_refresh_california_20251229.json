@@ -1,0 +1,14 @@
+{
+  "state": "california",
+  "topics": [
+    "housing"
+  ],
+  "days_back": 90,
+  "refreshed_at": "2025-12-29T16:32:51.430720",
+  "total_bills_filtered": 5,
+  "results_by_topic": {
+    "housing": {
+      "bills_filtered": 5
+    }
+  }
+}
