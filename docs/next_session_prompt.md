@@ -1,71 +1,78 @@
-# Recommended: transcripts_e2e_cloud
+# Recommended: audio_e2e_cloud
 
 **Priority:** P0
 **Area:** pilot_validation > e2e_cloud_data_verification
 **Date:** 2025-12-29
 
-> This is recommended context from Session 394. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 395. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 394 completed chunks_extraction_reliability by adding timeout protection to PDF parsing. The chunks pipeline now completes in ~2 minutes (was 2+ hours). 34/46 meetings have chunks in cloud. The next step is transcripts - currently 0 transcripts in cloud storage.
+Session 395 discovered that audio files were NOT in R2 (handoff from Session 394 was incorrect). Fixed `transcribe.py` to detect R2 audio directly. Validated the full pipeline by downloading 3 audio files to R2 and transcribing 1 meeting successfully. The next step is uploading the remaining 14 audio files to R2, then running full transcription.
 
-## Current Cloud Data Status
+## Current Data Status
 
 | Data Type | Cloud Count | Status |
 |-----------|-------------|--------|
-| Meetings | 46 | ready |
-| Issues | 1,330 | ready |
-| Agenda Items | 44 | ready |
-| Decisions | 44 | ready |
-| Chunks | ~4,800 (34/46 meetings) | ready |
-| **Transcripts** | **0** | **not_ready** |
+| Audio files | **3/19** | **not_ready** |
+| Transcripts | 1/19 | blocked on audio |
 
 ## Recommended Task
 
-Run the transcript extraction pipeline using AssemblyAI to populate cloud storage with meeting transcripts. Audio files are in R2 blob storage.
+Upload remaining 14 audio files from YouTube to R2 blob storage. This unblocks `transcripts_e2e_cloud`.
 
-**Cost Warning:** AssemblyAI costs $0.02/minute (~$2.40 per 2-hour meeting). Check how many audio files exist before running full extraction.
+**Time Warning:** Audio download takes ~3 min per video. 14 videos = ~45 minutes.
 
 ## Key Files
 
-- `packages/civic-extraction/src/civic_extraction/cli/transcribe.py` - Transcript CLI
-- `packages/civic/src/civic/storage/postgres_backend.py` - store_transcripts()
+- `packages/civic-extraction/src/civic_extraction/cli/audio.py` - Audio download CLI
+- `packages/civic-extraction/src/civic_extraction/cli/transcribe.py:221-270` - Fixed find_audio_files()
+- `data/city_san_rafael_videos.json` - Source video list (19 videos)
+
+## Prerequisites
+
+- YouTube cookies at `~/Downloads/www.youtube.com_cookies.txt` (required for downloads)
+- Verify cookies exist before running
 
 ## Suggested Approach
 
-1. **Check audio file count and estimate cost:**
+1. **Verify cookies and dry-run:**
 ```bash
 source civic-env/bin/activate
+ls -la ~/Downloads/www.youtube.com_cookies.txt
+civic-extract audio --jurisdiction city-san-rafael --cloud --dry-run
+```
+
+2. **Run full audio download (background recommended):**
+```bash
+civic-extract audio --jurisdiction city-san-rafael --cloud
+```
+This will resume from checkpoint (already have 3/19).
+
+3. **Verify audio in R2:**
+```bash
+python3 -c "
+from civic.storage import get_blob_storage
+blob = get_blob_storage()
+print(len(blob.list_keys('audio/city-san-rafael/')), 'audio files in R2')
+"
+```
+
+4. **Once audio complete, run transcription (P1 next):**
+```bash
 civic-extract transcribe --jurisdiction city-san-rafael --cloud --dry-run
-```
-
-2. **Run small batch first to verify pipeline:**
-```bash
-civic-extract transcribe --jurisdiction city-san-rafael --cloud --limit 3
-```
-
-3. **If pipeline works, run full extraction:**
-```bash
 civic-extract transcribe --jurisdiction city-san-rafael --cloud
 ```
-
-## Environment Requirements
-
-- `ASSEMBLYAI_API_KEY` - Required for transcription
-- `DATABASE_URL` - For cloud storage
-- `R2_*` credentials - For audio file access
+Estimated cost: ~$46 total (19 videos × ~$2.40 avg)
 
 ## Success Criteria
 
-- [ ] Dry-run shows audio files available in R2
-- [ ] Small batch (3 videos) transcribes successfully
-- [ ] Transcripts stored in cloud (verify with SQL count)
-- [ ] Cost is reasonable (<$50 for pilot data)
+- [ ] All 19 audio files in R2
+- [ ] Mark `audio_e2e_cloud` as ready
+- [ ] Set `transcripts_e2e_cloud` as next P0
 
 ## Notes
 
-- Audio is stored in R2 blob storage (DO NOT use local files)
-- The transcribe CLI has `--cloud` flag similar to chunks
-- Consider timeout handling if large audio files cause issues (apply same pattern as chunks)
-- Check if ASSEMBLYAI_API_KEY is set before running
+- Session 395 fixed transcribe.py to detect R2 audio directly (line 250-264)
+- Audio downloads can be rate-limited by YouTube - run during off-peak if issues
+- Checkpoint file tracks progress: `data/checkpoints/audio_city-san-rafael.json`
