@@ -1,75 +1,44 @@
-# Recommended: data_refresh_strategy (Modal Vector Indexing)
+# Session 409 Context
 
-**Priority:** P0
-**Area:** pilot_validation > e2e_cloud_data_verification
+**Priority:** Set new P0 in pilot.json
 **Date:** 2025-12-30
 
-## Context
+## Session 408 Completed
 
-Session 407 set up Modal for high-memory vector indexing (16GB RAM) to solve GitHub Actions memory limits.
+1. **Fixed Modal vector indexing** - Used `add_local_python_source()`, added `ivfflat.probes = 10`
+2. **Created corpus_types.py** - Single source of truth at `packages/civic/src/civic/storage/corpus_types.py`
+3. **Indexed all legislation** - CA (2,839) + US federal (12,355) bills
+4. **Added cost tracking** - Modal script logs estimated costs
 
-**Completed:**
-- Created `scripts/modal_vectors.py` with proper Modal functions
-- Created Modal secrets: `civic-db` (DATABASE_URL) and `civic-github` (GITHUB_TOKEN)
-- Added `--offset` and `--limit` flags to CLI for splitting jobs
+## Vector Index Status (All Complete)
 
-**Left to do:**
-1. Update `scripts/modal_vectors.py` to use GitHub token for private repo access
-2. Run `modal run scripts/modal_vectors.py --stats-only` to test
-3. Run `modal run scripts/modal_vectors.py` to index all 8,839 docs
-4. Verify search works
-5. Mark `data_refresh_strategy` as ready
+| Corpus | Jurisdiction | Count |
+|--------|--------------|-------|
+| chunks | city-san-rafael | 5,084 |
+| decisions | city-san-rafael | 44 |
+| meetings | city-san-rafael | 46 |
+| municipal_code | city-san-rafael | 2,366 |
+| issues | city-san-rafael | 1,330 |
+| legislation | state-CA | 2,839 |
+| legislation | state-US | 12,355 |
 
-## Code Change Needed
+**Total: 24,064 vectors** (nomic-embed-text-v1.5)
 
-Update `scripts/modal_vectors.py` to use GitHub token:
+## Incomplete: corpus_types Refactor
 
-```python
-civic_image = (
-    modal.Image.debian_slim(python_version="3.11")
-    .apt_install("libpq-dev", "gcc", "git")
-    .pip_install(
-        "psycopg2-binary>=2.9.0",
-        "fastembed>=0.3.0",
-        "numpy<2",
-    )
-    .run_commands(
-        "pip install git+https://${GITHUB_TOKEN}@github.com/lounsburynw/civic.git#subdirectory=packages/civic",
-        "pip install git+https://${GITHUB_TOKEN}@github.com/lounsburynw/civic.git#subdirectory=packages/civic-extraction",
-        secrets=[modal.Secret.from_name("civic-github")],
-    )
-)
-```
+`corpus_types.py` created but not integrated. To complete (P2):
+1. Update `pgvector_backend.py` to use `CORPUS_REGISTRY`
+2. Update `unified.py` to import from `corpus_types.py`
+3. Update CLI to use `get_corpus_type_names()`
 
-## Commands to Run
+## Key Files Changed
 
-```bash
-# Test Modal setup
-modal run scripts/modal_vectors.py --stats-only
+- `scripts/modal_vectors.py` - Cost tracking, legislation, postgres backend
+- `packages/civic/src/civic/storage/pgvector_backend.py` - ivfflat fix, legislation stats
+- `packages/civic/src/civic/storage/corpus_types.py` - NEW
 
-# Run full indexing (all corpus types)
-modal run scripts/modal_vectors.py
+## Next Steps
 
-# Or just chunks (the large one that failed on GitHub Actions)
-modal run scripts/modal_vectors.py --corpus chunks
-```
-
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `scripts/modal_vectors.py` | Modal function for vector indexing |
-| `packages/civic/src/civic/storage/pgvector_backend.py` | PgVectorBackend with offset/limit |
-| `packages/civic-extraction/src/civic_extraction/cli/vectors.py` | CLI with --offset/--limit |
-| `.github/workflows/vector-refresh.yml` | GitHub Actions (fallback for small corpus) |
-
-## Vector Stats (Current)
-
-| Corpus | Total | Indexed | Status |
-|--------|-------|---------|--------|
-| chunks | 5,084 | ~0 | Needs indexing |
-| municipal_code | 2,366 | 2,366 | Done |
-| issues | 1,330 | ~630 | Partial |
-| meetings | 46 | 46 | Done |
-| decisions | 44 | 44 | Done |
-| transcripts | 13 | 0 | No text |
+1. Run `/start` - No P0 currently set
+2. Check `pilot.json` for remaining not_ready items
+3. Consider corpus_types refactor or other pilot work
