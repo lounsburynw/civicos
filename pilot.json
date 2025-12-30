@@ -1765,10 +1765,10 @@
       "vectors_e2e_cloud": {
         "status": "not_ready",
         "priority": 0,
-        "artifact": "Vector indexes built in pgvector FROM cloud SQL data (not migrated)",
-        "target_count": "Indexes for: chunks, decisions, issues, municipal_code, transcripts, legislation",
-        "verification": "civic-extract vectors --stats --cloud",
-        "note": "Run AFTER all SQL data is ingested. Uses PgVectorBackend.index_from_storage() to embed from Postgres. DO NOT migrate ChromaDB vectors. Session 402: legislation vectors done (2,839 indexed)."
+        "artifact": "Remote compute for portable vector ETL with configurable embedding providers",
+        "target_count": "Indexes for: chunks, decisions, issues, municipal_code, transcripts (8,839 docs)",
+        "verification": "civic-extract vectors --provider openai --stats shows 100% coverage",
+        "note": "Session 405 pivot: Local sentence-transformers not portable for CI/CD or scheduled jobs. Need remote embedding API support (OpenAI, Voyage, Cohere) for portable ETL. Add --provider flag to CLI. Keep local as default for dev, remote for production refresh pipelines."
       },
       "api_reads_from_cloud": {
         "status": "ready",
