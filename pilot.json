@@ -781,6 +781,13 @@
         "completed": "2025-12-22",
         "note": "Session 348: Added embedding_model and embedding_dimension properties to VectorBackend protocol. Created PgVectorBackend stub (NotImplementedError) for future PostgreSQL+pgvector migration. Added 8 new tests for protocol compliance."
       },
+      "vector_backend_unification": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "CivicEmbeddings delegates to VectorBackend protocol (pgvector or ChromaDB)",
+        "note": "Session 411: Transcripts indexed in pgvector but Civic API uses CivicEmbeddings (ChromaDB). Need to unify: CivicEmbeddings should delegate to VectorBackend, selecting PgVectorBackend when DATABASE_URL set, else ChromaDB. This will make what_was_said() work with pgvector transcripts.",
+        "test_file": "packages/civic/tests/test_integration_rag_san_rafael.py"
+      },
       "shared_config_package": {
         "status": "not_ready",
         "priority": 3,
@@ -1042,11 +1049,11 @@
     },
     "transcript_backlog": {
       "transcript_data_complete": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "All San Rafael videos transcribed and indexed for RAG",
-        "manual_step": "Run civic-extract audio/transcribe/vectors pipeline (use --provider nomic for vectors)",
-        "note": "Session 410: Infrastructure ready, need to run pipeline. ~$6 for remaining videos. Use nomic AI for vector indexing."
+        "completed": "2025-12-30",
+        "note": "Session 411: 19/19 videos transcribed ($40.20 total), indexed in pgvector with nomic-embed-text-v1.5 (768 dims). Fixed _transcript_to_text to read top-level text field."
       },
       "batch_transcription": {
         "status": "ready",
