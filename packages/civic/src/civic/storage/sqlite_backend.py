@@ -862,6 +862,7 @@ class SQLiteBackend:
         jurisdiction_id: str,
         chunks: List[Dict[str, Any]],
         as_of: Optional[datetime] = None,
+        meeting_id: Optional[str] = None,
     ) -> int:
         """
         Store PDF chunks with temporal versioning.
@@ -873,6 +874,7 @@ class SQLiteBackend:
             jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
             chunks: List of chunk dictionaries with text, agenda_item, etc.
             as_of: Timestamp for temporal versioning (default: now)
+            meeting_id: Optional meeting ID to associate chunks with
 
         Returns:
             Number of chunks successfully stored
@@ -1388,6 +1390,97 @@ class SQLiteBackend:
     def get_municipal_code_count(self, jurisdiction_id: str) -> int:
         """
         Get municipal code count (stub for SQLite - uses Postgres in production).
+
+        Returns:
+            0 (SQLite stub)
+        """
+        return 0
+
+    # ========== Video Methods (SESSION 410 - Protocol Compliance) ==========
+
+    def store_videos(
+        self,
+        jurisdiction_id: str,
+        videos: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store videos (stub for SQLite - uses Postgres in production).
+
+        Returns:
+            0 (SQLite stub)
+        """
+        return 0
+
+    def get_videos(
+        self,
+        jurisdiction_id: str,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get videos (stub for SQLite - uses Postgres in production).
+
+        Returns:
+            Empty list (SQLite stub)
+        """
+        return []
+
+    def get_video_count(self, jurisdiction_id: str) -> int:
+        """
+        Get video count (stub for SQLite - uses Postgres in production).
+
+        Returns:
+            0 (SQLite stub)
+        """
+        return 0
+
+    # ========== Transcript Methods (SESSION 410 - Protocol Compliance) ==========
+
+    def store_transcripts(
+        self,
+        jurisdiction_id: str,
+        transcripts: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store transcripts (stub for SQLite - uses Postgres in production).
+
+        Returns:
+            0 (SQLite stub)
+        """
+        return 0
+
+    def get_transcripts(
+        self,
+        jurisdiction_id: str,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get transcripts (stub for SQLite - uses Postgres in production).
+
+        Returns:
+            Empty list (SQLite stub)
+        """
+        return []
+
+    def get_transcript(
+        self,
+        video_id: str,
+        as_of: Optional[datetime] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get specific transcript (stub for SQLite - uses Postgres in production).
+
+        Returns:
+            None (SQLite stub)
+        """
+        return None
+
+    def get_transcript_count(self, jurisdiction_id: str) -> int:
+        """
+        Get transcript count (stub for SQLite - uses Postgres in production).
 
         Returns:
             0 (SQLite stub)

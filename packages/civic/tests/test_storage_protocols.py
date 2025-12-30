@@ -323,6 +323,7 @@ class TestStorageBackendProtocol:
                 jurisdiction_id: str,
                 chunks: List[Dict[str, Any]],
                 as_of: Optional[datetime] = None,
+                meeting_id: Optional[str] = None,
             ) -> int:
                 return len(chunks)
 
@@ -363,6 +364,82 @@ class TestStorageBackendProtocol:
             def get_issue_count(
                 self, jurisdiction_id: str, provider: Optional[str] = None
             ) -> int:
+                return 0
+
+            # Municipal code methods
+            def store_municipal_code(
+                self,
+                jurisdiction_id: str,
+                sections: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(sections)
+
+            def get_municipal_code(
+                self,
+                jurisdiction_id: str,
+                chapter: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_municipal_code_section(
+                self,
+                jurisdiction_id: str,
+                section_number: str,
+                as_of: Optional[datetime] = None,
+            ) -> Optional[Dict[str, Any]]:
+                return None
+
+            def get_municipal_code_count(self, jurisdiction_id: str) -> int:
+                return 0
+
+            # Video methods
+            def store_videos(
+                self,
+                jurisdiction_id: str,
+                videos: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(videos)
+
+            def get_videos(
+                self,
+                jurisdiction_id: str,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_video_count(self, jurisdiction_id: str) -> int:
+                return 0
+
+            # Transcript methods
+            def store_transcripts(
+                self,
+                jurisdiction_id: str,
+                transcripts: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(transcripts)
+
+            def get_transcripts(
+                self,
+                jurisdiction_id: str,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_transcript(
+                self,
+                video_id: str,
+                as_of: Optional[datetime] = None,
+            ) -> Optional[Dict[str, Any]]:
+                return None
+
+            def get_transcript_count(self, jurisdiction_id: str) -> int:
                 return 0
 
         mock = MockStorageBackend()
@@ -721,6 +798,7 @@ class TestProtocolIntegration:
                 jurisdiction_id: str,
                 chunks: List[Dict[str, Any]],
                 as_of: Optional[datetime] = None,
+                meeting_id: Optional[str] = None,
             ) -> int:
                 return len(chunks)
 
@@ -761,6 +839,82 @@ class TestProtocolIntegration:
             def get_issue_count(
                 self, jurisdiction_id: str, provider: Optional[str] = None
             ) -> int:
+                return 0
+
+            # Municipal code methods
+            def store_municipal_code(
+                self,
+                jurisdiction_id: str,
+                sections: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(sections)
+
+            def get_municipal_code(
+                self,
+                jurisdiction_id: str,
+                chapter: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_municipal_code_section(
+                self,
+                jurisdiction_id: str,
+                section_number: str,
+                as_of: Optional[datetime] = None,
+            ) -> Optional[Dict[str, Any]]:
+                return None
+
+            def get_municipal_code_count(self, jurisdiction_id: str) -> int:
+                return 0
+
+            # Video methods
+            def store_videos(
+                self,
+                jurisdiction_id: str,
+                videos: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(videos)
+
+            def get_videos(
+                self,
+                jurisdiction_id: str,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_video_count(self, jurisdiction_id: str) -> int:
+                return 0
+
+            # Transcript methods
+            def store_transcripts(
+                self,
+                jurisdiction_id: str,
+                transcripts: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(transcripts)
+
+            def get_transcripts(
+                self,
+                jurisdiction_id: str,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_transcript(
+                self,
+                video_id: str,
+                as_of: Optional[datetime] = None,
+            ) -> Optional[Dict[str, Any]]:
+                return None
+
+            def get_transcript_count(self, jurisdiction_id: str) -> int:
                 return 0
 
         @dataclass
