@@ -1,116 +1,134 @@
-# Recommended: federal_legislation_e2e_cloud
+# Recommended: vectors_e2e_cloud (Remote Embedding Support)
 
 **Priority:** P0
 **Area:** pilot_validation > e2e_cloud_data_verification
 **Date:** 2025-12-29
 
-> This is recommended context from Session 403. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 405. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 402 completed CA state legislation ingestion (2,839 bills via bulk LegiScan API). Now we need to ingest **federal legislation** affecting local governance using the same infrastructure.
+Session 405 identified that local `sentence-transformers` embedding is not portable for production ETL:
+- Requires ML environment (sentence-transformers, torch) everywhere it runs
+- Can't run in lightweight CI/CD, GitHub Actions, or serverless
+- Need remote embedding API support for portable refresh pipelines
 
-## What Already Exists
+## Current State
 
-### 1. LegiScan API Client
-`packages/civic-services/src/civic_services/clients/legiscan_client.py`
-- Free tier: 30,000 queries/month
-- Methods: `get_master_list(state)` - **Use `state='US'` for Congress**
-- Session 402 used bulk approach: 1 API call gets all bills for a session
+**Vector stats (San Rafael):**
+| Corpus | To Index | Status |
+|--------|----------|--------|
+| chunks | 5,040 | 0.9% coverage |
+| municipal_code | 2,366 | 0% |
+| issues | 1,330 | 0% |
+| meetings | 46 | 0% |
+| decisions | 44 | 0% |
+| transcripts | 13 | 0% |
+| **Total** | **8,839** | |
 
-### 2. Legislative CLI with Cloud Support
-`packages/civic-extraction/src/civic_extraction/cli/legislative.py`
-```bash
-civic-extract legislative --bulk --cloud           # Bulk ingest all bills
-civic-extract legislative --migrate-json --cloud   # Migrate curated JSON
-```
-
-### 3. Postgres Infrastructure (Ready)
-- `legislation` table exists with temporal versioning
-- `store_legislation()` / `get_legislation()` methods work
-- pgvector indexing works for legislation corpus
-
-### 4. CA Legislation Complete
-```sql
-SELECT COUNT(*) FROM legislation WHERE state = 'CA'
--- Returns: 2,839
-```
+**Current embedding model:** `nomic-ai/nomic-embed-text-v1.5` (768 dims, local)
 
 ## Task
 
-Ingest federal legislation to Postgres `legislation` table using `state='US'`.
+Add configurable embedding provider support to `civic-extract vectors` CLI:
 
-## Key Federal Programs for Local Governance
-
-Target legislation affecting municipalities:
-- **CDBG** - Community Development Block Grant
-- **HUD programs** - Housing and Urban Development
-- **IIJA** - Infrastructure Investment and Jobs Act
-- **IRA** - Inflation Reduction Act (climate/energy provisions)
-- **ARP** - American Rescue Plan (local fiscal recovery)
-
-## Suggested Approach
-
-### Option A: Bulk Ingestion (Recommended)
-Modify CLI to support federal bills:
 ```bash
-civic-extract legislative --bulk --cloud --state US
+# Local (default, for dev)
+civic-extract vectors --jurisdiction city-san-rafael --corpus all
+
+# Remote (for production/CI)
+civic-extract vectors --jurisdiction city-san-rafael --corpus all --provider openai
+civic-extract vectors --jurisdiction city-san-rafael --corpus all --provider voyage
 ```
-
-The existing `--bulk` mode calls `get_master_list(state)` which should work with `state='US'` for Congress.
-
-### Option B: Targeted Ingestion
-Search for specific federal programs:
-```bash
-civic-extract legislative --topic "CDBG" --cloud --state US
-civic-extract legislative --topic "infrastructure" --cloud --state US
-```
-
-### Implementation Steps
-
-1. **Update CLI** to accept `--state` parameter (default: CA)
-2. **Test LegiScan API** with `state='US'` to verify it returns Congress bills
-3. **Run bulk ingestion**: `civic-extract legislative --bulk --cloud --state US`
-4. **Verify**: `SELECT COUNT(*) FROM legislation WHERE state = 'US'`
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `packages/civic-extraction/src/civic_extraction/cli/legislative.py` | Add `--state` parameter |
-| `packages/civic-services/src/civic_services/clients/legiscan_client.py` | LegiScan API client |
-| `packages/civic/src/civic/storage/postgres_backend.py` | Already has legislation storage |
+| `packages/civic-extraction/src/civic_extraction/cli/vectors.py` | Add `--provider` flag |
+| `packages/civic/src/civic/storage/pgvector_backend.py` | Abstract embedding generation |
+| `packages/civic/src/civic/embeddings/` | May need new provider abstraction |
 
-## API Consideration
+## Suggested Approach
 
-LegiScan free tier: 30,000 queries/month
-- CA bulk ingestion used ~1 query (master list)
-- US Congress bulk should also be ~1 query
-- Budget is fine
+### 1. Use Hosted Open-Source Models (Preferred)
 
-## Verification
+Keep using `nomic-embed-text-v1.5` but run it remotely for portability:
 
-```sql
--- Check federal legislation count
-SELECT COUNT(*) FROM legislation WHERE state = 'US'
+| Provider | Model | Cost | Notes |
+|----------|-------|------|-------|
+| **Hugging Face Inference API** | nomic-ai/nomic-embed-text-v1.5 | Free tier, then ~$0.06/1M chars | Same model, hosted |
+| **Together AI** | togethercomputer/m2-bert-80M-8k-retrieval | ~$0.008/1M tokens | Fast, cheap |
+| **Modal** | Any sentence-transformers | ~$0.10/hr GPU | Serverless, flexible |
 
--- Check key programs exist
-SELECT bill_number, bill_name FROM legislation
-WHERE state = 'US' AND (
-  summary ILIKE '%CDBG%' OR
-  summary ILIKE '%community development block%' OR
-  summary ILIKE '%infrastructure%'
-)
-LIMIT 10
+**Recommendation:** Hugging Face Inference API - same model, free tier, no dimension mismatch.
+
+### 2. Abstract Embedding Provider
+
+```python
+class EmbeddingProvider(Protocol):
+    def embed(self, texts: list[str]) -> list[list[float]]: ...
+
+class LocalEmbedding:
+    """sentence-transformers locally (default for dev)"""
+    def embed(self, texts):
+        return self.model.encode(texts)
+
+class HuggingFaceEmbedding:
+    """Same nomic model via HF Inference API (portable)"""
+    def embed(self, texts):
+        response = requests.post(
+            "https://api-inference.huggingface.co/models/nomic-ai/nomic-embed-text-v1.5",
+            headers={"Authorization": f"Bearer {HF_TOKEN}"},
+            json={"inputs": texts}
+        )
+        return response.json()
 ```
+
+### 3. Update CLI
+
+```python
+parser.add_argument(
+    "--provider",
+    choices=["local", "huggingface", "together", "openai"],
+    default="local",
+    help="Embedding provider (default: local, use huggingface for CI/CD)"
+)
+```
+
+### 4. Environment Variables
+
+```bash
+HF_TOKEN=hf_...            # For --provider huggingface (free tier available)
+TOGETHER_API_KEY=...       # For --provider together
+OPENAI_API_KEY=sk-...      # For --provider openai (fallback)
+```
+
+### 5. Cost Estimation
+
+For ~9k documents at ~500 tokens avg:
+- **Hugging Face (nomic)**: Free tier likely covers it, then ~$0.03
+- **Together AI**: ~$0.04
+- **Local**: $0 but not portable
+
+All well within <$7/month constraint.
+
+## Why Open-Source Remote is Better
+
+1. **Same embeddings everywhere** - 768 dims, no mismatch between dev/prod
+2. **No vendor lock-in** - model is open, just compute is hosted
+3. **Consistent search quality** - identical results in CI vs local
+4. **Future-proof** - can swap to newer open-source models easily
 
 ## Success Criteria
 
-- [ ] CLI accepts `--state US` parameter
-- [ ] Federal bills ingested to Postgres with `state='US'`
-- [ ] Key programs (CDBG, HUD, IIJA) are findable
-- [ ] Mark `federal_legislation_e2e_cloud` as ready in pilot.json
+- [ ] `--provider` flag added to vectors CLI
+- [ ] OpenAI embedding provider implemented
+- [ ] Local remains default (no breaking change)
+- [ ] All 8,839 docs indexed with remote provider
+- [ ] Search works with new embeddings
+- [ ] Mark `vectors_e2e_cloud` as ready
 
-## After This: vectors_e2e_cloud (P1)
+## After This
 
-Once federal legislation is complete, the next priority is building vector indexes for remaining corpus types (chunks, decisions, issues, municipal_code, transcripts). Legislation vectors are already done.
+Once remote embedding works, the `data_refresh_strategy` item becomes unblocked - can document how to run vector refresh from GitHub Actions or cron.

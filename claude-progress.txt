@@ -7467,3 +7467,30 @@ vectors_e2e_cloud - Build remaining vector indexes for corpus types (chunks, dec
 
 ### Files changed
 - pilot.json (federal_legislation_e2e_cloud ready, vectors_e2e_cloud P0)
+
+## Session 405 - 2025-12-29
+
+### Strategic pivot: Remote compute for portable vector ETL
+
+**Started:** vectors_e2e_cloud (P0)
+**Outcome:** Pivoted to remote embedding support before indexing
+
+### Analysis
+- Current local embedding (nomic-embed-text-v1.5) requires sentence-transformers installed everywhere
+- Not portable for CI/CD, GitHub Actions, or scheduled refresh jobs
+- ~8,839 documents need indexing across 6 corpus types
+
+### Decision
+Add configurable embedding provider support:
+- `--provider local` (default, dev)
+- `--provider openai` (production, portable)
+- `--provider voyage` (alternative)
+
+Cost estimate: ~$0.09 for full corpus with OpenAI text-embedding-3-small
+
+### Files changed
+- pilot.json (vectors_e2e_cloud updated for remote compute requirement)
+- docs/next_session_prompt.md (detailed implementation context)
+
+### Next P0
+vectors_e2e_cloud - Implement remote embedding provider abstraction
