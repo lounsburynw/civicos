@@ -1,63 +1,106 @@
-# Session 410 Context
+# Session 412 Context
 
-**Priority:** Fix StorageBackend protocol gaps
+**Priority:** VectorBackend Unification
 **Date:** 2025-12-30
 
-## Session 409 Completed
+## Session 411 Completed
 
-1. **Content hashing for data integrity** - Created `integrity.py` with SHA-256 hashing
-2. **PostgresBackend updates** - `store_transcripts()`, `store_chunks()`, `store_decisions()` now compute content_hash
-3. **32 new tests** for integrity module
-4. **Pilot progress** - 209/230 items ready (90%)
+1. **All 19 San Rafael transcripts complete** - $40.20 total transcription cost
+2. **Transcripts indexed in pgvector** - Using nomic-embed-text-v1.5 (768 dims)
+3. **Fixed `_transcript_to_text()`** - Now reads top-level `text` field from transcript documents
+4. **Fixed timezone issue** - Manually-inserted transcripts had UTC timestamps; re-stored through proper `store_transcripts()` pipeline
+5. **Added `content_hash` column** to transcripts table
 
-## Urgent: StorageBackend Protocol Fix
+## P0: VectorBackend Unification
 
-The protocol critic identified gaps between `StorageBackend` protocol and implementations:
+**Problem:** Transcripts are indexed in pgvector, but the Civic API (`what_was_said()`) uses ChromaDB via `CivicEmbeddings`. They're not connected.
 
-### Issue 1: `store_chunks()` signature mismatch
-**File:** `packages/civic/src/civic/storage/backend.py` (line 396-415)
-- Protocol: `store_chunks(jurisdiction_id, chunks, as_of=None)`
-- PostgresBackend: `store_chunks(jurisdiction_id, chunks, as_of=None, meeting_id=None)`
-- **Fix:** Add `meeting_id: Optional[str] = None` to protocol
+**Current Architecture (broken):**
+```
+Civic.what_was_said()
+  -> history._search_transcripts()
+    -> CivicEmbeddings.search_transcripts()  # Uses ChromaDB!
 
-### Issue 2: Transcript methods missing from protocol
-**File:** `packages/civic/src/civic/storage/backend.py`
-- PostgresBackend has: `store_transcripts()`, `get_transcripts()`, `get_transcript()`, `get_transcript_count()`
-- Protocol has: NONE
-- `corpus_types.py` references `get_transcripts` - so protocol needs these
-- **Fix:** Add transcript methods section to protocol (similar to Chunks/Decisions sections)
+civic-extract vectors
+  -> PgVectorBackend.index_from_storage()  # Uses pgvector
+```
 
-### Issue 3: Video methods missing from protocol
-- PostgresBackend has: `store_videos()`, `get_videos()`, `get_video_count()`
-- Protocol has: NONE
-- Videos are source data for transcripts
-- **Fix:** Add video methods section to protocol
+**Target Architecture:**
+```
+┌─────────────────────────────────────────────────────────┐
+│  Civic API (what_was_said, what_happened, etc.)         │
+└─────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│  CivicEmbeddings (facade)                               │
+│  - Jurisdiction-specific config                         │
+│  - Collection naming conventions                        │
+│  - Delegates to VectorBackend                           │
+└─────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│  VectorBackend (protocol) - already exists!             │
+│  ├── PgVectorBackend  (when DATABASE_URL set)           │
+│  └── ChromaDBBackend  (local development fallback)      │
+└─────────────────────────────────────────────────────────┘
+```
 
 ### Implementation Steps
 
-1. Read `packages/civic/src/civic/storage/backend.py` (the protocol)
-2. Read PostgresBackend methods for transcripts (lines 1949-2165) and videos (lines 1786-1924)
-3. Add to protocol:
-   - `meeting_id` param to `store_chunks()`
-   - Video methods section (store_videos, get_videos, get_video_count)
-   - Transcript methods section (store_transcripts, get_transcripts, get_transcript, get_transcript_count)
-4. Update SQLiteBackend with stubs if needed (or raise NotImplementedError)
-5. Run protocol tests: `pytest packages/civic/tests/test_storage_protocols.py -v`
+1. **Read existing code:**
+   - `packages/civic/src/civic/storage/vector.py` - VectorBackend protocol (lines 131-280)
+   - `packages/civic/src/civic/storage/pgvector_backend.py` - PgVectorBackend implementation
+   - `packages/civic/src/civic/_internal/meetings/embeddings.py` - CivicEmbeddings (ChromaDB)
+   - `packages/civic/src/civic/history.py` - `_search_transcripts()` (lines 467-577)
 
-## After Protocol Fix
+2. **Create factory function** in `storage/vector.py`:
+   ```python
+   def get_vector_backend(jurisdiction_id: str) -> VectorBackend:
+       """Return PgVectorBackend if DATABASE_URL set, else ChromaDBBackend."""
+   ```
 
-**P0:** `cost_dashboard` - Admin dashboard showing cumulative ETL costs
+3. **Update CivicEmbeddings** to delegate to VectorBackend:
+   - `search_transcripts()` -> `vector_backend.search(corpus_type="transcripts")`
+   - Keep jurisdiction-specific config logic
 
-## Transcript Status
+4. **Update history._search_transcripts()** to use the factory or updated CivicEmbeddings
 
-We have transcript infrastructure but NO transcript data yet:
-- `transcribe.py` CLI exists but hasn't been run
-- No videos discovered/transcribed for San Rafael yet
-- This is a future pipeline run, not blocking
+5. **Run tests:**
+   ```bash
+   pytest packages/civic/tests/test_integration_rag_san_rafael.py -v --override-ini="addopts="
+   ```
 
-## Key Files
+### Key Files
 
-- `packages/civic/src/civic/storage/backend.py` - Protocol definition
-- `packages/civic/src/civic/storage/postgres_backend.py` - Reference implementation
-- `packages/civic/src/civic/storage/sqlite_backend.py` - Dev implementation (needs stubs)
-- `packages/civic/tests/test_storage_protocols.py` - Protocol tests
+| File | Purpose |
+|------|---------|
+| `storage/vector.py` | VectorBackend protocol - add factory function here |
+| `storage/pgvector_backend.py` | Production implementation (already works) |
+| `_internal/meetings/embeddings.py` | CivicEmbeddings - needs to delegate |
+| `history.py` | API layer - uses CivicEmbeddings |
+
+### Verification
+
+After refactor, this should work:
+```python
+from civic import Civic
+c = Civic("san-rafael")
+excerpts = c.what_was_said("homeless shelter")
+assert len(excerpts) > 0  # Currently fails, should pass
+```
+
+## Session 411 Stats
+
+- Pilot: 210/231 items ready (91%)
+- Transcription cost: $40.20 (19 videos, ~7337 utterances, 287k words)
+- Vector index: 19 transcripts in pgvector
+
+## Data State
+
+| Data Type | Count | Location |
+|-----------|-------|----------|
+| Audio files | 19/19 | R2 cloud storage |
+| Transcripts | 19/19 | Postgres `transcripts` table |
+| Transcript vectors | 19/19 | Postgres `pgvector_embeddings` table |

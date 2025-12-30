@@ -448,19 +448,29 @@ class PgVectorBackend:
         if transcript.get("video_title"):
             parts.append(f"Title: {transcript['video_title']}")
 
-        # Extract text from transcript structure
-        transcript_data = transcript.get("transcript", {})
-        if isinstance(transcript_data, dict):
-            text = transcript_data.get("text", "")
-            if text:
-                # Truncate very long transcripts for embedding
-                # (full text still stored in metadata)
-                max_chars = 8000  # ~2000 tokens for embedding
-                if len(text) > max_chars:
-                    text = text[:max_chars] + "..."
-                parts.append(text)
-        elif isinstance(transcript_data, str):
-            parts.append(transcript_data[:8000])
+        # First check for top-level text field (from store_transcripts)
+        text = transcript.get("text", "")
+
+        # Fall back to nested transcript structure
+        if not text:
+            transcript_data = transcript.get("transcript", {})
+            if isinstance(transcript_data, dict):
+                text = transcript_data.get("text", "")
+                # If no text field, concatenate utterances
+                if not text and transcript_data.get("utterances"):
+                    text = " ".join(
+                        u.get("text", "") for u in transcript_data["utterances"]
+                    )
+            elif isinstance(transcript_data, str):
+                text = transcript_data
+
+        if text:
+            # Truncate very long transcripts for embedding
+            # (full text still stored in metadata)
+            max_chars = 8000  # ~2000 tokens for embedding
+            if len(text) > max_chars:
+                text = text[:max_chars] + "..."
+            parts.append(text)
 
         return "\n".join(parts) if parts else ""
 

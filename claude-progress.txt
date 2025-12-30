@@ -7636,3 +7636,40 @@ Fixed protocol conformance issues between `StorageBackend` protocol and implemen
 
 ### Next P0
 cost_dashboard - Admin dashboard showing cumulative ETL costs
+
+## Session 411 - 2025-12-30
+
+### Completed: transcript_data_complete (P0)
+
+**Transcription Pipeline:**
+- 19/19 San Rafael videos transcribed ($40.20 total)
+- All stored in Postgres `transcripts` table
+- Fixed timezone issue: re-stored 5 manually-inserted transcripts through proper pipeline
+
+**Vector Indexing:**
+- 19/19 transcripts indexed in pgvector
+- Using nomic-embed-text-v1.5 (768 dimensions)
+- Fixed `_transcript_to_text()` to read top-level `text` field (line 451-475)
+
+**Database Changes:**
+- Added `content_hash` column to transcripts table
+
+### Discovered Issue: VectorBackend Unification Needed
+
+Transcripts indexed in pgvector, but Civic API uses ChromaDB (CivicEmbeddings).
+These are disconnected - `what_was_said()` returns empty.
+
+**Added new P0:** `vector_backend_unification`
+- CivicEmbeddings should delegate to VectorBackend protocol
+- Factory selects PgVectorBackend (DATABASE_URL) or ChromaDB (local)
+
+### Changes
+- pilot.json: transcript_data_complete -> ready, added vector_backend_unification (P0)
+- pgvector_backend.py: Fixed _transcript_to_text() to read top-level text field
+- docs/next_session_prompt.md: Updated for Session 412
+
+### Progress
+- Pilot: 210/231 items ready (91%)
+
+### Next P0
+vector_backend_unification - Unify CivicEmbeddings with VectorBackend protocol
