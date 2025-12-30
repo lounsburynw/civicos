@@ -474,6 +474,9 @@ def _search_transcripts(
     """
     Search video transcripts using vector embeddings for a jurisdiction.
 
+    Uses PgVectorBackend when DATABASE_URL is set (production), otherwise
+    falls back to ChromaDB via CivicEmbeddings (local development).
+
     Args:
         jurisdiction: Jurisdiction ID (e.g., "city-san-rafael")
         query: Search query
@@ -484,6 +487,22 @@ def _search_transcripts(
     Returns:
         List of TranscriptSearchResult objects
     """
+    # Try PgVectorBackend first (production path)
+    try:
+        from civic.storage import get_vector_backend
+        vector_backend = get_vector_backend()
+        if vector_backend is not None:
+            return _search_transcripts_pgvector(
+                vector_backend,
+                jurisdiction,
+                query,
+                top_k=top_k,
+            )
+    except Exception:
+        # Fall through to ChromaDB path
+        pass
+
+    # Fall back to ChromaDB via CivicEmbeddings (local development)
     try:
         from civic._internal.meetings.embeddings import CivicEmbeddings
     except ImportError:
@@ -528,6 +547,57 @@ def _search_transcripts(
             start_ms=r.metadata.get("start_ms", 0),
             end_ms=r.metadata.get("end_ms", 0),
             is_public_comment=r.metadata.get("is_public_comment", False),
+            score=r.score,
+        ))
+
+    return transcript_results
+
+
+def _search_transcripts_pgvector(
+    vector_backend,
+    jurisdiction: str,
+    query: str,
+    top_k: int = 5,
+) -> List[TranscriptSearchResult]:
+    """
+    Search transcripts using PgVectorBackend.
+
+    Internal helper for _search_transcripts when DATABASE_URL is set.
+    Converts SearchResult objects from VectorBackend to TranscriptSearchResult.
+
+    Args:
+        vector_backend: PgVectorBackend instance
+        jurisdiction: Jurisdiction ID
+        query: Search query
+        top_k: Maximum results
+
+    Returns:
+        List of TranscriptSearchResult objects
+    """
+    results = vector_backend.search(
+        query=query,
+        jurisdiction_id=jurisdiction,
+        corpus_type="transcripts",
+        top_k=top_k,
+    )
+
+    transcript_results = []
+    for r in results:
+        # Extract metadata from SearchResult
+        metadata = r.metadata or {}
+
+        transcript_results.append(TranscriptSearchResult(
+            id=r.id,
+            text=r.content,
+            speaker=metadata.get("speaker", "?"),
+            speaker_role=metadata.get("speaker_role"),
+            speaker_name=metadata.get("speaker_name"),
+            video_id=metadata.get("video_id", r.meeting_id or ""),
+            start_timestamp=metadata.get("start_timestamp", "00:00:00"),
+            end_timestamp=metadata.get("end_timestamp", ""),
+            start_ms=metadata.get("start_ms", 0),
+            end_ms=metadata.get("end_ms", 0),
+            is_public_comment=metadata.get("is_public_comment", False),
             score=r.score,
         ))
 
