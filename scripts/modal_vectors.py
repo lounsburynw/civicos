@@ -43,12 +43,14 @@ civic_image = (
         "psycopg2-binary>=2.9.0",
         "fastembed>=0.3.0",
         "numpy<2",  # fastembed compatibility
+        # civic package dependencies
+        "langgraph>=0.2.0",
+        "httpx>=0.24.0",
     )
+    # Add local civic packages (replaces deprecated Mount.from_local_python_packages)
+    # This syncs local source files to /root on container startup
+    .add_local_python_source("civic", "civic_extraction")
 )
-
-# Mount local civic packages into the container
-# This is more reliable than pip install from private GitHub
-civic_mount = modal.Mount.from_local_python_packages("civic", "civic_extraction")
 
 
 @app.function(
@@ -82,9 +84,11 @@ def index_corpus(
         reindex: If True, delete existing vectors first
 
     Returns:
-        Dict with results per corpus type
+        Dict with results per corpus type, including cost estimate
     """
     import logging
+    import time
+    start_time = time.time()
     import os
 
     logging.basicConfig(
@@ -103,8 +107,8 @@ def index_corpus(
     logger.info(f"Starting vector indexing: corpus={corpus}, jurisdiction={jurisdiction}")
     logger.info(f"Parameters: batch_size={batch_size}, offset={offset}, limit={limit}, reindex={reindex}")
 
-    # Initialize backends
-    backend = get_storage_backend()
+    # Initialize backends (use postgres for storage - legislation is only there)
+    backend = get_storage_backend(database_url)
     pgvector = PgVectorBackend(
         connection_string=database_url,
         provider_type="fastembed",
@@ -120,7 +124,11 @@ def index_corpus(
     logger.info(f"pgvector connection validated ({validation.check_duration_ms:.1f}ms)")
 
     # Determine corpus types to process
+    # Note: legislation uses state-based jurisdiction (e.g., "state-CA") not city-based
     all_corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues"]
+    if jurisdiction.startswith("state-"):
+        # For state jurisdictions, only legislation is relevant
+        all_corpus_types = ["legislation"]
     corpus_types = all_corpus_types if corpus == "all" else [corpus]
 
     results = {}
@@ -181,9 +189,22 @@ def index_corpus(
     success_count = sum(1 for r in results.values() if r["status"] == "success")
     error_count = sum(1 for r in results.values() if r["status"] == "error")
 
+    # Cost tracking
+    elapsed_seconds = time.time() - start_time
+    memory_gb = 16  # Configured memory
+    gb_seconds = memory_gb * elapsed_seconds
+    estimated_cost = gb_seconds * 0.000463  # Modal CPU pricing
+
     logger.info(f"Indexing complete: {total_indexed} documents indexed")
     logger.info(f"Results: {success_count} success, {error_count} errors")
+    logger.info(f"Cost: {elapsed_seconds:.0f}s × {memory_gb}GB = ${estimated_cost:.3f}")
 
+    results["_cost"] = {
+        "elapsed_seconds": elapsed_seconds,
+        "memory_gb": memory_gb,
+        "gb_seconds": gb_seconds,
+        "estimated_cost_usd": estimated_cost,
+    }
     return results
 
 
@@ -212,13 +233,18 @@ def get_stats(jurisdiction: str = "city-san-rafael") -> dict:
     if not database_url:
         raise ValueError("DATABASE_URL not set")
 
-    backend = get_storage_backend()
+    # Use postgres backend for storage (legislation is only in postgres)
+    backend = get_storage_backend(database_url)
     pgvector = PgVectorBackend(
         connection_string=database_url,
         provider_type="fastembed",
     )
 
-    corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues"]
+    # Determine corpus types based on jurisdiction type
+    if jurisdiction.startswith("state-"):
+        corpus_types = ["legislation"]
+    else:
+        corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues"]
     stats = {}
 
     for ct in corpus_types:
@@ -300,7 +326,9 @@ def main(
         print("=" * 60)
         for corpus_type, s in result.items():
             status = "✓" if s["indexed"] == s["total"] and s["total"] > 0 else "○"
-            print(f"{status} {corpus_type:15} {s['indexed']:>5}/{s['total']:<5} ({s['coverage']})")
+            model = s.get("model", "unknown")
+            model_short = model.split("/")[-1] if model else "unknown"
+            print(f"{status} {corpus_type:15} {s['indexed']:>5}/{s['total']:<5} ({s['coverage']}) [{model_short}]")
         print("=" * 60)
         return
 
