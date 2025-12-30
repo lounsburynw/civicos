@@ -100,6 +100,18 @@ def add_vectors_parser(subparsers: argparse._SubParsersAction) -> None:
         default=None,
         help="Override embedding model name (provider-specific)",
     )
+    parser.add_argument(
+        "--offset",
+        type=int,
+        default=0,
+        help="Skip first N documents (for splitting large corpus across jobs)",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Process at most N documents (for splitting large corpus across jobs)",
+    )
 
 
 def run_vectors(args: argparse.Namespace) -> int:
@@ -129,6 +141,8 @@ def run_vectors(args: argparse.Namespace) -> int:
         batch_size=args.batch_size,
         provider_type=args.provider,
         embedding_model=args.embedding_model,
+        offset=args.offset,
+        limit=args.limit,
     )
 
     if not results:
@@ -294,6 +308,8 @@ def run_vector_indexing(
     batch_size: int = 100,
     provider_type: str = "fastembed",
     embedding_model: Optional[str] = None,
+    offset: int = 0,
+    limit: Optional[int] = None,
 ) -> Optional[List[VectorIndexResult]]:
     """
     Run vector indexing for a jurisdiction.
@@ -305,6 +321,8 @@ def run_vector_indexing(
         batch_size: Number of documents to embed at once
         provider_type: Embedding provider ('fastembed', 'local', 'openai')
         embedding_model: Override embedding model name
+        offset: Skip first N documents (for splitting across jobs)
+        limit: Process at most N documents (for splitting across jobs)
 
     Returns:
         List of VectorIndexResult if successful, None if failed
@@ -376,6 +394,8 @@ def run_vector_indexing(
                     corpus_type=ct,
                     batch_size=batch_size,
                     allow_dimension_change=reindex,  # Allow dimension change when reindexing
+                    offset=offset,
+                    limit=limit,
                 )
 
                 logger.info(f"  ✓ Indexed {indexed_count} {ct}")

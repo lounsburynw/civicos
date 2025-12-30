@@ -553,6 +553,8 @@ class PgVectorBackend:
         corpus_type: str = "decisions",
         batch_size: int = 100,
         allow_dimension_change: bool = False,
+        offset: int = 0,
+        limit: Optional[int] = None,
     ) -> int:
         """
         Build vector index from StorageBackend.
@@ -567,6 +569,8 @@ class PgVectorBackend:
                         "transcripts", "municipal_code", "issues", "legislation")
             batch_size: Number of documents to process at once
             allow_dimension_change: If True, recreate table if embedding dimension differs
+            offset: Skip first N documents (for splitting across jobs)
+            limit: Process at most N documents (for splitting across jobs)
 
         Returns:
             Number of documents successfully indexed
@@ -606,6 +610,18 @@ class PgVectorBackend:
             logger.warning(
                 f"No {corpus_type} found in storage for {jurisdiction_id}"
             )
+            conn.close()
+            return 0
+
+        # Apply offset/limit for splitting across jobs
+        total_docs = len(documents)
+        if offset > 0 or limit is not None:
+            end_idx = (offset + limit) if limit else total_docs
+            documents = documents[offset:end_idx]
+            logger.info(f"  Processing docs {offset}-{min(end_idx, total_docs)} of {total_docs}")
+
+        if not documents:
+            logger.info(f"  No documents in range (offset={offset}, limit={limit})")
             conn.close()
             return 0
 
@@ -685,6 +701,14 @@ class PgVectorBackend:
 
             # Generate embeddings in batch using configured provider
             embeddings = self._embedding_provider.encode(texts, batch_size=batch_size)
+
+            # Reconnect before insert (cloud DBs may timeout during embedding)
+            try:
+                conn.close()
+            except Exception:
+                pass  # Connection may already be closed
+            conn = self._get_connection()
+            cursor = conn.cursor()
 
             # Insert into database
             for j, (embedding, data) in enumerate(zip(embeddings, doc_data)):
