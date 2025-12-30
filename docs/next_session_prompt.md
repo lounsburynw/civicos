@@ -1,44 +1,63 @@
-# Session 409 Context
+# Session 410 Context
 
-**Priority:** Set new P0 in pilot.json
+**Priority:** Fix StorageBackend protocol gaps
 **Date:** 2025-12-30
 
-## Session 408 Completed
+## Session 409 Completed
 
-1. **Fixed Modal vector indexing** - Used `add_local_python_source()`, added `ivfflat.probes = 10`
-2. **Created corpus_types.py** - Single source of truth at `packages/civic/src/civic/storage/corpus_types.py`
-3. **Indexed all legislation** - CA (2,839) + US federal (12,355) bills
-4. **Added cost tracking** - Modal script logs estimated costs
+1. **Content hashing for data integrity** - Created `integrity.py` with SHA-256 hashing
+2. **PostgresBackend updates** - `store_transcripts()`, `store_chunks()`, `store_decisions()` now compute content_hash
+3. **32 new tests** for integrity module
+4. **Pilot progress** - 209/230 items ready (90%)
 
-## Vector Index Status (All Complete)
+## Urgent: StorageBackend Protocol Fix
 
-| Corpus | Jurisdiction | Count |
-|--------|--------------|-------|
-| chunks | city-san-rafael | 5,084 |
-| decisions | city-san-rafael | 44 |
-| meetings | city-san-rafael | 46 |
-| municipal_code | city-san-rafael | 2,366 |
-| issues | city-san-rafael | 1,330 |
-| legislation | state-CA | 2,839 |
-| legislation | state-US | 12,355 |
+The protocol critic identified gaps between `StorageBackend` protocol and implementations:
 
-**Total: 24,064 vectors** (nomic-embed-text-v1.5)
+### Issue 1: `store_chunks()` signature mismatch
+**File:** `packages/civic/src/civic/storage/backend.py` (line 396-415)
+- Protocol: `store_chunks(jurisdiction_id, chunks, as_of=None)`
+- PostgresBackend: `store_chunks(jurisdiction_id, chunks, as_of=None, meeting_id=None)`
+- **Fix:** Add `meeting_id: Optional[str] = None` to protocol
 
-## Incomplete: corpus_types Refactor
+### Issue 2: Transcript methods missing from protocol
+**File:** `packages/civic/src/civic/storage/backend.py`
+- PostgresBackend has: `store_transcripts()`, `get_transcripts()`, `get_transcript()`, `get_transcript_count()`
+- Protocol has: NONE
+- `corpus_types.py` references `get_transcripts` - so protocol needs these
+- **Fix:** Add transcript methods section to protocol (similar to Chunks/Decisions sections)
 
-`corpus_types.py` created but not integrated. To complete (P2):
-1. Update `pgvector_backend.py` to use `CORPUS_REGISTRY`
-2. Update `unified.py` to import from `corpus_types.py`
-3. Update CLI to use `get_corpus_type_names()`
+### Issue 3: Video methods missing from protocol
+- PostgresBackend has: `store_videos()`, `get_videos()`, `get_video_count()`
+- Protocol has: NONE
+- Videos are source data for transcripts
+- **Fix:** Add video methods section to protocol
 
-## Key Files Changed
+### Implementation Steps
 
-- `scripts/modal_vectors.py` - Cost tracking, legislation, postgres backend
-- `packages/civic/src/civic/storage/pgvector_backend.py` - ivfflat fix, legislation stats
-- `packages/civic/src/civic/storage/corpus_types.py` - NEW
+1. Read `packages/civic/src/civic/storage/backend.py` (the protocol)
+2. Read PostgresBackend methods for transcripts (lines 1949-2165) and videos (lines 1786-1924)
+3. Add to protocol:
+   - `meeting_id` param to `store_chunks()`
+   - Video methods section (store_videos, get_videos, get_video_count)
+   - Transcript methods section (store_transcripts, get_transcripts, get_transcript, get_transcript_count)
+4. Update SQLiteBackend with stubs if needed (or raise NotImplementedError)
+5. Run protocol tests: `pytest packages/civic/tests/test_storage_protocols.py -v`
 
-## Next Steps
+## After Protocol Fix
 
-1. Run `/start` - No P0 currently set
-2. Check `pilot.json` for remaining not_ready items
-3. Consider corpus_types refactor or other pilot work
+**P0:** `cost_dashboard` - Admin dashboard showing cumulative ETL costs
+
+## Transcript Status
+
+We have transcript infrastructure but NO transcript data yet:
+- `transcribe.py` CLI exists but hasn't been run
+- No videos discovered/transcribed for San Rafael yet
+- This is a future pipeline run, not blocking
+
+## Key Files
+
+- `packages/civic/src/civic/storage/backend.py` - Protocol definition
+- `packages/civic/src/civic/storage/postgres_backend.py` - Reference implementation
+- `packages/civic/src/civic/storage/sqlite_backend.py` - Dev implementation (needs stubs)
+- `packages/civic/tests/test_storage_protocols.py` - Protocol tests

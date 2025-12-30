@@ -7600,3 +7600,12 @@ Implemented SHA-256 content hashing for transcripts, chunks, and decisions store
 
 ### Next P0
 cost_dashboard - Admin dashboard showing cumulative ETL costs
+
+### Handoff Update
+
+Updated docs/next_session_prompt.md with protocol fix as next priority:
+- Issue 1: `store_chunks()` needs `meeting_id` param in protocol
+- Issue 2: Transcript methods missing from protocol
+- Issue 3: Video methods missing from protocol
+
+cost_dashboard remains P0 after protocol fix is complete.
