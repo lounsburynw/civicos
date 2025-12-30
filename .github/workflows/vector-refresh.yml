@@ -2,6 +2,7 @@
 #
 # Indexes documents into pgvector for semantic search.
 # Parallelizes across corpus types for speed.
+# Large corpuses (chunks, issues) are split into multiple jobs.
 #
 # Triggers:
 #   - Weekly on Sunday at 6:00 AM UTC (Saturday 10:00 PM Pacific)
@@ -51,15 +52,67 @@ permissions:
 
 jobs:
   # Index each corpus type in parallel
+  # Large corpuses (chunks, issues) are split into multiple jobs
   index:
-    name: Index ${{ matrix.corpus }}
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
 
     strategy:
-      fail-fast: false  # Continue other corpus types even if one fails
+      fail-fast: false  # Continue other jobs even if one fails
       matrix:
-        corpus: [chunks, municipal_code, issues, meetings, transcripts, decisions]
+        include:
+          # Small corpus types - single job each
+          - corpus: decisions
+            name: "Index decisions"
+            offset: 0
+            limit: ""
+          - corpus: meetings
+            name: "Index meetings"
+            offset: 0
+            limit: ""
+          - corpus: transcripts
+            name: "Index transcripts"
+            offset: 0
+            limit: ""
+          - corpus: municipal_code
+            name: "Index municipal_code"
+            offset: 0
+            limit: ""
+          # Chunks (5084 docs) - split into 6 jobs of 1000 each
+          - corpus: chunks
+            name: "Index chunks (0-999)"
+            offset: 0
+            limit: 1000
+          - corpus: chunks
+            name: "Index chunks (1000-1999)"
+            offset: 1000
+            limit: 1000
+          - corpus: chunks
+            name: "Index chunks (2000-2999)"
+            offset: 2000
+            limit: 1000
+          - corpus: chunks
+            name: "Index chunks (3000-3999)"
+            offset: 3000
+            limit: 1000
+          - corpus: chunks
+            name: "Index chunks (4000-4999)"
+            offset: 4000
+            limit: 1000
+          - corpus: chunks
+            name: "Index chunks (5000+)"
+            offset: 5000
+            limit: 1000
+          # Issues (1330 docs) - split into 2 jobs
+          - corpus: issues
+            name: "Index issues (0-699)"
+            offset: 0
+            limit: 700
+          - corpus: issues
+            name: "Index issues (700+)"
+            offset: 700
+            limit: 700
 
     steps:
       - uses: actions/checkout@v4
@@ -90,7 +143,7 @@ jobs:
             echo "should_run=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Index ${{ matrix.corpus }}
+      - name: ${{ matrix.name }}
         if: steps.check.outputs.should_run == 'true'
         run: |
           REINDEX_FLAG=""
@@ -98,11 +151,23 @@ jobs:
             REINDEX_FLAG="--reindex"
           fi
 
+          # Build offset/limit flags
+          OFFSET_FLAG=""
+          LIMIT_FLAG=""
+          if [ "${{ matrix.offset }}" != "0" ]; then
+            OFFSET_FLAG="--offset ${{ matrix.offset }}"
+          fi
+          if [ -n "${{ matrix.limit }}" ]; then
+            LIMIT_FLAG="--limit ${{ matrix.limit }}"
+          fi
+
           civic-extract vectors \
             --jurisdiction $JURISDICTION \
             --corpus ${{ matrix.corpus }} \
             --provider fastembed \
             --batch-size 100 \
+            $OFFSET_FLAG \
+            $LIMIT_FLAG \
             $REINDEX_FLAG
 
       - name: Skip message
