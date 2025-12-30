@@ -7554,3 +7554,49 @@ Set up Modal with 16GB RAM for vector indexing.
 
 ### Next P0
 data_refresh_strategy - Complete Modal setup and run full indexing
+
+## Session 409: Content Hashing for Data Integrity
+
+**Date:** 2025-12-30
+**Items:** transcript_content_hash, chunk_content_hash, decision_content_hash (data_integrity > content_hashing)
+**Priority:** P2
+
+### Summary
+Implemented SHA-256 content hashing for transcripts, chunks, and decisions stored in PostgresBackend. This enables verification that stored content hasn't been modified - foundational infrastructure for federation, legal defense, and anti-tampering.
+
+### Implementation
+
+1. **Integrity utility module** (`packages/civic/src/civic/storage/integrity.py`):
+   - `compute_content_hash(content)`: Base SHA-256 hashing for str, bytes, dict, list
+   - `compute_transcript_hash(transcript)`: Hash full transcript dict including utterances
+   - `compute_chunk_hash(text)`: Hash extracted PDF text
+   - `compute_decision_hash(decision)`: Hash canonical decision fields (excludes metadata)
+   - `verify_content_hash(content, expected_hash)`: Verify content against stored hash
+   - Handles None/empty input gracefully (returns None)
+   - Uses sorted keys for dict consistency
+
+2. **PostgresBackend updates** (`postgres_backend.py`):
+   - `store_transcripts()`: Computes and stores content_hash from transcript dict
+   - `store_chunks()`: Computes and stores content_hash from text field
+   - `store_decisions()`: Computes and stores content_hash from canonical fields
+   - Hash columns already exist via migration 015_data_integrity.sql
+
+3. **Tests** (`packages/civic/tests/test_integrity.py`, 32 tests):
+   - Hash consistency: same input always produces same hash
+   - Hash sensitivity: tiny changes produce different hashes
+   - Edge cases: empty/None inputs return None gracefully
+   - Verification: matching and mismatched hashes
+   - Dict key ordering: consistent hashing regardless of insertion order
+
+### Files Changed
+- packages/civic/src/civic/storage/integrity.py (new)
+- packages/civic/src/civic/storage/postgres_backend.py (modified)
+- packages/civic/tests/test_integrity.py (new)
+- pilot.json (3 items -> ready)
+
+### Progress
+- Pilot: 209/230 items ready (90%)
+- 3 items completed this session
+
+### Next P0
+cost_dashboard - Admin dashboard showing cumulative ETL costs

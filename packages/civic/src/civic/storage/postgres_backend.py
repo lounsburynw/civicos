@@ -12,6 +12,7 @@ from datetime import datetime, date
 from typing import Any, Dict, List, Optional
 
 from .backend import StorageBackend, StorageStats, StorageValidationResult
+from .integrity import compute_transcript_hash, compute_chunk_hash, compute_decision_hash
 
 
 class DateTimeEncoder(json.JSONEncoder):
@@ -1259,14 +1260,17 @@ class PostgresBackend:
                       AND valid_to IS NULL
                 """, (as_of.isoformat(), jurisdiction_id, decision_id))
 
+                # Compute content hash for data integrity verification
+                content_hash = compute_decision_hash(decision)
+
                 cursor.execute("""
                     INSERT INTO decisions (
                         id, jurisdiction_id, meeting_date, agenda_item,
                         title, summary, outcome, vote_json,
                         staff_recommendation_json, public_input_json,
                         legal_instruments_json, topics, source_documents,
-                        extraction_method, extracted_at, valid_from, valid_to
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)
+                        extraction_method, extracted_at, valid_from, valid_to, content_hash
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s)
                 """, (
                     decision_id,
                     jurisdiction_id,
@@ -1284,6 +1288,7 @@ class PostgresBackend:
                     decision.get('extraction_method'),
                     as_of.isoformat(),
                     as_of.isoformat(),
+                    content_hash,
                 ))
 
             conn.commit()
@@ -1643,20 +1648,24 @@ class PostgresBackend:
                 # Generate chunk ID if not present
                 chunk_id = chunk.get('id') or f"chunk-{i}"
 
+                # Compute content hash for data integrity verification
+                text = chunk.get('text', '')
+                content_hash = compute_chunk_hash(text)
+
                 cursor.execute("""
                     INSERT INTO chunks (
                         id, jurisdiction_id, meeting_id, agenda_item,
                         agenda_title, text, page_start, page_end,
                         chunk_index, total_chunks, source_file, source_type,
-                        extracted_at, valid_from, valid_to
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)
+                        extracted_at, valid_from, valid_to, content_hash
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s)
                 """, (
                     chunk_id,
                     jurisdiction_id,
                     chunk.get('meeting_id'),
                     chunk.get('agenda_item'),
                     chunk.get('agenda_title'),
-                    chunk.get('text', ''),
+                    text,
                     chunk.get('page_start'),
                     chunk.get('page_end'),
                     chunk.get('chunk_index', i),
@@ -1665,6 +1674,7 @@ class PostgresBackend:
                     chunk.get('source_type', 'agenda_packet'),
                     as_of.isoformat(),
                     as_of.isoformat(),
+                    content_hash,
                 ))
 
             conn.commit()
@@ -2012,13 +2022,16 @@ class PostgresBackend:
                 import uuid
                 transcript_id = str(uuid.uuid4())
 
+                # Compute content hash for data integrity verification
+                content_hash = compute_transcript_hash(transcript)
+
                 cursor.execute("""
                     INSERT INTO transcripts (
                         id, jurisdiction_id, video_id, transcript,
                         text, duration_seconds, word_count, speakers_count,
                         utterances_count, processing_service, cost_usd,
-                        created_at, valid_from, valid_to
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)
+                        created_at, valid_from, valid_to, content_hash
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s)
                 """, (
                     transcript_id,
                     jurisdiction_id,
@@ -2033,6 +2046,7 @@ class PostgresBackend:
                     transcript.get('cost_usd'),
                     transcript.get('processed_at', as_of.isoformat()),
                     as_of.isoformat(),
+                    content_hash,
                 ))
                 count += 1
 
