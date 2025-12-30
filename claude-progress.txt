@@ -7609,3 +7609,30 @@ Updated docs/next_session_prompt.md with protocol fix as next priority:
 - Issue 3: Video methods missing from protocol
 
 cost_dashboard remains P0 after protocol fix is complete.
+
+## Session 410 - 2025-12-30
+
+### Task: Fix StorageBackend Protocol Gaps
+
+Fixed protocol conformance issues between `StorageBackend` protocol and implementations.
+
+### Changes
+- packages/civic/src/civic/storage/backend.py
+  - Added `meeting_id: Optional[str] = None` param to `store_chunks()` (line 401)
+  - Added Video methods section: `store_videos`, `get_videos`, `get_video_count` (lines 597-653)
+  - Added Transcript methods section: `store_transcripts`, `get_transcripts`, `get_transcript`, `get_transcript_count` (lines 655-728)
+
+- packages/civic/src/civic/storage/sqlite_backend.py
+  - Added `meeting_id` param to `store_chunks()` (line 865)
+  - Added Video method stubs (lines 1399-1436)
+  - Added Transcript method stubs (lines 1438-1488)
+
+- packages/civic/tests/test_storage_protocols.py
+  - Updated mock implementations with new protocol methods (2 mocks)
+
+### Progress
+- Pilot: 209/230 items ready (90%)
+- Protocol gaps fixed, tests passing (68 protocol tests + 34 smoke tests)
+
+### Next P0
+cost_dashboard - Admin dashboard showing cumulative ETL costs

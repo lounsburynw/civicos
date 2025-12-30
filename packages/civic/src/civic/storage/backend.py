@@ -398,6 +398,7 @@ class StorageBackend(Protocol):
         jurisdiction_id: str,
         chunks: List[Dict[str, Any]],
         as_of: Optional[datetime] = None,
+        meeting_id: Optional[str] = None,
     ) -> int:
         """
         Store PDF chunks with temporal versioning.
@@ -408,6 +409,7 @@ class StorageBackend(Protocol):
             jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
             chunks: List of chunk dictionaries with text, agenda_item, etc.
             as_of: Timestamp for temporal versioning (default: now)
+            meeting_id: Optional meeting ID to associate chunks with
 
         Returns:
             Number of chunks successfully stored
@@ -589,5 +591,138 @@ class StorageBackend(Protocol):
 
         Returns:
             Number of current (non-expired) sections
+        """
+        ...
+
+    # ========== Video Methods ==========
+    #
+    # Videos are YouTube recordings of city council meetings.
+    # Source data for transcript extraction.
+
+    def store_videos(
+        self,
+        jurisdiction_id: str,
+        videos: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store YouTube video metadata with temporal versioning.
+
+        Atomic operation: either all videos are stored or none.
+        Uses upsert semantics - closes previous versions and inserts new ones.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            videos: List of video dictionaries with id, meeting_url, title, date, youtube_url
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of videos successfully stored
+        """
+        ...
+
+    def get_videos(
+        self,
+        jurisdiction_id: str,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve videos with temporal filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of videos to return
+
+        Returns:
+            List of video dictionaries
+        """
+        ...
+
+    def get_video_count(self, jurisdiction_id: str) -> int:
+        """
+        Get count of current videos for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+
+        Returns:
+            Number of current (non-expired) videos
+        """
+        ...
+
+    # ========== Transcript Methods ==========
+    #
+    # Transcripts are AssemblyAI-processed audio from meeting videos.
+    # Used for what_happened() queries and semantic search.
+
+    def store_transcripts(
+        self,
+        jurisdiction_id: str,
+        transcripts: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store AssemblyAI transcripts with temporal versioning.
+
+        Atomic operation: either all transcripts are stored or none.
+        Uses upsert semantics - closes previous versions and inserts new ones.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            transcripts: List of transcript dictionaries with video_id, utterances, etc.
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of transcripts successfully stored
+        """
+        ...
+
+    def get_transcripts(
+        self,
+        jurisdiction_id: str,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve transcripts with temporal filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of transcripts to return
+
+        Returns:
+            List of transcript dictionaries
+        """
+        ...
+
+    def get_transcript(
+        self,
+        video_id: str,
+        as_of: Optional[datetime] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get specific transcript by video_id.
+
+        Args:
+            video_id: YouTube video ID
+            as_of: Point-in-time query (for temporal versioning)
+
+        Returns:
+            Transcript dictionary or None if not found
+        """
+        ...
+
+    def get_transcript_count(self, jurisdiction_id: str) -> int:
+        """
+        Get count of current transcripts for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+
+        Returns:
+            Number of current (non-expired) transcripts
         """
         ...
