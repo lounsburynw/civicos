@@ -361,7 +361,7 @@
       },
       "cost_dashboard": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Admin dashboard showing cumulative ETL costs by pipeline and time period",
         "note": "Aggregate from etl_costs table. Show daily/weekly/monthly breakdown by pipeline type."
       },
@@ -1220,22 +1220,25 @@
     "description": "Provenance and integrity infrastructure for future resilience - build now, expensive to retrofit",
     "content_hashing": {
       "transcript_content_hash": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "SHA-256 content_hash column on transcripts table",
-        "note": "Enables verification that transcript content hasn't been modified. Computed from utterances JSON."
+        "note": "Enables verification that transcript content hasn't been modified. Computed from utterances JSON.",
+        "implementation": "packages/civic/src/civic/storage/integrity.py, postgres_backend.py store_transcripts()"
       },
       "chunk_content_hash": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "SHA-256 content_hash column on chunks table",
-        "note": "Enables verification of PDF extraction integrity."
+        "note": "Enables verification of PDF extraction integrity.",
+        "implementation": "packages/civic/src/civic/storage/integrity.py, postgres_backend.py store_chunks()"
       },
       "decision_content_hash": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "SHA-256 content_hash column on decisions table",
-        "note": "Enables verification of decision extraction integrity."
+        "note": "Enables verification of decision extraction integrity.",
+        "implementation": "packages/civic/src/civic/storage/integrity.py, postgres_backend.py store_decisions()"
       }
     },
     "source_provenance": {
@@ -1781,10 +1784,11 @@
       },
       "data_refresh_strategy": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Documented refresh cadence and automation for all corpus types",
         "verification": "docs/operations/DATA_REFRESH.md exists with refresh commands and schedules",
-        "note": "Define refresh strategy: legislation (monthly --bulk), meetings (weekly), municipal_code (quarterly), transcripts (after videos), issues (daily). With vectors_e2e_cloud complete, can now document how to run vector refresh from GitHub Actions using --provider flag."
+        "note": "Define refresh strategy: legislation (monthly --bulk), meetings (weekly), municipal_code (quarterly), transcripts (after videos), issues (daily). With vectors_e2e_cloud complete, can now document how to run vector refresh from GitHub Actions using --provider flag.",
+        "completed": "2025-12-30"
       }
     }
   },
