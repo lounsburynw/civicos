@@ -19,7 +19,7 @@ import logging
 import os
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from .backend import StorageBackend
 from .vector import (
@@ -27,6 +27,9 @@ from .vector import (
     VectorStats,
     VectorValidationResult,
 )
+
+if TYPE_CHECKING:
+    from civic._internal.embeddings.provider import EmbeddingProvider
 
 logger = logging.getLogger(__name__)
 
@@ -39,13 +42,6 @@ except ImportError:
     psycopg2 = None  # type: ignore
     PSYCOPG2_AVAILABLE = False
 
-try:
-    from sentence_transformers import SentenceTransformer
-    SENTENCE_TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    SentenceTransformer = None  # type: ignore
-    SENTENCE_TRANSFORMERS_AVAILABLE = False
-
 
 class PgVectorBackend:
     """
@@ -57,13 +53,20 @@ class PgVectorBackend:
     Requires:
     - PostgreSQL with pgvector extension installed
     - psycopg2: pip install psycopg2-binary
-    - sentence-transformers: pip install sentence-transformers
+    - Embedding provider: fastembed (recommended), sentence-transformers, or openai
 
     Usage:
         storage = PostgresBackend("postgresql://...")
         vector = PgVectorBackend(
             connection_string="postgresql://...",
-            embedding_model="nomic-ai/nomic-embed-text-v1.5"
+        )
+
+        # Or with explicit provider for remote/API embeddings:
+        from civic._internal.embeddings import get_embedding_provider
+        provider = get_embedding_provider("openai")
+        vector = PgVectorBackend(
+            connection_string="postgresql://...",
+            embedding_provider=provider,
         )
 
         # Validate before use
@@ -93,8 +96,10 @@ class PgVectorBackend:
     def __init__(
         self,
         connection_string: str,
-        embedding_model: str = DEFAULT_MODEL,
-        embedding_dimension: int = DEFAULT_DIMENSION,
+        embedding_model: Optional[str] = None,
+        embedding_dimension: Optional[int] = None,
+        embedding_provider: Optional["EmbeddingProvider"] = None,
+        provider_type: Optional[str] = None,
     ):
         """
         Initialize pgvector backend.
@@ -102,8 +107,10 @@ class PgVectorBackend:
         Args:
             connection_string: PostgreSQL connection URL with pgvector extension
                 e.g., "postgresql://user:pass@localhost:5432/civic"
-            embedding_model: Model name for embedding generation
-            embedding_dimension: Vector dimension for pgvector columns
+            embedding_model: Model name for embedding generation (deprecated, use provider)
+            embedding_dimension: Vector dimension for pgvector columns (auto-detected from provider)
+            embedding_provider: Pre-configured EmbeddingProvider instance
+            provider_type: Provider type string ('fastembed', 'local', 'openai') for lazy init
         """
         if not PSYCOPG2_AVAILABLE:
             raise ImportError(
@@ -112,26 +119,39 @@ class PgVectorBackend:
             )
 
         self._conn_string = connection_string
-        self._embedding_model = embedding_model
-        self._embedding_dimension = embedding_dimension
-        self._model: Optional[SentenceTransformer] = None
+        self._provider = embedding_provider
+        self._provider_type = provider_type
+
+        # Model/dimension config (used for lazy provider init or overrides)
+        self._embedding_model_override = embedding_model
+        self._embedding_dimension_override = embedding_dimension
 
     def _get_connection(self):
         """Get a database connection."""
         return psycopg2.connect(self._conn_string)
 
     @property
-    def model(self) -> SentenceTransformer:
-        """Lazy-load the embedding model."""
-        if not SENTENCE_TRANSFORMERS_AVAILABLE:
-            raise ImportError(
-                "sentence-transformers is required for embedding generation. "
-                "Install with: pip install sentence-transformers"
+    def _embedding_provider(self) -> "EmbeddingProvider":
+        """Lazy-load the embedding provider."""
+        if self._provider is None:
+            from civic._internal.embeddings.provider import get_embedding_provider
+            self._provider = get_embedding_provider(
+                provider_type=self._provider_type,
+                model_name=self._embedding_model_override,
             )
-        if self._model is None:
-            # trust_remote_code=True required for models with custom code (e.g., nomic)
-            self._model = SentenceTransformer(self._embedding_model, trust_remote_code=True)
-        return self._model
+        return self._provider
+
+    @property
+    def _embedding_model(self) -> str:
+        """Get embedding model name from provider."""
+        return self._embedding_provider.model_name
+
+    @property
+    def _embedding_dimension(self) -> int:
+        """Get embedding dimension from provider."""
+        if self._embedding_dimension_override:
+            return self._embedding_dimension_override
+        return self._embedding_provider.embedding_dimension
 
     @property
     def backend_type(self) -> str:
@@ -156,36 +176,116 @@ class PgVectorBackend:
         """
         return self._embedding_dimension
 
-    def _ensure_schema(self, conn) -> None:
+    @property
+    def provider_type(self) -> str:
+        """
+        Embedding provider type identifier.
+
+        Returns the type of embedding provider being used (e.g., 'fastembed', 'local', 'openai').
+        """
+        provider = self._embedding_provider
+        if hasattr(provider, '__class__'):
+            class_name = provider.__class__.__name__
+            if 'FastEmbed' in class_name:
+                return 'fastembed'
+            elif 'SentenceTransformer' in class_name:
+                return 'local'
+            elif 'OpenAI' in class_name:
+                return 'openai'
+        return self._provider_type or 'fastembed'
+
+    def _ensure_schema(self, conn, allow_dimension_change: bool = False) -> None:
         """
         Create the vector_embeddings table if it doesn't exist.
 
+        Includes embedding_model tracking for data integrity - vectors from
+        different models cannot be compared even if dimensions match.
+
         Args:
             conn: Database connection
+            allow_dimension_change: If True, drop and recreate table if dimension differs
         """
         cursor = conn.cursor()
 
-        # Create table with vector column
+        # Check if table exists and verify dimension compatibility
         cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS {self.TABLE_NAME} (
-                id TEXT PRIMARY KEY,
-                jurisdiction_id TEXT NOT NULL,
-                corpus_type TEXT NOT NULL,
-                content TEXT NOT NULL,
-                embedding vector({self._embedding_dimension}),
-                meeting_id TEXT,
-                meeting_title TEXT,
-                meeting_datetime TIMESTAMP,
-                metadata JSONB,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            SELECT EXISTS(
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name = '{self.TABLE_NAME}'
             )
         """)
+        table_exists = cursor.fetchone()[0]
+
+        if table_exists:
+            # Check current embedding dimension from pgvector column type
+            cursor.execute(f"""
+                SELECT atttypmod FROM pg_attribute
+                WHERE attrelid = '{self.TABLE_NAME}'::regclass
+                AND attname = 'embedding'
+            """)
+            result = cursor.fetchone()
+            if result and result[0] > 0:
+                current_dim = result[0]
+                if current_dim != self._embedding_dimension:
+                    if allow_dimension_change:
+                        logger.warning(
+                            f"Dimension change: table has {current_dim} dims, "
+                            f"provider needs {self._embedding_dimension}. Recreating table."
+                        )
+                        cursor.execute(f"DROP TABLE {self.TABLE_NAME}")
+                        conn.commit()
+                        table_exists = False
+                    else:
+                        raise ValueError(
+                            f"Dimension mismatch: table has {current_dim} dims, "
+                            f"but provider produces {self._embedding_dimension} dims. "
+                            f"Use --reindex to drop and recreate with new dimensions."
+                        )
+
+        if not table_exists:
+            # Create table with vector column and model tracking
+            cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS {self.TABLE_NAME} (
+                    id TEXT PRIMARY KEY,
+                    jurisdiction_id TEXT NOT NULL,
+                    corpus_type TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    embedding vector({self._embedding_dimension}),
+                    embedding_model TEXT NOT NULL DEFAULT 'unknown',
+                    meeting_id TEXT,
+                    meeting_title TEXT,
+                    meeting_datetime TIMESTAMP,
+                    metadata JSONB,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+        else:
+            # Migration: Add embedding_model column if missing (for existing tables)
+            cursor.execute(f"""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = '{self.TABLE_NAME}'
+                        AND column_name = 'embedding_model'
+                    ) THEN
+                        ALTER TABLE {self.TABLE_NAME}
+                        ADD COLUMN embedding_model TEXT NOT NULL DEFAULT 'unknown';
+                    END IF;
+                END $$;
+            """)
 
         # Create index on jurisdiction_id and corpus_type for filtering
         cursor.execute(f"""
             CREATE INDEX IF NOT EXISTS idx_{self.TABLE_NAME}_jurisdiction_corpus
             ON {self.TABLE_NAME} (jurisdiction_id, corpus_type)
+        """)
+
+        # Create index on embedding_model for model validation queries
+        cursor.execute(f"""
+            CREATE INDEX IF NOT EXISTS idx_{self.TABLE_NAME}_model
+            ON {self.TABLE_NAME} (embedding_model)
         """)
 
         # Create IVFFlat index for fast similarity search
@@ -452,11 +552,12 @@ class PgVectorBackend:
         jurisdiction_id: str,
         corpus_type: str = "decisions",
         batch_size: int = 100,
+        allow_dimension_change: bool = False,
     ) -> int:
         """
         Build vector index from StorageBackend.
 
-        Reads documents from storage, generates embeddings via SentenceTransformer,
+        Reads documents from storage, generates embeddings via configured provider,
         and stores in pgvector-enabled PostgreSQL table.
 
         Args:
@@ -465,14 +566,15 @@ class PgVectorBackend:
             corpus_type: Type of documents ("decisions", "chunks", "meetings",
                         "transcripts", "municipal_code", "issues", "legislation")
             batch_size: Number of documents to process at once
+            allow_dimension_change: If True, recreate table if embedding dimension differs
 
         Returns:
             Number of documents successfully indexed
         """
         conn = self._get_connection()
 
-        # Ensure schema exists
-        self._ensure_schema(conn)
+        # Ensure schema exists (may recreate if dimension changed and allowed)
+        self._ensure_schema(conn, allow_dimension_change=allow_dimension_change)
 
         cursor = conn.cursor()
 
@@ -581,8 +683,8 @@ class PgVectorBackend:
             if not texts:
                 continue
 
-            # Generate embeddings in batch
-            embeddings = self.model.encode(texts, show_progress_bar=False)
+            # Generate embeddings in batch using configured provider
+            embeddings = self._embedding_provider.encode(texts, batch_size=batch_size)
 
             # Insert into database
             for j, (embedding, data) in enumerate(zip(embeddings, doc_data)):
@@ -601,12 +703,13 @@ class PgVectorBackend:
                     cursor.execute(f"""
                         INSERT INTO {self.TABLE_NAME}
                             (id, jurisdiction_id, corpus_type, content, embedding,
-                             meeting_id, meeting_title, meeting_datetime, metadata,
-                             updated_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                             embedding_model, meeting_id, meeting_title, meeting_datetime,
+                             metadata, updated_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
                         ON CONFLICT (id) DO UPDATE SET
                             content = EXCLUDED.content,
                             embedding = EXCLUDED.embedding,
+                            embedding_model = EXCLUDED.embedding_model,
                             meeting_id = EXCLUDED.meeting_id,
                             meeting_title = EXCLUDED.meeting_title,
                             meeting_datetime = EXCLUDED.meeting_datetime,
@@ -618,6 +721,7 @@ class PgVectorBackend:
                         corpus_type,
                         data["content"],
                         embedding.tolist(),
+                        self._embedding_model,  # Track which model created this embedding
                         data["meeting_id"],
                         data["meeting_title"],
                         meeting_dt,
@@ -661,16 +765,36 @@ class PgVectorBackend:
 
         Returns:
             List of SearchResult ordered by similarity score (highest first)
-        """
-        # Generate query embedding
-        query_embedding = self.model.encode([query])[0]
 
+        Raises:
+            ValueError: If indexed vectors were created with a different model
+        """
         conn = self._get_connection()
         cursor = conn.cursor()
 
+        # Validate model compatibility - vectors from different models can't be compared
+        cursor.execute(f"""
+            SELECT DISTINCT embedding_model FROM {self.TABLE_NAME}
+            WHERE jurisdiction_id = %s AND corpus_type = %s
+        """, (jurisdiction_id, corpus_type))
+        indexed_models = {row[0] for row in cursor.fetchall()}
+
+        current_model = self._embedding_model
+        if indexed_models and indexed_models != {'unknown'} and current_model not in indexed_models:
+            conn.close()
+            raise ValueError(
+                f"Model mismatch: index contains vectors from {indexed_models}, "
+                f"but query would use '{current_model}'. "
+                f"Vectors from different models cannot be compared. "
+                f"Reindex with --reindex to rebuild with the current model."
+            )
+
+        # Generate query embedding using configured provider
+        query_embedding = self._embedding_provider.encode([query])[0]
+
         # pgvector's <=> operator returns cosine distance (0-2 range)
         # Convert to similarity: 1 - distance
-        # Filter by jurisdiction and corpus type
+        # Filter by jurisdiction, corpus type, and matching model
         sql = f"""
             SELECT
                 id,
@@ -683,9 +807,10 @@ class PgVectorBackend:
             FROM {self.TABLE_NAME}
             WHERE jurisdiction_id = %s
               AND corpus_type = %s
+              AND (embedding_model = %s OR embedding_model = 'unknown')
         """
 
-        params: List[Any] = [query_embedding.tolist(), jurisdiction_id, corpus_type]
+        params: List[Any] = [query_embedding.tolist(), jurisdiction_id, corpus_type, current_model]
 
         if min_score is not None:
             # cosine distance < 1 - min_score means similarity > min_score
