@@ -7523,3 +7523,34 @@ Added configurable embedding provider support to make vector ETL portable for CI
 
 ### Next P0
 data_refresh_strategy - Run full vector indexing (8,839 docs) remotely with parallelization
+
+## Session 407 (2025-12-30)
+### Task: data_refresh_strategy - Modal for Vector Indexing
+
+### Problem
+GitHub Actions runners (7GB RAM) can't handle fastembed + 5K docs.
+Jobs kept getting canceled with "operation was canceled" (OOM).
+
+### Solution
+Set up Modal with 16GB RAM for vector indexing.
+
+### Completed
+1. Created `scripts/modal_vectors.py` - Modal function with 16GB RAM
+2. Added `--offset`/`--limit` CLI flags for job splitting
+3. Created Modal secrets: `civic-db`, `civic-github`
+4. Created `.github/workflows/vector-refresh.yml` (works for small corpus)
+
+### Remaining (for Session 408)
+1. Update modal_vectors.py to use GITHUB_TOKEN for private repo
+2. Run Modal indexing for all 8,839 docs
+3. Verify search works
+4. Mark data_refresh_strategy as ready
+
+### Files Changed
+- scripts/modal_vectors.py (new)
+- packages/civic/src/civic/storage/pgvector_backend.py (offset/limit)
+- packages/civic-extraction/src/civic_extraction/cli/vectors.py (offset/limit)
+- .github/workflows/vector-refresh.yml (new)
+
+### Next P0
+data_refresh_strategy - Complete Modal setup and run full indexing

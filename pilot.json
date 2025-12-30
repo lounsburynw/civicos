@@ -1780,7 +1780,7 @@
         "note": "Session 387: Updated Civic class to check DATABASE_URL and use get_storage_backend(). Updated data browser SQL to use backend-agnostic placeholders. Datetime serialization fixed for Postgres."
       },
       "data_refresh_strategy": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "artifact": "Documented refresh cadence and automation for all corpus types",
         "verification": "docs/operations/DATA_REFRESH.md exists with refresh commands and schedules",

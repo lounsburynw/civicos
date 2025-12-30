@@ -796,6 +796,11 @@ class PgVectorBackend:
         conn = self._get_connection()
         cursor = conn.cursor()
 
+        # Configure ivfflat probes for approximate search
+        # Higher probes = better recall at cost of speed
+        # With lists=12, probes=10 ensures good coverage
+        cursor.execute("SET ivfflat.probes = 10")
+
         # Validate model compatibility - vectors from different models can't be compared
         cursor.execute(f"""
             SELECT DISTINCT embedding_model FROM {self.TABLE_NAME}
@@ -928,6 +933,13 @@ class PgVectorBackend:
                 storage_count = storage_backend.get_municipal_code_count(jurisdiction_id)
             elif corpus_type == "issues":
                 storage_count = storage_backend.get_issue_count(jurisdiction_id)
+            elif corpus_type == "legislation":
+                # Legislation uses state code format (e.g., "state-CA" -> "CA")
+                if jurisdiction_id.startswith("state-"):
+                    state_code = jurisdiction_id.split("-", 1)[1].upper()
+                else:
+                    state_code = jurisdiction_id.upper()
+                storage_count = storage_backend.get_legislation_count(state_code)
 
         return VectorStats(
             jurisdiction_id=jurisdiction_id,
