@@ -361,7 +361,7 @@
       },
       "cost_dashboard": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Admin dashboard showing cumulative ETL costs by pipeline and time period",
         "note": "Aggregate from etl_costs table. Show daily/weekly/monthly breakdown by pipeline type."
       },
@@ -1041,6 +1041,13 @@
       }
     },
     "transcript_backlog": {
+      "transcript_data_complete": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "All San Rafael videos transcribed and indexed for RAG",
+        "manual_step": "Run civic-extract audio/transcribe/vectors pipeline (use --provider nomic for vectors)",
+        "note": "Session 410: Infrastructure ready, need to run pipeline. ~$6 for remaining videos. Use nomic AI for vector indexing."
+      },
       "batch_transcription": {
         "status": "ready",
         "priority": 1,
