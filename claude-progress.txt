@@ -7673,3 +7673,46 @@ These are disconnected - `what_was_said()` returns empty.
 
 ### Next P0
 vector_backend_unification - Unify CivicEmbeddings with VectorBackend protocol
+
+## Session 412 - 2025-12-30
+
+### VectorBackend Unification Complete
+
+**P0 Completed:** `vector_backend_unification`
+
+Connected the Civic API (`what_was_said()`) to pgvector transcripts. Previously:
+- Transcripts indexed in pgvector via `PgVectorBackend`
+- Civic API used ChromaDB via `CivicEmbeddings` (disconnected)
+
+**Changes:**
+1. Added `get_vector_backend()` factory function to `storage/__init__.py`
+   - Returns `PgVectorBackend` when `DATABASE_URL` is set
+   - Returns `None` otherwise (caller falls back to ChromaDB)
+
+2. Updated `history._search_transcripts()` to use pgvector path:
+   - Checks for `get_vector_backend()` first
+   - Falls back to `CivicEmbeddings` for local development
+   - Added `_search_transcripts_pgvector()` helper
+
+**Verification:**
+```python
+from civic import Civic
+c = Civic('san-rafael')
+results = c.what_was_said('homeless shelter')
+# Returns 10 excerpts from pgvector! (was 0 before)
+```
+
+### Discovered Issue: Transcript Truncation
+
+Only 19 documents indexed (1 per video), each truncated to first 8000 chars.
+`PgVectorBackend._transcript_to_text()` truncates for embedding limits.
+
+**New P0:** `transcript_chunked_indexing`
+- Need to chunk transcripts (like municipal_code) for full coverage
+- Currently missing ~90% of transcript content
+
+### Progress
+- Pilot: 211/232 items ready (91%)
+
+### Next P0
+`transcript_chunked_indexing` - Index full transcripts with chunking
