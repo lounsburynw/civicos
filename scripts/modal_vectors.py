@@ -36,21 +36,19 @@ app = modal.App("civic-vectors")
 # This image is cached, so subsequent runs start quickly
 civic_image = (
     modal.Image.debian_slim(python_version="3.11")
-    # System dependencies for psycopg2 and git (for pip install from GitHub)
-    .apt_install("libpq-dev", "gcc", "git")
+    # System dependencies for psycopg2
+    .apt_install("libpq-dev", "gcc")
     # Python dependencies
     .pip_install(
         "psycopg2-binary>=2.9.0",
         "fastembed>=0.3.0",
         "numpy<2",  # fastembed compatibility
     )
-    # Install civic packages from GitHub
-    # These are cached in the image, not downloaded at runtime
-    .pip_install(
-        "civic @ git+https://github.com/lounsburynw/civic.git#subdirectory=packages/civic",
-        "civic-extraction @ git+https://github.com/lounsburynw/civic.git#subdirectory=packages/civic-extraction",
-    )
 )
+
+# Mount local civic packages into the container
+# This is more reliable than pip install from private GitHub
+civic_mount = modal.Mount.from_local_python_packages("civic", "civic_extraction")
 
 
 @app.function(
