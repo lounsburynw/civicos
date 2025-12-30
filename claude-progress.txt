@@ -7494,3 +7494,32 @@ Cost estimate: ~$0.09 for full corpus with OpenAI text-embedding-3-small
 
 ### Next P0
 vectors_e2e_cloud - Implement remote embedding provider abstraction
+
+## Session 406: vectors_e2e_cloud - Remote Embedding Provider Support
+
+**Date:** 2025-12-29
+**Item:** vectors_e2e_cloud (pilot_validation > e2e_cloud_data_verification)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Added configurable embedding provider support to make vector ETL portable for CI/CD and remote execution.
+
+### Implementation
+1. **Provider abstraction**: PgVectorBackend now uses EmbeddingProvider (fastembed/local/openai)
+2. **CLI --provider flag**: `civic-extract vectors --provider openai|local|fastembed`
+3. **Model tracking**: `embedding_model` column for data integrity
+4. **Model mismatch validation**: Error if query model != indexed model
+5. **Dimension change handling**: Auto-recreate table on --reindex if dims differ
+
+### Verification
+- E2E tested with OpenAI provider
+- Model mismatch protection works
+- Dimension changes handled correctly
+
+### Files changed
+- packages/civic/src/civic/storage/pgvector_backend.py
+- packages/civic-extraction/src/civic_extraction/cli/vectors.py
+- pilot.json
+
+### Next P0
+data_refresh_strategy - Run full vector indexing (8,839 docs) remotely with parallelization

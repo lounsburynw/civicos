@@ -88,6 +88,18 @@ def add_vectors_parser(subparsers: argparse._SubParsersAction) -> None:
         type=str,
         help="Run a test search query after indexing",
     )
+    parser.add_argument(
+        "--provider",
+        default="fastembed",
+        choices=["fastembed", "local", "openai"],
+        help="Embedding provider: fastembed (default, portable ONNX), local (sentence-transformers), openai (API)",
+    )
+    parser.add_argument(
+        "--embedding-model",
+        type=str,
+        default=None,
+        help="Override embedding model name (provider-specific)",
+    )
 
 
 def run_vectors(args: argparse.Namespace) -> int:
@@ -104,10 +116,10 @@ def run_vectors(args: argparse.Namespace) -> int:
         return 1
 
     if args.stats:
-        return show_stats(args.jurisdiction, args.corpus)
+        return show_stats(args.jurisdiction, args.corpus, args.provider, args.embedding_model)
 
     if args.dry_run:
-        return dry_run(args.jurisdiction, args.corpus)
+        return dry_run(args.jurisdiction, args.corpus, args.provider, args.embedding_model)
 
     # Index vectors
     results = run_vector_indexing(
@@ -115,6 +127,8 @@ def run_vectors(args: argparse.Namespace) -> int:
         corpus_type=args.corpus,
         reindex=args.reindex,
         batch_size=args.batch_size,
+        provider_type=args.provider,
+        embedding_model=args.embedding_model,
     )
 
     if not results:
@@ -123,12 +137,23 @@ def run_vectors(args: argparse.Namespace) -> int:
     # Run test search if requested
     if args.test_search:
         logger.info("")
-        run_test_search(args.jurisdiction, args.corpus, args.test_search)
+        run_test_search(
+            args.jurisdiction,
+            args.corpus,
+            args.test_search,
+            provider_type=args.provider,
+            embedding_model=args.embedding_model,
+        )
 
     return 0
 
 
-def show_stats(jurisdiction_id: str, corpus_type: str) -> int:
+def show_stats(
+    jurisdiction_id: str,
+    corpus_type: str,
+    provider_type: str = "fastembed",
+    embedding_model: Optional[str] = None,
+) -> int:
     """Show current vector index statistics."""
     try:
         from civic.storage import get_storage_backend
@@ -140,7 +165,11 @@ def show_stats(jurisdiction_id: str, corpus_type: str) -> int:
             return 1
 
         backend = get_storage_backend()
-        pgvector = PgVectorBackend(connection_string=database_url)
+        pgvector = PgVectorBackend(
+            connection_string=database_url,
+            provider_type=provider_type,
+            embedding_model=embedding_model,
+        )
 
         # Validate connection
         validation = pgvector.validate()
@@ -180,7 +209,12 @@ def show_stats(jurisdiction_id: str, corpus_type: str) -> int:
         return 1
 
 
-def dry_run(jurisdiction_id: str, corpus_type: str) -> int:
+def dry_run(
+    jurisdiction_id: str,
+    corpus_type: str,
+    provider_type: str = "fastembed",
+    embedding_model: Optional[str] = None,
+) -> int:
     """Show what would be indexed."""
     try:
         from civic.storage import get_storage_backend
@@ -192,7 +226,11 @@ def dry_run(jurisdiction_id: str, corpus_type: str) -> int:
             return 1
 
         backend = get_storage_backend()
-        pgvector = PgVectorBackend(connection_string=database_url)
+        pgvector = PgVectorBackend(
+            connection_string=database_url,
+            provider_type=provider_type,
+            embedding_model=embedding_model,
+        )
 
         logger.info("Dry-run mode - showing indexing plan:")
         logger.info("=" * 50)
@@ -254,6 +292,8 @@ def run_vector_indexing(
     corpus_type: str = "chunks",
     reindex: bool = False,
     batch_size: int = 100,
+    provider_type: str = "fastembed",
+    embedding_model: Optional[str] = None,
 ) -> Optional[List[VectorIndexResult]]:
     """
     Run vector indexing for a jurisdiction.
@@ -263,6 +303,8 @@ def run_vector_indexing(
         corpus_type: Type of documents ("chunks", "decisions", "meetings", "all")
         reindex: If True, delete existing index and rebuild
         batch_size: Number of documents to embed at once
+        provider_type: Embedding provider ('fastembed', 'local', 'openai')
+        embedding_model: Override embedding model name
 
     Returns:
         List of VectorIndexResult if successful, None if failed
@@ -277,7 +319,11 @@ def run_vector_indexing(
             return None
 
         backend = get_storage_backend()
-        pgvector = PgVectorBackend(connection_string=database_url)
+        pgvector = PgVectorBackend(
+            connection_string=database_url,
+            provider_type=provider_type,
+            embedding_model=embedding_model,
+        )
 
         # Validate pgvector connection
         logger.info("Validating pgvector connection...")
@@ -329,6 +375,7 @@ def run_vector_indexing(
                     jurisdiction_id=jurisdiction_id,
                     corpus_type=ct,
                     batch_size=batch_size,
+                    allow_dimension_change=reindex,  # Allow dimension change when reindexing
                 )
 
                 logger.info(f"  ✓ Indexed {indexed_count} {ct}")
@@ -349,18 +396,28 @@ def run_vector_indexing(
                     error=str(e),
                 ))
 
-        # Store ETL cost record ($0 for local embeddings, but tracked for pipeline visibility)
+        # Store ETL cost record (track provider for cost visibility)
         total_indexed = sum(r.documents_indexed for r in results)
         if total_indexed > 0:
             try:
+                # Estimate cost based on provider
+                # OpenAI: ~$0.02/1M tokens (~500 tokens/doc avg)
+                # Local/FastEmbed: $0.00
+                if provider_type == "openai":
+                    estimated_cost = total_indexed * 500 * 0.02 / 1_000_000
+                    cost_note = f"Indexed {total_indexed} {corpus_type} documents via OpenAI embeddings (est ${estimated_cost:.4f})"
+                else:
+                    estimated_cost = 0.0
+                    cost_note = f"Indexed {total_indexed} {corpus_type} documents via {provider_type} (no API cost)"
+
                 cost_id = backend.store_etl_cost(
                     pipeline="vectors",
                     jurisdiction_id=jurisdiction_id,
                     items_processed=total_indexed,
-                    cost_usd=0.0,  # Local sentence-transformers - no API cost
-                    notes=f"Indexed {total_indexed} {corpus_type} documents via local sentence-transformers (no API cost)",
+                    cost_usd=estimated_cost,
+                    notes=cost_note,
                 )
-                logger.info(f"ETL run recorded (id={cost_id}): $0.00 (local embeddings)")
+                logger.info(f"ETL run recorded (id={cost_id}): ${estimated_cost:.4f} ({provider_type})")
             except Exception as e:
                 logger.debug(f"Failed to record ETL run: {e}")
 
@@ -373,16 +430,20 @@ def run_vector_indexing(
         skipped = sum(1 for r in results if r.status == "skipped")
         failed = sum(1 for r in results if r.status == "error")
 
+        logger.info(f"Provider: {provider_type}")
+        logger.info(f"Model: {pgvector.embedding_model}")
+        logger.info(f"Dimension: {pgvector.embedding_dimension}")
         logger.info(f"Total indexed: {total_indexed}")
         logger.info(f"Corpus types: {successful} success, {skipped} skipped, {failed} failed")
-        logger.info(f"Cost: $0.00 (local embeddings)")
         logger.info("=" * 50)
 
         return results
 
     except ImportError as e:
         logger.error(f"Required package not available: {e}")
-        logger.error("Install with: pip install psycopg2-binary sentence-transformers")
+        logger.error("Install with: pip install psycopg2-binary fastembed")
+        logger.error("For local embeddings: pip install sentence-transformers")
+        logger.error("For OpenAI embeddings: pip install openai")
         return None
     except Exception as e:
         logger.error(f"Error in vector indexing: {e}")
@@ -391,7 +452,13 @@ def run_vector_indexing(
         return None
 
 
-def run_test_search(jurisdiction_id: str, corpus_type: str, query: str) -> None:
+def run_test_search(
+    jurisdiction_id: str,
+    corpus_type: str,
+    query: str,
+    provider_type: str = "fastembed",
+    embedding_model: Optional[str] = None,
+) -> None:
     """Run a test search query."""
     try:
         from civic.storage.pgvector_backend import PgVectorBackend
@@ -401,7 +468,11 @@ def run_test_search(jurisdiction_id: str, corpus_type: str, query: str) -> None:
             logger.error("DATABASE_URL not set")
             return
 
-        pgvector = PgVectorBackend(connection_string=database_url)
+        pgvector = PgVectorBackend(
+            connection_string=database_url,
+            provider_type=provider_type,
+            embedding_model=embedding_model,
+        )
 
         # Use first corpus type if "all"
         ct = "chunks" if corpus_type == "all" else corpus_type

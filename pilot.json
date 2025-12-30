@@ -1763,12 +1763,13 @@
         "completed": "2025-12-29"
       },
       "vectors_e2e_cloud": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Remote compute for portable vector ETL with configurable embedding providers",
         "target_count": "Indexes for: chunks, decisions, issues, municipal_code, transcripts (8,839 docs)",
         "verification": "civic-extract vectors --provider openai --stats shows 100% coverage",
-        "note": "Session 405 pivot: Local sentence-transformers not portable for CI/CD or scheduled jobs. Need remote embedding API support (OpenAI, Voyage, Cohere) for portable ETL. Add --provider flag to CLI. Keep local as default for dev, remote for production refresh pipelines."
+        "note": "Session 406: Added --provider flag (fastembed/local/openai), embedding_model tracking for data integrity, model mismatch validation at search time, dimension change handling on reindex. E2E tested with OpenAI.",
+        "completed": "2025-12-29"
       },
       "api_reads_from_cloud": {
         "status": "ready",
@@ -1780,10 +1781,10 @@
       },
       "data_refresh_strategy": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Documented refresh cadence and automation for all corpus types",
         "verification": "docs/operations/DATA_REFRESH.md exists with refresh commands and schedules",
-        "note": "Define refresh strategy: legislation (monthly --bulk), meetings (weekly), municipal_code (quarterly), transcripts (after videos), issues (daily). Add --refresh flag to auto-rebuild vectors after ingestion. Consider GitHub Actions or cron for automation."
+        "note": "Define refresh strategy: legislation (monthly --bulk), meetings (weekly), municipal_code (quarterly), transcripts (after videos), issues (daily). With vectors_e2e_cloud complete, can now document how to run vector refresh from GitHub Actions using --provider flag."
       }
     }
   },
