@@ -113,13 +113,56 @@ def get_storage_backend(url: Optional[str] = None) -> StorageBackend:
     # Fallback: treat as SQLite path
     return SQLiteBackend(url)
 
+def get_vector_backend(url: Optional[str] = None) -> Optional["VectorBackend"]:
+    """
+    Factory function to get the appropriate vector backend.
+
+    Selects backend based on DATABASE_URL environment variable:
+    - postgresql://... -> PgVectorBackend
+    - (default)        -> None (caller should fall back to CivicEmbeddings/ChromaDB)
+
+    This factory enables seamless switching between:
+    - Local development: ChromaDB via CivicEmbeddings (no DATABASE_URL)
+    - Production: pgvector via PgVectorBackend (DATABASE_URL set)
+
+    Args:
+        url: Database URL. If not provided, uses DATABASE_URL environment
+             variable. If neither is set, returns None.
+
+    Returns:
+        VectorBackend instance (PgVectorBackend) or None if no DATABASE_URL
+
+    Examples:
+        # Production: uses pgvector
+        vector = get_vector_backend()  # DATABASE_URL set
+        results = vector.search("housing", "city-san-rafael", "transcripts")
+
+        # Local development: returns None, caller uses ChromaDB
+        vector = get_vector_backend()  # DATABASE_URL not set
+        if vector is None:
+            # Fall back to CivicEmbeddings
+            ...
+    """
+    url = url or os.getenv("DATABASE_URL")
+
+    if url is None:
+        return None
+
+    if url.startswith("postgresql://") or url.startswith("postgres://"):
+        return PgVectorBackend(connection_string=url)
+
+    # Non-postgres URL: return None (caller should use ChromaDB)
+    return None
+
+
 __all__ = [
     # Storage backend
     "StorageBackend",
     "StorageStats",
     "StorageValidationResult",
-    # Factory function
+    # Factory functions
     "get_storage_backend",
+    "get_vector_backend",
     # SQLite implementation
     "SQLiteBackend",
     # PostgreSQL implementation
@@ -136,6 +179,6 @@ __all__ = [
     "VectorStats",
     "VectorValidationResult",
     "SearchResult",
-    # pgvector implementation (stub)
+    # pgvector implementation
     "PgVectorBackend",
 ]

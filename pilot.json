@@ -782,8 +782,8 @@
         "note": "Session 348: Added embedding_model and embedding_dimension properties to VectorBackend protocol. Created PgVectorBackend stub (NotImplementedError) for future PostgreSQL+pgvector migration. Added 8 new tests for protocol compliance."
       },
       "vector_backend_unification": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "CivicEmbeddings delegates to VectorBackend protocol (pgvector or ChromaDB)",
         "note": "Session 411: Transcripts indexed in pgvector but Civic API uses CivicEmbeddings (ChromaDB). Need to unify: CivicEmbeddings should delegate to VectorBackend, selecting PgVectorBackend when DATABASE_URL set, else ChromaDB. This will make what_was_said() work with pgvector transcripts.",
         "test_file": "packages/civic/tests/test_integration_rag_san_rafael.py"
@@ -793,6 +793,13 @@
         "priority": 3,
         "artifact": "Move JurisdictionRegistry to shared package for clean layer separation",
         "note": "civic-services imports JurisdictionRegistry/CITY_CONFIGS from civic (cross-layer). Options: (1) Create packages/civic-config/, (2) Duplicate config in civic-services. Low priority - config sharing is pragmatic."
+      },
+      "transcript_chunked_indexing": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Index full transcripts with chunking - currently only first 8000 chars indexed per video",
+        "notes": "PgVectorBackend._transcript_to_text() truncates at 8000 chars. Need to chunk transcripts like municipal_code for full coverage.",
+        "artifact": "Full transcripts chunked and indexed in pgvector with complete coverage"
       }
     },
     "schema_documentation": {
