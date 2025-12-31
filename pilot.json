@@ -785,10 +785,24 @@
       },
       "full_reindex_with_chunking": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 2,
         "artifact": "Re-index all corpora with new chunking (municipal_code + legislation)",
         "note": "After full_text populated: re-run vector indexing with --reindex flag. Uses expand_municipal_code_to_chunks() and expand_legislation_to_chunks(). modal run scripts/modal_vectors.py --corpus all --reindex",
         "depends_on": ["modal_municipal_code_fetch", "modal_legislation_text_fetch"]
+      },
+      "automated_incremental_pipeline": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "Scheduled Modal ingestion with incremental detection",
+        "note": "Critical for solo dev operational efficiency. Sub-tasks: (1) Add Modal cron scheduling for all corpora, (2) Add refresh_metadata table to track last fetch timestamps, (3) Implement incremental fetch for high-velocity corpora (meetings, issues) using date filtering, (4) Low-velocity corpora (fed/state/municipal law) use scheduled full refresh. Validate with vector indexing after pipeline runs.",
+        "sub_tasks": [
+          "Add modal.Cron decorators for scheduled functions",
+          "Create refresh_metadata table (jurisdiction, corpus, last_fetch, last_hash)",
+          "Implement date-based incremental for meetings fetch",
+          "Implement date-based incremental for issues fetch",
+          "Add --incremental flag to modal_ingest.py",
+          "Deploy and validate with vector indexing"
+        ]
       }
     }
   },
