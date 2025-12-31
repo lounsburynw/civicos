@@ -7980,3 +7980,83 @@ Added `full_text TEXT` column to legislation table schema with migration for exi
 
 ### Progress
 - Pilot: 216/239 items (90%)
+
+## Session 419 (2025-12-31)
+
+### Completed: legislation_full_text_chunking
+
+Added `expand_legislation_to_chunks()` to chunk legislation for vector indexing:
+
+1. **New function** (`chunker.py:335-454`)
+   - `expand_legislation_to_chunks()` - same pattern as municipal code
+   - Uses LegalChunker with section-aware splitting
+   - Preserves bill metadata (bill_id, bill_number, topic, etc.)
+
+2. **Updated PgVectorBackend** (`pgvector_backend.py:594-610,681-689`)
+   - `index_from_storage()` now requires `legal_chunker` for legislation
+   - Legislation handling uses chunked documents like municipal_code
+
+3. **Updated callers** (`vectors.py:27-30,399-404`, `modal_vectors.py:103-106,169-174`)
+   - Import `expand_legislation_to_chunks`
+   - Pass appropriate chunker based on corpus_type
+   - Added "legislation" to CLI corpus choices
+
+### Data Status Discovery
+
+Investigated full_text coverage:
+- Municipal code: 2,366 sections, 253 (11%) have full_text (Title 1 only)
+- CA legislation: 2,839 bills, 0% have full_text
+- US legislation: 12,355 bills, 0% have full_text
+
+### New pilot.json Items
+
+Added `modal_remote_compute` section with 4 items:
+- `modal_municipal_code_fetch` (P0) - Re-fetch municipal code
+- `modal_legislation_text_fetch` (P1) - Fetch bill text via LegiScan
+- `modal_unified_ingestion` (P1) - Combined parallel ingestion
+- `full_reindex_with_chunking` (P1) - Re-index with chunking
+
+### Files Changed
+- `packages/civic/src/civic/_internal/legal/embeddings/chunker.py:335-454`
+- `packages/civic/src/civic/storage/pgvector_backend.py:553-557,594-610,681-689`
+- `packages/civic-extraction/src/civic_extraction/cli/vectors.py:27-30,68,399-404`
+- `scripts/modal_vectors.py:103-106,169-174`
+- `pilot.json` - Mark complete, add modal_remote_compute section
+
+### Tests
+- 34 smoke tests pass
+- 69 storage protocol tests pass
+- All 4 critics pass
+
+### Next Session (P0)
+- `modal_municipal_code_fetch` - Create Modal script for municipal code fetch
+
+### Progress
+- Pilot: 217/243 items (89%)
+
+## Session 420 (2025-12-31)
+
+### Completed
+- `modal_municipal_code_fetch` (P0) - Modal script for Municode API fetch
+- `modal_legislation_text_fetch` (P1) - Modal script for LegiScan API fetch
+
+### Files Changed
+- `scripts/modal_municipal_code.py` - New: Fetch municipal code from Municode API
+- `scripts/modal_legislation.py` - New: Fetch bill text from LegiScan API
+- `packages/civic/src/civic/storage/postgres_backend.py:3127-3169` - Added `update_legislation_text()` method
+- `pilot.json` - Mark both items ready, set `modal_unified_ingestion` as new P0
+
+### Key Decisions
+- LegiScan API: 30k queries/month, 2 calls per bill (getBill + getBillText)
+- CA + US = ~30,400 calls = monthly limit - may need to serialize
+- Municode API: No quota, 2 req/s rate limit - can run in parallel with legislation
+
+### Tests
+- 34 smoke tests pass
+- All 4 critics pass
+
+### Next Session (P0)
+- `modal_unified_ingestion` - Create unified Modal script for parallel ingestion
+
+### Progress
+- Pilot: 219/243 items (90%)

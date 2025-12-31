@@ -3124,6 +3124,50 @@ class PostgresBackend:
 
         return count
 
+    def update_legislation_text(
+        self,
+        state: str,
+        updates: List[Dict[str, Any]],
+    ) -> int:
+        """
+        Update full_text for legislation bills.
+
+        Args:
+            state: State code (e.g., "CA")
+            updates: List of dicts with 'bill_id' and 'full_text'
+
+        Returns:
+            Number of bills updated
+        """
+        if not updates:
+            return 0
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        updated_count = 0
+        for update in updates:
+            bill_id = update.get("bill_id")
+            full_text = update.get("full_text")
+
+            if not bill_id or not full_text:
+                continue
+
+            cursor.execute("""
+                UPDATE legislation
+                SET full_text = %s
+                WHERE bill_id = %s AND state = %s AND valid_to IS NULL
+            """, (full_text, bill_id, state))
+
+            if cursor.rowcount > 0:
+                updated_count += 1
+
+        conn.commit()
+        conn.close()
+
+        return updated_count
+
 
 # Verify protocol compliance at import time (only if psycopg2 available)
 # StorageBackend is @runtime_checkable, so isinstance() works
