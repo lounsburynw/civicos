@@ -28,6 +28,7 @@ google-cloud-firestore>=2.3.0
 
 # Development and Testing
 pytest>=7.0.0
+pyright>=1.1.350  # Python LSP for Claude Code
 
 # Data handling and timezone
 pytz>=2023.3

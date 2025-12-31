@@ -1,0 +1,26 @@
+{
+  "include": [
+    "packages/civic/src",
+    "packages/civic/tests",
+    "packages/civic-extraction/src",
+    "packages/civic-extraction/tests",
+    "packages/civic-services/src",
+    "packages/civic-services/tests",
+    "apps/civic-mcp"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "civic-env",
+    ".venv",
+    "data"
+  ],
+  "venvPath": ".",
+  "venv": "civic-env",
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": true,
+  "reportMissingTypeStubs": false,
+  "reportUnusedImport": true,
+  "reportUnusedVariable": true
+}
