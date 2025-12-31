@@ -5,6 +5,8 @@ This module provides a single entrypoint for running all data ingestion tasks
 in parallel on Modal's serverless compute infrastructure. It orchestrates:
 - Municipal code fetch (Municode API)
 - Legislation text fetch (LegiScan API)
+- Meeting discovery (ProudCity API) - supports incremental fetch
+- Issue fetch (SeeClickFix API) - supports incremental fetch
 - Vector indexing (fastembed embeddings)
 
 Architecture:
@@ -12,7 +14,13 @@ Architecture:
     └── spawn() parallel tasks:
         ├── fetch_municipal_code()  → Postgres
         ├── fetch_legislation()     → Postgres
+        ├── fetch_meetings()        → Postgres (incremental)
+        ├── fetch_issues()          → Postgres (incremental)
         └── index_vectors()         → pgvector
+
+    Scheduled refreshes (via modal deploy):
+        scheduled_low_velocity_refresh()  # Weekly: municipal code, legislation
+        scheduled_high_velocity_refresh() # Daily: meetings, issues, vectors
 
 Setup:
     1. Install Modal CLI: pip install modal
@@ -21,6 +29,7 @@ Setup:
        modal secret create civic-db DATABASE_URL="postgresql://..."
        modal secret create civic-legiscan LEGISCAN_API_KEY="..."
     4. Run: modal run scripts/modal_ingest.py --all
+    5. Deploy for scheduled runs: modal deploy scripts/modal_ingest.py
 
 Usage:
     # Run all ingestion (municipal, legislation, vectors)
@@ -29,7 +38,13 @@ Usage:
     # Run specific components
     modal run scripts/modal_ingest.py --municipal
     modal run scripts/modal_ingest.py --legislation
+    modal run scripts/modal_ingest.py --meetings
+    modal run scripts/modal_ingest.py --issues
     modal run scripts/modal_ingest.py --vectors
+
+    # Incremental mode (only fetch since last refresh)
+    modal run scripts/modal_ingest.py --meetings --incremental
+    modal run scripts/modal_ingest.py --issues --incremental
 
     # Run municipal + vectors (skip legislation to save quota)
     modal run scripts/modal_ingest.py --municipal --vectors
@@ -46,13 +61,17 @@ API Quota Considerations:
       - CA: ~5,700 calls (2,839 bills × 2)
       - US: ~24,700 calls (12,355 bills × 2)
       - Running both exceeds monthly quota
+    - ProudCity API: No quota, ~1 req/s rate limit
+    - SeeClickFix API: No quota, ~1 req/s rate limit
     - Recommendation: Use --legislation-jurisdiction to run one at a time
 
 Cost Estimates (Modal compute):
     - Municipal code fetch: ~$0.05 (20-30 min, 4GB)
     - Legislation fetch: ~$0.20 (1-4 hours, 4GB)
+    - Meeting fetch: ~$0.02 (5 min, 4GB)
+    - Issues fetch: ~$0.02 (5 min, 4GB)
     - Vector indexing: ~$0.10 (5-10 min, 16GB)
-    - Full --all run: ~$0.35
+    - Full --all run: ~$0.40
 """
 
 import modal
@@ -69,7 +88,8 @@ civic_image = (
     .pip_install(
         "psycopg2-binary>=2.9.0",
         "httpx>=0.24.0",  # For Municode API
-        "requests>=2.31.0",  # For LegiScan API
+        "requests>=2.31.0",  # For LegiScan API and SeeClickFix
+        "beautifulsoup4>=4.12.0",  # For ProudCity scraping
         "fastembed>=0.3.0",  # For embeddings
         "numpy<2",  # fastembed compatibility
         "langgraph>=0.2.0",
@@ -412,6 +432,406 @@ def index_vectors(
 
 
 # =============================================================================
+# Meeting Fetch (Incremental)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=4096,
+    timeout=1800,  # 30 minutes
+    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=10.0),
+)
+def fetch_meetings(
+    jurisdiction: str = "city-san-rafael",
+    days_past: int = 30,
+    days_ahead: int = 90,
+    incremental: bool = False,
+    dry_run: bool = False,
+) -> dict:
+    """Fetch meetings from ProudCity API with optional incremental mode.
+
+    Args:
+        jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
+        days_past: Days to look back for meetings (default 30)
+        days_ahead: Days to look ahead for meetings (default 90)
+        incremental: If True, use refresh_metadata to determine date range
+        dry_run: If True, fetch but don't store
+    """
+    import logging
+    import os
+    import time
+    from datetime import datetime, timedelta
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civic.storage.postgres_backend import PostgresBackend
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    backend = PostgresBackend(database_url)
+    logger.info(f"[MEETINGS] Starting fetch: jurisdiction={jurisdiction}, incremental={incremental}")
+
+    # Determine date range
+    if incremental:
+        metadata = backend.get_refresh_metadata(jurisdiction, "meetings", "proudcity")
+        if metadata and metadata.get("last_fetch_at"):
+            last_fetch = datetime.fromisoformat(metadata["last_fetch_at"])
+            days_since = (datetime.now() - last_fetch).days
+            days_past = min(days_past, max(7, days_since + 1))  # At least 7 days overlap
+            logger.info(f"  Incremental mode: last fetch {days_since} days ago, fetching {days_past} days back")
+
+    # Fetch meetings using ProudCityClient
+    # Map jurisdiction to base_url (add more mappings as needed)
+    JURISDICTION_URLS = {
+        "city-san-rafael": "https://www.cityofsanrafael.org",
+    }
+    base_url = JURISDICTION_URLS.get(jurisdiction)
+    if not base_url:
+        raise ValueError(f"Unknown jurisdiction: {jurisdiction}. Add to JURISDICTION_URLS mapping.")
+
+    try:
+        from civic_extraction.clients.proudcity import ProudCityClient
+        client = ProudCityClient(
+            base_url=base_url,
+            jurisdiction_id=jurisdiction,
+        )
+        meetings = client.get_meetings(days_ahead=days_ahead, days_past=days_past)
+    except Exception as e:
+        logger.error(f"Error fetching meetings: {e}")
+        backend.update_refresh_metadata(
+            jurisdiction, "meetings", "proudcity",
+            status="failed", error_message=str(e)
+        )
+        raise
+
+    logger.info(f"Fetched {len(meetings)} meetings")
+
+    # Store meetings
+    stored_count = 0
+    if not dry_run and meetings:
+        # Convert Meeting objects to dicts for storage
+        meeting_dicts = [m.to_dict() if hasattr(m, 'to_dict') else m.__dict__ for m in meetings]
+        stored_count = backend.store_meetings(jurisdiction, meeting_dicts)
+        logger.info(f"Stored {stored_count} meetings")
+
+        # Update refresh metadata
+        backend.update_refresh_metadata(
+            jurisdiction, "meetings", "proudcity",
+            items_fetched=len(meetings),
+            items_stored=stored_count,
+            status="completed",
+            fetch_window_days=days_past,
+        )
+
+    elapsed = time.time() - start_time
+    return {
+        "task": "meetings",
+        "jurisdiction": jurisdiction,
+        "meetings_fetched": len(meetings),
+        "meetings_stored": stored_count,
+        "incremental": incremental,
+        "days_past": days_past,
+        "days_ahead": days_ahead,
+        "dry_run": dry_run,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 4 * elapsed * 0.000463,
+    }
+
+
+# =============================================================================
+# Issue Fetch (Incremental)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=4096,
+    timeout=1800,  # 30 minutes
+    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=10.0),
+)
+def fetch_issues(
+    jurisdiction: str = "city-san-rafael",
+    max_pages: int = 50,
+    per_page: int = 100,
+    incremental: bool = False,
+    dry_run: bool = False,
+) -> dict:
+    """Fetch 311 issues from SeeClickFix API with optional incremental mode.
+
+    Args:
+        jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
+        max_pages: Maximum pages to fetch (default 50)
+        per_page: Issues per page (default 100, max 100)
+        incremental: If True, use refresh_metadata to determine starting page
+        dry_run: If True, fetch but don't store
+    """
+    import logging
+    import os
+    import time
+    from datetime import datetime
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civic.storage.postgres_backend import PostgresBackend
+    from civic_services.clients.seeclickfix_client import SeeClickFixClient
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    backend = PostgresBackend(database_url)
+    logger.info(f"[ISSUES] Starting fetch: jurisdiction={jurisdiction}, incremental={incremental}")
+
+    # Derive place_url from jurisdiction
+    place_url = jurisdiction
+    for prefix in ["city-", "county-", "town-"]:
+        if place_url.startswith(prefix):
+            place_url = place_url[len(prefix):]
+            break
+
+    # Initialize client
+    client = SeeClickFixClient()
+
+    # Fetch all issues (paginating through results)
+    all_issues = []
+    current_page = 1
+
+    while current_page <= max_pages:
+        logger.info(f"Fetching page {current_page}/{max_pages}...")
+
+        result = client.get_issues(
+            place_url=place_url,
+            per_page=per_page,
+            page=current_page,
+            status=None,  # Fetch all statuses
+        )
+
+        issues = result.get("issues", [])
+        metadata = result.get("metadata", {})
+
+        if metadata.get("error"):
+            logger.error(f"API error: {metadata['error']}")
+            break
+
+        if not issues:
+            logger.info("No more issues to fetch")
+            break
+
+        # Normalize issues for storage (map source -> provider, ensure external_id is string)
+        for issue in issues:
+            issue["provider"] = issue.pop("source", "seeclickfix")
+            # Ensure external_id is a string (database column is TEXT)
+            if "external_id" in issue:
+                issue["external_id"] = str(issue["external_id"])
+            # Flatten location if nested
+            if "location" in issue and isinstance(issue["location"], dict):
+                loc = issue.pop("location")
+                issue["address"] = loc.get("address")
+                issue["latitude"] = loc.get("lat")
+                issue["longitude"] = loc.get("lng")
+
+        all_issues.extend(issues)
+        logger.info(f"  Fetched {len(issues)} issues (total: {len(all_issues)})")
+
+        if not metadata.get("has_more", False):
+            break
+
+        current_page += 1
+
+    logger.info(f"Fetched {len(all_issues)} issues total")
+
+    # Store issues
+    stored_count = 0
+    if not dry_run and all_issues:
+        try:
+            stored_count = backend.store_issues(jurisdiction, all_issues)
+            logger.info(f"Stored {stored_count} issues")
+
+            # Update refresh metadata
+            backend.update_refresh_metadata(
+                jurisdiction, "issues", "seeclickfix",
+                items_fetched=len(all_issues),
+                items_stored=stored_count,
+                status="completed",
+            )
+        except Exception as e:
+            logger.error(f"Error storing issues: {e}")
+            backend.update_refresh_metadata(
+                jurisdiction, "issues", "seeclickfix",
+                status="failed", error_message=str(e)
+            )
+            raise
+
+    elapsed = time.time() - start_time
+    return {
+        "task": "issues",
+        "jurisdiction": jurisdiction,
+        "issues_fetched": len(all_issues),
+        "issues_stored": stored_count,
+        "pages_fetched": current_page,
+        "incremental": incremental,
+        "dry_run": dry_run,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 4 * elapsed * 0.000463,
+    }
+
+
+# =============================================================================
+# Scheduled Refreshes
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+        modal.Secret.from_name("civic-legiscan"),
+    ],
+    memory=4096,
+    timeout=14400,  # 4 hours
+    schedule=modal.Cron("0 3 * * 0"),  # Weekly on Sunday at 3 AM UTC (7 PM Pacific Sat)
+)
+def scheduled_low_velocity_refresh():
+    """Weekly scheduled refresh for low-velocity corpora (municipal code, legislation).
+
+    Runs Sunday 3 AM UTC = Saturday 7 PM Pacific.
+    Full refresh for static reference data that rarely changes.
+    """
+    import logging
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+
+    logger.info("Starting scheduled low-velocity refresh")
+    start_time = time.time()
+
+    results = {}
+
+    # Municipal code (always full refresh - no incremental API support)
+    try:
+        logger.info("Fetching municipal code...")
+        result = fetch_municipal_code.local(jurisdiction="city-san-rafael", dry_run=False)
+        results["municipal_code"] = result
+        logger.info(f"  Municipal code: {result.get('sections_stored', 0)} sections stored")
+    except Exception as e:
+        logger.exception("Municipal code fetch failed")
+        results["municipal_code"] = {"status": "failed", "error": str(e)}
+
+    # Legislation CA (run weekly to avoid quota issues)
+    try:
+        logger.info("Fetching CA legislation...")
+        result = fetch_legislation.local(jurisdiction="state-CA", dry_run=False)
+        results["legislation_CA"] = result
+        logger.info(f"  CA Legislation: {result.get('bills_with_text', 0)} bills updated")
+    except Exception as e:
+        logger.exception("CA legislation fetch failed")
+        results["legislation_CA"] = {"status": "failed", "error": str(e)}
+
+    # Vector indexing (after data is refreshed)
+    try:
+        logger.info("Indexing vectors...")
+        result = index_vectors.local(jurisdiction="city-san-rafael", corpus="all", reindex=False)
+        results["vectors"] = result
+        logger.info(f"  Vectors: {result.get('total_indexed', 0)} documents indexed")
+    except Exception as e:
+        logger.exception("Vector indexing failed")
+        results["vectors"] = {"status": "failed", "error": str(e)}
+
+    elapsed = time.time() - start_time
+    logger.info(f"Low-velocity refresh complete in {elapsed:.1f}s")
+
+    return {
+        "schedule": "low_velocity_weekly",
+        "results": results,
+        "elapsed_seconds": elapsed,
+    }
+
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=4096,
+    timeout=3600,  # 1 hour
+    schedule=modal.Cron("0 14 * * *"),  # Daily at 2 PM UTC (6 AM Pacific)
+)
+def scheduled_high_velocity_refresh():
+    """Daily scheduled refresh for high-velocity corpora (meetings, issues).
+
+    Runs daily at 2 PM UTC = 6 AM Pacific.
+    Incremental fetch for data that changes frequently.
+    """
+    import logging
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+
+    logger.info("Starting scheduled high-velocity refresh")
+    start_time = time.time()
+
+    results = {}
+
+    # Meetings (incremental)
+    try:
+        logger.info("Fetching meetings (incremental)...")
+        result = fetch_meetings.local(
+            jurisdiction="city-san-rafael",
+            incremental=True,
+            dry_run=False,
+        )
+        results["meetings"] = result
+        logger.info(f"  Meetings: {result.get('meetings_stored', 0)} stored")
+    except Exception as e:
+        logger.exception("Meetings fetch failed")
+        results["meetings"] = {"status": "failed", "error": str(e)}
+
+    # Issues (incremental)
+    try:
+        logger.info("Fetching issues (incremental)...")
+        result = fetch_issues.local(
+            jurisdiction="city-san-rafael",
+            incremental=True,
+            dry_run=False,
+        )
+        results["issues"] = result
+        logger.info(f"  Issues: {result.get('issues_stored', 0)} stored")
+    except Exception as e:
+        logger.exception("Issues fetch failed")
+        results["issues"] = {"status": "failed", "error": str(e)}
+
+    # Quick vector indexing for meetings and issues only
+    try:
+        logger.info("Indexing vectors (meetings, issues)...")
+        for corpus_type in ["meetings", "issues"]:
+            result = index_vectors.local(
+                jurisdiction="city-san-rafael",
+                corpus=corpus_type,
+                reindex=False,
+            )
+            results[f"vectors_{corpus_type}"] = result
+            logger.info(f"  {corpus_type} vectors: {result.get('total_indexed', 0)} indexed")
+    except Exception as e:
+        logger.exception("Vector indexing failed")
+        results["vectors"] = {"status": "failed", "error": str(e)}
+
+    elapsed = time.time() - start_time
+    logger.info(f"High-velocity refresh complete in {elapsed:.1f}s")
+
+    return {
+        "schedule": "high_velocity_daily",
+        "results": results,
+        "elapsed_seconds": elapsed,
+    }
+
+
+# =============================================================================
 # Stats
 # =============================================================================
 
@@ -494,10 +914,13 @@ def main(
     all: bool = False,
     municipal: bool = False,
     legislation: bool = False,
+    meetings: bool = False,
+    issues: bool = False,
     vectors: bool = False,
     jurisdiction: str = "city-san-rafael",
     legislation_jurisdiction: str = "state-CA",
     legislation_limit: int | None = None,
+    incremental: bool = False,
     reindex: bool = False,
     dry_run: bool = False,
     stats_only: bool = False,
@@ -512,7 +935,13 @@ def main(
         # Run specific components
         modal run scripts/modal_ingest.py --municipal
         modal run scripts/modal_ingest.py --legislation --legislation-jurisdiction state-CA
+        modal run scripts/modal_ingest.py --meetings
+        modal run scripts/modal_ingest.py --issues
         modal run scripts/modal_ingest.py --vectors
+
+        # Incremental mode (only fetch since last refresh)
+        modal run scripts/modal_ingest.py --meetings --incremental
+        modal run scripts/modal_ingest.py --issues --incremental
 
         # Combine components (skip legislation to save API quota)
         modal run scripts/modal_ingest.py --municipal --vectors
@@ -558,21 +987,38 @@ def main(
     # Determine what to run
     run_municipal = all or municipal
     run_legislation = all or legislation
+    run_meetings = all or meetings
+    run_issues = all or issues
     run_vectors = all or vectors
 
-    if not (run_municipal or run_legislation or run_vectors):
-        print("No tasks specified. Use --all, --municipal, --legislation, or --vectors")
+    if not (run_municipal or run_legislation or run_meetings or run_issues or run_vectors):
+        print("No tasks specified. Use --all, --municipal, --legislation, --meetings, --issues, or --vectors")
         print("Use --stats-only to check current state")
         return
 
     print("\n" + "=" * 60)
     print("Civic Unified Ingestion")
     print("=" * 60)
-    print(f"Tasks: {'municipal ' if run_municipal else ''}{'legislation ' if run_legislation else ''}{'vectors' if run_vectors else ''}")
+    task_list = []
+    if run_municipal:
+        task_list.append("municipal")
+    if run_legislation:
+        task_list.append("legislation")
+    if run_meetings:
+        task_list.append("meetings")
+    if run_issues:
+        task_list.append("issues")
+    if run_vectors:
+        task_list.append("vectors")
+    print(f"Tasks: {' '.join(task_list)}")
     if run_municipal:
         print(f"  Municipal: {jurisdiction}")
     if run_legislation:
         print(f"  Legislation: {legislation_jurisdiction}" + (f" (limit: {legislation_limit})" if legislation_limit else ""))
+    if run_meetings:
+        print(f"  Meetings: {jurisdiction}" + (" (incremental)" if incremental else ""))
+    if run_issues:
+        print(f"  Issues: {jurisdiction}" + (" (incremental)" if incremental else ""))
     if run_vectors:
         print(f"  Vectors: {jurisdiction}")
     print(f"Dry run: {dry_run}")
@@ -597,6 +1043,24 @@ def main(
             dry_run=dry_run,
         )
         handles.append(("legislation", handle))
+
+    if run_meetings:
+        print("Spawning meetings fetch...")
+        handle = fetch_meetings.spawn(
+            jurisdiction=jurisdiction,
+            incremental=incremental,
+            dry_run=dry_run,
+        )
+        handles.append(("meetings", handle))
+
+    if run_issues:
+        print("Spawning issues fetch...")
+        handle = fetch_issues.spawn(
+            jurisdiction=jurisdiction,
+            incremental=incremental,
+            dry_run=dry_run,
+        )
+        handles.append(("issues", handle))
 
     # Wait for fetch tasks to complete before vectorizing
     # (vectors should index the fresh data)
@@ -632,6 +1096,12 @@ def main(
             print(f"+ Municipal Code: {result.get('sections_fetched', 0)} sections fetched, {result.get('sections_stored', 0)} stored")
         elif name == "legislation":
             print(f"+ Legislation: {result.get('bills_with_text', 0)}/{result.get('bills_processed', 0)} bills processed, {result.get('api_calls', 0)} API calls")
+        elif name == "meetings":
+            incr = " (incremental)" if result.get("incremental") else ""
+            print(f"+ Meetings{incr}: {result.get('meetings_fetched', 0)} fetched, {result.get('meetings_stored', 0)} stored")
+        elif name == "issues":
+            incr = " (incremental)" if result.get("incremental") else ""
+            print(f"+ Issues{incr}: {result.get('issues_fetched', 0)} fetched, {result.get('issues_stored', 0)} stored")
 
     if vector_result:
         cost = vector_result.get("cost_usd", 0)
