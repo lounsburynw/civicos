@@ -900,6 +900,19 @@ def get_stats(jurisdiction: str = "city-san-rafael") -> dict:
             }
         except Exception:
             pass
+
+    # Also show legislation vectors for city jurisdictions (stored under state-CA)
+    if not jurisdiction.startswith("state-"):
+        for state in ["CA", "US"]:
+            try:
+                s = pgvector.get_stats(f"state-{state}", "legislation", backend)
+                vector_stats[f"legislation_{state}"] = {
+                    "indexed": s.document_count,
+                    "total": s.storage_document_count or 0,
+                }
+            except Exception:
+                pass
+
     stats["vectors"] = vector_stats
 
     return stats
