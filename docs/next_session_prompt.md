@@ -1,70 +1,101 @@
-# Session 413 Context
+# Recommended: modal_unified_ingestion
 
-**Priority:** chunker_layer_separation
-**Date:** 2025-12-30
+**Priority:** P0
+**Area:** pipeline_automation > modal_remote_compute
+**Date:** 2025-12-31
 
-## Session 413 Completed
+> This is recommended context from Session 420. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
-1. **Fixed transcript chunked indexing** - `what_was_said()` now returns results
-   - Added `_expand_transcripts_to_chunks()` to PgVectorBackend
-   - Uses TranscriptChunker to create ~1500 char semantic chunks
-   - 19 transcripts -> 4296 chunks indexed in pgvector
-   - Full metadata preserved: speaker, timestamps, roles, video_id
+## Context
 
-## P0: chunker_layer_separation
+Session 420 completed both Modal fetch scripts:
+- `modal_municipal_code_fetch` - Fetch municipal code from Municode API
+- `modal_legislation_text_fetch` - Fetch bill text from LegiScan API
 
-**Problem:** Architecture critic flagged that `pgvector_backend.py` (storage layer) imports from `civic._internal.meetings.transcript` (domain-specific module). This violates layer separation - storage backends should be domain-agnostic.
+Now we need a unified script to run all ingestion in parallel.
 
-**Current Code:**
-```python
-# packages/civic/src/civic/storage/pgvector_backend.py:465
-def _expand_transcripts_to_chunks(self, transcripts, ...):
-    from civic._internal.meetings.transcript import TranscriptChunker  # <-- violation
-    chunker = TranscriptChunker(...)
-```
+## Current State
 
-**Options:**
+| Script | Status | Purpose |
+|--------|--------|---------|
+| `scripts/modal_municipal_code.py` | Ready | Fetch municipal code (Municode API) |
+| `scripts/modal_legislation.py` | Ready | Fetch bill text (LegiScan API) |
+| `scripts/modal_vectors.py` | Ready | Generate embeddings (fastembed) |
+| `scripts/modal_ingest.py` | Not created | Unified parallel ingestion |
 
-1. **Move TranscriptChunker to shared module** (recommended)
-   - Create `civic.storage.transformers.transcript_chunker`
-   - Both `pgvector_backend` and `CivicEmbeddings` can import from there
-   - Clean layer separation
+## The Goal
 
-2. **Inject chunker as dependency**
-   - Pass chunker instance to `index_from_storage()` or `_expand_transcripts_to_chunks()`
-   - More flexible but requires API changes
+Create `scripts/modal_ingest.py` that:
+1. Spawns fetch functions in parallel (Modal's `.spawn()`)
+2. Allows single command: `modal run scripts/modal_ingest.py --all`
+3. Enables laptop-closed operation for full data refresh
 
-3. **Pre-chunk in calling code**
-   - Caller chunks transcripts before passing to `index_from_storage()`
-   - Add new corpus_type="transcript_chunks" that expects pre-chunked data
-   - Keeps storage layer clean but pushes complexity to callers
-
-### Implementation Steps (Option 1)
-
-1. Create `packages/civic/src/civic/storage/transformers/__init__.py`
-2. Move chunking logic to `packages/civic/src/civic/storage/transformers/transcript.py`
-3. Update imports in:
-   - `pgvector_backend.py`
-   - `_internal/meetings/embeddings.py` (CivicEmbeddings)
-4. Run architecture critic to verify fix
-5. Run tests to verify functionality
-
-### Key Files
+## Key Files
 
 | File | Purpose |
 |------|---------|
-| `storage/pgvector_backend.py:440-538` | `_expand_transcripts_to_chunks()` with problematic import |
-| `_internal/meetings/transcript.py:976-1175` | TranscriptChunker class to move |
-| `_internal/meetings/embeddings.py:953` | CivicEmbeddings also uses TranscriptChunker |
+| `scripts/modal_municipal_code.py` | Template for fetch pattern |
+| `scripts/modal_legislation.py` | Template for LegiScan fetch |
+| `scripts/modal_vectors.py` | Template for vector indexing |
 
-### Verification
+## Suggested Approach
 
-After refactor:
-1. `/critic architecture` should pass
-2. `what_was_said("homeless shelter")` should still return 10 results
-3. All tests should pass
+```python
+# scripts/modal_ingest.py
+import modal
 
-## Session 413 Stats
+app = modal.App("civic-ingest")
 
-- Pilot: 212/233 items ready (91%)
-- Transcript chunks indexed: 4296 (from 19 transcripts)
+@app.local_entrypoint()
+def main(all: bool = False, municipal: bool = False, legislation: bool = False, vectors: bool = False):
+    """Unified ingestion entrypoint."""
+    handles = []
+
+    if all or municipal:
+        from scripts.modal_municipal_code import fetch_municipal_code
+        handles.append(("municipal_code", fetch_municipal_code.spawn()))
+
+    if all or legislation:
+        from scripts.modal_legislation import fetch_legislation_text
+        handles.append(("legislation_CA", fetch_legislation_text.spawn("state-CA")))
+        # Note: US legislation shares quota with CA - may need to serialize
+
+    # Wait for fetches to complete before vectorizing
+    for name, handle in handles:
+        result = handle.get()
+        print(f"{name}: {result}")
+
+    if all or vectors:
+        from scripts.modal_vectors import index_corpus
+        # Reindex all corpora with new data
+        index_corpus.remote(corpus="all", reindex=True)
+```
+
+## API Quota Considerations
+
+- **Municode API**: No quota, 2 req/s rate limit
+- **LegiScan API**: 30,000 queries/month free tier
+  - CA: ~5,700 calls (2,839 bills × 2)
+  - US: ~24,700 calls (12,355 bills × 2)
+  - Running both exceeds monthly quota - may need to serialize
+
+## Tests to Run
+
+```bash
+# Smoke tests
+pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
+```
+
+## Success Criteria
+
+- [ ] `scripts/modal_ingest.py` created
+- [ ] Supports `--all`, `--municipal`, `--legislation`, `--vectors` flags
+- [ ] Parallel execution via Modal `.spawn()`
+- [ ] Single command runs full pipeline: `modal run scripts/modal_ingest.py --all`
+- [ ] `pilot.json` updated: `modal_unified_ingestion` → `ready`
+
+## Session 420 Stats
+
+- Completed: `modal_municipal_code_fetch`, `modal_legislation_text_fetch`
+- Added: `update_legislation_text()` method to PostgresBackend
+- Pilot: 219/243 items (90%)
