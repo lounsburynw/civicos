@@ -750,6 +750,36 @@
         "artifact": "Create portable 311 abstraction and store issues in Postgres",
         "note": "Create IssueProvider protocol for multi-provider support (SeeClickFix, PublicStuff, CitySourced). Add NormalizedIssue dataclass, store_issues()/get_issues() to StorageBackend, unified civic-extract issues CLI with --provider flag. SeeClickFix first implementation. 1,340 issues ready to migrate."
       }
+    },
+    "modal_remote_compute": {
+      "modal_municipal_code_fetch": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "Modal script for full municipal code fetch from Municode API",
+        "note": "Current state: 2,366 sections in DB but only 253 (11%) have full_text (Title 1 only). Need to re-fetch all titles with full section content. Create scripts/modal_municipal_code.py based on modal_vectors.py pattern.",
+        "depends_on": "municipal_code_full_text_chunking"
+      },
+      "modal_legislation_text_fetch": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Modal script for fetching full bill text via LegiScan getBillText API",
+        "note": "Current state: 15,194 bills (2,839 CA + 12,355 US) with 0% full_text. LegiScan getBillText endpoint returns base64-encoded bill text. Need to add get_bill_text() to LegiScanClient, create backfill script, run on Modal for parallel processing.",
+        "depends_on": "legislation_full_text_chunking"
+      },
+      "modal_unified_ingestion": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Unified Modal script to run full ingestion pipeline in parallel",
+        "note": "Combine: municipal_code fetch, legislation text fetch, vector reindexing. Run as parallel Modal functions. Single command: modal run scripts/modal_ingest.py --all. Allows laptop-closed operation.",
+        "depends_on": ["modal_municipal_code_fetch", "modal_legislation_text_fetch"]
+      },
+      "full_reindex_with_chunking": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Re-index all corpora with new chunking (municipal_code + legislation)",
+        "note": "After full_text populated: re-run vector indexing with --reindex flag. Uses expand_municipal_code_to_chunks() and expand_legislation_to_chunks(). modal run scripts/modal_vectors.py --corpus all --reindex",
+        "depends_on": ["modal_municipal_code_fetch", "modal_legislation_text_fetch"]
+      }
     }
   },
   "data_architecture": {
@@ -840,12 +870,13 @@
         "completed": "2025-12-30"
       },
       "legislation_full_text_chunking": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "description": "Use LegalChunker for legislation indexing instead of summary-only",
         "artifact": "Extend index_from_storage() legal_chunker pattern to legislation corpus type",
         "depends_on": ["legislation_full_text_storage", "municipal_code_full_text_chunking"],
-        "note": "Current: _legislation_to_text() only uses summary + leverage_point. After full_text stored, chunk with LegalChunker for semantic search on actual bill content. Same pattern as municipal_code_full_text_chunking. Deprecate separate LegalIndexer -> ChromaDB path.",
+        "completed": "2025-12-30",
+        "note": "Added expand_legislation_to_chunks() to chunker.py. Updated index_from_storage() to require legal_chunker for legislation (same pattern as municipal_code). Updated vectors.py and modal_vectors.py callers.",
         "test_file": "packages/civic/tests/test_storage_protocols.py",
         "pattern": "Consistent chunking across legal corpus types - LegalChunker handles sections, chapters, articles"
       },
