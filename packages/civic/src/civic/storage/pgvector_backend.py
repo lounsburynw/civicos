@@ -437,42 +437,105 @@ class PgVectorBackend:
 
         return "\n".join(parts) if parts else str(decision)
 
-    def _transcript_to_text(self, transcript: Dict[str, Any]) -> str:
+    def _expand_transcripts_to_chunks(
+        self,
+        transcripts: List[Dict[str, Any]],
+        max_chunk_size: int = 1500,
+        min_chunk_size: int = 200,
+    ) -> List[Dict[str, Any]]:
         """
-        Convert a transcript dict to text for embedding.
+        Expand transcripts into semantic chunks for embedding.
 
-        Extracts plain text from transcript structure.
+        Uses TranscriptChunker to create appropriately-sized chunks that
+        preserve speaker attribution and timestamps. This enables both:
+        - Excerpt-level search: Find specific quotes about a topic
+        - Meeting-level search: Aggregate chunks by video_id
+
+        Args:
+            transcripts: List of transcript dicts from storage
+            max_chunk_size: Maximum characters per chunk (default 1500)
+            min_chunk_size: Minimum chars before splitting on speaker change
+
+        Returns:
+            List of chunk dicts ready for indexing, each containing:
+            - id: "transcript-{video_id}-{chunk_index}"
+            - text: Chunk text with speaker context
+            - video_id, speaker, timestamps, metadata
         """
-        parts = []
+        from civic._internal.meetings.transcript import TranscriptChunker
 
-        if transcript.get("video_title"):
-            parts.append(f"Title: {transcript['video_title']}")
+        chunker = TranscriptChunker(
+            max_chunk_size=max_chunk_size,
+            min_chunk_size=min_chunk_size,
+            chunk_overlap=1,
+        )
 
-        # First check for top-level text field (from store_transcripts)
-        text = transcript.get("text", "")
+        all_chunks = []
 
-        # Fall back to nested transcript structure
-        if not text:
+        for transcript in transcripts:
+            video_id = transcript.get("video_id", "")
+            if not video_id:
+                continue
+
+            # Get utterances from transcript JSONB field
             transcript_data = transcript.get("transcript", {})
-            if isinstance(transcript_data, dict):
-                text = transcript_data.get("text", "")
-                # If no text field, concatenate utterances
-                if not text and transcript_data.get("utterances"):
-                    text = " ".join(
-                        u.get("text", "") for u in transcript_data["utterances"]
-                    )
-            elif isinstance(transcript_data, str):
-                text = transcript_data
+            if isinstance(transcript_data, str):
+                try:
+                    transcript_data = json.loads(transcript_data)
+                except json.JSONDecodeError:
+                    logger.warning(f"Failed to parse transcript JSON for {video_id}")
+                    continue
 
-        if text:
-            # Truncate very long transcripts for embedding
-            # (full text still stored in metadata)
-            max_chars = 8000  # ~2000 tokens for embedding
-            if len(text) > max_chars:
-                text = text[:max_chars] + "..."
-            parts.append(text)
+            utterances_data = transcript_data.get("utterances", [])
+            if not utterances_data:
+                logger.warning(f"No utterances found in transcript {video_id}")
+                continue
 
-        return "\n".join(parts) if parts else ""
+            # Parse utterances and chunk
+            utterances = chunker.parse_utterances({"utterances": utterances_data})
+            if not utterances:
+                continue
+
+            # Chunk with speaker role detection (skip agenda detection for speed)
+            chunks = chunker.chunk(
+                utterances,
+                detect_speaker_roles=True,
+                detect_agenda_items=False,
+            )
+
+            # Convert to indexable format matching ChromaDB schema
+            for chunk in chunks:
+                chunk_metadata = chunk.metadata or {}
+                chunk_dict = {
+                    "id": f"transcript-{video_id}-{chunk.chunk_index}",
+                    "text": chunk.to_embedding_text(),
+                    "video_id": video_id,
+                    "speaker": chunk.speaker,
+                    "speakers": chunk.speakers,
+                    "start_ms": chunk.start_ms,
+                    "end_ms": chunk.end_ms,
+                    "start_timestamp": chunk.start_timestamp,
+                    "end_timestamp": chunk.end_timestamp,
+                    "chunk_index": chunk.chunk_index,
+                    "total_chunks": chunk.total_chunks,
+                    "utterance_count": chunk.utterance_count,
+                    # Speaker role metadata
+                    "speaker_role": chunk_metadata.get("speaker_role"),
+                    "speaker_name": chunk_metadata.get("speaker_name"),
+                    "role_confidence": chunk_metadata.get("role_confidence"),
+                    "is_public_comment": chunk_metadata.get("is_public_comment", False),
+                }
+                all_chunks.append(chunk_dict)
+
+            logger.debug(
+                f"Chunked transcript {video_id}: {len(chunks)} chunks "
+                f"from {len(utterances)} utterances"
+            )
+
+        logger.info(
+            f"Expanded {len(transcripts)} transcripts into {len(all_chunks)} chunks"
+        )
+        return all_chunks
 
     def _municipal_code_to_text(self, section: Dict[str, Any]) -> str:
         """
@@ -600,7 +663,9 @@ class PgVectorBackend:
         elif corpus_type == "meetings":
             documents = storage_backend.get_meetings(jurisdiction_id)
         elif corpus_type == "transcripts":
-            documents = storage_backend.get_transcripts(jurisdiction_id)
+            # Expand transcripts to chunks for semantic search
+            raw_transcripts = storage_backend.get_transcripts(jurisdiction_id)
+            documents = self._expand_transcripts_to_chunks(raw_transcripts)
         elif corpus_type == "municipal_code":
             documents = storage_backend.get_municipal_code(jurisdiction_id)
         elif corpus_type == "issues":
@@ -666,11 +731,12 @@ class PgVectorBackend:
                     meeting_title = doc.get("title")
                     meeting_datetime = doc.get("meeting_datetime")
                 elif corpus_type == "transcripts":
-                    text = self._transcript_to_text(doc)
-                    doc_id = doc.get("video_id") or doc.get("id", f"transcript-{i}-{idx}")
-                    meeting_id = doc.get("meeting_id")
-                    meeting_title = doc.get("video_title")
-                    meeting_datetime = doc.get("meeting_date")
+                    # doc is already a chunk from _expand_transcripts_to_chunks
+                    text = doc.get("text", "")
+                    doc_id = doc.get("id", f"transcript-{i}-{idx}")
+                    meeting_id = doc.get("video_id")  # Use video_id as meeting reference
+                    meeting_title = None  # Will be in metadata
+                    meeting_datetime = None  # Not available at chunk level
                 elif corpus_type == "municipal_code":
                     text = self._municipal_code_to_text(doc)
                     doc_id = f"mc-{doc.get('section_number', f'{i}-{idx}')}"
