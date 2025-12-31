@@ -1,106 +1,70 @@
-# Session 412 Context
+# Session 413 Context
 
-**Priority:** VectorBackend Unification
+**Priority:** chunker_layer_separation
 **Date:** 2025-12-30
 
-## Session 411 Completed
+## Session 413 Completed
 
-1. **All 19 San Rafael transcripts complete** - $40.20 total transcription cost
-2. **Transcripts indexed in pgvector** - Using nomic-embed-text-v1.5 (768 dims)
-3. **Fixed `_transcript_to_text()`** - Now reads top-level `text` field from transcript documents
-4. **Fixed timezone issue** - Manually-inserted transcripts had UTC timestamps; re-stored through proper `store_transcripts()` pipeline
-5. **Added `content_hash` column** to transcripts table
+1. **Fixed transcript chunked indexing** - `what_was_said()` now returns results
+   - Added `_expand_transcripts_to_chunks()` to PgVectorBackend
+   - Uses TranscriptChunker to create ~1500 char semantic chunks
+   - 19 transcripts -> 4296 chunks indexed in pgvector
+   - Full metadata preserved: speaker, timestamps, roles, video_id
 
-## P0: VectorBackend Unification
+## P0: chunker_layer_separation
 
-**Problem:** Transcripts are indexed in pgvector, but the Civic API (`what_was_said()`) uses ChromaDB via `CivicEmbeddings`. They're not connected.
+**Problem:** Architecture critic flagged that `pgvector_backend.py` (storage layer) imports from `civic._internal.meetings.transcript` (domain-specific module). This violates layer separation - storage backends should be domain-agnostic.
 
-**Current Architecture (broken):**
-```
-Civic.what_was_said()
-  -> history._search_transcripts()
-    -> CivicEmbeddings.search_transcripts()  # Uses ChromaDB!
-
-civic-extract vectors
-  -> PgVectorBackend.index_from_storage()  # Uses pgvector
+**Current Code:**
+```python
+# packages/civic/src/civic/storage/pgvector_backend.py:465
+def _expand_transcripts_to_chunks(self, transcripts, ...):
+    from civic._internal.meetings.transcript import TranscriptChunker  # <-- violation
+    chunker = TranscriptChunker(...)
 ```
 
-**Target Architecture:**
-```
-┌─────────────────────────────────────────────────────────┐
-│  Civic API (what_was_said, what_happened, etc.)         │
-└─────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│  CivicEmbeddings (facade)                               │
-│  - Jurisdiction-specific config                         │
-│  - Collection naming conventions                        │
-│  - Delegates to VectorBackend                           │
-└─────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│  VectorBackend (protocol) - already exists!             │
-│  ├── PgVectorBackend  (when DATABASE_URL set)           │
-│  └── ChromaDBBackend  (local development fallback)      │
-└─────────────────────────────────────────────────────────┘
-```
+**Options:**
 
-### Implementation Steps
+1. **Move TranscriptChunker to shared module** (recommended)
+   - Create `civic.storage.transformers.transcript_chunker`
+   - Both `pgvector_backend` and `CivicEmbeddings` can import from there
+   - Clean layer separation
 
-1. **Read existing code:**
-   - `packages/civic/src/civic/storage/vector.py` - VectorBackend protocol (lines 131-280)
-   - `packages/civic/src/civic/storage/pgvector_backend.py` - PgVectorBackend implementation
-   - `packages/civic/src/civic/_internal/meetings/embeddings.py` - CivicEmbeddings (ChromaDB)
-   - `packages/civic/src/civic/history.py` - `_search_transcripts()` (lines 467-577)
+2. **Inject chunker as dependency**
+   - Pass chunker instance to `index_from_storage()` or `_expand_transcripts_to_chunks()`
+   - More flexible but requires API changes
 
-2. **Create factory function** in `storage/vector.py`:
-   ```python
-   def get_vector_backend(jurisdiction_id: str) -> VectorBackend:
-       """Return PgVectorBackend if DATABASE_URL set, else ChromaDBBackend."""
-   ```
+3. **Pre-chunk in calling code**
+   - Caller chunks transcripts before passing to `index_from_storage()`
+   - Add new corpus_type="transcript_chunks" that expects pre-chunked data
+   - Keeps storage layer clean but pushes complexity to callers
 
-3. **Update CivicEmbeddings** to delegate to VectorBackend:
-   - `search_transcripts()` -> `vector_backend.search(corpus_type="transcripts")`
-   - Keep jurisdiction-specific config logic
+### Implementation Steps (Option 1)
 
-4. **Update history._search_transcripts()** to use the factory or updated CivicEmbeddings
-
-5. **Run tests:**
-   ```bash
-   pytest packages/civic/tests/test_integration_rag_san_rafael.py -v --override-ini="addopts="
-   ```
+1. Create `packages/civic/src/civic/storage/transformers/__init__.py`
+2. Move chunking logic to `packages/civic/src/civic/storage/transformers/transcript.py`
+3. Update imports in:
+   - `pgvector_backend.py`
+   - `_internal/meetings/embeddings.py` (CivicEmbeddings)
+4. Run architecture critic to verify fix
+5. Run tests to verify functionality
 
 ### Key Files
 
 | File | Purpose |
 |------|---------|
-| `storage/vector.py` | VectorBackend protocol - add factory function here |
-| `storage/pgvector_backend.py` | Production implementation (already works) |
-| `_internal/meetings/embeddings.py` | CivicEmbeddings - needs to delegate |
-| `history.py` | API layer - uses CivicEmbeddings |
+| `storage/pgvector_backend.py:440-538` | `_expand_transcripts_to_chunks()` with problematic import |
+| `_internal/meetings/transcript.py:976-1175` | TranscriptChunker class to move |
+| `_internal/meetings/embeddings.py:953` | CivicEmbeddings also uses TranscriptChunker |
 
 ### Verification
 
-After refactor, this should work:
-```python
-from civic import Civic
-c = Civic("san-rafael")
-excerpts = c.what_was_said("homeless shelter")
-assert len(excerpts) > 0  # Currently fails, should pass
-```
+After refactor:
+1. `/critic architecture` should pass
+2. `what_was_said("homeless shelter")` should still return 10 results
+3. All tests should pass
 
-## Session 411 Stats
+## Session 413 Stats
 
-- Pilot: 210/231 items ready (91%)
-- Transcription cost: $40.20 (19 videos, ~7337 utterances, 287k words)
-- Vector index: 19 transcripts in pgvector
-
-## Data State
-
-| Data Type | Count | Location |
-|-----------|-------|----------|
-| Audio files | 19/19 | R2 cloud storage |
-| Transcripts | 19/19 | Postgres `transcripts` table |
-| Transcript vectors | 19/19 | Postgres `pgvector_embeddings` table |
+- Pilot: 212/233 items ready (91%)
+- Transcript chunks indexed: 4296 (from 19 transcripts)

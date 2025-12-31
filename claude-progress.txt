@@ -7716,3 +7716,44 @@ Only 19 documents indexed (1 per video), each truncated to first 8000 chars.
 
 ### Next P0
 `transcript_chunked_indexing` - Index full transcripts with chunking
+
+## Session 413 (2025-12-30)
+
+### Completed: transcript_chunked_indexing
+
+**Problem:** `what_was_said()` returned 0 results because PgVectorBackend indexed whole transcripts (truncated to 8000 chars) instead of semantic chunks.
+
+**Solution:** Modified PgVectorBackend to automatically chunk transcripts using `TranscriptChunker`:
+
+1. Added `_expand_transcripts_to_chunks()` method to `pgvector_backend.py`:
+   - Uses existing `TranscriptChunker` (same as ChromaDB path)
+   - Creates ~1500 char chunks with speaker/timestamp metadata
+   - Preserves speaker role detection for metadata
+
+2. Updated `index_from_storage()` for `corpus_type="transcripts"`:
+   - Expands transcripts to chunks before indexing
+   - Each chunk indexed as separate vector with full metadata
+
+**Results:**
+- 19 transcripts → 4296 chunks indexed in pgvector
+- `what_was_said("homeless shelter")` now returns 10 relevant results
+- Full metadata preserved: speaker, timestamps, roles, video_id
+
+**Verification:**
+```python
+from civic import Civic
+c = Civic('san-rafael')
+results = c.what_was_said('homeless shelter')
+# Returns 10 results with speaker/timestamp metadata!
+```
+
+### Key Files Changed
+- `packages/civic/src/civic/storage/pgvector_backend.py`:
+  - Replaced `_transcript_to_text()` with `_expand_transcripts_to_chunks()`
+  - Updated transcript indexing in `index_from_storage()`
+
+### Progress
+- Pilot: 212/233 items ready (91%)
+
+### Next P0
+`chunker_layer_separation` - Move TranscriptChunker import out of pgvector_backend storage layer (architecture critic flagged)
