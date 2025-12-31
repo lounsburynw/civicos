@@ -11,6 +11,29 @@ cat phase.json               # Current development phase
 cat claude-progress.txt      # Where we are
 ```
 
+## LSP Setup (Claude Code)
+
+LSP enables faster code navigation (50ms vs 45s) and better context awareness.
+
+**Install language servers:**
+```bash
+# Python (Pyright) - already in requirements.txt
+pip install pyright
+
+# TypeScript - install in frontend
+cd apps/civic-workspace && npm install
+```
+
+**Configuration files:**
+- `pyrightconfig.json` - Python LSP config (includes all packages)
+- `apps/civic-workspace/tsconfig.app.json` - TypeScript config
+
+**Enable in Claude Code:**
+```bash
+claude
+> /plugin    # Search "lsp", install Python and TypeScript plugins
+```
+
 ## Development Phases
 
 Development follows a phased approach, tracked in `phase.json`:
@@ -240,6 +263,22 @@ Full test suite runs automatically on GitHub Actions:
 - **Use smoke tests for quick validation** - 31 tests, ~75s
 - **Use targeted tests during dev** - each pilot.json item has a `test_file` field
 - **Check CI status before merging** - full coverage runs there
+
+## Cloud Infrastructure
+
+Production uses Supabase (free tier) + Cloudflare R2:
+
+| Data Type | Backend | Service |
+|-----------|---------|---------|
+| SQL | PostgresBackend | Supabase Postgres |
+| Vectors | PgVectorBackend | Supabase pgvector |
+| Blobs | R2Backend | Cloudflare R2 |
+
+**Local dev:** SQLite + ChromaDB (no cloud dependency)
+
+**Config:** `DATABASE_URL` in `.env` switches to cloud backends automatically.
+
+**Security:** RLS enabled via `scripts/sql/enable_rls.sql` - only service_role can access.
 
 ## Constraints
 
