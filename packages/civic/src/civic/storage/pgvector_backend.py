@@ -550,9 +550,11 @@ class PgVectorBackend:
             transcript_chunker: Callable that accepts list of transcripts and returns
                               list of chunk dicts. Required when corpus_type="transcripts".
                               Use civic._internal.meetings.transcript.expand_transcripts_to_chunks.
-            legal_chunker: Callable that accepts list of municipal code sections and returns
-                          list of chunk dicts. Required when corpus_type="municipal_code".
-                          Use civic._internal.legal.embeddings.chunker.expand_municipal_code_to_chunks.
+            legal_chunker: Callable that accepts list of documents and returns
+                          list of chunk dicts. Required when corpus_type="municipal_code"
+                          or corpus_type="legislation".
+                          For municipal_code: use expand_municipal_code_to_chunks.
+                          For legislation: use expand_legislation_to_chunks.
 
         Returns:
             Number of documents successfully indexed
@@ -592,13 +594,20 @@ class PgVectorBackend:
         elif corpus_type == "issues":
             documents = storage_backend.get_issues(jurisdiction_id)
         elif corpus_type == "legislation":
+            # Expand legislation bills to chunks for semantic search
+            if legal_chunker is None:
+                raise ValueError(
+                    "legal_chunker is required when corpus_type='legislation'. "
+                    "Use civic._internal.legal.embeddings.chunker.expand_legislation_to_chunks"
+                )
             # Legislation uses state code, not jurisdiction_id
             # Convention: pass "state-CA" as jurisdiction_id -> extracts "CA"
             if jurisdiction_id.startswith("state-"):
                 state_code = jurisdiction_id.split("-", 1)[1].upper()
             else:
                 state_code = jurisdiction_id.upper()
-            documents = storage_backend.get_legislation(state=state_code)
+            raw_bills = storage_backend.get_legislation(state=state_code)
+            documents = legal_chunker(raw_bills)
         else:
             raise ValueError(f"Unknown corpus_type: {corpus_type}")
 
@@ -672,11 +681,12 @@ class PgVectorBackend:
                     meeting_title = doc.get("summary") or doc.get("issue_type")
                     meeting_datetime = doc.get("created_at")
                 elif corpus_type == "legislation":
-                    text = self._legislation_to_text(doc)
-                    doc_id = doc.get("bill_id") or doc.get("id", f"bill-{i}-{idx}")
+                    # doc is already a chunk from expand_legislation_to_chunks
+                    text = doc.get("text", "")
+                    doc_id = doc.get("id", f"leg-{i}-{idx}")
                     meeting_id = None  # Not meeting-related
                     meeting_title = doc.get("bill_name") or doc.get("bill_number")
-                    meeting_datetime = doc.get("enacted_date")
+                    meeting_datetime = None
 
                 if not text.strip():
                     continue

@@ -330,3 +330,125 @@ def expand_municipal_code_to_chunks(
         f"Expanded {len(sections)} municipal code sections into {len(all_chunks)} chunks"
     )
     return all_chunks
+
+
+def expand_legislation_to_chunks(
+    bills: list[dict],
+    max_chunk_size: int = 1500,
+    overlap: int = 100,
+) -> list[dict]:
+    """
+    Expand legislation bills into semantic chunks for embedding.
+
+    This is the canonical function for chunking legislation before vector indexing.
+    It uses LegalChunker to create appropriately-sized chunks that preserve
+    bill structure and legal context.
+
+    Args:
+        bills: List of legislation bill dicts from storage backend
+               (via get_legislation). Each dict should have:
+               - bill_id: str
+               - bill_number: str
+               - bill_name: str (optional)
+               - full_text: str (the bill text to chunk)
+               - topic, status, leverage_point, keywords: (optional metadata)
+        max_chunk_size: Maximum characters per chunk (default 1500)
+        overlap: Character overlap between chunks for context (default 100)
+
+    Returns:
+        List of chunk dicts ready for indexing, each containing:
+        - id: "leg-{bill_id}-{chunk_index}"
+        - text: Chunk text with bill header context
+        - bill_id, bill_number, bill_name, topic, status, etc.
+    """
+    chunker = LegalChunker(
+        max_chunk_size=max_chunk_size,
+        overlap=overlap,
+        preserve_sections=True,  # Preserve legal structure
+    )
+
+    all_chunks = []
+
+    for bill in bills:
+        bill_id = bill.get("bill_id", "")
+        if not bill_id:
+            continue
+
+        # Get the full text
+        full_text = bill.get("full_text")
+        if not full_text:
+            # No full_text available - skip this bill for chunking
+            # (caller should handle bills without full_text separately)
+            continue
+
+        # Build bill header for context
+        header_parts = []
+        if bill.get("bill_number"):
+            header_parts.append(f"Bill {bill['bill_number']}")
+        if bill.get("bill_name"):
+            header_parts.append(f": {bill['bill_name']}")
+        bill_header = "".join(header_parts) if header_parts else f"Bill {bill_id}"
+
+        # Create source_id for chunk tracking
+        source_id = f"leg-{bill_id}"
+
+        # Metadata to preserve across chunks
+        base_metadata = {
+            "bill_id": bill_id,
+            "bill_number": bill.get("bill_number"),
+            "bill_name": bill.get("bill_name"),
+            "topic": bill.get("topic"),
+            "status": bill.get("status"),
+            "leverage_point": bill.get("leverage_point"),
+            "keywords": bill.get("keywords"),
+        }
+
+        # Chunk the bill text
+        chunks = list(chunker.chunk_document(
+            text=full_text,
+            source_id=source_id,
+            metadata=base_metadata,
+        ))
+
+        if not chunks:
+            # Bill was empty or couldn't be chunked - create single chunk
+            logger.warning(f"No chunks generated for bill {bill_id}")
+            continue
+
+        # Convert Chunk objects to indexable dicts
+        for chunk in chunks:
+            # Include bill header in first chunk for context
+            if chunk.chunk_index == 0:
+                chunk_text = f"{bill_header}\n{chunk.text}"
+            else:
+                # For subsequent chunks, include brief context
+                chunk_text = f"[{bill_header} continued]\n{chunk.text}"
+
+            chunk_dict = {
+                "id": f"{source_id}-{chunk.chunk_index}",
+                "text": chunk_text,
+                "bill_id": bill_id,
+                "bill_number": bill.get("bill_number"),
+                "bill_name": bill.get("bill_name"),
+                "topic": bill.get("topic"),
+                "status": bill.get("status"),
+                "leverage_point": bill.get("leverage_point"),
+                "keywords": bill.get("keywords"),
+                "chunk_index": chunk.chunk_index,
+                "total_chunks": len(chunks),
+                "start_char": chunk.start_char,
+                "end_char": chunk.end_char,
+                "section": chunk.section,  # Internal section detection from LegalChunker
+                "metadata": chunk.metadata,
+            }
+            all_chunks.append(chunk_dict)
+
+        logger.debug(
+            f"Chunked legislation bill {bill_id}: {len(chunks)} chunks "
+            f"from {len(full_text)} chars"
+        )
+
+    logger.info(
+        f"Expanded {len(bills)} legislation bills into {len(all_chunks)} chunks"
+    )
+    return all_chunks
