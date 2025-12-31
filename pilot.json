@@ -361,7 +361,7 @@
       },
       "cost_dashboard": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Admin dashboard showing cumulative ETL costs by pipeline and time period",
         "note": "Aggregate from etl_costs table. Show daily/weekly/monthly breakdown by pipeline type."
       },
@@ -791,17 +791,18 @@
         "depends_on": ["modal_municipal_code_fetch", "modal_legislation_text_fetch"]
       },
       "automated_incremental_pipeline": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Scheduled Modal ingestion with incremental detection",
-        "note": "Critical for solo dev operational efficiency. Sub-tasks: (1) Add Modal cron scheduling for all corpora, (2) Add refresh_metadata table to track last fetch timestamps, (3) Implement incremental fetch for high-velocity corpora (meetings, issues) using date filtering, (4) Low-velocity corpora (fed/state/municipal law) use scheduled full refresh. Validate with vector indexing after pipeline runs.",
-        "sub_tasks": [
-          "Add modal.Cron decorators for scheduled functions",
-          "Create refresh_metadata table (jurisdiction, corpus, last_fetch, last_hash)",
-          "Implement date-based incremental for meetings fetch",
-          "Implement date-based incremental for issues fetch",
-          "Add --incremental flag to modal_ingest.py",
-          "Deploy and validate with vector indexing"
+        "completed": "2025-12-31",
+        "note": "Session 423: Implemented automated pipeline with 2 schedule tiers. refresh_metadata table tracks fetch timestamps. scheduled_low_velocity_refresh (Sun 3am UTC) for municipal code + legislation. scheduled_high_velocity_refresh (daily 2pm UTC) for meetings + issues with incremental fetch. Deploy: modal deploy scripts/modal_ingest.py. Manual run: modal run scripts/modal_ingest.py --meetings --incremental",
+        "sub_tasks_completed": [
+          "Add modal.Cron decorators for scheduled_low_velocity_refresh and scheduled_high_velocity_refresh",
+          "Create refresh_metadata table with jurisdiction/corpus/source tracking",
+          "Add get_refresh_metadata/update_refresh_metadata/list_refresh_metadata methods",
+          "Implement date-based incremental for meetings (adjusts days_past based on last_fetch_at)",
+          "Implement paginated issues fetch with SeeClickFixClient",
+          "Add --meetings/--issues/--incremental flags to modal_ingest.py"
         ]
       }
     }
