@@ -3,7 +3,7 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2025-12-30",
+  "last_updated": "2025-12-31",
   "category_order": [
     "test_infrastructure",
     "data_architecture",
@@ -753,22 +753,24 @@
     },
     "modal_remote_compute": {
       "modal_municipal_code_fetch": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Modal script for full municipal code fetch from Municode API",
-        "note": "Current state: 2,366 sections in DB but only 253 (11%) have full_text (Title 1 only). Need to re-fetch all titles with full section content. Create scripts/modal_municipal_code.py based on modal_vectors.py pattern.",
-        "depends_on": "municipal_code_full_text_chunking"
+        "note": "scripts/modal_municipal_code.py - Fetches all municipal code sections with full_text from Municode API. Uses streaming iterator (low memory), 2 req/s rate limit. Run: modal run scripts/modal_municipal_code.py",
+        "depends_on": "municipal_code_full_text_chunking",
+        "completed": "2025-12-31"
       },
       "modal_legislation_text_fetch": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": "Modal script for fetching full bill text via LegiScan getBillText API",
-        "note": "Current state: 15,194 bills (2,839 CA + 12,355 US) with 0% full_text. LegiScan getBillText endpoint returns base64-encoded bill text. Need to add get_bill_text() to LegiScanClient, create backfill script, run on Modal for parallel processing.",
-        "depends_on": "legislation_full_text_chunking"
+        "note": "scripts/modal_legislation.py - Fetches bill text for CA/US legislation. Uses getBill + getBillText APIs (2 calls/bill). LegiScan free tier: 30k queries/month. Run: modal run scripts/modal_legislation.py --jurisdiction state-CA",
+        "depends_on": "legislation_full_text_chunking",
+        "completed": "2025-12-31"
       },
       "modal_unified_ingestion": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Unified Modal script to run full ingestion pipeline in parallel",
         "note": "Combine: municipal_code fetch, legislation text fetch, vector reindexing. Run as parallel Modal functions. Single command: modal run scripts/modal_ingest.py --all. Allows laptop-closed operation.",
         "depends_on": ["modal_municipal_code_fetch", "modal_legislation_text_fetch"]
