@@ -8060,3 +8060,62 @@ Added `modal_remote_compute` section with 4 items:
 
 ### Progress
 - Pilot: 219/243 items (90%)
+
+## Session 421 (2025-12-31)
+
+### Completed
+- `modal_unified_ingestion` → ready
+- Created `scripts/modal_ingest.py` - unified ingestion for municipal code, legislation, vectors
+- Created `civic-legiscan` Modal secret for LegiScan API access
+- Applied RLS security to all 13 public tables (scripts/sql/enable_rls.sql)
+
+### Files Changed
+- `scripts/modal_ingest.py` - New: Unified Modal ingestion entrypoint
+- `scripts/sql/enable_rls.sql` - New: RLS security script (deny anon, allow service_role)
+- `pilot.json` - Mark unified ingestion ready, add municipal code investigation P0
+
+### Key Decisions
+- RLS uses deny-all policies with service_role bypass - real security, not just silencing warnings
+- Modal --detach works for individual tasks but not --all (orchestration is local)
+- LegiScan CA fetch successful (98.7%), hit quota - US waits for reset
+
+### Data Status
+| Corpus | Coverage |
+|--------|----------|
+| Legislation CA | 2,828/2,864 (98.7%) |
+| Legislation US | 0/12,355 (waiting for quota) |
+| Municipal Code | 516/2,366 (22%) - API issue |
+
+### Next Session (P0)
+- `municipal_code_content_investigation` - Municode API returns empty content for 78% of sections
+
+### Progress
+- Pilot: 220/243 items (91%)
+
+## Session 422 (2025-12-31)
+
+### Completed
+- `municipal_code_content_investigation` → ready
+- Fixed MunicipalCodeCorpus to fetch content at chapter level instead of title level
+
+### Root Cause
+Municode API returns empty `Content` for title-level fetches on some titles (2, 3, 5, 8-12, 14, 15). Chapter-level fetches always return content.
+
+### Fix
+Added `_find_chapter_nodes()` method that recursively traverses TOC to find chapter nodes, handling nested structures like Title > Division > Chapter (e.g., Title 14 Zoning).
+
+### Files Changed
+- `packages/civic/src/civic/_internal/legal/corpus/municipal.py` - Added _find_chapter_nodes(), modified stream_sections()
+- `pilot.json` - Mark investigation ready
+
+### Data Status
+| Corpus | Before | After |
+|--------|--------|-------|
+| Municipal Code | 516/2,366 (22%) | 3,807/3,811 (99.9%) |
+
+### Next Steps
+- Run `modal run scripts/modal_municipal_code.py` to re-ingest with fix
+- Run `modal run scripts/modal_vectors.py --corpus municipal_code` to vectorize
+
+### Progress
+- Pilot: 221/244 items (91%)
