@@ -8119,3 +8119,54 @@ Added `_find_chapter_nodes()` method that recursively traverses TOC to find chap
 
 ### Progress
 - Pilot: 221/244 items (91%)
+
+## Session 423 (2025-12-31)
+
+### Completed
+- `automated_incremental_pipeline` → ready
+
+### Summary
+Implemented automated pipeline automation with scheduled Modal functions and incremental fetch logic for high-velocity corpora.
+
+### Implementation
+
+1. **refresh_metadata table** (`postgres_backend.py:616-658`):
+   - Tracks last fetch timestamps per jurisdiction/corpus/source
+   - Columns: jurisdiction_id, corpus_type, source_name, last_fetch_at, items_fetched, items_stored, status
+   - Indexes for efficient queries
+
+2. **Helper methods** (`postgres_backend.py:2873-3045`):
+   - `get_refresh_metadata()` - Query last fetch info
+   - `update_refresh_metadata()` - Upsert after fetch
+   - `list_refresh_metadata()` - List all entries
+
+3. **Scheduled functions** (`modal_ingest.py:675-816`):
+   - `scheduled_low_velocity_refresh()` - Weekly Sun 3am UTC: municipal code + legislation
+   - `scheduled_high_velocity_refresh()` - Daily 2pm UTC: meetings + issues (incremental)
+
+4. **Incremental fetch** (`modal_ingest.py:444-543, 557-680`):
+   - `fetch_meetings()` - Adjusts days_past based on last_fetch_at (min 7 days overlap)
+   - `fetch_issues()` - Paginated SeeClickFix fetch with proper normalization
+
+5. **CLI flags** (`modal_ingest.py:883-912`):
+   - `--meetings`, `--issues`, `--incremental` added to entrypoint
+
+### Validation
+- Meetings fetch: 12 stored, refresh_metadata updated
+- Incremental mode: Detected 0 days since last fetch, adjusted to 7-day window, fetched 1 meeting
+- Issues dry-run: 100 fetched (403 from Modal IPs on actual store - external API issue)
+- 34 smoke tests pass
+
+### Files Changed
+- `packages/civic/src/civic/storage/postgres_backend.py` - refresh_metadata table + methods
+- `scripts/modal_ingest.py` - Scheduled functions, fetch_meetings, fetch_issues, CLI flags
+- `pilot.json` - Mark automated_incremental_pipeline ready
+
+### Deploy
+```bash
+modal deploy scripts/modal_ingest.py  # Enable scheduled runs
+modal run scripts/modal_ingest.py --meetings --incremental  # Manual test
+```
+
+### Progress
+- Pilot: 222/244 items (91%)

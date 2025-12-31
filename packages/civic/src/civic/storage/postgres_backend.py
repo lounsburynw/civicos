@@ -615,6 +615,48 @@ class PostgresBackend:
             ON legislation(state, valid_from, valid_to)
         """)
 
+        # Refresh metadata table (SESSION 423)
+        # Tracks last fetch times for incremental pipeline automation
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS refresh_metadata (
+                id SERIAL PRIMARY KEY,
+                jurisdiction_id VARCHAR(100) NOT NULL,
+                corpus_type VARCHAR(50) NOT NULL,
+                source_name VARCHAR(100),
+                last_fetch_at TIMESTAMP,
+                last_fetch_hash VARCHAR(64),
+                items_fetched INTEGER DEFAULT 0,
+                items_stored INTEGER DEFAULT 0,
+                next_scheduled_at TIMESTAMP,
+                fetch_window_days INTEGER DEFAULT 30,
+                status VARCHAR(20) DEFAULT 'pending',
+                error_message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(jurisdiction_id, corpus_type, source_name),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id)
+            )
+        """)
+
+        # Refresh metadata indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_refresh_metadata_jurisdiction
+            ON refresh_metadata(jurisdiction_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_refresh_metadata_corpus
+            ON refresh_metadata(corpus_type)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_refresh_metadata_status
+            ON refresh_metadata(status)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_refresh_metadata_next_scheduled
+            ON refresh_metadata(next_scheduled_at)
+            WHERE next_scheduled_at IS NOT NULL
+        """)
+
         # Migration: Add full_text column if not exists (SESSION 418)
         cursor.execute("""
             DO $$
@@ -2822,6 +2864,194 @@ class PostgresBackend:
                 "total_items": int(row[1]) if row[1] else 0,
                 "run_count": int(row[2]) if row[2] else 0,
             }
+
+        finally:
+            conn.close()
+
+    # ========== Refresh Metadata Methods (SESSION 423) ==========
+
+    def get_refresh_metadata(
+        self,
+        jurisdiction_id: str,
+        corpus_type: str,
+        source_name: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get refresh metadata for a corpus.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            corpus_type: Corpus type (e.g., "meetings", "issues", "municipal_code")
+            source_name: Optional source name (e.g., "proudcity", "seeclickfix")
+
+        Returns:
+            Dictionary with last_fetch_at, items_fetched, etc. or None if not found
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        try:
+            query = """
+                SELECT * FROM refresh_metadata
+                WHERE jurisdiction_id = %s AND corpus_type = %s
+            """
+            params: List[Any] = [jurisdiction_id, corpus_type]
+
+            if source_name:
+                query += " AND source_name = %s"
+                params.append(source_name)
+            else:
+                query += " AND source_name IS NULL"
+
+            cursor.execute(query, params)
+            row = cursor.fetchone()
+
+            if not row:
+                return None
+
+            result = dict(row)
+            # Convert datetime fields to ISO strings
+            for field in ['last_fetch_at', 'next_scheduled_at', 'created_at', 'updated_at']:
+                if field in result and result[field] is not None:
+                    if isinstance(result[field], datetime):
+                        result[field] = result[field].isoformat()
+            return result
+
+        finally:
+            conn.close()
+
+    def update_refresh_metadata(
+        self,
+        jurisdiction_id: str,
+        corpus_type: str,
+        source_name: Optional[str] = None,
+        items_fetched: Optional[int] = None,
+        items_stored: Optional[int] = None,
+        status: str = "completed",
+        error_message: Optional[str] = None,
+        fetch_window_days: Optional[int] = None,
+        next_scheduled_at: Optional[datetime] = None,
+    ) -> int:
+        """
+        Update or insert refresh metadata after a fetch operation.
+
+        Uses upsert semantics - inserts if not exists, updates if exists.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            corpus_type: Corpus type (e.g., "meetings", "issues", "municipal_code")
+            source_name: Optional source name (e.g., "proudcity", "seeclickfix")
+            items_fetched: Number of items fetched in this run
+            items_stored: Number of items actually stored (after dedup)
+            status: Status of the fetch ("pending", "fetching", "completed", "failed")
+            error_message: Error message if status is "failed"
+            fetch_window_days: Days to look back for incremental fetch
+            next_scheduled_at: When the next scheduled fetch should run
+
+        Returns:
+            ID of the upserted record
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("""
+                INSERT INTO refresh_metadata (
+                    jurisdiction_id, corpus_type, source_name,
+                    last_fetch_at, items_fetched, items_stored,
+                    status, error_message, fetch_window_days,
+                    next_scheduled_at, updated_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (jurisdiction_id, corpus_type, source_name)
+                DO UPDATE SET
+                    last_fetch_at = EXCLUDED.last_fetch_at,
+                    items_fetched = COALESCE(EXCLUDED.items_fetched, refresh_metadata.items_fetched),
+                    items_stored = COALESCE(EXCLUDED.items_stored, refresh_metadata.items_stored),
+                    status = EXCLUDED.status,
+                    error_message = EXCLUDED.error_message,
+                    fetch_window_days = COALESCE(EXCLUDED.fetch_window_days, refresh_metadata.fetch_window_days),
+                    next_scheduled_at = COALESCE(EXCLUDED.next_scheduled_at, refresh_metadata.next_scheduled_at),
+                    updated_at = EXCLUDED.updated_at
+                RETURNING id
+            """, (
+                jurisdiction_id,
+                corpus_type,
+                source_name,
+                datetime.now(),
+                items_fetched,
+                items_stored,
+                status,
+                error_message,
+                fetch_window_days,
+                next_scheduled_at,
+                datetime.now(),
+            ))
+
+            record_id = cursor.fetchone()[0]
+            conn.commit()
+            return record_id
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def list_refresh_metadata(
+        self,
+        jurisdiction_id: Optional[str] = None,
+        corpus_type: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        List refresh metadata with optional filtering.
+
+        Args:
+            jurisdiction_id: Filter by jurisdiction (optional)
+            corpus_type: Filter by corpus type (optional)
+            status: Filter by status (optional)
+
+        Returns:
+            List of refresh metadata dictionaries
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        try:
+            query = "SELECT * FROM refresh_metadata WHERE 1=1"
+            params: List[Any] = []
+
+            if jurisdiction_id:
+                query += " AND jurisdiction_id = %s"
+                params.append(jurisdiction_id)
+
+            if corpus_type:
+                query += " AND corpus_type = %s"
+                params.append(corpus_type)
+
+            if status:
+                query += " AND status = %s"
+                params.append(status)
+
+            query += " ORDER BY updated_at DESC"
+
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+            results = []
+            for row in rows:
+                result = dict(row)
+                # Convert datetime fields to ISO strings
+                for field in ['last_fetch_at', 'next_scheduled_at', 'created_at', 'updated_at']:
+                    if field in result and result[field] is not None:
+                        if isinstance(result[field], datetime):
+                            result[field] = result[field].isoformat()
+                results.append(result)
+
+            return results
 
         finally:
             conn.close()
