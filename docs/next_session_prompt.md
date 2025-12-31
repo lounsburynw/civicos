@@ -1,94 +1,80 @@
-# Recommended: cost_dashboard
+# Recommended: full_reindex_with_chunking
 
 **Priority:** P0
-**Area:** monitoring_observability > cost_tracking
+**Area:** pipeline_automation > modal_remote_compute
 **Date:** 2025-12-31
 
 > This is recommended context from Session 423. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 423 completed `automated_incremental_pipeline` - added scheduled Modal functions for automated data refresh with incremental detection for high-velocity corpora (meetings, issues). The `etl_costs` table already tracks cost data for all pipelines; now we need a dashboard to visualize it.
+Session 423 completed `automated_incremental_pipeline` and deployed Modal schedules. However, municipal_code vectors are stale (2366/3811 indexed) - the Session 422 fix (22% → 99.9% content coverage) hasn't been vectorized yet. A reindex attempt failed with a RemoteError that needs investigation.
 
-## Why This Matters
+## Current State
 
-Foundation-funded project requires strict cost control (<$7/month operational). The `etl_costs` table logs every pipeline run with cost data, but there's no way to visualize cumulative costs by pipeline, time period, or jurisdiction. This is critical for:
-- Monitoring burn rate before pilot
-- Identifying cost spikes early
-- Budget planning for multi-city scaling
+```
+Vector Indices:
+  + chunks           5084/5084  ✅
+  + decisions          44/44    ✅
+  o meetings           46/12    ⚠️ stale
+  o transcripts      4296/19    ⚠️ stale
+  o municipal_code   2366/3811  ❌ NEEDS REINDEX
+  + issues           1330/1330  ✅
+  + legislation_CA   2839/2839  ✅
+  + legislation_US  12355/12355 ✅
+```
 
-## Recommended Task
+## What Failed
 
-Build an admin dashboard endpoint or CLI command that aggregates ETL costs from the `etl_costs` table and displays daily/weekly/monthly breakdown by pipeline type.
+```bash
+modal run scripts/modal_ingest.py --municipal --vectors --reindex
+```
+
+Got `RemoteError` from `index_vectors.remote()`. The error output was truncated - need to investigate the actual cause on Modal dashboard or run with more verbose logging.
 
 ## Key Files
 
-| File | Line | Purpose |
-|------|------|---------|
-| `packages/civic/src/civic/storage/postgres_backend.py` | 2713 | `store_etl_cost()` - how costs are stored |
-| `packages/civic/src/civic/storage/postgres_backend.py` | 2766 | `get_etl_costs()` - query cost records |
-| `packages/civic/src/civic/storage/postgres_backend.py` | 2822 | `get_etl_cost_summary()` - aggregation helper |
-| `packages/civic-services/src/civic_services/api/` | - | API server (if adding endpoint) |
-
-## Existing Schema
-
-```sql
-CREATE TABLE etl_costs (
-    id SERIAL PRIMARY KEY,
-    pipeline TEXT NOT NULL,           -- 'transcribe', 'decisions', 'vectors', etc.
-    jurisdiction_id TEXT NOT NULL,
-    run_date TIMESTAMPTZ NOT NULL,
-    items_processed INTEGER,
-    cost_usd DECIMAL(10, 6),
-    duration_seconds INTEGER,
-    notes TEXT
-);
-```
+| File | Purpose |
+|------|---------|
+| `scripts/modal_vectors.py` | Vector indexing script - try running directly |
+| `scripts/modal_ingest.py` | Unified ingestion - calls index_vectors |
+| `packages/civic/src/civic/_internal/legal/embeddings/chunker.py` | expand_municipal_code_to_chunks() |
 
 ## Suggested Approach
 
-1. **Query existing data** to understand current cost patterns:
-   ```python
-   backend.get_etl_cost_summary(days=30)  # Already implemented
+1. **Check Modal dashboard** for error details:
+   https://modal.com/apps/lounsburynw/main/deployed/civic-ingest
+
+2. **Run vector indexing directly** to see full error:
+   ```bash
+   modal run scripts/modal_vectors.py --corpus municipal_code --reindex
    ```
 
-2. **Create dashboard endpoint or CLI**:
-   - Option A: Add `/admin/costs` endpoint to API server
-   - Option B: Add `civic-extract costs` CLI command
-   - Option C: Simple Python script in `scripts/cost_dashboard.py`
+3. **If memory issue** - try with smaller batch:
+   ```bash
+   modal run scripts/modal_vectors.py --corpus municipal_code --reindex --batch-size 50
+   ```
 
-3. **Display aggregations**:
-   - Total cost by pipeline (last 7/30/90 days)
-   - Daily cost trend chart data
-   - Cost per jurisdiction breakdown
-
-## Tests to Run
-
-```bash
-# Smoke tests
-pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
-
-# Test existing cost methods work
-python3 -c "
-from civic.storage import get_storage_backend
-backend = get_storage_backend()
-summary = backend.get_etl_cost_summary(days=30)
-print(summary)
-"
-```
+4. **Verify after success**:
+   ```bash
+   modal run scripts/modal_ingest.py --stats-only
+   ```
 
 ## Success Criteria
 
-- [ ] Dashboard displays total ETL costs for last 7/30/90 days
-- [ ] Costs broken down by pipeline type (transcribe, decisions, vectors, etc.)
-- [ ] Shows cost trend (daily or weekly aggregation)
-- [ ] Works with existing `etl_costs` data
+- [ ] Municipal code vectors: 3807+/3811 indexed (was 2366)
+- [ ] All corpora show green in stats
+- [ ] `modal run scripts/modal_ingest.py --stats-only` shows all ✅
 
-## Session 423 Stats
+## Session 423 Accomplishments
 
-- Completed: `automated_incremental_pipeline`
-- Added: `refresh_metadata` table for incremental fetch tracking
-- Added: `scheduled_low_velocity_refresh` (weekly) and `scheduled_high_velocity_refresh` (daily)
-- Added: `--meetings`, `--issues`, `--incremental` flags to modal_ingest.py
-- Deploy command: `modal deploy scripts/modal_ingest.py`
-- Pilot: 222/244 items (91%)
+- ✅ Deployed Modal schedules (daily + weekly cron jobs active)
+- ✅ Added refresh_metadata table for incremental fetch tracking
+- ✅ Added fetch_meetings/fetch_issues with incremental support
+- ✅ Fixed stats to show legislation vectors for city jurisdictions
+- ❌ Vector reindex failed - needs investigation
+
+## Commits Made
+
+- `aea7882` Session 423: Add automated incremental pipeline with Modal scheduling
+- `189217d` Session 423: Show legislation vectors in city stats
