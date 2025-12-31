@@ -452,8 +452,9 @@ class PgVectorBackend:
         if section.get("chapter"):
             parts.append(f" (Chapter {section['chapter']})")
 
-        if section.get("content"):
-            content = section["content"]
+        # Use full_text (DB schema) with fallback to content for compatibility
+        content = section.get("full_text") or section.get("content")
+        if content:
             # Truncate very long sections
             max_chars = 4000  # Municipal code sections are usually structured
             if len(content) > max_chars:
