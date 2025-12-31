@@ -769,11 +769,18 @@
         "completed": "2025-12-31"
       },
       "modal_unified_ingestion": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Unified Modal script to run full ingestion pipeline in parallel",
+        "note": "scripts/modal_ingest.py - Orchestrates municipal code, legislation, and vector indexing. Use --detach for laptop-closed individual tasks. Requires civic-db and civic-legiscan Modal secrets.",
+        "depends_on": ["modal_municipal_code_fetch", "modal_legislation_text_fetch"],
+        "completed": "2025-12-31"
+      },
+      "municipal_code_content_investigation": {
         "status": "not_ready",
         "priority": 0,
-        "artifact": "Unified Modal script to run full ingestion pipeline in parallel",
-        "note": "Combine: municipal_code fetch, legislation text fetch, vector reindexing. Run as parallel Modal functions. Single command: modal run scripts/modal_ingest.py --all. Allows laptop-closed operation.",
-        "depends_on": ["modal_municipal_code_fetch", "modal_legislation_text_fetch"]
+        "artifact": "Investigate Municode API returning empty content for most titles",
+        "note": "Only 516/2366 sections have full_text (22%). Titles 1,4,6,7,13,16-20 have content; Titles 2,3,5,8-12,14,15 return empty. Check if MunicipalCodeCorpus needs different API calls or if content requires different access level."
       },
       "full_reindex_with_chunking": {
         "status": "not_ready",
