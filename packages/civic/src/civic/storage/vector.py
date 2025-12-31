@@ -217,6 +217,7 @@ class VectorBackend(Protocol):
         corpus_type: str = "meetings",
         batch_size: int = 100,
         transcript_chunker: Optional[callable] = None,
+        legal_chunker: Optional[callable] = None,
     ) -> int:
         """
         Build vector index from StorageBackend.
@@ -232,6 +233,9 @@ class VectorBackend(Protocol):
             transcript_chunker: Callable that expands transcripts to chunks.
                               Required when corpus_type="transcripts".
                               Use civic._internal.meetings.transcript.expand_transcripts_to_chunks.
+            legal_chunker: Callable that expands municipal code sections to chunks.
+                          Required when corpus_type="municipal_code".
+                          Use civic._internal.legal.embeddings.chunker.expand_municipal_code_to_chunks.
 
         Returns:
             Number of documents successfully indexed
