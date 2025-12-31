@@ -24,7 +24,10 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from civic._internal.meetings.transcript import expand_transcripts_to_chunks
-from civic._internal.legal.embeddings.chunker import expand_municipal_code_to_chunks
+from civic._internal.legal.embeddings.chunker import (
+    expand_municipal_code_to_chunks,
+    expand_legislation_to_chunks,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -62,7 +65,7 @@ def add_vectors_parser(subparsers: argparse._SubParsersAction) -> None:
     parser.add_argument(
         "--corpus",
         default="chunks",
-        choices=["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues", "all"],
+        choices=["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues", "legislation", "all"],
         help="Type of documents to index (default: chunks)",
     )
     parser.add_argument(
@@ -393,7 +396,12 @@ def run_vector_indexing(
             try:
                 # Pass chunkers when needed (storage layer is domain-agnostic)
                 transcript_chunker = expand_transcripts_to_chunks if ct == "transcripts" else None
-                legal_chunker_fn = expand_municipal_code_to_chunks if ct == "municipal_code" else None
+                if ct == "municipal_code":
+                    legal_chunker_fn = expand_municipal_code_to_chunks
+                elif ct == "legislation":
+                    legal_chunker_fn = expand_legislation_to_chunks
+                else:
+                    legal_chunker_fn = None
                 indexed_count = pgvector.index_from_storage(
                     storage_backend=backend,
                     jurisdiction_id=jurisdiction_id,
