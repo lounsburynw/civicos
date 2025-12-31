@@ -361,7 +361,7 @@
       },
       "cost_dashboard": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Admin dashboard showing cumulative ETL costs by pipeline and time period",
         "note": "Aggregate from etl_costs table. Show daily/weekly/monthly breakdown by pipeline type."
       },
@@ -785,7 +785,7 @@
       },
       "full_reindex_with_chunking": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Re-index all corpora with new chunking (municipal_code + legislation)",
         "note": "After full_text populated: re-run vector indexing with --reindex flag. Uses expand_municipal_code_to_chunks() and expand_legislation_to_chunks(). modal run scripts/modal_vectors.py --corpus all --reindex",
         "depends_on": ["modal_municipal_code_fetch", "modal_legislation_text_fetch"]
