@@ -25,6 +25,7 @@
     "vue-router": "^4.2.5"
   },
   "devDependencies": {
+    "typescript-language-server": "^4.3.0",
     "@types/dompurify": "^3.2.0",
     "@types/google.maps": "^3.58.1",
     "@types/lodash-es": "^4.17.12",
