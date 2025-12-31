@@ -1083,6 +1083,47 @@ class TestPgVectorBackend:
         assert hasattr(PgVectorBackend, 'embedding_dimension')
         assert hasattr(PgVectorBackend, 'backend_type')
 
+    def test_municipal_code_to_text_uses_full_text_field(self):
+        """Verify _municipal_code_to_text uses 'full_text' not 'content'.
+
+        Regression test for bug where municipal code sections were indexed
+        with headers only because the code looked for 'content' but the
+        PostgreSQL schema uses 'full_text'.
+        """
+        from civic.storage import PgVectorBackend
+
+        backend = PgVectorBackend(
+            connection_string="postgresql://localhost/test"
+        )
+
+        # Simulate a row from municipal_code table with full_text field
+        section = {
+            "section_number": "1.04.010",
+            "section_name": "Definitions",
+            "chapter": "1.04",
+            "full_text": "This is the actual content of the municipal code section."
+        }
+        text = backend._municipal_code_to_text(section)
+        assert "This is the actual content" in text
+
+        # Also test fallback to 'content' for compatibility
+        section_with_content = {
+            "section_number": "1.04.020",
+            "section_name": "Applicability",
+            "content": "Fallback content using old field name."
+        }
+        text2 = backend._municipal_code_to_text(section_with_content)
+        assert "Fallback content" in text2
+
+        # Empty section should still work (just headers)
+        empty_section = {
+            "section_number": "1.04.030",
+            "section_name": "Reserved"
+        }
+        text3 = backend._municipal_code_to_text(empty_section)
+        assert "1.04.030" in text3
+        assert "Reserved" in text3
+
 
 class TestGetStorageBackend:
     """Tests for get_storage_backend factory function."""
