@@ -1,101 +1,93 @@
-# Recommended: modal_unified_ingestion
+# Recommended: automated_incremental_pipeline
 
 **Priority:** P0
 **Area:** pipeline_automation > modal_remote_compute
 **Date:** 2025-12-31
 
-> This is recommended context from Session 420. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 422. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 420 completed both Modal fetch scripts:
-- `modal_municipal_code_fetch` - Fetch municipal code from Municode API
-- `modal_legislation_text_fetch` - Fetch bill text from LegiScan API
+Session 422 fixed the Municode API content fetch issue (22% → 99.9% coverage). The fix is committed and ingestion is running in a separate process. The user emphasized the need for automated, incremental data ingestion to reduce operational burden as a solo developer preparing for pilot scaling.
 
-Now we need a unified script to run all ingestion in parallel.
+## Why This Matters
 
-## Current State
+Change velocity by corpus:
+- **Low velocity** (monthly): Federal, State, Municipal law → scheduled full refresh is fine
+- **High velocity** (weekly+): Meetings, Issues → **need incremental detection**
 
-| Script | Status | Purpose |
-|--------|--------|---------|
-| `scripts/modal_municipal_code.py` | Ready | Fetch municipal code (Municode API) |
-| `scripts/modal_legislation.py` | Ready | Fetch bill text (LegiScan API) |
-| `scripts/modal_vectors.py` | Ready | Generate embeddings (fastembed) |
-| `scripts/modal_ingest.py` | Not created | Unified parallel ingestion |
+Without automation, every data refresh requires manual intervention. Critical for pilot success.
 
-## The Goal
+## Sub-Tasks
 
-Create `scripts/modal_ingest.py` that:
-1. Spawns fetch functions in parallel (Modal's `.spawn()`)
-2. Allows single command: `modal run scripts/modal_ingest.py --all`
-3. Enables laptop-closed operation for full data refresh
+1. Add `modal.Cron` decorators for scheduled functions
+2. Create `refresh_metadata` table (jurisdiction, corpus, last_fetch, last_hash)
+3. Implement date-based incremental for meetings fetch
+4. Implement date-based incremental for issues fetch
+5. Add `--incremental` flag to `modal_ingest.py`
+6. Deploy and validate with vector indexing
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `scripts/modal_municipal_code.py` | Template for fetch pattern |
-| `scripts/modal_legislation.py` | Template for LegiScan fetch |
-| `scripts/modal_vectors.py` | Template for vector indexing |
+| `scripts/modal_ingest.py` | Unified ingestion script - add cron + incremental logic here |
+| `packages/civic/src/civic/storage/postgres_backend.py` | Add refresh_metadata table schema |
+| `scripts/modal_vectors.py` | Vector indexing - validation after pipeline runs |
 
 ## Suggested Approach
 
-```python
-# scripts/modal_ingest.py
-import modal
+1. **Start with refresh_metadata table** - Foundation for tracking
+   ```sql
+   CREATE TABLE refresh_metadata (
+       id SERIAL PRIMARY KEY,
+       jurisdiction_id TEXT NOT NULL,
+       corpus_type TEXT NOT NULL,
+       last_fetch TIMESTAMPTZ,
+       last_hash TEXT,
+       UNIQUE(jurisdiction_id, corpus_type)
+   );
+   ```
 
-app = modal.App("civic-ingest")
+2. **Add Modal cron scheduling** - Low-velocity corpora first
+   ```python
+   @app.function(schedule=modal.Cron("0 3 * * 0"))  # Weekly Sunday 3am
+   def scheduled_refresh():
+       fetch_municipal_code.remote(...)
+       fetch_legislation.remote(...)
+       index_vectors.remote(...)
+   ```
 
-@app.local_entrypoint()
-def main(all: bool = False, municipal: bool = False, legislation: bool = False, vectors: bool = False):
-    """Unified ingestion entrypoint."""
-    handles = []
+3. **Implement incremental for meetings/issues** - High-velocity corpora
+   - Query `refresh_metadata` for last fetch timestamp
+   - Fetch only records after that timestamp
+   - Update `refresh_metadata` on success
 
-    if all or municipal:
-        from scripts.modal_municipal_code import fetch_municipal_code
-        handles.append(("municipal_code", fetch_municipal_code.spawn()))
-
-    if all or legislation:
-        from scripts.modal_legislation import fetch_legislation_text
-        handles.append(("legislation_CA", fetch_legislation_text.spawn("state-CA")))
-        # Note: US legislation shares quota with CA - may need to serialize
-
-    # Wait for fetches to complete before vectorizing
-    for name, handle in handles:
-        result = handle.get()
-        print(f"{name}: {result}")
-
-    if all or vectors:
-        from scripts.modal_vectors import index_corpus
-        # Reindex all corpora with new data
-        index_corpus.remote(corpus="all", reindex=True)
-```
-
-## API Quota Considerations
-
-- **Municode API**: No quota, 2 req/s rate limit
-- **LegiScan API**: 30,000 queries/month free tier
-  - CA: ~5,700 calls (2,839 bills × 2)
-  - US: ~24,700 calls (12,355 bills × 2)
-  - Running both exceeds monthly quota - may need to serialize
+4. **Validate with vector indexing** - Confirm pipeline works end-to-end
 
 ## Tests to Run
 
 ```bash
 # Smoke tests
 pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
+
+# After implementation, test the pipeline
+modal run scripts/modal_ingest.py --stats-only
+modal run scripts/modal_ingest.py --municipal --vectors --dry-run
 ```
 
 ## Success Criteria
 
-- [ ] `scripts/modal_ingest.py` created
-- [ ] Supports `--all`, `--municipal`, `--legislation`, `--vectors` flags
-- [ ] Parallel execution via Modal `.spawn()`
-- [ ] Single command runs full pipeline: `modal run scripts/modal_ingest.py --all`
-- [ ] `pilot.json` updated: `modal_unified_ingestion` → `ready`
+- [ ] `refresh_metadata` table exists and tracks fetch timestamps
+- [ ] Modal cron scheduling deployed (`modal deploy scripts/modal_ingest.py`)
+- [ ] Meetings fetch uses date filtering (only new meetings)
+- [ ] Issues fetch uses date filtering (only new issues)
+- [ ] Vector indexing runs automatically after data fetch
+- [ ] `modal run scripts/modal_ingest.py --stats-only` shows current state
 
-## Session 420 Stats
+## Session 422 Stats
 
-- Completed: `modal_municipal_code_fetch`, `modal_legislation_text_fetch`
-- Added: `update_legislation_text()` method to PostgresBackend
-- Pilot: 219/243 items (90%)
+- Completed: `municipal_code_content_investigation` (22% → 99.9% coverage)
+- Fix: Added `_find_chapter_nodes()` for recursive TOC traversal
+- Municipal code ingestion running in separate process
+- Pilot: 221/244 items (91%)
