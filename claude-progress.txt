@@ -7757,3 +7757,138 @@ results = c.what_was_said('homeless shelter')
 
 ### Next P0
 `chunker_layer_separation` - Move TranscriptChunker import out of pgvector_backend storage layer (architecture critic flagged)
+
+## Session 414 (2025-12-30)
+
+### Completed: chunker_layer_separation (P0)
+
+**Problem:** Architecture critic flagged that `pgvector_backend.py` (storage layer) was importing `TranscriptChunker` from `civic._internal.meetings.transcript`. This violated layer separation - storage backends should be domain-agnostic.
+
+**Solution:** Dependency injection
+1. Added `expand_transcripts_to_chunks()` function to `transcript.py`
+2. Added `transcript_chunker` parameter to `PgVectorBackend.index_from_storage()`
+3. Updated `VectorBackend` protocol to include `transcript_chunker` parameter
+4. Updated callers (vectors CLI, modal_vectors.py) to pass the chunker function
+5. Removed domain-specific import from storage layer
+
+**Key Files Changed:**
+- `packages/civic/src/civic/storage/pgvector_backend.py`: Removed `_expand_transcripts_to_chunks()`, added `transcript_chunker` parameter
+- `packages/civic/src/civic/storage/vector.py`: Updated VectorBackend protocol with `transcript_chunker` parameter
+- `packages/civic/src/civic/_internal/meetings/transcript.py`: Added `expand_transcripts_to_chunks()` function
+- `packages/civic-extraction/src/civic_extraction/cli/vectors.py`: Import and pass chunker
+- `scripts/modal_vectors.py`: Import and pass chunker
+
+**Verification:**
+- Architecture critic: PASS
+- Protocol critic: PASS (protocol updated)
+- Smoke tests: 34 passed
+- Storage protocol tests: 68 passed
+
+### Progress
+- Pilot: 213/234 items ready (91%)
+
+### Next P0
+`cost_dashboard` - Admin dashboard showing cumulative ETL costs by pipeline and time period
+
+---
+
+## Session 415: Vector Indexing Full-Text Audit
+
+### Investigation: Full-Length Document Indexing
+
+Audited vector indexing across all corpus types to verify full-length documents are being indexed correctly.
+
+### Issues Found
+
+| Corpus Type | Issue | Severity |
+|-------------|-------|----------|
+| **municipal_code** | BUG: `_municipal_code_to_text()` looks for `content` but table has `full_text` | 🔴 Critical |
+| **municipal_code** | Truncation to 4000 chars even if field bug were fixed | 🟡 Medium |
+| **legislation** | No `full_text` column in PostgreSQL - only summary stored | 🟡 Design gap |
+| **legislation** | Dual indexing paths (pgvector + ChromaDB via LegalIndexer) | 🟡 Architecture |
+
+### Architecture Decision
+
+Both municipal_code and legislation should follow the **transcript pattern**:
+- Store full text in PostgreSQL
+- Use chunker (LegalChunker) via dependency injection
+- Index chunks to pgvector
+
+This is the right approach for long documents because:
+1. `LegalChunker` already exists with section-aware splitting (1000 char chunks, 100 char overlap)
+2. Preserves legal structure (sections, chapters, articles)
+3. Same pattern as `TranscriptChunker` - proven to work
+4. Single source of truth (PostgreSQL) instead of dual ChromaDB path
+
+### Items Added to pilot.json
+
+5 new items in `data_architecture.embedding_infrastructure`:
+
+1. **municipal_code_indexing_bug** (P1): Fix `content` → `full_text` field name
+2. **municipal_code_full_text_chunking** (P1): Replace 4000-char truncation with LegalChunker
+3. **legislation_full_text_storage** (P1): Add `full_text` column to legislation table
+4. **legislation_full_text_chunking** (P2): Use LegalChunker for legislation (depends on above)
+5. **deprecate_chromadb_legal_indexer** (P3): Remove redundant LegalIndexer → ChromaDB path
+
+### Engineering Patterns Documented
+
+Each item includes a `pattern` field documenting the engineering best practice:
+- "Field name must match PostgreSQL schema"
+- "Dependency injection for chunkers - storage layer should not import from _internal"
+- "Single source of truth - all corpus data in PostgreSQL, vectors in pgvector"
+- "Consistent chunking across legal corpus types"
+
+### Corpus Status Summary
+
+| Corpus | Storage | Chunking | Vector Index | Status |
+|--------|---------|----------|--------------|--------|
+| chunks | full text | pre-chunked | ✅ pgvector | Working |
+| decisions | metadata | N/A | ✅ pgvector | Working |
+| meetings | metadata | N/A | ✅ pgvector | Working |
+| transcripts | full JSONB | TranscriptChunker | ✅ pgvector | Working (Session 413) |
+| issues | metadata | N/A | ✅ pgvector | Working |
+| municipal_code | full_text | None (truncated) | ❌ Bug | Needs fix |
+| legislation | summary only | None | ⚠️ Partial | Needs full_text column |
+
+### Key Files Referenced
+
+- `packages/civic/src/civic/storage/pgvector_backend.py:455-460` - municipal_code bug
+- `packages/civic/src/civic/storage/pgvector_backend.py:488-520` - legislation summary-only
+- `packages/civic/src/civic/storage/postgres_backend.py:530-550` - municipal_code schema (has full_text)
+- `packages/civic/src/civic/storage/postgres_backend.py:569-592` - legislation schema (no full_text)
+- `packages/civic/src/civic/_internal/legal/embeddings/chunker.py` - LegalChunker (ready to use)
+
+### Progress
+- Pilot: 218/239 items (91% - added 5 new items)
+
+## Session 416 (2025-12-30)
+
+### Completed: municipal_code_indexing_bug (P0)
+
+Fixed bug where municipal code sections were indexed with headers only (no content).
+
+**The Bug:**
+- `pgvector_backend.py:455` looked for `section.get("content")` 
+- PostgreSQL schema uses `full_text` field
+- Result: 1949+ municipal code sections indexed without actual content
+
+**The Fix:**
+- Changed to: `content = section.get("full_text") or section.get("content")`
+- Added fallback to "content" for backwards compatibility
+- Added regression test `test_municipal_code_to_text_uses_full_text_field`
+
+### Files Changed
+- `packages/civic/src/civic/storage/pgvector_backend.py:455-456` - Fix field name
+- `packages/civic/tests/test_storage_protocols.py` - Add regression test
+- `pilot.json` - Mark municipal_code_indexing_bug as ready
+
+### Tests
+- All 69 storage protocol tests pass
+- All 34 smoke tests pass
+- New regression test passes
+
+### Next Session (P0)
+- `municipal_code_full_text_chunking` - Replace 4000-char truncation with LegalChunker
+
+### Progress
+- Pilot: 214/239 items (90%)
