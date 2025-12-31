@@ -3,7 +3,7 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2025-12-29",
+  "last_updated": "2025-12-30",
   "category_order": [
     "test_infrastructure",
     "data_architecture",
@@ -794,12 +794,19 @@
         "artifact": "Move JurisdictionRegistry to shared package for clean layer separation",
         "note": "civic-services imports JurisdictionRegistry/CITY_CONFIGS from civic (cross-layer). Options: (1) Create packages/civic-config/, (2) Duplicate config in civic-services. Low priority - config sharing is pragmatic."
       },
-      "transcript_chunked_indexing": {
+      "chunker_layer_separation": {
         "status": "not_ready",
         "priority": 0,
+        "artifact": "Move TranscriptChunker import out of pgvector_backend storage layer",
+        "note": "Session 413: Architecture critic flagged pgvector_backend importing from civic._internal.meetings.transcript. Options: (1) Move TranscriptChunker to civic.storage.transformers, (2) Inject chunker as dependency, (3) Pre-chunk in calling code."
+      },
+      "transcript_chunked_indexing": {
+        "status": "ready",
+        "priority": 1,
         "description": "Index full transcripts with chunking - currently only first 8000 chars indexed per video",
-        "notes": "PgVectorBackend._transcript_to_text() truncates at 8000 chars. Need to chunk transcripts like municipal_code for full coverage.",
-        "artifact": "Full transcripts chunked and indexed in pgvector with complete coverage"
+        "notes": "Session 413: PgVectorBackend now uses TranscriptChunker to expand transcripts into ~1500 char semantic chunks. 19 transcripts -> 4296 chunks indexed. what_was_said() returns 10 results for 'homeless shelter' with speaker/timestamp metadata.",
+        "artifact": "Full transcripts chunked and indexed in pgvector with complete coverage",
+        "completed": "2025-12-30"
       }
     },
     "schema_documentation": {
