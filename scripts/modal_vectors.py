@@ -100,6 +100,7 @@ def index_corpus(
     from civic.storage import get_storage_backend
     from civic.storage.pgvector_backend import PgVectorBackend
     from civic._internal.meetings.transcript import expand_transcripts_to_chunks
+    from civic._internal.legal.embeddings.chunker import expand_municipal_code_to_chunks
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
@@ -160,8 +161,9 @@ def index_corpus(
 
         # Index from storage
         try:
-            # Pass transcript chunker when needed (storage layer is domain-agnostic)
-            chunker = expand_transcripts_to_chunks if ct == "transcripts" else None
+            # Pass chunkers when needed (storage layer is domain-agnostic)
+            transcript_chunker = expand_transcripts_to_chunks if ct == "transcripts" else None
+            legal_chunker_fn = expand_municipal_code_to_chunks if ct == "municipal_code" else None
             count = pgvector.index_from_storage(
                 storage_backend=backend,
                 jurisdiction_id=jurisdiction,
@@ -170,7 +172,8 @@ def index_corpus(
                 offset=offset,
                 limit=limit,
                 allow_dimension_change=reindex,
-                transcript_chunker=chunker,
+                transcript_chunker=transcript_chunker,
+                legal_chunker=legal_chunker_fn,
             )
 
             results[ct] = {
