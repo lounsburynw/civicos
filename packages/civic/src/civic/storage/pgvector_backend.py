@@ -439,7 +439,11 @@ class PgVectorBackend:
 
     def _municipal_code_to_text(self, section: Dict[str, Any]) -> str:
         """
-        Convert a municipal code section to text for embedding.
+        Convert a municipal code section to text representation.
+
+        Note: For vector indexing, use expand_municipal_code_to_chunks() instead,
+        which properly chunks long sections using LegalChunker. This method is
+        retained for display/summary purposes and the text_extractor interface.
         """
         parts = []
 
@@ -455,10 +459,6 @@ class PgVectorBackend:
         # Use full_text (DB schema) with fallback to content for compatibility
         content = section.get("full_text") or section.get("content")
         if content:
-            # Truncate very long sections
-            max_chars = 4000  # Municipal code sections are usually structured
-            if len(content) > max_chars:
-                content = content[:max_chars] + "..."
             parts.append(f"\n{content}")
 
         return "".join(parts) if parts else ""
@@ -530,6 +530,7 @@ class PgVectorBackend:
         offset: int = 0,
         limit: Optional[int] = None,
         transcript_chunker: Optional[callable] = None,
+        legal_chunker: Optional[callable] = None,
     ) -> int:
         """
         Build vector index from StorageBackend.
@@ -549,6 +550,9 @@ class PgVectorBackend:
             transcript_chunker: Callable that accepts list of transcripts and returns
                               list of chunk dicts. Required when corpus_type="transcripts".
                               Use civic._internal.meetings.transcript.expand_transcripts_to_chunks.
+            legal_chunker: Callable that accepts list of municipal code sections and returns
+                          list of chunk dicts. Required when corpus_type="municipal_code".
+                          Use civic._internal.legal.embeddings.chunker.expand_municipal_code_to_chunks.
 
         Returns:
             Number of documents successfully indexed
@@ -577,7 +581,14 @@ class PgVectorBackend:
             raw_transcripts = storage_backend.get_transcripts(jurisdiction_id)
             documents = transcript_chunker(raw_transcripts)
         elif corpus_type == "municipal_code":
-            documents = storage_backend.get_municipal_code(jurisdiction_id)
+            # Expand municipal code sections to chunks for semantic search
+            if legal_chunker is None:
+                raise ValueError(
+                    "legal_chunker is required when corpus_type='municipal_code'. "
+                    "Use civic._internal.legal.embeddings.chunker.expand_municipal_code_to_chunks"
+                )
+            raw_sections = storage_backend.get_municipal_code(jurisdiction_id)
+            documents = legal_chunker(raw_sections)
         elif corpus_type == "issues":
             documents = storage_backend.get_issues(jurisdiction_id)
         elif corpus_type == "legislation":
@@ -648,8 +659,9 @@ class PgVectorBackend:
                     meeting_title = None  # Will be in metadata
                     meeting_datetime = None  # Not available at chunk level
                 elif corpus_type == "municipal_code":
-                    text = self._municipal_code_to_text(doc)
-                    doc_id = f"mc-{doc.get('section_number', f'{i}-{idx}')}"
+                    # doc is already a chunk from expand_municipal_code_to_chunks
+                    text = doc.get("text", "")
+                    doc_id = doc.get("id", f"mc-{i}-{idx}")
                     meeting_id = None  # Not meeting-related
                     meeting_title = doc.get("section_name")
                     meeting_datetime = None

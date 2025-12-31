@@ -819,18 +819,19 @@
         "completed": "2025-12-30"
       },
       "municipal_code_full_text_chunking": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "description": "Replace 4000-char truncation with LegalChunker for municipal code",
         "artifact": "Use LegalChunker (dependency injection) to chunk municipal code sections like transcripts",
         "depends_on": "municipal_code_indexing_bug",
-        "note": "Current: pgvector_backend.py:458-460 truncates to 4000 chars. Municipal code sections can be 10K+ chars. Pattern: Follow transcript_chunked_indexing - add legal_chunker parameter to index_from_storage(), caller passes chunker function. LegalChunker already exists at civic/_internal/legal/embeddings/chunker.py with section-aware splitting.",
+        "note": "Added expand_municipal_code_to_chunks() in chunker.py. Uses LegalChunker with section-aware splitting. Added legal_chunker parameter to index_from_storage(). CLI and Modal callers pass chunker. Removed 4000-char truncation.",
         "test_file": "packages/civic/tests/test_storage_protocols.py",
-        "pattern": "Dependency injection for chunkers - storage layer should not import from _internal"
+        "pattern": "Dependency injection for chunkers - storage layer should not import from _internal",
+        "completed": "2025-12-30"
       },
       "legislation_full_text_storage": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Add full_text column to legislation table for complete bill text",
         "artifact": "ALTER TABLE legislation ADD COLUMN full_text TEXT; update store_legislation() to persist",
         "note": "Current: legislation table only stores summary + leverage_point (pre-curated). CaliforniaCorpus fetches full_text but it's only indexed to ChromaDB via LegalIndexer. For unified architecture, store full_text in PostgreSQL like other corpus types. Migration: data/migrations/016_legislation_full_text.sql",

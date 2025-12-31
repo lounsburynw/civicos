@@ -7892,3 +7892,49 @@ Fixed bug where municipal code sections were indexed with headers only (no conte
 
 ### Progress
 - Pilot: 214/239 items (90%)
+
+## Session 417: Municipal Code Full-Text Chunking
+**Date:** 2025-12-30
+**P0 Item:** `municipal_code_full_text_chunking` → `ready`
+
+### Problem
+Municipal code sections were truncated to 4000 chars before vector indexing, losing critical legal content from long sections (10K+ chars).
+
+### Solution
+Created `expand_municipal_code_to_chunks()` function using LegalChunker via dependency injection (same pattern as transcripts from Session 414).
+
+### Changes Made
+1. **Created chunker function** (`chunker.py:222-332`)
+   - `expand_municipal_code_to_chunks()` takes raw sections, returns chunks
+   - Uses `LegalChunker` with section-aware splitting
+   - Adds context headers to each chunk for retrieval quality
+
+2. **Added legal_chunker parameter** (`pgvector_backend.py:533`)
+   - `index_from_storage()` now accepts `legal_chunker` callable
+   - Municipal code branch uses chunker to expand sections
+   - Pattern matches `transcript_chunker` from Session 414
+
+3. **Updated callers** (vectors.py, modal_vectors.py)
+   - Import and pass `expand_municipal_code_to_chunks` when `corpus_type == "municipal_code"`
+
+4. **Removed 4000-char truncation** (`pgvector_backend.py:440-464`)
+   - `_municipal_code_to_text()` no longer truncates
+   - Updated docstring to clarify it's for display, not indexing
+
+### Files Changed
+- `packages/civic/src/civic/_internal/legal/embeddings/chunker.py` - Add expand function
+- `packages/civic/src/civic/storage/pgvector_backend.py` - Add legal_chunker param
+- `packages/civic-extraction/src/civic_extraction/cli/vectors.py` - Pass chunker
+- `scripts/modal_vectors.py` - Pass chunker
+- `pilot.json` - Mark complete, set next P0
+
+### Tests
+- All 69 storage protocol tests pass
+- All 34 smoke tests pass
+- Manual verification: 3 sections → 10 chunks correctly
+
+### Next Session (P0)
+- `legislation_full_text_storage` - Add full_text column to legislation table
+
+### Progress
+- Pilot: 215/239 items (90%)

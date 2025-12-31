@@ -212,3 +212,121 @@ class LegalChunker:
         for line in text.split("\n"):
             yield pos, line
             pos += len(line) + 1
+
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def expand_municipal_code_to_chunks(
+    sections: list[dict],
+    max_chunk_size: int = 1500,
+    overlap: int = 100,
+) -> list[dict]:
+    """
+    Expand municipal code sections into semantic chunks for embedding.
+
+    This is the canonical function for chunking municipal code before vector indexing.
+    It uses LegalChunker to create appropriately-sized chunks that preserve
+    section structure and legal context.
+
+    Args:
+        sections: List of municipal code section dicts from storage backend
+                  (via get_municipal_code). Each dict should have:
+                  - section_number: str
+                  - section_name: str (optional)
+                  - chapter: str (optional)
+                  - full_text or content: str (the section text)
+        max_chunk_size: Maximum characters per chunk (default 1500)
+        overlap: Character overlap between chunks for context (default 100)
+
+    Returns:
+        List of chunk dicts ready for indexing, each containing:
+        - id: "mc-{section_number}-{chunk_index}"
+        - text: Chunk text with section header context
+        - section_number, section_name, chapter, metadata
+    """
+    chunker = LegalChunker(
+        max_chunk_size=max_chunk_size,
+        overlap=overlap,
+        preserve_sections=True,  # Preserve legal structure
+    )
+
+    all_chunks = []
+
+    for section in sections:
+        section_number = section.get("section_number", "")
+        if not section_number:
+            continue
+
+        # Get the full text (use full_text field, fallback to content for compat)
+        full_text = section.get("full_text") or section.get("content")
+        if not full_text:
+            continue
+
+        # Build section header for context
+        header_parts = []
+        if section_number:
+            header_parts.append(f"Section {section_number}")
+        if section.get("section_name"):
+            header_parts.append(f": {section['section_name']}")
+        if section.get("chapter"):
+            header_parts.append(f" (Chapter {section['chapter']})")
+        section_header = "".join(header_parts)
+
+        # Create source_id for chunk tracking
+        source_id = f"mc-{section_number}"
+
+        # Metadata to preserve across chunks
+        base_metadata = {
+            "section_number": section_number,
+            "section_name": section.get("section_name"),
+            "chapter": section.get("chapter"),
+        }
+
+        # Chunk the section text
+        chunks = list(chunker.chunk_document(
+            text=full_text,
+            source_id=source_id,
+            metadata=base_metadata,
+        ))
+
+        if not chunks:
+            # Section was empty or couldn't be chunked - create single chunk
+            logger.warning(f"No chunks generated for section {section_number}")
+            continue
+
+        # Convert Chunk objects to indexable dicts
+        for chunk in chunks:
+            # Include section header in first chunk for context
+            if chunk.chunk_index == 0:
+                chunk_text = f"{section_header}\n{chunk.text}"
+            else:
+                # For subsequent chunks, include brief context
+                chunk_text = f"[{section_header} continued]\n{chunk.text}"
+
+            chunk_dict = {
+                "id": f"{source_id}-{chunk.chunk_index}",
+                "text": chunk_text,
+                "section_number": section_number,
+                "section_name": section.get("section_name"),
+                "chapter": section.get("chapter"),
+                "chunk_index": chunk.chunk_index,
+                "total_chunks": len(chunks),
+                "start_char": chunk.start_char,
+                "end_char": chunk.end_char,
+                "section": chunk.section,  # Internal section detection from LegalChunker
+                "metadata": chunk.metadata,
+            }
+            all_chunks.append(chunk_dict)
+
+        logger.debug(
+            f"Chunked municipal code section {section_number}: {len(chunks)} chunks "
+            f"from {len(full_text)} chars"
+        )
+
+    logger.info(
+        f"Expanded {len(sections)} municipal code sections into {len(all_chunks)} chunks"
+    )
+    return all_chunks
