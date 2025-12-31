@@ -7938,3 +7938,45 @@ Created `expand_municipal_code_to_chunks()` function using LegalChunker via depe
 
 ### Progress
 - Pilot: 215/239 items (90%)
+
+## Session 418: Legislation Full-Text Storage
+**Date:** 2025-12-30
+**P0 Item:** `legislation_full_text_storage` → `ready`
+
+### Problem
+Legislation table lacked `full_text` column. Only `summary` and `leverage_point` (pre-curated) were stored. CaliforniaCorpus fetches full bill text but it was only indexed to separate ChromaDB via LegalIndexer.
+
+### Solution
+Added `full_text TEXT` column to legislation table schema with migration for existing databases. Updated `store_legislation()` to persist full_text from bill dict.
+
+### Changes Made
+1. **Schema update** (`postgres_backend.py:580`)
+   - Added `full_text TEXT` column to CREATE TABLE legislation
+   - Placed after `leverage_point`, before `official_url`
+
+2. **Migration for existing databases** (`postgres_backend.py:618-631`)
+   - Added DO $$ block with ALTER TABLE ... ADD COLUMN IF NOT EXISTS
+   - Pattern follows pgvector_backend.py migration style
+
+3. **Updated store_legislation()** (`postgres_backend.py:2915,2925,2939`)
+   - Added `full_text` to metadata exclusion list
+   - Added `full_text` to INSERT column list (19 → 20 columns)
+   - Added `bill.get('full_text')` to VALUES tuple
+
+4. **get_legislation() unchanged**
+   - Already uses SELECT * so automatically includes full_text
+
+### Files Changed
+- `packages/civic/src/civic/storage/postgres_backend.py:580,618-631,2915,2925,2939`
+- `pilot.json` - Mark complete, set next P0
+
+### Tests
+- 34 smoke tests pass
+- 69 storage protocol tests pass
+- 12 legislation integration tests pass
+
+### Next Session (P0)
+- `legislation_full_text_chunking` - Use LegalChunker for legislation indexing
+
+### Progress
+- Pilot: 216/239 items (90%)

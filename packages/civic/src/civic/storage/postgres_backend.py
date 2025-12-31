@@ -577,6 +577,7 @@ class PostgresBackend:
                 enacted_date DATE,
                 summary TEXT,
                 leverage_point TEXT,
+                full_text TEXT,
                 official_url TEXT,
                 keywords JSONB,
                 topic TEXT,
@@ -612,6 +613,21 @@ class PostgresBackend:
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_legislation_temporal
             ON legislation(state, valid_from, valid_to)
+        """)
+
+        # Migration: Add full_text column if not exists (SESSION 418)
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'legislation'
+                    AND column_name = 'full_text'
+                ) THEN
+                    ALTER TABLE legislation
+                    ADD COLUMN full_text TEXT;
+                END IF;
+            END $$;
         """)
 
         conn.commit()
@@ -2896,7 +2912,7 @@ class PostgresBackend:
                     if k not in [
                         'bill_id', 'id', 'bill', 'bill_name', 'bill_number',
                         'status', 'enacted', 'enacted_date', 'summary',
-                        'leverage_point', 'official_url', 'keywords', 'topic',
+                        'leverage_point', 'full_text', 'official_url', 'keywords', 'topic',
                         'local_implementation_required', 'local_deadline',
                         'legiscan_id', '_legiscan_id'
                     ]
@@ -2906,10 +2922,10 @@ class PostgresBackend:
                     INSERT INTO legislation (
                         bill_id, state, jurisdiction_id, bill_number,
                         bill_name, status, enacted_date, summary,
-                        leverage_point, official_url, keywords, topic,
+                        leverage_point, full_text, official_url, keywords, topic,
                         local_implementation_required, local_deadline,
                         legiscan_id, metadata, created_at, valid_from, valid_to
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)
                 """, (
                     bill_id,
                     state,
@@ -2920,6 +2936,7 @@ class PostgresBackend:
                     enacted_date,
                     bill.get('summary'),
                     bill.get('leverage_point'),
+                    bill.get('full_text'),
                     bill.get('official_url'),
                     json.dumps(keywords) if keywords else None,
                     bill_topic,

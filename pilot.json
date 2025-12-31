@@ -830,17 +830,18 @@
         "completed": "2025-12-30"
       },
       "legislation_full_text_storage": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "description": "Add full_text column to legislation table for complete bill text",
         "artifact": "ALTER TABLE legislation ADD COLUMN full_text TEXT; update store_legislation() to persist",
         "note": "Current: legislation table only stores summary + leverage_point (pre-curated). CaliforniaCorpus fetches full_text but it's only indexed to ChromaDB via LegalIndexer. For unified architecture, store full_text in PostgreSQL like other corpus types. Migration: data/migrations/016_legislation_full_text.sql",
         "test_file": "packages/civic/tests/test_storage_protocols.py",
-        "pattern": "Single source of truth - all corpus data in PostgreSQL, vectors in pgvector"
+        "pattern": "Single source of truth - all corpus data in PostgreSQL, vectors in pgvector",
+        "completed": "2025-12-30"
       },
       "legislation_full_text_chunking": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "description": "Use LegalChunker for legislation indexing instead of summary-only",
         "artifact": "Extend index_from_storage() legal_chunker pattern to legislation corpus type",
         "depends_on": ["legislation_full_text_storage", "municipal_code_full_text_chunking"],
