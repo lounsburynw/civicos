@@ -332,6 +332,47 @@ class MunicipalCodeCorpus:
             return match.group(1).strip()
         return None
 
+    def _find_chapter_nodes(
+        self,
+        parent_id: str,
+        job_id: int,
+        product_id: int,
+        max_depth: int = 3,
+    ) -> Iterator[dict]:
+        """
+        Recursively find chapter nodes under a parent.
+
+        Some titles have nested structures (Title > Division > Chapter).
+        This method traverses the TOC tree to find actual chapter nodes.
+
+        Args:
+            parent_id: Node ID to search under
+            job_id: Municode job ID
+            product_id: Municode product ID
+            max_depth: Maximum recursion depth (safety limit)
+
+        Yields:
+            TOC nodes that match the chapter pattern
+        """
+        if max_depth <= 0:
+            return
+
+        children = self._fetch(
+            "codesToc/children",
+            {"jobId": job_id, "productId": product_id, "nodeId": parent_id},
+        )
+
+        for child in children:
+            heading = child.get("Heading", "")
+            if self._chapter_pattern.match(heading):
+                # This is a chapter node - yield it
+                yield child
+            elif child.get("HasChildren"):
+                # Not a chapter (e.g., Division, Article) - recurse
+                yield from self._find_chapter_nodes(
+                    child["Id"], job_id, product_id, max_depth - 1
+                )
+
     def stream_sections(
         self,
         title_ids: Optional[list[str]] = None,
@@ -375,53 +416,56 @@ class MunicipalCodeCorpus:
                 title_number = ""
                 title_name = title_heading
 
-            # Fetch all content for this title (includes chapters and sections)
-            content = self._fetch(
-                "CodesContent",
-                {"jobId": job_id, "productId": product_id, "nodeId": title_id},
-            )
+            # Find chapter nodes (handles nested structures like Title > Division > Chapter)
+            for chapter_node in self._find_chapter_nodes(title_id, job_id, product_id):
+                chapter_id = chapter_node["Id"]
+                chapter_heading = chapter_node.get("Heading", "")
 
-            docs = content.get("Docs", [])
-
-            # Track current chapter context
-            current_chapter = ""
-            current_chapter_title = ""
-
-            for doc in docs:
-                doc_id = doc.get("Id", "")
-                heading = doc.get("Title", "")
-                html_content = doc.get("Content", "")
-
-                # Chapter detection using configurable pattern
-                chapter_match = self._chapter_pattern.match(heading)
+                # Parse chapter from heading
+                chapter_match = self._chapter_pattern.match(chapter_heading)
                 if chapter_match:
                     current_chapter = chapter_match.group(1)
                     current_chapter_title = chapter_match.group(2).strip()
-                    continue
+                else:
+                    current_chapter = ""
+                    current_chapter_title = chapter_heading
 
-                # Section detection using configurable pattern
-                section_match = self._section_pattern.match(heading)
-                if section_match:
-                    section_number = section_match.group(1)
-                    section_title = section_match.group(2).strip()
+                # Fetch content at chapter level (not title level)
+                content = self._fetch(
+                    "CodesContent",
+                    {"jobId": job_id, "productId": product_id, "nodeId": chapter_id},
+                )
 
-                    # Extract text and ordinance history
-                    full_text = self._html_to_text(html_content)
-                    ordinance_history = self._extract_ordinance_history(
-                        html_content
-                    )
+                docs = content.get("Docs", [])
 
-                    yield MunicipalCodeSection(
-                        section_number=section_number,
-                        section_title=section_title,
-                        full_text=full_text,
-                        chapter=current_chapter,
-                        chapter_title=current_chapter_title,
-                        title_number=title_number,
-                        title_name=title_name,
-                        node_id=doc_id,
-                        ordinance_history=ordinance_history,
-                    )
+                for doc in docs:
+                    doc_id = doc.get("Id", "")
+                    heading = doc.get("Title", "")
+                    html_content = doc.get("Content", "")
+
+                    # Section detection using configurable pattern
+                    section_match = self._section_pattern.match(heading)
+                    if section_match:
+                        section_number = section_match.group(1)
+                        section_title = section_match.group(2).strip()
+
+                        # Extract text and ordinance history
+                        full_text = self._html_to_text(html_content)
+                        ordinance_history = self._extract_ordinance_history(
+                            html_content
+                        )
+
+                        yield MunicipalCodeSection(
+                            section_number=section_number,
+                            section_title=section_title,
+                            full_text=full_text,
+                            chapter=current_chapter,
+                            chapter_title=current_chapter_title,
+                            title_number=title_number,
+                            title_name=title_name,
+                            node_id=doc_id,
+                            ordinance_history=ordinance_history,
+                        )
 
     def get_sections_list(
         self,
