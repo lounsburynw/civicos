@@ -23,6 +23,8 @@ import sys
 from dataclasses import dataclass
 from typing import List, Optional
 
+from civic._internal.meetings.transcript import expand_transcripts_to_chunks
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -388,6 +390,8 @@ def run_vector_indexing(
 
             # Index from storage
             try:
+                # Pass transcript chunker when needed (storage layer is domain-agnostic)
+                chunker = expand_transcripts_to_chunks if ct == "transcripts" else None
                 indexed_count = pgvector.index_from_storage(
                     storage_backend=backend,
                     jurisdiction_id=jurisdiction_id,
@@ -396,6 +400,7 @@ def run_vector_indexing(
                     allow_dimension_change=reindex,  # Allow dimension change when reindexing
                     offset=offset,
                     limit=limit,
+                    transcript_chunker=chunker,
                 )
 
                 logger.info(f"  ✓ Indexed {indexed_count} {ct}")

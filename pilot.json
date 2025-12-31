@@ -361,7 +361,7 @@
       },
       "cost_dashboard": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Admin dashboard showing cumulative ETL costs by pipeline and time period",
         "note": "Aggregate from etl_costs table. Show daily/weekly/monthly breakdown by pipeline type."
       },
@@ -795,10 +795,10 @@
         "note": "civic-services imports JurisdictionRegistry/CITY_CONFIGS from civic (cross-layer). Options: (1) Create packages/civic-config/, (2) Duplicate config in civic-services. Low priority - config sharing is pragmatic."
       },
       "chunker_layer_separation": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Move TranscriptChunker import out of pgvector_backend storage layer",
-        "note": "Session 413: Architecture critic flagged pgvector_backend importing from civic._internal.meetings.transcript. Options: (1) Move TranscriptChunker to civic.storage.transformers, (2) Inject chunker as dependency, (3) Pre-chunk in calling code."
+        "note": "Session 414: Fixed via dependency injection. Added transcript_chunker parameter to index_from_storage(). TranscriptChunker stays in _internal.meetings, callers pass expand_transcripts_to_chunks. Architecture critic passes."
       },
       "transcript_chunked_indexing": {
         "status": "ready",

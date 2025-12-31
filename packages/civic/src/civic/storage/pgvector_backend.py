@@ -437,106 +437,6 @@ class PgVectorBackend:
 
         return "\n".join(parts) if parts else str(decision)
 
-    def _expand_transcripts_to_chunks(
-        self,
-        transcripts: List[Dict[str, Any]],
-        max_chunk_size: int = 1500,
-        min_chunk_size: int = 200,
-    ) -> List[Dict[str, Any]]:
-        """
-        Expand transcripts into semantic chunks for embedding.
-
-        Uses TranscriptChunker to create appropriately-sized chunks that
-        preserve speaker attribution and timestamps. This enables both:
-        - Excerpt-level search: Find specific quotes about a topic
-        - Meeting-level search: Aggregate chunks by video_id
-
-        Args:
-            transcripts: List of transcript dicts from storage
-            max_chunk_size: Maximum characters per chunk (default 1500)
-            min_chunk_size: Minimum chars before splitting on speaker change
-
-        Returns:
-            List of chunk dicts ready for indexing, each containing:
-            - id: "transcript-{video_id}-{chunk_index}"
-            - text: Chunk text with speaker context
-            - video_id, speaker, timestamps, metadata
-        """
-        from civic._internal.meetings.transcript import TranscriptChunker
-
-        chunker = TranscriptChunker(
-            max_chunk_size=max_chunk_size,
-            min_chunk_size=min_chunk_size,
-            chunk_overlap=1,
-        )
-
-        all_chunks = []
-
-        for transcript in transcripts:
-            video_id = transcript.get("video_id", "")
-            if not video_id:
-                continue
-
-            # Get utterances from transcript JSONB field
-            transcript_data = transcript.get("transcript", {})
-            if isinstance(transcript_data, str):
-                try:
-                    transcript_data = json.loads(transcript_data)
-                except json.JSONDecodeError:
-                    logger.warning(f"Failed to parse transcript JSON for {video_id}")
-                    continue
-
-            utterances_data = transcript_data.get("utterances", [])
-            if not utterances_data:
-                logger.warning(f"No utterances found in transcript {video_id}")
-                continue
-
-            # Parse utterances and chunk
-            utterances = chunker.parse_utterances({"utterances": utterances_data})
-            if not utterances:
-                continue
-
-            # Chunk with speaker role detection (skip agenda detection for speed)
-            chunks = chunker.chunk(
-                utterances,
-                detect_speaker_roles=True,
-                detect_agenda_items=False,
-            )
-
-            # Convert to indexable format matching ChromaDB schema
-            for chunk in chunks:
-                chunk_metadata = chunk.metadata or {}
-                chunk_dict = {
-                    "id": f"transcript-{video_id}-{chunk.chunk_index}",
-                    "text": chunk.to_embedding_text(),
-                    "video_id": video_id,
-                    "speaker": chunk.speaker,
-                    "speakers": chunk.speakers,
-                    "start_ms": chunk.start_ms,
-                    "end_ms": chunk.end_ms,
-                    "start_timestamp": chunk.start_timestamp,
-                    "end_timestamp": chunk.end_timestamp,
-                    "chunk_index": chunk.chunk_index,
-                    "total_chunks": chunk.total_chunks,
-                    "utterance_count": chunk.utterance_count,
-                    # Speaker role metadata
-                    "speaker_role": chunk_metadata.get("speaker_role"),
-                    "speaker_name": chunk_metadata.get("speaker_name"),
-                    "role_confidence": chunk_metadata.get("role_confidence"),
-                    "is_public_comment": chunk_metadata.get("is_public_comment", False),
-                }
-                all_chunks.append(chunk_dict)
-
-            logger.debug(
-                f"Chunked transcript {video_id}: {len(chunks)} chunks "
-                f"from {len(utterances)} utterances"
-            )
-
-        logger.info(
-            f"Expanded {len(transcripts)} transcripts into {len(all_chunks)} chunks"
-        )
-        return all_chunks
-
     def _municipal_code_to_text(self, section: Dict[str, Any]) -> str:
         """
         Convert a municipal code section to text for embedding.
@@ -628,6 +528,7 @@ class PgVectorBackend:
         allow_dimension_change: bool = False,
         offset: int = 0,
         limit: Optional[int] = None,
+        transcript_chunker: Optional[callable] = None,
     ) -> int:
         """
         Build vector index from StorageBackend.
@@ -644,6 +545,9 @@ class PgVectorBackend:
             allow_dimension_change: If True, recreate table if embedding dimension differs
             offset: Skip first N documents (for splitting across jobs)
             limit: Process at most N documents (for splitting across jobs)
+            transcript_chunker: Callable that accepts list of transcripts and returns
+                              list of chunk dicts. Required when corpus_type="transcripts".
+                              Use civic._internal.meetings.transcript.expand_transcripts_to_chunks.
 
         Returns:
             Number of documents successfully indexed
@@ -664,8 +568,13 @@ class PgVectorBackend:
             documents = storage_backend.get_meetings(jurisdiction_id)
         elif corpus_type == "transcripts":
             # Expand transcripts to chunks for semantic search
+            if transcript_chunker is None:
+                raise ValueError(
+                    "transcript_chunker is required when corpus_type='transcripts'. "
+                    "Use civic._internal.meetings.transcript.expand_transcripts_to_chunks"
+                )
             raw_transcripts = storage_backend.get_transcripts(jurisdiction_id)
-            documents = self._expand_transcripts_to_chunks(raw_transcripts)
+            documents = transcript_chunker(raw_transcripts)
         elif corpus_type == "municipal_code":
             documents = storage_backend.get_municipal_code(jurisdiction_id)
         elif corpus_type == "issues":
