@@ -184,6 +184,7 @@ def index_corpus(
                 allow_dimension_change=reindex,
                 transcript_chunker=transcript_chunker,
                 legal_chunker=legal_chunker_fn,
+                use_copy=reindex,  # COPY is 10x faster when vectors deleted first
             )
 
             results[ct] = {
@@ -239,12 +240,17 @@ def get_stats(jurisdiction: str = "city-san-rafael") -> dict:
         jurisdiction: Jurisdiction ID
 
     Returns:
-        Dict with stats per corpus type
+        Dict with stats per corpus type, including chunk_count for chunked corpora
     """
     import os
 
     from civic.storage import get_storage_backend
     from civic.storage.pgvector_backend import PgVectorBackend
+    from civic._internal.meetings.transcript import expand_transcripts_to_chunks
+    from civic._internal.legal.embeddings.chunker import (
+        expand_municipal_code_to_chunks,
+        expand_legislation_to_chunks,
+    )
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
@@ -271,9 +277,30 @@ def get_stats(jurisdiction: str = "city-san-rafael") -> dict:
             if s.storage_document_count
             else "N/A"
         )
+
+        # For chunked corpora, calculate actual chunk count for parallel distribution
+        chunk_count = s.storage_document_count or 0
+        if ct == "municipal_code" and chunk_count > 0:
+            raw_sections = backend.get_municipal_code(jurisdiction)
+            chunks = expand_municipal_code_to_chunks(raw_sections)
+            chunk_count = len(chunks)
+        elif ct == "transcripts" and chunk_count > 0:
+            raw_transcripts = backend.get_transcripts(jurisdiction)
+            chunks = expand_transcripts_to_chunks(raw_transcripts)
+            chunk_count = len(chunks)
+        elif ct == "legislation" and chunk_count > 0:
+            if jurisdiction.startswith("state-"):
+                state_code = jurisdiction.split("-", 1)[1].upper()
+            else:
+                state_code = jurisdiction.upper()
+            raw_bills = backend.get_legislation(state=state_code)
+            chunks = expand_legislation_to_chunks(raw_bills)
+            chunk_count = len(chunks)
+
         stats[ct] = {
             "indexed": s.document_count,
             "total": s.storage_document_count or 0,
+            "chunk_count": chunk_count,  # Actual count for parallel distribution
             "coverage": coverage,
             "model": s.embedding_model,
         }
@@ -353,12 +380,17 @@ def index_batch(
     offset: int,
     limit: int,
     worker_id: int,
+    use_copy: bool = False,
 ) -> dict:
     """
     Index a batch of documents (used for parallel processing).
 
     This function is designed to be called in parallel by multiple workers,
     each processing a different offset/limit range.
+
+    Args:
+        use_copy: If True, use PostgreSQL COPY for bulk inserts (10x faster).
+                  Only safe when existing vectors have been deleted first.
     """
     import logging
     import os
@@ -409,6 +441,7 @@ def index_batch(
             allow_dimension_change=True,  # Parallel workers may see dimension changes
             transcript_chunker=transcript_chunker,
             legal_chunker=legal_chunker_fn,
+            use_copy=use_copy,
         )
         logger.info(f"Completed batch: indexed {count} documents")
         return {"status": "success", "indexed": count, "worker_id": worker_id}
@@ -466,12 +499,14 @@ def main(
             print(f"ERROR: Unknown corpus type: {corpus}")
             return
 
-        total_docs = stats[corpus]["total"]
+        # Use chunk_count for chunked corpora (municipal_code, transcripts, legislation)
+        # This ensures correct distribution for parallel workers
+        total_docs = stats[corpus].get("chunk_count", stats[corpus]["total"])
         if total_docs == 0:
             print(f"No documents to index for {corpus}")
             return
 
-        print(f"Total documents: {total_docs}")
+        print(f"Total documents (chunks): {total_docs}")
 
         # Delete existing vectors first if reindexing
         if reindex:
@@ -481,17 +516,18 @@ def main(
             print(f"Deleted {delete_count} existing vectors, ready for parallel indexing")
 
         # Calculate ranges for each worker
+        # use_copy=True when reindexing (vectors deleted above, so COPY is safe and 10x faster)
         docs_per_worker = (total_docs + parallel - 1) // parallel
         ranges = []
         for i in range(parallel):
             worker_offset = i * docs_per_worker
             worker_limit = min(docs_per_worker, total_docs - worker_offset)
             if worker_limit > 0:
-                ranges.append((corpus, jurisdiction, batch_size, worker_offset, worker_limit, i))
+                ranges.append((corpus, jurisdiction, batch_size, worker_offset, worker_limit, i, reindex))
 
         print(f"Spawning {len(ranges)} parallel workers...")
-        for i, (_, _, _, off, lim, _) in enumerate(ranges):
-            print(f"  Worker {i}: offset={off}, limit={lim}")
+        for i, (_, _, _, off, lim, _, use_copy) in enumerate(ranges):
+            print(f"  Worker {i}: offset={off}, limit={lim}, use_copy={use_copy}")
 
         # Run all workers in parallel using starmap
         results = list(index_batch.starmap(ranges))

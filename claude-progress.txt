@@ -8241,3 +8241,38 @@ municipal_code table has 12,364 rows but only 2,364 unique sections. Multiple in
 
 ### P0 Remains
 full_reindex_with_chunking - need COPY command or parallel workers to hit <10 min target
+
+## Session 426 - 2026-01-01
+
+### Task: full_reindex_with_chunking (P0 → READY)
+
+**Goal:** Reduce municipal_code indexing time from ~20 min to <10 min
+
+### Changes
+
+1. **pgvector_backend.py**: Added `use_copy` parameter to `index_from_storage`
+   - When `use_copy=True`, uses PostgreSQL COPY instead of execute_values
+   - COPY is ~10x faster for bulk inserts
+   - Only safe when existing vectors deleted first (reindex mode)
+
+2. **modal_vectors.py**: 
+   - Pass `use_copy=reindex` to both single-worker and parallel modes
+   - Fixed parallel distribution bug: was using section count (3811) instead of chunk count (5857)
+   - Added `chunk_count` field to stats for chunked corpora
+
+### Results
+
+| Mode | Time | Improvement |
+|------|------|-------------|
+| Baseline (Session 425) | ~20 min | - |
+| Single-worker + COPY | ~14 min | 30% faster |
+| 4 parallel workers + COPY | **3:16** | **6x faster** |
+
+Target was <10 min. Achieved **3 min 16 sec** - exceeded by 3x.
+
+### Files Changed
+- `packages/civic/src/civic/storage/pgvector_backend.py` - COPY bulk insert
+- `scripts/modal_vectors.py` - use_copy param, chunk_count stats, fixed distribution
+
+### P0 for Next Session
+TBD - need to assign before running /nextsesh
