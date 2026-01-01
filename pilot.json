@@ -786,8 +786,8 @@
       "full_reindex_with_chunking": {
         "status": "not_ready",
         "priority": 0,
-        "artifact": "Re-index all corpora with new chunking (municipal_code + legislation)",
-        "note": "After full_text populated: re-run vector indexing with --reindex flag. Uses expand_municipal_code_to_chunks() and expand_legislation_to_chunks(). modal run scripts/modal_vectors.py --corpus all --reindex",
+        "artifact": "Re-index all corpora with new chunking in <10 minutes",
+        "note": "Session 424 progress: Added GPU support (T4), bulk inserts (execute_values), deduplication. Current bottleneck is DB writes (~140 vectors/min). Need: (1) True parallel workers with pre-chunked data distribution, (2) Or increase batch_size in CLI, (3) Or COPY command for bulk load. Target: <10 min for 5857 municipal_code chunks. Run: modal run scripts/modal_vectors.py --corpus municipal_code --reindex",
         "depends_on": ["modal_municipal_code_fetch", "modal_legislation_text_fetch"]
       },
       "automated_incremental_pipeline": {
