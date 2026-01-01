@@ -49,8 +49,8 @@ civic_image = (
     .run_commands(
         "python -c \"from fastembed import TextEmbedding; TextEmbedding('nomic-ai/nomic-embed-text-v1.5')\""
     )
-    # Add local civic packages
-    .add_local_python_source("civic", "civic_extraction")
+    # Add local civic package (civic_extraction not needed for vector indexing)
+    .add_local_python_source("civic")
 )
 
 
@@ -302,7 +302,7 @@ def scheduled_refresh():
     result = index_corpus.local(
         corpus="all",
         jurisdiction="city-san-rafael",
-        batch_size=100,
+        batch_size=1000,  # Large batches reduce DB round-trips
     )
 
     # Log results
@@ -421,7 +421,7 @@ def index_batch(
 def main(
     corpus: str = "all",
     jurisdiction: str = "city-san-rafael",
-    batch_size: int = 100,
+    batch_size: int = 1000,  # Large batches reduce DB round-trips
     offset: int = 0,
     limit: int | None = None,
     reindex: bool = False,
@@ -538,6 +538,8 @@ def main(
 
     total_indexed = 0
     for corpus_type, r in result.items():
+        if corpus_type.startswith("_"):  # Skip metadata keys like _cost
+            continue
         if r["status"] == "success":
             print(f"✓ {corpus_type:15} {r['indexed']:>5} indexed")
             total_indexed += r["indexed"]

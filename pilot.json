@@ -787,7 +787,7 @@
         "status": "not_ready",
         "priority": 0,
         "artifact": "Re-index all corpora with new chunking in <10 minutes",
-        "note": "Session 424 progress: Added GPU support (T4), bulk inserts (execute_values), deduplication. Current bottleneck is DB writes (~140 vectors/min). Need: (1) True parallel workers with pre-chunked data distribution, (2) Or increase batch_size in CLI, (3) Or COPY command for bulk load. Target: <10 min for 5857 municipal_code chunks. Run: modal run scripts/modal_vectors.py --corpus municipal_code --reindex",
+        "note": "Session 425: Fixed chunk ID uniqueness bug (duplicate section_numbers across chapters). Now uses db_id for unique IDs. All 5857 municipal_code chunks indexed (was 3344 due to ID collisions). Time: ~20min (still above 10min target - bottleneck is DB writes). Fixes: chunker.py uses section.id, batch_size 100→1000, _cost iteration bug. Next: (1) COPY command or parallel workers for <10min, (2) Deduplicate municipal_code table (12364 rows but only 2364 unique sections - multiple ingestion runs created duplicates).",
         "depends_on": ["modal_municipal_code_fetch", "modal_legislation_text_fetch"]
       },
       "automated_incremental_pipeline": {
