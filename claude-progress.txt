@@ -8206,3 +8206,38 @@ Speed up vector indexing to <10 minutes for 5857 municipal_code chunks
 ### Commits
 - `0f21202` Session 424: Add GPU + bulk insert optimizations
 - `508a319` Session 424: Prepare handoff for next session
+
+## Session 425 (2026-01-01)
+
+### Goal
+Continue P0: full_reindex_with_chunking - achieve <10 min indexing
+
+### Key Bug Fixed: Chunk ID Uniqueness
+**Problem**: Municipal code had duplicate section_numbers across chapters (e.g., `1.04.010` exists in 8+ chapters). With 3811 raw sections but only 2364 unique section_numbers, the chunker generated 5857 chunks but only 3344 unique IDs. ON CONFLICT caused most chunks to be skipped.
+
+**Solution**: Use database `id` field (UUID) instead of section_number for chunk IDs.
+- Chunk ID format: `mc-{db_id}-{chunk_index}` 
+- Metadata includes `db_id`, `section_number`, `chapter` for traceback
+- All 5857 chunks now have unique IDs
+
+### Changes Made
+1. **chunker.py**: Use `section.get("id")` for unique source_id
+2. **modal_vectors.py**: batch_size 100→1000, fix _cost iteration bug
+3. **Removed civic_extraction from Modal image** (not needed for vector indexing)
+
+### Results
+- **Before**: 3344/5857 municipal_code vectors (57% due to ID collisions)
+- **After**: 5857/5857 municipal_code vectors (100%)
+- **Time**: ~20 min (still above 10 min target)
+- **Remaining bottleneck**: DB write latency to Neon
+
+### Data Quality Issue Discovered
+municipal_code table has 12,364 rows but only 2,364 unique sections. Multiple ingestion runs created duplicates. This should be cleaned up but is separate from vector indexing.
+
+### Files Changed
+- `packages/civic/src/civic/_internal/legal/embeddings/chunker.py` - db_id for unique IDs
+- `scripts/modal_vectors.py` - batch_size, _cost fix, remove civic_extraction
+- `pilot.json` - Update P0 note
+
+### P0 Remains
+full_reindex_with_chunking - need COPY command or parallel workers to hit <10 min target
