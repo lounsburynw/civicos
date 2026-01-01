@@ -1899,13 +1899,21 @@
         "note": "Session 402: Complete. 2,839 CA bills via bulk ingestion (1 API call). Vectors indexed for RAG semantic search. CLI: civic-extract legislative --bulk --cloud. Also supports --migrate-json for curated bills."
       },
       "federal_legislation_e2e_cloud": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Federal legislation and grant programs affecting local governance ingested to Postgres",
         "target_count": "Key federal programs (CDBG, HUD, IIJA) and regulations",
         "verification": "SELECT COUNT(*) FROM legislation WHERE state = 'US'",
-        "note": "Session 426: User requested focus on legislation. Tasks: (1) finish CA legislation ingestion (API limit issue), (2) add federal legislation, (3) stress test data quality and queries.",
-        "completed": "2025-12-29"
+        "note": "Session 427: 12,355 federal bills ingested via bulk getMasterList (1 API call). Status breakdown: 86 enacted, 14,065 introduced. Key insight: bills are mostly proposals - need codified law (U.S. Code) for 'what applies?'",
+        "completed": "2026-01-01"
+      },
+      "codified_law_ingestion": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "U.S. Code and CA Codes (codified statutes) ingested for what_applies()",
+        "target_count": "Key titles: Title 42 (housing), relevant CA codes",
+        "verification": "SELECT COUNT(*) FROM codified_law WHERE jurisdiction_id IN ('federal-US', 'state-CA')",
+        "note": "Session 427: Created USCodeParser prototype. Downloaded Title 42 (7,029 sections, 411 housing). Added CODIFIED_LAW corpus type. Need: storage backend, CLI, indexing pipeline."
       },
       "vectors_e2e_cloud": {
         "status": "ready",

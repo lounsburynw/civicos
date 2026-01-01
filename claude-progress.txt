@@ -8276,3 +8276,53 @@ Target was <10 min. Achieved **3 min 16 sec** - exceeded by 3x.
 
 ### P0 for Next Session
 TBD - need to assign before running /nextsesh
+
+## Session 427 (2026-01-01) - Federal Legislation + U.S. Code Parser
+
+### Context
+- Previous session: Implemented PostgreSQL COPY for 6x faster vector indexing
+- Handoff mandated: Focus entirely on legislation and data quality
+- P0: federal_legislation_e2e_cloud
+
+### Key Discoveries
+
+**LegiScan bills ≠ Law**
+- Retrieved 12,358 federal bills from current session
+- Only 86 (0.6%) have status=4 (enacted into law)
+- Most are proposals that will never pass
+- For "what applies?" we need codified law, not bills
+
+**Data Architecture Insight**
+| Corpus | Source | Purpose |
+|--------|--------|---------|
+| `legislation` | LegiScan bills | "What's being proposed?" (whats_next) |
+| `codified_law` | U.S. Code, CA Codes | "What law applies?" (what_applies) |
+
+### Completed
+1. ✅ Add federal state mapping to LegiScan client
+2. ✅ Bulk ingest 12,355 federal bills to Postgres
+3. ✅ Download U.S. Code Title 42 XML (17MB, 7,029 sections)
+4. ✅ Create USCodeParser prototype (411 housing sections)
+5. ✅ Add CODIFIED_LAW corpus type (parameterized by jurisdiction)
+
+### Database State
+- Federal (US) bills: 12,355
+- California (CA) bills: 2,839
+- Total legislation: 15,194 records
+- U.S. Code Title 42: Downloaded locally (not yet indexed)
+
+### Files Changed
+- `packages/civic-services/.../legiscan_client.py` - federal mapping
+- `packages/civic-extraction/.../legislative.py` - state mapping for bulk
+- `packages/civic-extraction/.../uscode.py` - NEW: U.S. Code XML parser
+- `packages/civic/src/civic/storage/corpus_types.py` - CODIFIED_LAW type
+
+### Remaining Work (P0 continuation)
+1. Add storage backend methods for codified_law corpus
+2. Create CLI command for U.S. Code ingestion
+3. Implement chunking strategy for sections
+4. Index to pgvector
+5. Test what_applies() with codified law
+
+### Commit
+5e5edf9 Session 427: Federal legislation + U.S. Code parser prototype
