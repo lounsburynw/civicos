@@ -19,6 +19,7 @@ import logging
 import os
 import time
 from datetime import datetime
+from io import StringIO
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from .backend import StorageBackend
@@ -531,6 +532,7 @@ class PgVectorBackend:
         limit: Optional[int] = None,
         transcript_chunker: Optional[callable] = None,
         legal_chunker: Optional[callable] = None,
+        use_copy: bool = False,
     ) -> int:
         """
         Build vector index from StorageBackend.
@@ -547,6 +549,8 @@ class PgVectorBackend:
             allow_dimension_change: If True, recreate table if embedding dimension differs
             offset: Skip first N documents (for splitting across jobs)
             limit: Process at most N documents (for splitting across jobs)
+            use_copy: If True, use PostgreSQL COPY for bulk inserts (10x faster).
+                     Only safe when existing vectors have been deleted first (no duplicates).
             transcript_chunker: Callable that accepts list of transcripts and returns
                               list of chunk dicts. Required when corpus_type="transcripts".
                               Use civic._internal.meetings.transcript.expand_transcripts_to_chunks.
@@ -718,11 +722,10 @@ class PgVectorBackend:
             conn = self._get_connection()
             cursor = conn.cursor()
 
-            # Prepare bulk insert data (deduplicate by ID to avoid ON CONFLICT issues)
-            from psycopg2.extras import execute_values
-
+            # Prepare bulk insert data (deduplicate by ID to avoid issues)
             insert_values = []
             seen_ids = set()
+            now = datetime.utcnow()
             for embedding, data in zip(embeddings, doc_data):
                 if data["id"] in seen_ids:
                     continue  # Skip duplicate IDs within same batch
@@ -748,32 +751,75 @@ class PgVectorBackend:
                     data["meeting_title"],
                     meeting_dt,
                     json.dumps(data["metadata"]),
+                    now,  # created_at
+                    now,  # updated_at
                 ))
 
-            # Bulk upsert using execute_values (much faster than individual inserts)
+            # Bulk insert using COPY (10x faster) or execute_values (supports upsert)
             try:
-                execute_values(
-                    cursor,
-                    f"""
-                    INSERT INTO {self.TABLE_NAME}
-                        (id, jurisdiction_id, corpus_type, content, embedding,
-                         embedding_model, meeting_id, meeting_title, meeting_datetime,
-                         metadata, updated_at)
-                    VALUES %s
-                    ON CONFLICT (id) DO UPDATE SET
-                        content = EXCLUDED.content,
-                        embedding = EXCLUDED.embedding,
-                        embedding_model = EXCLUDED.embedding_model,
-                        meeting_id = EXCLUDED.meeting_id,
-                        meeting_title = EXCLUDED.meeting_title,
-                        meeting_datetime = EXCLUDED.meeting_datetime,
-                        metadata = EXCLUDED.metadata,
-                        updated_at = CURRENT_TIMESTAMP
-                    """,
-                    insert_values,
-                    template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)",
-                    page_size=500,  # Insert 500 rows at a time
-                )
+                if use_copy:
+                    # COPY is much faster but requires no duplicate IDs exist
+                    # Caller must delete existing vectors first (e.g., --reindex mode)
+                    buffer = StringIO()
+                    for row in insert_values:
+                        # Format: id, jurisdiction_id, corpus_type, content, embedding,
+                        #         embedding_model, meeting_id, meeting_title, meeting_datetime,
+                        #         metadata, created_at, updated_at
+                        line_parts = []
+                        for val in row:
+                            if val is None:
+                                line_parts.append("\\N")
+                            elif isinstance(val, list):
+                                # Format vector as pgvector string: [1.0,2.0,...]
+                                line_parts.append("[" + ",".join(str(x) for x in val) + "]")
+                            elif isinstance(val, datetime):
+                                line_parts.append(val.isoformat())
+                            else:
+                                # Escape tabs, newlines, backslashes for COPY format
+                                s = str(val)
+                                s = s.replace("\\", "\\\\")
+                                s = s.replace("\t", "\\t")
+                                s = s.replace("\n", "\\n")
+                                s = s.replace("\r", "\\r")
+                                line_parts.append(s)
+                        buffer.write("\t".join(line_parts) + "\n")
+                    buffer.seek(0)
+                    cursor.copy_from(
+                        buffer,
+                        self.TABLE_NAME,
+                        columns=(
+                            "id", "jurisdiction_id", "corpus_type", "content", "embedding",
+                            "embedding_model", "meeting_id", "meeting_title", "meeting_datetime",
+                            "metadata", "created_at", "updated_at"
+                        ),
+                    )
+                else:
+                    # execute_values with ON CONFLICT for upsert (safer for incremental)
+                    from psycopg2.extras import execute_values
+                    # Strip created_at/updated_at - use SQL expressions instead
+                    upsert_values = [row[:-2] for row in insert_values]
+                    execute_values(
+                        cursor,
+                        f"""
+                        INSERT INTO {self.TABLE_NAME}
+                            (id, jurisdiction_id, corpus_type, content, embedding,
+                             embedding_model, meeting_id, meeting_title, meeting_datetime,
+                             metadata, updated_at)
+                        VALUES %s
+                        ON CONFLICT (id) DO UPDATE SET
+                            content = EXCLUDED.content,
+                            embedding = EXCLUDED.embedding,
+                            embedding_model = EXCLUDED.embedding_model,
+                            meeting_id = EXCLUDED.meeting_id,
+                            meeting_title = EXCLUDED.meeting_title,
+                            meeting_datetime = EXCLUDED.meeting_datetime,
+                            metadata = EXCLUDED.metadata,
+                            updated_at = CURRENT_TIMESTAMP
+                        """,
+                        upsert_values,
+                        template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)",
+                        page_size=500,
+                    )
                 indexed_count += len(insert_values)
                 conn.commit()
             except Exception as e:

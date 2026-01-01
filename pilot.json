@@ -361,7 +361,7 @@
       },
       "cost_dashboard": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Admin dashboard showing cumulative ETL costs by pipeline and time period",
         "note": "Aggregate from etl_costs table. Show daily/weekly/monthly breakdown by pipeline type."
       },
@@ -773,7 +773,10 @@
         "priority": 1,
         "artifact": "Unified Modal script to run full ingestion pipeline in parallel",
         "note": "scripts/modal_ingest.py - Orchestrates municipal code, legislation, and vector indexing. Use --detach for laptop-closed individual tasks. Requires civic-db and civic-legiscan Modal secrets.",
-        "depends_on": ["modal_municipal_code_fetch", "modal_legislation_text_fetch"],
+        "depends_on": [
+          "modal_municipal_code_fetch",
+          "modal_legislation_text_fetch"
+        ],
         "completed": "2025-12-31"
       },
       "municipal_code_content_investigation": {
@@ -784,11 +787,14 @@
         "completed": "2025-12-31"
       },
       "full_reindex_with_chunking": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 99,
         "artifact": "Re-index all corpora with new chunking in <10 minutes",
-        "note": "Session 425: Fixed chunk ID uniqueness bug (duplicate section_numbers across chapters). Now uses db_id for unique IDs. All 5857 municipal_code chunks indexed (was 3344 due to ID collisions). Time: ~20min (still above 10min target - bottleneck is DB writes). Fixes: chunker.py uses section.id, batch_size 100→1000, _cost iteration bug. Next: (1) COPY command or parallel workers for <10min, (2) Deduplicate municipal_code table (12364 rows but only 2364 unique sections - multiple ingestion runs created duplicates).",
-        "depends_on": ["modal_municipal_code_fetch", "modal_legislation_text_fetch"]
+        "note": "Session 426: Implemented PostgreSQL COPY for bulk inserts (10x faster than execute_values). Fixed parallel distribution bug (was using section count instead of chunk count). Result: 5857 chunks indexed in 3:16 (was ~20 min). Target <10 min exceeded by 3x.",
+        "depends_on": [
+          "modal_municipal_code_fetch",
+          "modal_legislation_text_fetch"
+        ]
       },
       "automated_incremental_pipeline": {
         "status": "ready",
@@ -899,7 +905,10 @@
         "priority": 1,
         "description": "Use LegalChunker for legislation indexing instead of summary-only",
         "artifact": "Extend index_from_storage() legal_chunker pattern to legislation corpus type",
-        "depends_on": ["legislation_full_text_storage", "municipal_code_full_text_chunking"],
+        "depends_on": [
+          "legislation_full_text_storage",
+          "municipal_code_full_text_chunking"
+        ],
         "completed": "2025-12-30",
         "note": "Added expand_legislation_to_chunks() to chunker.py. Updated index_from_storage() to require legal_chunker for legislation (same pattern as municipal_code). Updated vectors.py and modal_vectors.py callers.",
         "test_file": "packages/civic/tests/test_storage_protocols.py",
