@@ -260,7 +260,13 @@ def bulk_ingest_legislation(
 
     # Fetch master list
     client = LegiScanClient()
-    state_code = "CA" if state.lower() == "california" else state.upper()
+    # Map state names to LegiScan codes
+    state_map = {
+        "california": "CA",
+        "federal": "US",
+        "congress": "US",
+    }
+    state_code = state_map.get(state.lower(), state.upper())
 
     logger.info(f"Fetching master list for {state_code}...")
     bills = client.get_master_list(state_code)

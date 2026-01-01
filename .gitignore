@@ -122,3 +122,4 @@ data/vectors/
 
 # Package-level runtime data
 packages/civic/data/
+data/uscode/
