@@ -1,0 +1,1832 @@
+{
+  "video_id": "MG3syI6-Ekc",
+  "speakers_count": 5,
+  "utterances_count": 303,
+  "utterances": [
+    {
+      "speaker": "A",
+      "text": "One, half a dozen, right?",
+      "start": 160,
+      "end": 2280
+    },
+    {
+      "speaker": "B",
+      "text": "Good morning, everyone. It's always nice to see a full house. Yes, this is the full house for the Economic Development subcommittee. Today is December 10th, Tuesday. And glad to have you all here. Even though it's not on the agenda. I always think it's nice, especially with this group, to know who's in the rooms. But we're going to just do our super quick round robin before we get to the business portion. My name is Kate Collin. I have the honor of serving as your mayor.",
+      "start": 2280,
+      "end": 27680
+    },
+    {
+      "speaker": "A",
+      "text": "And I'm Mary Patient. I have the honor of serving as your vice mayor. Hi.",
+      "start": 28290,
+      "end": 32410
+    },
+    {
+      "speaker": "C",
+      "text": "Josh Townsend.",
+      "start": 32410,
+      "end": 33330
+    },
+    {
+      "speaker": "D",
+      "text": "Glad to be here.",
+      "start": 34290,
+      "end": 35170
+    },
+    {
+      "speaker": "C",
+      "text": "I'm Michael. I'm a policy intern in economic development.",
+      "start": 36210,
+      "end": 38690
+    },
+    {
+      "speaker": "A",
+      "text": "I'm Stacy Lahman. I'm a senior management analyst in the Economic Development Division. I'm Karen Sterli, the president and CEO of the Sandenfield Chamber of Commerce. My name is Chad Singh.",
+      "start": 39410,
+      "end": 48410
+    },
+    {
+      "speaker": "E",
+      "text": "I'm the senior entrepreneurship Small Business Development Manager over at Canal Alliance.",
+      "start": 48410,
+      "end": 52450
+    },
+    {
+      "speaker": "A",
+      "text": "Angela Robinson, assistant City Manager. I'm Stephanie Plant.",
+      "start": 53740,
+      "end": 57740
+    },
+    {
+      "speaker": "B",
+      "text": "I'm the president and CEO of CPI Developers. But I'm here as the chair of the East San Rafael Working Group, which.",
+      "start": 57980,
+      "end": 64580
+    },
+    {
+      "speaker": "A",
+      "text": "Is a committee of the San Rafael Chamber.",
+      "start": 64580,
+      "end": 66540
+    },
+    {
+      "speaker": "C",
+      "text": "I'm Roger Smith. I'm on the board of the Chamber of Commerce, but I'm mostly here as a local property owner and interested party.",
+      "start": 66940,
+      "end": 74540
+    },
+    {
+      "speaker": "A",
+      "text": "Christina Lilovich, City Manager. Hi, I'm Cecilia Zamora, President of the Hispanic Chamber of Commerce at Berlin and executive Director of the Latino Council. I'm Miriam Raul and I'm the Executive director for the Marine Small Business Development Center.",
+      "start": 75100,
+      "end": 89290
+    },
+    {
+      "speaker": "E",
+      "text": "Good morning. My name is Micah Hinkle. I'm the Community and Economic Development Director here for the city of San Rafael. Paul Navazio, Finance Director.",
+      "start": 90090,
+      "end": 97850
+    },
+    {
+      "speaker": "A",
+      "text": "April Miller, Public Works Director.",
+      "start": 99689,
+      "end": 101210
+    },
+    {
+      "speaker": "B",
+      "text": "I'll just forget. Thank you all for being here on Tuesday. Today is Tuesday. Tuesday morning and Wednesday. Today's Wednesday. Really close. Okay, Wednesday morning and it's Thursday. I just want to give a shout out to all the city staff that's here. It evidence of how important our economic development is to the. To the community and to the city. The fact that we have so many directors in the room. So with that, I'll turn to the vice mayor. Do you have any changes on the minutes?",
+      "start": 101770,
+      "end": 127350
+    },
+    {
+      "speaker": "A",
+      "text": "I do not.",
+      "start": 127430,
+      "end": 128470
+    },
+    {
+      "speaker": "B",
+      "text": "If that, I'll entertain a motion.",
+      "start": 128710,
+      "end": 130270
+    },
+    {
+      "speaker": "A",
+      "text": "I move that we adopt the minute.",
+      "start": 130270,
+      "end": 131790
+    },
+    {
+      "speaker": "B",
+      "text": "All in favor? Aye. Yep. See, we're very formal now. So we are going through this agenda. We have open time for public expression. This is anything outside of what's on the agenda. We take public opportunity Good morning, Dariush.",
+      "start": 131790,
+      "end": 147860
+    },
+    {
+      "speaker": "A",
+      "text": "Anyone like to speak?",
+      "start": 148820,
+      "end": 150180
+    },
+    {
+      "speaker": "B",
+      "text": "Okay, not seeing any public expression, which there'll be plenty of expression through the rest of the agenda. We'll get to the economic development partner updates and they're in order. The Hispanic Chamber, then the San Rafael Chamber and the Marin Small Business Development Center. So Cecilia, do you have any update?",
+      "start": 151860,
+      "end": 167940
+    },
+    {
+      "speaker": "A",
+      "text": "Thank you, Mayor KATE. Well, first of all, I just do very brief. We want to thank San Rafael City of San Rafael for always including us in your yearly resolution for the Hispanic Heritage Month. It gets a lot of good social.",
+      "start": 167940,
+      "end": 183070
+    },
+    {
+      "speaker": "B",
+      "text": "Media site visits and it's a great.",
+      "start": 183230,
+      "end": 186790
+    },
+    {
+      "speaker": "A",
+      "text": "Message to our community that the city of San Rafael is interested in the Latino community, but also the business community.",
+      "start": 186790,
+      "end": 192110
+    },
+    {
+      "speaker": "B",
+      "text": "So that's really great.",
+      "start": 192110,
+      "end": 192990
+    },
+    {
+      "speaker": "A",
+      "text": "We're working with Dominican University students on a continuing work project which is to increase diversity on boards and commissions. And I just wanted to let you know that Lindsay Lara has been an incredible ally and mentor on that program.",
+      "start": 193710,
+      "end": 206790
+    },
+    {
+      "speaker": "B",
+      "text": "So we know that policymaking and economic.",
+      "start": 207510,
+      "end": 210790
+    },
+    {
+      "speaker": "A",
+      "text": "Development are all, you know, interspersed. So we want to get more of those voices at the table. And then we're continuing to do research on the economic impact of Latino owned businesses in the county and compare some of the data, current data, to what we last gathered in 2019 before the pandemic. So we think there's a lot of.",
+      "start": 210790,
+      "end": 229600
+    },
+    {
+      "speaker": "B",
+      "text": "Trend issues that we can unveil. And I'll be talking with Mike and.",
+      "start": 229600,
+      "end": 233440
+    },
+    {
+      "speaker": "A",
+      "text": "Some other people in 2026 to continue that project. So we're having our Christmas La Posada tomorrow. So if you would like to stop.",
+      "start": 233440,
+      "end": 241760
+    },
+    {
+      "speaker": "D",
+      "text": "By and have a drink with us.",
+      "start": 241760,
+      "end": 243040
+    },
+    {
+      "speaker": "A",
+      "text": "At our VIP reception is at the Embassy Suites Hotel. And I have new business cards so I'm passing them out. And that would be my report. Thank you.",
+      "start": 243040,
+      "end": 250920
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, Ms. Sam Rail Chamber, please.",
+      "start": 251000,
+      "end": 254360
+    },
+    {
+      "speaker": "A",
+      "text": "Hi, that's me.",
+      "start": 254440,
+      "end": 255320
+    },
+    {
+      "speaker": "B",
+      "text": "Yeah, sorry.",
+      "start": 255400,
+      "end": 256120
+    },
+    {
+      "speaker": "A",
+      "text": "I'm going to start with the, with the bulk of it and then I'm going to pass it over to Stef to talk about the East Sandra for.",
+      "start": 256680,
+      "end": 261060
+    },
+    {
+      "speaker": "B",
+      "text": "Work that's happening there.",
+      "start": 261060,
+      "end": 262180
+    },
+    {
+      "speaker": "A",
+      "text": "I have a lot of gratitude as we wrap up 2025. It's been a very busy year. We steered away a little bit from our usual programming to provide opportunities like our economic forecast earlier in the year. And we hosted a countywide job fair which was wildly successful between our business committees and our mixers and our ribbon cuttings and chamber morning programs and all of the program we've got involved. We hosted over 100 networking opportunities for our business communities. And each those were packed. We endorsed five housing projects which was really exciting for our GAC and our board. And for 2026, we're going to peel back some of the new and rejuvenate some of the seasoned work. So we'll bring back our business showcase in 26. But it's not going to be what it has been for a few years of a business to business. It will be a consumer to business experience. So we're working on that now. And for the first time ever, we're going to. We're going to be working on a strategic plan. So we'll share more of that and 26 as well.",
+      "start": 263060,
+      "end": 323390
+    },
+    {
+      "speaker": "B",
+      "text": "So congratulations on a big year and another one coming. We're in small business. I think she wanted to give you just a moment probably so I could announce the very special guest who's attending the East NFL working group meeting tomorrow.",
+      "start": 323630,
+      "end": 339750
+    },
+    {
+      "speaker": "A",
+      "text": "Which would be the mayor.",
+      "start": 339750,
+      "end": 341230
+    },
+    {
+      "speaker": "B",
+      "text": "We have an annual visit, it is every December and we were happy to accommodate your schedule and hold a meeting on a special date because we're usually the first Thursday of the month. Also a thank you because our last meeting, which was in October, you also were in attendance. And Greg, thank you very much. Supervisor Rodoni as well. We might have co opted his time just a smidge to talk about the mobile vending program, which I think was of great interest to the business owners that were in attendance. And they were different than the people that had come here. So I think that was. It was very helpful. So thank you all very much.",
+      "start": 341710,
+      "end": 381340
+    },
+    {
+      "speaker": "A",
+      "text": "Thank you. That's it.",
+      "start": 381420,
+      "end": 382960
+    },
+    {
+      "speaker": "B",
+      "text": "And we have some planning to do for next year. Yeah, we don't know yet. Yeah, I mean, we'll probably invite you back. Okay.",
+      "start": 383680,
+      "end": 390160
+    },
+    {
+      "speaker": "A",
+      "text": "Lots of gratitude from the business community around the work that's being done on street vending there. Just the amount of information that came out of that meeting I think was really robust and people had not understood the amount of intention gone behind it in the process. So thank you for the work and for sharing that with the community.",
+      "start": 390880,
+      "end": 408240
+    },
+    {
+      "speaker": "B",
+      "text": "Anytime. The pipeline of the pathway from what people see in the community or on the street to actual change and progress and process. And you said in that last meeting when we were here that we didn't have any real teeth there yet. I don't think people understand what it takes to get teeth, to get to teeth. I remember the same thing with the encampments. It's easy to complain, but people didn't understand all the legal steps that you had to go through to, to address every curve that came along the way. And what I find when I'm at networking events or other functions is that it's an opportunity to say they're really working hard. So these meetings that we host are also a great place to share. So I appreciate that. We can do it.",
+      "start": 408560,
+      "end": 461250
+    },
+    {
+      "speaker": "A",
+      "text": "Thank you.",
+      "start": 461570,
+      "end": 462210
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Thank you for your partnership on that.",
+      "start": 462210,
+      "end": 464210
+    },
+    {
+      "speaker": "A",
+      "text": "Yes.",
+      "start": 464290,
+      "end": 464770
+    },
+    {
+      "speaker": "B",
+      "text": "Okay. Now are you ready to mean to. I'm done. Okay. Thanks for asking.",
+      "start": 465010,
+      "end": 469890
+    },
+    {
+      "speaker": "A",
+      "text": "I'm going to pass out some data that we did on our artist program. I didn't make enough copies because I.",
+      "start": 471890,
+      "end": 476850
+    },
+    {
+      "speaker": "B",
+      "text": "Didn'T think there'd be so many people.",
+      "start": 476850,
+      "end": 477810
+    },
+    {
+      "speaker": "A",
+      "text": "But I just wanted to highlight this. So we've had a really full year. We've done a lot of new programs this year, and this is one of the new ones that we created. But this was a great partnership with the city of San Rafael and Dishrad, where we hosted our first artist little mini incubator program. We did. We designed a whole new curriculum. We did it partially in person, partially online, and we had a huge. It was a very quick program. We only had, like, three weeks of it being promoted or so, and we already had 56 applicants in just three weeks. And then we didn't want to make it too big, so we accepted 25, and then 21 completed the program. And it was. It was a learning for all of us. It was really amazing because we. We learned it was a lot harder to teach this group and. But I think there was a lot of really positive outcomes, and we're hoping to do another one. I mean, we're. We're looking at seeing if we can create another partnership just to develop some funding to support this program just because.",
+      "start": 481250,
+      "end": 550630
+    },
+    {
+      "speaker": "B",
+      "text": "It.",
+      "start": 552530,
+      "end": 552770
+    },
+    {
+      "speaker": "A",
+      "text": "It. As you can see, there was a lot of really great outcomes. Like, people had increased sales. They, you know, learned different techniques of how to put themselves out. They. I think the big thing was that they had to shift their mindset from being an artist to a business owner. And that was the thing that we really had to work hard on in this program, which we didn't realize, which we're gonna. If we do it again, we'd have an opportunity to, like, make it even better, I think, with the curriculum. But the instructor that we had do it was really fantastic. Really, like, hands on, helping everybody. And so I don't want to go through all the data, but you can look through it and see the data and some of the results and things that people had. But it was a really fun program and a fun collaboration. So thank you, City of San Rafael and DISTRAD and everyone to helping make this possible. The other cool. Other interesting things we've been doing, we've done A lot new, much more Spanish programming this year. We've done a lot more with NOW Alliance. We have a county grant for micro enterprise support. And so we have a program that's every second Wednesday in person at Canal alliance now. It's called Apollo Negocios. We also started a whole brand new program in West Marin and we are supporting that community in Spanish as well. It's a 12 to 15 week program with a seed funding opportunity. And so there's been a lot of new development this year as well as our workshops and advising and all of the different other support that we, we traditionally do. So it's been a, it's been a really full year of some new, new and things. Oh, and then we did our first. We have our, our Spanish 10 session business program and we did our first graduation for that, which was really fun. I wish I had a photo to show you of everyone with their little certificate. It was really sweet.",
+      "start": 552770,
+      "end": 665060
+    },
+    {
+      "speaker": "D",
+      "text": "And now I can hear them a.",
+      "start": 665940,
+      "end": 667960
+    },
+    {
+      "speaker": "A",
+      "text": "Lot of new things that we're hoping to continue in 2026 and we'll be moving forward with a lot more. And again, if you guys hear any suggestions in the community in terms of what businesses are needing topics, you know, please let us know. We'll bring that into our training. If there's other groups that you're hearing that really need support, you know, please make sure you let us know because we'll be adapting that. We're going to do some more AI trainings this year because I have advisor on my team and and then we are going to be hopefully doing some more funding. We did our first online lender panel workshop and we're going to try to do some more of those because there's just, there's always the question of access to capital and we, you know, for whatever reason we're in the connections between micro lenders, CDFIs and banks and all that I don't feel is as active. It's in other communities really activ. So we're going to try to bring more connections and help people make those links in different ways in this next year. So those are my updates.",
+      "start": 667960,
+      "end": 737630
+    },
+    {
+      "speaker": "E",
+      "text": "If I just kind of add on that actually when we talk about like the connections that we have together and really to Miriam's credit, like this artist program came from a conversation that her and I had like early on about just like the, you know, arts community kind of the need and recognizing that they are small businesses. How do we actually kind of support them to kind of grow that business and returning to this program. So they Said kind of the power of that early conversation and kind of set those things up. And I know that it's across the board for different programs we all kind of coordinate with, but that really is kind of just a proof in the pudding of this is how it could be done.",
+      "start": 739470,
+      "end": 773610
+    },
+    {
+      "speaker": "B",
+      "text": "Vice Mayor, any questions?",
+      "start": 774890,
+      "end": 776169
+    },
+    {
+      "speaker": "A",
+      "text": "Not so much questions as comments on being the incubator for Marin and for our with the Canal alliance, for our immigrant community, but also for West Marin as part of our tourist industry to expand on those and just like you say, to bring the capital to the artists business owners to make that link and incubate those businesses. That's how small businesses grow up and become part of our economic engine running San Rafael. So well done. Thank you.",
+      "start": 776169,
+      "end": 816470
+    },
+    {
+      "speaker": "B",
+      "text": "I just have a question. Has your funding been affected at all by changes in federal government policy?",
+      "start": 816550,
+      "end": 821190
+    },
+    {
+      "speaker": "A",
+      "text": "Thankfully not at this time. When all the notices went out, the only program that they were not going to cut under SBA was SBDC program. But I don't know where things have stood. So for your program. Yeah. Okay, so right now that, that was the messages that went out in the last year, you know, everything is, you know how it is. But, but I did just secure some county funding, which is great. So that will be helpful. I'm trying to make sure that our if there are changes that we can still provide the same support. And so I've been bringing in, trying to do as best as I can to bring in different funding as much as I can so to make it so that we don't change our anything in our programming.",
+      "start": 821810,
+      "end": 864980
+    },
+    {
+      "speaker": "B",
+      "text": "Fantastic. Before we go to the next item, I will take public comment if you want to comment on any of the items and public comment, again, it's only in the room, so if anyone like to comment on what you just heard. Okay, not seeing any public comment. We'll move on to the next. We have three items on the report, slash action item. The first is development pipeline update. 15 minutes to do this. I don't know, I think it could take a lot longer, but. So I'll turn it over to Director Hansel.",
+      "start": 865460,
+      "end": 896470
+    },
+    {
+      "speaker": "C",
+      "text": "You know, today I'm actually going to.",
+      "start": 896710,
+      "end": 897830
+    },
+    {
+      "speaker": "E",
+      "text": "Let Assistant Director Greg Minor actually lead this one. But then I'll time in any color that we're not.",
+      "start": 897830,
+      "end": 905270
+    },
+    {
+      "speaker": "B",
+      "text": "That's somewhere so you're not.",
+      "start": 907000,
+      "end": 909640
+    },
+    {
+      "speaker": "D",
+      "text": "Could I just ask, is my audio working?",
+      "start": 910920,
+      "end": 913320
+    },
+    {
+      "speaker": "A",
+      "text": "Yes, it is, Ken.",
+      "start": 914840,
+      "end": 916040
+    },
+    {
+      "speaker": "D",
+      "text": "Okay, thank you.",
+      "start": 916760,
+      "end": 917800
+    },
+    {
+      "speaker": "B",
+      "text": "Thanks for being here. Okay.",
+      "start": 919320,
+      "end": 921720
+    },
+    {
+      "speaker": "C",
+      "text": "Good morning. So Greg Minor again with Community Economic Development Department. As you alluded to, there's been a lot of development activity in the city of San Rafael. I was just going to highlight the major changes since the last economic development subcommittee meeting and also highlight the website that we have available on the city of Summerfield's website. Here we have a screenshot of the homepage and one of the buttons featured is the major planning projects. So you don't have to wait every three months for an update at the subcommittee meeting at any time you can. Members of the public can always get it get updates by clicking that link and I think Stacy's going to click the link here and we'll walk you through some of the main developments. So our planning commission has been busy this last evening. For example a 14 unit residential development was approved in Loch Lomond for 14 apartments. Previously was entitled as a mixed use development. Some of you were here last evening. Not sure if anyone left the building.",
+      "start": 922200,
+      "end": 992530
+    },
+    {
+      "speaker": "A",
+      "text": "Time.",
+      "start": 992990,
+      "end": 993230
+    },
+    {
+      "speaker": "B",
+      "text": "We'Re on the planning commission but okay.",
+      "start": 996270,
+      "end": 998110
+    },
+    {
+      "speaker": "C",
+      "text": "Yeah, so that was exciting. You have 14 units of. Of housing approved and then two major developments were approved at the prior planning commission meeting November. I know Stacy, you're able to zoom in the development which will be right across the parking lot or the street rather for 1230 Fifth Avenue that's the proposed or will be a 13 story development with 188 residential units. And then at that same meeting in November the development at 1030 3rd street or I think it's referred to as 900A street was also approved and that's an eight story development with 131 units. We did receive an appeal from the property owner for the 900A street development. So if that's not withdrawn there'll be an appeal before the city council in early 2026. And then two different projects have moved move forward toward. Move forward into the demolition phase. 9:30. Irwin, you might have noticed there are no buildings where there used to be buildings as you pass by on Irwin, which is a good thing. That's, that's it's been approved. That's, that's part of the process. So that's happening. And then I think it's 703 Third street was also has also moved forward with the demolition phase. And I think the building permit process will move forward in early 2026.",
+      "start": 998350,
+      "end": 1089420
+    },
+    {
+      "speaker": "A",
+      "text": "So.",
+      "start": 1089580,
+      "end": 1089900
+    },
+    {
+      "speaker": "E",
+      "text": "So just to add on some of these process ends, one thing we're doing is the complexity of projects in the building. Like those projects are multi story, big superstructure, concrete. So you know we have a depth of consulting supporting that project. And then the permit process is just taking longer. Right. Just because of the. They're also phasing different things. One thing that we've done in the system coordination with the public works department is really try to get a more robust construction management plan from all the developers on the upfront.",
+      "start": 1089900,
+      "end": 1119080
+    },
+    {
+      "speaker": "D",
+      "text": "Right.",
+      "start": 1119080,
+      "end": 1119280
+    },
+    {
+      "speaker": "E",
+      "text": "There's no. Since we have so much activity on various corridors within our community, like we can't shut down the roads like we used to.",
+      "start": 1119280,
+      "end": 1127320
+    },
+    {
+      "speaker": "C",
+      "text": "Right.",
+      "start": 1127640,
+      "end": 1127840
+    },
+    {
+      "speaker": "E",
+      "text": "So we are actually coordinating. You're going to have to tell us where you're going to stage the logistics is where's your material coming from. Because we're also in an urbanized area. There's not a lot of lay down yard can't go to biomarin. Every time we need to have a project. There's a point that says we need to start thinking a little more in depth. And that's been something that we've really identified as one of the key upfront items. But so. And also the impacts on the neighborhoods. Right. Like hey, what's we got to do with the construction houses being managed and mitigated. So we really have upped our game in terms of upfront requirements and calling those requirements out with the development community. Really this is the community's expectations.",
+      "start": 1127840,
+      "end": 1162260
+    },
+    {
+      "speaker": "A",
+      "text": "When you come to our community, can.",
+      "start": 1162260,
+      "end": 1164300
+    },
+    {
+      "speaker": "B",
+      "text": "You speak to the public process? Because that has also changed. You just talked about four major projects and where they're being approved and where they're going to the council. If you could just speak to that briefly.",
+      "start": 1164300,
+      "end": 1173660
+    },
+    {
+      "speaker": "C",
+      "text": "Sure.",
+      "start": 1173660,
+      "end": 1174020
+    },
+    {
+      "speaker": "E",
+      "text": "You know a lot of the projects they're coming in under different, you know, state laws. There's various different options that developers have in terms of pathway. So a lot of these are coming in under state density bonus laws that really limit really what prior discretion communities used to have. We have objective design standards is what we can apply or adopted standards. So there's been this big push out on like you know, height or you know, compatibility with the neighborhood. Those state laws have actually eliminated really that, that discretionary local control. And that's why the projects as they come through they're like do they meet the standards? Yes. It really turned into kind of a checkbox planning requirement and that's driven really through state law because we're in a housing crisis and that really is kind of the process changes within the community. Economic development department had been significant. So that's why we're seeing this level of projects and the amount and volume of complexity. That's really sounds like it looks so busy. I'm like we kind of are so. But it's, but it's exciting and trying to actually kind of foster in that new thing. It's not Just San Rafael, Marin county and the rest of basically the Bay Area and the state of California, multiple cities are going through the similar type type development kind of inquiries. The real question that we ultimately have overall is will they ever get built? And that's really trying to work with those developers to actually get their construction financing in place, utilities, all the other requirements that come into play. So that's why when Greg kind of called out the demolition of these sites and then the commitment of finances to actually get physical change for these projects, I'm most excited about that. And I do view these as catalyst level projects to kind of get us.",
+      "start": 1174100,
+      "end": 1277220
+    },
+    {
+      "speaker": "C",
+      "text": "To the next level and sort of piggybacking on that. So most of the other projects that were on that map are labeled as under review, but a few of them will be moving forward to the Planning Commission in January, February and March. So for the public who are interested, please feel free to reach out if you want more information to be, if you're not already on the listserv, to be notified of planning commission meetings coming forward. And then it's obvious pretty much everyone in this room but two major developments that happened between our last subcommittee meeting in this meeting where we became property owners. The city closed on 350Marydale, which is going to be obviously an interim shelter for unsheltered population in 2026 and long term affordable housing development of 80 units at minimum. And then we also closed on a non residential development, 620 Canal St. To be a park and potentially the site of one side of a bicycle pedestrian bridge which will facilitate connections between the Canal neighborhood and Montecito. So those are some pretty big things that we're all kind of aware of. But if you take a step back and reflect, there's really been a lot of progress that's exciting to continue to build on in 2026.",
+      "start": 1277220,
+      "end": 1352020
+    },
+    {
+      "speaker": "A",
+      "text": "Fantastic.",
+      "start": 1353550,
+      "end": 1354270
+    },
+    {
+      "speaker": "B",
+      "text": "Vice Mayor, any questions? No, I don't have any either. Any comments from folks in the room on what you just heard, other than being amazed at the breadth and the depth of the work that's being required by city staff.",
+      "start": 1354830,
+      "end": 1369310
+    },
+    {
+      "speaker": "C",
+      "text": "So I've been remiss to not mention this is a product of a tremendous amount of hard work from our Planning Division, our city Attorney's office and other departments as well?",
+      "start": 1369390,
+      "end": 1379160
+    },
+    {
+      "speaker": "B",
+      "text": "Yeah, no, it's been all hands on deck for that.",
+      "start": 1379550,
+      "end": 1381630
+    },
+    {
+      "speaker": "A",
+      "text": "I think everybody's been part of it.",
+      "start": 1381630,
+      "end": 1383870
+    },
+    {
+      "speaker": "B",
+      "text": "Any public comment? I'll just add we're glad that you had the opportunity to update this group. And what I ask of the folks in the room is when you're out in your social and community circles to be talking about this and socializing it because people see things start to go up and they're like how did I not know? How is this not happening? And I'll talk about it again tomorrow that the landscape, literally the physical landscape is going to be changing. And so for folks that have been here a long time, families that have been here a long time, it's going to be different. And so just talking about me, that's the way it is. And people can learn more and they can either like it or not like it. But, but let's go back to having them learn more about where the city can influence the project and where we can't. So that's something I ask of all of you to keep talking about in your groups.",
+      "start": 1384910,
+      "end": 1430270
+    },
+    {
+      "speaker": "A",
+      "text": "Can I briefly please.",
+      "start": 1430430,
+      "end": 1431670
+    },
+    {
+      "speaker": "B",
+      "text": "Of course. Greg, on both 9:30 Irwin and 703 third, the ones where the demolition started.",
+      "start": 1431670,
+      "end": 1437370
+    },
+    {
+      "speaker": "A",
+      "text": "Are those bows are both residential also?",
+      "start": 1437370,
+      "end": 1439210
+    },
+    {
+      "speaker": "C",
+      "text": "I believe so, yes.",
+      "start": 1440330,
+      "end": 1441170
+    },
+    {
+      "speaker": "A",
+      "text": "And do you know the number of units roughly?",
+      "start": 1441170,
+      "end": 1443050
+    },
+    {
+      "speaker": "C",
+      "text": "Let me bring back my cheat sheet.",
+      "start": 1443930,
+      "end": 1445410
+    },
+    {
+      "speaker": "A",
+      "text": "Sorry, it's not going to go to my homework. You're so, I mean I was just curious.",
+      "start": 1445410,
+      "end": 1451210
+    },
+    {
+      "speaker": "C",
+      "text": "930 Irwin is a eight story structure with 210 residences and 703 Third street is six story with 120 rental units.",
+      "start": 1451290,
+      "end": 1461290
+    },
+    {
+      "speaker": "B",
+      "text": "And they did the demo and they don't have a building permit yet.",
+      "start": 1463220,
+      "end": 1465220
+    },
+    {
+      "speaker": "E",
+      "text": "You said it's a phase permit, a phased approach. And that's just because the complexity of the superstructure and then the, the other basically the residential pieces will come in phases so they actually accelerate kind of some of the review work. Otherwise think about trying to get a perfect building permit, construction set, one shot, it makes it a lot harder. So they're really trying to face those things. But key obviously the first one's demo but there's been, we're actually, we're coming across some utility issues so it's like just recognizing oh by the way we're 1800 City, there's some utility issues in here. So trying to work with actually our utility partners on how to resolve maybe PG&E gas shut offs. So like actually it's been a real interesting one for some of these projects but then luckily we have the right connections and we've been facilitating some of that stuff but we're moving at the pace of some of our partners.",
+      "start": 1465220,
+      "end": 1511690
+    },
+    {
+      "speaker": "B",
+      "text": "So of course, yeah. Thank you. Any other public comment question? Not seeing any. We'll move on. Thank you. Thank you Greg for that update and thank you for that website that is just so critical that people can utilize that Next is the strategies to strengthen the tax base. Okay, we want those strategies. The director, Navazio or city manager. Who's, who's got, who got this one? I will kick it up, Stacey. I apologize.",
+      "start": 1511770,
+      "end": 1541240
+    },
+    {
+      "speaker": "A",
+      "text": "Yeah. So the City of San Rafael adopted a three year strategic plan recently. And so staff is working on implementing the actions and programs that would implement the goals and objectives. So today we're going to be talking about priority area F, specifically high performing government and objective within that. But I just wanted to mention also that priority area A is economic development and neighborhood vital. And so our division is working really hard to implement both the economic development strategic plan from 2023 and these objectives in the strategic plan that are quite aligned. So today we're talking about objective F3.2, which is to explore strategies and initiatives aimed at increasing sales tax revenue by attracting new sales tax generating entities and diversifying our tax base and revenue strategies. So we've invited a expert in the field and someone that works regularly with the City of San Rafael as a consultant. HDL companies provide a variety of sales tax and revenue analysis for the city. So we've invited Ken Nordhoff, who used to be at one point the City Manager of San Rafael, Walnut Creek, in various Cities. He has 26 years experience in local government and we're working with him to discuss his analysis and HCL's analysis of San Rafael's current sales tax position.",
+      "start": 1548220,
+      "end": 1639700
+    },
+    {
+      "speaker": "B",
+      "text": "Close that banner so that way we can see Ken.",
+      "start": 1640900,
+      "end": 1643540
+    },
+    {
+      "speaker": "A",
+      "text": "Yes. So I'm going to stop sharing and then I'm going to invite Ken to share his presentation. And I think, Ken, we can hear you, but if you want to check again to make sure we have your audio and video.",
+      "start": 1643620,
+      "end": 1654340
+    },
+    {
+      "speaker": "D",
+      "text": "Yeah, I apologize. I had some. I'm working out of my corporate office today, which is not typical for me. So I will hope that you can hear what I'm saying.",
+      "start": 1655790,
+      "end": 1667470
+    },
+    {
+      "speaker": "A",
+      "text": "Yes, we can.",
+      "start": 1668190,
+      "end": 1668910
+    },
+    {
+      "speaker": "D",
+      "text": "The first slide on the deck.",
+      "start": 1669790,
+      "end": 1671870
+    },
+    {
+      "speaker": "A",
+      "text": "We don't see our slide yet. We do see ourselves.",
+      "start": 1672590,
+      "end": 1676190
+    },
+    {
+      "speaker": "D",
+      "text": "Let me try that again. That should work.",
+      "start": 1678270,
+      "end": 1684440
+    },
+    {
+      "speaker": "A",
+      "text": "You never go away.",
+      "start": 1688440,
+      "end": 1689400
+    },
+    {
+      "speaker": "D",
+      "text": "Thank you. I was working on some technical difficulties trying to get, get on this call this morning. So it's great to be with all of you. Stacy and Paul and others have kind of given me some guidance and counsel about what they'd like me to share this morning as it relates to sales taxes. And I'm happy to do that. We've kind of set this up where I'm happy to let this be interactive as we go. We certainly have plenty of time at the end of my presentation, which will not Take up all of this agenda item and take more questions or comments. So let me just go ahead and get started. So this is as Stacey mentioned, this is really just the goal here is that really I think today to provide some background and context for sales tax a little bit how it works, talk through some of the actual data and revenue that's germane to the city of San Rafael, want to talk a little bit about trends, examine some E commerce activity and, and cover really frankly, anything else that you might find of interest if what I, what I discuss here provokes some questions for you. So I thought I'd start first with just some fundamentals. So your tax rate down here is nine and a quarter percent. It's been that way really for three years. It was last changed in a note there, you can see when the county renewed their park and open space tax. And I want to just highlight here, you know, in terms of the tax rate, there's a base seven and a quarter percent rate that you can see there that's kind of boxed. Everybody pays that. And then in San Rafael there are a series of taxes, two of them. These are all locally approved either by the city residents or county residents or in Smart's case, it's two counties. But these are voter approved measures that are in place that add another 2% to the overall rate. So along the way, dating back to 1955, you've been getting this general fund piece, this 1% part of the rate. Your voters over the years have approved measure E, which is a 3/4 of 1% rate. And then more recently measure R, which I know you've been designating a lot of that for debt service related to your infrastructure, your public safety facilities. But that's where the rate stands today. And just a reminder, there's no more capacity under the law to increase the tax rate locally. And the only exception to that.",
+      "start": 1689480,
+      "end": 1850610
+    },
+    {
+      "speaker": "B",
+      "text": "Go ahead, you cut out for a moment, but you're okay, we got there's no more capacity.",
+      "start": 1852210,
+      "end": 1856690
+    },
+    {
+      "speaker": "D",
+      "text": "And then yeah, there is no more tax rate capacity to increase the tax rate locally unless there was legislative authority to do so. And I can talk about that more if you have some questions, but I don't want to belabor that, but you're at the cap is the takeaway there. So data wise, this is looking at your Bradley Burns, your 1% part of the tax rate. And here I'm just comparing this most recent fiscal year, FY 2425 to FY2324. This is how we group. We typically have eight groups that we break your data into. And you can see here you've got a lot of taxpayers. These are the number of permittees that 2,827 are the number of businesses in the city that hold seller's permits that generate sales tax for you. And we're comparing the results of this recent year to the prior year just to give you a flavor of an overall increase of almost 3%, about $714,000. But that varied as you look at the performance here across some of these industry groups. And most notably, the gain was coming out of your auto group, which I'll talk a little bit more about in the county pools, which I will explain here momentarily. So just to give you an idea of how your let me just get this off the screen. How your group breaks down. This is just a pie chart. When you take that data and break it into percentages, you can see that the auto group is your most significant sales tax generator, almost 30% using the last fiscal year's data. Then we get into this piece that's the county pools. And I'm just going to say here and remind you that these are taxpayers that are not in San Rafael. These are largely E commerce tax generators. And again, I'll explain how that works here in just a minute. And then locally, behind the auto group, your next biggest group is building and construction. So you've got your top three pie wedges making up roughly 70% of your sales tax. And I made a note here, if I was to compare you to other either regional or statewide data, I would say that, you know, you have a high concentration in those three groups, so it puts you a little more at risk in terms of the volatility that comes with the economy. That could be good. It could also be bad, just depending upon what circumstance you're in. The other five wedges there really make up the remaining 30% of your tax revenue. So sales tax law in California over the decades now has just become pretty complicated. And so that's, I guess that's why we're working for you, is to try to help explain a lot of this. So most of your tax revenue that you would think is being generated out of San Rafael businesses, or what we call direct allocation money coming to you where you're getting a full part of the tax rate. So anybody walking into a store, a restaurant, using a gas station is paying that nine and a quarter percent rate and you're getting the full one percent value of that. There's a piece of the tax rate that goes back to state regulations stating back 30 years or more. Where are these indirect allocations or pools? So this is typically referred to as use tax rather than sales tax, but functionally it's the same thing in the tax law. And it's largely online or e commerce activity. And it's divvied up formulaically where there's an allocation of these online activities as taxpayers. These are out of state taxpayers filing tax returns. They're dividing up money on a county by county basis. There's a pool for each of the 58 counties and then there's a formula used within each county to determine your share. You get, you San Rafael this last year got 39% of what's referred to as the Marin pool. And that looks like this. I know this is a lot of data and maybe you can't see all the numbers here on the screen, but the formula here takes what, what did your local taxpayers generate? Roughly $20.7 million. And what was the total on a county wide basis? And that derives this 38.6 or 39% of the pool. And the pool revenues that were generated for Marin were 13.2 million. And I'm just showing here in the table on the lower left how that distribution worked. So that 38.6% of the pool revenue was roughly $5.1 million of taxes for you. Again, coming from taxpayers that are not located in the city.",
+      "start": 1857090,
+      "end": 2155830
+    },
+    {
+      "speaker": "B",
+      "text": "I'm sorry, can you just say on that one and maybe it is on the next one, how is that apportioned? So with the 38.6%, what's it based on? Is it per capita? Is it.",
+      "start": 2159990,
+      "end": 2169590
+    },
+    {
+      "speaker": "D",
+      "text": "No, no, I, I explained that up here. So you had $20 million worth of. Let me do this. You had $20 million, $20.7 million worth of revenue that your taxpayers in San Rafael generated. Last year. The countywide total was 53.7. So it's very simple math, not based on population or anything else.",
+      "start": 2170840,
+      "end": 2195160
+    },
+    {
+      "speaker": "E",
+      "text": "And hold on a sec, wait, when.",
+      "start": 2195410,
+      "end": 2196970
+    },
+    {
+      "speaker": "A",
+      "text": "You say revenue, you mean sales tax? Revenue.",
+      "start": 2196970,
+      "end": 2200210
+    },
+    {
+      "speaker": "D",
+      "text": "Sales tax.",
+      "start": 2200210,
+      "end": 2200850
+    },
+    {
+      "speaker": "A",
+      "text": "Okay.",
+      "start": 2201170,
+      "end": 2201650
+    },
+    {
+      "speaker": "D",
+      "text": "Yes, yes. I'm only talking about sales tax.",
+      "start": 2201650,
+      "end": 2205170
+    },
+    {
+      "speaker": "B",
+      "text": "So it's just so your generated in Summerfield, stays in Summerfield. I'm just trying to figure out how that number.",
+      "start": 2205890,
+      "end": 2211890
+    },
+    {
+      "speaker": "E",
+      "text": "Can I try that?",
+      "start": 2212370,
+      "end": 2213250
+    },
+    {
+      "speaker": "B",
+      "text": "Yeah, sorry, clarify.",
+      "start": 2213250,
+      "end": 2215090
+    },
+    {
+      "speaker": "E",
+      "text": "So just on the, this county pool allocation, which is indirect, what the state does is it looks countywide at the direct sales tax that each city is generating through the Bradley Burns, which is the big chart, we effectively account for 38 point whatever percentages of that. And so what the state does is it takes the county pool, where there isn't a clear nexus of point of sale. And they allocate the pool dollars, which is the additional 13 million, to the jurisdictions based on your relative proportionate share of the direct sales tax generation rate.",
+      "start": 2215090,
+      "end": 2250770
+    },
+    {
+      "speaker": "B",
+      "text": "On your tax generation rate.",
+      "start": 2250770,
+      "end": 2252250
+    },
+    {
+      "speaker": "E",
+      "text": "Yeah, well, we're 38.9% of the county sales tax.",
+      "start": 2252330,
+      "end": 2256490
+    },
+    {
+      "speaker": "A",
+      "text": "Okay.",
+      "start": 2256810,
+      "end": 2257250
+    },
+    {
+      "speaker": "E",
+      "text": "And so they take that to the pool and say we'll allocate it on that same basis.",
+      "start": 2257250,
+      "end": 2261090
+    },
+    {
+      "speaker": "B",
+      "text": "We just want to make sure we're getting every penny that generates. That's really my underlying question. That's a different question. Okay.",
+      "start": 2261090,
+      "end": 2268170
+    },
+    {
+      "speaker": "D",
+      "text": "You're getting every penny you're entitled to, as is every other city or town.",
+      "start": 2272500,
+      "end": 2276980
+    },
+    {
+      "speaker": "A",
+      "text": "In Marin because of this, pursuant to the methodology. But maybe.",
+      "start": 2277300,
+      "end": 2281940
+    },
+    {
+      "speaker": "E",
+      "text": "This question will become richer.",
+      "start": 2286180,
+      "end": 2288180
+    },
+    {
+      "speaker": "B",
+      "text": "Okay, we'll keep going on the next.",
+      "start": 2288339,
+      "end": 2289900
+    },
+    {
+      "speaker": "E",
+      "text": "Part of the presentation.",
+      "start": 2289900,
+      "end": 2290980
+    },
+    {
+      "speaker": "B",
+      "text": "How to read the percentage.",
+      "start": 2291300,
+      "end": 2292500
+    },
+    {
+      "speaker": "A",
+      "text": "Bigger. Yeah, no, it is.",
+      "start": 2292500,
+      "end": 2293540
+    },
+    {
+      "speaker": "C",
+      "text": "That's a big.",
+      "start": 2294340,
+      "end": 2294940
+    },
+    {
+      "speaker": "A",
+      "text": "We want more.",
+      "start": 2294940,
+      "end": 2295860
+    },
+    {
+      "speaker": "B",
+      "text": "Okay, thanks again. So.",
+      "start": 2296820,
+      "end": 2297950
+    },
+    {
+      "speaker": "D",
+      "text": "So I wanted to just break down that pool number for you a little bit. That 13.2 million. So it is largely e commerce or online based activity, but not solely, and you might think of that as all being households or consumers. But for the pool last year only 51% of that was what I would put in the bucket, the blue pie wedge here of business to consumer or general retail. So this is people ordering stuff online. And you could think about Amazon or any number of companies that would fit that definition and that would, that would end up being here in the blue pie wedge. But there's a fairly decent amount of activity that is also done online and it's business to business sales. So these are typically smaller dollar or smaller valued transactions where somebody might be ordering a generator, electrical equipment, medical supplies. These aren't being done by local businesses. Again, it's all online and shipped in from outside of California. So there's a fair amount, about a third of the overall pool, and this is pretty consistent across the state, actually is coming out of business to business sales. And then the auto piece that's up here in the green wedge is primarily the department of Motor Vehicles. And so private party auto sales. This has nothing to do with your local car dealerships. This is just I'm selling a car to Mary Beth or vice versa. That transaction ends up here in the green pie wedge. And then we have kind of a final mix of things. One of the unusual quirks in the law is that the food delivery company revenues actually end up in the pool. So Uber Eats, Doordash, those kind of businesses are here in that, in that brown pie way. So it's an interesting distribution and wanted to just highlight that it's not all directly related to consumers or residents behavior.",
+      "start": 2301380,
+      "end": 2428230
+    },
+    {
+      "speaker": "E",
+      "text": "Hey Ken, can I make just an editorial anecdotal comment on this? You mentioned the laws that govern sales tax and sales tax allocation is getting more and more complex. One of the kind of tenants or what's going on is that obviously over the last 10, 20 years the economy is changing. Right. And it's completely and not surprisingly the regulatory framework for how all the taxes are generated has a hard time keeping up with the, with the change in the economy and where the transactions are happening, the value of the transaction for years. Right. The Internet stuff was not subject to sales tax and so there was a uneven playing field, if you will. And so I think what Ken's also alluding to is that there's been efforts legislatively to tweak this and it's still not where it could be should be depending on your perspective on how it works. But it's just very difficult for it to keep up with the pace of change in the things that are driving the transactions in the local economy. So go ahead.",
+      "start": 2428230,
+      "end": 2504360
+    },
+    {
+      "speaker": "D",
+      "text": "There have been discuss. Yeah, there have been discussions, not legislatively, more through working groups of Cal Cities to talk about should this formula remain or should should these dollars, and I'll explain this in a minute, go to what would be called full destination that hasn't gotten any legs up until this point in time. So this has been a. And by the way, just to be clear, this allocation formula is a regulation of the California Department of Tax and Fee Administration carried over from the former State Board of Equalization. So there's a period of time where the pool money was very insignificant and that is no longer the case really for any city in California.",
+      "start": 2504360,
+      "end": 2552840
+    },
+    {
+      "speaker": "B",
+      "text": "So okay, can you answer maybe this one? You're going to answer this in the next slide because there are a bunch of slides. My question is this. If people are ordering online versus buying in our downtown, are we leaving? Are they giving money away to other places where if they were only shopping downtown, we'd be making more money from it? That's what I'm trying to say. So I'm going out in the community to say don't buy your games from Amazon, buy them from Gamescape because the city makes more money off of that. Is that a true statement? And then how would I back that up?",
+      "start": 2553000,
+      "end": 2584570
+    },
+    {
+      "speaker": "D",
+      "text": "You would back it up here. So you would say that if I ordered my games from Amazon and Amazon would be one of two possibilities if that game was out of state, it ended up here in the pools. If that game happened to be located in a fulfillment center in California, and I'm being very specific in my language here, so you can see here, that's our.",
+      "start": 2586410,
+      "end": 2614960
+    },
+    {
+      "speaker": "B",
+      "text": "You cut out. Keep going.",
+      "start": 2614960,
+      "end": 2616320
+    },
+    {
+      "speaker": "D",
+      "text": "The top two rows are the way online orders are allocated for inventory that is held inside of California in fulfillment centers. So think of, you've all seen these if you've driven around anywhere, not so much locally, but there are a large number of fulfillment centers like in the Central Valley, out in Tracy, a bunch in Sacramento. And so if I ordered that game online and it got it was an Amazon fulfillment center in Sacramento, it would be their revenue. If happened to be shipped from Ohio, that would go in the pool and you would get 39 cents on the dollar. And my footnote here is kind of highlighting another twist or nuance in the law that I'm not able to break down and looking at the data, which is, well, what if I bought it online and picked it up at the start store that was downtown. That would actually be your downtown game store merchant revenue. You would get the full sales tax, 1% value of that transaction. So what's the online world?",
+      "start": 2618800,
+      "end": 2692790
+    },
+    {
+      "speaker": "B",
+      "text": "I'm sorry, So I get 30. I'm sorry, I'm stuck on this. I get 39% if it's outside coming from Ohio. But if I go downtown, I get the full.",
+      "start": 2693510,
+      "end": 2701750
+    },
+    {
+      "speaker": "D",
+      "text": "If you pick it up in the store, you get the full value.",
+      "start": 2705120,
+      "end": 2707840
+    },
+    {
+      "speaker": "B",
+      "text": "Yes, but it's a dollar. I'm just trying to figure out that percentage because again, it's a dollar.",
+      "start": 2707920,
+      "end": 2713280
+    },
+    {
+      "speaker": "D",
+      "text": "It would be a dollar in the store, it would be 39 cents in the pool.",
+      "start": 2713280,
+      "end": 2717680
+    },
+    {
+      "speaker": "B",
+      "text": "Okay. It would be over and over.",
+      "start": 2717760,
+      "end": 2720240
+    },
+    {
+      "speaker": "D",
+      "text": "Well, it could also be zero if it came from an in state fulfillment center.",
+      "start": 2721520,
+      "end": 2726320
+    },
+    {
+      "speaker": "B",
+      "text": "This is such an important point because folks and I know all the chambers nodding their head and we hear this over and over like you, if you want to thrive in downtown, you actually need to shop downtown, need to go to Coppervilles. Okay, so I didn't want to belabor the point, but I really wanted it clear because this comes up. So when I'm out talking to communities every single week. So I'm committing this to memory.",
+      "start": 2727680,
+      "end": 2747180
+    },
+    {
+      "speaker": "E",
+      "text": "I'm just going to underscore what you just said that depending on how that online transaction is structured, city San Rafael either gets zero sales tax, it could get a sales tax through the county pool at 39%. Can you mention the example of you order online and pick up in the store? There's also different allocation. Like if you go to Best Buy and go online because there's a Best Buy in San Rafael. That's different than how the sales tax allocated if somebody from Port of Madera orders Best Buy online because they don't have a Best Buy. So there's varying degrees of what they call a nexus in terms of your claim to a point of sale, depending on what you're buying or how you're buying it and how that fulfillment is order is fulfilled and whether or not there's a brick and mortar in your community that is, you know, the underlying store that's doing the transaction. It's messy.",
+      "start": 2747180,
+      "end": 2808880
+    },
+    {
+      "speaker": "A",
+      "text": "Okay. And I'm not understanding this. Let's go back to the basics here. The second line down, the online order is placed in California with a California fulfillment center. This says that the jurisdiction where the order is placed gets the tax. Is that right? Yeah.",
+      "start": 2808960,
+      "end": 2826980
+    },
+    {
+      "speaker": "D",
+      "text": "What they mean by that is the jurisdiction is a fulfillment center location.",
+      "start": 2827380,
+      "end": 2832340
+    },
+    {
+      "speaker": "E",
+      "text": "Point of sale is.",
+      "start": 2832740,
+      "end": 2833660
+    },
+    {
+      "speaker": "A",
+      "text": "That's what that language is your keyboard, not jurisdiction. Well, it's a keyboard jurisdiction where the order is placed. Okay, so that's not the seat, that's the fulfillment fulfillment center.",
+      "start": 2833660,
+      "end": 2845100
+    },
+    {
+      "speaker": "C",
+      "text": "Right.",
+      "start": 2846140,
+      "end": 2846460
+    },
+    {
+      "speaker": "D",
+      "text": "So this is the online ordering in that second row is suggesting when I went online and ordered, that order was taken and processed at a fulfillment center. And therefore that jurisdiction gets that revenue.",
+      "start": 2846460,
+      "end": 2860620
+    },
+    {
+      "speaker": "A",
+      "text": "That the fulfillment jurisdiction in the city where you're located gets zero. So it's only when there's an out of state fulfillment center, which are very.",
+      "start": 2860860,
+      "end": 2871180
+    },
+    {
+      "speaker": "E",
+      "text": "Few of them because we have the Sacramento traffic.",
+      "start": 2871180,
+      "end": 2874080
+    },
+    {
+      "speaker": "A",
+      "text": "Yeah, yeah.",
+      "start": 2874870,
+      "end": 2875510
+    },
+    {
+      "speaker": "B",
+      "text": "That's why you can get your Amazon the next day because it's coming from up in Sacramento.",
+      "start": 2875990,
+      "end": 2880550
+    },
+    {
+      "speaker": "C",
+      "text": "Hey Candice, is there a breakdown of, of those, those online sales of which go to fulfillment centers and which stay and which go out of state. Is there, is that there granular enough data for us, for us to know that?",
+      "start": 2880630,
+      "end": 2895030
+    },
+    {
+      "speaker": "D",
+      "text": "Well, there are tax return. So Amazon's a good example, but so is Home Depot and QVC and like a bunch of. I'll just use Amazon. They have in state fulfillment centers. They have one at Richmond, they have one in Burlingame. They've got a. I mentioned other places. So part of their tax return allocates online revenue to those places, those jurisdictions based on these first two rows. Part of the online ordering is also fulfilled out of state. So if you ever look at your Amazon packaging, you can often closely if you examine the addressing of origin. So they still do a lot of out of state fulfillment depending upon what you're ordering and the things that tend to be fulfilled in California are the most common and frequently ordered products that somebody mentioned in a call, you know, kind of getting it to you quicker. So there's definitely a business model and an algorithm that Amazon's creating, as are others to try to get more inventory that turns over quicker, closer to people. So.",
+      "start": 2895990,
+      "end": 2968670
+    },
+    {
+      "speaker": "B",
+      "text": "Hi, Ken, Stephanie Plant, long time no see. From a consumer education standpoint, I think you could easily teach people to buy online, pick up in store, but you can't really discern when you're shopping online from Amazon which distribution center you're order is going to be fulfilled at. Correct?",
+      "start": 2969790,
+      "end": 2987370
+    },
+    {
+      "speaker": "D",
+      "text": "Correct.",
+      "start": 2988570,
+      "end": 2989130
+    },
+    {
+      "speaker": "B",
+      "text": "I mean, every now and then you can go, wow, well that's going to get here tomorrow and that's going to get here on five days from now. And that's so that I don't really want that. I'm going to go for the faster.",
+      "start": 2990330,
+      "end": 2998490
+    },
+    {
+      "speaker": "A",
+      "text": "One, which may or may not.",
+      "start": 2998490,
+      "end": 3000410
+    },
+    {
+      "speaker": "B",
+      "text": "Maybe that'll be closer.",
+      "start": 3000570,
+      "end": 3001930
+    },
+    {
+      "speaker": "A",
+      "text": "Right.",
+      "start": 3001930,
+      "end": 3002130
+    },
+    {
+      "speaker": "B",
+      "text": "But you can't really. There isn't really a way to educate the consumer on that. Right.",
+      "start": 3002130,
+      "end": 3007450
+    },
+    {
+      "speaker": "D",
+      "text": "You know, there's no control.",
+      "start": 3008490,
+      "end": 3009770
+    },
+    {
+      "speaker": "B",
+      "text": "There's no control. Right. The education is to shop local. Shop local. That's the education.",
+      "start": 3010570,
+      "end": 3015500
+    },
+    {
+      "speaker": "A",
+      "text": "Right.",
+      "start": 3015820,
+      "end": 3016220
+    },
+    {
+      "speaker": "B",
+      "text": "Walk into Home Depot and buy the thing there. Right.",
+      "start": 3016300,
+      "end": 3018900
+    },
+    {
+      "speaker": "A",
+      "text": "What you're doing and bring your patients, pick up local. That's a good point. But I don't think this is an education and a consumer issue. This is a regulation issue that we need to get changed. The vice mayor has spoken.",
+      "start": 3018900,
+      "end": 3033900
+    },
+    {
+      "speaker": "B",
+      "text": "Again. Keep going. We're digging literally into this. Keep going so we can. Yeah.",
+      "start": 3035740,
+      "end": 3041220
+    },
+    {
+      "speaker": "D",
+      "text": "Okay, so I'm going to show you measure E results much like I showed your sales tax and R would be the same except the data for R would be a third of E. So just keep that in mind. I want to highlight that the laws change a little bit when we get to these. Local taxes are called transaction and use taxes or district taxes. And we're not concerned as much now about point of view sale. So walk in business. If you, if I walk into a restaurant, use a gas station, shop at a local store, I'm paying your Bradley Burns. I'm paying your measure E and your measure R. What matters most here? A couple of things that are different. Autos. Auto generated revenue, particularly new car sales, is not based upon what your dealerships are doing. It's based upon the car buying habits of San Rafael residents. Because measure E and R are paid based upon car buying habits. Doesn't matter where they buy, if they buy the car in San Rafael, Nevada, Corta Madera or anywhere else. And then the other categories here, that are different, substantially different are building, construction and business and industry. So in those areas, the way Measure E gets generated is tracking what's getting shipped into the city. So this is less about. There are some local businesses that generate Measure E and R, don't get me wrong. But there's also a lot of them. And you can see by the total count that's listed here, much greater than your point of sale is, is all kinds of office equipment, building supplies, things that get shipped into the city, generate measure E and measure our revenues. And I'm going to talk a little bit more also about the reverse effect of that and show you some other information. So what I mean by that is if you take one of your large auto dealers and a good portion of their car sales are not San Rafael residents. So that chunk of their business does not generate measure E or Measure R revenues for you. Is that clear?",
+      "start": 3041220,
+      "end": 3175550
+    },
+    {
+      "speaker": "A",
+      "text": "So like that answer.",
+      "start": 3176360,
+      "end": 3177680
+    },
+    {
+      "speaker": "B",
+      "text": "But yeah, we don't like that answer. So if they're coming here, then we need to get them to go downtown and have lunch so we at least get something from their visit.",
+      "start": 3177680,
+      "end": 3185480
+    },
+    {
+      "speaker": "A",
+      "text": "We need to build more housing so that people move here and then buy cars here.",
+      "start": 3185640,
+      "end": 3188680
+    },
+    {
+      "speaker": "E",
+      "text": "Yeah. Any way to think about this?",
+      "start": 3188840,
+      "end": 3191720
+    },
+    {
+      "speaker": "B",
+      "text": "Go ahead.",
+      "start": 3193480,
+      "end": 3193960
+    },
+    {
+      "speaker": "E",
+      "text": "Correct me if I'm wrong. I know it changes, but the, the way I think about it is like sales tax for a new car purchase is driven by where the car is registered.",
+      "start": 3194440,
+      "end": 3206890
+    },
+    {
+      "speaker": "C",
+      "text": "Right.",
+      "start": 3207290,
+      "end": 3207690
+    },
+    {
+      "speaker": "E",
+      "text": "So a San Rafael resident who buys a car at a San Rafael dealer, we get the 1% Bradley Burns and the extra Measure E and Measure R San Rafael resident buys a car in cort of Madera. I believe we're just getting the E and The R&COR Madera gets the Bradley Burns. And if a Nevada residence comes to San Rafael to purchase the car, we get the Bradley Burns 1% because that's the point of sale. But there's no E and R. I mean, they might be paying whatever transaction use tax. So that's kind of give you a rough idea of you can tell how much of our sales in these categories are from San Rafael residents, how much we might be losing or, you know, other how much is split between residents and non residents.",
+      "start": 3207770,
+      "end": 3262980
+    },
+    {
+      "speaker": "B",
+      "text": "Okay, I think that's the next slide. Yep.",
+      "start": 3263700,
+      "end": 3265860
+    },
+    {
+      "speaker": "D",
+      "text": "So what I wanted to do here was highlight on the left the sales tax. This is taking those industry groups and breaking them down into segments to show you where you get a higher concentration of your sales tax revenue. So it's clearly car sales. Clearly car sales. But you'll also note it's car leasing, which has become very popular with higher interest rates in the last couple of years. So not everybody buys. Some people choose the lease. But that's all that's treated like locally generated Bradley Burns revenue for you. So you can see you've got 52% of last year's revenue concentrated in these seven segments. When I add up the measure E and R revenues over here on the right, you have very similar categories. In many cases they generate the top seven are generating 47% of your revenue. Where you see a big bump here is in E commerce retailers. So in sales tax world, we talked about these online sales going to the pool and you get 39% of that. You get the full tax rate value of measure ENR when people order online and have an Amazon delivery sent to their home or anything else that's shipped into the city. So the E commerce part of your local measures, again pretty true with most cities or agencies across the state is a key part of what generates your local taxes.",
+      "start": 3268900,
+      "end": 3366460
+    },
+    {
+      "speaker": "B",
+      "text": "And can I ask a question on this? Wait, before you go. So the service stations, are you talking, is that a gas service station?",
+      "start": 3368380,
+      "end": 3375260
+    },
+    {
+      "speaker": "D",
+      "text": "Gas stations, yeah.",
+      "start": 3375820,
+      "end": 3377340
+    },
+    {
+      "speaker": "B",
+      "text": "Are you seeing or is HDL seeing that as the uptick of electric cars come on, that those numbers will start to go down either through the gas or point of sale or whatever it is? Are you sure seeing that, are you forecasting that or is it still such a small delta that it won't really show up yet?",
+      "start": 3377740,
+      "end": 3394190
+    },
+    {
+      "speaker": "D",
+      "text": "We have seen with the splurge in spending on hybrids and EVs over the last few years, we're starting to see a very gradual reduction in gasoline consumption. Service stations, gas stations on a statewide level, we haven't really seen a decline in revenue because most of what generates the tax has less to do with the consumption change and much more to do with the pricing change at the pump. And there have been periods of time where that's been way up. It's been down more recently. But. So we are monitoring that. But I think the transition there is very gradual. And since you want to go talk to the state, this is an area where they're paying no attention to the reality that if the consumption actually did more dramatically decline more rapidly, you and other cities would be losing revenue that there is no replacement for at this point.",
+      "start": 3394590,
+      "end": 3454040
+    },
+    {
+      "speaker": "B",
+      "text": "So thank you. I just wanted to have clarity on that.",
+      "start": 3454280,
+      "end": 3456480
+    },
+    {
+      "speaker": "E",
+      "text": "Just I wanted to also connect this to a conversation at the council meeting a couple of nights ago. So this is the sales tax, which is a percent of the price per gallon, the gas tax that we talked about the other Night. I'm not mistaken. It's like it's a flat amount. So that's much more sensitive to just the volume because you're getting the same dollar per gallon, not based on the price. So as in the future, as that consumption of the gasoline declines, if that were to continue, then you will see gas tax revenues decline proportionately.",
+      "start": 3456480,
+      "end": 3498140
+    },
+    {
+      "speaker": "A",
+      "text": "But shouldn't we then see they're being replaced by electricity sales, so shouldn't the franchise fee revenue go up as well?",
+      "start": 3499260,
+      "end": 3506300
+    },
+    {
+      "speaker": "E",
+      "text": "I'll get back to you on that.",
+      "start": 3509340,
+      "end": 3510340
+    },
+    {
+      "speaker": "B",
+      "text": "Yeah, that's a complicated one. Okay. No, that's a good.",
+      "start": 3510340,
+      "end": 3512940
+    },
+    {
+      "speaker": "A",
+      "text": "Okay.",
+      "start": 3513820,
+      "end": 3514220
+    },
+    {
+      "speaker": "E",
+      "text": "But they're taxed.",
+      "start": 3514220,
+      "end": 3515020
+    },
+    {
+      "speaker": "D",
+      "text": "I don't think you'll see that proportionally by any means.",
+      "start": 3516300,
+      "end": 3519420
+    },
+    {
+      "speaker": "B",
+      "text": "Okay, we're ready for the next slide. Thank you.",
+      "start": 3523050,
+      "end": 3525530
+    },
+    {
+      "speaker": "D",
+      "text": "So I wanted to do a couple of slides on comparisons. So the first one here, and this is just comes out of our data and we work this through with the staff as part of our quarterly reports. This shows a 13 year look back at per capita sales. So what does that mean? I mean, I'm taking the annual sales taxes, excuse me, annual sales generated by San Rafael and the other cities you see listed there, and overlaying that or calculating that based on department of finance population figures. So it shouldn't surprise you to see Cort of Madera, with a couple of big malls and a lot of sales tax generators, historically has been a very high per capita sales community. San Rafael, as you're in the dark green line here, are in second place. And you can see what the trend for that has been. Recall back in the spring of 2020 and to some extent into 2021, that was the COVID period. So when things were closed, shut down, we were all sheltered in place. Spending dropped, but it didn't last long. And so I put the dollar values over here, which is kind of hard to see in the table. So you just get an idea that this per capita number can look very different. And this is a function of really from my perspective, like years and years of planning and land use decisions and development and commercial projects in San Rafael and in these neighboring jurisdictions that kind of arrive at these numbers. Numbers. What's interesting to me, hopefully to you, and I'm comparing you now to the Bay Area, which is a nine county Bay area data, that's a red line and the gold line is California. So you, the city of San Rafael are a huge net importer of sales taxes on a per capita basis compared to really almost anywhere else inside of California. And why is that? Because over time you have become very autocentric. So you have a high number of car dealerships and the leasing agencies that work for those are also generating a fair amount of your tax revenue, as are your building material and plumbing electrical services suppliers. So when you look at this tally here, you have, if I'm doing the math here right, you have there's 13, there's 18 of your top 20 taxpayers for the city in the last year are in these categories. So you have a very high concentration. It generates a lot of revenue for you and it puts you in an unusual position. I mentioned some risk earlier. This is you don't have a lot of diversity of other kinds. You don't have a fulfillment center, for example, or something else that might be in your top 20 list. You have a high density of these kinds of uses. So, and I think Paul wanted to make a comment here, but I'll start by saying, you know, when you look at the trend line Here again over 13 years, these are gross, gross dollars. So these are not inflation adjusted numbers. So think about what, you know, in terms of the cost of everything that's gone up, cars eating out, you know, general consumer goods that's gone up with inflation over time. And so we see in the data, if we were to inflation adjust or CPI adjust a lot of these numbers, revenues are probably flat or down slightly over time, not just in San Rafael, but really across the state. What that means is people are paying more, but they're buying less stuff. The quantity of transactions is declining. And the other thing here is, although it's kind of hard to tell in the line graph, I'm certain that revenue growth, even though it was 2.8% last year, is really not sufficient to keep up with your cost of delivering services and your infrastructure and everything else. So there are certainly some, some challenges there.",
+      "start": 3526490,
+      "end": 3788920
+    },
+    {
+      "speaker": "E",
+      "text": "So, so Ken made my, my point there, which is on a macro level. So we're doing pretty well on a relative basis. And the key is hope keeping that we'll get to the conclusion just on a macro basis. NHDL has done this analysis too. So I'm just not paying credit for it. On inflation adjusted, this is about 2 1/2 to 3% average annual growth per year over 13 years, which is arguably maybe keeping up with inflation. And so other macro trends is.",
+      "start": 3789960,
+      "end": 3823530
+    },
+    {
+      "speaker": "D",
+      "text": "We.",
+      "start": 3825930,
+      "end": 3826250
+    },
+    {
+      "speaker": "E",
+      "text": "Have you mentioned the E Commerce. So as the transition E Commerce there's an erosion of the local sales packs as folks are going through these pool. We have a, you know, aging population in California. More of disposable income is going to things like Housing and health care and non taxable items. So there's data that shows that the percent of disposable income that is going to tangible taxable sales over the last decade or two is on a, on a downward trajectory. So sales tax is a less of a reliable long term funding source than it used to be. And so it's just a observation.",
+      "start": 3826250,
+      "end": 3875269
+    },
+    {
+      "speaker": "A",
+      "text": "I want to take a minute to look back so that we can set the foundation for looking forward. Looking back, I can tell you that Green Line did not get there by accident. 100% they were. Then intern Hinkle was delivering bags to us on the planning commission with memoranda from Nancy Mackel. Remember Nancy Mackel? She would write to us on the planning commission saying anything to do with a car dealership and it always started with the same one as you know, car dealerships provide substantial tax funding. This was two decades ago that we were getting those. That's how that line got there. That level of strategic objectives permeating our organization is what we need to have for our new strategy going forward so that we can extend that Green Line out. Because what we're hearing is the two decade old strategy which is, served us well, served us well, is not the strategy for the future. So that's where we need to be. What, what is our new strategy and how are we going to get it throughout the organization so that those, every decision is made with that in mind. You know, and if we need to go get some laws changed with how pools are allocated or whatever that is, we need a multi step action plan to enact that strategy. Thank you for indulging me.",
+      "start": 3875510,
+      "end": 3978810
+    },
+    {
+      "speaker": "B",
+      "text": "Great setup for the next slide. So keep going.",
+      "start": 3978810,
+      "end": 3981170
+    },
+    {
+      "speaker": "D",
+      "text": "So one of the things we're able to do when we get your data is we take these business segments that are listed here as retail categories and again using per capita numbers we can look at where you have strength or surplus. Or using my language, you're a net importer, right? So you know you've got a number of these large, you know you've got a Home Depot but you got a number of other large lumber supply houses that generate a ton of revenue for you. So on a per capita basis it's huge. You can see that in the chart. And you know, having a Best Buy store and you've got a number of gas stations, you have quite a few auto repair and supply related businesses which I don't find surprising when you consider you have a lot of dealerships that might have all been part of that strategy you were mentioning. So those are all areas where you're, you have more people coming in and buying and contributing to your, your Bradley Burn. This is Bradley Burn sales tax comparisons, leakage or gaps are down here in the red. They're not wildly substantial. The largest one on a per capita basis is fine dining. You've got some, a variety of other retail kinds of uses. And so my comments here are, you know, if you're thinking about strategy, I don't think there's a lot to chase up here in the green. They're already doing okay and frankly, if you were chasing more of it, you're probably just cannibalizing to some extent already the existing businesses. And down below, there are some things here that you could pursue. I know there was an attempt to do a Costco up at Northgate that would have more than would have put that red discount department store part of the graph over in the green had that come to pass. And then there's areas like department stores that just aren't expanding or building at all. So there's opportunity here for fine dining. But frankly a lot of this is fairly, it's going to be fairly limited sales tax, expansion or growth. That doesn't mean you might not consider pursuing it. At least you know where you would want to put some effort. But it won't create large scale revenue expansion. And autos, we can't really compare autos because that there's not enough cities that have auto dealerships. But I've already told you that, you know, if we're on this chart, it'd be way up at the top. You have a very high per capita new car sales and new car leasing definition.",
+      "start": 3983890,
+      "end": 4144110
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you, Ken. If you can just get through the rest of the slides so that way we can have more. Any more questions and pay attention because obviously we can spend a lot of time on all this. It's fascinating.",
+      "start": 4145870,
+      "end": 4154590
+    },
+    {
+      "speaker": "A",
+      "text": "Can I just make one quick.",
+      "start": 4154750,
+      "end": 4155870
+    },
+    {
+      "speaker": "B",
+      "text": "Please wait. The city manager wants to make a comment.",
+      "start": 4155870,
+      "end": 4157950
+    },
+    {
+      "speaker": "A",
+      "text": "There's the county executive. We're working on collaboratively on their Marin county economic development economic vitality plan. That's I think this summer will be coming out like with some initial findings. And what we've been, Derek and I have been talking about is what's not on that chart is like what is the industry. So to Ken's point, those, the red bar is great to be in the green, but the percentage increase in sales tax is still going to be pretty low. So what industries do we want to attract and bring into Marin County? San Rafael, being a county seat, to say like we need to. To your point, Vice Mayor Bushy, we need to add more green bars. Things that aren't there yet. And what are those things are going to really work here in Marin.",
+      "start": 4158450,
+      "end": 4197640
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you.",
+      "start": 4198360,
+      "end": 4198920
+    },
+    {
+      "speaker": "A",
+      "text": "Thanks.",
+      "start": 4199320,
+      "end": 4199760
+    },
+    {
+      "speaker": "C",
+      "text": "If I could just add to that C says that's really factored or captured.",
+      "start": 4199760,
+      "end": 4202920
+    },
+    {
+      "speaker": "E",
+      "text": "Which is really in our wheelhouse or opportunity.",
+      "start": 4202920,
+      "end": 4205240
+    },
+    {
+      "speaker": "C",
+      "text": "Really hospitality.",
+      "start": 4205560,
+      "end": 4206760
+    },
+    {
+      "speaker": "E",
+      "text": "It's not a sales tax generator, but it's a tot generator.",
+      "start": 4206920,
+      "end": 4209710
+    },
+    {
+      "speaker": "C",
+      "text": "Yeah.",
+      "start": 4209940,
+      "end": 4210220
+    },
+    {
+      "speaker": "E",
+      "text": "So just recognizing just the pieces or opportunities that do exist for us that line up for us moving forward.",
+      "start": 4210220,
+      "end": 4215700
+    },
+    {
+      "speaker": "A",
+      "text": "Okay. Thank you.",
+      "start": 4217220,
+      "end": 4218580
+    },
+    {
+      "speaker": "D",
+      "text": "So I'm gonna, I'm gonna blitz through these last three slides and then I know you have a lot to discuss, so just some things to consider while you're thinking about your strategies. I looked up when you add up sales tax and measure E and R, they're 42% of your general fund. We've already talked about long standing practices and strategies that have served you well and grown your tax base. You've done very well in the auto and building sectors. Adding these local measures has brought it's a broader tax base. It has less volatility in some of the economic swings. You obviously do an excellent job of listening to your constituents and acting appropriately. And you're doing today what you've always done, looking to the future. So some trends more immediate and what might be coming. And I didn't even look this morning. I know the feds are going to act again, but you know, we got tariffs that have been an on again, off again. Read the article of the hour kind of. And it's influenced consumer behavior. It's hard to see the full effects of that yet in the data. A lot of companies got inventory onshore before they took effect. We've seen some what I would call pull forward spending. So. Meaning that hey, I want to get my new car or buy things before the tariffs take effect. I think that's in the data. Cutting the interest rates is not changing consumer behavior. Even if the feds do it again today a quarter point or whatever they do, people are still spending. They're just navigating how much they spend, where they spend it. And frankly to an earlier point, is that on experiences or services, maybe non taxable things versus taxable goods. Fuel refineries are set to close in California that make up 18% of the fuel production. Don't ask me how that gets resolved. But it's going to create a lot of volatility in fuel pricing. And then we've got all kinds of technology going on that is altering the way consumers shop and spend. There's some, you know, we talked about some of these drugstores are disappearing, department stores are getting reduced nationally. They're really, I think it's a very long shot of doing any meaningful legislative reform in terms of, we've talked about reallocating money. There's a whole bunch of stuff that's exempted from tax. Yes we can, services don't pay. And some closing thoughts you've got if you want bigger tax generators. The area to focus on just in terms of what generates revenue are things like fulfillment centers and big box stores. But that's a challenge for a built out city. It's got transportation challenges, there'd be environmental issues, any number of things, but those are where the big dollars get generated. I wanted to point out downtown. We, we do some geo mapping of different areas of the city and Downtown generates only about 5% of your overall sales tax. I realize it's an emotional pulse and a heartbeat of the city. Downtown is probably the businesses there more than anything else are going to benefit from a number of new housing projects that you heard about this morning and I know are being considered. So there's, I think you've got to pay attention to keeping these larger tax generators as those industries evolve and you've got to ascertain what's the possibility they might move or relocate because it's too expensive to operate, we can't find employees, et cetera. I mentioned limiting chasing the gaps. I don't think they generate much. And you're likely going to see the footprint change over time as some of these properties, the mall is a good example, are repurposing. You're shrinking the tax generating permit and you've got other industries like drugstores that I think are going to disappear and get replaced by things like gyms that don't generate tax revenue. So there's a lot of things going on in the market, in the economy that create challenges. So with that I'm going to say I'm done and I'm happy to answer more questions, but I'll let you have the floor.",
+      "start": 4220420,
+      "end": 4487050
+    },
+    {
+      "speaker": "B",
+      "text": "Okay, thank you, Ken. And I truly believe we could sit here for another hour and go through all of this data. So I'll turn to both the city manager and the director because I know we have another item on our agenda. We have about 15 minutes left, so maybe part of this is parole into a future agenda item really going to the vice mayors. We have all the information, let's digest it and talk about where we're doing that.",
+      "start": 4487610,
+      "end": 4508480
+    },
+    {
+      "speaker": "E",
+      "text": "Yeah, so to that point, the whole purpose of this presentation was just to sort of set the table for future discussions that'll inform work plan and priority focus areas. Not to solve the problem now, but we have a good basis of information.",
+      "start": 4508480,
+      "end": 4523000
+    },
+    {
+      "speaker": "B",
+      "text": "To and to have when we have that discussion. What would be the prompts that you'd want. Sectors here? We could actually get some downtown businesses. Yeah. Vice mayor.",
+      "start": 4523240,
+      "end": 4540130
+    },
+    {
+      "speaker": "A",
+      "text": "Right. Well, we should clearly organize and implement around our. The number one point that is clear from the strategy is to keep what we have. We have to keep what we have. That's that, that's number one and expand the Volvo deals and all those that we need to do that. But it's the rest of the strategy that's missing. What, what are we going to do? I mean is it possible to put a fulfillment center in an empty drugstore? I don't know those, those types of, of strategies and, and maybe reach out to our, you know, we have friends in the, in the, in the government that how hard would it be to get some of those allocation methodologies changed? So anyway, yes, we, we need the rest of the, of the strategic plan planned that's going to keep that green.",
+      "start": 4540130,
+      "end": 4587660
+    },
+    {
+      "speaker": "B",
+      "text": "Line going for us and City manager. So what's your sense in talking to the county? Because I thought that was a really important point that you made about how, what their timing is. You said the summer they have an.",
+      "start": 4587660,
+      "end": 4597420
+    },
+    {
+      "speaker": "A",
+      "text": "RFP out right now that I think the responses are due like mid January or something. And so we're for a consultant to do this. Sorry to do this economic vitality plan. And so Derek's planning is once they get that consultant on board is to try to pull the rest of the cities and towns figure out how are we going to. Because he's really has this vision for regional economic vitality. And so we're having a lot of conversations about that at the Marine Managers association meeting actually this Friday to really talk about what does that look like expanding on some of the slow learning experience that some of us attended.",
+      "start": 4597420,
+      "end": 4630790
+    },
+    {
+      "speaker": "B",
+      "text": "SLO is actually San Luis Obispo event that city manager attended, not SLO S L O W. Correct.",
+      "start": 4632070,
+      "end": 4638310
+    },
+    {
+      "speaker": "A",
+      "text": "Thank you. And one of the things I was thinking would be really helpful for this group for this committee is to actually to ask the county to come and present what their project is and their plan and stakeholder engagement and the whole thing. And I'm sure that he and his team would love to have the opportunity to do that.",
+      "start": 4638310,
+      "end": 4653460
+    },
+    {
+      "speaker": "B",
+      "text": "And I think first, because I think with the timing we'll have another meeting of this group before the county will be done so having some clarity to help inform it versus only be reacting. Can I ask a quick question?",
+      "start": 4654260,
+      "end": 4664660
+    },
+    {
+      "speaker": "A",
+      "text": "Yeah, one quick question. Is the new person they're looking for a replacement for Rice or a whole other coordinator or I don't know about their staffing model. The RFP is just for a consultant to develop this economic vitality plan which I think the staff will support the.",
+      "start": 4665250,
+      "end": 4680969
+    },
+    {
+      "speaker": "B",
+      "text": "Development and publication of where we close out this item. I know. Dariush, you had a question earlier in the presentation, something to highlight. I'm sure everyone knows all of these.",
+      "start": 4680969,
+      "end": 4689090
+    },
+    {
+      "speaker": "E",
+      "text": "Businesses that are generating a lot of.",
+      "start": 4689090,
+      "end": 4690570
+    },
+    {
+      "speaker": "B",
+      "text": "Tax all happen to be regionally East.",
+      "start": 4690570,
+      "end": 4692730
+    },
+    {
+      "speaker": "E",
+      "text": "San Rafael as well. So it's always nice.",
+      "start": 4692730,
+      "end": 4695730
+    },
+    {
+      "speaker": "B",
+      "text": "Stephanie would appreciate you saying that. She would.",
+      "start": 4695810,
+      "end": 4698290
+    },
+    {
+      "speaker": "C",
+      "text": "She already whispered it to me.",
+      "start": 4698850,
+      "end": 4700770
+    },
+    {
+      "speaker": "A",
+      "text": "She did whisper those dealerships.",
+      "start": 4700770,
+      "end": 4704450
+    },
+    {
+      "speaker": "B",
+      "text": "Can I just say one more thing?",
+      "start": 4704690,
+      "end": 4705690
+    },
+    {
+      "speaker": "A",
+      "text": "I'm really.",
+      "start": 4705690,
+      "end": 4706130
+    },
+    {
+      "speaker": "B",
+      "text": "I'm taking public comment right now so you can say it through public comment. Go ahead. Thank you.",
+      "start": 4706130,
+      "end": 4709570
+    },
+    {
+      "speaker": "A",
+      "text": "I just really think what this tourism piece, this hospitality piece is something we keep burying for some reason. I don't know why. It doesn't seem to. To get enough energy. So I was. I would just really applaud that because I think there's a lot of destination issues that we could increase in our.",
+      "start": 4709650,
+      "end": 4726430
+    },
+    {
+      "speaker": "B",
+      "text": "Strategy and throw that out.",
+      "start": 4726430,
+      "end": 4727550
+    },
+    {
+      "speaker": "A",
+      "text": "That's all.",
+      "start": 4727550,
+      "end": 4727990
+    },
+    {
+      "speaker": "B",
+      "text": "Thank you. Any other public comment? This will is. This is not the only bite of the apple. We're going to have much, much more information. Ken, thank you so much. I mean this was incredible. And as you could tell, this group could have spent two hours on justice alone. I'm sure we'll have follow up questions. So thank you for your presentation on this item.",
+      "start": 4727990,
+      "end": 4747270
+    },
+    {
+      "speaker": "D",
+      "text": "You're very welcome. Thank you.",
+      "start": 4748310,
+      "end": 4750550
+    },
+    {
+      "speaker": "B",
+      "text": "Okay, so we do have one more item. Oh, you. Yes. Did you want to say something?",
+      "start": 4751590,
+      "end": 4756950
+    },
+    {
+      "speaker": "A",
+      "text": "No.",
+      "start": 4756950,
+      "end": 4757270
+    },
+    {
+      "speaker": "B",
+      "text": "Okay. Okay. The last item is the gateway beautification projector. Miller, move from the second seat to the first seat.",
+      "start": 4757270,
+      "end": 4766550
+    },
+    {
+      "speaker": "A",
+      "text": "Yes.",
+      "start": 4766870,
+      "end": 4767270
+    },
+    {
+      "speaker": "B",
+      "text": "Take.",
+      "start": 4767270,
+      "end": 4767590
+    },
+    {
+      "speaker": "A",
+      "text": "Are you able to share? Yes, Give me one moment.",
+      "start": 4767670,
+      "end": 4770430
+    },
+    {
+      "speaker": "B",
+      "text": "My computer ran out of power so.",
+      "start": 4770430,
+      "end": 4772870
+    },
+    {
+      "speaker": "A",
+      "text": "I'm just booting back up. I'll be with you in a moment. Yeah. So as part of the city council strategic plan, it's a point two is transform city gateways and public spaces to be more inviting and enhance civic pride. So as part of that one of the sub goals, their goals is to look at the different gateway locations. And so Stacy will put it up on the screen. But the one that we're currently working on is the downtown San Rafael off ramp going northbound at Irwin and second Street. And so we have hired as Part of our on call services, we've hired Gates and Associates, who's a landscape architect to beautify that location. They just worked on the plans.",
+      "start": 4772870,
+      "end": 4824290
+    },
+    {
+      "speaker": "B",
+      "text": "Our goal.",
+      "start": 4825340,
+      "end": 4825980
+    },
+    {
+      "speaker": "A",
+      "text": "Our goal is to do landscape improvements and lighting at both the bag poles and at the monument. Existing monument sign as like the first phase of that area. That's what we currently have budgeted for. This is the area on the screen.",
+      "start": 4831900,
+      "end": 4850780
+    },
+    {
+      "speaker": "B",
+      "text": "That we're looking at.",
+      "start": 4851690,
+      "end": 4852570
+    },
+    {
+      "speaker": "A",
+      "text": "And then the future project would be to upgrade the actual monument sign itself. But right now our plan is to do drought resistant, low maintenance landscaping in this area.",
+      "start": 4853530,
+      "end": 4863930
+    },
+    {
+      "speaker": "B",
+      "text": "So thank you. This is exciting. There will be a lot of civic pride. I think we've all watched the plants there die and then kind of the weeds come back and everything else. So that's awesome. My question is around the branding and, and every time I drive to San Anselmo and they're complete rebranding, they're totally changed their signs. So how are we going to marry those two with having the rebrand? I don't even know what that sign's gonna, I don't even know what that is. That's probably a separate rfp, but I'm a little worried that we building something around a monument sign that might not be bad.",
+      "start": 4865530,
+      "end": 4893260
+    },
+    {
+      "speaker": "A",
+      "text": "So there's. I'll kick it off and follow up if I miss something. There is kind of a parallel process happening where we're looking and Sean Mooney and the digital team is helping kind of spearhead the design and rebranding. Sort of energy and effort that's going to require like to your point, it's a different type of consultant. Landscape architect is going to do kind of like the hardscaping, if you will. So it's, it's a phased effort. It's trying to kind of have a visual quick win on making this refresh and look really, you know, a lot more beautiful. And then to April's point, the big concrete bells are a little bit of a tougher nut to crack, if you will, in the cost to either cover it or what do you call it, jackhammer it out or whatever. And so we don't want to replace that until the design and branding is done. And so phase one is get the landscaping in, phase two is get the branding and redesign work done and then use that to inform how we transform the concrete bells and the rest of the visual. Like when you're thinking about san and sums and the things that they have, that's kind of the long term vision. But we're taking it kind of one quarter at a Time. And to add to that, part of the process is due to the location of this. We have to go through Caltrans to review any new monuments, which could take a year on top of, like, after we design it. So going for the short win, like, we want to landscape this because this could still be. We're still looking at years out before we could replace the sign at this location. Wow.",
+      "start": 4893820,
+      "end": 4980590
+    },
+    {
+      "speaker": "B",
+      "text": "All the more reason, knowing that even if we have a tentative concept that we can start working with Caltrans because we're going to jackhammer the thing out. Mary Beth and I will personally handle that jackhammer. But that's a really good point about Caltrans. Like, I don't want us to wait until the thing is completely recited and then we go to Caltrans. Like, even if it's a mocked up. And then there's leniency there.",
+      "start": 4981540,
+      "end": 5003460
+    },
+    {
+      "speaker": "A",
+      "text": "Yeah, I mean, we need to start talking with them for sure about it. And we have. I mean, those conversations have started to happen. Yeah. I actually been in coordination with Caltrans because their construction project negatively impacted the landscaping in the area. And so I'm trying to work with them on is there anything they could do to help supplement us. So we're currently trying to work on. Work through that to see. Yeah. Turn that negative.",
+      "start": 5004340,
+      "end": 5030290
+    },
+    {
+      "speaker": "B",
+      "text": "Positive impact. Any questions? I will do the public comment because I see Roger waving at me. Yes.",
+      "start": 5030290,
+      "end": 5036780
+    },
+    {
+      "speaker": "C",
+      "text": "Yeah, I've observed this and I'm highly in favor of sprucing it up, but I don't think it's so important what the design is because I think these. It's been redesigned a couple times. This isn't the first go around. The key component is more emphasis on the ongoing maintenance of it and making sure there are funds and public works has the time to do that. Because I don't think the specific people pass by this really quickly. So I don't think the specific design is actually that important. Keeping the existing monument might be just fine, but the planting has to be redone, the lighting has to be redone and then kept up on a regular basis. Because that's what gives the impression of San Rafael is the poor maintenance. Really, the unsightliness of it? Not so much. You know, the specific highlights of which plants we pick and things like that.",
+      "start": 5037010,
+      "end": 5086110
+    },
+    {
+      "speaker": "B",
+      "text": "Well, that's why the landscaping person will help with that. Because I do think San Anselmo did correct that, because they watch. I mean, we all drive by there. They do the maintenance. It's not a highly maintained area, but with all the rocks and everything else.",
+      "start": 5086350,
+      "end": 5097560
+    },
+    {
+      "speaker": "C",
+      "text": "It is Fairly highly maintained. I've watched them because I've been concerned about San Pedro Road and what we're doing versus what they're doing. And you know, they do maintain it there. That's a regular ongoing process. So. But it takes that.",
+      "start": 5097560,
+      "end": 5112600
+    },
+    {
+      "speaker": "B",
+      "text": "No, excellent point. Other comments so the next step will be so when did. So this is a part of the work plan. I know for year one. So and we do the report out in six months to the council on all that. Where we are using GS.",
+      "start": 5113240,
+      "end": 5128850
+    },
+    {
+      "speaker": "A",
+      "text": "That'll be the target right now is the first meeting in March to bring that update. Yeah. And we're really trying to plant before it gets hot. So ideally we would plant in the spring. So we're trying to work right now on the schedule and try to accelerate it so that we are able to do that so they can start being established prior to.",
+      "start": 5129330,
+      "end": 5148500
+    },
+    {
+      "speaker": "B",
+      "text": "So when they're doing that. I know we're also doing Stacy, the public art installation that's down at the west end, but there's no plantings in that because that's going to be transformed too. And that's in June. So it's there a little bit of funds for that area at the same time or is that one just going to be this the gorgeous. Whatever angel thing, whatever that.",
+      "start": 5149210,
+      "end": 5169290
+    },
+    {
+      "speaker": "A",
+      "text": "There are landscape funds associated with that. Grant funded Gateway improvement. Yeah, a. It's a. Yeah, it's a grant funded project. The city like we have our second and fourth street project that does have some landscaping improvements and then the art is going to go in once that project gets underway because we have to move around some of the medians in order to install that. And lighting as well, right? Lighting, yes.",
+      "start": 5169370,
+      "end": 5190439
+    },
+    {
+      "speaker": "B",
+      "text": "Okay. No, that's good to know because by June then we've had the new plants. We've had this west end. We've had all those. That four other five other installations. Civic pride will be glowing. Yeah.",
+      "start": 5190440,
+      "end": 5203190
+    },
+    {
+      "speaker": "A",
+      "text": "The landscaping likely won't go in until the winter on the. On the project just because it's going to take several months for the project to be complete and that's usually at the end. The art might go in sooner, but it won't be just so you know. You mean the West End landscape? Yeah, the West End.",
+      "start": 5203190,
+      "end": 5217350
+    },
+    {
+      "speaker": "B",
+      "text": "Okay.",
+      "start": 5217350,
+      "end": 5217590
+    },
+    {
+      "speaker": "A",
+      "text": "Yeah.",
+      "start": 5217590,
+      "end": 5217750
+    },
+    {
+      "speaker": "B",
+      "text": "We don't want to plant in August. That would.",
+      "start": 5217750,
+      "end": 5219070
+    },
+    {
+      "speaker": "A",
+      "text": "Yeah. Theoretically it rains in the winter here.",
+      "start": 5219070,
+      "end": 5221990
+    },
+    {
+      "speaker": "B",
+      "text": "Okay, fantastic. Thank you so much. I'll post a public comment on this item. Future agenda. I think the staff was trying to work to have set meetings for this and that will be published in January.",
+      "start": 5223510,
+      "end": 5238180
+    },
+    {
+      "speaker": "A",
+      "text": "That calendar will be yeah. Brought to the council in January a full 2026 calendar of all the subcommittee dates for the year.",
+      "start": 5239780,
+      "end": 5248340
+    },
+    {
+      "speaker": "B",
+      "text": "And I. So thank you. I think it will help with planting and I want to recognize the vice mayor who who participated this year. Next year it will be council member Hill who will be participating. And the vice mayor has talked about the last of as she's not seeking re election next year. So this is her last economic development subcommittee. So thank you very much. Anything else for the good of the order. Okay. Not seen. This meeting is adjourned. Thank you. I really need to go see far away and I couldn't see so thank you for the big one.",
+      "start": 5248500,
+      "end": 5295750
+    },
+    {
+      "speaker": "C",
+      "text": "Let me see.",
+      "start": 5300390,
+      "end": 5301110
+    },
+    {
+      "speaker": "D",
+      "text": "Develop yeah. We're. We are trying to if you're any.",
+      "start": 5305460,
+      "end": 5309700
+    },
+    {
+      "speaker": "A",
+      "text": "Well, I might be able. To.",
+      "start": 5310020,
+      "end": 5332100
+    },
+    {
+      "speaker": "B",
+      "text": "Right.",
+      "start": 5357850,
+      "end": 5358090
+    },
+    {
+      "speaker": "D",
+      "text": "Yeah.",
+      "start": 5370010,
+      "end": 5370370
+    },
+    {
+      "speaker": "A",
+      "text": "But still.",
+      "start": 5370370,
+      "end": 5370890
+    },
+    {
+      "speaker": "B",
+      "text": "Federation. Yeah.",
+      "start": 5410100,
+      "end": 5412020
+    },
+    {
+      "speaker": "A",
+      "text": "No, I'm presenting or. No, you're presenting.",
+      "start": 5412020,
+      "end": 5414260
+    },
+    {
+      "speaker": "B",
+      "text": "January 8th. So it's all about the economic. I can't make it to your.",
+      "start": 5415460,
+      "end": 5432980
+    },
+    {
+      "speaker": "A",
+      "text": "Position.",
+      "start": 5437300,
+      "end": 5437640
+    },
+    {
+      "speaker": "B",
+      "text": "It's it be great because they want to know how. I would like to have the information so I can cut some of the. That's fine because I can. I can. I. I can.",
+      "start": 5437710,
+      "end": 5467500
+    },
+    {
+      "speaker": "A",
+      "text": "Yeah. Oh wait. Tomorrow morning. Yes. And tomorrow afternoon.",
+      "start": 5483740,
+      "end": 5487260
+    },
+    {
+      "speaker": "B",
+      "text": "No.",
+      "start": 5487260,
+      "end": 5487580
+    },
+    {
+      "speaker": "A",
+      "text": "Yes.",
+      "start": 5487580,
+      "end": 5488060
+    },
+    {
+      "speaker": "B",
+      "text": "Yes.",
+      "start": 5488060,
+      "end": 5488380
+    },
+    {
+      "speaker": "A",
+      "text": "I will be good.",
+      "start": 5488380,
+      "end": 5489980
+    },
+    {
+      "speaker": "B",
+      "text": "So I said and responded.",
+      "start": 5490060,
+      "end": 5492210
+    },
+    {
+      "speaker": "A",
+      "text": "Do all.",
+      "start": 5517000,
+      "end": 5517400
+    },
+    {
+      "speaker": "B",
+      "text": "And.",
+      "start": 5600630,
+      "end": 5600870
+    },
+    {
+      "speaker": "C",
+      "text": "For some reason it stays on my calendar for today and I'm like.",
+      "start": 5606310,
+      "end": 5608950
+    }
+  ],
+  "audio_duration_minutes": 94.02,
+  "language": "en",
+  "processed_at": "2025-12-30T12:35:14.819837",
+  "processing_service": "assemblyai",
+  "assemblyai_id": "1f767de0-a4cb-4f9b-bd64-55f4210f7629",
+  "cost_usd": 1.88,
+  "processing_time_seconds": 39.47
+}
