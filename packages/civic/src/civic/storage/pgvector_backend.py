@@ -718,55 +718,67 @@ class PgVectorBackend:
             conn = self._get_connection()
             cursor = conn.cursor()
 
-            # Insert into database
-            for j, (embedding, data) in enumerate(zip(embeddings, doc_data)):
-                try:
-                    # Parse meeting_datetime if it's a string
-                    meeting_dt = data["meeting_datetime"]
-                    if isinstance(meeting_dt, str):
-                        try:
-                            meeting_dt = datetime.fromisoformat(
-                                meeting_dt.replace("Z", "+00:00")
-                            )
-                        except ValueError:
-                            meeting_dt = None
+            # Prepare bulk insert data (deduplicate by ID to avoid ON CONFLICT issues)
+            from psycopg2.extras import execute_values
 
-                    # Upsert (insert or update on conflict)
-                    cursor.execute(f"""
-                        INSERT INTO {self.TABLE_NAME}
-                            (id, jurisdiction_id, corpus_type, content, embedding,
-                             embedding_model, meeting_id, meeting_title, meeting_datetime,
-                             metadata, updated_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-                        ON CONFLICT (id) DO UPDATE SET
-                            content = EXCLUDED.content,
-                            embedding = EXCLUDED.embedding,
-                            embedding_model = EXCLUDED.embedding_model,
-                            meeting_id = EXCLUDED.meeting_id,
-                            meeting_title = EXCLUDED.meeting_title,
-                            meeting_datetime = EXCLUDED.meeting_datetime,
-                            metadata = EXCLUDED.metadata,
-                            updated_at = CURRENT_TIMESTAMP
-                    """, (
-                        data["id"],
-                        jurisdiction_id,
-                        corpus_type,
-                        data["content"],
-                        embedding.tolist(),
-                        self._embedding_model,  # Track which model created this embedding
-                        data["meeting_id"],
-                        data["meeting_title"],
-                        meeting_dt,
-                        json.dumps(data["metadata"]),
-                    ))
-                    indexed_count += 1
+            insert_values = []
+            seen_ids = set()
+            for embedding, data in zip(embeddings, doc_data):
+                if data["id"] in seen_ids:
+                    continue  # Skip duplicate IDs within same batch
+                seen_ids.add(data["id"])
+                # Parse meeting_datetime if it's a string
+                meeting_dt = data["meeting_datetime"]
+                if isinstance(meeting_dt, str):
+                    try:
+                        meeting_dt = datetime.fromisoformat(
+                            meeting_dt.replace("Z", "+00:00")
+                        )
+                    except ValueError:
+                        meeting_dt = None
 
-                except Exception as e:
-                    logger.error(f"Failed to index document {data['id']}: {e}")
-                    conn.rollback()
-                    continue
+                insert_values.append((
+                    data["id"],
+                    jurisdiction_id,
+                    corpus_type,
+                    data["content"],
+                    embedding.tolist(),
+                    self._embedding_model,
+                    data["meeting_id"],
+                    data["meeting_title"],
+                    meeting_dt,
+                    json.dumps(data["metadata"]),
+                ))
 
-            conn.commit()
+            # Bulk upsert using execute_values (much faster than individual inserts)
+            try:
+                execute_values(
+                    cursor,
+                    f"""
+                    INSERT INTO {self.TABLE_NAME}
+                        (id, jurisdiction_id, corpus_type, content, embedding,
+                         embedding_model, meeting_id, meeting_title, meeting_datetime,
+                         metadata, updated_at)
+                    VALUES %s
+                    ON CONFLICT (id) DO UPDATE SET
+                        content = EXCLUDED.content,
+                        embedding = EXCLUDED.embedding,
+                        embedding_model = EXCLUDED.embedding_model,
+                        meeting_id = EXCLUDED.meeting_id,
+                        meeting_title = EXCLUDED.meeting_title,
+                        meeting_datetime = EXCLUDED.meeting_datetime,
+                        metadata = EXCLUDED.metadata,
+                        updated_at = CURRENT_TIMESTAMP
+                    """,
+                    insert_values,
+                    template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)",
+                    page_size=500,  # Insert 500 rows at a time
+                )
+                indexed_count += len(insert_values)
+                conn.commit()
+            except Exception as e:
+                logger.error(f"Bulk insert failed: {e}")
+                conn.rollback()
 
         conn.close()
         logger.info(

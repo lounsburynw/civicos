@@ -32,23 +32,24 @@ import modal
 # Define the Modal app
 app = modal.App("civic-vectors")
 
-# Build image with all dependencies pre-installed
-# This image is cached, so subsequent runs start quickly
+# Build image with GPU support and model pre-cached
 civic_image = (
     modal.Image.debian_slim(python_version="3.11")
     # System dependencies for psycopg2
     .apt_install("libpq-dev", "gcc")
-    # Python dependencies
+    # Python dependencies with GPU support
     .pip_install(
         "psycopg2-binary>=2.9.0",
-        "fastembed>=0.3.0",
-        "numpy<2",  # fastembed compatibility
-        # civic package dependencies
+        "fastembed-gpu>=0.3.0",  # GPU-accelerated version
+        "numpy<2",
         "langgraph>=0.2.0",
         "httpx>=0.24.0",
     )
-    # Add local civic packages (replaces deprecated Mount.from_local_python_packages)
-    # This syncs local source files to /root on container startup
+    # Pre-download the embedding model during image build
+    .run_commands(
+        "python -c \"from fastembed import TextEmbedding; TextEmbedding('nomic-ai/nomic-embed-text-v1.5')\""
+    )
+    # Add local civic packages
     .add_local_python_source("civic", "civic_extraction")
 )
 
@@ -56,8 +57,9 @@ civic_image = (
 @app.function(
     image=civic_image,
     secrets=[modal.Secret.from_name("civic-db")],
-    memory=16384,  # 16GB RAM - sufficient for fastembed + batch processing
-    timeout=3600,  # 1 hour max
+    gpu="T4",  # T4 sufficient for embeddings, bulk DB inserts are the win
+    memory=16384,
+    timeout=3600,
     retries=modal.Retries(
         max_retries=2,
         backoff_coefficient=2.0,
@@ -67,7 +69,7 @@ civic_image = (
 def index_corpus(
     corpus: str,
     jurisdiction: str = "city-san-rafael",
-    batch_size: int = 100,
+    batch_size: int = 500,  # Larger batches for bulk inserts
     offset: int = 0,
     limit: int | None = None,
     reindex: bool = False,
@@ -315,6 +317,106 @@ def scheduled_refresh():
     return result
 
 
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=4096,  # Lightweight - just deletes
+    timeout=300,
+)
+def delete_vectors(jurisdiction: str, corpus: str) -> int:
+    """Delete all vectors for a jurisdiction/corpus. Returns count deleted."""
+    import os
+    from civic.storage.pgvector_backend import PgVectorBackend
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    pgvector = PgVectorBackend(
+        connection_string=database_url,
+        provider_type="fastembed",
+    )
+    return pgvector.delete_index(jurisdiction, corpus)
+
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    cpu=16,  # 16 CPUs for fast parallel embedding inference
+    memory=32768,  # 32GB RAM to match CPU count
+    timeout=3600,
+)
+def index_batch(
+    corpus: str,
+    jurisdiction: str,
+    batch_size: int,
+    offset: int,
+    limit: int,
+    worker_id: int,
+) -> dict:
+    """
+    Index a batch of documents (used for parallel processing).
+
+    This function is designed to be called in parallel by multiple workers,
+    each processing a different offset/limit range.
+    """
+    import logging
+    import os
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format=f"%(asctime)s [Worker {worker_id}] %(message)s",
+    )
+    logger = logging.getLogger(__name__)
+
+    from civic.storage import get_storage_backend
+    from civic.storage.pgvector_backend import PgVectorBackend
+    from civic._internal.meetings.transcript import expand_transcripts_to_chunks
+    from civic._internal.legal.embeddings.chunker import (
+        expand_municipal_code_to_chunks,
+        expand_legislation_to_chunks,
+    )
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    logger.info(f"Starting batch: corpus={corpus}, offset={offset}, limit={limit}")
+
+    backend = get_storage_backend(database_url)
+    pgvector = PgVectorBackend(
+        connection_string=database_url,
+        provider_type="fastembed",
+    )
+
+    # Select chunker based on corpus type
+    transcript_chunker = expand_transcripts_to_chunks if corpus == "transcripts" else None
+    if corpus == "municipal_code":
+        legal_chunker_fn = expand_municipal_code_to_chunks
+    elif corpus == "legislation":
+        legal_chunker_fn = expand_legislation_to_chunks
+    else:
+        legal_chunker_fn = None
+
+    try:
+        count = pgvector.index_from_storage(
+            storage_backend=backend,
+            jurisdiction_id=jurisdiction,
+            corpus_type=corpus,
+            batch_size=batch_size,
+            offset=offset,
+            limit=limit,
+            allow_dimension_change=True,  # Parallel workers may see dimension changes
+            transcript_chunker=transcript_chunker,
+            legal_chunker=legal_chunker_fn,
+        )
+        logger.info(f"Completed batch: indexed {count} documents")
+        return {"status": "success", "indexed": count, "worker_id": worker_id}
+    except Exception as e:
+        logger.exception(f"Error in batch")
+        return {"status": "error", "indexed": 0, "error": str(e), "worker_id": worker_id}
+
+
 @app.local_entrypoint()
 def main(
     corpus: str = "all",
@@ -324,6 +426,7 @@ def main(
     limit: int | None = None,
     reindex: bool = False,
     stats_only: bool = False,
+    parallel: int = 1,
 ):
     """
     CLI entrypoint for modal run.
@@ -333,6 +436,7 @@ def main(
         modal run scripts/modal_vectors.py --corpus chunks
         modal run scripts/modal_vectors.py --stats-only
         modal run scripts/modal_vectors.py --corpus chunks --reindex
+        modal run scripts/modal_vectors.py --corpus municipal_code --reindex --parallel 4
     """
     if stats_only:
         result = get_stats.remote(jurisdiction)
@@ -347,6 +451,73 @@ def main(
         print("=" * 60)
         return
 
+    # Parallel processing mode
+    if parallel > 1:
+        if corpus == "all":
+            print("ERROR: --parallel requires a specific --corpus (not 'all')")
+            return
+
+        print(f"\nStarting PARALLEL vector indexing on Modal ({parallel} workers)...")
+        print(f"Corpus: {corpus}, Jurisdiction: {jurisdiction}")
+
+        # Get stats to determine total document count
+        stats = get_stats.remote(jurisdiction)
+        if corpus not in stats:
+            print(f"ERROR: Unknown corpus type: {corpus}")
+            return
+
+        total_docs = stats[corpus]["total"]
+        if total_docs == 0:
+            print(f"No documents to index for {corpus}")
+            return
+
+        print(f"Total documents: {total_docs}")
+
+        # Delete existing vectors first if reindexing
+        if reindex:
+            print(f"Deleting existing vectors for {corpus}...")
+            # Direct delete via a lightweight function call
+            delete_count = delete_vectors.remote(jurisdiction, corpus)
+            print(f"Deleted {delete_count} existing vectors, ready for parallel indexing")
+
+        # Calculate ranges for each worker
+        docs_per_worker = (total_docs + parallel - 1) // parallel
+        ranges = []
+        for i in range(parallel):
+            worker_offset = i * docs_per_worker
+            worker_limit = min(docs_per_worker, total_docs - worker_offset)
+            if worker_limit > 0:
+                ranges.append((corpus, jurisdiction, batch_size, worker_offset, worker_limit, i))
+
+        print(f"Spawning {len(ranges)} parallel workers...")
+        for i, (_, _, _, off, lim, _) in enumerate(ranges):
+            print(f"  Worker {i}: offset={off}, limit={lim}")
+
+        # Run all workers in parallel using starmap
+        results = list(index_batch.starmap(ranges))
+
+        # Aggregate results
+        print("\n" + "=" * 60)
+        print("Parallel Indexing Results")
+        print("=" * 60)
+
+        total_indexed = 0
+        errors = []
+        for r in results:
+            if r["status"] == "success":
+                print(f"✓ Worker {r['worker_id']:2}: {r['indexed']:>5} indexed")
+                total_indexed += r["indexed"]
+            else:
+                print(f"✗ Worker {r['worker_id']:2}: FAILED - {r.get('error', 'unknown')}")
+                errors.append(r)
+
+        print("=" * 60)
+        print(f"Total: {total_indexed} documents indexed across {len(ranges)} workers")
+        if errors:
+            print(f"WARNING: {len(errors)} worker(s) failed")
+        return
+
+    # Sequential processing (original behavior)
     print(f"\nStarting vector indexing on Modal (16GB RAM)...")
     print(f"Corpus: {corpus}, Jurisdiction: {jurisdiction}")
     if offset or limit:
