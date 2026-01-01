@@ -4,79 +4,94 @@
 **Area:** pipeline_automation > modal_remote_compute
 **Date:** 2026-01-01
 
-> This is recommended context from Session 424. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 425. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 424 attempted to speed up vector indexing to <10 minutes for 5857 municipal_code chunks. Added GPU support, bulk inserts, and parallel worker infrastructure. **Bottleneck is database writes** (~140 vectors/min = ~42 min total). GPU is NOT the bottleneck.
+Session 425 fixed the chunk ID uniqueness bug (duplicate section_numbers across chapters). All 5857 municipal_code chunks are now indexed. However, indexing time is ~20 min, still above the <10 min target.
 
 ## Current State
 
 ```
-Municipal code vectors: ~2400/5857 (partial - job was killed)
-Target: 5857 vectors in <10 minutes
-Current rate: ~140 vectors/min (need ~600/min for 10 min target)
+Municipal code vectors: 5857/5857 (complete)
+Target: <10 min indexing time
+Current time: ~20 min (1214s)
+Bottleneck: DB write latency to Neon (~10s per transaction)
 ```
 
-## What Session 424 Did
+## What Session 425 Did
 
-1. **GPU support** - T4 GPU added (not the bottleneck)
-2. **Bulk inserts** - `execute_values()` in `pgvector_backend.py:749-777`
-3. **Deduplication** - Fixed ON CONFLICT errors
-4. **Model pre-caching** - Baked into Docker image
-5. **Parallel infrastructure** - `index_batch` function exists but has issues
+1. **Fixed chunk ID uniqueness** - Use db_id (UUID) instead of section_number
+2. **Increased batch_size** - CLI default 100→1000 (reduces DB round-trips 10x)
+3. **Fixed _cost bug** - Skip metadata keys in result iteration
+4. **Removed civic_extraction from Modal** - Not needed for vector indexing
 
 ## Key Files
 
 | File | Line | Purpose |
 |------|------|---------|
-| `scripts/modal_vectors.py` | 57-72 | index_corpus with GPU config |
-| `scripts/modal_vectors.py` | 319-338 | delete_vectors function |
-| `scripts/modal_vectors.py` | 341-393 | index_batch for parallelism |
-| `packages/civic/src/civic/storage/pgvector_backend.py` | 721-777 | Bulk insert logic |
+| `packages/civic/src/civic/_internal/legal/embeddings/chunker.py` | 278-284 | db_id for unique chunk IDs |
+| `scripts/modal_vectors.py` | 424 | batch_size default |
+| `packages/civic/src/civic/storage/pgvector_backend.py` | 749-777 | Bulk insert logic |
 
-## Root Cause
+## Root Cause for Slow Indexing
 
-**DB round trips dominate:**
-- batch_size=100 (CLI default) = 59 transactions for 5857 chunks
-- Each transaction = network latency to Neon
-- Embeddings are fast (~1s for 100 vectors), DB writes are slow (~10s)
+With batch_size=1000, we have 6 batches for 5857 chunks. Each batch:
+1. Embed 1000 docs (~2s with GPU)
+2. Close connection
+3. Reconnect
+4. Bulk INSERT with execute_values (~3min per batch due to network latency)
+5. Commit
 
 ## Options for <10 min Target
 
-### Option A: Add --batch-size CLI flag (Quick)
-Add to `main()` in modal_vectors.py, then run with `--batch-size 1000`
+### Option A: Use COPY instead of INSERT (Recommended - 10x faster)
+Replace `execute_values()` with `copy_from()` using StringIO buffer:
+```python
+from io import StringIO
+import csv
 
-### Option B: Use COPY instead of INSERT (10x faster)
-Replace `execute_values()` with `copy_from()` using StringIO buffer
+buffer = StringIO()
+writer = csv.writer(buffer, delimiter='\t')
+for row in insert_values:
+    writer.writerow(row)
+buffer.seek(0)
+cursor.copy_from(buffer, 'vector_embeddings', columns=(...))
+```
 
-### Option C: Fix parallel workers (Needs work)
-Issue: Each worker expands ALL 5857 chunks then slices
-Fix: Pre-expand once, distribute chunks via `.starmap()`
+### Option B: Parallel Workers with Pre-chunked Distribution
+Current issue: Each worker expands ALL chunks then slices. Fix:
+1. Pre-expand chunks once on local machine
+2. Distribute chunks via `.starmap()` with pre-assigned ranges
+3. Each worker only embeds its assigned slice
+
+### Option C: Connection pooling
+Keep connection alive between batches instead of close/reconnect cycle.
+
+## Data Quality Issue (Separate Task)
+
+The municipal_code table has 12,364 rows but only 2,364 unique section_numbers. Multiple ingestion runs created duplicates. Consider:
+1. DELETE duplicate rows keeping latest per section
+2. Add deduplication to `get_municipal_code()` query
 
 ## Quick Test
 
 ```bash
-# Check current vectors
 source civic-env/bin/activate
-python3 -c "
-import os, psycopg2
-exec(open('.env').read().replace('export ',''))
-c = psycopg2.connect(os.environ['DATABASE_URL']).cursor()
-c.execute(\"SELECT COUNT(*) FROM vector_embeddings WHERE jurisdiction_id='city-san-rafael' AND corpus_type='municipal_code'\")
-print(f'Vectors: {c.fetchone()[0]}/5857')
-"
 
-# Run indexing (detached - survives laptop close)
-modal run --detach scripts/modal_vectors.py --corpus municipal_code --reindex
+# Check vector counts
+modal run scripts/modal_vectors.py --stats-only
+
+# Time a reindex (GPU + bulk inserts)
+time modal run scripts/modal_vectors.py --corpus municipal_code --reindex
 ```
 
 ## Success Criteria
 
-- [ ] Municipal code: 5857/5857 vectors indexed
-- [ ] Total indexing time: <10 minutes
-- [ ] `modal run scripts/modal_ingest.py --stats-only` shows municipal_code green
+- [ ] Municipal code indexing time: <10 minutes
+- [ ] All 5857 chunks indexed
+- [ ] No errors in Modal logs
 
-## Session 424 Commit
+## Session 425 Commit
 
-- `0f21202` Session 424: Add GPU + bulk insert optimizations for vector indexing
+- `8480c25` Session 425: Fix chunk ID uniqueness for municipal code indexing
