@@ -8170,3 +8170,39 @@ modal run scripts/modal_ingest.py --meetings --incremental  # Manual test
 
 ### Progress
 - Pilot: 222/244 items (91%)
+
+## Session 424 (2026-01-01)
+
+### Goal
+Speed up vector indexing to <10 minutes for 5857 municipal_code chunks
+
+### What Was Done
+1. Added GPU support (T4) to Modal - NOT the bottleneck
+2. Replaced individual INSERTs with bulk `execute_values()` 
+3. Added deduplication to fix ON CONFLICT errors
+4. Pre-cached embedding model in Docker image
+5. Added parallel worker infrastructure (needs more work)
+
+### Root Cause Found
+**Database writes are the bottleneck**, not GPU:
+- batch_size=100 = 59 DB transactions
+- Each transaction = ~10s network latency to Neon
+- Rate: ~140 vectors/min (need ~600/min for <10 min)
+
+### Options for Next Session
+- A: Add --batch-size CLI flag, use 1000
+- B: Use COPY instead of INSERT (10x faster)
+- C: Fix parallel workers to pre-expand then distribute
+
+### Files Changed
+- `scripts/modal_vectors.py` - GPU, parallel workers, delete_vectors
+- `packages/civic/src/civic/storage/pgvector_backend.py` - bulk inserts
+- `pilot.json` - Updated P0 note
+
+### Current State
+- Municipal code vectors: ~2400/5857 (partial)
+- P0 remains: full_reindex_with_chunking
+
+### Commits
+- `0f21202` Session 424: Add GPU + bulk insert optimizations
+- `508a319` Session 424: Prepare handoff for next session
