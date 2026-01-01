@@ -34,7 +34,10 @@ class LegiScanClient:
     # State code mapping
     STATE_CODES = {
         "california": "CA",
-        "CA": "CA"
+        "CA": "CA",
+        "federal": "US",
+        "congress": "US",
+        "US": "US",
     }
 
     def __init__(self, api_key: Optional[str] = None):

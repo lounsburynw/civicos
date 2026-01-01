@@ -42,8 +42,9 @@ class CorpusType(str, Enum):
     ISSUES = "issues"           # Community issues (aka "issue" singular)
 
     # State/federal-level corpora
-    LEGISLATION = "legislation" # State and federal bills
-    PROGRAMS = "programs"       # Federal programs (grants, etc.)
+    LEGISLATION = "legislation"   # Bills (pending/historical) - parameterized by state
+    PROGRAMS = "programs"         # Federal programs (grants, etc.)
+    CODIFIED_LAW = "codified_law" # Statutes (U.S. Code, CA Codes, etc.) - parameterized by jurisdiction
 
     def __str__(self) -> str:
         return self.value
@@ -148,6 +149,15 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         text_extractor="_program_to_text",
         jurisdiction_type="both",  # Can be queried from any jurisdiction
         aliases=("program",),
+        has_meeting_context=False,
+    ),
+    CorpusType.CODIFIED_LAW: CorpusConfig(
+        display_name="Codified Law",
+        storage_method="get_codified_law",
+        count_method="get_codified_law_count",
+        text_extractor="_codified_law_to_text",
+        jurisdiction_type="both",  # Federal (U.S. Code) or state (CA Codes, etc.)
+        aliases=("statutes", "code", "us_code", "state_code"),
         has_meeting_context=False,
     ),
 }
@@ -257,4 +267,6 @@ UNIFIED_SEARCH_ALIASES = {
     "municipal_code": CorpusType.MUNICIPAL_CODE,
     "legislation": CorpusType.LEGISLATION,
     "programs": CorpusType.PROGRAMS,
+    "codified_law": CorpusType.CODIFIED_LAW,
+    "statutes": CorpusType.CODIFIED_LAW,
 }
