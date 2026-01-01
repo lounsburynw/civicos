@@ -1,74 +1,79 @@
-# Recommended: Legislation Ingestion and Data Quality Validation
+# Recommended: Codified Law Ingestion (U.S. Code + CA Codes)
 
-**Priority:** P0 (User-mandated)
-**Area:** Data ingestion + Quality assurance
+**Priority:** P0
+**Area:** pilot_validation > e2e_cloud_data_verification
 **Date:** 2026-01-01
 
-> This session should be entirely dedicated to legislation and data quality. No other work.
+> This is recommended context from Session 427. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
-## Session Goals
+## Context
 
-1. **Finish legislation ingestion** - Complete CA bills, add federal legislation
-2. **Legislation indexing** - Ensure all legislation chunks are indexed with COPY optimization
-3. **Interactive stress testing** - Validate data quality and query capabilities
+Session 427 discovered that LegiScan bills are mostly proposals (only 0.6% of federal bills enacted). For `what_applies()` to answer "what law applies to my ADU project?", we need **codified law** (U.S. Code, CA Codes), not pending bills. The session created a U.S. Code XML parser prototype and added the `CODIFIED_LAW` corpus type.
 
-## Current State
+## Key Insight
 
-```
-CA legislation: 2,839 chunks indexed
-Federal legislation: Not yet ingested
-Previous issue: LegiScan API query limit exceeded
-```
+| Corpus | Content | Purpose |
+|--------|---------|---------|
+| `legislation` | Bills (pending + enacted) | `whats_next()` - what's being proposed |
+| `codified_law` | Compiled statutes | `what_applies()` - what law applies now |
 
-## Task 1: Finish Legislation Ingestion
+## What's Already Done
+
+1. ✅ USCodeParser in `packages/civic-extraction/src/civic_extraction/uscode.py`
+2. ✅ Title 42 downloaded to `data/uscode/usc42.xml` (17MB, 7,029 sections)
+3. ✅ CODIFIED_LAW corpus type in `packages/civic/src/civic/storage/corpus_types.py:47`
+4. ✅ Federal legislation ingested (12,355 bills in legislation table)
+
+## Recommended Task
+
+Complete the codified law ingestion pipeline:
+
+1. **Add storage backend methods** for `codified_law` corpus
+2. **Create CLI command** for U.S. Code ingestion (similar to `civic-extract legislative`)
+3. **Index to pgvector** using COPY optimization from Session 426
+4. **Test `what_applies()`** with real codified law queries
+
+## Key Files
+
+- `packages/civic-extraction/src/civic_extraction/uscode.py` - Parser prototype
+- `packages/civic/src/civic/storage/corpus_types.py:154` - CODIFIED_LAW config
+- `packages/civic/src/civic/storage/pgvector_backend.py` - Need to add methods
+- `data/uscode/usc42.xml` - Downloaded Title 42 (housing, public welfare)
+
+## Suggested Approach
 
 ```bash
-# Check LegiScan API status
-grep LEGISCAN .env
+# 1. Test the parser works
+python -m civic_extraction.uscode data/uscode/usc42.xml --stats
 
-# Explore legislation extraction code
-ls packages/civic-extraction/src/civic_extraction/legislation/
+# 2. Add storage methods (model after legislation or municipal_code)
+# Look at get_legislation(), store_legislation() in postgres_backend.py
+
+# 3. Create CLI
+# Add to packages/civic-extraction/src/civic_extraction/cli/
+
+# 4. Index with COPY optimization
+# Use pattern from modal_vectors.py --use-copy
 ```
 
-Key files:
-- `packages/civic-extraction/src/civic_extraction/legislation/` - LegiScan client
-- API limit issue needs investigation - may need pagination or rate limiting
+## Database State
 
-## Task 2: Legislation Indexing
+```sql
+-- Current legislation counts
+SELECT state, COUNT(*) FROM legislation GROUP BY state;
+-- US: 12,355, CA: 2,839
 
-```bash
-# Current CA legislation stats
-modal run scripts/modal_vectors.py --stats-only --jurisdiction state-CA
-
-# Reindex with COPY optimization (if needed)
-modal run scripts/modal_vectors.py --corpus legislation --reindex --parallel 4 --jurisdiction state-CA
+-- Will need codified_law table (similar schema to legislation)
 ```
 
-Session 426 added COPY optimization - use it for fast indexing.
+## Success Criteria
 
-## Task 3: Interactive Stress Testing
+- [ ] `get_codified_law()` and `store_codified_law()` methods in postgres_backend.py
+- [ ] CLI: `civic-extract uscode --title 42 --cloud` ingests to Postgres
+- [ ] Sections indexed to pgvector with CODIFIED_LAW corpus type
+- [ ] `c.what_applies("public housing")` returns U.S. Code sections
 
-Test queries against indexed data:
+## Session 427 Commits
 
-```python
-from civic import Civic
-c = Civic("san-rafael")
-
-# Test municipal code
-c.what_applies("accessory dwelling unit")
-c.what_applies("parking requirements")
-
-# Test legislation (once indexed)
-c.what_applies("housing legislation")  # Should include state bills
-```
-
-Validate:
-- Query relevance (do results match intent?)
-- Score thresholds (are scores reasonable?)
-- Cross-corpus results (municipal + legislation together?)
-
-## Session 426 Context
-
-- Implemented PostgreSQL COPY for 6x faster vector indexing
-- All San Rafael corpora indexed (municipal_code, transcripts, chunks)
-- Commit: `7a88bf0`
+- `5e5edf9` - Federal legislation + U.S. Code parser prototype
+- `97f91e8` - Update pilot.json with P0 for codified_law_ingestion
