@@ -361,7 +361,7 @@
       },
       "cost_dashboard": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Admin dashboard showing cumulative ETL costs by pipeline and time period",
         "note": "Aggregate from etl_costs table. Show daily/weekly/monthly breakdown by pipeline type."
       },
@@ -1899,12 +1899,12 @@
         "note": "Session 402: Complete. 2,839 CA bills via bulk ingestion (1 API call). Vectors indexed for RAG semantic search. CLI: civic-extract legislative --bulk --cloud. Also supports --migrate-json for curated bills."
       },
       "federal_legislation_e2e_cloud": {
-        "status": "ready",
-        "priority": 2,
+        "status": "not_ready",
+        "priority": 0,
         "artifact": "Federal legislation and grant programs affecting local governance ingested to Postgres",
         "target_count": "Key federal programs (CDBG, HUD, IIJA) and regulations",
         "verification": "SELECT COUNT(*) FROM legislation WHERE state = 'US'",
-        "note": "Session 404: Complete. 12,355 US Congress bills via bulk ingestion (1 API call). CLI: civic-extract legislative --bulk --cloud --state US. Key programs verified: 161 housing, 100 infrastructure, 240 climate/energy, 182 grant program bills.",
+        "note": "Session 426: User requested focus on legislation. Tasks: (1) finish CA legislation ingestion (API limit issue), (2) add federal legislation, (3) stress test data quality and queries.",
         "completed": "2025-12-29"
       },
       "vectors_e2e_cloud": {
