@@ -664,6 +664,49 @@ class PostgresBackend:
             ON codified_law(jurisdiction_id, valid_from, valid_to)
         """)
 
+        # Executive Orders table (SESSION 432)
+        # Stores presidential executive orders from Federal Register
+        # Separate from codified_law due to different structure (flat vs hierarchical)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS executive_orders (
+                id SERIAL PRIMARY KEY,
+                eo_number INTEGER,
+                document_number TEXT NOT NULL UNIQUE,
+                title TEXT NOT NULL,
+                abstract TEXT,
+                full_text TEXT,
+                president TEXT NOT NULL,
+                president_id TEXT,
+                signing_date DATE,
+                publication_date DATE,
+                html_url TEXT,
+                pdf_url TEXT,
+                raw_text_url TEXT,
+                status TEXT DEFAULT 'active',
+                revoked_by_eo INTEGER,
+                metadata JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Executive orders indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_executive_orders_eo_number
+            ON executive_orders(eo_number)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_executive_orders_president
+            ON executive_orders(president)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_executive_orders_signing_date
+            ON executive_orders(signing_date)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_executive_orders_status
+            ON executive_orders(status)
+        """)
+
         # Refresh metadata table (SESSION 423)
         # Tracks last fetch times for incremental pipeline automation
         cursor.execute("""
@@ -3790,6 +3833,371 @@ class PostgresBackend:
 
         return count
 
+    # ========== Executive Orders Methods (SESSION 432) ==========
+
+    def store_executive_orders(
+        self,
+        orders: List[Dict[str, Any]],
+        use_copy: bool = True,
+    ) -> int:
+        """
+        Store Executive Orders from Federal Register API.
+
+        Uses PostgreSQL COPY for fast bulk inserts with ON CONFLICT handling.
+
+        Args:
+            orders: List of order dictionaries with fields:
+                - eo_number: Executive Order number (may be None)
+                - document_number: FR document number (unique key)
+                - title: Order title
+                - abstract: Short description
+                - full_text: Full text content
+                - president: President name
+                - president_id: President identifier
+                - signing_date: Date signed
+                - publication_date: Date published in FR
+                - html_url, pdf_url, raw_text_url: Links
+            use_copy: If True (default), use COPY for bulk inserts
+
+        Returns:
+            Number of orders successfully stored
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Filter to orders with document_number (unique key)
+            valid_orders = [o for o in orders if o.get("document_number")]
+
+            if use_copy:
+                # COPY for bulk inserts - need to handle duplicates
+                # First, get existing document numbers to skip
+                doc_numbers = [o.get("document_number") for o in valid_orders]
+                placeholders = ",".join(["%s"] * len(doc_numbers))
+                cursor.execute(f"""
+                    SELECT document_number FROM executive_orders
+                    WHERE document_number IN ({placeholders})
+                """, doc_numbers)
+                existing = {row[0] for row in cursor.fetchall()}
+
+                # Filter out existing orders
+                new_orders = [o for o in valid_orders if o.get("document_number") not in existing]
+
+                if not new_orders:
+                    conn.close()
+                    return 0
+
+                # Batch in chunks of 500
+                batch_size = 500
+                for batch_start in range(0, len(new_orders), batch_size):
+                    batch = new_orders[batch_start:batch_start + batch_size]
+                    buffer = StringIO()
+
+                    for order in batch:
+                        # Build metadata from extra fields
+                        metadata = {
+                            k: v for k, v in order.items()
+                            if k not in [
+                                "eo_number", "document_number", "title", "abstract",
+                                "full_text", "president", "president_id", "signing_date",
+                                "publication_date", "html_url", "pdf_url", "raw_text_url",
+                                "status", "revoked_by_eo"
+                            ]
+                        }
+                        metadata_json = json.dumps(metadata, cls=DateTimeEncoder) if metadata else None
+
+                        # Build row values
+                        row_values = [
+                            order.get("eo_number"),
+                            order.get("document_number"),
+                            order.get("title"),
+                            order.get("abstract"),
+                            order.get("full_text"),
+                            order.get("president"),
+                            order.get("president_id"),
+                            order.get("signing_date"),
+                            order.get("publication_date"),
+                            order.get("html_url"),
+                            order.get("pdf_url"),
+                            order.get("raw_text_url"),
+                            order.get("status", "active"),
+                            order.get("revoked_by_eo"),
+                            metadata_json,
+                        ]
+
+                        # Format for COPY: tab-separated, escape special chars
+                        line_parts = []
+                        for val in row_values:
+                            if val is None:
+                                line_parts.append("\\N")
+                            else:
+                                s = str(val)
+                                s = s.replace("\\", "\\\\")
+                                s = s.replace("\t", "\\t")
+                                s = s.replace("\n", "\\n")
+                                s = s.replace("\r", "\\r")
+                                line_parts.append(s)
+                        buffer.write("\t".join(line_parts) + "\n")
+
+                    buffer.seek(0)
+                    cursor.copy_from(
+                        buffer,
+                        "executive_orders",
+                        columns=(
+                            "eo_number", "document_number", "title", "abstract",
+                            "full_text", "president", "president_id", "signing_date",
+                            "publication_date", "html_url", "pdf_url", "raw_text_url",
+                            "status", "revoked_by_eo", "metadata"
+                        ),
+                    )
+                    conn.commit()
+
+                return len(new_orders)
+            else:
+                # execute_values with ON CONFLICT for upsert
+                values = []
+                for order in valid_orders:
+                    metadata = {
+                        k: v for k, v in order.items()
+                        if k not in [
+                            "eo_number", "document_number", "title", "abstract",
+                            "full_text", "president", "president_id", "signing_date",
+                            "publication_date", "html_url", "pdf_url", "raw_text_url",
+                            "status", "revoked_by_eo"
+                        ]
+                    }
+                    values.append((
+                        order.get("eo_number"),
+                        order.get("document_number"),
+                        order.get("title"),
+                        order.get("abstract"),
+                        order.get("full_text"),
+                        order.get("president"),
+                        order.get("president_id"),
+                        order.get("signing_date"),
+                        order.get("publication_date"),
+                        order.get("html_url"),
+                        order.get("pdf_url"),
+                        order.get("raw_text_url"),
+                        order.get("status", "active"),
+                        order.get("revoked_by_eo"),
+                        json.dumps(metadata, cls=DateTimeEncoder) if metadata else None,
+                    ))
+
+                if values:
+                    psycopg2.extras.execute_values(
+                        cursor,
+                        """
+                        INSERT INTO executive_orders (
+                            eo_number, document_number, title, abstract,
+                            full_text, president, president_id, signing_date,
+                            publication_date, html_url, pdf_url, raw_text_url,
+                            status, revoked_by_eo, metadata
+                        ) VALUES %s
+                        ON CONFLICT (document_number) DO UPDATE SET
+                            eo_number = EXCLUDED.eo_number,
+                            title = EXCLUDED.title,
+                            abstract = EXCLUDED.abstract,
+                            full_text = EXCLUDED.full_text,
+                            status = EXCLUDED.status,
+                            revoked_by_eo = EXCLUDED.revoked_by_eo,
+                            metadata = EXCLUDED.metadata
+                        """,
+                        values,
+                        template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                        page_size=500,
+                    )
+
+                conn.commit()
+                return len(valid_orders)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_executive_orders(
+        self,
+        president: Optional[str] = None,
+        eo_number: Optional[int] = None,
+        status: Optional[str] = None,
+        signing_date_after: Optional[date] = None,
+        signing_date_before: Optional[date] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve Executive Orders with optional filtering.
+
+        Args:
+            president: Filter by president name
+            eo_number: Filter by specific EO number
+            status: Filter by status ("active", "revoked", "superseded")
+            signing_date_after: Filter orders signed after this date
+            signing_date_before: Filter orders signed before this date
+            limit: Maximum number of orders to return
+
+        Returns:
+            List of order dictionaries
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        query = "SELECT * FROM executive_orders WHERE 1=1"
+        params: List[Any] = []
+
+        if president is not None:
+            query += " AND president ILIKE %s"
+            params.append(f"%{president}%")
+
+        if eo_number is not None:
+            query += " AND eo_number = %s"
+            params.append(eo_number)
+
+        if status is not None:
+            query += " AND status = %s"
+            params.append(status)
+        else:
+            # Default to active orders
+            query += " AND status = 'active'"
+
+        if signing_date_after is not None:
+            query += " AND signing_date >= %s"
+            params.append(signing_date_after.isoformat() if hasattr(signing_date_after, 'isoformat') else signing_date_after)
+
+        if signing_date_before is not None:
+            query += " AND signing_date <= %s"
+            params.append(signing_date_before.isoformat() if hasattr(signing_date_before, 'isoformat') else signing_date_before)
+
+        query += " ORDER BY signing_date DESC, eo_number DESC"
+
+        if limit:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to dictionaries
+        orders = []
+        for row in rows:
+            order = dict(row)
+            # Parse JSONB fields
+            if "metadata" in order and isinstance(order["metadata"], str):
+                try:
+                    order["metadata"] = json.loads(order["metadata"])
+                except json.JSONDecodeError:
+                    order["metadata"] = {}
+            # Convert date objects to ISO strings
+            for key in ["signing_date", "publication_date", "created_at"]:
+                if key in order and order[key] is not None:
+                    if isinstance(order[key], (datetime, date)):
+                        order[key] = order[key].isoformat()
+            orders.append(order)
+
+        return orders
+
+    def search_executive_orders(
+        self,
+        query: str,
+        president: Optional[str] = None,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """
+        Search Executive Orders by topic/keyword.
+
+        Uses PostgreSQL full-text search for relevance ranking.
+
+        Args:
+            query: Search query (topic keywords)
+            president: Optional filter by president
+            limit: Maximum results to return
+
+        Returns:
+            List of matching orders with relevance scores
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        sql = """
+            SELECT
+                eo_number, document_number, title, president,
+                signing_date, publication_date, html_url, pdf_url,
+                LEFT(COALESCE(abstract, full_text, ''), 500) as text_preview,
+                ts_rank(
+                    to_tsvector('english', COALESCE(title, '') || ' ' || COALESCE(abstract, '') || ' ' || COALESCE(full_text, '')),
+                    plainto_tsquery('english', %s)
+                ) as relevance
+            FROM executive_orders
+            WHERE status = 'active'
+              AND to_tsvector('english', COALESCE(title, '') || ' ' || COALESCE(abstract, '') || ' ' || COALESCE(full_text, ''))
+                  @@ plainto_tsquery('english', %s)
+        """
+        params: List[Any] = [query, query]
+
+        if president is not None:
+            sql += " AND president ILIKE %s"
+            params.append(f"%{president}%")
+
+        sql += " ORDER BY relevance DESC LIMIT %s"
+        params.append(limit)
+
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert dates
+        orders = []
+        for row in rows:
+            order = dict(row)
+            for key in ["signing_date", "publication_date"]:
+                if key in order and order[key] is not None:
+                    if isinstance(order[key], (datetime, date)):
+                        order[key] = order[key].isoformat()
+            orders.append(order)
+
+        return orders
+
+    def get_executive_orders_count(
+        self,
+        president: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> int:
+        """
+        Get count of Executive Orders.
+
+        Args:
+            president: Optional filter by president name
+            status: Optional filter by status
+
+        Returns:
+            Number of matching orders
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        query = "SELECT COUNT(*) FROM executive_orders WHERE 1=1"
+        params: List[Any] = []
+
+        if president is not None:
+            query += " AND president ILIKE %s"
+            params.append(f"%{president}%")
+
+        if status is not None:
+            query += " AND status = %s"
+            params.append(status)
+
+        cursor.execute(query, params)
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
 
 # Verify protocol compliance at import time (only if psycopg2 available)
 # StorageBackend is @runtime_checkable, so isinstance() works
@@ -3821,6 +4229,8 @@ def _verify_protocol_compliance() -> None:
         'store_legislation', 'get_legislation', 'get_legislation_by_bill_id', 'get_legislation_count',
         # Codified law methods (SESSION 428)
         'store_codified_law', 'get_codified_law', 'get_codified_law_count',
+        # Executive orders methods (SESSION 432)
+        'store_executive_orders', 'get_executive_orders', 'get_executive_orders_count',
     ]
     for method in required_methods:
         assert hasattr(PostgresBackend, method), (
