@@ -69,6 +69,27 @@ Key titles for civic engagement:
 - **Modal network:** Modal containers had connection timeouts to uscode.house.gov. May need to download locally and upload to R2, or run ingestion from local machine.
 - **Supabase timeout:** Batched COPY (500 rows) handles this - already implemented.
 
+## Provenance Tracking (Important!)
+
+Track the release point for each ingestion to support data integrity and future updates:
+
+```python
+# Store metadata with each ingestion batch
+{
+    "release_point": "119-59",
+    "ingested_at": "2026-01-02",
+    "source_url": "https://uscode.house.gov/download/releasepoints/us/pl/119/59/xml_usc{title}@119-59.zip"
+}
+```
+
+**Why this matters:**
+- U.S. Code is updated after each Public Law (~300/year)
+- Need to know which version we have for auditing
+- Enables diffing against future release points to detect changes/repeals
+- GPO/OLRC are the authoritative sources (NARA's Statutes at Large is ultimate authority for non-positive law titles)
+
+Consider adding a `corpus_metadata` table or storing in the existing `metadata` JSONB column.
+
 ## Tests to Run
 
 ```bash
