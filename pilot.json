@@ -378,6 +378,12 @@
         "priority": 2,
         "artifact": "Alert when ETL costs exceed threshold ($5/day or $50/month)",
         "note": "Prevent runaway costs from misconfigured pipelines or unexpected data volume."
+      },
+      "global_rate_limit": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Global API rate limit to prevent cost spikes from traffic surges",
+        "note": "Simple slowapi limiter on API endpoints. No auth required. Set ceiling at 10x expected pilot traffic. Protects against viral spikes or bot traffic."
       }
     }
   },
