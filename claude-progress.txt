@@ -8356,3 +8356,33 @@ Monitoring/observability cost tracking dashboard.
 
 ### Commit
 b02e4df Session 428: Complete U.S. Code ingestion pipeline
+
+## Session 429 - 2026-01-02
+
+### Completed: uscode_all_titles (P0)
+
+Successfully ingested 50,783 U.S. Code sections from 53 main titles to PostgreSQL.
+
+### Key Accomplishments
+1. Created parallel download script (10 connections, ~15min for 312MB)
+2. Uploaded all titles to R2 for fast Modal access (172MB, ~2s download)
+3. Fixed deduplication bug (duplicate identifiers in XML)
+4. Ingested 53 main titles with resume support
+5. `what_applies()` returns codified law across all titles
+
+### Database Status
+- federal-US: 50,783 codified law sections (53 titles)
+- Release point: PL 119-59 (Jan 2026)
+- Missing: Appendices (5a, 11a, 18a, 28a) - different XML structure
+
+### Infrastructure Created
+- `scripts/download_uscode.sh` - Parallel download all titles
+- `scripts/upload_uscode_r2.py` - Upload to R2 for Modal access  
+- `scripts/modal_uscode.py` - Cloud ingestion with --all, --start-from, --clear
+
+### Files Changed
+- `scripts/modal_uscode.py` - R2 source, dedup, resume, appendix exclusion
+- `pilot.json` - uscode_all_titles ready, added uscode_appendices P0
+
+### Next P0: uscode_appendices
+Parser fix needed for appendix XML structure (title_number extraction).

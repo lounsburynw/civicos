@@ -1,23 +1,33 @@
 """
 Modal function for U.S. Code ingestion to PostgreSQL.
 
-Downloads directly from uscode.house.gov and ingests to Supabase.
-Runs in cloud (close to Supabase) - no local upload needed.
+Downloads from R2 (pre-cached from uscode.house.gov) and ingests to Supabase.
+Runs in cloud (close to Supabase) - fast R2 CDN access.
 Uses PostgreSQL COPY for fast bulk inserts (~10 seconds for 7k sections).
 
 Setup:
-    Ensure Modal secret exists:
+    Ensure Modal secrets exist:
     modal secret create civic-db DATABASE_URL="postgresql://..."
+    modal secret create civic-r2 \
+        R2_ACCOUNT_ID="..." \
+        R2_ACCESS_KEY_ID="..." \
+        R2_SECRET_ACCESS_KEY="..." \
+        R2_BUCKET_NAME="civic-pilot"
 
 Usage:
-    # Ingest Title 42 (downloads from uscode.house.gov)
+    # Ingest Title 42 (from R2)
     modal run scripts/modal_uscode.py --title 42
+
+    # Ingest ALL titles
+    modal run scripts/modal_uscode.py --all
 
     # Dry run (download and parse only)
     modal run scripts/modal_uscode.py --title 42 --dry-run
 
     # Stats only
     modal run scripts/modal_uscode.py --stats-only
+
+Release Point: PL 119-59 (current as of Jan 2026)
 """
 
 import modal
@@ -32,11 +42,28 @@ civic_image = (
     .apt_install("libpq-dev", "gcc")
     .pip_install(
         "psycopg2-binary>=2.9.0",
-        "requests>=2.31.0",  # For downloading from uscode.house.gov
+        "boto3>=1.26.0",  # For R2/S3 access
         "httpx>=0.24.0",  # Required by civic.storage imports
+        "langgraph>=0.2.0",  # Required by civic package init
+        "langchain-core>=0.3.0",  # Required by langgraph
     )
     .add_local_python_source("civic")
 )
+
+# Release point metadata (for provenance tracking)
+RELEASE_POINT = "119-59"
+R2_PREFIX = f"uscode/{RELEASE_POINT}"
+
+# All U.S. Code title numbers (excluding appendices - different XML structure)
+# Appendices (5a, 11a, 18a, 28a) need separate parser handling
+ALL_TITLES = [
+    "01", "02", "03", "04", "05", "06", "07", "08", "09",
+    "10", "11", "12", "13", "14", "15", "16", "17", "18",
+    "19", "20", "21", "22", "23", "24", "25", "26", "27", "28",
+    "29", "30", "31", "32", "33", "34", "35", "36", "37", "38",
+    "39", "40", "41", "42", "43", "44", "45", "46", "47", "48",
+    "49", "50", "51", "52", "54",
+]
 
 
 # Inline USCodeParser to avoid package mount issues
@@ -180,21 +207,22 @@ class USCodeParser:
     image=civic_image,
     secrets=[
         modal.Secret.from_name("civic-db"),  # DATABASE_URL
+        modal.Secret.from_name("civic-blob"),  # R2 credentials (BLOB_STORAGE_URL, R2_*)
     ],
     memory=4096,
     timeout=3600,  # 1 hour
 )
 def ingest_uscode(
-    title: int = 42,
+    title: str = "42",
     jurisdiction_id: str = "federal-US",
     dry_run: bool = False,
     stats_only: bool = False,
 ) -> dict:
     """
-    Ingest U.S. Code sections from uscode.house.gov to PostgreSQL.
+    Ingest U.S. Code sections from R2 to PostgreSQL.
 
     Args:
-        title: U.S. Code title number (e.g., 42 for Public Health)
+        title: U.S. Code title number as string (e.g., "42", "05a")
         jurisdiction_id: Target jurisdiction
         dry_run: Parse only, don't store
         stats_only: Show database stats only
@@ -203,7 +231,7 @@ def ingest_uscode(
         Dict with ingestion results
     """
     import time
-    import requests
+    import boto3
 
     # Get database connection
     database_url = os.environ.get("DATABASE_URL")
@@ -220,20 +248,42 @@ def ingest_uscode(
             "sections_in_db": count,
         }
 
-    # Download XML directly from uscode.house.gov
-    # URL pattern: releasepoints/us/pl/{pl_major}/{pl_minor}/xml_usc{title}@{pl_major}-{pl_minor}.zip
-    # Current as of Jan 2026: Public Law 119-59
-    url = f"https://uscode.house.gov/download/releasepoints/us/pl/119/59/xml_usc{title}@119-59.zip"
-    print(f"Downloading Title {title} from uscode.house.gov...")
+    # Format title number for filename (e.g., "5" -> "05", "5a" -> "05a")
+    if title.isdigit():
+        title_formatted = title.zfill(2)
+    else:
+        # Handle appendices like "5a" -> "05a"
+        title_formatted = title[:-1].zfill(2) + title[-1]
+
+    # Download from R2 (pre-cached, fast CDN)
+    print(f"Downloading Title {title} from R2...")
     start = time.time()
 
-    response = requests.get(url, timeout=300)
-    response.raise_for_status()
+    # Parse BLOB_STORAGE_URL (r2://account_id/bucket_name)
+    blob_url = os.environ.get("BLOB_STORAGE_URL", "")
+    if not blob_url.startswith("r2://"):
+        return {"error": f"Invalid BLOB_STORAGE_URL: {blob_url}"}
+    parts = blob_url.replace("r2://", "").split("/", 1)
+    if len(parts) != 2:
+        return {"error": f"Invalid BLOB_STORAGE_URL format: {blob_url}"}
+    account_id, bucket = parts
+
+    s3 = boto3.client(
+        "s3",
+        endpoint_url=f"https://{account_id}.r2.cloudflarestorage.com",
+        aws_access_key_id=os.environ["R2_ACCESS_KEY_ID"],
+        aws_secret_access_key=os.environ["R2_SECRET_ACCESS_KEY"],
+    )
+
+    key = f"{R2_PREFIX}/xml_usc{title_formatted}.zip"
+
+    response = s3.get_object(Bucket=bucket, Key=key)
+    zip_content = response["Body"].read()
 
     # Extract XML from ZIP
     import zipfile
     from io import BytesIO
-    with zipfile.ZipFile(BytesIO(response.content)) as zf:
+    with zipfile.ZipFile(BytesIO(zip_content)) as zf:
         # Find the XML file in the ZIP
         xml_files = [f for f in zf.namelist() if f.endswith('.xml')]
         if not xml_files:
@@ -253,12 +303,15 @@ def ingest_uscode(
     print("Parsing U.S. Code XML...")
     parser = USCodeParser(xml_path)
 
+    # Deduplicate by identifier (XML has subsections with same parent identifier)
+    seen_identifiers = set()
     sections = []
     for section in parser.parse_sections():
-        if section.identifier:  # Skip notes/annotations
+        if section.identifier and section.identifier not in seen_identifiers:
+            seen_identifiers.add(section.identifier)
             sections.append(section.to_dict())
 
-    print(f"Parsed {len(sections)} sections")
+    print(f"Parsed {len(sections)} unique sections")
 
     # Clean up temp file
     os.unlink(xml_path)
@@ -292,6 +345,7 @@ def ingest_uscode(
     return {
         "title": title,
         "jurisdiction_id": jurisdiction_id,
+        "release_point": RELEASE_POINT,
         "sections_parsed": len(sections),
         "sections_stored": stored,
         "total_in_db": total,
@@ -300,20 +354,105 @@ def ingest_uscode(
     }
 
 
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+        modal.Secret.from_name("civic-blob"),
+    ],
+    memory=4096,
+    timeout=14400,  # 4 hours for all titles
+)
+def ingest_all_titles(
+    jurisdiction_id: str = "federal-US",
+    dry_run: bool = False,
+    clear: bool = False,
+    start_from: str = "",
+) -> dict:
+    """Ingest all U.S. Code titles sequentially."""
+    # Optionally clear existing data first
+    if clear and not dry_run:
+        import psycopg2
+        database_url = os.environ.get("DATABASE_URL")
+        conn = psycopg2.connect(database_url)
+        cursor = conn.cursor()
+        cursor.execute(
+            "DELETE FROM codified_law WHERE jurisdiction_id = %s",
+            (jurisdiction_id,)
+        )
+        deleted = cursor.rowcount
+        conn.commit()
+        conn.close()
+        print(f"Cleared {deleted} existing sections for {jurisdiction_id}")
+
+    # Determine which titles to process
+    titles_to_process = ALL_TITLES
+    if start_from:
+        try:
+            start_idx = ALL_TITLES.index(start_from)
+            titles_to_process = ALL_TITLES[start_idx:]
+            print(f"Starting from Title {start_from} ({len(titles_to_process)} titles remaining)")
+        except ValueError:
+            print(f"Warning: Title {start_from} not found, processing all")
+
+    results = []
+    total_sections = 0
+    total_stored = 0
+
+    for title in titles_to_process:
+        print(f"\n{'='*50}")
+        print(f"Processing Title {title}...")
+        result = ingest_uscode.local(
+            title=title,
+            jurisdiction_id=jurisdiction_id,
+            dry_run=dry_run,
+        )
+        results.append(result)
+        if "sections_parsed" in result:
+            total_sections += result["sections_parsed"]
+        if "sections_stored" in result:
+            total_stored += result["sections_stored"]
+
+    return {
+        "jurisdiction_id": jurisdiction_id,
+        "release_point": RELEASE_POINT,
+        "titles_processed": len(results),
+        "total_sections_parsed": total_sections,
+        "total_sections_stored": total_stored,
+        "dry_run": dry_run,
+    }
+
+
 @app.local_entrypoint()
 def main(
-    title: int = 42,
+    title: str = "42",
     jurisdiction_id: str = "federal-US",
     dry_run: bool = False,
     stats_only: bool = False,
+    all: bool = False,
+    clear: bool = False,
+    start_from: str = "",
 ):
     """CLI entrypoint for Modal."""
-    result = ingest_uscode.remote(
-        title=title,
-        jurisdiction_id=jurisdiction_id,
-        dry_run=dry_run,
-        stats_only=stats_only,
-    )
+    if all:
+        print(f"Ingesting ALL {len(ALL_TITLES)} U.S. Code titles...")
+        if clear:
+            print("Will clear existing data first...")
+        if start_from:
+            print(f"Starting from Title {start_from}")
+        result = ingest_all_titles.remote(
+            jurisdiction_id=jurisdiction_id,
+            dry_run=dry_run,
+            clear=clear,
+            start_from=start_from,
+        )
+    else:
+        result = ingest_uscode.remote(
+            title=title,
+            jurisdiction_id=jurisdiction_id,
+            dry_run=dry_run,
+            stats_only=stats_only,
+        )
     print("\n" + "=" * 50)
     print("RESULT:")
     for key, value in result.items():
