@@ -8326,3 +8326,33 @@ TBD - need to assign before running /nextsesh
 
 ### Commit
 5e5edf9 Session 427: Federal legislation + U.S. Code parser prototype
+
+## Session 428 - 2026-01-01
+
+### Completed: codified_law_ingestion (P0)
+
+Successfully ingested U.S. Code Title 42 to PostgreSQL and integrated with what_applies().
+
+### Key Accomplishments
+1. Fixed Modal script URL (PL 118-200 → PL 119-59)
+2. Added batched COPY (500 rows/batch) to avoid Supabase statement timeout
+3. Ingested 6,651 sections from Title 42 (Public Health & Welfare)
+4. Added search_codified_law() with PostgreSQL full-text search
+5. Integrated codified law into what_applies() federal context
+
+### Database Status
+- federal-US: 6,651 codified law sections (Title 42)
+- state-CA: 0 (not yet ingested)
+- Legislation: 17,719 bills (federal + CA)
+
+### Files Changed
+- `packages/civic/src/civic/storage/postgres_backend.py` - batched COPY, search_codified_law()
+- `packages/civic/src/civic/context.py` - integrate codified law into what_applies()
+- `scripts/modal_uscode.py` - fixed URL, added httpx dependency
+- `pilot.json` - added legal corpus expansion items (P2/P3)
+
+### Next P0: cost_dashboard
+Monitoring/observability cost tracking dashboard.
+
+### Commit
+b02e4df Session 428: Complete U.S. Code ingestion pipeline
