@@ -1277,6 +1277,28 @@
           "packages/civic/src/civic/_internal/meetings/embeddings.py"
         ]
       }
+    },
+    "election_data": {
+      "election_integration": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Election data integration for whats_next() - upcoming elections, deadlines, ballot measures",
+        "note": "Post-core-ingestion feature. Multi-source strategy: Google Civic API (primary) + Marin County Registrar (authoritative local). Reference doc: .claude/plans/cheerful-munching-ripple.md",
+        "depends_on": ["codified_law_ingestion"],
+        "data_sources": {
+          "google_civic_api": "Elections, polling locations, representatives (free tier: 25k/day)",
+          "marin_registrar": "Official dates, local measures (web scraping)"
+        },
+        "new_files": [
+          "packages/civic/src/civic/_internal/elections/__init__.py",
+          "packages/civic-extraction/src/civic_extraction/clients/google_civic.py"
+        ],
+        "modified_files": [
+          "packages/civic/src/civic/storage/corpus_types.py",
+          "packages/civic/src/civic/storage/backend.py",
+          "packages/civic/src/civic/civic.py"
+        ]
+      }
     }
   },
   "data_standards": {
@@ -1943,12 +1965,12 @@
     }
   },
   "summary": {
-    "total_items": 175,
+    "total_items": 176,
     "by_priority": {
       "p0": 1,
       "p1": 63,
       "p2": 76,
-      "p3": 32
+      "p3": 33
     },
     "by_category": {
       "test_infrastructure": 10,
@@ -1958,7 +1980,7 @@
       "admin_operations": 11,
       "pipeline_automation": 11,
       "data_architecture": 19,
-      "data_readiness": 15,
+      "data_readiness": 16,
       "data_standards": 7,
       "data_integrity": 8,
       "city_onboarding": 13,
