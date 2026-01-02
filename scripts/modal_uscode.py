@@ -54,12 +54,12 @@ civic_image = (
 RELEASE_POINT = "119-59"
 R2_PREFIX = f"uscode/{RELEASE_POINT}"
 
-# All U.S. Code title numbers (excluding appendices - different XML structure)
-# Appendices (5a, 11a, 18a, 28a) need separate parser handling
+# All U.S. Code title numbers including appendices
+# Appendices (5a, 11a, 18a, 28a) handled by updated parser
 ALL_TITLES = [
-    "01", "02", "03", "04", "05", "06", "07", "08", "09",
-    "10", "11", "12", "13", "14", "15", "16", "17", "18",
-    "19", "20", "21", "22", "23", "24", "25", "26", "27", "28",
+    "01", "02", "03", "04", "05", "05a", "06", "07", "08", "09",
+    "10", "11", "11a", "12", "13", "14", "15", "16", "17", "18", "18a",
+    "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "28a",
     "29", "30", "31", "32", "33", "34", "35", "36", "37", "38",
     "39", "40", "41", "42", "43", "44", "45", "46", "47", "48",
     "49", "50", "51", "52", "54",
@@ -111,7 +111,8 @@ class USCodeParser:
         if self._root is not None:
             return
         self._root = ET.parse(self.xml_path).getroot()
-        # Extract title info
+
+        # Extract title info - handle both main titles and appendices
         main = self._root.find(".//uslm:main", USLM_NS)
         if main is not None:
             title_elem = main.find("uslm:title", USLM_NS)
@@ -119,6 +120,26 @@ class USCodeParser:
                 self.title_number = int(title_elem.get("identifier", "").split("/")[-1].replace("t", "") or 0)
                 heading = title_elem.find("uslm:heading", USLM_NS)
                 self.title_name = heading.text if heading is not None else ""
+                self.is_appendix = False
+                return
+
+        # Fallback for appendices: use docNumber from metadata
+        # Appendices have structure: <meta><docNumber>18a</docNumber></meta>
+        doc_number_elem = self._root.find(".//uslm:docNumber", USLM_NS)
+        if doc_number_elem is not None and doc_number_elem.text:
+            doc_number = doc_number_elem.text  # e.g., "18a", "5a"
+            # Extract numeric part: "18a" -> 18
+            self.title_number = int(re.match(r"(\d+)", doc_number).group(1))
+            # Get title name from dc:title in metadata
+            dc_title = self._root.find(".//{http://purl.org/dc/elements/1.1/}title")
+            self.title_name = dc_title.text if dc_title is not None else f"Title {doc_number}"
+            self.is_appendix = True
+            self.appendix_suffix = doc_number[-1] if doc_number[-1].isalpha() else ""  # "a"
+        else:
+            # Last resort fallback
+            self.title_number = 0
+            self.title_name = "Unknown"
+            self.is_appendix = False
 
     def _get_text(self, elem) -> str:
         """Recursively get text content, excluding notes."""
@@ -183,8 +204,11 @@ class USCodeParser:
                 heading_elem = elem.find("uslm:heading", USLM_NS)
                 heading = heading_elem.text if heading_elem is not None else ""
 
-                # Build citation
-                citation = f"{self.title_number} U.S.C. § {section_number}" if section_number else f"{self.title_number} U.S.C. § "
+                # Build citation - use "App." for appendices
+                if getattr(self, 'is_appendix', False):
+                    citation = f"{self.title_number} U.S.C. App. § {section_number}" if section_number else f"{self.title_number} U.S.C. App. § "
+                else:
+                    citation = f"{self.title_number} U.S.C. § {section_number}" if section_number else f"{self.title_number} U.S.C. § "
 
                 # Extract text
                 text = self._extract_section_text(elem)
