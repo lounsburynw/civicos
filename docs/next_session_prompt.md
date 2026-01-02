@@ -1,115 +1,109 @@
-# Recommended: Ingest All 54 U.S. Code Titles
+# Recommended: Ingest U.S. Code Appendices
 
 **Priority:** P0
 **Area:** pilot_validation > e2e_cloud_data_verification
 **Date:** 2026-01-02
 
-> This is recommended context from Session 428. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 429. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 428 completed the codified law pipeline for Title 42 (Public Health & Welfare):
-- ✅ 6,651 sections ingested to PostgreSQL
-- ✅ Batched COPY (500 rows/batch) avoids Supabase timeout
-- ✅ `search_codified_law()` with full-text search
-- ✅ `what_applies()` now returns U.S. Code sections
+Session 429 completed ingestion of 53 main U.S. Code titles (50,783 sections) to PostgreSQL. The appendices (5a, 11a, 18a, 28a) failed because they have a different XML structure that causes `title_number` to be null.
 
-Now we need to ingest the remaining 53 titles (~100k sections total).
+**Completed this session:**
+- Downloaded all 57 titles locally via parallel script (312MB)
+- Uploaded to R2 for fast Modal access (172MB, ~2s download vs hours from gov servers)
+- Ingested 50,783 sections from 53 main titles
+- `what_applies()` now returns U.S. Code sections via full-text search
 
 ## Recommended Task
 
-Ingest all 54 U.S. Code titles to complete the federal codified law corpus.
+Fix the USCodeParser to handle appendix XML structure and ingest the 4 appendix titles.
+
+## The Problem
+
+Appendices fail with `NotNullViolation: null value in column "title_number"`:
+```
+Failing row contains (39567, None U.S.C. § 1, null, null, 1, Short title, ...)
+identifier: /us/usc/t18a/pl/91/538/s1
+```
+
+The parser expects `<title identifier="/us/usc/t42">` but appendices structure is different.
 
 ## Key Files
 
-- `scripts/modal_uscode.py` - Modal script for cloud ingestion (URL already fixed to PL 119-59)
-- `packages/civic/src/civic/storage/postgres_backend.py:3487` - `store_codified_law()` with batched COPY
-- `packages/civic-extraction/src/civic_extraction/cli/uscode.py` - Local CLI alternative
-
-## Available Titles
-
-All 54 titles at: `https://uscode.house.gov/download/releasepoints/us/pl/119/59/`
-
-Key titles for civic engagement:
-| Title | Subject | Est. Sections |
-|-------|---------|---------------|
-| 5 | Government Organization | ~3k |
-| 23 | Highways | ~500 |
-| 26 | Internal Revenue | ~10k |
-| 33 | Navigation/Waterways | ~1k |
-| 40 | Public Buildings | ~500 |
-| 42 | Public Health (DONE) | 6,651 |
-| 52 | Voting and Elections | ~500 |
+- `scripts/modal_uscode.py:73-110` - Inline USCodeParser (extract title_number logic)
+- `scripts/modal_uscode.py:56-66` - ALL_TITLES list (appendices currently excluded)
+- `data/uscode/xml_usc05a.zip` - Sample appendix XML to investigate
+- `data/uscode/xml_usc18a.zip` - Title 18 Appendix (where error occurred)
 
 ## Suggested Approach
 
-1. **Test with one more title locally:**
+1. **Investigate appendix XML structure:**
    ```bash
-   civic-extract uscode --input data/uscode/usc05.xml --cloud --dry-run
+   cd data/uscode && unzip -p xml_usc18a.zip | head -100
+   # Look for how title/section identifiers differ from main titles
    ```
 
-2. **Batch ingest via Modal (if network allows):**
+2. **Check identifier patterns:**
    ```bash
-   # Modal had network issues reaching uscode.house.gov - may need R2 workaround
-   modal run scripts/modal_uscode.py --title 5
+   unzip -p xml_usc18a.zip | grep -o 'identifier="[^"]*"' | head -20
+   # Expected: /us/usc/t18a/... patterns
    ```
 
-3. **Alternative: Local ingestion with batched COPY:**
+3. **Fix parser title extraction:**
+   - Main titles: `/us/usc/t42` → title_number = 42
+   - Appendices: `/us/usc/t18a/...` → title_number should be 18 (or "18a")
+   - May need to extract from identifier if `<title>` element missing
+
+4. **Update schema if needed:**
+   - `title_number` is INTEGER - appendices like "18a" won't fit
+   - Options: change to TEXT, or store as 18 with appendix flag in metadata
+
+5. **Test and ingest:**
    ```bash
-   # Download XML files locally first
-   curl -O https://uscode.house.gov/download/releasepoints/us/pl/119/59/xml_usc05@119-59.zip
-   unzip xml_usc05@119-59.zip -d data/uscode/
-   civic-extract uscode --input data/uscode/usc05.xml --cloud
+   modal run scripts/modal_uscode.py --title 18a --dry-run
+   modal run scripts/modal_uscode.py --all --start-from 05a
    ```
 
-4. **Loop through all titles** (script needed)
+## Database Status
 
-## Known Issues
-
-- **Modal network:** Modal containers had connection timeouts to uscode.house.gov. May need to download locally and upload to R2, or run ingestion from local machine.
-- **Supabase timeout:** Batched COPY (500 rows) handles this - already implemented.
-
-## Provenance Tracking (Important!)
-
-Track the release point for each ingestion to support data integrity and future updates:
-
-```python
-# Store metadata with each ingestion batch
-{
-    "release_point": "119-59",
-    "ingested_at": "2026-01-02",
-    "source_url": "https://uscode.house.gov/download/releasepoints/us/pl/119/59/xml_usc{title}@119-59.zip"
-}
 ```
-
-**Why this matters:**
-- U.S. Code is updated after each Public Law (~300/year)
-- Need to know which version we have for auditing
-- Enables diffing against future release points to detect changes/repeals
-- GPO/OLRC are the authoritative sources (NARA's Statutes at Large is ultimate authority for non-positive law titles)
-
-Consider adding a `corpus_metadata` table or storing in the existing `metadata` JSONB column.
+Total U.S. Code sections: 50,783
+Release point: PL 119-59 (Jan 2026)
+Missing: 5a, 11a, 18a, 28a (appendices)
+```
 
 ## Tests to Run
 
 ```bash
-# Verify Title 42 still works
+# Verify main titles still work
 python3 -c "
 from dotenv import load_dotenv; load_dotenv()
-from civic import Civic
-c = Civic('san-rafael')
-r = c.what_applies('public housing')
-print([f.get('citation') for f in r.federal if f.get('type') == 'codified_law'][:3])
+from civic.storage.postgres_backend import PostgresBackend
+import os
+db = PostgresBackend(os.environ['DATABASE_URL'])
+print(f'Sections: {db.get_codified_law_count(\"federal-US\"):,}')
+results = db.search_codified_law('federal-US', 'veterans', limit=3)
+for r in results: print(f'  {r[\"citation\"]}: {r[\"heading\"][:50]}')
 "
 ```
 
 ## Success Criteria
 
-- [ ] All 54 U.S. Code titles ingested (~100k sections)
-- [ ] `what_applies()` returns relevant sections across multiple titles
-- [ ] No statement timeouts during ingestion
+- [ ] Parser handles appendix XML structure (title_number not null)
+- [ ] All 4 appendices ingested (5a, 11a, 18a, 28a)
+- [ ] Total sections ~51k+ (currently 50,783)
+
+## Infrastructure Created This Session
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/download_uscode.sh` | Parallel download all titles (10 connections) |
+| `scripts/upload_uscode_r2.py` | Upload zips to R2 for fast Modal access |
+| `scripts/modal_uscode.py` | Cloud ingestion with R2 source, dedup, resume |
 
 ## Also P1 (if time permits)
 
-- `executive_orders_ingestion` - Federal Register API
 - `ca_codes_ingestion` - California's 29 codes from leginfo.legislature.ca.gov
+- U.S. Code vector indexing - embed 50k sections to pgvector for semantic search
