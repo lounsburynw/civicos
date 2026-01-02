@@ -1,79 +1,63 @@
-# Recommended: Codified Law Ingestion (U.S. Code + CA Codes)
+# Recommended: Codified Law Ingestion (Complete Modal Pipeline)
 
 **Priority:** P0
 **Area:** pilot_validation > e2e_cloud_data_verification
 **Date:** 2026-01-01
 
-> This is recommended context from Session 427. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 428. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 427 discovered that LegiScan bills are mostly proposals (only 0.6% of federal bills enacted). For `what_applies()` to answer "what law applies to my ADU project?", we need **codified law** (U.S. Code, CA Codes), not pending bills. The session created a U.S. Code XML parser prototype and added the `CODIFIED_LAW` corpus type.
+Session 428 built the full codified law pipeline:
+- ✅ Storage backend methods with COPY optimization (`store_codified_law`, `get_codified_law`, `get_codified_law_count`)
+- ✅ CLI command (`civic-extract uscode`)
+- ✅ Modal script for cloud ingestion (`scripts/modal_uscode.py`)
 
-## Key Insight
-
-| Corpus | Content | Purpose |
-|--------|---------|---------|
-| `legislation` | Bills (pending + enacted) | `whats_next()` - what's being proposed |
-| `codified_law` | Compiled statutes | `what_applies()` - what law applies now |
-
-## What's Already Done
-
-1. ✅ USCodeParser in `packages/civic-extraction/src/civic_extraction/uscode.py`
-2. ✅ Title 42 downloaded to `data/uscode/usc42.xml` (17MB, 7,029 sections)
-3. ✅ CODIFIED_LAW corpus type in `packages/civic/src/civic/storage/corpus_types.py:47`
-4. ✅ Federal legislation ingested (12,355 bills in legislation table)
+**Blocker:** Local ingestion hits Supabase statement timeout (~6 min limit). Modal script created to download directly from uscode.house.gov, but **the download URL is wrong** (expects ZIP, gets HTML).
 
 ## Recommended Task
 
-Complete the codified law ingestion pipeline:
+Fix the Modal script URL and complete ingestion:
 
-1. **Add storage backend methods** for `codified_law` corpus
-2. **Create CLI command** for U.S. Code ingestion (similar to `civic-extract legislative`)
-3. **Index to pgvector** using COPY optimization from Session 426
-4. **Test `what_applies()`** with real codified law queries
+1. **Fix download URL** in `scripts/modal_uscode.py:222` - the URL format is incorrect
+2. **Run Modal ingestion** - `modal run scripts/modal_uscode.py --title 42`
+3. **Test what_applies()** with real codified law queries
 
 ## Key Files
 
-- `packages/civic-extraction/src/civic_extraction/uscode.py` - Parser prototype
-- `packages/civic/src/civic/storage/corpus_types.py:154` - CODIFIED_LAW config
-- `packages/civic/src/civic/storage/pgvector_backend.py` - Need to add methods
-- `data/uscode/usc42.xml` - Downloaded Title 42 (housing, public welfare)
+- `scripts/modal_uscode.py:222` - **FIX NEEDED**: Wrong URL format for uscode.house.gov
+- `packages/civic/src/civic/storage/postgres_backend.py:3452` - store_codified_law with COPY
+- `packages/civic-extraction/src/civic_extraction/uscode.py` - Original USCodeParser
+- `data/uscode/usc42.xml` - Local copy of Title 42 (17MB, works with parser)
 
-## Suggested Approach
+## The URL Problem
 
-```bash
-# 1. Test the parser works
-python -m civic_extraction.uscode data/uscode/usc42.xml --stats
-
-# 2. Add storage methods (model after legislation or municipal_code)
-# Look at get_legislation(), store_legislation() in postgres_backend.py
-
-# 3. Create CLI
-# Add to packages/civic-extraction/src/civic_extraction/cli/
-
-# 4. Index with COPY optimization
-# Use pattern from modal_vectors.py --use-copy
+Current (wrong):
+```python
+url = f"https://uscode.house.gov/download/releasepoints/us/pl/118/200/xml_usc{title}@118-200.zip"
 ```
 
-## Database State
+The actual download page is: https://uscode.house.gov/download/download.shtml
+You need to find the correct bulk XML download URL or use the local file via R2.
 
-```sql
--- Current legislation counts
-SELECT state, COUNT(*) FROM legislation GROUP BY state;
--- US: 12,355, CA: 2,839
+## Alternative: Use Local File via R2
 
--- Will need codified_law table (similar schema to legislation)
+If URL is hard to fix, upload local file to R2:
+```python
+from dotenv import load_dotenv; load_dotenv()
+from civic.storage.blob import R2Backend
+r2 = R2Backend.from_env()
+r2.upload('uscode/usc42.xml', open('data/uscode/usc42.xml', 'rb').read(), 'application/xml')
 ```
+
+Then modify Modal to download from R2 instead.
 
 ## Success Criteria
 
-- [ ] `get_codified_law()` and `store_codified_law()` methods in postgres_backend.py
-- [ ] CLI: `civic-extract uscode --title 42 --cloud` ingests to Postgres
-- [ ] Sections indexed to pgvector with CODIFIED_LAW corpus type
+- [ ] 6,651 sections in `codified_law` table for `federal-US`
 - [ ] `c.what_applies("public housing")` returns U.S. Code sections
+- [ ] No statement timeouts (Modal handles ingestion)
 
-## Session 427 Commits
+## Commits This Session
 
-- `5e5edf9` - Federal legislation + U.S. Code parser prototype
-- `97f91e8` - Update pilot.json with P0 for codified_law_ingestion
+None yet - run `/commit` after fixing and testing.

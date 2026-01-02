@@ -9,6 +9,7 @@ Part of the 4-stage pipeline: discover -> ingest -> store -> index.
 import json
 import time
 from datetime import datetime, date
+from io import StringIO
 from typing import Any, Dict, List, Optional
 
 from .backend import StorageBackend, StorageStats, StorageValidationResult
@@ -613,6 +614,54 @@ class PostgresBackend:
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_legislation_temporal
             ON legislation(state, valid_from, valid_to)
+        """)
+
+        # Codified Law table (SESSION 428)
+        # Stores enacted statutes (U.S. Code, CA Codes) for what_applies() queries
+        # Unlike legislation (bills/proposals), this is compiled, enacted law
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS codified_law (
+                id SERIAL PRIMARY KEY,
+                citation TEXT NOT NULL,
+                title_number INTEGER NOT NULL,
+                title_name TEXT,
+                section_number TEXT NOT NULL,
+                heading TEXT,
+                text TEXT,
+                jurisdiction_id TEXT NOT NULL,
+                status TEXT,
+                chapter TEXT,
+                subchapter TEXT,
+                identifier TEXT NOT NULL,
+                metadata JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                UNIQUE (identifier, jurisdiction_id, valid_from),
+                CHECK (valid_to IS NULL OR valid_to > valid_from)
+            )
+        """)
+
+        # Codified law indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_codified_law_jurisdiction
+            ON codified_law(jurisdiction_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_codified_law_title
+            ON codified_law(title_number)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_codified_law_citation
+            ON codified_law(citation)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_codified_law_status
+            ON codified_law(status)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_codified_law_temporal
+            ON codified_law(jurisdiction_id, valid_from, valid_to)
         """)
 
         # Refresh metadata table (SESSION 423)
@@ -3398,6 +3447,349 @@ class PostgresBackend:
 
         return updated_count
 
+    # ========== Codified Law Methods (SESSION 428) ==========
+
+    def store_codified_law(
+        self,
+        jurisdiction_id: str,
+        sections: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+        use_copy: bool = True,
+    ) -> int:
+        """
+        Store codified law sections (U.S. Code, CA Codes) with temporal versioning.
+
+        Uses PostgreSQL COPY for 10x faster bulk inserts.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "federal-US", "state-CA")
+            sections: List of section dictionaries from USCodeParser.to_dict()
+            as_of: Timestamp for temporal versioning (default: now)
+            use_copy: If True (default), use COPY for bulk inserts. Set False for upsert.
+
+        Returns:
+            Number of sections successfully stored
+
+        Raises:
+            psycopg2.Error: If store operation fails
+        """
+        as_of = as_of or datetime.now()
+        as_of_str = as_of.isoformat()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Filter to sections with identifiers
+            valid_sections = [s for s in sections if s.get("identifier")]
+
+            if use_copy:
+                # COPY is 10x faster - use for bulk fresh inserts
+                # Batch in chunks of 500 to avoid Supabase statement timeout
+                batch_size = 500
+                for batch_start in range(0, len(valid_sections), batch_size):
+                    batch = valid_sections[batch_start:batch_start + batch_size]
+                    buffer = StringIO()
+
+                    for section in batch:
+                        # Build metadata from extra fields
+                        metadata = {
+                            k: v for k, v in section.items()
+                            if k not in [
+                                "citation", "title_number", "title_name", "section_number",
+                                "heading", "text", "status", "chapter", "subchapter", "identifier"
+                            ]
+                        }
+                        metadata_json = json.dumps(metadata, cls=DateTimeEncoder) if metadata else None
+
+                        # Build row values
+                        row_values = [
+                            section.get("citation"),
+                            section.get("title_number"),
+                            section.get("title_name"),
+                            section.get("section_number"),
+                            section.get("heading"),
+                            section.get("text"),
+                            jurisdiction_id,
+                            section.get("status"),
+                            section.get("chapter"),
+                            section.get("subchapter"),
+                            section.get("identifier"),
+                            metadata_json,
+                            as_of_str,  # created_at
+                            as_of_str,  # valid_from
+                            None,       # valid_to
+                        ]
+
+                        # Format for COPY: tab-separated, escape special chars
+                        line_parts = []
+                        for val in row_values:
+                            if val is None:
+                                line_parts.append("\\N")
+                            else:
+                                s = str(val)
+                                s = s.replace("\\", "\\\\")
+                                s = s.replace("\t", "\\t")
+                                s = s.replace("\n", "\\n")
+                                s = s.replace("\r", "\\r")
+                                line_parts.append(s)
+                        buffer.write("\t".join(line_parts) + "\n")
+
+                    buffer.seek(0)
+                    cursor.copy_from(
+                        buffer,
+                        "codified_law",
+                        columns=(
+                            "citation", "title_number", "title_name", "section_number",
+                            "heading", "text", "jurisdiction_id", "status",
+                            "chapter", "subchapter", "identifier", "metadata",
+                            "created_at", "valid_from", "valid_to"
+                        ),
+                    )
+                    # Commit each batch to avoid timeout
+                    conn.commit()
+            else:
+                # execute_values with temporal versioning for incremental updates
+                # First close previous versions
+                identifiers = [s.get("identifier") for s in valid_sections]
+                if identifiers:
+                    for i in range(0, len(identifiers), 1000):
+                        chunk = identifiers[i:i + 1000]
+                        placeholders = ",".join(["%s"] * len(chunk))
+                        cursor.execute(f"""
+                            UPDATE codified_law
+                            SET valid_to = %s
+                            WHERE jurisdiction_id = %s
+                              AND identifier IN ({placeholders})
+                              AND valid_to IS NULL
+                        """, [as_of_str, jurisdiction_id] + chunk)
+
+                # Then insert new versions
+                values = []
+                for section in valid_sections:
+                    metadata = {
+                        k: v for k, v in section.items()
+                        if k not in [
+                            "citation", "title_number", "title_name", "section_number",
+                            "heading", "text", "status", "chapter", "subchapter", "identifier"
+                        ]
+                    }
+                    values.append((
+                        section.get("citation"),
+                        section.get("title_number"),
+                        section.get("title_name"),
+                        section.get("section_number"),
+                        section.get("heading"),
+                        section.get("text"),
+                        jurisdiction_id,
+                        section.get("status"),
+                        section.get("chapter"),
+                        section.get("subchapter"),
+                        section.get("identifier"),
+                        json.dumps(metadata, cls=DateTimeEncoder) if metadata else None,
+                        as_of_str,
+                        as_of_str,
+                    ))
+
+                if values:
+                    psycopg2.extras.execute_values(
+                        cursor,
+                        """
+                        INSERT INTO codified_law (
+                            citation, title_number, title_name, section_number,
+                            heading, text, jurisdiction_id, status,
+                            chapter, subchapter, identifier, metadata,
+                            created_at, valid_from, valid_to
+                        ) VALUES %s
+                        """,
+                        values,
+                        template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)",
+                        page_size=500,
+                    )
+
+            conn.commit()
+            return len(valid_sections)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_codified_law(
+        self,
+        jurisdiction_id: str,
+        title_number: Optional[int] = None,
+        status: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve codified law sections with optional filtering.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "federal-US", "state-CA")
+            title_number: Filter by title number (e.g., 42 for Title 42)
+            status: Filter by status (None for active, "repealed" for repealed)
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of sections to return
+
+        Returns:
+            List of section dictionaries
+        """
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Build query with temporal filtering
+        query = """
+            SELECT * FROM codified_law
+            WHERE jurisdiction_id = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+        """
+        params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+
+        if title_number is not None:
+            query += " AND title_number = %s"
+            params.append(title_number)
+
+        if status is not None:
+            query += " AND status = %s"
+            params.append(status)
+        else:
+            # Default to active sections only (status IS NULL)
+            query += " AND status IS NULL"
+
+        query += " ORDER BY title_number, section_number"
+
+        if limit:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to dictionaries
+        sections = []
+        for row in rows:
+            section = dict(row)
+            # Parse JSONB fields
+            if "metadata" in section and isinstance(section["metadata"], str):
+                try:
+                    section["metadata"] = json.loads(section["metadata"])
+                except json.JSONDecodeError:
+                    section["metadata"] = {}
+            # Convert datetime/date objects to ISO strings
+            for key in ["created_at", "valid_from", "valid_to"]:
+                if key in section and section[key] is not None:
+                    if isinstance(section[key], (datetime, date)):
+                        section[key] = section[key].isoformat()
+            sections.append(section)
+
+        return sections
+
+    def search_codified_law(
+        self,
+        jurisdiction_id: str,
+        query: str,
+        title_number: Optional[int] = None,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """
+        Search codified law sections by topic/keyword.
+
+        Uses PostgreSQL full-text search for relevance ranking.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "federal-US")
+            query: Search query (topic keywords)
+            title_number: Optional filter by title number
+            limit: Maximum results to return
+
+        Returns:
+            List of matching sections with relevance scores
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Use full-text search with ranking
+        # plainto_tsquery handles natural language queries
+        sql = """
+            SELECT
+                citation, title_number, title_name, section_number,
+                heading, chapter, subchapter, identifier,
+                LEFT(text, 500) as text_preview,
+                ts_rank(
+                    to_tsvector('english', COALESCE(heading, '') || ' ' || COALESCE(text, '')),
+                    plainto_tsquery('english', %s)
+                ) as relevance
+            FROM codified_law
+            WHERE jurisdiction_id = %s
+              AND valid_to IS NULL
+              AND status IS NULL
+              AND to_tsvector('english', COALESCE(heading, '') || ' ' || COALESCE(text, ''))
+                  @@ plainto_tsquery('english', %s)
+        """
+        params: List[Any] = [query, jurisdiction_id, query]
+
+        if title_number is not None:
+            sql += " AND title_number = %s"
+            params.append(title_number)
+
+        sql += " ORDER BY relevance DESC LIMIT %s"
+        params.append(limit)
+
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [dict(row) for row in rows]
+
+    def get_codified_law_count(
+        self,
+        jurisdiction_id: str,
+        title_number: Optional[int] = None,
+        include_inactive: bool = False,
+    ) -> int:
+        """
+        Get count of current codified law sections for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "federal-US")
+            title_number: Optional filter by title number
+            include_inactive: Whether to include repealed/omitted sections
+
+        Returns:
+            Number of current (non-expired) sections
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        query = """
+            SELECT COUNT(*) FROM codified_law
+            WHERE jurisdiction_id = %s AND valid_to IS NULL
+        """
+        params: List[Any] = [jurisdiction_id]
+
+        if title_number is not None:
+            query += " AND title_number = %s"
+            params.append(title_number)
+
+        if not include_inactive:
+            query += " AND status IS NULL"
+
+        cursor.execute(query, params)
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
 
 # Verify protocol compliance at import time (only if psycopg2 available)
 # StorageBackend is @runtime_checkable, so isinstance() works
@@ -3427,6 +3819,8 @@ def _verify_protocol_compliance() -> None:
         'store_etl_cost', 'get_etl_costs', 'get_etl_cost_summary',
         # Legislation methods (SESSION 402)
         'store_legislation', 'get_legislation', 'get_legislation_by_bill_id', 'get_legislation_count',
+        # Codified law methods (SESSION 428)
+        'store_codified_law', 'get_codified_law', 'get_codified_law_count',
     ]
     for method in required_methods:
         assert hasattr(PostgresBackend, method), (

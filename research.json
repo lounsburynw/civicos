@@ -1,0 +1,148 @@
+{
+  "version": "1.0",
+  "type": "research",
+  "purpose": "Parallel research tracks that inform product but don't block pilot",
+  "last_updated": "2026-01-01",
+  "priority_policy": "P1 is highest for research (P0 reserved for pilot blockers)",
+  "category_order": [
+    "eigenspace_simulation",
+    "governance_theory"
+  ],
+  "eigenspace_simulation": {
+    "description": "Agent-based simulation for coordination mechanism optimization using eigenspace entropy",
+    "hypothesis": "Maximizing entropy of satisfaction across eigenspace preserves value pluralism better than efficiency-maximizing or majority-satisfying mechanisms",
+    "publication_potential": "Methodology paper on simulated mechanism design with LLM-derived value spaces",
+    "foundation": {
+      "archetype_response_matrix": {
+        "status": "complete",
+        "artifact": "data/archetype_response_matrix.csv",
+        "note": "25 archetypes x 54 scenarios, values -2 to +2"
+      },
+      "pca_analysis": {
+        "status": "complete",
+        "artifact": "data/pca_scree_plot.png",
+        "note": "Eigenspace dimensionality established"
+      },
+      "archetype_definitions": {
+        "status": "complete",
+        "artifact": "data/archetypes/archetype_definitions_v3_refined.json",
+        "note": "25 archetypes with full characterization"
+      },
+      "scenario_corpus": {
+        "status": "complete",
+        "artifact": "data/scenarios/",
+        "note": "54 discriminating civic scenarios"
+      }
+    },
+    "agent_model": {
+      "simulated_citizen_class": {
+        "status": "pending",
+        "priority": 1,
+        "description": "Agent that samples from eigenspace with position vector",
+        "artifact": "packages/civic/src/civic/research/simulation/agent.py",
+        "acceptance": "SimulatedCitizen class with eigenspace_position, can evaluate decisions"
+      },
+      "multi_dimensional_satisfaction": {
+        "status": "pending",
+        "priority": 1,
+        "description": "Satisfaction model: outcome, process, relative, trajectory, autonomy",
+        "artifact": "packages/civic/src/civic/research/simulation/satisfaction.py",
+        "acceptance": "AgentSatisfaction dataclass with update methods"
+      },
+      "behavioral_responses": {
+        "status": "pending",
+        "priority": 2,
+        "description": "Exit, voice, adaptation behaviors based on satisfaction state",
+        "artifact": "packages/civic/src/civic/research/simulation/behavior.py",
+        "acceptance": "Agents can exit, reduce participation, or adapt preferences"
+      }
+    },
+    "simulation_harness": {
+      "decision_generator": {
+        "status": "pending",
+        "priority": 1,
+        "description": "Generate synthetic decisions with eigenspace impact profiles",
+        "artifact": "packages/civic/src/civic/research/simulation/decisions.py",
+        "acceptance": "Decision class with eigenspace impact vector, can generate realistic proposals"
+      },
+      "citizen_swarm": {
+        "status": "pending",
+        "priority": 1,
+        "description": "Manage population of agents, run decisions through them",
+        "artifact": "packages/civic/src/civic/research/simulation/swarm.py",
+        "acceptance": "CitizenSwarm can sample N agents, run decisions, track state over time"
+      },
+      "entropy_metrics": {
+        "status": "pending",
+        "priority": 1,
+        "description": "Compute satisfaction entropy across eigenspace",
+        "artifact": "packages/civic/src/civic/research/simulation/metrics.py",
+        "acceptance": "participation_entropy(), satisfaction_entropy(), entropy_by_eigenregion()"
+      },
+      "simulation_runner": {
+        "status": "pending",
+        "priority": 2,
+        "description": "Run multi-episode simulations, collect statistics",
+        "artifact": "packages/civic/src/civic/research/simulation/runner.py",
+        "acceptance": "Can run N episodes, output metrics over time, save results"
+      }
+    },
+    "coordination_integration": {
+      "mechanism_testbed": {
+        "status": "pending",
+        "priority": 2,
+        "description": "Test different coordination mechanisms against simulated swarm",
+        "artifact": "packages/civic/src/civic/research/simulation/mechanisms.py",
+        "acceptance": "Can swap coordination mechanisms, compare entropy outcomes"
+      },
+      "langgraph_bridge": {
+        "status": "pending",
+        "priority": 2,
+        "description": "Connect simulation to existing LangGraph coordination",
+        "artifact": "Integration with packages/civic/src/civic/_internal/coordination/",
+        "acceptance": "Simulated agents can participate in coordination workflows"
+      }
+    },
+    "validation": {
+      "sim_to_real_framework": {
+        "status": "pending",
+        "priority": 3,
+        "description": "Compare simulation predictions to pilot observations",
+        "artifact": "packages/civic/src/civic/research/simulation/validation.py",
+        "acceptance": "Framework to log predictions, compare to real data post-pilot"
+      },
+      "calibration_protocol": {
+        "status": "pending",
+        "priority": 3,
+        "description": "Protocol for updating agent models based on real data",
+        "artifact": "docs/research/CALIBRATION_PROTOCOL.md",
+        "acceptance": "Documented process for Bayesian updating of simulation parameters"
+      }
+    }
+  },
+  "governance_theory": {
+    "description": "Theoretical foundations connecting computation, governance, and value pluralism",
+    "status": "exploratory",
+    "threads": {
+      "entropy_as_objective": {
+        "status": "conceptual",
+        "description": "Entropy of value-specific satisfaction as governance objective function",
+        "key_questions": [
+          "Does high eigenspace entropy correlate with felt legitimacy?",
+          "How to handle zero-sum values?",
+          "What measure over possible value space?"
+        ]
+      },
+      "computational_governance_analogies": {
+        "status": "conceptual",
+        "description": "Mapping governance concepts to computational primitives",
+        "key_analogies": [
+          "State law as hard memory / ROM",
+          "Administrative agencies as runtime processes",
+          "Court decisions as JIT compilation / memoization",
+          "Constitutional constraints as type system"
+        ]
+      }
+    }
+  }
+}
