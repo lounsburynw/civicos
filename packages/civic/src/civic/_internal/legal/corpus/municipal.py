@@ -79,6 +79,8 @@ from html import unescape
 from pathlib import Path
 from typing import Iterator, Optional, Callable
 
+import httpx
+
 try:
     import httpx
     HTTPX_AVAILABLE = True
