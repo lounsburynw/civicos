@@ -8386,3 +8386,46 @@ Successfully ingested 50,783 U.S. Code sections from 53 main titles to PostgreSQ
 
 ### Next P0: uscode_appendices
 Parser fix needed for appendix XML structure (title_number extraction).
+
+## Session 430: uscode_appendices - Complete U.S. Code Appendix Ingestion
+
+**Date:** 2026-01-02
+**Item:** uscode_appendices (pilot_validation > e2e_cloud_data_verification)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Fixed USCodeParser to handle appendix XML structure and ingested U.S. Code appendices to PostgreSQL.
+
+### Problem
+Appendices (5a, 11a, 18a, 28a) failed with `NotNullViolation: null value in column "title_number"`. The parser expected `<main>/<title>` structure but appendices use `<appendix>` and `<docNumber>` metadata.
+
+### Solution
+Updated `USCodeParser._load()` in `scripts/modal_uscode.py`:
+1. Try standard `<main>/<title>` parsing first
+2. Fallback to `<docNumber>` from metadata for appendices (e.g., "18a")
+3. Extract numeric title_number from doc number (18a → 18)
+4. Generate proper citations: "18 U.S.C. App. § 1" for appendices
+
+### Results
+| Appendix | Sections | Reason |
+|----------|----------|--------|
+| 5a | 0 | All transferred/repealed (Federal Advisory Committee Act) |
+| 11a | 0 | All repealed (Bankruptcy appendix) |
+| 18a | **26** | Criminal procedure rules, detainers act, classified info |
+| 28a | 0 | Contains `<courtRule>` elements, not `<section>` |
+
+### Database Status
+- **Total sections:** 50,809 (up from 50,783)
+- **New:** 26 sections from Title 18 Appendix
+- **Release point:** PL 119-59 (Jan 2026)
+
+### Files Changed
+- `scripts/modal_uscode.py` - Parser fix for appendix XML, added appendices to ALL_TITLES
+- `pilot.json` - uscode_appendices marked ready
+
+### Verification
+```python
+# Query confirms appendix sections are searchable
+what_applies("detainers")
+# Returns: 18 U.S.C. App. § 2: Enactment into law of Interstate Agreement on Detainers
+```
