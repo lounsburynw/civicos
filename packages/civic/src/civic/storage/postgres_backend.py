@@ -749,6 +749,60 @@ class PostgresBackend:
             WHERE next_scheduled_at IS NOT NULL
         """)
 
+        # Budget items table (SESSION 434)
+        # Stores municipal/county budget line items for financial queries
+        # Amounts in cents to avoid floating-point precision issues
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS budget_items (
+                id SERIAL PRIMARY KEY,
+                item_id TEXT NOT NULL,
+                jurisdiction_id TEXT NOT NULL,
+                fiscal_year TEXT NOT NULL,
+                fund TEXT,
+                department TEXT,
+                program TEXT,
+                line_item TEXT NOT NULL,
+                budgeted_cents BIGINT NOT NULL,
+                revised_cents BIGINT,
+                actual_cents BIGINT,
+                source_url TEXT,
+                source_page INTEGER,
+                notes TEXT,
+                metadata JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                UNIQUE (item_id, jurisdiction_id, valid_from),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                CHECK (valid_to IS NULL OR valid_to > valid_from),
+                CHECK (budgeted_cents >= 0),
+                CHECK (revised_cents IS NULL OR revised_cents >= 0),
+                CHECK (actual_cents IS NULL OR actual_cents >= 0)
+            )
+        """)
+
+        # Budget items indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_budget_items_jurisdiction
+            ON budget_items(jurisdiction_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_budget_items_fiscal_year
+            ON budget_items(jurisdiction_id, fiscal_year)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_budget_items_department
+            ON budget_items(jurisdiction_id, department)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_budget_items_fund
+            ON budget_items(jurisdiction_id, fund)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_budget_items_temporal
+            ON budget_items(jurisdiction_id, valid_from, valid_to)
+        """)
+
         # Migration: Add full_text column if not exists (SESSION 418)
         cursor.execute("""
             DO $$
@@ -4198,6 +4252,354 @@ class PostgresBackend:
 
         return count
 
+    # ========== Budget Items Methods (Municipal/County Budget Line Items) ==========
+
+    def store_budget_items(
+        self,
+        jurisdiction_id: str,
+        items: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+        use_copy: bool = True,
+    ) -> int:
+        """
+        Store budget line items with temporal versioning.
+
+        Uses PostgreSQL COPY for 10x faster bulk inserts.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "san-rafael")
+            items: List of budget item dictionaries
+            as_of: Timestamp for temporal versioning (default: now)
+            use_copy: If True (default), use COPY for bulk inserts. Set False for upsert.
+
+        Returns:
+            Number of items successfully stored
+
+        Raises:
+            psycopg2.Error: If store operation fails
+        """
+        as_of = as_of or datetime.now()
+        as_of_str = as_of.isoformat()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Filter to items with identifiers and positive budgets
+            valid_items = [
+                item for item in items
+                if item.get("id") and item.get("budgeted_cents", 0) >= 0
+            ]
+
+            if use_copy:
+                # COPY is 10x faster - use for bulk fresh inserts
+                batch_size = 500
+                for batch_start in range(0, len(valid_items), batch_size):
+                    batch = valid_items[batch_start:batch_start + batch_size]
+                    buffer = StringIO()
+
+                    for item in batch:
+                        # Build metadata from extra fields
+                        metadata = {
+                            k: v for k, v in item.items()
+                            if k not in [
+                                "id", "fiscal_year", "fund", "department",
+                                "program", "line_item", "budgeted_cents",
+                                "revised_cents", "actual_cents", "source_url",
+                                "source_page", "notes"
+                            ]
+                        }
+                        metadata_json = json.dumps(metadata, cls=DateTimeEncoder) if metadata else None
+
+                        # Build row values
+                        row_values = [
+                            item.get("id"),
+                            jurisdiction_id,
+                            item.get("fiscal_year"),
+                            item.get("fund"),
+                            item.get("department"),
+                            item.get("program"),
+                            item.get("line_item"),
+                            item.get("budgeted_cents"),
+                            item.get("revised_cents"),
+                            item.get("actual_cents"),
+                            item.get("source_url"),
+                            item.get("source_page"),
+                            item.get("notes"),
+                            metadata_json,
+                            as_of_str,  # created_at
+                            as_of_str,  # valid_from
+                            None,       # valid_to
+                        ]
+
+                        # Format for COPY: tab-separated, escape special chars
+                        line_parts = []
+                        for val in row_values:
+                            if val is None:
+                                line_parts.append("\\N")
+                            else:
+                                s = str(val)
+                                s = s.replace("\\", "\\\\")
+                                s = s.replace("\t", "\\t")
+                                s = s.replace("\n", "\\n")
+                                s = s.replace("\r", "\\r")
+                                line_parts.append(s)
+                        buffer.write("\t".join(line_parts) + "\n")
+
+                    buffer.seek(0)
+                    cursor.copy_from(
+                        buffer,
+                        "budget_items",
+                        columns=(
+                            "item_id", "jurisdiction_id", "fiscal_year", "fund",
+                            "department", "program", "line_item", "budgeted_cents",
+                            "revised_cents", "actual_cents", "source_url",
+                            "source_page", "notes", "metadata",
+                            "created_at", "valid_from", "valid_to"
+                        ),
+                    )
+                    # Commit each batch to avoid timeout
+                    conn.commit()
+            else:
+                # execute_values with temporal versioning for incremental updates
+                # First close previous versions
+                item_ids = [item.get("id") for item in valid_items if item.get("id")]
+                if item_ids:
+                    for i in range(0, len(item_ids), 1000):
+                        chunk = item_ids[i:i + 1000]
+                        placeholders = ",".join(["%s"] * len(chunk))
+                        cursor.execute(f"""
+                            UPDATE budget_items
+                            SET valid_to = %s
+                            WHERE jurisdiction_id = %s
+                              AND item_id IN ({placeholders})
+                              AND valid_to IS NULL
+                        """, [as_of_str, jurisdiction_id] + chunk)
+
+                # Then insert new versions
+                values = []
+                for item in valid_items:
+                    metadata = {
+                        k: v for k, v in item.items()
+                        if k not in [
+                            "id", "fiscal_year", "fund", "department",
+                            "program", "line_item", "budgeted_cents",
+                            "revised_cents", "actual_cents", "source_url",
+                            "source_page", "notes"
+                        ]
+                    }
+                    values.append((
+                        item.get("id"),
+                        jurisdiction_id,
+                        item.get("fiscal_year"),
+                        item.get("fund"),
+                        item.get("department"),
+                        item.get("program"),
+                        item.get("line_item"),
+                        item.get("budgeted_cents"),
+                        item.get("revised_cents"),
+                        item.get("actual_cents"),
+                        item.get("source_url"),
+                        item.get("source_page"),
+                        item.get("notes"),
+                        json.dumps(metadata, cls=DateTimeEncoder) if metadata else None,
+                        as_of_str,
+                        as_of_str,
+                    ))
+
+                if values:
+                    psycopg2.extras.execute_values(
+                        cursor,
+                        """
+                        INSERT INTO budget_items (
+                            item_id, jurisdiction_id, fiscal_year, fund,
+                            department, program, line_item, budgeted_cents,
+                            revised_cents, actual_cents, source_url,
+                            source_page, notes, metadata,
+                            created_at, valid_from, valid_to
+                        ) VALUES %s
+                        """,
+                        values,
+                        template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)",
+                        page_size=500,
+                    )
+
+            conn.commit()
+            return len(valid_items)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_budget_items(
+        self,
+        jurisdiction_id: str,
+        fiscal_year: Optional[str] = None,
+        fund: Optional[str] = None,
+        department: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve budget items with optional filtering.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "san-rafael")
+            fiscal_year: Filter by fiscal year (e.g., "2025-2026")
+            fund: Filter by fund (e.g., "General Fund")
+            department: Filter by department (e.g., "Police")
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of items to return
+
+        Returns:
+            List of budget item dictionaries
+        """
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Build query with temporal filtering
+        query = """
+            SELECT * FROM budget_items
+            WHERE jurisdiction_id = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+        """
+        params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+
+        if fiscal_year is not None:
+            query += " AND fiscal_year = %s"
+            params.append(fiscal_year)
+
+        if fund is not None:
+            query += " AND fund = %s"
+            params.append(fund)
+
+        if department is not None:
+            query += " AND department = %s"
+            params.append(department)
+
+        query += " ORDER BY department, fund, line_item"
+
+        if limit:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to dictionaries
+        items = []
+        for row in rows:
+            item = dict(row)
+            # Parse JSONB fields
+            if "metadata" in item and isinstance(item["metadata"], str):
+                try:
+                    item["metadata"] = json.loads(item["metadata"])
+                except json.JSONDecodeError:
+                    item["metadata"] = {}
+            # Convert datetime/date objects to ISO strings
+            for key in ["created_at", "valid_from", "valid_to"]:
+                if key in item and item[key] is not None:
+                    if isinstance(item[key], (datetime, date)):
+                        item[key] = item[key].isoformat()
+            items.append(item)
+
+        return items
+
+    def get_budget_summary(
+        self,
+        jurisdiction_id: str,
+        fiscal_year: str,
+        group_by: str = "department",
+        as_of: Optional[datetime] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get aggregated budget summary grouped by department, fund, or program.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "san-rafael")
+            fiscal_year: Fiscal year (e.g., "2025-2026")
+            group_by: Grouping field ("department", "fund", or "program")
+            as_of: Point-in-time query (for temporal versioning)
+
+        Returns:
+            List of summary dictionaries with group name and totals
+        """
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Validate group_by to prevent SQL injection
+        valid_groups = {"department", "fund", "program"}
+        if group_by not in valid_groups:
+            group_by = "department"
+
+        query = f"""
+            SELECT
+                {group_by},
+                SUM(budgeted_cents) as budgeted_cents,
+                SUM(revised_cents) as revised_cents,
+                SUM(actual_cents) as actual_cents,
+                COUNT(*) as item_count
+            FROM budget_items
+            WHERE jurisdiction_id = %s
+              AND fiscal_year = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+            GROUP BY {group_by}
+            ORDER BY budgeted_cents DESC
+        """
+        params = [jurisdiction_id, fiscal_year, as_of.isoformat(), as_of.isoformat()]
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [dict(row) for row in rows]
+
+    def get_budget_items_count(
+        self,
+        jurisdiction_id: str,
+        fiscal_year: Optional[str] = None,
+    ) -> int:
+        """
+        Get count of budget items for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "san-rafael")
+            fiscal_year: Optional filter by fiscal year
+
+        Returns:
+            Number of current (non-expired) budget items
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        query = """
+            SELECT COUNT(*) FROM budget_items
+            WHERE jurisdiction_id = %s
+              AND valid_to IS NULL
+        """
+        params: List[Any] = [jurisdiction_id]
+
+        if fiscal_year is not None:
+            query += " AND fiscal_year = %s"
+            params.append(fiscal_year)
+
+        cursor.execute(query, params)
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
 
 # Verify protocol compliance at import time (only if psycopg2 available)
 # StorageBackend is @runtime_checkable, so isinstance() works
@@ -4231,6 +4633,8 @@ def _verify_protocol_compliance() -> None:
         'store_codified_law', 'get_codified_law', 'get_codified_law_count',
         # Executive orders methods (SESSION 432)
         'store_executive_orders', 'get_executive_orders', 'get_executive_orders_count',
+        # Budget items methods (SESSION 434)
+        'store_budget_items', 'get_budget_items', 'get_budget_summary', 'get_budget_items_count',
     ]
     for method in required_methods:
         assert hasattr(PostgresBackend, method), (

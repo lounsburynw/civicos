@@ -1286,15 +1286,16 @@
     },
     "budget": {
       "budget_schema": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "budget_items table in SQLite/Postgres backends",
         "doc": "docs/BUDGET_EXTRACTION.md#schema-design",
-        "note": "Stores line-item budget data with amounts in cents for precision"
+        "note": "Stores line-item budget data with amounts in cents for precision",
+        "completed": "2026-01-02"
       },
       "budget_etl_template": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "AI-assisted extraction prompt template for municipal budgets",
         "doc": "docs/BUDGET_EXTRACTION.md#ai-assisted-etl-template",
         "note": "Enables open-source contributors to add their city's budget"

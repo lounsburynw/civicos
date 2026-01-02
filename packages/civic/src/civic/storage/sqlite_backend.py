@@ -1643,6 +1643,48 @@ class SQLiteBackend:
         """Get executive orders count (stub for SQLite - uses Postgres in production)."""
         return 0
 
+    # ========== Budget Items Methods (Stubs - Uses Postgres in Production) ==========
+
+    def store_budget_items(
+        self,
+        jurisdiction_id: str,
+        items: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+        use_copy: bool = True,
+    ) -> int:
+        """Store budget items (stub for SQLite - uses Postgres in production)."""
+        return len(items)
+
+    def get_budget_items(
+        self,
+        jurisdiction_id: str,
+        fiscal_year: Optional[str] = None,
+        fund: Optional[str] = None,
+        department: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get budget items (stub for SQLite - uses Postgres in production)."""
+        return []
+
+    def get_budget_summary(
+        self,
+        jurisdiction_id: str,
+        fiscal_year: str,
+        group_by: str = "department",
+        as_of: Optional[datetime] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get budget summary (stub for SQLite - uses Postgres in production)."""
+        return []
+
+    def get_budget_items_count(
+        self,
+        jurisdiction_id: str,
+        fiscal_year: Optional[str] = None,
+    ) -> int:
+        """Get budget items count (stub for SQLite - uses Postgres in production)."""
+        return 0
+
 
 # Verify protocol compliance at import time
 # StorageBackend is @runtime_checkable, so isinstance() works

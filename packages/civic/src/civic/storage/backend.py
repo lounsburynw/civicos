@@ -1072,3 +1072,105 @@ class StorageBackend(Protocol):
             Number of matching orders
         """
         ...
+
+    # ========== Budget Items Methods (Municipal/County Budget Line Items) ==========
+
+    def store_budget_items(
+        self,
+        jurisdiction_id: str,
+        items: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+        use_copy: bool = True,
+    ) -> int:
+        """
+        Store budget line items with temporal versioning.
+
+        Budget items track municipal/county spending by department, fund, and program.
+        Amounts are stored in cents to avoid floating-point precision issues.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "san-rafael")
+            items: List of budget item dictionaries with keys:
+                - id: Unique identifier (e.g., "san-rafael-fy2526-general-fund-police")
+                - fiscal_year: Fiscal year (e.g., "2025-2026")
+                - fund: Fund name (e.g., "General Fund", "Enterprise")
+                - department: Department name (e.g., "Police", "Fire")
+                - program: Optional program name
+                - line_item: Budget line description
+                - budgeted_cents: Budgeted amount in cents
+                - revised_cents: Optional revised amount in cents
+                - actual_cents: Optional actual spend in cents
+                - source_url: URL or filename of source document
+                - source_page: Optional page number in source
+                - notes: Optional notes
+            as_of: Timestamp for temporal versioning (default: now)
+            use_copy: If True (default), use COPY for bulk inserts
+
+        Returns:
+            Number of items successfully stored
+        """
+        ...
+
+    def get_budget_items(
+        self,
+        jurisdiction_id: str,
+        fiscal_year: Optional[str] = None,
+        fund: Optional[str] = None,
+        department: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve budget items with optional filtering.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "san-rafael")
+            fiscal_year: Filter by fiscal year (e.g., "2025-2026")
+            fund: Filter by fund (e.g., "General Fund")
+            department: Filter by department (e.g., "Police")
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of items to return
+
+        Returns:
+            List of budget item dictionaries
+        """
+        ...
+
+    def get_budget_summary(
+        self,
+        jurisdiction_id: str,
+        fiscal_year: str,
+        group_by: str = "department",
+        as_of: Optional[datetime] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get aggregated budget summary grouped by department, fund, or program.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "san-rafael")
+            fiscal_year: Fiscal year (e.g., "2025-2026")
+            group_by: Grouping field ("department", "fund", or "program")
+            as_of: Point-in-time query (for temporal versioning)
+
+        Returns:
+            List of summary dictionaries with group name and totals:
+            [{"department": "Police", "budgeted_cents": 25000000, "count": 15}, ...]
+        """
+        ...
+
+    def get_budget_items_count(
+        self,
+        jurisdiction_id: str,
+        fiscal_year: Optional[str] = None,
+    ) -> int:
+        """
+        Get count of budget items for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "san-rafael")
+            fiscal_year: Optional filter by fiscal year
+
+        Returns:
+            Number of current (non-expired) budget items
+        """
+        ...
