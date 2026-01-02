@@ -361,7 +361,7 @@
       },
       "cost_dashboard": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Admin dashboard showing cumulative ETL costs by pipeline and time period",
         "note": "Aggregate from etl_costs table. Show daily/weekly/monthly breakdown by pipeline type."
       },
@@ -1283,8 +1283,10 @@
         "status": "not_ready",
         "priority": 3,
         "artifact": "Election data integration for whats_next() - upcoming elections, deadlines, ballot measures",
-        "note": "Post-core-ingestion feature. Multi-source strategy: Google Civic API (primary) + Marin County Registrar (authoritative local). Reference doc: .claude/plans/cheerful-munching-ripple.md",
-        "depends_on": ["codified_law_ingestion"],
+        "note": "Post-core-ingestion feature. Multi-source strategy: Google Civic API (primary) + Marin County Registrar (authoritative local). Reference doc: docs/critical/ELECTION_INTEGRATION.md",
+        "depends_on": [
+          "codified_law_ingestion"
+        ],
         "data_sources": {
           "google_civic_api": "Elections, polling locations, representatives (free tier: 25k/day)",
           "marin_registrar": "Official dates, local measures (web scraping)"
@@ -1298,6 +1300,49 @@
           "packages/civic/src/civic/storage/backend.py",
           "packages/civic/src/civic/civic.py"
         ]
+      },
+      "roll_call_extraction": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Extract roll call votes from meeting minutes (AYES/NOES/ABSENT patterns)",
+        "note": "Prerequisite for voting record linkage. Minutes contain 'AYES: Smith, Jones; NOES: Brown' patterns. Add extract_roll_call() to decision extraction pipeline.",
+        "depends_on": [
+          "election_integration"
+        ],
+        "modified_files": [
+          "packages/civic-extraction/src/civic_extraction/decision_extractor.py"
+        ],
+        "output": "Decisions have populated vote_results: {'Smith': 'yes', 'Jones': 'yes', 'Brown': 'no'}"
+      },
+      "elected_officials_table": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "ElectedOfficial model + storage for linking candidates to voting records",
+        "note": "Schema: id, name, seat, jurisdiction_id, term_start, term_end, name_variations (for fuzzy matching). Populated from Google Civic API representatives endpoint.",
+        "depends_on": [
+          "election_integration"
+        ],
+        "new_files": [
+          "packages/civic/src/civic/_internal/elections/officials.py"
+        ],
+        "modified_files": [
+          "packages/civic/src/civic/storage/backend.py",
+          "packages/civic/src/civic/storage/sqlite_backend.py"
+        ]
+      },
+      "voting_record_api": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "get_voting_record() method to query incumbent voting history by topic",
+        "note": "The 'closed loop' - connects elections to decisions. Returns VotingRecord with yes/no/abstain counts and decision list. Enables 'Jane Smith voted YES on 80% of housing items'.",
+        "depends_on": [
+          "roll_call_extraction",
+          "elected_officials_table"
+        ],
+        "modified_files": [
+          "packages/civic/src/civic/civic.py"
+        ],
+        "example_query": "c.get_voting_record('Jane Smith', topic='housing') -> VotingRecord"
       }
     }
   },
@@ -1930,8 +1975,8 @@
         "completed": "2026-01-01"
       },
       "codified_law_ingestion": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "U.S. Code and CA Codes (codified statutes) ingested for what_applies()",
         "target_count": "Key titles: Title 42 (housing), relevant CA codes",
         "verification": "SELECT COUNT(*) FROM codified_law WHERE jurisdiction_id IN ('federal-US', 'state-CA')",
@@ -1961,16 +2006,46 @@
         "verification": "docs/operations/DATA_REFRESH.md exists with refresh commands and schedules",
         "note": "Define refresh strategy: legislation (monthly --bulk), meetings (weekly), municipal_code (quarterly), transcripts (after videos), issues (daily). With vectors_e2e_cloud complete, can now document how to run vector refresh from GitHub Actions using --provider flag.",
         "completed": "2025-12-30"
+      },
+      "uscode_all_titles": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Ingest all 54 U.S. Code titles (currently only Title 42)",
+        "notes": "Estimate: ~100k sections total across all titles"
+      },
+      "cfr_ingestion": {
+        "status": "not_ready",
+        "priority": 3,
+        "description": "Ingest Code of Federal Regulations (agency regulations)",
+        "notes": "50 titles, ~180k pages. Source: ecfr.gov bulk XML"
+      },
+      "case_law_ingestion": {
+        "status": "not_ready",
+        "priority": 3,
+        "description": "Ingest federal case law (judicial decisions)",
+        "notes": "Sources: CourtListener API, Harvard Caselaw Access Project"
+      },
+      "executive_orders_ingestion": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Ingest Executive Orders",
+        "notes": "Source: Federal Register API. ~15k orders historically"
+      },
+      "ca_codes_ingestion": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Ingest California Codes (29 codes)",
+        "notes": "Government, Health & Safety, Civil, etc. Source: leginfo.legislature.ca.gov"
       }
     }
   },
   "summary": {
-    "total_items": 176,
+    "total_items": 179,
     "by_priority": {
       "p0": 1,
       "p1": 63,
       "p2": 76,
-      "p3": 33
+      "p3": 36
     },
     "by_category": {
       "test_infrastructure": 10,
@@ -1980,7 +2055,7 @@
       "admin_operations": 11,
       "pipeline_automation": 11,
       "data_architecture": 19,
-      "data_readiness": 16,
+      "data_readiness": 19,
       "data_standards": 7,
       "data_integrity": 8,
       "city_onboarding": 13,

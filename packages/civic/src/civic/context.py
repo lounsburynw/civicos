@@ -8,6 +8,13 @@ from typing import Optional, List
 from dataclasses import dataclass, field
 from datetime import datetime
 
+# Load environment variables for DATABASE_URL
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 
 @dataclass
 class RegulatoryStack:
@@ -142,6 +149,38 @@ def get_regulatory_context(
     except Exception as e:
         state = [{"note": f"Error loading state legislation: {e}"}]
         federal = [{"note": f"Error loading federal programs: {e}"}]
+
+    # Search U.S. Code (codified federal law)
+    try:
+        import os
+        database_url = os.getenv("DATABASE_URL")
+        if database_url:
+            from civic.storage.postgres_backend import PostgresBackend
+            db = PostgresBackend(database_url)
+
+            # Search codified law for relevant sections
+            sections = db.search_codified_law(
+                jurisdiction_id="federal-US",
+                query=topic,
+                limit=5,
+            )
+
+            for section in sections:
+                federal.append({
+                    "type": "codified_law",
+                    "citation": section.get("citation", ""),
+                    "heading": section.get("heading", ""),
+                    "chapter": section.get("chapter", ""),
+                    "text_preview": section.get("text_preview", "")[:300],
+                    "relevance": round(float(section.get("relevance", 0)), 4),
+                })
+
+            # Remove the "no federal" note if we found codified law
+            if sections and federal and federal[0].get("note"):
+                federal = [f for f in federal if not f.get("note")]
+
+    except Exception:
+        pass  # Codified law search not available
 
     # Search local municipal code (city ordinances)
     try:
