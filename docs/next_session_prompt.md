@@ -1,109 +1,99 @@
-# Recommended: Ingest U.S. Code Appendices
+# Recommended: Ingest Executive Orders
 
 **Priority:** P0
 **Area:** pilot_validation > e2e_cloud_data_verification
 **Date:** 2026-01-02
 
-> This is recommended context from Session 429. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 431. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 429 completed ingestion of 53 main U.S. Code titles (50,783 sections) to PostgreSQL. The appendices (5a, 11a, 18a, 28a) failed because they have a different XML structure that causes `title_number` to be null.
+Sessions 429-431 completed the major codified law ingestion work:
+- **Session 429-430:** U.S. Code (50,809 sections from 57 titles including appendices)
+- **Session 431:** California Codes (161,219 sections from 29 codes)
+- **Total:** 212,028 codified law sections now searchable in PostgreSQL
 
-**Completed this session:**
-- Downloaded all 57 titles locally via parallel script (312MB)
-- Uploaded to R2 for fast Modal access (172MB, ~2s download vs hours from gov servers)
-- Ingested 50,783 sections from 53 main titles
-- `what_applies()` now returns U.S. Code sections via full-text search
+Executive Orders are the logical next step in building a complete regulatory stack.
 
 ## Recommended Task
 
-Fix the USCodeParser to handle appendix XML structure and ingest the 4 appendix titles.
+Ingest Executive Orders from the Federal Register API to expand coverage of federal executive actions.
 
-## The Problem
+## Key Context
 
-Appendices fail with `NotNullViolation: null value in column "title_number"`:
-```
-Failing row contains (39567, None U.S.C. § 1, null, null, 1, Short title, ...)
-identifier: /us/usc/t18a/pl/91/538/s1
-```
-
-The parser expects `<title identifier="/us/usc/t42">` but appendices structure is different.
-
-## Key Files
-
-- `scripts/modal_uscode.py:73-110` - Inline USCodeParser (extract title_number logic)
-- `scripts/modal_uscode.py:56-66` - ALL_TITLES list (appendices currently excluded)
-- `data/uscode/xml_usc05a.zip` - Sample appendix XML to investigate
-- `data/uscode/xml_usc18a.zip` - Title 18 Appendix (where error occurred)
+The Federal Register API provides structured access to Executive Orders:
+- API: https://www.federalregister.gov/developers/documentation/api/v1
+- Historical EOs: ~15,000+ orders from multiple administrations
+- Current format: JSON with full text, signing dates, CFR citations
 
 ## Suggested Approach
 
-1. **Investigate appendix XML structure:**
+1. **Explore the Federal Register API:**
    ```bash
-   cd data/uscode && unzip -p xml_usc18a.zip | head -100
-   # Look for how title/section identifiers differ from main titles
+   curl -s "https://www.federalregister.gov/api/v1/documents.json?conditions[presidential_document_type]=executive_order&per_page=3" | python3 -m json.tool | head -50
    ```
 
-2. **Check identifier patterns:**
-   ```bash
-   unzip -p xml_usc18a.zip | grep -o 'identifier="[^"]*"' | head -20
-   # Expected: /us/usc/t18a/... patterns
-   ```
+2. **Identify data fields to extract:**
+   - Document number, title, signing date
+   - Full text or abstract
+   - CFR references
+   - President name
 
-3. **Fix parser title extraction:**
-   - Main titles: `/us/usc/t42` → title_number = 42
-   - Appendices: `/us/usc/t18a/...` → title_number should be 18 (or "18a")
-   - May need to extract from identifier if `<title>` element missing
+3. **Determine storage approach:**
+   - Option A: Extend `codified_law` table (jurisdiction_id = "federal-US-EO")
+   - Option B: Create new `executive_orders` table with specific schema
+   - Consider: EOs are executive actions, not codified statutes
 
-4. **Update schema if needed:**
-   - `title_number` is INTEGER - appendices like "18a" won't fit
-   - Options: change to TEXT, or store as 18 with appendix flag in metadata
+4. **Create ingestion script:**
+   - Pattern after `scripts/modal_cacode.py` or `scripts/modal_uscode.py`
+   - Handle pagination (API returns max 1000 per request)
+   - Deduplicate on document number
 
 5. **Test and ingest:**
    ```bash
-   modal run scripts/modal_uscode.py --title 18a --dry-run
-   modal run scripts/modal_uscode.py --all --start-from 05a
+   modal run scripts/modal_executive_orders.py --dry-run
+   modal run scripts/modal_executive_orders.py
    ```
 
 ## Database Status
 
 ```
-Total U.S. Code sections: 50,783
-Release point: PL 119-59 (Jan 2026)
-Missing: 5a, 11a, 18a, 28a (appendices)
+Codified Law Sections:
+  California: 161,219
+  U.S. Code: 50,809
+  Total: 212,028
+
+Executive Orders: 0 (target: ~15k)
 ```
 
 ## Tests to Run
 
 ```bash
-# Verify main titles still work
+# Verify existing data still works
 python3 -c "
 from dotenv import load_dotenv; load_dotenv()
 from civic.storage.postgres_backend import PostgresBackend
 import os
 db = PostgresBackend(os.environ['DATABASE_URL'])
-print(f'Sections: {db.get_codified_law_count(\"federal-US\"):,}')
-results = db.search_codified_law('federal-US', 'veterans', limit=3)
-for r in results: print(f'  {r[\"citation\"]}: {r[\"heading\"][:50]}')
+print(f'CA Codes: {db.get_codified_law_count(\"state-CA\"):,}')
+print(f'US Code: {db.get_codified_law_count(\"federal-US\"):,}')
 "
 ```
 
 ## Success Criteria
 
-- [ ] Parser handles appendix XML structure (title_number not null)
-- [ ] All 4 appendices ingested (5a, 11a, 18a, 28a)
-- [ ] Total sections ~51k+ (currently 50,783)
+- [ ] Federal Register API structure understood
+- [ ] Ingestion script created (`scripts/modal_executive_orders.py`)
+- [ ] Executive Orders ingested to PostgreSQL
+- [ ] Searchable via existing search methods
 
-## Infrastructure Created This Session
+## Key Files from Previous Sessions
 
-| Script | Purpose |
-|--------|---------|
-| `scripts/download_uscode.sh` | Parallel download all titles (10 connections) |
-| `scripts/upload_uscode_r2.py` | Upload zips to R2 for fast Modal access |
-| `scripts/modal_uscode.py` | Cloud ingestion with R2 source, dedup, resume |
+- `scripts/modal_uscode.py` - Pattern for Modal ingestion with R2
+- `scripts/modal_cacode.py` - Pattern for parsing and bulk insert
+- `packages/civic/src/civic/storage/postgres_backend.py:3452` - `store_codified_law()` method
 
-## Also P1 (if time permits)
+## Alternative P1 Items (if EO API proves complex)
 
-- `ca_codes_ingestion` - California's 29 codes from leginfo.legislature.ca.gov
-- U.S. Code vector indexing - embed 50k sections to pgvector for semantic search
+- `budget_schema` - Local budget data for San Rafael
+- Vector indexing - Embed 212k sections to pgvector for semantic search
