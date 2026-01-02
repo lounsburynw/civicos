@@ -3,7 +3,7 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2025-12-31",
+  "last_updated": "2026-01-02",
   "category_order": [
     "test_infrastructure",
     "data_architecture",
@@ -2017,14 +2017,15 @@
         "status": "ready",
         "priority": 1,
         "description": "Ingest all 54 U.S. Code titles (currently only Title 42)",
-        "notes": "50,783 sections from 53 main titles ingested. Release point PL 119-59. Appendices pending.",
+        "notes": "50,809 sections from all titles + appendices. Release point PL 119-59. Includes 18a appendix (26 sections).",
         "completed": "2026-01-02"
       },
       "uscode_appendices": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Ingest U.S. Code appendices (5a, 11a, 18a, 28a)",
-        "notes": "Appendices have different XML structure - need parser updates for title extraction"
+        "notes": "Fixed parser for appendix XML. Only 18a has sections (26). Others: 5a/11a (all transferred/repealed), 28a (court rules, not sections). Total: 50,809 sections.",
+        "completed": "2026-01-02"
       },
       "cfr_ingestion": {
         "status": "not_ready",
@@ -2046,7 +2047,7 @@
       },
       "ca_codes_ingestion": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Ingest California Codes (29 codes)",
         "notes": "Government, Health & Safety, Civil, etc. Source: leginfo.legislature.ca.gov"
       }
