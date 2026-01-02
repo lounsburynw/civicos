@@ -2080,7 +2080,7 @@
       },
       "executive_orders_ingestion": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Ingest Executive Orders",
         "notes": "Source: Federal Register API. ~15k orders historically"
       },
