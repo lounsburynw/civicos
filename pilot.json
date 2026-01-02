@@ -1620,6 +1620,12 @@
         "artifact": "PostgresBackend class implementing StorageBackend protocol",
         "note": "Prove protocol modularity for open-source adoption. Municipalities with existing Postgres infrastructure get a clear path. Both SQLite and Postgres backends pass same test suite.",
         "depends_on": "storage_stats_abstraction"
+      },
+      "corpus_protocol_conformance": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Add corpus methods to StorageBackend protocol + move Modal scripts to civic-extraction",
+        "notes": "Critic warnings: 1) codified_law, legislation, programs, executive_orders methods implemented in PostgresBackend but not declared in StorageBackend protocol. 2) Modal ingestion scripts in /scripts/ should be in packages/civic-extraction/. Fix: Update backend.py protocol, add SQLiteBackend stubs, reorganize scripts."
       }
     },
     "documentation": {
@@ -2079,10 +2085,11 @@
         "notes": "Sources: CourtListener API, Harvard Caselaw Access Project"
       },
       "executive_orders_ingestion": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Ingest Executive Orders",
-        "notes": "Source: Federal Register API. ~15k orders historically"
+        "notes": "1,506 EOs ingested from Federal Register API. Dedicated executive_orders table with proper schema. Trump: 446, Biden: 162, Obama: 294. Follow-up: Add incremental fetcher to civic-extraction for scheduled updates.",
+        "completed": "2026-01-02"
       },
       "ca_codes_ingestion": {
         "status": "ready",
@@ -2095,7 +2102,13 @@
         "status": "not_ready",
         "priority": 2,
         "description": "Embed 212k codified law sections to pgvector",
-        "notes": "U.S. Code (50k) + CA Codes (161k) for semantic what_applies() queries. ~$20 one-time embedding cost."
+        "notes": "U.S. Code (50k) + CA Codes (161k) + EOs for semantic what_applies() queries. Batch with other ingested corpora after programs refresh. ~$20 one-time embedding cost."
+      },
+      "executive_orders_incremental_fetcher": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Add EO incremental fetcher to civic-extraction",
+        "notes": "EOs have higher velocity than codified law. Federal Register API supports date filtering. Add to civic-extraction for scheduled updates like meetings/legislation."
       },
       "federal_programs_2026_refresh": {
         "status": "not_ready",
