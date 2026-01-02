@@ -580,6 +580,43 @@ class TestStorageBackendProtocol:
             ) -> int:
                 return 0
 
+            # Budget items methods
+            def store_budget_items(
+                self,
+                jurisdiction_id: str,
+                items: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+                use_copy: bool = True,
+            ) -> int:
+                return len(items)
+
+            def get_budget_items(
+                self,
+                jurisdiction_id: str,
+                fiscal_year: Optional[str] = None,
+                fund: Optional[str] = None,
+                department: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_budget_summary(
+                self,
+                jurisdiction_id: str,
+                fiscal_year: str,
+                group_by: str = "department",
+                as_of: Optional[datetime] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_budget_items_count(
+                self,
+                jurisdiction_id: str,
+                fiscal_year: Optional[str] = None,
+            ) -> int:
+                return 0
+
         mock = MockStorageBackend()
         assert isinstance(mock, StorageBackend)
 
@@ -1190,6 +1227,43 @@ class TestProtocolIntegration:
                 self,
                 president: Optional[str] = None,
                 status: Optional[str] = None,
+            ) -> int:
+                return 0
+
+            # Budget items methods
+            def store_budget_items(
+                self,
+                jurisdiction_id: str,
+                items: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+                use_copy: bool = True,
+            ) -> int:
+                return len(items)
+
+            def get_budget_items(
+                self,
+                jurisdiction_id: str,
+                fiscal_year: Optional[str] = None,
+                fund: Optional[str] = None,
+                department: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_budget_summary(
+                self,
+                jurisdiction_id: str,
+                fiscal_year: str,
+                group_by: str = "department",
+                as_of: Optional[datetime] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_budget_items_count(
+                self,
+                jurisdiction_id: str,
+                fiscal_year: Optional[str] = None,
             ) -> int:
                 return 0
 

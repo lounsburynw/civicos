@@ -1,3 +1,79 @@
+## Session 434: budget_schema - Add Budget Items Table Schema
+
+**Date:** 2026-01-02
+**Item:** budget_schema (data_readiness > budget)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+
+Added budget_items schema to StorageBackend protocol and PostgresBackend implementation. This enables budget queries like "How much does San Rafael spend on Police?" by providing a structured way to store and query municipal/county budget line items.
+
+### Implementation
+
+1. **StorageBackend protocol** (`packages/civic/src/civic/storage/backend.py`):
+   - `store_budget_items(jurisdiction_id, items, as_of, use_copy) -> int`
+   - `get_budget_items(jurisdiction_id, fiscal_year, fund, department, as_of, limit) -> List[Dict]`
+   - `get_budget_summary(jurisdiction_id, fiscal_year, group_by, as_of) -> List[Dict]`
+   - `get_budget_items_count(jurisdiction_id, fiscal_year) -> int`
+
+2. **PostgresBackend** (`packages/civic/src/civic/storage/postgres_backend.py`):
+   - Created `budget_items` table with temporal versioning
+   - Amounts stored in BIGINT cents (not decimals) for precision
+   - Indexes on (jurisdiction_id, fiscal_year), (department), (fund)
+   - COPY strategy for bulk inserts (10x faster than execute_values)
+   - CHECK constraints ensure non-negative amounts
+
+3. **SQLiteBackend stubs** (`packages/civic/src/civic/storage/sqlite_backend.py`):
+   - Added stub implementations returning empty/0 (Postgres used in production)
+
+4. **Test mocks** (`packages/civic/tests/test_storage_protocols.py`):
+   - Added budget methods to MockStorageBackend and InMemoryStorage classes
+
+### Schema Design
+
+```sql
+CREATE TABLE budget_items (
+    id SERIAL PRIMARY KEY,
+    item_id TEXT NOT NULL,
+    jurisdiction_id TEXT NOT NULL,
+    fiscal_year TEXT NOT NULL,
+    fund TEXT,
+    department TEXT,
+    program TEXT,
+    line_item TEXT NOT NULL,
+    budgeted_cents BIGINT NOT NULL,
+    revised_cents BIGINT,
+    actual_cents BIGINT,
+    source_url TEXT,
+    source_page INTEGER,
+    notes TEXT,
+    metadata JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    valid_to TIMESTAMP,
+    UNIQUE (item_id, jurisdiction_id, valid_from),
+    CHECK (budgeted_cents >= 0),
+    CHECK (revised_cents IS NULL OR revised_cents >= 0),
+    CHECK (actual_cents IS NULL OR actual_cents >= 0)
+);
+```
+
+### Test Results
+
+```
+pytest tests/test_storage_protocols.py → 69 passed
+pytest tests/test_civic.py → 34 passed (smoke tests)
+```
+
+### Files Changed
+- packages/civic/src/civic/storage/backend.py (+75 lines)
+- packages/civic/src/civic/storage/postgres_backend.py (+350 lines)
+- packages/civic/src/civic/storage/sqlite_backend.py (+45 lines)
+- packages/civic/tests/test_storage_protocols.py (+72 lines)
+- pilot.json (status: ready, priority: 2)
+
+---
+
 ## Session 378: r2_source_caching - Cache Scraped Content in R2
 
 **Date:** 2025-12-27
