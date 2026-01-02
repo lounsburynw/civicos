@@ -361,7 +361,7 @@
       },
       "cost_dashboard": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 2,
         "artifact": "Admin dashboard showing cumulative ETL costs by pipeline and time period",
         "note": "Aggregate from etl_costs table. Show daily/weekly/monthly breakdown by pipeline type."
       },
@@ -2009,7 +2009,7 @@
       },
       "uscode_all_titles": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "description": "Ingest all 54 U.S. Code titles (currently only Title 42)",
         "notes": "Estimate: ~100k sections total across all titles"
       },
@@ -2027,13 +2027,13 @@
       },
       "executive_orders_ingestion": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "description": "Ingest Executive Orders",
         "notes": "Source: Federal Register API. ~15k orders historically"
       },
       "ca_codes_ingestion": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "description": "Ingest California Codes (29 codes)",
         "notes": "Government, Health & Safety, Civil, etc. Source: leginfo.legislature.ca.gov"
       }
