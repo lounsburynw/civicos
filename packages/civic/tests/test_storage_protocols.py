@@ -442,6 +442,144 @@ class TestStorageBackendProtocol:
             def get_transcript_count(self, jurisdiction_id: str) -> int:
                 return 0
 
+            # ETL Cost methods
+            def store_etl_cost(
+                self,
+                pipeline: str,
+                jurisdiction_id: str,
+                items_processed: int,
+                cost_usd: float,
+                duration_seconds: Optional[int] = None,
+                notes: Optional[str] = None,
+            ) -> int:
+                return 0
+
+            def get_etl_costs(
+                self,
+                jurisdiction_id: Optional[str] = None,
+                pipeline: Optional[str] = None,
+                limit: int = 100,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_etl_cost_summary(
+                self,
+                jurisdiction_id: Optional[str] = None,
+                pipeline: Optional[str] = None,
+            ) -> Dict[str, Any]:
+                return {"total_cost_usd": 0.0, "total_items": 0, "run_count": 0}
+
+            # Legislation methods
+            def store_legislation(
+                self,
+                state: str,
+                bills: List[Dict[str, Any]],
+                topic: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(bills)
+
+            def get_legislation(
+                self,
+                state: str,
+                topic: Optional[str] = None,
+                status: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_legislation_by_bill_id(
+                self,
+                state: str,
+                bill_id: str,
+                as_of: Optional[datetime] = None,
+            ) -> Optional[Dict[str, Any]]:
+                return None
+
+            def get_legislation_count(
+                self, state: str, topic: Optional[str] = None
+            ) -> int:
+                return 0
+
+            def update_legislation_text(
+                self,
+                state: str,
+                updates: List[Dict[str, Any]],
+            ) -> int:
+                return 0
+
+            # Codified law methods
+            def store_codified_law(
+                self,
+                jurisdiction_id: str,
+                sections: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+                use_copy: bool = True,
+            ) -> int:
+                return len(sections)
+
+            def get_codified_law(
+                self,
+                jurisdiction_id: str,
+                title_number: Optional[int] = None,
+                status: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def search_codified_law(
+                self,
+                jurisdiction_id: str,
+                query: str,
+                title_number: Optional[int] = None,
+                limit: int = 10,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_codified_law_count(
+                self,
+                jurisdiction_id: str,
+                title_number: Optional[int] = None,
+                include_inactive: bool = False,
+            ) -> int:
+                return 0
+
+            # Executive orders methods
+            def store_executive_orders(
+                self,
+                orders: List[Dict[str, Any]],
+                use_copy: bool = True,
+            ) -> int:
+                return len(orders)
+
+            def get_executive_orders(
+                self,
+                president: Optional[str] = None,
+                eo_number: Optional[int] = None,
+                status: Optional[str] = None,
+                signing_date_after: Optional[Any] = None,
+                signing_date_before: Optional[Any] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def search_executive_orders(
+                self,
+                query: str,
+                president: Optional[str] = None,
+                limit: int = 10,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_executive_orders_count(
+                self,
+                president: Optional[str] = None,
+                status: Optional[str] = None,
+            ) -> int:
+                return 0
+
         mock = MockStorageBackend()
         assert isinstance(mock, StorageBackend)
 
@@ -915,6 +1053,144 @@ class TestProtocolIntegration:
                 return None
 
             def get_transcript_count(self, jurisdiction_id: str) -> int:
+                return 0
+
+            # ETL Cost methods
+            def store_etl_cost(
+                self,
+                pipeline: str,
+                jurisdiction_id: str,
+                items_processed: int,
+                cost_usd: float,
+                duration_seconds: Optional[int] = None,
+                notes: Optional[str] = None,
+            ) -> int:
+                return 0
+
+            def get_etl_costs(
+                self,
+                jurisdiction_id: Optional[str] = None,
+                pipeline: Optional[str] = None,
+                limit: int = 100,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_etl_cost_summary(
+                self,
+                jurisdiction_id: Optional[str] = None,
+                pipeline: Optional[str] = None,
+            ) -> Dict[str, Any]:
+                return {"total_cost_usd": 0.0, "total_items": 0, "run_count": 0}
+
+            # Legislation methods
+            def store_legislation(
+                self,
+                state: str,
+                bills: List[Dict[str, Any]],
+                topic: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(bills)
+
+            def get_legislation(
+                self,
+                state: str,
+                topic: Optional[str] = None,
+                status: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_legislation_by_bill_id(
+                self,
+                state: str,
+                bill_id: str,
+                as_of: Optional[datetime] = None,
+            ) -> Optional[Dict[str, Any]]:
+                return None
+
+            def get_legislation_count(
+                self, state: str, topic: Optional[str] = None
+            ) -> int:
+                return 0
+
+            def update_legislation_text(
+                self,
+                state: str,
+                updates: List[Dict[str, Any]],
+            ) -> int:
+                return 0
+
+            # Codified law methods
+            def store_codified_law(
+                self,
+                jurisdiction_id: str,
+                sections: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+                use_copy: bool = True,
+            ) -> int:
+                return len(sections)
+
+            def get_codified_law(
+                self,
+                jurisdiction_id: str,
+                title_number: Optional[int] = None,
+                status: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def search_codified_law(
+                self,
+                jurisdiction_id: str,
+                query: str,
+                title_number: Optional[int] = None,
+                limit: int = 10,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_codified_law_count(
+                self,
+                jurisdiction_id: str,
+                title_number: Optional[int] = None,
+                include_inactive: bool = False,
+            ) -> int:
+                return 0
+
+            # Executive orders methods
+            def store_executive_orders(
+                self,
+                orders: List[Dict[str, Any]],
+                use_copy: bool = True,
+            ) -> int:
+                return len(orders)
+
+            def get_executive_orders(
+                self,
+                president: Optional[str] = None,
+                eo_number: Optional[int] = None,
+                status: Optional[str] = None,
+                signing_date_after: Optional[Any] = None,
+                signing_date_before: Optional[Any] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def search_executive_orders(
+                self,
+                query: str,
+                president: Optional[str] = None,
+                limit: int = 10,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_executive_orders_count(
+                self,
+                president: Optional[str] = None,
+                status: Optional[str] = None,
+            ) -> int:
                 return 0
 
         @dataclass

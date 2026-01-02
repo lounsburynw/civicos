@@ -1487,6 +1487,162 @@ class SQLiteBackend:
         """
         return 0
 
+    # ========== ETL Cost Methods (Postgres-only) ==========
+
+    def store_etl_cost(
+        self,
+        pipeline: str,
+        jurisdiction_id: str,
+        items_processed: int,
+        cost_usd: float,
+        duration_seconds: Optional[int] = None,
+        notes: Optional[str] = None,
+    ) -> int:
+        """Store ETL cost (stub for SQLite - uses Postgres in production)."""
+        return 0
+
+    def get_etl_costs(
+        self,
+        jurisdiction_id: Optional[str] = None,
+        pipeline: Optional[str] = None,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """Get ETL costs (stub for SQLite - uses Postgres in production)."""
+        return []
+
+    def get_etl_cost_summary(
+        self,
+        jurisdiction_id: Optional[str] = None,
+        pipeline: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Get ETL cost summary (stub for SQLite - uses Postgres in production)."""
+        return {"total_cost_usd": 0.0, "total_items": 0, "run_count": 0}
+
+    # ========== Legislation Methods (Postgres-only) ==========
+
+    def store_legislation(
+        self,
+        state: str,
+        bills: List[Dict[str, Any]],
+        topic: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """Store legislation (stub for SQLite - uses Postgres in production)."""
+        return 0
+
+    def get_legislation(
+        self,
+        state: str,
+        topic: Optional[str] = None,
+        status: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get legislation (stub for SQLite - uses Postgres in production)."""
+        return []
+
+    def get_legislation_by_bill_id(
+        self,
+        state: str,
+        bill_id: str,
+        as_of: Optional[datetime] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Get legislation by bill_id (stub for SQLite - uses Postgres in production)."""
+        return None
+
+    def get_legislation_count(self, state: str, topic: Optional[str] = None) -> int:
+        """Get legislation count (stub for SQLite - uses Postgres in production)."""
+        return 0
+
+    def update_legislation_text(
+        self,
+        state: str,
+        updates: List[Dict[str, Any]],
+    ) -> int:
+        """Update legislation text (stub for SQLite - uses Postgres in production)."""
+        return 0
+
+    # ========== Codified Law Methods (Postgres-only) ==========
+
+    def store_codified_law(
+        self,
+        jurisdiction_id: str,
+        sections: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+        use_copy: bool = True,
+    ) -> int:
+        """Store codified law (stub for SQLite - uses Postgres in production)."""
+        return 0
+
+    def get_codified_law(
+        self,
+        jurisdiction_id: str,
+        title_number: Optional[int] = None,
+        status: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get codified law (stub for SQLite - uses Postgres in production)."""
+        return []
+
+    def search_codified_law(
+        self,
+        jurisdiction_id: str,
+        query: str,
+        title_number: Optional[int] = None,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """Search codified law (stub for SQLite - uses Postgres in production)."""
+        return []
+
+    def get_codified_law_count(
+        self,
+        jurisdiction_id: str,
+        title_number: Optional[int] = None,
+        include_inactive: bool = False,
+    ) -> int:
+        """Get codified law count (stub for SQLite - uses Postgres in production)."""
+        return 0
+
+    # ========== Executive Orders Methods (Postgres-only) ==========
+
+    def store_executive_orders(
+        self,
+        orders: List[Dict[str, Any]],
+        use_copy: bool = True,
+    ) -> int:
+        """Store executive orders (stub for SQLite - uses Postgres in production)."""
+        return 0
+
+    def get_executive_orders(
+        self,
+        president: Optional[str] = None,
+        eo_number: Optional[int] = None,
+        status: Optional[str] = None,
+        signing_date_after: Optional[Any] = None,
+        signing_date_before: Optional[Any] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get executive orders (stub for SQLite - uses Postgres in production)."""
+        return []
+
+    def search_executive_orders(
+        self,
+        query: str,
+        president: Optional[str] = None,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """Search executive orders (stub for SQLite - uses Postgres in production)."""
+        return []
+
+    def get_executive_orders_count(
+        self,
+        president: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> int:
+        """Get executive orders count (stub for SQLite - uses Postgres in production)."""
+        return 0
+
 
 # Verify protocol compliance at import time
 # StorageBackend is @runtime_checkable, so isinstance() works

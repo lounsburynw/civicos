@@ -1,99 +1,100 @@
-# Recommended: Ingest Executive Orders
+# Recommended: Budget Schema
 
 **Priority:** P0
-**Area:** pilot_validation > e2e_cloud_data_verification
+**Area:** data_readiness > budget
 **Date:** 2026-01-02
 
-> This is recommended context from Session 431. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 433. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Sessions 429-431 completed the major codified law ingestion work:
-- **Session 429-430:** U.S. Code (50,809 sections from 57 titles including appendices)
-- **Session 431:** California Codes (161,219 sections from 29 codes)
-- **Total:** 212,028 codified law sections now searchable in PostgreSQL
+Session 433 completed corpus protocol conformance - added 17 corpus methods to StorageBackend protocol. The codebase is now architecturally clean with all storage methods properly declared.
 
-Executive Orders are the logical next step in building a complete regulatory stack.
+Next up: **Budget data pipeline** - enabling queries like "How much does San Rafael spend on Police?" The first step is creating the budget schema (budget_items table) in both SQLite and Postgres backends.
 
 ## Recommended Task
 
-Ingest Executive Orders from the Federal Register API to expand coverage of federal executive actions.
+Create the `budget_items` table schema following the established pattern for corpus types (legislation, codified_law, etc.).
 
-## Key Context
+## Key Files
 
-The Federal Register API provides structured access to Executive Orders:
-- API: https://www.federalregister.gov/developers/documentation/api/v1
-- Historical EOs: ~15,000+ orders from multiple administrations
-- Current format: JSON with full text, signing dates, CFR citations
+- `packages/civic/src/civic/storage/backend.py` - Add budget methods to StorageBackend protocol
+- `packages/civic/src/civic/storage/postgres_backend.py` - Implement budget methods
+- `packages/civic/src/civic/storage/sqlite_backend.py` - Add budget stubs
+- `docs/BUDGET_EXTRACTION.md` - Schema design docs (if exists, reference it)
+
+## Suggested Schema (budget_items)
+
+Based on the artifact description ("amounts in cents for precision"):
+
+```sql
+CREATE TABLE budget_items (
+    id SERIAL PRIMARY KEY,
+    jurisdiction_id TEXT NOT NULL,
+    fiscal_year TEXT NOT NULL,           -- e.g., "FY2025-26"
+    department TEXT,                      -- e.g., "Police", "Fire", "Parks"
+    fund TEXT,                            -- e.g., "General Fund", "Enterprise"
+    category TEXT,                        -- e.g., "Personnel", "Operating", "Capital"
+    line_item TEXT NOT NULL,              -- Budget line description
+    amount_cents BIGINT NOT NULL,         -- Amount in cents for precision
+    currency TEXT DEFAULT 'USD',
+    budget_type TEXT,                     -- "adopted", "revised", "actual"
+    source_document TEXT,                 -- URL or filename of source PDF
+    source_page INTEGER,                  -- Page number in source
+    metadata JSONB,                       -- Extra fields
+    created_at TIMESTAMP DEFAULT NOW(),
+    valid_from TIMESTAMP NOT NULL,
+    valid_to TIMESTAMP                    -- Temporal versioning
+);
+
+CREATE INDEX idx_budget_items_jurisdiction ON budget_items(jurisdiction_id);
+CREATE INDEX idx_budget_items_fiscal_year ON budget_items(jurisdiction_id, fiscal_year);
+CREATE INDEX idx_budget_items_department ON budget_items(jurisdiction_id, department);
+```
 
 ## Suggested Approach
 
-1. **Explore the Federal Register API:**
-   ```bash
-   curl -s "https://www.federalregister.gov/api/v1/documents.json?conditions[presidential_document_type]=executive_order&per_page=3" | python3 -m json.tool | head -50
-   ```
+1. **Add budget methods to StorageBackend protocol** (`backend.py`):
+   - `store_budget_items(jurisdiction_id, items, as_of) -> int`
+   - `get_budget_items(jurisdiction_id, fiscal_year, department, fund, limit) -> List[Dict]`
+   - `get_budget_items_count(jurisdiction_id, fiscal_year) -> int`
+   - `get_budget_summary(jurisdiction_id, fiscal_year) -> Dict` (aggregates by department/fund)
 
-2. **Identify data fields to extract:**
-   - Document number, title, signing date
-   - Full text or abstract
-   - CFR references
-   - President name
+2. **Implement in PostgresBackend** with temporal versioning (follow codified_law pattern)
 
-3. **Determine storage approach:**
-   - Option A: Extend `codified_law` table (jurisdiction_id = "federal-US-EO")
-   - Option B: Create new `executive_orders` table with specific schema
-   - Consider: EOs are executive actions, not codified statutes
+3. **Add SQLiteBackend stubs** (return empty/0 like other corpus methods)
 
-4. **Create ingestion script:**
-   - Pattern after `scripts/modal_cacode.py` or `scripts/modal_uscode.py`
-   - Handle pagination (API returns max 1000 per request)
-   - Deduplicate on document number
-
-5. **Test and ingest:**
-   ```bash
-   modal run scripts/modal_executive_orders.py --dry-run
-   modal run scripts/modal_executive_orders.py
-   ```
-
-## Database Status
-
-```
-Codified Law Sections:
-  California: 161,219
-  U.S. Code: 50,809
-  Total: 212,028
-
-Executive Orders: 0 (target: ~15k)
-```
+4. **Add test mocks** in test_storage_protocols.py
 
 ## Tests to Run
 
 ```bash
-# Verify existing data still works
-python3 -c "
-from dotenv import load_dotenv; load_dotenv()
-from civic.storage.postgres_backend import PostgresBackend
-import os
-db = PostgresBackend(os.environ['DATABASE_URL'])
-print(f'CA Codes: {db.get_codified_law_count(\"state-CA\"):,}')
-print(f'US Code: {db.get_codified_law_count(\"federal-US\"):,}')
-"
+# Protocol compliance
+pytest packages/civic/tests/test_storage_protocols.py -v
+
+# Smoke tests
+pytest packages/civic/tests/test_civic.py -q
 ```
 
 ## Success Criteria
 
-- [ ] Federal Register API structure understood
-- [ ] Ingestion script created (`scripts/modal_executive_orders.py`)
-- [ ] Executive Orders ingested to PostgreSQL
-- [ ] Searchable via existing search methods
+- [ ] StorageBackend protocol declares budget methods
+- [ ] PostgresBackend implements budget_items table + methods
+- [ ] SQLiteBackend has stub implementations
+- [ ] Protocol tests pass (69+ tests)
+- [ ] Smoke tests pass
 
-## Key Files from Previous Sessions
+## Related Items (not in scope this session)
 
-- `scripts/modal_uscode.py` - Pattern for Modal ingestion with R2
-- `scripts/modal_cacode.py` - Pattern for parsing and bulk insert
-- `packages/civic/src/civic/storage/postgres_backend.py:3452` - `store_codified_law()` method
+The budget pipeline has 5 items total:
+1. **budget_schema** (THIS SESSION - P0)
+2. budget_etl_template - AI extraction prompt
+3. san_rafael_fy2526_budget - Extract actual budget data
+4. budget_query_api - Civic.budget() method
+5. decision_financial_extraction - Link decisions to budget impact
 
-## Alternative P1 Items (if EO API proves complex)
+## Notes
 
-- `budget_schema` - Local budget data for San Rafael
-- Vector indexing - Embed 212k sections to pgvector for semantic search
+- Use BIGINT cents instead of DECIMAL to avoid floating-point issues
+- San Rafael FY2025-26 budget is ~$192M with ~50-100 line items
+- Source: https://www.cityofsanrafael.org/city-budget/

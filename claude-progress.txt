@@ -8477,3 +8477,89 @@ db.search_codified_law('state-CA', 'environmental', limit=5)
 - `scripts/modal_cacode.py` - New Modal ingestion script
 - `scripts/upload_cacode_r2.py` - New R2 upload script
 - `pilot.json` - ca_codes_ingestion marked ready
+
+## Session 432 (2026-01-02)
+
+### Executive Orders Ingestion Complete
+
+**P0 Item:** executive_orders_ingestion -> DONE
+
+1. **Explored Federal Register API** - 1,506 EOs available (not 15k as estimated)
+2. **Designed proper schema** - Deliberated with agent, chose Option B: dedicated `executive_orders` table instead of reusing `codified_law`
+3. **Implemented:**
+   - `executive_orders` table in postgres_backend.py (_ensure_schema)
+   - `store_executive_orders()`, `get_executive_orders()`, `search_executive_orders()`, `get_executive_orders_count()`
+   - `EXECUTIVE_ORDERS` corpus type in corpus_types.py
+   - Modal ingestion script: `scripts/modal_executive_orders.py`
+4. **Ingested 1,506 EOs** in 8.3s (Trump: 446, Biden: 162, Obama: 294)
+5. **Verified search** works for 'climate', 'immigration' queries
+
+### Database Status
+
+| Corpus | Count |
+|--------|-------|
+| Codified Law (CA + US) | 212,028 |
+| Executive Orders | 1,506 |
+| **Total** | **213,534** |
+
+### Critics Flagged Tech Debt
+
+1. Protocol conformance: corpus methods not in StorageBackend protocol
+2. Script location: Modal scripts in /scripts/ not civic-extraction
+
+### Next Session P0
+
+**corpus_protocol_conformance** - Fix protocol + script location issues
+
+### Files Changed
+- packages/civic/src/civic/storage/postgres_backend.py (+410 lines)
+- packages/civic/src/civic/storage/corpus_types.py (+12 lines)
+- scripts/modal_executive_orders.py (new, 280 lines)
+- pilot.json (updated)
+
+---
+
+## Session 433: Corpus Protocol Conformance
+
+**Date:** 2026-01-02
+**Item:** corpus_protocol_conformance (city_onboarding > orchestration)
+**Priority:** P0 → Ready
+
+### Summary
+
+Fixed protocol conformance issue flagged by codebase critics. Added 17 corpus methods to the StorageBackend protocol that were previously only implemented in PostgresBackend.
+
+### Changes
+
+1. **StorageBackend protocol** (`backend.py`):
+   - Added `date` import for type hints
+   - Added ETL Cost methods (3): `store_etl_cost`, `get_etl_costs`, `get_etl_cost_summary`
+   - Added Legislation methods (5): `store_legislation`, `get_legislation`, `get_legislation_by_bill_id`, `get_legislation_count`, `update_legislation_text`
+   - Added Codified Law methods (4): `store_codified_law`, `get_codified_law`, `search_codified_law`, `get_codified_law_count`
+   - Added Executive Orders methods (4): `store_executive_orders`, `get_executive_orders`, `search_executive_orders`, `get_executive_orders_count`
+
+2. **SQLiteBackend** (`sqlite_backend.py`):
+   - Added stub implementations for all 17 corpus methods
+   - Stubs return empty lists/0/None (Postgres-only in production)
+
+3. **Test mocks** (`test_storage_protocols.py`):
+   - Added corpus methods to MockStorageBackend class
+   - Added corpus methods to InMemoryStorage class
+   - All 69 protocol tests pass
+
+### Test Results
+
+```
+pytest tests/test_storage_protocols.py → 69 passed
+pytest tests/test_civic.py → 34 passed (smoke tests)
+```
+
+### Script Location Decision
+
+Deferred Modal script relocation (`/scripts/*.py` → `packages/civic-extraction/`) as separate concern. Current location works and is documented.
+
+### Files Changed
+- packages/civic/src/civic/storage/backend.py (+355 lines)
+- packages/civic/src/civic/storage/sqlite_backend.py (+160 lines)
+- packages/civic/tests/test_storage_protocols.py (+290 lines)
+- pilot.json (status: ready, priority: 2)
