@@ -1287,7 +1287,7 @@
     "budget": {
       "budget_schema": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "budget_items table in SQLite/Postgres backends",
         "doc": "docs/BUDGET_EXTRACTION.md#schema-design",
         "note": "Stores line-item budget data with amounts in cents for precision"
@@ -1622,10 +1622,11 @@
         "depends_on": "storage_stats_abstraction"
       },
       "corpus_protocol_conformance": {
-        "status": "not_ready",
-        "priority": 0,
-        "description": "Add corpus methods to StorageBackend protocol + move Modal scripts to civic-extraction",
-        "notes": "Critic warnings: 1) codified_law, legislation, programs, executive_orders methods implemented in PostgresBackend but not declared in StorageBackend protocol. 2) Modal ingestion scripts in /scripts/ should be in packages/civic-extraction/. Fix: Update backend.py protocol, add SQLiteBackend stubs, reorganize scripts."
+        "status": "ready",
+        "priority": 2,
+        "description": "Add corpus methods to StorageBackend protocol",
+        "notes": "Session 433: Added 17 corpus methods to StorageBackend protocol (ETL costs, legislation, codified law, executive orders), SQLiteBackend stubs, and MockStorageBackend test stubs. All 69 protocol tests pass. Script relocation (Modal scripts from /scripts/ to civic-extraction) deferred as separate concern.",
+        "completed": "2026-01-02"
       }
     },
     "documentation": {

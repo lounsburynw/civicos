@@ -6,7 +6,7 @@ Part of the 4-stage pipeline: discover -> ingest -> store -> index.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 
@@ -724,5 +724,351 @@ class StorageBackend(Protocol):
 
         Returns:
             Number of current (non-expired) transcripts
+        """
+        ...
+
+    # ========== ETL Cost Methods ==========
+    #
+    # ETL costs track API usage and processing costs for ingestion operations.
+    # Used for budget monitoring and optimization.
+
+    def store_etl_cost(
+        self,
+        pipeline: str,
+        jurisdiction_id: str,
+        items_processed: int,
+        cost_usd: float,
+        duration_seconds: Optional[int] = None,
+        notes: Optional[str] = None,
+    ) -> int:
+        """
+        Store ETL cost record for tracking pipeline expenses.
+
+        Args:
+            pipeline: Pipeline name (e.g., "transcribe_video", "ingest_meetings")
+            jurisdiction_id: Target jurisdiction
+            items_processed: Number of items processed in this run
+            cost_usd: Cost in USD
+            duration_seconds: Optional duration of the pipeline run
+            notes: Optional notes about the run
+
+        Returns:
+            ID of the stored cost record
+        """
+        ...
+
+    def get_etl_costs(
+        self,
+        jurisdiction_id: Optional[str] = None,
+        pipeline: Optional[str] = None,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve ETL cost records with optional filtering.
+
+        Args:
+            jurisdiction_id: Filter by jurisdiction (optional)
+            pipeline: Filter by pipeline name (optional)
+            limit: Maximum records to return (default 100)
+
+        Returns:
+            List of cost record dictionaries
+        """
+        ...
+
+    def get_etl_cost_summary(
+        self,
+        jurisdiction_id: Optional[str] = None,
+        pipeline: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Get aggregated ETL cost summary.
+
+        Args:
+            jurisdiction_id: Filter by jurisdiction (optional)
+            pipeline: Filter by pipeline name (optional)
+
+        Returns:
+            Dictionary with total_cost_usd, total_items, run_count
+        """
+        ...
+
+    # ========== Legislation Methods ==========
+    #
+    # Legislation includes state and federal bills that may affect local
+    # jurisdictions. Used for what_applies() queries and proactive alerts.
+
+    def store_legislation(
+        self,
+        state: str,
+        bills: List[Dict[str, Any]],
+        topic: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store state/federal legislation with temporal versioning.
+
+        Atomic operation: either all bills are stored or none.
+        Uses upsert semantics based on (bill_id, state).
+
+        Args:
+            state: State code (e.g., "CA", "US" for federal)
+            bills: List of bill dictionaries with bill_id, bill_name, etc.
+            topic: Optional topic to tag all bills with (e.g., "housing")
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of bills successfully stored
+        """
+        ...
+
+    def get_legislation(
+        self,
+        state: str,
+        topic: Optional[str] = None,
+        status: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve legislation with optional filtering.
+
+        Args:
+            state: State code (e.g., "CA", "US")
+            topic: Filter by topic (e.g., "housing")
+            status: Filter by status (e.g., "Active", "Enacted")
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of bills to return
+
+        Returns:
+            List of bill dictionaries
+        """
+        ...
+
+    def get_legislation_by_bill_id(
+        self,
+        state: str,
+        bill_id: str,
+        as_of: Optional[datetime] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get specific legislation by bill_id.
+
+        Args:
+            state: State code (e.g., "CA")
+            bill_id: Bill identifier (e.g., "ca-sb9")
+            as_of: Point-in-time query (for temporal versioning)
+
+        Returns:
+            Bill dictionary or None if not found
+        """
+        ...
+
+    def get_legislation_count(self, state: str, topic: Optional[str] = None) -> int:
+        """
+        Get count of current legislation for a state.
+
+        Args:
+            state: State code (e.g., "CA")
+            topic: Optional filter by topic
+
+        Returns:
+            Number of current (non-expired) bills
+        """
+        ...
+
+    def update_legislation_text(
+        self,
+        state: str,
+        updates: List[Dict[str, Any]],
+    ) -> int:
+        """
+        Update full_text for legislation bills.
+
+        Args:
+            state: State code (e.g., "CA")
+            updates: List of dicts with 'bill_id' and 'full_text'
+
+        Returns:
+            Number of bills updated
+        """
+        ...
+
+    # ========== Codified Law Methods ==========
+    #
+    # Codified law includes U.S. Code and state codes (e.g., California Codes).
+    # Used for what_applies() queries to find applicable federal/state law.
+
+    def store_codified_law(
+        self,
+        jurisdiction_id: str,
+        sections: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+        use_copy: bool = True,
+    ) -> int:
+        """
+        Store codified law sections (U.S. Code, CA Codes) with temporal versioning.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "federal-US", "state-CA")
+            sections: List of section dictionaries with citation, title_number, etc.
+            as_of: Timestamp for temporal versioning (default: now)
+            use_copy: If True (default), use COPY for bulk inserts
+
+        Returns:
+            Number of sections successfully stored
+        """
+        ...
+
+    def get_codified_law(
+        self,
+        jurisdiction_id: str,
+        title_number: Optional[int] = None,
+        status: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve codified law sections with optional filtering.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "federal-US", "state-CA")
+            title_number: Filter by title number (e.g., 42 for Title 42)
+            status: Filter by status (None for active, "repealed" for repealed)
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of sections to return
+
+        Returns:
+            List of section dictionaries
+        """
+        ...
+
+    def search_codified_law(
+        self,
+        jurisdiction_id: str,
+        query: str,
+        title_number: Optional[int] = None,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """
+        Search codified law sections by topic/keyword.
+
+        Uses full-text search for relevance ranking.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "federal-US")
+            query: Search query (topic keywords)
+            title_number: Optional filter by title number
+            limit: Maximum results to return
+
+        Returns:
+            List of matching sections with relevance scores
+        """
+        ...
+
+    def get_codified_law_count(
+        self,
+        jurisdiction_id: str,
+        title_number: Optional[int] = None,
+        include_inactive: bool = False,
+    ) -> int:
+        """
+        Get count of current codified law sections for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "federal-US")
+            title_number: Optional filter by title number
+            include_inactive: Whether to include repealed/omitted sections
+
+        Returns:
+            Number of current (non-expired) sections
+        """
+        ...
+
+    # ========== Executive Orders Methods ==========
+    #
+    # Executive Orders from the Federal Register. Federal-level corpus
+    # without jurisdiction_id since EOs apply nationally.
+
+    def store_executive_orders(
+        self,
+        orders: List[Dict[str, Any]],
+        use_copy: bool = True,
+    ) -> int:
+        """
+        Store Executive Orders from Federal Register API.
+
+        Args:
+            orders: List of order dictionaries with fields:
+                - eo_number: Executive Order number (may be None)
+                - document_number: FR document number (unique key)
+                - title, abstract, full_text, president, etc.
+            use_copy: If True (default), use COPY for bulk inserts
+
+        Returns:
+            Number of orders successfully stored
+        """
+        ...
+
+    def get_executive_orders(
+        self,
+        president: Optional[str] = None,
+        eo_number: Optional[int] = None,
+        status: Optional[str] = None,
+        signing_date_after: Optional[date] = None,
+        signing_date_before: Optional[date] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve Executive Orders with optional filtering.
+
+        Args:
+            president: Filter by president name
+            eo_number: Filter by specific EO number
+            status: Filter by status ("active", "revoked", "superseded")
+            signing_date_after: Filter orders signed after this date
+            signing_date_before: Filter orders signed before this date
+            limit: Maximum number of orders to return
+
+        Returns:
+            List of order dictionaries
+        """
+        ...
+
+    def search_executive_orders(
+        self,
+        query: str,
+        president: Optional[str] = None,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """
+        Search Executive Orders by topic/keyword.
+
+        Uses full-text search for relevance ranking.
+
+        Args:
+            query: Search query (topic keywords)
+            president: Optional filter by president
+            limit: Maximum results to return
+
+        Returns:
+            List of matching orders with relevance scores
+        """
+        ...
+
+    def get_executive_orders_count(
+        self,
+        president: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> int:
+        """
+        Get count of Executive Orders.
+
+        Args:
+            president: Optional filter by president name
+            status: Optional filter by status
+
+        Returns:
+            Number of matching orders
         """
         ...
