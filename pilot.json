@@ -1284,6 +1284,45 @@
         ]
       }
     },
+    "budget": {
+      "budget_schema": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "budget_items table in SQLite/Postgres backends",
+        "doc": "docs/BUDGET_EXTRACTION.md#schema-design",
+        "note": "Stores line-item budget data with amounts in cents for precision"
+      },
+      "budget_etl_template": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "AI-assisted extraction prompt template for municipal budgets",
+        "doc": "docs/BUDGET_EXTRACTION.md#ai-assisted-etl-template",
+        "note": "Enables open-source contributors to add their city's budget"
+      },
+      "san_rafael_fy2526_budget": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "San Rafael FY 2025-26 budget extracted (~100 line items)",
+        "doc": "docs/BUDGET_EXTRACTION.md#track-1-municipal-budget-pdf",
+        "source": "https://www.cityofsanrafael.org/city-budget/",
+        "note": "$192M total budget, ~50-100 line items across General Fund, Enterprise, Capital"
+      },
+      "budget_query_api": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Civic.budget() method for structured budget queries",
+        "doc": "docs/BUDGET_EXTRACTION.md#query-api",
+        "depends_on": ["budget_schema", "san_rafael_fy2526_budget"],
+        "note": "Enables queries like c.budget(department='Police') or c.budget(min_amount=1_000_000)"
+      },
+      "decision_financial_extraction": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Enhanced staff report extraction populates financial_impact_cents",
+        "doc": "docs/BUDGET_EXTRACTION.md#track-2-per-decision-financial",
+        "note": "Currently extracts text only; upgrade to structured amount + fund source"
+      }
+    },
     "election_data": {
       "election_integration": {
         "status": "not_ready",
