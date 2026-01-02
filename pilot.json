@@ -2090,6 +2090,24 @@
         "description": "Ingest California Codes (29 codes)",
         "notes": "161,219 sections from all 29 CA codes ingested via Modal. Source: leginfo.legislature.ca.gov/pubinfo_2025.zip",
         "completed": "2026-01-02"
+      },
+      "codified_law_vectors": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Embed 212k codified law sections to pgvector",
+        "notes": "U.S. Code (50k) + CA Codes (161k) for semantic what_applies() queries. ~$20 one-time embedding cost."
+      },
+      "federal_programs_2026_refresh": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Refresh federal grant programs for FY2026",
+        "notes": "Current data from Oct 2025, marked DRAFT. Update CDBG, HOME, etc. with FY2026 funding levels and deadlines."
+      },
+      "state_programs_refresh": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Refresh California state programs for FY25-26",
+        "notes": "California fiscal year started July 1, 2025. Update state grant programs with current funding."
       }
     }
   },
