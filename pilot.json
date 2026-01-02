@@ -2085,10 +2085,11 @@
         "notes": "Source: Federal Register API. ~15k orders historically"
       },
       "ca_codes_ingestion": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Ingest California Codes (29 codes)",
-        "notes": "Government, Health & Safety, Civil, etc. Source: leginfo.legislature.ca.gov"
+        "notes": "161,219 sections from all 29 CA codes ingested via Modal. Source: leginfo.legislature.ca.gov/pubinfo_2025.zip",
+        "completed": "2026-01-02"
       }
     }
   },

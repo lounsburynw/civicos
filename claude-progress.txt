@@ -8429,3 +8429,51 @@ Updated `USCodeParser._load()` in `scripts/modal_uscode.py`:
 what_applies("detainers")
 # Returns: 18 U.S.C. App. § 2: Enactment into law of Interstate Agreement on Detainers
 ```
+
+## Session 431: ca_codes_ingestion - Complete California Codes Ingestion
+
+**Date:** 2026-01-02
+**Item:** ca_codes_ingestion (pilot_validation > e2e_cloud_data_verification)
+**Priority:** P0
+
+### Summary
+Ingested all 29 California Codes (161,219 sections) to PostgreSQL via Modal. Combined with existing U.S. Code data (50,809 sections), Civic now has **212,028 searchable codified law sections**.
+
+### Implementation
+
+1. **Data Source Analysis:**
+   - Source: https://downloads.leginfo.legislature.ca.gov/pubinfo_2025.zip (650MB)
+   - Format: Tab-separated metadata (LAW_SECTION_TBL.dat) + XML content files (.lob)
+   - 29 codes: BPC, CIV, CCP, COM, CORP, EDC, ELEC, EVID, FAM, FIN, FGC, FAC, GOV, HNC, HSC, INS, LAB, MVC, PEN, PROB, PCC, PRC, PUC, RTC, SHC, UIC, VEH, WAT, WIC
+
+2. **Scripts Created:**
+   - `scripts/modal_cacode.py` - Modal function for cloud ingestion
+   - `scripts/upload_cacode_r2.py` - Upload local ZIP to R2
+
+3. **Parser Features:**
+   - Handles California's CAML XML format: `<caml:Content xmlns:caml="..."><p>text</p></caml:Content>`
+   - Proper citation format: "Cal. Gov. Code § 12345" with standard abbreviations
+   - Hierarchical metadata: division, title, part, chapter, article
+   - Effective date and history tracking
+
+### Database Status
+
+| Jurisdiction | Sections | Source |
+|-------------|----------|--------|
+| state-CA | 161,219 | California Codes (29 codes) |
+| federal-US | 50,809 | U.S. Code (57 titles including appendices) |
+| **Total** | **212,028** | Combined codified law |
+
+### Verification
+```python
+db.search_codified_law('state-CA', 'housing', limit=5)
+# Returns: Cal. Gov. Code § 65589.5, Cal. Gov. Code § 65583, Cal. Gov. Code § 65915...
+
+db.search_codified_law('state-CA', 'environmental', limit=5)
+# Returns: Cal. Gov. Code § 66801, Cal. Pub. Resources Code § 21168.6.6...
+```
+
+### Files Changed
+- `scripts/modal_cacode.py` - New Modal ingestion script
+- `scripts/upload_cacode_r2.py` - New R2 upload script
+- `pilot.json` - ca_codes_ingestion marked ready
