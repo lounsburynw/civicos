@@ -1303,16 +1303,17 @@
         "completed": "2026-01-02"
       },
       "san_rafael_fy2526_budget": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "San Rafael FY 2025-26 budget extracted (~100 line items)",
         "doc": "docs/BUDGET_EXTRACTION.md#track-1-municipal-budget-pdf",
         "source": "https://www.cityofsanrafael.org/city-budget/",
-        "note": "$192M total budget, ~50-100 line items across General Fund, Enterprise, Capital"
+        "note": "58 line items extracted: $104.5M General Fund (12 depts), $75.6M other funds. Script: scripts/extract_san_rafael_budget.py",
+        "completed": "2026-01-02"
       },
       "budget_query_api": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Civic.budget() method for structured budget queries",
         "doc": "docs/BUDGET_EXTRACTION.md#query-api",
         "depends_on": ["budget_schema", "san_rafael_fy2526_budget"],
