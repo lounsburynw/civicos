@@ -8995,3 +8995,54 @@ Added state_passthrough_funds schema to track how federal funds flow through sta
 ### Next Item
 
 P0 set to `ca_grants_ingestion` - Ingest California state grants from grants.ca.gov.
+
+## Session 443 - 2026-01-02
+
+### Completed: ca_grants_ingestion
+
+Created California Grants Portal client for ingesting state grant data from grants.ca.gov.
+
+**Key Implementation Details:**
+- Uses data.ca.gov CKAN API (resource ID: 111c8c88-21f6-453c-ae2c-b4785a0624f5)
+- Data updates daily at 8:45pm PT
+- ~1,800 grant opportunities in portal (July 2020 onward)
+- No API key required - free public API
+
+**CaliforniaGrantsClient features:**
+- health() and validate() for monitoring
+- get_grants() - fetch all grants with filtering
+- get_grants_for_local_government() - filter for Public Agency applicants
+- get_housing_grants() - filter for Housing category
+- get_grants_by_agency() - filter by CA agency name
+- Amount parsing handles "$30,000,000", "1.5 million", ranges
+- Fiscal year calculation (CA FY runs July 1 - June 30)
+
+**Schema mapping to state_passthrough_funds:**
+- passthrough_id: "ca-{PortalID}"
+- state_agency: AgencyDept field
+- state_program_name: Title field
+- local_amount_cents: EstAvailFunds (converted to cents)
+- federal_amount_cents: If FundingSource contains "Federal"
+- period_start/period_end: OpenDate/ApplicationDeadline
+- state_fiscal_year: Derived from period_start
+
+**Note:** grants.ca.gov tracks grant OPPORTUNITIES, not specific awards to cities.
+The amounts represent total available funding, not city-specific allocations.
+Useful for tracking what funding is available to pursue.
+
+### Files Changed
+
+- `packages/civic-extraction/src/civic_extraction/clients/cagrants.py` (new)
+- `packages/civic-extraction/src/civic_extraction/clients/__init__.py`
+- `packages/civic-extraction/tests/test_clients.py`
+- `pilot.json` (marked ready, set next P0)
+
+### Tests
+
+- 39 smoke tests passed (test_civic.py)
+- 14 unit tests for CaliforniaGrantsClient (test_clients.py)
+- 2 integration tests verified API connectivity
+
+### Next Item
+
+P0 set to `budget_funding_source_linking` - Link budget line items to their federal/state funding sources.
