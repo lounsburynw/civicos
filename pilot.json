@@ -1111,15 +1111,16 @@
         "completed": "2026-01-03"
       },
       "extraction_config_financial_section": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Add optional 'financial' field to ExtractionConfig dataclass",
-        "note": "Fields: state, sco_city_name, fac_uei, budget_pdf_pattern, acfr_pdf_pattern, fiscal_year_start. Update san-rafael.json as reference.",
-        "test_file": "packages/civic-extraction/tests/test_clients.py"
+        "note": "Added FinancialConfig dataclass with state, county, sco_entity_name, fac_auditee_name, uei, usaspending_recipient_name, budget/acfr patterns, fiscal_year_start_month. Updated san-rafael.json with full config.",
+        "test_file": "packages/civic-extraction/tests/test_clients.py",
+        "completed": "2026-01-03"
       },
       "budget_extractor_protocol": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Define BudgetExtractor protocol and BudgetLineItem schema in base.py",
         "note": "Move BudgetLineItem from prompts/budget_extraction.py to clients/base.py. Create protocol matching Extractor pattern.",
         "depends_on": "extraction_config_financial_section"
