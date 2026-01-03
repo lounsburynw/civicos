@@ -1104,7 +1104,7 @@
     "financial_data_infrastructure": {
       "financial_client_protocol_compliance": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "CAStateControllerClient, FACClient, USAspendingClient implement DataSource protocol",
         "note": "Add health() and validate() methods to match existing extraction infrastructure. Enables unified monitoring dashboard.",
         "test_file": "packages/civic-extraction/tests/test_clients.py"
