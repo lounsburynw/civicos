@@ -1119,15 +1119,15 @@
         "completed": "2026-01-03"
       },
       "budget_extractor_protocol": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 99,
         "artifact": "Define BudgetExtractor protocol and BudgetLineItem schema in base.py",
         "note": "Move BudgetLineItem from prompts/budget_extraction.py to clients/base.py. Create protocol matching Extractor pattern.",
         "depends_on": "extraction_config_financial_section"
       },
       "budget_acfr_reconciliation_automation": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Automated budget-to-ACFR reconciliation with IngestionManifest integration",
         "note": "Extend scripts/reconcile_funding_sources.py. Output reconciliation report. Track provenance via manifest.",
         "depends_on": "budget_extractor_protocol"

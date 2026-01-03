@@ -96,6 +96,55 @@ class ValidationResult:
 
 
 @dataclass
+class BudgetLineItem:
+    """
+    A single budget line item extracted from a municipal budget document.
+
+    This is the common format for budget data that extractors should produce.
+    All amounts are stored in cents to avoid floating-point precision issues.
+    """
+
+    fund: str  # "General Fund", "Enterprise - Water", etc.
+    department: Optional[str]  # "Police", "Fire", etc.
+    program: Optional[str]  # "Homelessness Services", etc.
+    line_item: str  # Full line item description
+    budgeted_cents: int  # Amount in cents (multiply dollars by 100)
+    revised_cents: Optional[int] = None  # Mid-year revisions
+    actual_cents: Optional[int] = None  # Actual spend (if available)
+    source_page: Optional[int] = None  # Page number in source PDF
+    notes: Optional[str] = None  # Special conditions, caveats
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "fund": self.fund,
+            "department": self.department,
+            "program": self.program,
+            "line_item": self.line_item,
+            "budgeted_cents": self.budgeted_cents,
+            "revised_cents": self.revised_cents,
+            "actual_cents": self.actual_cents,
+            "source_page": self.source_page,
+            "notes": self.notes,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "BudgetLineItem":
+        """Create from dictionary."""
+        return cls(
+            fund=data["fund"],
+            department=data.get("department"),
+            program=data.get("program"),
+            line_item=data["line_item"],
+            budgeted_cents=data["budgeted_cents"],
+            revised_cents=data.get("revised_cents"),
+            actual_cents=data.get("actual_cents"),
+            source_page=data.get("source_page"),
+            notes=data.get("notes"),
+        )
+
+
+@dataclass
 class FinancialConfig:
     """
     Financial data source configuration.
@@ -353,6 +402,43 @@ class Extractor(Protocol):
 
         Returns:
             Normalized Meeting object
+        """
+        ...
+
+
+@runtime_checkable
+class BudgetExtractor(Protocol):
+    """
+    Protocol defining the interface for budget extractors.
+
+    Budget extractors fetch and normalize municipal budget data from
+    various sources (PDFs, APIs, scraped documents).
+    """
+
+    def extract_budget(
+        self,
+        fiscal_year: str,
+    ) -> List[BudgetLineItem]:
+        """
+        Extract budget line items for a fiscal year.
+
+        Args:
+            fiscal_year: Fiscal year to extract (e.g., "2025-2026")
+
+        Returns:
+            List of BudgetLineItem objects
+        """
+        ...
+
+    def normalize_line_item(self, raw: Dict[str, Any]) -> BudgetLineItem:
+        """
+        Normalize a raw budget entry to BudgetLineItem format.
+
+        Args:
+            raw: Raw budget data from source
+
+        Returns:
+            Normalized BudgetLineItem object
         """
         ...
 
