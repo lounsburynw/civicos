@@ -8639,3 +8639,58 @@ Deferred Modal script relocation (`/scripts/*.py` → `packages/civic-extraction
 - packages/civic/src/civic/storage/sqlite_backend.py (+160 lines)
 - packages/civic/tests/test_storage_protocols.py (+290 lines)
 - pilot.json (status: ready, priority: 2)
+
+## Session 435 (2026-01-02)
+**Item**: budget_etl_template
+**Status**: COMPLETE
+
+### Summary
+
+Created AI-assisted budget extraction prompt template module for open-source contribution. The module enables any LLM (Claude, GPT-4, Gemini) to extract structured budget data from municipal PDF documents.
+
+### Implementation
+
+Created `packages/civic-extraction/src/civic_extraction/prompts/` directory with:
+
+1. **budget_extraction.py** - Core module with:
+   - `BudgetExtractionPrompt` - Renders complete extraction prompt
+   - `BudgetExtractionResult` - Parses and validates LLM responses
+   - `BudgetLineItem` / `BudgetTotals` - Data classes matching StorageBackend schema
+   - Layer 2 accuracy rules embedded in prompt (from BUDGET_ACCURACY_STRATEGY.md):
+     - Prevents citywide budget confusion
+     - Excludes investment portfolio values
+     - Prevents context pollution
+     - Detects double-counting
+   - Validation with expected totals comparison
+   - Dollar/cents conversion utilities
+
+2. **test_budget_extraction.py** - 25 tests covering:
+   - Dollar/cents conversions
+   - JSON serialization/parsing
+   - Markdown code block stripping
+   - Validation logic (variance detection, negative amounts, suspiciously large values)
+   - Prompt content verification
+
+### Key Design Decisions
+
+- **Model-agnostic**: Prompt works with any LLM capable of JSON output
+- **Cents storage**: All amounts stored as integers (cents) to avoid floating-point errors
+- **Validation built-in**: Result class has validate() method for accuracy checking
+- **Layer 2 rules**: Critical budget extraction rules embedded in prompt to prevent common errors
+
+### Test Results
+
+```
+pytest packages/civic-extraction/tests/test_budget_extraction.py -v → 25 passed
+pytest packages/civic/tests/test_civic.py -q → 34 passed (smoke tests)
+```
+
+### Files Changed
+- packages/civic-extraction/src/civic_extraction/prompts/__init__.py (new)
+- packages/civic-extraction/src/civic_extraction/prompts/budget_extraction.py (new, 350 lines)
+- packages/civic-extraction/tests/test_budget_extraction.py (new, 200 lines)
+- pilot.json (status: ready, priority: 2)
+
+### Next Item (P0)
+
+**san_rafael_fy2526_budget** - Use the new template to extract actual San Rafael FY 2025-26 budget data from https://www.cityofsanrafael.org/city-budget/

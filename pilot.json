@@ -1294,15 +1294,17 @@
         "completed": "2026-01-02"
       },
       "budget_etl_template": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "AI-assisted extraction prompt template for municipal budgets",
         "doc": "docs/BUDGET_EXTRACTION.md#ai-assisted-etl-template",
-        "note": "Enables open-source contributors to add their city's budget"
+        "note": "BudgetExtractionPrompt module with Layer 2 accuracy rules, validation, and JSON schema",
+        "test_file": "packages/civic-extraction/tests/test_budget_extraction.py",
+        "completed": "2026-01-02"
       },
       "san_rafael_fy2526_budget": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "San Rafael FY 2025-26 budget extracted (~100 line items)",
         "doc": "docs/BUDGET_EXTRACTION.md#track-1-municipal-budget-pdf",
         "source": "https://www.cityofsanrafael.org/city-budget/",
