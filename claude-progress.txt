@@ -8856,3 +8856,51 @@ Staff Report → RetrospectiveAnalyzer → HighStakesDecision
 ### Next Item
 
 P0 set to `federal_awards_schema` - begin intergovernmental funding tracking.
+
+## Session 439: federal_awards_schema - Add Federal Awards Table Schema
+
+**Date:** 2026-01-02
+**Item:** federal_awards_schema (data_readiness > intergovernmental_funding)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+
+Added federal_awards schema to StorageBackend protocol and PostgresBackend implementation. This is the first item in a 7-item sequence for intergovernmental funding tracking (federal→state→city funding flows). Data will come from USAspending.gov API.
+
+### Implementation
+
+1. **StorageBackend protocol** (`packages/civic/src/civic/storage/backend.py`):
+   - `store_federal_awards(jurisdiction_id, awards, as_of) -> int`
+   - `get_federal_awards(jurisdiction_id, cfda_number, period_start, period_end, as_of, limit) -> List[Dict]`
+   - `get_federal_awards_count(jurisdiction_id) -> int`
+
+2. **PostgresBackend** (`packages/civic/src/civic/storage/postgres_backend.py`):
+   - Created `federal_awards` table with temporal versioning
+   - Schema fields: award_id, cfda_number, recipient_uei, recipient_name, amount_cents, period_start, period_end, program_name, awarding_agency, funding_agency, award_type, metadata
+   - Amounts stored in BIGINT cents for precision
+   - Indexes on (jurisdiction_id, cfda_number), (recipient_uei), (period_start, period_end)
+   - Uses execute_values for bulk inserts with temporal versioning
+
+3. **SQLiteBackend stubs** (`packages/civic/src/civic/storage/sqlite_backend.py`):
+   - Added stub implementations returning empty/0 (Postgres used in production)
+
+4. **Test updates** (`packages/civic/tests/test_storage_protocols.py`):
+   - Added federal_awards methods to MockStorageBackend and InMemoryStorage
+   - Added federal_awards to PostgresBackend required_methods check
+
+### Files Changed
+
+- `packages/civic/src/civic/storage/backend.py`
+- `packages/civic/src/civic/storage/postgres_backend.py`
+- `packages/civic/src/civic/storage/sqlite_backend.py`
+- `packages/civic/tests/test_storage_protocols.py`
+- `pilot.json` (marked ready, set next P0)
+
+### Tests
+
+- 39 smoke tests passed (test_civic.py)
+- 69 storage protocol tests passed (test_storage_protocols.py)
+
+### Next Item
+
+P0 set to `usaspending_ingestion` - ingest federal awards from USAspending.gov API.
