@@ -86,13 +86,13 @@
       },
       "scheduled_data_tests": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "Weekly CI workflow for heavy data tests",
         "note": "GitHub Actions workflow for full corpus tests on schedule (35MB PDFs, real transcripts)"
       },
       "slow_test_markers": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "Mark performance/load tests with @pytest.mark.slow"
       }
     },
@@ -224,7 +224,7 @@
     "cloud_storage": {
       "turso_backend": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "TursoBackend implements StorageBackend protocol for cloud SQLite",
         "note": "Turso (libSQL) is SQLite-compatible with 9GB free tier. DEPRIORITIZED: Using PostgresBackend instead for cloud."
       },
@@ -361,7 +361,7 @@
       },
       "cost_dashboard": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 2,
         "artifact": "Admin dashboard showing cumulative ETL costs by pipeline and time period",
         "note": "Aggregate from etl_costs table. Show daily/weekly/monthly breakdown by pipeline type."
       },
@@ -541,7 +541,7 @@
       },
       "update_legislative_button": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "Button: Update Legislative Context"
       }
     },
@@ -575,12 +575,12 @@
     "configuration": {
       "api_key_status": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "Show API key status for AssemblyAI, LegiScan"
       },
       "cost_tracking": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "Show AssemblyAI usage/cost this month"
       }
     },
@@ -594,7 +594,7 @@
       },
       "data_critic": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 2,
         "artifact": ".critics/data.critic.md - ETL data quality and schema validation",
         "note": "Blocked on: stable schema, known edge cases, platform quirks cataloged. Define after pipeline automation validates patterns against real San Rafael data.",
         "blocked_by": [
@@ -838,7 +838,7 @@
       },
       "ab_test_retrieval_quality": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 2,
         "artifact": "Compare retrieval quality on sample queries before/after"
       },
       "vector_backend_protocol_completion": {
@@ -857,7 +857,7 @@
       },
       "shared_config_package": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "Move JurisdictionRegistry to shared package for clean layer separation",
         "note": "civic-services imports JurisdictionRegistry/CITY_CONFIGS from civic (cross-layer). Options: (1) Create packages/civic-config/, (2) Duplicate config in civic-services. Low priority - config sharing is pragmatic."
       },
@@ -922,7 +922,7 @@
       },
       "deprecate_chromadb_legal_indexer": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "description": "Remove LegalIndexer -> ChromaDB path after pgvector unification",
         "artifact": "Delete civic/_internal/legal/embeddings/indexer.py, update imports",
         "depends_on": "legislation_full_text_chunking",
@@ -1096,7 +1096,7 @@
       },
       "corpus_type_registry": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "Pluggable CorpusType enum with metadata per corpus",
         "note": "Extend CORPUS_TYPES frozenset with metadata: source_table, vector_collection, has_sql_source, etc."
       }
@@ -1141,7 +1141,7 @@
       },
       "marin_county_financial_config": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 2,
         "artifact": "Create data/extraction/marin-county.json with financial data sources",
         "note": "County-level budget context. SCO data available. Identify budget/ACFR PDF locations.",
         "depends_on": "extraction_config_financial_section"
@@ -1530,7 +1530,7 @@
     "election_data": {
       "election_integration": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 2,
         "artifact": "Election data integration for whats_next() - upcoming elections, deadlines, ballot measures",
         "note": "Post-core-ingestion feature. Multi-source strategy: Google Civic API (primary) + Marin County Registrar (authoritative local). Reference doc: docs/critical/ELECTION_INTEGRATION.md",
         "depends_on": [
@@ -1552,7 +1552,7 @@
       },
       "roll_call_extraction": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 2,
         "artifact": "Extract roll call votes from meeting minutes (AYES/NOES/ABSENT patterns)",
         "note": "Prerequisite for voting record linkage. Minutes contain 'AYES: Smith, Jones; NOES: Brown' patterns. Add extract_roll_call() to decision extraction pipeline.",
         "depends_on": [
@@ -1565,7 +1565,7 @@
       },
       "elected_officials_table": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "ElectedOfficial model + storage for linking candidates to voting records",
         "note": "Schema: id, name, seat, jurisdiction_id, term_start, term_end, name_variations (for fuzzy matching). Populated from Google Civic API representatives endpoint.",
         "depends_on": [
@@ -1581,7 +1581,7 @@
       },
       "voting_record_api": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "get_voting_record() method to query incumbent voting history by topic",
         "note": "The 'closed loop' - connects elections to decisions. Returns VotingRecord with yes/no/abstain counts and decision list. Enables 'Jane Smith voted YES on 80% of housing items'.",
         "depends_on": [
@@ -1714,7 +1714,7 @@
       },
       "extraction_versioning": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "extraction_version field on all extracted records",
         "note": "Track which version of extractor produced each record. Enables re-extraction when extractors improve."
       }
@@ -1728,7 +1728,7 @@
       },
       "engagement_tracking_schema": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "civic_engagement table stub for future anti-astroturf measures",
         "note": "Schema only - don't populate until coordination features built. Tracks 311 reports, meeting testimony, etc."
       }
@@ -2027,12 +2027,12 @@
       },
       "public_profiles": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "Public user profiles"
       },
       "notification_badges": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "Notification badges for new activity"
       }
     }
@@ -2100,7 +2100,7 @@
       },
       "feedback_channel": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 0,
         "check": "Way for users to report issues",
         "note": "Add feedback mechanism (GitHub link, email, or in-app form) for pilot users to report bugs"
       },
@@ -2279,13 +2279,13 @@
       },
       "cfr_ingestion": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 2,
         "description": "Ingest Code of Federal Regulations (agency regulations)",
         "notes": "50 titles, ~180k pages. Source: ecfr.gov bulk XML"
       },
       "case_law_ingestion": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 2,
         "description": "Ingest federal case law (judicial decisions)",
         "notes": "Sources: CourtListener API, Harvard Caselaw Access Project"
       },
