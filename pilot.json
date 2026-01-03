@@ -1384,19 +1384,21 @@
         "data_source": "https://www.grants.ca.gov/"
       },
       "budget_funding_source_linking": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Link city budget line items to federal/state funding sources",
         "depends_on": [
           "usaspending_ingestion",
           "ca_grants_ingestion",
           "san_rafael_fy2526_budget"
         ],
-        "note": "Match budget_items.notes/program to federal CFDA or state grant ID. Semi-automated: AI suggests matches, human confirms. Enables 'trace this dollar to source' queries."
+        "note": "Match budget_items.notes/program to federal CFDA or state grant ID. Semi-automated: AI suggests matches, human confirms. Enables 'trace this dollar to source' queries.",
+        "completed": "2026-01-02",
+        "session": 444
       },
       "funding_reconciliation": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Reconcile federal award amounts with city budget receipts",
         "depends_on": [
           "budget_funding_source_linking"

@@ -664,6 +664,42 @@ class TestStorageBackendProtocol:
             def get_state_passthrough_count(self, jurisdiction_id: str) -> int:
                 return 0
 
+            # Budget funding source links methods
+            def store_budget_funding_links(
+                self,
+                jurisdiction_id: str,
+                links: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(links)
+
+            def get_budget_funding_links(
+                self,
+                jurisdiction_id: str,
+                budget_item_id: Optional[str] = None,
+                federal_cfda_number: Optional[str] = None,
+                match_type: Optional[str] = None,
+                confirmed_only: bool = False,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_budget_funding_links_count(
+                self,
+                jurisdiction_id: str,
+                confirmed_only: bool = False,
+            ) -> int:
+                return 0
+
+            def confirm_budget_funding_link(
+                self,
+                jurisdiction_id: str,
+                link_id: str,
+                confirmed_by: str,
+            ) -> bool:
+                return True
+
         mock = MockStorageBackend()
         assert isinstance(mock, StorageBackend)
 
@@ -1360,6 +1396,42 @@ class TestProtocolIntegration:
 
             def get_state_passthrough_count(self, jurisdiction_id: str) -> int:
                 return 0
+
+            # Budget funding source links methods
+            def store_budget_funding_links(
+                self,
+                jurisdiction_id: str,
+                links: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(links)
+
+            def get_budget_funding_links(
+                self,
+                jurisdiction_id: str,
+                budget_item_id: Optional[str] = None,
+                federal_cfda_number: Optional[str] = None,
+                match_type: Optional[str] = None,
+                confirmed_only: bool = False,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_budget_funding_links_count(
+                self,
+                jurisdiction_id: str,
+                confirmed_only: bool = False,
+            ) -> int:
+                return 0
+
+            def confirm_budget_funding_link(
+                self,
+                jurisdiction_id: str,
+                link_id: str,
+                confirmed_by: str,
+            ) -> bool:
+                return True
 
         @dataclass
         class InMemoryVector:

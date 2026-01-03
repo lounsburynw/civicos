@@ -9046,3 +9046,86 @@ Useful for tracking what funding is available to pursue.
 ### Next Item
 
 P0 set to `budget_funding_source_linking` - Link budget line items to their federal/state funding sources.
+
+## Session 444 - 2026-01-02
+
+### Completed: budget_funding_source_linking
+
+Implemented budget-funding source linking infrastructure to connect city budget line items to their federal/state funding sources. This enables "trace this dollar to source" queries.
+
+**Key Implementation Details:**
+
+1. **Storage Layer** (`budget_funding_source_links` table):
+   - Links budget_item_id to federal_award_id and/or passthrough_id
+   - Stores CFDA numbers for cross-referencing
+   - Match confidence scoring (0.0 to 1.0)
+   - Match type: cfda_exact, cfda_passthrough, cfda_federal, cfda_only, program_name, state_grant_id, ai_suggested, manual
+   - Reconciliation status: match, variance, unverified
+   - Human confirmation workflow (confirmed_by, confirmed_at)
+   - Temporal versioning like all other tables
+
+2. **StorageBackend Protocol** (4 new methods):
+   - `store_budget_funding_links(jurisdiction_id, links, as_of) -> int`
+   - `get_budget_funding_links(jurisdiction_id, budget_item_id, federal_cfda_number, match_type, confirmed_only, as_of, limit) -> List[Dict]`
+   - `get_budget_funding_links_count(jurisdiction_id, confirmed_only) -> int`
+   - `confirm_budget_funding_link(jurisdiction_id, link_id, confirmed_by) -> bool`
+
+3. **Matching Engine** (`packages/civic/src/civic/_internal/funding/matcher.py`):
+   - FundingMatcher class for automated link generation
+   - extract_cfda_numbers() regex pattern for CFDA format (XX.XXX)
+   - PROGRAM_CFDA_MAP with 25+ common federal programs (HUD, DOT, EPA, FEMA, DOJ, HHS)
+   - Multi-stage matching: 
+     - Stage 1: Direct CFDA extraction from text (conf: 0.95)
+     - Stage 2: Program name keyword matching (conf: 0.80)
+     - Stage 3: State grant ID matching (conf: 0.85)
+   - Match object with to_link() for storage conversion
+   - Automatic reconciliation status calculation (match <1%, variance <10%, else unverified)
+
+4. **Test Coverage**:
+   - Added budget_funding_links methods to MockStorageBackend and InMemoryStorage test classes
+   - 78 storage protocol tests pass
+   - 39 smoke tests pass
+
+### Schema Design
+
+```sql
+CREATE TABLE budget_funding_source_links (
+    id SERIAL PRIMARY KEY,
+    link_id TEXT NOT NULL,
+    jurisdiction_id TEXT NOT NULL,
+    budget_item_id TEXT NOT NULL,
+    federal_award_id TEXT,
+    federal_cfda_number TEXT,
+    passthrough_id TEXT,
+    state_grant_id TEXT,
+    match_type TEXT NOT NULL,
+    match_confidence DECIMAL(3,2) NOT NULL,
+    match_source TEXT,
+    match_notes TEXT,
+    budget_cents BIGINT,
+    federal_cents BIGINT,
+    local_cents BIGINT,
+    reconciliation_status TEXT,
+    variance_cents BIGINT,
+    variance_percentage DECIMAL(5,2),
+    confirmed_by TEXT,
+    confirmed_at TIMESTAMP,
+    valid_from TIMESTAMP,
+    valid_to TIMESTAMP,
+    ...
+)
+```
+
+### Files Changed
+
+- `packages/civic/src/civic/storage/backend.py` (protocol methods)
+- `packages/civic/src/civic/storage/postgres_backend.py` (schema + implementation)
+- `packages/civic/src/civic/storage/sqlite_backend.py` (schema + implementation)
+- `packages/civic/src/civic/_internal/funding/__init__.py` (new)
+- `packages/civic/src/civic/_internal/funding/matcher.py` (new)
+- `packages/civic/tests/test_storage_protocols.py` (test mock updates)
+- `pilot.json` (marked ready, set next P0)
+
+### Next Item
+
+P0 set to `funding_reconciliation` - Reconcile federal award amounts with city budget receipts.
