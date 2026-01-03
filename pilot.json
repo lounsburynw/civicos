@@ -1100,6 +1100,50 @@
         "artifact": "Pluggable CorpusType enum with metadata per corpus",
         "note": "Extend CORPUS_TYPES frozenset with metadata: source_table, vector_collection, has_sql_source, etc."
       }
+    },
+    "financial_data_infrastructure": {
+      "financial_client_protocol_compliance": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "CAStateControllerClient, FACClient, USAspendingClient implement DataSource protocol",
+        "note": "Add health() and validate() methods to match existing extraction infrastructure. Enables unified monitoring dashboard.",
+        "test_file": "packages/civic-extraction/tests/test_clients.py"
+      },
+      "extraction_config_financial_section": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Add optional 'financial' field to ExtractionConfig dataclass",
+        "note": "Fields: state, sco_city_name, fac_uei, budget_pdf_pattern, acfr_pdf_pattern, fiscal_year_start. Update san-rafael.json as reference.",
+        "test_file": "packages/civic-extraction/tests/test_clients.py"
+      },
+      "budget_extractor_protocol": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Define BudgetExtractor protocol and BudgetLineItem schema in base.py",
+        "note": "Move BudgetLineItem from prompts/budget_extraction.py to clients/base.py. Create protocol matching Extractor pattern.",
+        "depends_on": "extraction_config_financial_section"
+      },
+      "budget_acfr_reconciliation_automation": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Automated budget-to-ACFR reconciliation with IngestionManifest integration",
+        "note": "Extend scripts/reconcile_funding_sources.py. Output reconciliation report. Track provenance via manifest.",
+        "depends_on": "budget_extractor_protocol"
+      },
+      "manual_input_fallback_schema": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Schema for manually-curated financial mappings when automation fails",
+        "note": "Some mappings (e.g., grant-to-program, CFDA enrichment) require human input. Define data/manual/*.json schema with source attribution and last_updated tracking. Prioritize automation but plan for manual fallback.",
+        "pattern": "Manual input should be structured, versioned, and clearly marked as human-curated"
+      },
+      "marin_county_financial_config": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Create data/extraction/marin-county.json with financial data sources",
+        "note": "County-level budget context. SCO data available. Identify budget/ACFR PDF locations.",
+        "depends_on": "extraction_config_financial_section"
+      }
     }
   },
   "data_readiness": {
@@ -1436,7 +1480,7 @@
         "depends_on": [
           "fac_ingestion_client"
         ],
-        "note": "Session 451: Documented API design and limitations. FAC is authoritative for federal spending ($2M FY2023). USAspending shows direct awards only (incomplete). Budget↔grant linkages require explicit mappings which don't exist. Identified CA State Controller as path to state/county revenue data. See docs/critical/FEDERAL_FUNDING_DATA_SOURCES.md.",
+        "note": "Session 451: Documented API design and limitations. FAC is authoritative for federal spending ($2M FY2023). USAspending shows direct awards only (incomplete). Budget\u2194grant linkages require explicit mappings which don't exist. Identified CA State Controller as path to state/county revenue data. See docs/critical/FEDERAL_FUNDING_DATA_SOURCES.md.",
         "completed": "2026-01-03"
       },
       "fac_ingestion_client": {
@@ -1451,10 +1495,11 @@
         ]
       },
       "ca_state_controller_ingestion": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "CAStateControllerClient that ingests intergovernmental revenue data (federal, state, county) from bythenumbers.sco.ca.gov",
-        "note": "Session 451: Identified CA State Controller as high-value data source. Socrata API at bythenumbers.sco.ca.gov/resource/rrtv-rsj9.csv provides: federal/state/county revenue by city, FY2024 available (more recent than FAC), 20+ years history. San Rafael FY2024: $171K federal, $3.5M state, $909K county. This fills the state funding gap we can't get from FAC.",
+        "completed": "2026-01-03",
+        "note": "Session 452: Implemented CAStateControllerClient with health(), validate(), get_revenues() methods. Added Civic.intergovernmental_revenue() API method. San Rafael data verified: FY2024 total $8.8M ($171K federal, $7.8M state, $909K county). 10 years of data available (FY2014-2024).",
         "resources": [
           "https://bythenumbers.sco.ca.gov/",
           "https://cities.bythenumbers.sco.ca.gov/"
