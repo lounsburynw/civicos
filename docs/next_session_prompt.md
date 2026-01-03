@@ -1,49 +1,58 @@
-# Recommended: budget_extractor_protocol
+# Recommended: shared_config_package
 
 **Priority:** P0
-**Area:** data_architecture > financial_data_infrastructure
+**Area:** data_architecture > embedding_infrastructure
 **Date:** 2026-01-03
 
-> This is recommended context from Session 453. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 455. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 453 completed `financial_client_protocol_compliance` (verified already done) and `extraction_config_financial_section` (added FinancialConfig to ExtractionConfig). The financial infrastructure is maturing - we have FinancialConfig for config-driven client creation, but budget extraction still uses a separate `BudgetLineItem` in `prompts/`. Moving it to `clients/base.py` aligns with the established pattern.
+Session 455 completed `budget_acfr_reconciliation_automation` (JSON output + manifest integration) and simplified `FinancialConfig` to minimal fields (state, county, fiscal_year_start_month). The session then reprioritized pilot.json to focus on **hardening first, then build out**. This item is the foundation for cleaning up cross-package imports.
+
+## Problem
+
+`civic-services` imports from `civic` (cross-layer violation):
+- `civic_services/processing/civic_schema_adapter.py:19` → `from civic.jurisdiction import JurisdictionRegistry`
+- `civic_services/monitoring/automated_civic_refresh.py:22` → `from civic.jurisdiction import CITY_CONFIGS`
+
+This creates a dependency where the services layer depends on the core API layer.
 
 ## Recommended Task
 
-Move `BudgetLineItem` dataclass from `prompts/budget_extraction.py` to `clients/base.py` and create a `BudgetExtractor` protocol following the existing `Extractor` protocol pattern.
+Create a shared config package (`packages/civic-config/`) to hold `JurisdictionRegistry`, `JurisdictionConfig`, and related types. Both `civic` and `civic-services` can then import from this shared package.
 
 ## Key Files
 
-- `packages/civic-extraction/src/civic_extraction/clients/base.py:321-356` - `Extractor` protocol (pattern to follow)
-- `packages/civic-extraction/src/civic_extraction/prompts/budget_extraction.py:30-71` - Current `BudgetLineItem` location
-- `packages/civic-extraction/src/civic_extraction/prompts/__init__.py` - Re-exports BudgetLineItem
-- `packages/civic-extraction/tests/test_budget_extraction.py` - Existing budget tests
-- `scripts/extract_san_rafael_budget.py` - Uses BudgetLineItem
+- `packages/civic/src/civic/jurisdiction.py:1-50` - Current location of `JurisdictionRegistry`, `JurisdictionConfig`
+- `packages/civic-services/src/civic_services/processing/civic_schema_adapter.py:19` - Imports `JurisdictionRegistry`
+- `packages/civic-services/src/civic_services/monitoring/automated_civic_refresh.py:22` - Imports `CITY_CONFIGS`
+- `packages/civic-services/src/civic_services/chat/civic_chat_router.py:144` - Imports `CITY_CONFIGS`
 
 ## Suggested Approach
 
-1. Read existing `Extractor` protocol in `base.py` to understand pattern
-2. Move `BudgetLineItem` dataclass to `base.py` (after FinancialConfig, before ExtractionConfig)
-3. Create `BudgetExtractor` protocol with methods:
-   - `extract_budget(fiscal_year: str) -> List[BudgetLineItem]`
-   - `normalize_line_item(raw: Dict) -> BudgetLineItem`
-4. Update imports in `prompts/budget_extraction.py` to import from `base`
-5. Update `prompts/__init__.py` re-export
-6. Verify existing tests still pass
+1. Create `packages/civic-config/` with standard package structure
+2. Move `JurisdictionRegistry`, `JurisdictionConfig`, `GranicusConfig`, `CITY_CONFIGS` to `civic-config`
+3. Update `civic/jurisdiction.py` to re-export from `civic-config` (backward compatibility)
+4. Update `civic-services` imports to use `civic-config` directly
+5. Add `civic-config` as dependency to both `civic` and `civic-services` pyproject.toml
+
+## Alternative Approach
+
+If a new package feels heavyweight, consider:
+- Move config to `civic-extraction` (already shared)
+- Or accept the cross-layer import as pragmatic (it's just config, not logic)
 
 ## Tests to Run
 
 ```bash
-pytest packages/civic-extraction/tests/test_budget_extraction.py -v
-pytest packages/civic-extraction/tests/test_clients.py -v
+pytest packages/civic/tests/test_civic.py -v -q --override-ini="addopts="
+pytest packages/civic-services/tests/ -v -q --override-ini="addopts=" 2>/dev/null || echo "Check civic-services tests"
 ```
 
 ## Success Criteria
 
-- [ ] `BudgetLineItem` moved to `clients/base.py`
-- [ ] `BudgetExtractor` protocol defined in `clients/base.py`
-- [ ] Backward-compatible imports preserved in `prompts/`
-- [ ] All existing budget extraction tests pass
-- [ ] All client tests pass (85 tests)
+- [ ] No direct imports from `civic.jurisdiction` in `civic-services`
+- [ ] `JurisdictionRegistry` accessible from shared location
+- [ ] Backward-compatible re-exports in `civic/jurisdiction.py`
+- [ ] All existing tests pass
