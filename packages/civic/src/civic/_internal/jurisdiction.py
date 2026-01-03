@@ -116,8 +116,8 @@ def normalize_jurisdiction(jurisdiction_id: str, strict: bool = True) -> str:
         >>> normalize_jurisdiction("bogus-city")
         JurisdictionError: Unknown jurisdiction ID: 'bogus-city'
     """
-    # Import here to avoid circular import
-    from civic.jurisdiction import JurisdictionRegistry
+    # Import from civic_config (shared package)
+    from civic_config import JurisdictionRegistry
 
     if not jurisdiction_id:
         return jurisdiction_id

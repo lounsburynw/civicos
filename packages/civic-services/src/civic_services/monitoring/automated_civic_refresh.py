@@ -19,7 +19,7 @@ from typing import List, Dict, Optional
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from civic.jurisdiction import CITY_CONFIGS
+from civic_config import CITY_CONFIGS
 
 
 def get_jurisdiction_agent_type(url: str) -> str:
