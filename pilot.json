@@ -1430,13 +1430,14 @@
         "completed": "2026-01-02"
       },
       "funding_flow_e2e": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "funding_flow() returns audited federal grant data with correct budget linkages",
+        "status": "ready",
+        "priority": 1,
+        "artifact": "federal_expenditures() returns audited FAC data; funding_flow() clarified for explicit linkages; limitations documented in FEDERAL_FUNDING_DATA_SOURCES.md",
         "depends_on": [
           "fac_ingestion_client"
         ],
-        "note": "Session 448: Keyword-based matching is unreliable. Session 449: FAC data now available via federal_expenditures(). Next step: Update funding_flow() to incorporate audited expenditures, or provide guidance that federal_expenditures() is the authoritative source while funding_flow() shows best-effort budget linkages."
+        "note": "Session 451: Documented API design and limitations. FAC is authoritative for federal spending ($2M FY2023). USAspending shows direct awards only (incomplete). Budget↔grant linkages require explicit mappings which don't exist. Identified CA State Controller as path to state/county revenue data. See docs/critical/FEDERAL_FUNDING_DATA_SOURCES.md.",
+        "completed": "2026-01-03"
       },
       "fac_ingestion_client": {
         "status": "ready",
@@ -1447,6 +1448,16 @@
         "resources": [
           "https://app.fac.gov/dissemination/search/",
           "https://www.cityofsanrafael.org/financial-reports/"
+        ]
+      },
+      "ca_state_controller_ingestion": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "CAStateControllerClient that ingests intergovernmental revenue data (federal, state, county) from bythenumbers.sco.ca.gov",
+        "note": "Session 451: Identified CA State Controller as high-value data source. Socrata API at bythenumbers.sco.ca.gov/resource/rrtv-rsj9.csv provides: federal/state/county revenue by city, FY2024 available (more recent than FAC), 20+ years history. San Rafael FY2024: $171K federal, $3.5M state, $909K county. This fills the state funding gap we can't get from FAC.",
+        "resources": [
+          "https://bythenumbers.sco.ca.gov/",
+          "https://cities.bythenumbers.sco.ca.gov/"
         ]
       },
       "federal_awards_data_cleanup": {
