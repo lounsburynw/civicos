@@ -8694,3 +8694,59 @@ pytest packages/civic/tests/test_civic.py -q → 34 passed (smoke tests)
 ### Next Item (P0)
 
 **san_rafael_fy2526_budget** - Use the new template to extract actual San Rafael FY 2025-26 budget data from https://www.cityofsanrafael.org/city-budget/
+
+---
+
+## Session 436 (2026-01-02)
+
+### Completed: san_rafael_fy2526_budget
+
+Extracted San Rafael FY 2025-26 budget data from official city documents and stored in database.
+
+### Source Documents
+
+Downloaded from https://www.cityofsanrafael.org/city-budget/:
+- FY25-26-General-Fund-Budget.pdf (department appropriations)
+- FY25-26-Fund-Summary-Other-Funds.pdf (enterprise, capital, internal service funds)
+
+### Extraction Results
+
+- **58 budget line items** extracted and stored in Supabase
+- **$104.5M General Fund** across 12 departments:
+  - Police: $30.9M
+  - Fire: $26.0M
+  - Public Works: $16.1M
+  - Non-Departmental: $7.8M
+  - Community & Economic Development: $6.6M
+  - City Manager/City Council: $5.3M
+  - Library: $3.5M
+  - Finance: $2.5M
+  - Digital Service: $2.4M
+  - City Attorney: $1.4M
+  - Human Resources: $1.0M
+  - City Clerk: $1.0M
+- **$75.6M Other Funds**:
+  - Special Revenue: $35.9M
+  - Internal Service: $26.2M
+  - Enterprise (Parking): $4.1M
+  - Capital Projects: $3.6M
+  - Grant: $3.1M
+  - Library Funds: $1.8M
+
+### Files Created/Changed
+
+- scripts/extract_san_rafael_budget.py (new, extraction and storage script)
+- data/budgets/san_rafael/FY25-26-extracted.json (extracted data)
+- data/budgets/san_rafael/*.pdf (source documents)
+- data/budgets/san_rafael/*.txt (extracted text)
+- pilot.json (san_rafael_fy2526_budget: ready)
+
+### Verification
+
+- All 34 smoke tests pass
+- Budget data queryable via PostgresBackend.get_budget_items()
+- Budget summary available via PostgresBackend.get_budget_summary()
+
+### Next Item (P0)
+
+**budget_query_api** - Add Civic.budget() method for structured budget queries (dependencies now satisfied)
