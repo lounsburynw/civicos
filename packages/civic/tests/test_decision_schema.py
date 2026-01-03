@@ -33,10 +33,16 @@ class TestDecisionSchema:
         expected_props = [
             "decision_id", "meeting_date", "agenda_item", "title", "summary",
             "outcome", "vote", "staff_recommendation", "public_input",
-            "legal_instruments", "topics", "source_documents", "extraction_method"
+            "legal_instruments", "topics", "source_documents", "extraction_method",
+            "financial_impact_cents"  # SESSION 438
         ]
         for prop in expected_props:
             assert prop in properties, f"Missing property: {prop}"
+
+    def test_financial_impact_cents_allows_integer_or_null(self):
+        """financial_impact_cents should allow integer or null. SESSION 438."""
+        financial_prop = DECISION_SCHEMA["properties"]["financial_impact_cents"]
+        assert financial_prop["type"] == ["integer", "null"]
 
     def test_outcome_enum_values(self):
         """Outcome should be restricted to valid values."""
@@ -186,6 +192,33 @@ class TestDecisionValidator:
             "topics": [],
             "source_documents": []
         }
+        result = validator.validate_one(decision)
+        assert result.is_valid is True
+
+    def test_validate_financial_impact_cents(self):
+        """financial_impact_cents field validates correctly. SESSION 438."""
+        validator = DecisionValidator()
+        # Valid with integer
+        decision = {
+            "decision_id": "test-1",
+            "meeting_date": "2025-11-17",
+            "agenda_item": "6.a",
+            "title": "Budget Decision",
+            "summary": "Approved $150,000 for parks improvement.",
+            "outcome": "approved",
+            "vote": {"ayes": ["A"], "noes": [], "absent": []},
+            "financial_impact_cents": 15000000  # $150,000
+        }
+        result = validator.validate_one(decision)
+        assert result.is_valid is True
+
+        # Valid with null
+        decision["financial_impact_cents"] = None
+        result = validator.validate_one(decision)
+        assert result.is_valid is True
+
+        # Valid without field
+        del decision["financial_impact_cents"]
         result = validator.validate_one(decision)
         assert result.is_valid is True
 

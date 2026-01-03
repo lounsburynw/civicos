@@ -228,8 +228,9 @@ class SQLiteBackend:
             )
         """)
 
-        # Decisions table (SESSION 366)
+        # Decisions table (SESSION 366, enhanced SESSION 438)
         # Stores extracted decisions from meeting minutes
+        # SESSION 438: Added financial_impact_cents for budget tracking
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS decisions (
                 id TEXT NOT NULL,
@@ -246,6 +247,7 @@ class SQLiteBackend:
                 topics TEXT,
                 source_documents TEXT,
                 extraction_method TEXT,
+                financial_impact_cents INTEGER,
                 extracted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
@@ -733,8 +735,9 @@ class SQLiteBackend:
                         title, summary, outcome, vote_json,
                         staff_recommendation_json, public_input_json,
                         legal_instruments_json, topics, source_documents,
-                        extraction_method, extracted_at, valid_from, valid_to
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+                        extraction_method, financial_impact_cents,
+                        extracted_at, valid_from, valid_to
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
                 """, (
                     decision.get('decision_id'),
                     jurisdiction_id,
@@ -750,6 +753,7 @@ class SQLiteBackend:
                     json.dumps(decision.get('topics')) if decision.get('topics') else None,
                     json.dumps(decision.get('source_documents')) if decision.get('source_documents') else None,
                     decision.get('extraction_method'),
+                    decision.get('financial_impact_cents'),
                     as_of.isoformat(),
                     as_of.isoformat(),
                 ))

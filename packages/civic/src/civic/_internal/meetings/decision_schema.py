@@ -125,6 +125,10 @@ DECISION_SCHEMA: Dict[str, Any] = {
         "extraction_method": {
             "type": "string",
             "description": "How the decision was extracted (llm, simple, etc.)"
+        },
+        "financial_impact_cents": {
+            "type": ["integer", "null"],
+            "description": "Financial impact in cents (e.g., 15000000 = $150,000). SESSION 438."
         }
     },
     "additionalProperties": True
