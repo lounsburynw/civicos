@@ -1,100 +1,100 @@
-# Recommended: Budget Schema
+# Recommended: Budget Query API
 
 **Priority:** P0
 **Area:** data_readiness > budget
 **Date:** 2026-01-02
 
-> This is recommended context from Session 433. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 436. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 433 completed corpus protocol conformance - added 17 corpus methods to StorageBackend protocol. The codebase is now architecturally clean with all storage methods properly declared.
+Session 436 completed `san_rafael_fy2526_budget` - extracted 58 budget line items ($180M) from official city PDFs and stored in Supabase. The budget pipeline now has real data:
+- 12 General Fund departments ($104.5M): Police $30.9M, Fire $26M, Public Works $16.1M...
+- 46 Other Fund items ($75.6M): Special Revenue, Enterprise, Capital, Internal Service
 
-Next up: **Budget data pipeline** - enabling queries like "How much does San Rafael spend on Police?" The first step is creating the budget schema (budget_items table) in both SQLite and Postgres backends.
+Next up: **Civic.budget()** method to query this data.
 
 ## Recommended Task
 
-Create the `budget_items` table schema following the established pattern for corpus types (legislation, codified_law, etc.).
+Add `Civic.budget()` method for structured budget queries.
+
+## Key Design Decision: Extensibility for Intergovernmental Funding
+
+Session 436 added `intergovernmental_funding` to the roadmap (7 items) for tracking federal→state→city funding flows. **Design the API signature to accommodate future parameters without breaking changes:**
+
+```python
+# Phase 1 (this session) - municipal queries
+def budget(
+    self,
+    department: str = None,
+    fund: str = None,
+    program: str = None,
+    min_amount: int = None,
+    max_amount: int = None,
+    fiscal_year: str = None,
+) -> list[BudgetItem]
+
+# Phase 2 (future) - add these parameters later
+    funding_source: str = None,      # "federal", "state", "local"
+    cfda_number: str = None,         # Federal program identifier (e.g., "14.218")
+    include_upstream: bool = False,  # Include federal/state source data
+```
+
+The `budget_items.metadata` JSONB column can store `funding_source_id` when linking is implemented.
 
 ## Key Files
 
-- `packages/civic/src/civic/storage/backend.py` - Add budget methods to StorageBackend protocol
-- `packages/civic/src/civic/storage/postgres_backend.py` - Implement budget methods
-- `packages/civic/src/civic/storage/sqlite_backend.py` - Add budget stubs
-- `docs/BUDGET_EXTRACTION.md` - Schema design docs (if exists, reference it)
-
-## Suggested Schema (budget_items)
-
-Based on the artifact description ("amounts in cents for precision"):
-
-```sql
-CREATE TABLE budget_items (
-    id SERIAL PRIMARY KEY,
-    jurisdiction_id TEXT NOT NULL,
-    fiscal_year TEXT NOT NULL,           -- e.g., "FY2025-26"
-    department TEXT,                      -- e.g., "Police", "Fire", "Parks"
-    fund TEXT,                            -- e.g., "General Fund", "Enterprise"
-    category TEXT,                        -- e.g., "Personnel", "Operating", "Capital"
-    line_item TEXT NOT NULL,              -- Budget line description
-    amount_cents BIGINT NOT NULL,         -- Amount in cents for precision
-    currency TEXT DEFAULT 'USD',
-    budget_type TEXT,                     -- "adopted", "revised", "actual"
-    source_document TEXT,                 -- URL or filename of source PDF
-    source_page INTEGER,                  -- Page number in source
-    metadata JSONB,                       -- Extra fields
-    created_at TIMESTAMP DEFAULT NOW(),
-    valid_from TIMESTAMP NOT NULL,
-    valid_to TIMESTAMP                    -- Temporal versioning
-);
-
-CREATE INDEX idx_budget_items_jurisdiction ON budget_items(jurisdiction_id);
-CREATE INDEX idx_budget_items_fiscal_year ON budget_items(jurisdiction_id, fiscal_year);
-CREATE INDEX idx_budget_items_department ON budget_items(jurisdiction_id, department);
-```
+- `packages/civic/src/civic/civic.py` - Add budget() method
+- `packages/civic/src/civic/storage/postgres_backend.py:4437` - get_budget_items() already implemented
+- `packages/civic/src/civic/storage/postgres_backend.py:4520` - get_budget_summary() already implemented
+- `scripts/extract_san_rafael_budget.py` - Reference for data structure
+- `data/budgets/san_rafael/FY25-26-extracted.json` - 58 items to query
 
 ## Suggested Approach
 
-1. **Add budget methods to StorageBackend protocol** (`backend.py`):
-   - `store_budget_items(jurisdiction_id, items, as_of) -> int`
-   - `get_budget_items(jurisdiction_id, fiscal_year, department, fund, limit) -> List[Dict]`
-   - `get_budget_items_count(jurisdiction_id, fiscal_year) -> int`
-   - `get_budget_summary(jurisdiction_id, fiscal_year) -> Dict` (aggregates by department/fund)
+1. **Define BudgetItem dataclass** in `packages/civic/src/civic/models.py` or similar
+2. **Add budget() method to Civic class** that wraps StorageBackend calls
+3. **Handle jurisdiction resolution** (budget queries should use current jurisdiction)
+4. **Add convenience formatting** (amounts in dollars, department summaries)
 
-2. **Implement in PostgresBackend** with temporal versioning (follow codified_law pattern)
+## Example Usage
 
-3. **Add SQLiteBackend stubs** (return empty/0 like other corpus methods)
+```python
+c = Civic("san-rafael")
 
-4. **Add test mocks** in test_storage_protocols.py
+c.budget(department="Police")           # → [BudgetItem($30.9M)]
+c.budget(fund="General Fund")           # → [12 BudgetItems totaling $104.5M]
+c.budget(min_amount=10_000_000)         # → [3 items over $10M]
+c.budget()                              # → All 58 items
+```
 
 ## Tests to Run
 
 ```bash
-# Protocol compliance
-pytest packages/civic/tests/test_storage_protocols.py -v
-
-# Smoke tests
+# Smoke tests (includes Civic API)
 pytest packages/civic/tests/test_civic.py -q
+
+# If adding new test file
+pytest packages/civic/tests/test_budget_queries.py -v
 ```
 
 ## Success Criteria
 
-- [ ] StorageBackend protocol declares budget methods
-- [ ] PostgresBackend implements budget_items table + methods
-- [ ] SQLiteBackend has stub implementations
-- [ ] Protocol tests pass (69+ tests)
+- [ ] Civic.budget() method implemented with filtering parameters
+- [ ] Returns structured BudgetItem objects (not raw dicts)
+- [ ] Works with existing PostgresBackend methods
+- [ ] API signature designed for future extensibility (intergovernmental params)
 - [ ] Smoke tests pass
+- [ ] Basic integration test with real San Rafael data
 
-## Related Items (not in scope this session)
+## Related Roadmap Items
 
-The budget pipeline has 5 items total:
-1. **budget_schema** (THIS SESSION - P0)
-2. budget_etl_template - AI extraction prompt
-3. san_rafael_fy2526_budget - Extract actual budget data
-4. budget_query_api - Civic.budget() method
-5. decision_financial_extraction - Link decisions to budget impact
+**Budget pipeline (3 of 5 complete):**
+1. ~~budget_schema~~ ✅ Session 434
+2. ~~budget_etl_template~~ ✅ Session 435
+3. ~~san_rafael_fy2526_budget~~ ✅ Session 436
+4. **budget_query_api** ← THIS SESSION
+5. decision_financial_extraction (P2)
 
-## Notes
-
-- Use BIGINT cents instead of DECIMAL to avoid floating-point issues
-- San Rafael FY2025-26 budget is ~$192M with ~50-100 line items
-- Source: https://www.cityofsanrafael.org/city-budget/
+**Intergovernmental funding (new, all P2):**
+- federal_awards_schema → usaspending_ingestion → state_passthrough_schema → ca_grants_ingestion → budget_funding_source_linking → funding_reconciliation → funding_flow_api
