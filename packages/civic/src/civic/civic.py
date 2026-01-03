@@ -419,6 +419,52 @@ class FederalExpenditure:
     source_url: Optional[str] = None
 
 
+@dataclass
+class IntergovernmentalRevenue:
+    """
+    Intergovernmental revenue from CA State Controller data.
+
+    Represents federal, state, or county revenue received by a city as reported
+    to the CA State Controller. More recent than FAC data (current fiscal year
+    available) and includes state/county funding that FAC doesn't track.
+
+    Sources:
+    - Federal: Grants, pass-through funding from federal agencies
+    - State: Gas tax, Prop 172, mandated cost reimbursements, state grants
+    - County: County grants and intergovernmental transfers
+    """
+    fiscal_year: int
+    form_table: str  # SCO form code (e.g., "FUNC_GAS_TAX")
+    source: str  # "federal", "state", "county", or "undetermined"
+    amount_dollars: float
+
+    # Category info
+    category: Optional[str] = None
+    subcategory: Optional[str] = None
+    line_description: Optional[str] = None
+
+    # Entity info
+    entity_name: Optional[str] = None
+    county: Optional[str] = None
+
+
+@dataclass
+class IntergovernmentalRevenueSummary:
+    """
+    Summary of intergovernmental revenue by source for a fiscal year.
+
+    Aggregates federal, state, and county funding with breakdown by line item.
+    """
+    fiscal_year: int
+    entity_name: str
+    federal_total_dollars: float
+    state_total_dollars: float
+    county_total_dollars: float
+    undetermined_total_dollars: float
+    total_dollars: float
+    details: List[IntergovernmentalRevenue]
+
+
 # ─────────── MAIN CIVIC CLASS ───────────
 
 @dataclass
@@ -1481,6 +1527,106 @@ class Civic:
             "audit_year": year,
             "programs": programs,
         }
+
+    def intergovernmental_revenue(
+        self,
+        fiscal_year: Optional[int] = None,
+        source: Optional[str] = None,
+    ) -> IntergovernmentalRevenueSummary:
+        """
+        Get intergovernmental revenue from CA State Controller data.
+
+        This returns federal, state, and county revenue as reported to the CA State
+        Controller. Unlike FAC data (which only has federal expenditures and lags
+        18-24 months), this source:
+
+        - Includes state and county funding (not in FAC)
+        - Has more recent data (FY2024 already available vs FY2023 in FAC)
+        - Goes back 20+ years (to FY2003)
+
+        The data comes from the CA State Controller's ByTheNumbers portal
+        (bythenumbers.sco.ca.gov), which is the authoritative source for
+        California city/county financial data.
+
+        Args:
+            fiscal_year: Fiscal year to query (default: most recent available, 2024)
+            source: Filter by source ("federal", "state", "county") or None for all
+
+        Returns:
+            IntergovernmentalRevenueSummary with totals and line-item details
+
+        Example:
+            >>> c = Civic("san-rafael")
+            >>> summary = c.intergovernmental_revenue(fiscal_year=2024)
+            >>> print(f"Total: ${summary.total_dollars:,.0f}")
+            >>> print(f"  Federal: ${summary.federal_total_dollars:,.0f}")
+            >>> print(f"  State: ${summary.state_total_dollars:,.0f}")
+            >>> print(f"  County: ${summary.county_total_dollars:,.0f}")
+            Total: $8,833,401
+              Federal: $171,463
+              State: $7,753,350
+              County: $908,588
+
+        See Also:
+            federal_expenditures(): Audited federal spending from FAC (Single Audit)
+        """
+        from civic_extraction.clients.ca_state_controller import CAStateControllerClient
+
+        # Map jurisdiction to entity name
+        entity_name_map = {
+            "san-rafael": "San Rafael",
+            "city-san-rafael": "San Rafael",
+            # Add other jurisdictions as needed
+        }
+
+        entity_name = entity_name_map.get(self.jurisdiction)
+        if not entity_name:
+            # Try extracting from jurisdiction ID (e.g., "city-san-rafael" -> "San Rafael")
+            parts = self.jurisdiction.replace("city-", "").replace("-", " ").title()
+            entity_name = parts
+
+        # Default to most recent year
+        if fiscal_year is None:
+            fiscal_year = 2024
+
+        # Create client and fetch data
+        client = CAStateControllerClient(
+            jurisdiction_id=self.jurisdiction,
+            entity_name=entity_name,
+        )
+
+        summary_data = client.get_revenue_summary(fiscal_year=fiscal_year)
+
+        # Convert to IntergovernmentalRevenue objects
+        details = []
+        for d in summary_data.get("details", []):
+            # Apply source filter if specified
+            if source and d["source"] != source:
+                continue
+
+            revenue = IntergovernmentalRevenue(
+                fiscal_year=fiscal_year,
+                form_table=d["form_table"],
+                source=d["source"],
+                amount_dollars=d["amount_cents"] / 100,
+                category=d.get("category"),
+                subcategory=d.get("subcategory_1"),
+                line_description=d.get("line_description"),
+                entity_name=entity_name,
+            )
+            details.append(revenue)
+
+        # Build summary
+        return IntergovernmentalRevenueSummary(
+            fiscal_year=fiscal_year,
+            entity_name=entity_name,
+            federal_total_dollars=summary_data["federal_total_cents"] / 100,
+            state_total_dollars=summary_data["state_total_cents"] / 100,
+            county_total_dollars=summary_data["county_total_cents"] / 100,
+            undetermined_total_dollars=summary_data["undetermined_total_cents"] / 100,
+            total_dollars=summary_data["total_intergovernmental_cents"] / 100,
+            details=details,
+        )
 
     # ─────────── ACTION METHODS (Act) ───────────
 

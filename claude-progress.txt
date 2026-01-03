@@ -9407,3 +9407,76 @@ Documented the distinction between FAC (audited expenditures) and USAspending (d
 ### Next Session
 
 P0: `ca_state_controller_ingestion` - Build client to ingest intergovernmental revenue data from CA State Controller. This fills the state funding gap and provides more recent data than FAC.
+
+## Session 452: ca_state_controller_ingestion - Build CA State Controller Client
+
+**Date:** 2026-01-03
+**Item:** ca_state_controller_ingestion (data_readiness > intergovernmental_funding)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+
+Implemented CA State Controller client to ingest intergovernmental revenue data (federal, state, county) from bythenumbers.sco.ca.gov. This fills the state funding gap that FAC doesn't cover and provides more recent data.
+
+### What We Built
+
+1. **CAStateControllerClient** (`packages/civic-extraction/src/civic_extraction/clients/ca_state_controller.py`)
+   - Connects to Socrata API at bythenumbers.sco.ca.gov/resource/rrtv-rsj9
+   - Methods: `health()`, `validate()`, `get_intergovernmental_revenues()`, `get_revenue_summary()`, `get_multi_year_summary()`
+   - Classifies revenue by source: federal, state, county, undetermined
+   - Convenience function: `create_san_rafael_sco_client()`
+
+2. **Civic API** (`packages/civic/src/civic/civic.py`)
+   - `intergovernmental_revenue(fiscal_year, source)` - Get revenue summary with details
+   - `IntergovernmentalRevenue` dataclass - Individual revenue line items
+   - `IntergovernmentalRevenueSummary` dataclass - Aggregated summary
+
+### Data Verified
+
+San Rafael Intergovernmental Revenue (FY2014-2024):
+
+| Year | Federal | State | County | Total |
+|------|---------|-------|--------|-------|
+| 2024 | $171K | $7.8M | $909K | $8.8M |
+| 2023 | $817K | $8.3M | $1.4M | $10.5M |
+| 2022 | $16.2M | $10.5M | $1.3M | $28.0M |
+| 2021 | $209K | $11.7M | $2.2M | $14.1M |
+| 2020 | $506K | $3.9M | $2.3M | $6.8M |
+
+Top FY2024 line items:
+- State: Other State Grants – Other (Specify): $3.5M
+- State: Gasoline Tax: $3.2M
+- County: Other County Grants: $909K
+- State: Public Safety - Prop.172: $657K
+- Federal: Other Federal Grants: $166K
+
+### Key Insight
+
+The CA State Controller data shows significantly higher state intergovernmental revenue than previously documented ($7-11M vs $3M). The handoff from Session 451 had incomplete state categorization.
+
+### Files Changed
+
+- `packages/civic-extraction/src/civic_extraction/clients/ca_state_controller.py` - New client
+- `packages/civic-extraction/src/civic_extraction/clients/__init__.py` - Export new client
+- `packages/civic/src/civic/civic.py` - Added intergovernmental_revenue() API method
+- `docs/critical/FEDERAL_FUNDING_DATA_SOURCES.md` - Updated with implementation details
+- `pilot.json` - Marked ca_state_controller_ingestion ready
+
+### Usage Example
+
+```python
+from civic import Civic
+c = Civic("san-rafael")
+
+summary = c.intergovernmental_revenue(fiscal_year=2024)
+print(f"Total: ${summary.total_dollars:,.0f}")
+print(f"  Federal: ${summary.federal_total_dollars:,.0f}")
+print(f"  State: ${summary.state_total_dollars:,.0f}")
+print(f"  County: ${summary.county_total_dollars:,.0f}")
+```
+
+### Next Session
+
+Need to assign P0. Options:
+- Continue with remaining pilot items
+- See `pilot.json` for current priorities

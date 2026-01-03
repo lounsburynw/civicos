@@ -116,31 +116,44 @@ c.funding_flow()  # Returns empty if no linkages exist
 |----------|---------|------------------------|
 | "Which budget line items are grant-funded?" | Not yet integrated | City CAFR grants schedule, HUD CAPER reports |
 | "If CDBG is cut 20%, which programs are affected?" | Not yet integrated | [HUD Exchange CDBG Reports](https://www.hudexchange.info/programs/cdbg/cdbg-reports-program-data-and-income-limits/) - accomplishment data by city |
-| "How much state funding does San Rafael receive?" | Not yet integrated | [CA State Controller](https://bythenumbers.sco.ca.gov/) - 12 years of city revenue by source |
+| "How much state funding does San Rafael receive?" | ✅ **Available** | `intergovernmental_revenue()` from CA State Controller |
 | "What's the current year federal spending?" | FAC audits lag 18-24 months | City quarterly financial reports, mid-year budget reviews |
 
-### High-Priority Data Source: CA State Controller
+### CA State Controller Integration (Implemented Session 452)
 
 The CA State Controller's ByTheNumbers portal has **structured, queryable data** on city intergovernmental revenue:
 
 **API Endpoint:** `https://bythenumbers.sco.ca.gov/resource/rrtv-rsj9.csv`
 
+**Usage:**
+```python
+from civic import Civic
+c = Civic("san-rafael")
+
+# Get intergovernmental revenue summary
+summary = c.intergovernmental_revenue(fiscal_year=2024)
+print(f"Total: ${summary.total_dollars:,.0f}")
+print(f"  Federal: ${summary.federal_total_dollars:,.0f}")
+print(f"  State: ${summary.state_total_dollars:,.0f}")
+print(f"  County: ${summary.county_total_dollars:,.0f}")
+```
+
 **San Rafael Intergovernmental Revenue (verified):**
 
 | Year | Federal | State | County | Total |
 |------|---------|-------|--------|-------|
-| 2024 | $171K | $3.5M | $909K | $4.5M |
-| 2023 | $817K | $3.1M | $1.4M | $5.3M |
-| 2022 | $16.2M | $2.8M | $1.3M | $20.3M |
-| 2021 | $209K | $2.5M | $2.2M | $4.9M |
+| 2024 | $171K | $7.8M | $909K | $8.8M |
+| 2023 | $817K | $8.3M | $1.4M | $10.5M |
+| 2022 | $16.2M | $10.5M | $1.3M | $28.0M |
+| 2021 | $209K | $11.7M | $2.2M | $14.1M |
 
 **Why this matters:**
 - **More recent than FAC** - FY2024 available (FAC only has FY2023)
-- **Includes state revenue** - $3M+/year we can't get elsewhere
+- **Includes state revenue** - $7-11M/year we can't get from FAC
 - **Socrata API** - Structured, queryable, no PDF parsing
-- **20+ years of history** - Data back to 2003
+- **10+ years of history** - Data back to FY2014 for San Rafael
 
-**Integration priority:** HIGH - See `ca_state_controller_ingestion` task in pilot.json.
+**Implementation:** `packages/civic-extraction/src/civic_extraction/clients/ca_state_controller.py`
 
 ### Other Potential Data Sources
 
@@ -178,3 +191,4 @@ For current-year estimates, USAspending direct awards can provide partial visibi
 - Session 449: Added FAC client for authoritative expenditure data
 - Session 450: Added UEI support to USAspending for precise matching
 - Session 451: Documented the distinction, clarified API purposes, added limitations
+- Session 452: Implemented CA State Controller client with `intergovernmental_revenue()` API method

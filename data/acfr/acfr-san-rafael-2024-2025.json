@@ -1,0 +1,73 @@
+{
+  "jurisdiction": "City of San Rafael",
+  "fiscal_year": "2024-2025",
+  "acfr_date": "2025-11-20",
+  "federal_awards": [],
+  "state_revenues": [
+    {
+      "source": "Motor Vehicle In-Lieu Tax",
+      "amount_cents": 4590500000,
+      "fund": "General Fund",
+      "restrictions": null,
+      "notes": null
+    },
+    {
+      "source": "State gasoline taxes",
+      "amount_cents": 796179300,
+      "fund": "Gas Tax Fund",
+      "restrictions": null,
+      "notes": null
+    }
+  ],
+  "county_revenues": [
+    {
+      "source": "Sales taxes",
+      "amount_cents": 4590500000,
+      "fund": "General Fund",
+      "program": null,
+      "notes": "County share of sales taxes"
+    }
+  ],
+  "fund_mappings": [
+    {
+      "fund_name": "General Fund",
+      "fund_type": "General",
+      "total_revenue_cents": 10577300800,
+      "revenue_sources": [
+        "Motor Vehicle In-Lieu Tax",
+        "Sales taxes"
+      ],
+      "restricted_use": "Basic governmental activities"
+    },
+    {
+      "fund_name": "Traffic and Housing Mitigation Fund",
+      "fund_type": "Special Revenue",
+      "total_revenue_cents": 138347700,
+      "revenue_sources": [],
+      "restricted_use": "Major housing and street improvement projects"
+    },
+    {
+      "fund_name": "Gas Tax Fund",
+      "fund_type": "Special Revenue",
+      "total_revenue_cents": 796179300,
+      "revenue_sources": [
+        "State gasoline taxes"
+      ],
+      "restricted_use": "Street maintenance projects"
+    },
+    {
+      "fund_name": "Essential Facilities Capital Projects Fund",
+      "fund_type": "Capital Projects",
+      "total_revenue_cents": 12699700,
+      "revenue_sources": [],
+      "restricted_use": "Major capital improvements to public safety facilities"
+    }
+  ],
+  "key_reconciliations": [],
+  "extraction_notes": "Extracted intergovernmental revenues and fund mappings from pages 5, 16, 30, 54, 67, 120, 121, 122.",
+  "_extraction_metadata": {
+    "source_file": "/Users/nicolaslounsbury/Downloads/d0f34020-san-rafael-acfr-2025-final.pdf",
+    "extraction_date": "2026-01-03T12:57:45.972869",
+    "model": "gemini-2.0-flash-exp"
+  }
+}
