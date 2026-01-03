@@ -1333,3 +1333,115 @@ class StorageBackend(Protocol):
             Number of current (non-expired) passthrough records
         """
         ...
+
+    # =======================================================================
+    # BUDGET FUNDING SOURCE LINKS - Connect budget items to funding sources
+    # =======================================================================
+
+    def store_budget_funding_links(
+        self,
+        jurisdiction_id: str,
+        links: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store links between budget items and their funding sources.
+
+        Links city budget line items to federal awards and/or state passthroughs.
+        Supports AI-suggested matches with confidence scores, and human confirmation.
+
+        Atomic operation: either all links are stored or none.
+        Uses upsert semantics based on link_id.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "san-rafael")
+            links: List of link dictionaries with keys:
+                - link_id: Unique identifier for this link
+                - budget_item_id: FK to budget_items.item_id
+                - federal_award_id: FK to federal_awards.award_id (optional)
+                - federal_cfda_number: CFDA number for direct matching (optional)
+                - passthrough_id: FK to state_passthrough_funds.passthrough_id (optional)
+                - state_grant_id: State grant identifier (optional)
+                - match_type: Type of match ("cfda_exact", "program_name", "ai_suggested", "manual")
+                - match_confidence: Confidence score (0.0 to 1.0)
+                - match_source: How match was made ("cfda_extraction", "text_similarity", "human")
+                - match_notes: Explanation of the match
+                - budget_cents: Budget amount in cents (cached for queries)
+                - federal_cents: Federal award amount (cached)
+                - local_cents: Local allocation amount (cached)
+                - reconciliation_status: "match", "variance", "unverified"
+                - variance_cents: Difference if variance
+                - variance_percentage: Percentage difference
+                - confirmed_by: User who confirmed (optional)
+                - confirmed_at: When confirmed (optional)
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of links successfully stored
+        """
+        ...
+
+    def get_budget_funding_links(
+        self,
+        jurisdiction_id: str,
+        budget_item_id: Optional[str] = None,
+        federal_cfda_number: Optional[str] = None,
+        match_type: Optional[str] = None,
+        confirmed_only: bool = False,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve budget funding links with optional filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            budget_item_id: Filter by specific budget item
+            federal_cfda_number: Filter by CFDA number
+            match_type: Filter by match type
+            confirmed_only: If True, only return confirmed links
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of links to return
+
+        Returns:
+            List of link dictionaries
+        """
+        ...
+
+    def get_budget_funding_links_count(
+        self,
+        jurisdiction_id: str,
+        confirmed_only: bool = False,
+    ) -> int:
+        """
+        Get count of current budget funding links for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            confirmed_only: If True, only count confirmed links
+
+        Returns:
+            Number of current (non-expired) links
+        """
+        ...
+
+    def confirm_budget_funding_link(
+        self,
+        jurisdiction_id: str,
+        link_id: str,
+        confirmed_by: str,
+    ) -> bool:
+        """
+        Confirm an AI-suggested budget funding link.
+
+        Updates the link's confirmed_by and confirmed_at fields.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            link_id: ID of the link to confirm
+            confirmed_by: User/system confirming the link
+
+        Returns:
+            True if link was confirmed, False if link not found
+        """
+        ...
