@@ -1103,15 +1103,16 @@
     },
     "financial_data_infrastructure": {
       "financial_client_protocol_compliance": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "CAStateControllerClient, FACClient, USAspendingClient implement DataSource protocol",
-        "note": "Add health() and validate() methods to match existing extraction infrastructure. Enables unified monitoring dashboard.",
-        "test_file": "packages/civic-extraction/tests/test_clients.py"
+        "note": "All three clients implement DataSource protocol with health() and validate() methods. Protocol compliance verified at runtime via isinstance() check.",
+        "test_file": "packages/civic-extraction/tests/test_clients.py",
+        "completed": "2026-01-03"
       },
       "extraction_config_financial_section": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Add optional 'financial' field to ExtractionConfig dataclass",
         "note": "Fields: state, sco_city_name, fac_uei, budget_pdf_pattern, acfr_pdf_pattern, fiscal_year_start. Update san-rafael.json as reference.",
         "test_file": "packages/civic-extraction/tests/test_clients.py"
