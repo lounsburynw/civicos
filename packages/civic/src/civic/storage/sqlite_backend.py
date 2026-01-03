@@ -400,6 +400,54 @@ class SQLiteBackend:
             "ON federal_awards(jurisdiction_id, valid_from, valid_to)"
         )
 
+        # State passthrough funds table (SESSION 442)
+        # Tracks federal funds that flow through state agencies to local governments
+        # Example: HUD → California HCD → San Rafael (CDBG allocation)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS state_passthrough_funds (
+                passthrough_id TEXT NOT NULL,
+                jurisdiction_id TEXT NOT NULL,
+                federal_award_id TEXT,
+                federal_cfda_number TEXT,
+                federal_program_name TEXT,
+                federal_amount_cents INTEGER,
+                state_agency TEXT NOT NULL,
+                state_program_name TEXT,
+                state_grant_id TEXT,
+                local_amount_cents INTEGER CHECK(local_amount_cents >= 0),
+                allocation_percentage REAL CHECK(allocation_percentage IS NULL OR (allocation_percentage >= 0 AND allocation_percentage <= 100)),
+                period_start TEXT,
+                period_end TEXT,
+                federal_fiscal_year INTEGER,
+                state_fiscal_year INTEGER,
+                source_url TEXT,
+                notes TEXT,
+                metadata TEXT,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                PRIMARY KEY (passthrough_id, jurisdiction_id, valid_from),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                CHECK (valid_to IS NULL OR valid_to > valid_from)
+            )
+        """)
+
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_state_passthrough_jurisdiction "
+            "ON state_passthrough_funds(jurisdiction_id)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_state_passthrough_state_agency "
+            "ON state_passthrough_funds(jurisdiction_id, state_agency)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_state_passthrough_federal_cfda "
+            "ON state_passthrough_funds(federal_cfda_number)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_state_passthrough_temporal "
+            "ON state_passthrough_funds(jurisdiction_id, valid_from, valid_to)"
+        )
+
         conn.commit()
         if should_close:
             conn.close()
@@ -1943,6 +1991,260 @@ class SQLiteBackend:
             cursor.execute("""
                 SELECT COUNT(*)
                 FROM federal_awards
+                WHERE jurisdiction_id = ?
+                  AND valid_to IS NULL
+            """, (jurisdiction_id,))
+            return cursor.fetchone()[0]
+        finally:
+            conn.close()
+
+    # =======================================================================
+    # STATE PASS-THROUGH FUNDING
+    # =======================================================================
+
+    def store_state_passthrough_funds(
+        self,
+        jurisdiction_id: str,
+        passthroughs: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store state pass-through funding records with temporal versioning.
+
+        Atomic operation: either all records are stored or none.
+        Updates existing records if IDs match, inserts new ones.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "san-rafael")
+            passthroughs: List of passthrough dictionaries
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of records successfully stored
+        """
+        if not passthroughs:
+            return 0
+
+        as_of = as_of or datetime.now()
+
+        conn = sqlite3.connect(self._db_path)
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Ensure city_state exists
+            cursor.execute("""
+                INSERT OR IGNORE INTO city_states (jurisdiction_id, jurisdiction_name, as_of)
+                VALUES (?, ?, ?)
+            """, (
+                jurisdiction_id,
+                jurisdiction_id.replace('-', ' ').title(),
+                as_of.isoformat()
+            ))
+
+            # Get passthrough IDs we're updating
+            passthrough_ids = [p.get("passthrough_id") for p in passthroughs if p.get("passthrough_id")]
+
+            # Close previous versions for these passthrough_ids
+            placeholders = ",".join("?" for _ in passthrough_ids)
+            if passthrough_ids:
+                cursor.execute(f"""
+                    UPDATE state_passthrough_funds
+                    SET valid_to = ?
+                    WHERE jurisdiction_id = ?
+                      AND passthrough_id IN ({placeholders})
+                      AND valid_to IS NULL
+                """, [as_of.isoformat(), jurisdiction_id] + passthrough_ids)
+
+            # Insert new versions
+            for p in passthroughs:
+                passthrough_id = p.get("passthrough_id")
+                if not passthrough_id:
+                    continue
+
+                # Build metadata from any extra fields
+                metadata = {
+                    k: v for k, v in p.items()
+                    if k not in [
+                        "passthrough_id", "federal_award_id", "federal_cfda_number",
+                        "federal_program_name", "federal_amount_cents", "state_agency",
+                        "state_program_name", "state_grant_id", "local_amount_cents",
+                        "allocation_percentage", "period_start", "period_end",
+                        "federal_fiscal_year", "state_fiscal_year", "source_url", "notes"
+                    ]
+                }
+
+                cursor.execute("""
+                    INSERT INTO state_passthrough_funds (
+                        passthrough_id, jurisdiction_id, federal_award_id,
+                        federal_cfda_number, federal_program_name, federal_amount_cents,
+                        state_agency, state_program_name, state_grant_id,
+                        local_amount_cents, allocation_percentage,
+                        period_start, period_end,
+                        federal_fiscal_year, state_fiscal_year,
+                        source_url, notes, metadata, valid_from, valid_to
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+                """, (
+                    passthrough_id,
+                    jurisdiction_id,
+                    p.get("federal_award_id"),
+                    p.get("federal_cfda_number"),
+                    p.get("federal_program_name"),
+                    p.get("federal_amount_cents"),
+                    p.get("state_agency"),
+                    p.get("state_program_name"),
+                    p.get("state_grant_id"),
+                    p.get("local_amount_cents"),
+                    p.get("allocation_percentage"),
+                    p.get("period_start"),
+                    p.get("period_end"),
+                    p.get("federal_fiscal_year"),
+                    p.get("state_fiscal_year"),
+                    p.get("source_url"),
+                    p.get("notes"),
+                    json.dumps(metadata) if metadata else None,
+                    as_of.isoformat(),
+                ))
+
+            # Update city_state timestamp
+            cursor.execute("""
+                UPDATE city_states
+                SET as_of = ?, updated_at = ?
+                WHERE jurisdiction_id = ?
+            """, (as_of.isoformat(), datetime.now().isoformat(), jurisdiction_id))
+
+            conn.commit()
+            return len(passthroughs)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_state_passthrough_funds(
+        self,
+        jurisdiction_id: str,
+        state_agency: Optional[str] = None,
+        federal_cfda_number: Optional[str] = None,
+        federal_award_id: Optional[str] = None,
+        federal_fiscal_year: Optional[int] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get state pass-through funds with optional filtering and point-in-time queries.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            state_agency: Filter by state agency (e.g., "HCD", "Caltrans")
+            federal_cfda_number: Filter by federal CFDA number
+            federal_award_id: Filter by linked federal award
+            federal_fiscal_year: Filter by federal fiscal year
+            as_of: Point-in-time query (default: current data)
+            limit: Maximum number of results
+
+        Returns:
+            List of passthrough dictionaries
+        """
+        conn = sqlite3.connect(self._db_path)
+        conn.row_factory = sqlite3.Row
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Build query
+            query = """
+                SELECT passthrough_id, jurisdiction_id, federal_award_id,
+                       federal_cfda_number, federal_program_name, federal_amount_cents,
+                       state_agency, state_program_name, state_grant_id,
+                       local_amount_cents, allocation_percentage,
+                       period_start, period_end,
+                       federal_fiscal_year, state_fiscal_year,
+                       source_url, notes, metadata, valid_from, valid_to
+                FROM state_passthrough_funds
+                WHERE jurisdiction_id = ?
+            """
+            params: List[Any] = [jurisdiction_id]
+
+            # Point-in-time filter
+            if as_of:
+                query += " AND valid_from <= ? AND (valid_to IS NULL OR valid_to > ?)"
+                as_of_str = as_of.isoformat()
+                params.extend([as_of_str, as_of_str])
+            else:
+                query += " AND valid_to IS NULL"
+
+            # Optional filters
+            if state_agency:
+                query += " AND state_agency = ?"
+                params.append(state_agency)
+
+            if federal_cfda_number:
+                query += " AND federal_cfda_number = ?"
+                params.append(federal_cfda_number)
+
+            if federal_award_id:
+                query += " AND federal_award_id = ?"
+                params.append(federal_award_id)
+
+            if federal_fiscal_year:
+                query += " AND federal_fiscal_year = ?"
+                params.append(federal_fiscal_year)
+
+            # Order and limit
+            query += " ORDER BY local_amount_cents DESC"
+            if limit:
+                query += " LIMIT ?"
+                params.append(limit)
+
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+            passthroughs = []
+            for row in rows:
+                p = {
+                    "passthrough_id": row["passthrough_id"],
+                    "jurisdiction_id": row["jurisdiction_id"],
+                    "federal_award_id": row["federal_award_id"],
+                    "federal_cfda_number": row["federal_cfda_number"],
+                    "federal_program_name": row["federal_program_name"],
+                    "federal_amount_cents": row["federal_amount_cents"],
+                    "state_agency": row["state_agency"],
+                    "state_program_name": row["state_program_name"],
+                    "state_grant_id": row["state_grant_id"],
+                    "local_amount_cents": row["local_amount_cents"],
+                    "allocation_percentage": row["allocation_percentage"],
+                    "period_start": row["period_start"],
+                    "period_end": row["period_end"],
+                    "federal_fiscal_year": row["federal_fiscal_year"],
+                    "state_fiscal_year": row["state_fiscal_year"],
+                    "source_url": row["source_url"],
+                    "notes": row["notes"],
+                }
+                # Parse metadata if present
+                if row["metadata"]:
+                    try:
+                        p["metadata"] = json.loads(row["metadata"])
+                    except json.JSONDecodeError:
+                        pass
+                passthroughs.append(p)
+
+            return passthroughs
+
+        finally:
+            conn.close()
+
+    def get_state_passthrough_count(self, jurisdiction_id: str) -> int:
+        """Get count of current (non-expired) state pass-through records."""
+        conn = sqlite3.connect(self._db_path)
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM state_passthrough_funds
                 WHERE jurisdiction_id = ?
                   AND valid_to IS NULL
             """, (jurisdiction_id,))
