@@ -1374,8 +1374,8 @@
         "note": "Many federal programs flow through state agencies (HUD\u2192HCD, DOT\u2192Caltrans). Track: federal_award_id, state_grant_id, local_allocation_cents. Links federal source to local receipt."
       },
       "ca_grants_ingestion": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 99,
         "artifact": "Ingest CA state grants from grants.ca.gov",
         "depends_on": [
           "state_passthrough_schema"
@@ -1385,7 +1385,7 @@
       },
       "budget_funding_source_linking": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Link city budget line items to federal/state funding sources",
         "depends_on": [
           "usaspending_ingestion",
