@@ -10,6 +10,7 @@ from civic_extraction import create_san_rafael_client, create_san_rafael_source
 from civic_extraction import ProudCitySource, ExtractionConfig, DataSource, ValidationResult
 from civic_extraction.clients.base import BaseExtractor, Extractor
 from civic_extraction.clients.usaspending import USAspendingClient
+from civic_extraction.clients.cagrants import CaliforniaGrantsClient
 
 
 class TestMeetingDataclass:
@@ -912,6 +913,201 @@ class TestUSAspendingClientIntegration:
         # All returned awards should have the requested CFDA
         for award in awards:
             assert award.get("cfda_number") == "21.027"
+
+
+class TestCaliforniaGrantsClient:
+    """Test CaliforniaGrantsClient for CA state grant extraction."""
+
+    def test_client_initialization(self):
+        """Test client creates with correct defaults."""
+        client = CaliforniaGrantsClient("san-rafael", city_name="San Rafael")
+        assert client.jurisdiction_id == "san-rafael"
+        assert client.city_name == "San Rafael"
+        assert client.platform_name == "cagrants"
+        assert client.source_id == "cagrants-san-rafael"
+
+    def test_client_with_county(self):
+        """Test client initialization with county."""
+        client = CaliforniaGrantsClient(
+            "san-rafael",
+            city_name="San Rafael",
+            county="Marin"
+        )
+        assert client.county == "Marin"
+
+    def test_parse_amount_dollar_string(self):
+        """Test _parse_amount parses dollar strings."""
+        client = CaliforniaGrantsClient("test")
+        assert client._parse_amount("$30,000,000") == 3_000_000_000  # cents
+        assert client._parse_amount("$1,234.56") == 123456
+
+    def test_parse_amount_plain_number(self):
+        """Test _parse_amount parses plain numbers."""
+        client = CaliforniaGrantsClient("test")
+        assert client._parse_amount("5000") == 500000  # cents
+        assert client._parse_amount("1000000") == 100_000_000
+
+    def test_parse_amount_million_notation(self):
+        """Test _parse_amount handles 'million' notation."""
+        client = CaliforniaGrantsClient("test")
+        assert client._parse_amount("$1.5 million") == 150_000_000  # cents
+        assert client._parse_amount("30 million") == 3_000_000_000
+
+    def test_parse_amount_range(self):
+        """Test _parse_amount takes lower bound of range."""
+        client = CaliforniaGrantsClient("test")
+        # Takes $100,000 from range
+        assert client._parse_amount("$100,000 - $500,000") == 10_000_000
+
+    def test_parse_amount_empty(self):
+        """Test _parse_amount returns None for empty."""
+        client = CaliforniaGrantsClient("test")
+        assert client._parse_amount("") is None
+        assert client._parse_amount(None) is None
+
+    def test_parse_date_iso_format(self):
+        """Test _parse_date handles ISO format."""
+        client = CaliforniaGrantsClient("test")
+        assert client._parse_date("2025-01-15") == "2025-01-15"
+        assert client._parse_date("2025-01-15T10:30:00") == "2025-01-15"
+
+    def test_parse_date_us_format(self):
+        """Test _parse_date handles US date format."""
+        client = CaliforniaGrantsClient("test")
+        assert client._parse_date("01/15/2025") == "2025-01-15"
+        assert client._parse_date("12/31/2024 23:59:59") == "2024-12-31"
+
+    def test_parse_date_empty(self):
+        """Test _parse_date returns None for empty."""
+        client = CaliforniaGrantsClient("test")
+        assert client._parse_date("") is None
+        assert client._parse_date(None) is None
+
+    def test_normalize_grant_requires_id(self):
+        """Test _normalize_grant returns None without grant ID."""
+        client = CaliforniaGrantsClient("test")
+        result = client._normalize_grant({"EstAvailFunds": "$1,000,000"})
+        assert result is None
+
+    def test_normalize_grant_maps_fields(self):
+        """Test _normalize_grant maps API fields correctly."""
+        client = CaliforniaGrantsClient("test")
+        result = client._normalize_grant({
+            "PortalID": "12345",
+            "GrantID": "HCD-2025-001",
+            "AgencyDept": "California Department of Housing and Community Development",
+            "Title": "Local Early Action Planning (LEAP) Grants",
+            "EstAvailFunds": "$30,000,000",
+            "FundingSource": "State and Federal",
+            "OpenDate": "2025-01-01",
+            "ApplicationDeadline": "2025-03-31",
+            "Status": "Active",
+            "Type": "Grant",
+            "Categories": "Housing",
+            "ApplicantType": "Public Agency",
+            "Geography": "Statewide",
+            "Purpose": "Support local planning for housing development",
+            "GrantURL": "https://www.hcd.ca.gov/leap",
+        })
+        assert result is not None
+        assert result["passthrough_id"] == "ca-12345"
+        assert result["state_grant_id"] == "HCD-2025-001"
+        assert result["state_agency"] == "California Department of Housing and Community Development"
+        assert result["state_program_name"] == "Local Early Action Planning (LEAP) Grants"
+        assert result["local_amount_cents"] == 3_000_000_000  # $30M in cents
+        assert result["federal_amount_cents"] == 3_000_000_000  # Has "Federal" in source
+        assert result["period_start"] == "2025-01-01"
+        assert result["period_end"] == "2025-03-31"
+        assert result["source_url"] == "https://www.hcd.ca.gov/leap"
+        assert result["metadata"]["status"] == "Active"
+        assert result["metadata"]["categories"] == "Housing"
+
+    def test_normalize_grant_fiscal_year_calculation(self):
+        """Test _normalize_grant calculates CA fiscal year correctly."""
+        client = CaliforniaGrantsClient("test")
+
+        # July-December -> same calendar year is FY
+        result = client._normalize_grant({
+            "PortalID": "1",
+            "OpenDate": "2025-07-15",  # July 2025 -> FY 2025
+        })
+        assert result["state_fiscal_year"] == 2025
+
+        # January-June -> previous calendar year is FY
+        result = client._normalize_grant({
+            "PortalID": "2",
+            "OpenDate": "2025-03-15",  # March 2025 -> FY 2024
+        })
+        assert result["state_fiscal_year"] == 2024
+
+    def test_local_govt_categories(self):
+        """Test LOCAL_GOVT_CATEGORIES contains expected categories."""
+        assert "Housing" in CaliforniaGrantsClient.LOCAL_GOVT_CATEGORIES
+        assert "Transportation" in CaliforniaGrantsClient.LOCAL_GOVT_CATEGORIES
+        assert "Health & Human Services" in CaliforniaGrantsClient.LOCAL_GOVT_CATEGORIES
+
+
+class TestCaliforniaGrantsClientIntegration:
+    """Integration tests that call the real data.ca.gov CKAN API."""
+
+    @pytest.mark.integration
+    def test_health_check(self):
+        """Test health check against real API."""
+        client = CaliforniaGrantsClient("san-rafael", city_name="San Rafael")
+        health = client.health()
+        assert health.is_available is True
+        assert health.source_id == "cagrants-san-rafael"
+        assert health.check_duration_ms > 0
+        assert health.available_count > 0  # Should have grants in the portal
+
+    @pytest.mark.integration
+    def test_validate(self):
+        """Test validation against real API."""
+        client = CaliforniaGrantsClient("san-rafael", city_name="San Rafael")
+        result = client.validate()
+        assert result.is_valid is True
+        assert result.api_reachable is True
+        assert result.check_duration_ms > 0
+        assert result.metadata.get("total_grants", 0) > 0
+
+    @pytest.mark.integration
+    def test_get_grants_returns_data(self):
+        """Test fetching real grants from data.ca.gov."""
+        client = CaliforniaGrantsClient("san-rafael", city_name="San Rafael")
+        grants = client.get_grants(limit=10, max_records=10)
+        assert len(grants) > 0
+
+        # Check first grant has required fields
+        grant = grants[0]
+        assert "passthrough_id" in grant
+        assert "state_agency" in grant
+        assert "local_amount_cents" in grant
+
+    @pytest.mark.integration
+    def test_get_grants_for_local_government(self):
+        """Test fetching grants available to public agencies."""
+        client = CaliforniaGrantsClient("san-rafael")
+        grants = client.get_grants_for_local_government(
+            status="Active",
+            limit=10,
+            max_records=10
+        )
+
+        # All returned grants should allow public agency applicants
+        for grant in grants:
+            applicant_types = grant.get("metadata", {}).get("applicant_types", "")
+            assert "Public Agency" in applicant_types or applicant_types == ""
+
+    @pytest.mark.integration
+    def test_get_housing_grants(self):
+        """Test fetching housing-related grants."""
+        client = CaliforniaGrantsClient("san-rafael")
+        grants = client.get_housing_grants(limit=10, max_records=10)
+
+        # All returned grants should be in Housing category
+        for grant in grants:
+            categories = grant.get("metadata", {}).get("categories", "")
+            assert "Housing" in categories or categories == ""
 
 
 if __name__ == "__main__":
