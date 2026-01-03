@@ -31,9 +31,14 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 # Import from internal modules (consolidated)
+import logging
+
 from civic._internal.state import StateManager
-from civic.storage import StorageBackend, StorageStats, SQLiteBackend, get_storage_backend
+from civic.storage import StorageBackend, StorageStats, SQLiteBackend, get_storage_backend, get_vector_backend
+from civic.storage.vector import VectorBackend
 from civic.paths import get_state_db_path
+
+logger = logging.getLogger(__name__)
 
 # Optional imports - gracefully degrade if not available
 try:
@@ -343,6 +348,7 @@ class Civic:
     _state: StateManager = field(default=None, repr=False)
     _search: Any = field(default=None, repr=False)  # LegalSearch if available
     _storage: StorageBackend = field(default=None, repr=False)  # StorageBackend for stats
+    _vectors: Optional[VectorBackend] = field(default=None, repr=False)  # VectorBackend for semantic search
 
     def __post_init__(self):
         """Initialize internal services."""
@@ -367,6 +373,19 @@ class Civic:
             self._storage = get_storage_backend(database_url)
         else:
             self._storage = SQLiteBackend(self.db_path)
+
+        # Vector backend for semantic search (pgvector or None for ChromaDB fallback)
+        self._vectors = get_vector_backend(database_url)
+        if self._vectors:
+            logger.debug(
+                f"Civic({self.jurisdiction}): storage={type(self._storage).__name__}, "
+                f"vectors={self._vectors.backend_type}"
+            )
+        else:
+            logger.debug(
+                f"Civic({self.jurisdiction}): storage={type(self._storage).__name__}, "
+                f"vectors=ChromaDB (local fallback)"
+            )
 
         # LegalSearch requires embeddings - make optional
         if LEGAL_AVAILABLE:
@@ -443,6 +462,7 @@ class Civic:
             jurisdiction=self.jurisdiction,
             query=query,
             since=since,
+            vector_backend=self._vectors,  # Explicit backend, no auto-detection
         )
 
         # Convert to this module's Decision type for consistency
