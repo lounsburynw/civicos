@@ -9182,3 +9182,105 @@ P0 set to `funding_flow_api` - Civic.funding_flow() method for tracing intergove
 **Note:** Added `populate_federal_state_awards` task (P1) since the federal_awards and 
 state_passthrough_funds tables are empty. The reconciliation code is complete but 
 validation requires actual data from USAspending.gov and CA Grants Portal.
+
+## Session 446 (2026-01-02)
+
+### Completed: funding_flow_api
+
+Implemented `Civic.funding_flow()` method for tracing intergovernmental dollars from federal → state → city budget items.
+
+**Intergovernmental Funding Sequence** (7 of 8 complete):
+1. ~~federal_awards_schema~~ - Session 439
+2. ~~usaspending_ingestion~~ - Session 440
+3. ~~state_passthrough_schema~~ - Session 442
+4. ~~ca_grants_ingestion~~ - Session 443
+5. ~~budget_funding_source_linking~~ - Session 444
+6. ~~funding_reconciliation~~ - Session 445
+7. ~~funding_flow_api~~ - Session 446 (THIS SESSION)
+8. populate_federal_state_awards - P0 (NEXT)
+
+### Implementation Details
+
+1. **FundingFlow dataclass** (civic.py:331-371):
+   - Complete funding chain: federal → state → city
+   - Budget item info (id, description, dollars, department, fund, fiscal_year)
+   - Federal info (award_id, cfda, program_name, agency, dollars, period)
+   - State passthrough info (passthrough_id, agency, grant_id, dollars, period)
+   - Match quality (type, confidence, reconciliation_status, variance)
+
+2. **FundingFlowImpact dataclass** (civic.py:374-385):
+   - For "what if" analysis (e.g., "what if CDBG cut 20%?")
+   - program_name, cfda_number, cut_percentage
+   - total_current_dollars, total_impact_dollars
+   - affected_items list
+
+3. **Civic.funding_flow() method** (civic.py:1101-1244):
+   - Filters: program, cfda_number, budget_item_id, fiscal_year, min_confidence
+   - Queries storage for budget items, funding links, federal awards, passthroughs
+   - Builds lookup maps and constructs FundingFlow objects
+   - Returns List[FundingFlow]
+
+4. **Civic.funding_flow_impact() method** (civic.py:1246-1304):
+   - Calls funding_flow() then calculates cut impact
+   - Returns FundingFlowImpact with affected items and totals
+
+5. **Tests** (test_funding_flow.py):
+   - 21 tests covering dataclasses, methods, and mocked data scenarios
+   - All passing
+
+### Files Changed
+
+- `packages/civic/src/civic/civic.py` (dataclasses and methods)
+- `packages/civic/src/civic/__init__.py` (exports)
+- `packages/civic/tests/test_funding_flow.py` (new)
+- `pilot.json` (marked ready, set next P0)
+
+### Next Item
+
+P0 set to `populate_federal_state_awards` - Run USAspending and CA Grants Portal ingestion to populate federal_awards and state_passthrough_funds tables.
+
+**Note:** The funding_flow code is complete, but the database currently has 0 federal_awards and 0 state_passthrough_funds. The next session should run actual ingestion using USAspendingClient and CAGrantsPortalClient to populate real data.
+
+---
+
+## Session 447: populate_federal_state_awards - Ingest Funding Data
+
+**Date:** 2026-01-02
+**Item:** populate_federal_state_awards (data_readiness > intergovernmental_funding)
+**Priority:** P0
+
+### Summary
+
+Ingested federal awards and state grants to PostgreSQL, ran budget extraction, and created initial funding links. funding_flow() returns data but with "Unknown" budget descriptions due to jurisdiction ID mismatch.
+
+### Data Ingested
+
+**PostgreSQL:**
+- 65 federal awards ($25.3M) via USAspendingClient
+- 141 state passthroughs ($15B statewide) via CaliforniaGrantsClient
+- 58 budget items via extract_san_rafael_budget.py
+- 2 funding links (fire prevention → CFDA 97.044)
+
+**Key Federal Awards:**
+- SLFRF (21.027): $16M - State and Local Fiscal Recovery
+- Port Security (97.056): $905k
+- Firefighters Grant (97.044): $190k
+- Treasury grants (21.033, 21.020): $6M
+
+### Issue Found
+
+Jurisdiction ID mismatch:
+- Budget items: `city-san-rafael`
+- Federal/state data: `san-rafael`
+- Funding links: `san-rafael`
+
+Result: funding_flow() returns 2 flows but can't join to budget items.
+
+### Files Changed
+
+- `pilot.json` - Marked populate_federal_state_awards ready, added funding_flow_e2e
+- `data/budgets/san_rafael/FY25-26-extracted.json` - Budget extraction output
+
+### Next Item
+
+P0 set to `funding_flow_e2e` - Fix jurisdiction ID mismatch and validate funding_flow() returns complete data with budget descriptions.
