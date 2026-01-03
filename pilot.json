@@ -1365,8 +1365,8 @@
         "test_file": "packages/civic-extraction/tests/test_clients.py::TestUSAspendingClient"
       },
       "state_passthrough_schema": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 99,
         "artifact": "Schema for state-administered federal funds (pass-through)",
         "depends_on": [
           "federal_awards_schema"
@@ -1375,7 +1375,7 @@
       },
       "ca_grants_ingestion": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Ingest CA state grants from grants.ca.gov",
         "depends_on": [
           "state_passthrough_schema"

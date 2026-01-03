@@ -8945,3 +8945,53 @@ Completed USAspending.gov API ingestion for federal awards.
 ### Next Item
 
 P0 set to `state_passthrough_schema` - Schema for state-administered federal funds.
+
+## Session 442: state_passthrough_schema - Add State Pass-Through Funding Schema
+
+**Date:** 2026-01-02
+**Item:** state_passthrough_schema (data_readiness > intergovernmental_funding)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+
+Added state_passthrough_funds schema to track how federal funds flow through state agencies (like California HCD, Caltrans) to local governments (like San Rafael). This enables answering questions like "If CDBG was cut 20%, who loses what?"
+
+### Implementation
+
+1. **StorageBackend protocol** (`packages/civic/src/civic/storage/backend.py`):
+   - `store_state_passthrough_funds(jurisdiction_id, passthroughs, as_of) -> int`
+   - `get_state_passthrough_funds(jurisdiction_id, state_agency, federal_cfda_number, federal_award_id, federal_fiscal_year, as_of, limit) -> List[Dict]`
+   - `get_state_passthrough_count(jurisdiction_id) -> int`
+
+2. **PostgresBackend** (`packages/civic/src/civic/storage/postgres_backend.py`):
+   - Created `state_passthrough_funds` table with temporal versioning
+   - Key fields: passthrough_id, federal_award_id (FK link), federal_cfda_number, 
+     state_agency, local_amount_cents, allocation_percentage
+   - Indexes on jurisdiction_id, state_agency, federal_cfda_number, federal_award_id
+   - Amounts in BIGINT cents for precision
+
+3. **SQLiteBackend** (`packages/civic/src/civic/storage/sqlite_backend.py`):
+   - Full implementation (not stubs) for dev/testing
+   - Same schema pattern as PostgresBackend
+
+4. **Tests** (`packages/civic/tests/test_storage_protocols.py`):
+   - 9 new tests for state passthrough storage
+   - Tests store/retrieve, filtering by state_agency/CFDA/fiscal_year
+   - Temporal versioning tests
+
+### Files Changed
+
+- `packages/civic/src/civic/storage/backend.py`
+- `packages/civic/src/civic/storage/postgres_backend.py`
+- `packages/civic/src/civic/storage/sqlite_backend.py`
+- `packages/civic/tests/test_storage_protocols.py`
+- `pilot.json` (marked ready, set next P0)
+
+### Tests
+
+- 39 smoke tests passed (test_civic.py)
+- 78 storage protocol tests passed (test_storage_protocols.py)
+
+### Next Item
+
+P0 set to `ca_grants_ingestion` - Ingest California state grants from grants.ca.gov.

@@ -640,6 +640,30 @@ class TestStorageBackendProtocol:
             def get_federal_awards_count(self, jurisdiction_id: str) -> int:
                 return 0
 
+            # State passthrough methods
+            def store_state_passthrough_funds(
+                self,
+                jurisdiction_id: str,
+                passthroughs: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(passthroughs)
+
+            def get_state_passthrough_funds(
+                self,
+                jurisdiction_id: str,
+                state_agency: Optional[str] = None,
+                federal_cfda_number: Optional[str] = None,
+                federal_award_id: Optional[str] = None,
+                federal_fiscal_year: Optional[int] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_state_passthrough_count(self, jurisdiction_id: str) -> int:
+                return 0
+
         mock = MockStorageBackend()
         assert isinstance(mock, StorageBackend)
 
@@ -1313,6 +1337,30 @@ class TestProtocolIntegration:
             def get_federal_awards_count(self, jurisdiction_id: str) -> int:
                 return 0
 
+            # State passthrough methods
+            def store_state_passthrough_funds(
+                self,
+                jurisdiction_id: str,
+                passthroughs: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(passthroughs)
+
+            def get_state_passthrough_funds(
+                self,
+                jurisdiction_id: str,
+                state_agency: Optional[str] = None,
+                federal_cfda_number: Optional[str] = None,
+                federal_award_id: Optional[str] = None,
+                federal_fiscal_year: Optional[int] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_state_passthrough_count(self, jurisdiction_id: str) -> int:
+                return 0
+
         @dataclass
         class InMemoryVector:
             _index: Dict[str, List[Dict]] = None
@@ -1644,6 +1692,10 @@ class TestPostgresBackendStructure:
             'store_federal_awards',
             'get_federal_awards',
             'get_federal_awards_count',
+            # State passthrough methods (SESSION 442)
+            'store_state_passthrough_funds',
+            'get_state_passthrough_funds',
+            'get_state_passthrough_count',
         ]
 
         for method in required_methods:
@@ -2121,3 +2173,209 @@ class TestVideoStorageMethods:
         params = list(sig.parameters.keys())
         assert 'self' in params
         assert 'jurisdiction_id' in params
+
+
+# ============================================================================
+# State Passthrough Funding Tests (SESSION 442)
+# ============================================================================
+
+
+class TestStatePassthroughMethods:
+    """Tests for state pass-through funding storage methods."""
+
+    def test_sqlite_backend_has_passthrough_methods(self):
+        """SQLiteBackend has state passthrough methods."""
+        from civic.storage import SQLiteBackend
+
+        backend = SQLiteBackend(":memory:")
+        assert hasattr(backend, 'store_state_passthrough_funds')
+        assert hasattr(backend, 'get_state_passthrough_funds')
+        assert hasattr(backend, 'get_state_passthrough_count')
+
+    def test_postgres_backend_has_passthrough_methods(self):
+        """PostgresBackend has state passthrough methods."""
+        from civic.storage import PostgresBackend
+
+        required_methods = [
+            'store_state_passthrough_funds',
+            'get_state_passthrough_funds',
+            'get_state_passthrough_count',
+        ]
+        for method in required_methods:
+            assert hasattr(PostgresBackend, method), f"Missing method: {method}"
+
+    def test_store_passthrough_funds_signature(self):
+        """store_state_passthrough_funds has correct signature."""
+        from civic.storage import PostgresBackend
+        import inspect
+
+        sig = inspect.signature(PostgresBackend.store_state_passthrough_funds)
+        params = list(sig.parameters.keys())
+        assert 'self' in params
+        assert 'jurisdiction_id' in params
+        assert 'passthroughs' in params
+        assert 'as_of' in params
+
+    def test_get_passthrough_funds_signature(self):
+        """get_state_passthrough_funds has correct signature."""
+        from civic.storage import PostgresBackend
+        import inspect
+
+        sig = inspect.signature(PostgresBackend.get_state_passthrough_funds)
+        params = list(sig.parameters.keys())
+        assert 'self' in params
+        assert 'jurisdiction_id' in params
+        assert 'state_agency' in params
+        assert 'federal_cfda_number' in params
+        assert 'federal_award_id' in params
+        assert 'federal_fiscal_year' in params
+        assert 'as_of' in params
+        assert 'limit' in params
+
+    def test_get_passthrough_count_signature(self):
+        """get_state_passthrough_count has correct signature."""
+        from civic.storage import PostgresBackend
+        import inspect
+
+        sig = inspect.signature(PostgresBackend.get_state_passthrough_count)
+        params = list(sig.parameters.keys())
+        assert 'self' in params
+        assert 'jurisdiction_id' in params
+
+    def test_sqlite_store_and_retrieve_passthrough(self, tmp_path):
+        """SQLiteBackend can store and retrieve passthrough funds."""
+        from civic.storage import SQLiteBackend
+
+        backend = SQLiteBackend(str(tmp_path / "test.db"))
+
+        # Sample passthrough data
+        passthroughs = [
+            {
+                "passthrough_id": "CA-HCD-CDBG-2025-001",
+                "federal_cfda_number": "14.218",
+                "federal_program_name": "Community Development Block Grant",
+                "federal_amount_cents": 100_000_00,  # $100,000
+                "state_agency": "HCD",
+                "state_program_name": "California CDBG Program",
+                "local_amount_cents": 25_000_00,  # $25,000
+                "allocation_percentage": 25.0,
+                "period_start": "2025-07-01",
+                "period_end": "2026-06-30",
+                "federal_fiscal_year": 2025,
+                "state_fiscal_year": 2026,
+            }
+        ]
+
+        # Store
+        stored = backend.store_state_passthrough_funds("san-rafael", passthroughs)
+        assert stored == 1
+
+        # Retrieve
+        results = backend.get_state_passthrough_funds("san-rafael")
+        assert len(results) == 1
+        assert results[0]["passthrough_id"] == "CA-HCD-CDBG-2025-001"
+        assert results[0]["state_agency"] == "HCD"
+        assert results[0]["local_amount_cents"] == 25_000_00
+        assert results[0]["allocation_percentage"] == 25.0
+
+        # Count
+        count = backend.get_state_passthrough_count("san-rafael")
+        assert count == 1
+
+    def test_sqlite_passthrough_filtering(self, tmp_path):
+        """SQLiteBackend passthrough retrieval supports filtering."""
+        from civic.storage import SQLiteBackend
+
+        backend = SQLiteBackend(str(tmp_path / "test.db"))
+
+        # Store multiple passthroughs from different state agencies
+        passthroughs = [
+            {
+                "passthrough_id": "CA-HCD-CDBG-2025-001",
+                "federal_cfda_number": "14.218",
+                "federal_program_name": "CDBG",
+                "state_agency": "HCD",
+                "local_amount_cents": 25_000_00,
+                "federal_fiscal_year": 2025,
+            },
+            {
+                "passthrough_id": "CA-CALTRANS-STP-2025-001",
+                "federal_cfda_number": "20.205",
+                "federal_program_name": "Highway Planning & Construction",
+                "state_agency": "Caltrans",
+                "local_amount_cents": 50_000_00,
+                "federal_fiscal_year": 2025,
+            },
+            {
+                "passthrough_id": "CA-HCD-HOME-2024-001",
+                "federal_cfda_number": "14.239",
+                "federal_program_name": "HOME",
+                "state_agency": "HCD",
+                "local_amount_cents": 30_000_00,
+                "federal_fiscal_year": 2024,
+            },
+        ]
+
+        backend.store_state_passthrough_funds("san-rafael", passthroughs)
+
+        # Filter by state agency
+        hcd_only = backend.get_state_passthrough_funds("san-rafael", state_agency="HCD")
+        assert len(hcd_only) == 2
+        assert all(p["state_agency"] == "HCD" for p in hcd_only)
+
+        # Filter by CFDA
+        cdbg_only = backend.get_state_passthrough_funds("san-rafael", federal_cfda_number="14.218")
+        assert len(cdbg_only) == 1
+        assert cdbg_only[0]["federal_program_name"] == "CDBG"
+
+        # Filter by fiscal year
+        fy2025 = backend.get_state_passthrough_funds("san-rafael", federal_fiscal_year=2025)
+        assert len(fy2025) == 2
+
+    def test_sqlite_passthrough_temporal_versioning(self, tmp_path):
+        """SQLiteBackend passthrough supports temporal versioning."""
+        from civic.storage import SQLiteBackend
+        from datetime import datetime, timedelta
+
+        backend = SQLiteBackend(str(tmp_path / "test.db"))
+
+        t1 = datetime(2025, 1, 1, 12, 0, 0)
+        t2 = datetime(2025, 6, 1, 12, 0, 0)
+
+        # Store initial allocation at t1
+        passthroughs_v1 = [{
+            "passthrough_id": "CA-HCD-CDBG-2025-001",
+            "state_agency": "HCD",
+            "local_amount_cents": 25_000_00,
+        }]
+        backend.store_state_passthrough_funds("san-rafael", passthroughs_v1, as_of=t1)
+
+        # Update allocation at t2 (budget revision)
+        passthroughs_v2 = [{
+            "passthrough_id": "CA-HCD-CDBG-2025-001",
+            "state_agency": "HCD",
+            "local_amount_cents": 30_000_00,  # Increased by $5k
+        }]
+        backend.store_state_passthrough_funds("san-rafael", passthroughs_v2, as_of=t2)
+
+        # Point-in-time query at t1 shows original amount
+        results_t1 = backend.get_state_passthrough_funds("san-rafael", as_of=t1)
+        assert len(results_t1) == 1
+        assert results_t1[0]["local_amount_cents"] == 25_000_00
+
+        # Current query shows updated amount
+        results_current = backend.get_state_passthrough_funds("san-rafael")
+        assert len(results_current) == 1
+        assert results_current[0]["local_amount_cents"] == 30_000_00
+
+    def test_sqlite_passthrough_empty_list_returns_zero(self, tmp_path):
+        """SQLiteBackend store_state_passthrough_funds handles empty list."""
+        from civic.storage import SQLiteBackend
+
+        backend = SQLiteBackend(str(tmp_path / "test.db"))
+
+        stored = backend.store_state_passthrough_funds("san-rafael", [])
+        assert stored == 0
+
+        count = backend.get_state_passthrough_count("san-rafael")
+        assert count == 0
