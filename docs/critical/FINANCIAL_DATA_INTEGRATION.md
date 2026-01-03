@@ -91,14 +91,16 @@ Extend existing `ExtractionConfig` to include financial source hints:
   "base_url": "https://www.cityofsanrafael.org",
   "archives": { ... },
 
-  // NEW: Financial data hints
+  // Financial config (minimal for now - complex lookups happen at runtime)
   "financial": {
     "state": "CA",
-    "sco_city_name": "San Rafael",
-    "fac_uei": "...",
-    "budget_pdf_pattern": "https://cityofsanrafael.org/documents/budget-{fy}.pdf",
-    "acfr_pdf_pattern": "https://cityofsanrafael.org/documents/acfr-{fy}.pdf",
-    "fiscal_year_start": "07-01"
+    "county": "Marin"
+    // Future: entity identifiers for automated lookups
+    // "sco_city_name": "San Rafael",
+    // "fac_uei": "...",
+    // "budget_pdf_pattern": "https://cityofsanrafael.org/documents/budget-{fy}.pdf",
+    // "acfr_pdf_pattern": "https://cityofsanrafael.org/documents/acfr-{fy}.pdf",
+    // "fiscal_year_start": "07-01"
   }
 }
 ```

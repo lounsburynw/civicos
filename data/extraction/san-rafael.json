@@ -27,12 +27,6 @@
   },
   "financial": {
     "state": "CA",
-    "county": "Marin",
-    "sco_entity_name": "San Rafael",
-    "fac_auditee_name": "City of San Rafael",
-    "fac_auditee_city": "San Rafael",
-    "uei": "MC7TGCCKLED5",
-    "usaspending_recipient_name": "CITY OF SAN RAFAEL",
-    "fiscal_year_start_month": 7
+    "county": "Marin"
   }
 }

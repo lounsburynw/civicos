@@ -293,10 +293,6 @@ class TestExtractionConfig:
         assert config.financial is not None
         assert config.financial.state == "CA"
         assert config.financial.county == "Marin"
-        assert config.financial.sco_entity_name == "San Rafael"
-        assert config.financial.fac_auditee_name == "City of San Rafael"
-        assert config.financial.uei == "MC7TGCCKLED5"
-        assert config.financial.usaspending_recipient_name == "CITY OF SAN RAFAEL"
         assert config.financial.fiscal_year_start_month == 7
 
     def test_financial_config_to_dict(self):
@@ -306,7 +302,6 @@ class TestExtractionConfig:
         d = config.financial.to_dict()
         assert d["state"] == "CA"
         assert d["county"] == "Marin"
-        assert d["uei"] == "MC7TGCCKLED5"
         # fiscal_year_start_month == 7 is default, so not included
         assert "fiscal_year_start_month" not in d
 

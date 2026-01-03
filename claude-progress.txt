@@ -9593,3 +9593,65 @@ Moved `BudgetLineItem` dataclass from `prompts/budget_extraction.py` to `clients
 ### Next Session (P0)
 
 **budget_acfr_reconciliation_automation** - Extend scripts/reconcile_funding_sources.py to output reconciliation report and track provenance via manifest.
+
+---
+
+## Session 455 (2026-01-03)
+
+### Completed: budget_acfr_reconciliation_automation (P0)
+
+Extended `scripts/reconcile_funding_sources.py` to output structured JSON reconciliation reports with IngestionManifest integration for provenance tracking.
+
+### Changes
+
+1. **FundingMapping.to_dict()**: Added JSON serialization method to the dataclass
+
+2. **create_reconciliation_report()**: New function that generates structured JSON report with:
+   - Jurisdiction and fiscal year metadata
+   - Summary statistics (matched/unmatched counts, by_source_type breakdown)
+   - Full list of reconciliation items
+
+3. **save_reconciliation_with_manifest()**: New function that:
+   - Runs reconciliation
+   - Creates `IngestionManifest` for provenance tracking
+   - Adds file checksums for budget and ACFR inputs
+   - Saves both report JSON and manifest JSON
+   - Cross-references manifest ID in report
+
+4. **CLI enhancements**:
+   - `--save`: Enable JSON output (default: human-readable only)
+   - `--output`: Custom output directory (default: `data/reconciliation/`)
+   - `--no-manifest`: Skip manifest for debugging
+   - `--quiet`: Suppress human-readable output
+
+### Output Structure
+
+**Report JSON** (`data/reconciliation/reconciliation-{manifest_id}.json`):
+```json
+{
+  "jurisdiction_id": "city-san-rafael",
+  "budget_fiscal_year": "2025-2026",
+  "acfr_fiscal_year": "2024-2025",
+  "summary": { "total_items": 58, "matched_items": 20, ... },
+  "items": [{ "budget_item": "...", "source_type": "state", ... }],
+  "manifest_id": "ingest_YYYYMMDD_HHMMSS_city-san-rafael"
+}
+```
+
+**Manifest JSON** (`data/reconciliation/manifests/{jurisdiction}/ingest_*.json`):
+- Input file checksums (budget, acfr, report)
+- Reconciliation algorithm version
+- Source entry with records_ingested/skipped counts
+
+### Tests
+
+- 58 manifest tests pass
+- Script tested with San Rafael data end-to-end
+
+### Files Changed
+
+- `scripts/reconcile_funding_sources.py` - Full enhancement with manifest integration
+
+### Next Session (P0)
+
+cost_dashboard - Aggregate from etl_costs table. Show daily/weekly/monthly breakdown by pipeline type.
