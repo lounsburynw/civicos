@@ -9284,3 +9284,31 @@ Result: funding_flow() returns 2 flows but can't join to budget items.
 ### Next Item
 
 P0 set to `funding_flow_e2e` - Fix jurisdiction ID mismatch and validate funding_flow() returns complete data with budget descriptions.
+
+## Session 448 (2026-01-02)
+
+### Task: funding_flow_e2e → fac_ingestion_client
+
+Started investigating why `funding_flow()` showed "Unknown" for budget descriptions.
+
+### Findings
+
+1. **Jurisdiction ID mismatch** - Storage layer didn't normalize jurisdiction IDs. Fixed by adding `normalize_jurisdiction()` to all funding-related methods in postgres_backend.py.
+
+2. **Keyword matching is unreliable** - The FundingMatcher linked "Measure C Wildfire Prevention" ($3.9M local ballot measure) to a federal firefighters grant ($190K) because both contain "fire". This is a spurious match.
+
+3. **No explicit linkage in budget data** - Budget PDFs don't contain CFDA numbers or grant IDs. Amount-based matching produces false positives (23 matches, almost all coincidental).
+
+4. **The solution: Federal Audit Clearinghouse** - Cities must file Single Audits with audited Schedule of Expenditures of Federal Awards (SEFA). This has explicit CFDA→expenditure linkages.
+
+### Changes
+
+- Added `normalize_jurisdiction()` to 8 postgres_backend methods
+- Migrated data from `san-rafael` to `city-san-rafael`
+- Capped `variance_percentage` to 999.99 in FundingMatcher
+- Removed spurious keyword-based funding links
+- Added `fac_ingestion_client` P0 item to pilot.json
+
+### Next Session
+
+P0: `fac_ingestion_client` - Build client to ingest SEFA data from Federal Audit Clearinghouse (app.fac.gov). This provides audited federal grant data with explicit CFDA linkages.

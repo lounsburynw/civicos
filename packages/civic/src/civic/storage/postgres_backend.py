@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional
 
 from .backend import StorageBackend, StorageStats, StorageValidationResult
 from .integrity import compute_transcript_hash, compute_chunk_hash, compute_decision_hash
+from civic._internal.jurisdiction import normalize_jurisdiction
 
 
 class DateTimeEncoder(json.JSONEncoder):
@@ -4458,6 +4459,9 @@ class PostgresBackend:
         Raises:
             psycopg2.Error: If store operation fails
         """
+        # Normalize jurisdiction to canonical form (e.g., "san-rafael" -> "city-san-rafael")
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+
         as_of = as_of or datetime.now()
         as_of_str = as_of.isoformat()
 
@@ -4637,6 +4641,9 @@ class PostgresBackend:
         Returns:
             List of budget item dictionaries
         """
+        # Normalize jurisdiction to canonical form
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+
         as_of = as_of or datetime.now()
         conn = self._get_connection()
         self._ensure_schema(conn)
@@ -4804,6 +4811,9 @@ class PostgresBackend:
         Raises:
             psycopg2.Error: If store operation fails
         """
+        # Normalize jurisdiction to canonical form (e.g., "san-rafael" -> "city-san-rafael")
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+
         as_of = as_of or datetime.now()
         as_of_str = as_of.isoformat()
 
@@ -4910,6 +4920,9 @@ class PostgresBackend:
         Returns:
             List of award dictionaries
         """
+        # Normalize jurisdiction to canonical form
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+
         as_of = as_of or datetime.now()
         conn = self._get_connection()
         self._ensure_schema(conn)
@@ -5009,6 +5022,9 @@ class PostgresBackend:
         Raises:
             psycopg2.Error: If store operation fails
         """
+        # Normalize jurisdiction to canonical form (e.g., "san-rafael" -> "city-san-rafael")
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+
         as_of = as_of or datetime.now()
         as_of_str = as_of.isoformat()
 
@@ -5127,6 +5143,9 @@ class PostgresBackend:
         Returns:
             List of passthrough dictionaries
         """
+        # Normalize jurisdiction to canonical form
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+
         as_of = as_of or datetime.now()
         conn = self._get_connection()
         self._ensure_schema(conn)
@@ -5234,6 +5253,9 @@ class PostgresBackend:
         Raises:
             psycopg2.Error: If store operation fails
         """
+        # Normalize jurisdiction to canonical form (e.g., "san-rafael" -> "city-san-rafael")
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+
         as_of = as_of or datetime.now()
         as_of_str = as_of.isoformat()
 
@@ -5342,6 +5364,9 @@ class PostgresBackend:
         Returns:
             List of link dictionaries
         """
+        # Normalize jurisdiction to canonical form
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+
         as_of = as_of or datetime.now()
         conn = self._get_connection()
         self._ensure_schema(conn)
