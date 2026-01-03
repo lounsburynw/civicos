@@ -1324,7 +1324,7 @@
       },
       "decision_financial_extraction": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Enhanced staff report extraction populates financial_impact_cents",
         "doc": "docs/BUDGET_EXTRACTION.md#track-2-per-decision-financial",
         "note": "Currently extracts text only; upgrade to structured amount + fund source"
