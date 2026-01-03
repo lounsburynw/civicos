@@ -8750,3 +8750,49 @@ Downloaded from https://www.cityofsanrafael.org/city-budget/:
 ### Next Item (P0)
 
 **budget_query_api** - Add Civic.budget() method for structured budget queries (dependencies now satisfied)
+
+---
+
+## Session 437: Budget Query API
+
+**Date:** 2026-01-02
+**Phase:** Pilot
+**Item:** budget_query_api (P0 → complete)
+
+### Summary
+
+Implemented `Civic.budget()` and `Civic.budget_summary()` methods for structured budget queries.
+
+### Implementation
+
+**New dataclasses (packages/civic/src/civic/civic.py):**
+- `BudgetItem` - Line item with amounts in dollars, fiscal year, source page
+- `BudgetSummary` - Aggregated totals by department/fund/program
+
+**New methods:**
+- `Civic.budget(department=, fund=, fiscal_year=, min_amount=, max_amount=, limit=)` - Query budget items with filtering
+- `Civic.budget_summary(fiscal_year=, group_by=)` - Aggregated summary
+
+**API designed for future extensibility:**
+- Commented placeholders for Phase 2 intergovernmental params: `funding_source`, `cfda_number`, `include_upstream`
+- `budget_items.metadata` JSONB can store `funding_source_id` for linking
+
+### Verification
+
+```python
+c = Civic("san-rafael")
+c.budget()                      # → 58 items
+c.budget(department="Police")   # → 1 item ($30.8M)
+c.budget(min_amount=10_000_000) # → 4 items (Police, Fire, PW, Other)
+c.budget_summary()              # → By department with totals
+```
+
+### Files Changed
+
+- packages/civic/src/civic/civic.py (BudgetItem, BudgetSummary, budget(), budget_summary())
+- packages/civic/tests/test_civic.py (+5 tests for budget API)
+- pilot.json (budget_query_api: ready)
+
+### Next Item
+
+Need to set P0 for next session before running `/nextsesh`.

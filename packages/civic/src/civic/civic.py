@@ -291,6 +291,38 @@ class Outcome:
     recorded_at: datetime = field(default_factory=datetime.now)
 
 
+@dataclass
+class BudgetItem:
+    """A municipal budget line item from budget().
+
+    Amounts are in dollars (converted from internal cents representation).
+    """
+    id: str
+    fund: str
+    department: str
+    line_item: str
+    budgeted_dollars: float
+    fiscal_year: str
+    program: Optional[str] = None
+    revised_dollars: Optional[float] = None
+    actual_dollars: Optional[float] = None
+    source_page: Optional[int] = None
+    notes: Optional[str] = None
+    # Future extensibility for intergovernmental funding (Phase 2)
+    # funding_source: Optional[str] = None  # "federal", "state", "local"
+    # cfda_number: Optional[str] = None     # Federal program identifier
+
+
+@dataclass
+class BudgetSummary:
+    """Aggregated budget summary from budget_summary()."""
+    name: str  # Department, fund, or program name
+    budgeted_dollars: float
+    item_count: int
+    revised_dollars: Optional[float] = None
+    actual_dollars: Optional[float] = None
+
+
 # ─────────── MAIN CIVIC CLASS ───────────
 
 @dataclass
@@ -859,6 +891,135 @@ class Civic:
         except Exception:
             # Any error - fall back to empty list (exact match will be used)
             return []
+
+    # ─────────── BUDGET METHODS ───────────
+
+    def budget(
+        self,
+        department: Optional[str] = None,
+        fund: Optional[str] = None,
+        fiscal_year: Optional[str] = None,
+        min_amount: Optional[int] = None,
+        max_amount: Optional[int] = None,
+        limit: Optional[int] = None,
+        # Future extensibility for intergovernmental funding (Phase 2)
+        # funding_source: Optional[str] = None,      # "federal", "state", "local"
+        # cfda_number: Optional[str] = None,         # Federal program identifier
+        # include_upstream: bool = False,            # Include federal/state source data
+    ) -> List["BudgetItem"]:
+        """
+        Query municipal budget by department, fund, or amount.
+
+        Returns budget line items from the jurisdiction's adopted budget.
+        Amounts are in dollars (converted from internal cents representation).
+
+        Args:
+            department: Filter by department name (e.g., "Police", "Fire")
+            fund: Filter by fund (e.g., "General Fund", "Enterprise Fund")
+            fiscal_year: Filter by fiscal year (e.g., "2025-2026").
+                        Defaults to most recent available.
+            min_amount: Minimum budgeted amount in dollars
+            max_amount: Maximum budgeted amount in dollars
+            limit: Maximum number of items to return
+
+        Returns:
+            List of BudgetItem with matching budget entries
+
+        Example:
+            >>> c = Civic("san-rafael")
+            >>> c.budget(department="Police")
+            [BudgetItem(department='Police', budgeted_dollars=30870956.0, ...)]
+
+            >>> c.budget(fund="General Fund", min_amount=10_000_000)
+            [BudgetItem(department='Police', ...), BudgetItem(department='Fire', ...)]
+        """
+        # Query storage backend
+        results = self._storage.get_budget_items(
+            jurisdiction_id=self.jurisdiction,
+            fiscal_year=fiscal_year,
+            fund=fund,
+            department=department,
+            limit=limit,
+        )
+
+        # Convert to BudgetItem dataclass with amount filtering
+        items = []
+        for r in results:
+            budgeted_cents = r.get("budgeted_cents", 0) or 0
+            budgeted_dollars = budgeted_cents / 100
+
+            # Apply client-side amount filtering
+            if min_amount is not None and budgeted_dollars < min_amount:
+                continue
+            if max_amount is not None and budgeted_dollars > max_amount:
+                continue
+
+            items.append(
+                BudgetItem(
+                    id=str(r.get("item_id", "")),
+                    fund=r.get("fund", ""),
+                    department=r.get("department", ""),
+                    program=r.get("program"),
+                    line_item=r.get("line_item", ""),
+                    budgeted_dollars=budgeted_dollars,
+                    revised_dollars=(r.get("revised_cents") or 0) / 100 if r.get("revised_cents") else None,
+                    actual_dollars=(r.get("actual_cents") or 0) / 100 if r.get("actual_cents") else None,
+                    fiscal_year=r.get("fiscal_year", ""),
+                    source_page=r.get("source_page"),
+                    notes=r.get("notes"),
+                )
+            )
+
+        return items
+
+    def budget_summary(
+        self,
+        fiscal_year: Optional[str] = None,
+        group_by: str = "department",
+    ) -> List["BudgetSummary"]:
+        """
+        Get aggregated budget summary grouped by department, fund, or program.
+
+        Args:
+            fiscal_year: Fiscal year (e.g., "2025-2026"). Defaults to most recent.
+            group_by: Grouping field ("department", "fund", or "program")
+
+        Returns:
+            List of BudgetSummary with aggregated totals
+
+        Example:
+            >>> c = Civic("san-rafael")
+            >>> c.budget_summary(fiscal_year="2025-2026")
+            [BudgetSummary(name='Police', budgeted_dollars=30870956.0, item_count=1), ...]
+        """
+        # Get fiscal year if not specified (use most recent available)
+        if fiscal_year is None:
+            # Query for any budget item to get the fiscal year
+            items = self._storage.get_budget_items(
+                jurisdiction_id=self.jurisdiction,
+                limit=1,
+            )
+            if items:
+                fiscal_year = items[0].get("fiscal_year", "2025-2026")
+            else:
+                fiscal_year = "2025-2026"
+
+        results = self._storage.get_budget_summary(
+            jurisdiction_id=self.jurisdiction,
+            fiscal_year=fiscal_year,
+            group_by=group_by,
+        )
+
+        return [
+            BudgetSummary(
+                name=r.get(group_by, "Unknown"),
+                budgeted_dollars=(r.get("budgeted_cents") or 0) / 100,
+                revised_dollars=(r.get("revised_cents") or 0) / 100 if r.get("revised_cents") else None,
+                actual_dollars=(r.get("actual_cents") or 0) / 100 if r.get("actual_cents") else None,
+                item_count=r.get("item_count", 0),
+            )
+            for r in results
+        ]
 
     # ─────────── ACTION METHODS (Act) ───────────
 
