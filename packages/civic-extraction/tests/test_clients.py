@@ -9,6 +9,7 @@ from civic_extraction import LegistarClient, CivicClerkClient, ProudCityClient, 
 from civic_extraction import create_san_rafael_client, create_san_rafael_source
 from civic_extraction import ProudCitySource, ExtractionConfig, DataSource, ValidationResult
 from civic_extraction.clients.base import BaseExtractor, Extractor
+from civic_extraction.clients.usaspending import USAspendingClient
 
 
 class TestMeetingDataclass:
@@ -779,6 +780,138 @@ class TestPipelineWithMockSource:
         assert result.stages["index"].state == StageState.COMPLETED
         assert result.stages["index"].items_processed == 1
         assert index_target.indexed_count == 1
+
+
+class TestUSAspendingClient:
+    """Test USAspendingClient for federal award extraction."""
+
+    def test_client_initialization(self):
+        """Test client creates with correct defaults."""
+        client = USAspendingClient("san-rafael", recipient_name="San Rafael")
+        assert client.jurisdiction_id == "san-rafael"
+        assert client.recipient_name == "San Rafael"
+        assert client.platform_name == "usaspending"
+        assert client.source_id == "usaspending-san-rafael"
+
+    def test_client_with_zip_codes(self):
+        """Test client initialization with zip codes."""
+        client = USAspendingClient(
+            "san-rafael",
+            recipient_name="San Rafael",
+            zip_codes=["94901", "94903"]
+        )
+        assert client.zip_codes == ["94901", "94903"]
+
+    def test_award_type_code_groups(self):
+        """Test award type code group definitions."""
+        # Grants should be 02-05
+        assert USAspendingClient.GRANT_TYPE_CODES == ["02", "03", "04", "05"]
+        # Direct payments should be 06, 10
+        assert USAspendingClient.DIRECT_PAYMENT_CODES == ["06", "10"]
+
+    def test_normalize_award_requires_id(self):
+        """Test _normalize_award returns None without award_id."""
+        client = USAspendingClient("test")
+        result = client._normalize_award({"Award Amount": 1000})
+        assert result is None
+
+    def test_normalize_award_requires_amount(self):
+        """Test _normalize_award returns None without amount."""
+        client = USAspendingClient("test")
+        result = client._normalize_award({"generated_internal_id": "test-123"})
+        assert result is None
+
+    def test_normalize_award_rejects_negative(self):
+        """Test _normalize_award returns None for negative amounts."""
+        client = USAspendingClient("test")
+        result = client._normalize_award({
+            "generated_internal_id": "test-123",
+            "Award Amount": -1000
+        })
+        assert result is None
+
+    def test_normalize_award_converts_to_cents(self):
+        """Test _normalize_award converts dollars to cents."""
+        client = USAspendingClient("test")
+        result = client._normalize_award({
+            "generated_internal_id": "test-123",
+            "Award Amount": 1234.56
+        })
+        assert result is not None
+        assert result["amount_cents"] == 123456
+
+    def test_normalize_award_maps_fields(self):
+        """Test _normalize_award maps API fields correctly."""
+        client = USAspendingClient("test")
+        result = client._normalize_award({
+            "generated_internal_id": "AWARD-123",
+            "Award Amount": 5000.00,
+            "CFDA Number": "97.056",
+            "Recipient Name": "City of Test",
+            "Award Type": "PROJECT GRANT (B)",
+            "Awarding Agency": "DHS",
+            "Funding Agency": "FEMA",
+            "Description": "Fire prevention grant",
+            "Period of Performance Start Date": "2024-01-01",
+            "Period of Performance Current End Date": "2025-12-31",
+        })
+        assert result is not None
+        assert result["award_id"] == "AWARD-123"
+        assert result["amount_cents"] == 500000
+        assert result["cfda_number"] == "97.056"
+        assert result["recipient_name"] == "City of Test"
+        assert result["award_type"] == "PROJECT GRANT (B)"
+        assert result["awarding_agency"] == "DHS"
+        assert result["funding_agency"] == "FEMA"
+        assert result["program_name"] == "Fire prevention grant"
+        assert result["period_start"] == "2024-01-01"
+        assert result["period_end"] == "2025-12-31"
+
+
+class TestUSAspendingClientIntegration:
+    """Integration tests that call the real USAspending.gov API."""
+
+    @pytest.mark.integration
+    def test_health_check(self):
+        """Test health check against real API."""
+        client = USAspendingClient("san-rafael", recipient_name="San Rafael")
+        health = client.health()
+        assert health.is_available is True
+        assert health.source_id == "usaspending-san-rafael"
+        assert health.check_duration_ms > 0
+
+    @pytest.mark.integration
+    def test_validate(self):
+        """Test validation against real API."""
+        client = USAspendingClient("san-rafael", recipient_name="San Rafael")
+        result = client.validate()
+        assert result.is_valid is True
+        assert result.api_reachable is True
+        assert result.check_duration_ms > 0
+
+    @pytest.mark.integration
+    def test_get_awards_returns_data(self):
+        """Test fetching real awards from USAspending.gov."""
+        client = USAspendingClient("san-rafael", recipient_name="San Rafael")
+        awards = client.get_awards(max_pages=1, limit=5)
+        assert len(awards) > 0
+
+        # Check first award has required fields
+        award = awards[0]
+        assert "award_id" in award
+        assert "amount_cents" in award
+        assert award["amount_cents"] >= 0
+
+    @pytest.mark.integration
+    def test_get_awards_by_cfda(self):
+        """Test fetching awards filtered by CFDA number."""
+        client = USAspendingClient("san-rafael", recipient_name="San Rafael")
+        # 21.027 = Coronavirus State and Local Fiscal Recovery Funds
+        awards = client.get_awards_by_cfda(["21.027"], max_pages=1, limit=5)
+
+        # All returned awards should have the requested CFDA
+        for award in awards:
+            assert award.get("cfda_number") == "21.027"
 
 
 if __name__ == "__main__":
