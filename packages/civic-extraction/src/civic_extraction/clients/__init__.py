@@ -5,6 +5,7 @@ Each client wraps a specific municipal platform API:
 - legistar: Legistar API (Granicus product)
 - civicclerk: CivicClerk API (Granicus product)
 - proudcity: ProudCity/WordPress web scraping (San Rafael, etc.)
+- usaspending: USAspending.gov federal awards API
 """
 
 from civic_extraction.clients.legistar import LegistarClient
@@ -15,6 +16,7 @@ from civic_extraction.clients.proudcity import (
     create_san_rafael_client,
     create_san_rafael_source,
 )
+from civic_extraction.clients.usaspending import USAspendingClient
 from civic_extraction.clients.base import (
     BaseExtractor,
     Meeting,
@@ -30,6 +32,7 @@ __all__ = [
     "ProudCitySource",
     "create_san_rafael_client",
     "create_san_rafael_source",
+    "USAspendingClient",
     "BaseExtractor",
     "Meeting",
     "ExtractionConfig",
