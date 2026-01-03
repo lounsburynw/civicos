@@ -915,6 +915,72 @@ class PostgresBackend:
             ON state_passthrough_funds(jurisdiction_id, valid_from, valid_to)
         """)
 
+        # Budget Funding Source Links table (SESSION 444)
+        # Links city budget line items to their federal/state funding sources
+        # Enables "trace this dollar to source" queries
+        # Supports AI-suggested matches with human confirmation
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS budget_funding_source_links (
+                id SERIAL PRIMARY KEY,
+                link_id TEXT NOT NULL,
+                jurisdiction_id TEXT NOT NULL,
+                budget_item_id TEXT NOT NULL,
+                federal_award_id TEXT,
+                federal_cfda_number TEXT,
+                passthrough_id TEXT,
+                state_grant_id TEXT,
+                match_type TEXT NOT NULL,
+                match_confidence DECIMAL(3,2) NOT NULL,
+                match_source TEXT,
+                match_notes TEXT,
+                budget_cents BIGINT,
+                federal_cents BIGINT,
+                local_cents BIGINT,
+                reconciliation_status TEXT,
+                variance_cents BIGINT,
+                variance_percentage DECIMAL(5,2),
+                confirmed_by TEXT,
+                confirmed_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                UNIQUE (link_id, jurisdiction_id, valid_from),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                CHECK (valid_to IS NULL OR valid_to > valid_from),
+                CHECK (match_confidence >= 0 AND match_confidence <= 1)
+            )
+        """)
+
+        # Budget funding source links indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_budget_funding_links_jurisdiction
+            ON budget_funding_source_links(jurisdiction_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_budget_funding_links_budget_item
+            ON budget_funding_source_links(budget_item_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_budget_funding_links_federal_cfda
+            ON budget_funding_source_links(federal_cfda_number)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_budget_funding_links_passthrough
+            ON budget_funding_source_links(passthrough_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_budget_funding_links_match_type
+            ON budget_funding_source_links(match_type)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_budget_funding_links_confidence
+            ON budget_funding_source_links(match_confidence DESC)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_budget_funding_links_temporal
+            ON budget_funding_source_links(jurisdiction_id, valid_from, valid_to)
+        """)
+
         # Migration: Add full_text column if not exists (SESSION 418)
         cursor.execute("""
             DO $$
@@ -5141,6 +5207,261 @@ class PostgresBackend:
 
         return count
 
+    # =======================================================================
+    # BUDGET FUNDING SOURCE LINKS (SESSION 444)
+    # Connect budget items to their federal/state funding sources
+    # =======================================================================
+
+    def store_budget_funding_links(
+        self,
+        jurisdiction_id: str,
+        links: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store links between budget items and their funding sources.
+
+        Uses PostgreSQL execute_values for bulk inserts.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "san-rafael")
+            links: List of link dictionaries
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of links successfully stored
+
+        Raises:
+            psycopg2.Error: If store operation fails
+        """
+        as_of = as_of or datetime.now()
+        as_of_str = as_of.isoformat()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Filter to valid links with required fields
+            valid_links = [
+                link for link in links
+                if link.get("link_id") and link.get("budget_item_id") and link.get("match_type")
+            ]
+
+            # Close previous versions for these link_ids
+            link_ids = [link.get("link_id") for link in valid_links if link.get("link_id")]
+            if link_ids:
+                for i in range(0, len(link_ids), 1000):
+                    chunk = link_ids[i:i + 1000]
+                    placeholders = ",".join(["%s"] * len(chunk))
+                    cursor.execute(f"""
+                        UPDATE budget_funding_source_links
+                        SET valid_to = %s
+                        WHERE jurisdiction_id = %s
+                          AND link_id IN ({placeholders})
+                          AND valid_to IS NULL
+                    """, [as_of_str, jurisdiction_id] + chunk)
+
+            # Insert new versions using execute_values for efficiency
+            values = []
+            for link in valid_links:
+                values.append((
+                    link.get("link_id"),
+                    jurisdiction_id,
+                    link.get("budget_item_id"),
+                    link.get("federal_award_id"),
+                    link.get("federal_cfda_number"),
+                    link.get("passthrough_id"),
+                    link.get("state_grant_id"),
+                    link.get("match_type"),
+                    link.get("match_confidence", 0.0),
+                    link.get("match_source"),
+                    link.get("match_notes"),
+                    link.get("budget_cents"),
+                    link.get("federal_cents"),
+                    link.get("local_cents"),
+                    link.get("reconciliation_status"),
+                    link.get("variance_cents"),
+                    link.get("variance_percentage"),
+                    link.get("confirmed_by"),
+                    link.get("confirmed_at"),
+                    as_of_str,
+                    as_of_str,
+                ))
+
+            if values:
+                psycopg2.extras.execute_values(
+                    cursor,
+                    """
+                    INSERT INTO budget_funding_source_links (
+                        link_id, jurisdiction_id, budget_item_id,
+                        federal_award_id, federal_cfda_number, passthrough_id, state_grant_id,
+                        match_type, match_confidence, match_source, match_notes,
+                        budget_cents, federal_cents, local_cents,
+                        reconciliation_status, variance_cents, variance_percentage,
+                        confirmed_by, confirmed_at,
+                        created_at, valid_from, valid_to
+                    ) VALUES %s
+                    """,
+                    values,
+                    template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)",
+                    page_size=500,
+                )
+
+            conn.commit()
+            return len(valid_links)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_budget_funding_links(
+        self,
+        jurisdiction_id: str,
+        budget_item_id: Optional[str] = None,
+        federal_cfda_number: Optional[str] = None,
+        match_type: Optional[str] = None,
+        confirmed_only: bool = False,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve budget funding links with optional filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            budget_item_id: Filter by specific budget item
+            federal_cfda_number: Filter by CFDA number
+            match_type: Filter by match type
+            confirmed_only: If True, only return confirmed links
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of links to return
+
+        Returns:
+            List of link dictionaries
+        """
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Build query with temporal filtering
+        query = """
+            SELECT * FROM budget_funding_source_links
+            WHERE jurisdiction_id = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+        """
+        params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+
+        if budget_item_id is not None:
+            query += " AND budget_item_id = %s"
+            params.append(budget_item_id)
+
+        if federal_cfda_number is not None:
+            query += " AND federal_cfda_number = %s"
+            params.append(federal_cfda_number)
+
+        if match_type is not None:
+            query += " AND match_type = %s"
+            params.append(match_type)
+
+        if confirmed_only:
+            query += " AND confirmed_at IS NOT NULL"
+
+        query += " ORDER BY match_confidence DESC, created_at DESC"
+
+        if limit is not None:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        links = cursor.fetchall()
+        conn.close()
+
+        return [dict(link) for link in links]
+
+    def get_budget_funding_links_count(
+        self,
+        jurisdiction_id: str,
+        confirmed_only: bool = False,
+    ) -> int:
+        """
+        Get count of current budget funding links for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            confirmed_only: If True, only count confirmed links
+
+        Returns:
+            Number of current (non-expired) links
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        query = """
+            SELECT COUNT(*) FROM budget_funding_source_links
+            WHERE jurisdiction_id = %s
+              AND valid_to IS NULL
+        """
+        params: List[Any] = [jurisdiction_id]
+
+        if confirmed_only:
+            query += " AND confirmed_at IS NOT NULL"
+
+        cursor.execute(query, params)
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
+    def confirm_budget_funding_link(
+        self,
+        jurisdiction_id: str,
+        link_id: str,
+        confirmed_by: str,
+    ) -> bool:
+        """
+        Confirm an AI-suggested budget funding link.
+
+        Updates the link's confirmed_by and confirmed_at fields.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            link_id: ID of the link to confirm
+            confirmed_by: User/system confirming the link
+
+        Returns:
+            True if link was confirmed, False if link not found
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("""
+                UPDATE budget_funding_source_links
+                SET confirmed_by = %s,
+                    confirmed_at = CURRENT_TIMESTAMP
+                WHERE jurisdiction_id = %s
+                  AND link_id = %s
+                  AND valid_to IS NULL
+                  AND confirmed_at IS NULL
+            """, (confirmed_by, jurisdiction_id, link_id))
+
+            rows_updated = cursor.rowcount
+            conn.commit()
+            return rows_updated > 0
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
 
 # Verify protocol compliance at import time (only if psycopg2 available)
 # StorageBackend is @runtime_checkable, so isinstance() works
@@ -5178,6 +5499,11 @@ def _verify_protocol_compliance() -> None:
         'store_budget_items', 'get_budget_items', 'get_budget_summary', 'get_budget_items_count',
         # Federal awards methods (SESSION 439)
         'store_federal_awards', 'get_federal_awards', 'get_federal_awards_count',
+        # State passthrough methods (SESSION 442)
+        'store_state_passthrough_funds', 'get_state_passthrough_funds', 'get_state_passthrough_count',
+        # Budget funding source links methods (SESSION 444)
+        'store_budget_funding_links', 'get_budget_funding_links', 'get_budget_funding_links_count',
+        'confirm_budget_funding_link',
     ]
     for method in required_methods:
         assert hasattr(PostgresBackend, method), (

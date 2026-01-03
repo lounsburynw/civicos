@@ -448,6 +448,60 @@ class SQLiteBackend:
             "ON state_passthrough_funds(jurisdiction_id, valid_from, valid_to)"
         )
 
+        # Budget funding source links table (SESSION 444)
+        # Links city budget line items to their federal/state funding sources
+        # Enables "trace this dollar to source" queries
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS budget_funding_source_links (
+                link_id TEXT NOT NULL,
+                jurisdiction_id TEXT NOT NULL,
+                budget_item_id TEXT NOT NULL,
+                federal_award_id TEXT,
+                federal_cfda_number TEXT,
+                passthrough_id TEXT,
+                state_grant_id TEXT,
+                match_type TEXT NOT NULL,
+                match_confidence REAL NOT NULL CHECK(match_confidence >= 0 AND match_confidence <= 1),
+                match_source TEXT,
+                match_notes TEXT,
+                budget_cents INTEGER,
+                federal_cents INTEGER,
+                local_cents INTEGER,
+                reconciliation_status TEXT,
+                variance_cents INTEGER,
+                variance_percentage REAL,
+                confirmed_by TEXT,
+                confirmed_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                PRIMARY KEY (link_id, jurisdiction_id, valid_from),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                CHECK (valid_to IS NULL OR valid_to > valid_from)
+            )
+        """)
+
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_budget_funding_links_jurisdiction "
+            "ON budget_funding_source_links(jurisdiction_id)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_budget_funding_links_budget_item "
+            "ON budget_funding_source_links(budget_item_id)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_budget_funding_links_cfda "
+            "ON budget_funding_source_links(federal_cfda_number)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_budget_funding_links_match_type "
+            "ON budget_funding_source_links(match_type)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_budget_funding_links_temporal "
+            "ON budget_funding_source_links(jurisdiction_id, valid_from, valid_to)"
+        )
+
         conn.commit()
         if should_close:
             conn.close()
@@ -2249,6 +2303,249 @@ class SQLiteBackend:
                   AND valid_to IS NULL
             """, (jurisdiction_id,))
             return cursor.fetchone()[0]
+        finally:
+            conn.close()
+
+    # =======================================================================
+    # BUDGET FUNDING SOURCE LINKS (SESSION 444)
+    # Connect budget items to their federal/state funding sources
+    # =======================================================================
+
+    def store_budget_funding_links(
+        self,
+        jurisdiction_id: str,
+        links: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store links between budget items and their funding sources.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "san-rafael")
+            links: List of link dictionaries
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of links successfully stored
+        """
+        as_of = as_of or datetime.now()
+        as_of_str = as_of.isoformat()
+
+        conn = sqlite3.connect(self._db_path)
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Filter to valid links with required fields
+            valid_links = [
+                link for link in links
+                if link.get("link_id") and link.get("budget_item_id") and link.get("match_type")
+            ]
+
+            # Close previous versions for these link_ids
+            link_ids = [link.get("link_id") for link in valid_links if link.get("link_id")]
+            if link_ids:
+                placeholders = ",".join(["?"] * len(link_ids))
+                cursor.execute(f"""
+                    UPDATE budget_funding_source_links
+                    SET valid_to = ?
+                    WHERE jurisdiction_id = ?
+                      AND link_id IN ({placeholders})
+                      AND valid_to IS NULL
+                """, [as_of_str, jurisdiction_id] + link_ids)
+
+            # Insert new versions
+            for link in valid_links:
+                cursor.execute("""
+                    INSERT INTO budget_funding_source_links (
+                        link_id, jurisdiction_id, budget_item_id,
+                        federal_award_id, federal_cfda_number, passthrough_id, state_grant_id,
+                        match_type, match_confidence, match_source, match_notes,
+                        budget_cents, federal_cents, local_cents,
+                        reconciliation_status, variance_cents, variance_percentage,
+                        confirmed_by, confirmed_at,
+                        created_at, valid_from, valid_to
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+                """, (
+                    link.get("link_id"),
+                    jurisdiction_id,
+                    link.get("budget_item_id"),
+                    link.get("federal_award_id"),
+                    link.get("federal_cfda_number"),
+                    link.get("passthrough_id"),
+                    link.get("state_grant_id"),
+                    link.get("match_type"),
+                    link.get("match_confidence", 0.0),
+                    link.get("match_source"),
+                    link.get("match_notes"),
+                    link.get("budget_cents"),
+                    link.get("federal_cents"),
+                    link.get("local_cents"),
+                    link.get("reconciliation_status"),
+                    link.get("variance_cents"),
+                    link.get("variance_percentage"),
+                    link.get("confirmed_by"),
+                    link.get("confirmed_at"),
+                    as_of_str,
+                    as_of_str,
+                ))
+
+            conn.commit()
+            return len(valid_links)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_budget_funding_links(
+        self,
+        jurisdiction_id: str,
+        budget_item_id: Optional[str] = None,
+        federal_cfda_number: Optional[str] = None,
+        match_type: Optional[str] = None,
+        confirmed_only: bool = False,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve budget funding links with optional filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            budget_item_id: Filter by specific budget item
+            federal_cfda_number: Filter by CFDA number
+            match_type: Filter by match type
+            confirmed_only: If True, only return confirmed links
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of links to return
+
+        Returns:
+            List of link dictionaries
+        """
+        as_of = as_of or datetime.now()
+        conn = sqlite3.connect(self._db_path)
+        conn.row_factory = sqlite3.Row
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Build query with temporal filtering
+            query = """
+                SELECT * FROM budget_funding_source_links
+                WHERE jurisdiction_id = ?
+                  AND valid_from <= ?
+                  AND (valid_to IS NULL OR valid_to > ?)
+            """
+            params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+
+            if budget_item_id is not None:
+                query += " AND budget_item_id = ?"
+                params.append(budget_item_id)
+
+            if federal_cfda_number is not None:
+                query += " AND federal_cfda_number = ?"
+                params.append(federal_cfda_number)
+
+            if match_type is not None:
+                query += " AND match_type = ?"
+                params.append(match_type)
+
+            if confirmed_only:
+                query += " AND confirmed_at IS NOT NULL"
+
+            query += " ORDER BY match_confidence DESC, created_at DESC"
+
+            if limit is not None:
+                query += " LIMIT ?"
+                params.append(limit)
+
+            cursor.execute(query, params)
+            links = cursor.fetchall()
+
+            return [dict(link) for link in links]
+
+        finally:
+            conn.close()
+
+    def get_budget_funding_links_count(
+        self,
+        jurisdiction_id: str,
+        confirmed_only: bool = False,
+    ) -> int:
+        """
+        Get count of current budget funding links for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            confirmed_only: If True, only count confirmed links
+
+        Returns:
+            Number of current (non-expired) links
+        """
+        conn = sqlite3.connect(self._db_path)
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            query = """
+                SELECT COUNT(*) FROM budget_funding_source_links
+                WHERE jurisdiction_id = ?
+                  AND valid_to IS NULL
+            """
+            params: List[Any] = [jurisdiction_id]
+
+            if confirmed_only:
+                query += " AND confirmed_at IS NOT NULL"
+
+            cursor.execute(query, params)
+            return cursor.fetchone()[0]
+
+        finally:
+            conn.close()
+
+    def confirm_budget_funding_link(
+        self,
+        jurisdiction_id: str,
+        link_id: str,
+        confirmed_by: str,
+    ) -> bool:
+        """
+        Confirm an AI-suggested budget funding link.
+
+        Updates the link's confirmed_by and confirmed_at fields.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            link_id: ID of the link to confirm
+            confirmed_by: User/system confirming the link
+
+        Returns:
+            True if link was confirmed, False if link not found
+        """
+        conn = sqlite3.connect(self._db_path)
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("""
+                UPDATE budget_funding_source_links
+                SET confirmed_by = ?,
+                    confirmed_at = CURRENT_TIMESTAMP
+                WHERE jurisdiction_id = ?
+                  AND link_id = ?
+                  AND valid_to IS NULL
+                  AND confirmed_at IS NULL
+            """, (confirmed_by, jurisdiction_id, link_id))
+
+            rows_updated = cursor.rowcount
+            conn.commit()
+            return rows_updated > 0
+
+        except Exception:
+            conn.rollback()
+            raise
         finally:
             conn.close()
 

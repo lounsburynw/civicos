@@ -1,75 +1,62 @@
-# Recommended: USAspending Ingestion
+# Recommended: funding_reconciliation
 
 **Priority:** P0
 **Area:** data_readiness > intergovernmental_funding
 **Date:** 2026-01-02
 
-> This is recommended context from Session 439. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 444. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 439 completed `federal_awards_schema` - the storage layer for federal awards. The table and StorageBackend methods are ready. Now we need to ingest actual data from USAspending.gov API.
+Session 444 completed `budget_funding_source_linking` - the infrastructure to link city budget items to federal/state funding sources. The table, StorageBackend methods, and FundingMatcher are ready. Now we need to reconcile amounts.
 
 **Intergovernmental Funding Sequence:**
 1. ~~federal_awards_schema~~ - Session 439
-2. **usaspending_ingestion** - P0 (YOU ARE HERE)
-3. state_passthrough_schema - P2
-4. ca_grants_ingestion - P2
-5. budget_funding_source_linking - P2
-6. funding_reconciliation - P2
+2. ~~usaspending_ingestion~~ - Session 440
+3. ~~state_passthrough_schema~~ - Session 442
+4. ~~ca_grants_ingestion~~ - Session 443
+5. ~~budget_funding_source_linking~~ - Session 444
+6. **funding_reconciliation** - P0 (YOU ARE HERE)
 7. funding_flow_api - P2
 
 ## Recommended Task
 
-Ingest federal awards from USAspending.gov API for San Rafael.
+Reconcile federal award amounts with city budget receipts.
 
-**Artifact:** Ingest federal awards from USAspending.gov API
+**Artifact:** Reconcile federal award amounts with city budget receipts
 
-**Note from pilot.json:** Free API, no key required. Filter by recipient (San Rafael UEI), place of performance (94901-94915), or CFDA. Returns contracts, grants, loans, direct payments.
+**Note from pilot.json:** Validate: SUM(city budget grants) ≈ SUM(federal/state awards to city). Flag discrepancies >5%. Account for multi-year awards, indirect costs, pass-through timing.
 
 ## Key Files
 
-- `packages/civic/src/civic/storage/postgres_backend.py:4661-4860` - store_federal_awards/get_federal_awards methods
-- `packages/civic/src/civic/storage/backend.py:1184-1251` - Protocol definition
-- `packages/civic-extraction/` - Where ETL extractors live (pattern reference)
+- `packages/civic/src/civic/storage/postgres_backend.py:5210-5465` - budget_funding_source_links methods
+- `packages/civic/src/civic/_internal/funding/matcher.py` - FundingMatcher with Match.to_link()
+- `packages/civic/src/civic/storage/backend.py:1337-1448` - Protocol definition
 
-## USAspending.gov API
+## Already Available
 
-**Base URL:** https://api.usaspending.gov/api/v2/
-
-**Key endpoints:**
-- `/search/spending_by_award/` - Search awards by various criteria
-- `/recipient/duns/` - Look up by DUNS/UEI
-- `/awards/last_updated/` - Get latest data timestamp
-
-**Filtering options:**
-- `recipient_search_text` - Organization name (e.g., "San Rafael")
-- `place_of_performance_locations` - Zip codes (94901-94915)
-- `def_codes` - CFDA numbers
+1. **Budget Items** - San Rafael FY25-26 budget extracted (103 items)
+2. **Federal Awards** - USAspending.gov client and data
+3. **State Grants** - California Grants Portal client
+4. **Linking Table** - budget_funding_source_links with match_confidence, variance_cents, reconciliation_status
 
 ## Suggested Approach
 
-1. **Create extractor** in `packages/civic-extraction/`:
-   - `usaspending_extractor.py` or similar
-   - Use requests to query USAspending.gov API
-   - Map API response to our award schema
+1. **Implement reconciliation logic:**
+   - Load budget items with matching federal/state funding links
+   - Compare budget_cents vs (federal_cents or local_cents)
+   - Calculate variance_cents and variance_percentage
+   - Update reconciliation_status: "match" (<1%), "variance" (<10%), "unverified"
 
-2. **Map API fields to schema:**
-   - `generated_unique_award_id` -> `award_id`
-   - `cfda_number` -> `cfda_number` (CFDA deprecated, now Assistance Listing)
-   - `recipient_uei` -> `recipient_uei`
-   - `recipient_name` -> `recipient_name`
-   - `total_obligation` (in dollars) -> `amount_cents` (convert to cents)
-   - `period_of_performance_start_date` -> `period_start`
-   - `period_of_performance_current_end_date` -> `period_end`
-   - `awarding_agency_name` -> `awarding_agency`
-   - `funding_agency_name` -> `funding_agency`
+2. **Add reconciliation report:**
+   - Total linked vs unlinked budget items
+   - Total amounts matched vs variance
+   - Flag items with variance >5% for review
 
-3. **Store via StorageBackend:**
-   - Use `store_federal_awards(jurisdiction_id, awards, as_of)`
-   - The method handles upsert with temporal versioning
-
-4. **Add test** to verify ingestion works
+3. **Handle edge cases:**
+   - Multi-year awards spanning fiscal years
+   - Indirect cost allocations
+   - Pass-through timing differences
 
 ## Tests to Run
 
@@ -83,8 +70,8 @@ pytest packages/civic/tests/test_storage_protocols.py -q --override-ini="addopts
 
 ## Success Criteria
 
-- [ ] USAspending.gov API client/extractor created
-- [ ] Can query awards for San Rafael (by UEI, zip, or name)
-- [ ] Maps API response to federal_awards schema
-- [ ] Stores awards via store_federal_awards method
-- [ ] Test verifies at least 1 award ingested
+- [ ] Reconciliation logic implemented
+- [ ] Variance calculation accurate (budget vs award amounts)
+- [ ] reconciliation_status updated: match/variance/unverified
+- [ ] Report shows linked items with variance breakdown
+- [ ] Discrepancies >5% flagged for review
