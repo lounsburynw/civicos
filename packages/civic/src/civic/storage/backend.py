@@ -1174,3 +1174,78 @@ class StorageBackend(Protocol):
             Number of current (non-expired) budget items
         """
         ...
+
+    # ========== Federal Awards Methods (Intergovernmental Funding) ==========
+    #
+    # Federal awards track grants and funding from federal agencies.
+    # Part of the intergovernmental funding flow: federal -> state -> city.
+    # Data source: USAspending.gov API.
+
+    def store_federal_awards(
+        self,
+        jurisdiction_id: str,
+        awards: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store federal awards/grants with temporal versioning.
+
+        Atomic operation: either all awards are stored or none.
+        Uses upsert semantics based on award_id.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "san-rafael")
+            awards: List of award dictionaries with keys:
+                - award_id: Unique federal award identifier
+                - cfda_number: Catalog of Federal Domestic Assistance number
+                - recipient_uei: Unique Entity Identifier (replaced DUNS)
+                - recipient_name: Organization name
+                - amount_cents: Award amount in cents (integer precision)
+                - period_start: Award period start date (YYYY-MM-DD)
+                - period_end: Award period end date (YYYY-MM-DD)
+                - program_name: Federal program name
+                - awarding_agency: Federal agency awarding the grant
+                - funding_agency: Federal agency providing the funding
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of awards successfully stored
+        """
+        ...
+
+    def get_federal_awards(
+        self,
+        jurisdiction_id: str,
+        cfda_number: Optional[str] = None,
+        period_start: Optional[str] = None,
+        period_end: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve federal awards with optional filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            cfda_number: Filter by CFDA number (e.g., "20.205" for highway grants)
+            period_start: Filter awards with period_start on/after this date (YYYY-MM-DD)
+            period_end: Filter awards with period_end on/before this date (YYYY-MM-DD)
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of awards to return
+
+        Returns:
+            List of award dictionaries
+        """
+        ...
+
+    def get_federal_awards_count(self, jurisdiction_id: str) -> int:
+        """
+        Get count of current federal awards for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+
+        Returns:
+            Number of current (non-expired) awards
+        """
+        ...

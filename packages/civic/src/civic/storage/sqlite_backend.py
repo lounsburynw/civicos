@@ -1689,6 +1689,33 @@ class SQLiteBackend:
         """Get budget items count (stub for SQLite - uses Postgres in production)."""
         return 0
 
+    # ========== Federal Awards Methods (SESSION 439 - Protocol Compliance) ==========
+
+    def store_federal_awards(
+        self,
+        jurisdiction_id: str,
+        awards: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """Store federal awards (stub for SQLite - uses Postgres in production)."""
+        return len(awards)
+
+    def get_federal_awards(
+        self,
+        jurisdiction_id: str,
+        cfda_number: Optional[str] = None,
+        period_start: Optional[str] = None,
+        period_end: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get federal awards (stub for SQLite - uses Postgres in production)."""
+        return []
+
+    def get_federal_awards_count(self, jurisdiction_id: str) -> int:
+        """Get federal awards count (stub for SQLite - uses Postgres in production)."""
+        return 0
+
 
 # Verify protocol compliance at import time
 # StorageBackend is @runtime_checkable, so isinstance() works
