@@ -27,49 +27,8 @@ from typing import Optional
 import json
 import re
 
-
-@dataclass
-class BudgetLineItem:
-    """A single budget line item extracted from a document."""
-
-    fund: str  # "General Fund", "Enterprise - Water", etc.
-    department: Optional[str]  # "Police", "Fire", etc.
-    program: Optional[str]  # "Homelessness Services", etc.
-    line_item: str  # Full line item description
-    budgeted_cents: int  # Amount in cents (multiply dollars by 100)
-    revised_cents: Optional[int] = None  # Mid-year revisions
-    actual_cents: Optional[int] = None  # Actual spend (if available)
-    source_page: Optional[int] = None  # Page number in source PDF
-    notes: Optional[str] = None  # Special conditions, caveats
-
-    def to_dict(self) -> dict:
-        """Convert to dictionary for JSON serialization."""
-        return {
-            "fund": self.fund,
-            "department": self.department,
-            "program": self.program,
-            "line_item": self.line_item,
-            "budgeted_cents": self.budgeted_cents,
-            "revised_cents": self.revised_cents,
-            "actual_cents": self.actual_cents,
-            "source_page": self.source_page,
-            "notes": self.notes,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "BudgetLineItem":
-        """Create from dictionary."""
-        return cls(
-            fund=data["fund"],
-            department=data.get("department"),
-            program=data.get("program"),
-            line_item=data["line_item"],
-            budgeted_cents=data["budgeted_cents"],
-            revised_cents=data.get("revised_cents"),
-            actual_cents=data.get("actual_cents"),
-            source_page=data.get("source_page"),
-            notes=data.get("notes"),
-        )
+# Import BudgetLineItem from canonical location in clients.base
+from civic_extraction.clients.base import BudgetLineItem
 
 
 @dataclass
