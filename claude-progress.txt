@@ -9559,3 +9559,37 @@ Added `FinancialConfig` dataclass to `ExtractionConfig` to enable config-driven 
 ### Next Session (P0)
 
 **budget_extractor_protocol** - Define BudgetExtractor protocol and BudgetLineItem schema in base.py. Move BudgetLineItem from prompts/budget_extraction.py to clients/base.py.
+
+---
+
+## Session 454 (2026-01-03)
+
+### Completed: budget_extractor_protocol (P0)
+
+Moved `BudgetLineItem` dataclass from `prompts/budget_extraction.py` to `clients/base.py` and created `BudgetExtractor` protocol following the established pattern.
+
+### Changes
+
+1. **clients/base.py**: 
+   - Added `BudgetLineItem` dataclass (lines 99-144) with fund, department, program, line_item, budgeted_cents, and optional fields
+   - Added `BudgetExtractor` protocol (lines 409-443) with `extract_budget()` and `normalize_line_item()` methods
+
+2. **prompts/budget_extraction.py**: Replaced local definition with import from `clients.base`
+
+3. **prompts/__init__.py**: Updated to re-export `BudgetLineItem` from canonical location
+
+### Test Results
+
+- 25 budget extraction tests pass
+- 85 client tests pass
+- Import compatibility verified for both paths
+
+### Files Changed
+
+- `packages/civic-extraction/src/civic_extraction/clients/base.py` - Added BudgetLineItem, BudgetExtractor
+- `packages/civic-extraction/src/civic_extraction/prompts/budget_extraction.py` - Import from base
+- `packages/civic-extraction/src/civic_extraction/prompts/__init__.py` - Re-export from base
+
+### Next Session (P0)
+
+**budget_acfr_reconciliation_automation** - Extend scripts/reconcile_funding_sources.py to output reconciliation report and track provenance via manifest.
