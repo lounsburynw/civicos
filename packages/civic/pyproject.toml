@@ -24,6 +24,7 @@ classifiers = [
 
 # Core dependencies (consolidated from civic-state, civic-legal, civic-coordination)
 dependencies = [
+    "civic-config",       # Shared jurisdiction configuration
     "httpx>=0.24.0",      # Async HTTP for corpus fetching (from civic-legal)
     "langgraph>=0.2.0",   # LangGraph workflows (from civic-coordination)
 ]
