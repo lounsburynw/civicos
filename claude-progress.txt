@@ -9515,3 +9515,47 @@ All 83 tests in `packages/civic-extraction/tests/test_clients.py` pass, includin
 ### Next Session (P0)
 
 **extraction_config_financial_section** - Add optional 'financial' field to ExtractionConfig dataclass. Fields: state, sco_city_name, fac_uei, budget_pdf_pattern, acfr_pdf_pattern, fiscal_year_start. Update san-rafael.json as reference.
+
+## Session 453 (continued): extraction_config_financial_section
+
+**Date:** 2026-01-03
+**Item:** extraction_config_financial_section (data_architecture > financial_data_infrastructure)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+
+Added `FinancialConfig` dataclass to `ExtractionConfig` to enable config-driven financial client creation. This centralizes financial data source parameters (SCO, FAC, USAspending) in the extraction config JSON files.
+
+### Implementation
+
+1. **FinancialConfig dataclass** (`packages/civic-extraction/src/civic_extraction/clients/base.py`):
+   - `state`: State code (e.g., "CA")
+   - `county`: County name (e.g., "Marin")
+   - `sco_entity_name`: Entity name for CA State Controller
+   - `fac_auditee_name`, `fac_auditee_city`: FAC search parameters
+   - `uei`: Unique Entity Identifier for USAspending
+   - `usaspending_recipient_name`: Recipient name for USAspending
+   - `budget_pdf_pattern`, `acfr_pdf_pattern`: URL templates
+   - `fiscal_year_start_month`: Fiscal year start (default 7 = July)
+
+2. **ExtractionConfig update**:
+   - Added optional `financial: Optional[FinancialConfig]` field
+   - Updated `from_file()` to parse financial section from JSON
+
+3. **san-rafael.json**: Added complete financial config with San Rafael's identifiers
+
+4. **Tests**: Added 2 new tests for FinancialConfig loading and serialization
+
+### Files Changed
+
+- `packages/civic-extraction/src/civic_extraction/clients/base.py` - Added FinancialConfig, updated ExtractionConfig
+- `data/extraction/san-rafael.json` - Added financial section
+- `packages/civic-extraction/tests/test_clients.py` - Added 2 tests
+
+### Test Results
+
+85 tests pass (83 original + 2 new)
+
+### Next Session (P0)
+
+**budget_extractor_protocol** - Define BudgetExtractor protocol and BudgetLineItem schema in base.py. Move BudgetLineItem from prompts/budget_extraction.py to clients/base.py.
