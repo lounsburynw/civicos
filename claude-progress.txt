@@ -9654,4 +9654,4 @@ Extended `scripts/reconcile_funding_sources.py` to output structured JSON reconc
 
 ### Next Session (P0)
 
-cost_dashboard - Aggregate from etl_costs table. Show daily/weekly/monthly breakdown by pipeline type.
+feedback_channel - Add feedback mechanism (GitHub link, email, or in-app form) for pilot users.
