@@ -1397,22 +1397,35 @@
         "session": 444
       },
       "funding_reconciliation": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Reconcile federal award amounts with city budget receipts",
         "depends_on": [
           "budget_funding_source_linking"
         ],
-        "note": "Validate: SUM(city budget grants) \u2248 SUM(federal/state awards to city). Flag discrepancies >5%. Account for multi-year awards, indirect costs, pass-through timing."
+        "note": "Validate: SUM(city budget grants) \u2248 SUM(federal/state awards to city). Flag discrepancies >5%. Account for multi-year awards, indirect costs, pass-through timing.",
+        "completed": "2026-01-02",
+        "session": 445,
+        "test_file": "packages/civic/tests/test_funding_reconciler.py"
       },
       "funding_flow_api": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Civic.funding_flow() method for tracing intergovernmental dollars",
         "depends_on": [
           "funding_reconciliation"
         ],
         "note": "Queries like c.funding_flow(program='CDBG') \u2192 federal allocation \u2192 state pass-through \u2192 city receipt \u2192 department budget. Enables 'what if CDBG cut 20%?' analysis."
+      },
+      "populate_federal_state_awards": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Run USAspending and CA Grants ingestion to populate federal_awards and state_passthrough_funds tables",
+        "depends_on": [
+          "usaspending_ingestion",
+          "ca_grants_ingestion"
+        ],
+        "note": "Ingestion clients exist but database is empty. Run ingestion for San Rafael to enable funding_reconciliation validation and funding_flow_api with real data."
       }
     },
     "election_data": {

@@ -9129,3 +9129,56 @@ CREATE TABLE budget_funding_source_links (
 ### Next Item
 
 P0 set to `funding_reconciliation` - Reconcile federal award amounts with city budget receipts.
+
+## Session 445 - 2026-01-02
+
+### Completed: funding_reconciliation
+
+Implemented aggregate funding reconciliation to validate budget-award alignment. The reconciler compares SUM(city budget grants) with SUM(federal/state awards to city) and flags discrepancies >5%.
+
+**Key Implementation Details:**
+
+1. **FundingReconciler Class** (`packages/civic/src/civic/_internal/funding/reconciler.py`):
+   - Loads budget items and funding links
+   - Calculates per-link variance (budget_cents vs award_cents)
+   - Flags items with variance >5% for review
+   - Generates comprehensive ReconciliationReport
+
+2. **ReconciliationReport** dataclass:
+   - Summary stats: total/linked/unlinked budget items
+   - Amount totals: budget_cents, linked_budget_cents, award_cents
+   - Status counts: matched (<1%), variance (<10%), unverified, flagged (>5%)
+   - Properties: link_rate, overall_variance_pct, is_reconciled
+   - to_dict() for JSON serialization
+   - flagged_items list for review
+
+3. **ReconciliationItem** dataclass:
+   - Individual link reconciliation result
+   - needs_review property for >5% variance
+   - Status: match, variance, unverified, flagged
+
+4. **Edge Case Handling**:
+   - Indirect cost variance (10-15%) noted in comments
+   - State pass-through timing lag noted
+   - Multi-year award indicators detected
+   - local_cents preferred over federal_cents (more specific)
+
+5. **Test Coverage**:
+   - 20 new tests in test_funding_reconciler.py
+   - Tests for ReconciliationItem, ReconciliationReport, FundingReconciler
+   - Edge case tests for indirect costs, pass-through timing
+
+### Files Changed
+
+- `packages/civic/src/civic/_internal/funding/reconciler.py` (new)
+- `packages/civic/src/civic/_internal/funding/__init__.py` (exports added)
+- `packages/civic/tests/test_funding_reconciler.py` (new)
+- `pilot.json` (marked ready, set next P0)
+
+### Next Item
+
+P0 set to `funding_flow_api` - Civic.funding_flow() method for tracing intergovernmental dollars.
+
+**Note:** Added `populate_federal_state_awards` task (P1) since the federal_awards and 
+state_passthrough_funds tables are empty. The reconciliation code is complete but 
+validation requires actual data from USAspending.gov and CA Grants Portal.
