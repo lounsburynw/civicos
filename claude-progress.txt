@@ -8796,3 +8796,63 @@ c.budget_summary()              # → By department with totals
 ### Next Item
 
 Need to set P0 for next session before running `/nextsesh`.
+
+## Session 438: decision_financial_extraction - Add Financial Impact to Decisions
+
+**Date:** 2026-01-02
+**Item:** decision_financial_extraction (data_readiness > budget)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+
+Completed the budget pipeline by adding `financial_impact_cents` to decision extraction and storage. Decisions from staff reports/agendas now have their fiscal impact stored as cents (integer) for precision.
+
+### Implementation
+
+1. **HighStakesDecision dataclass** (`packages/civic-services/src/civic_services/processing/retrospective_analyzer.py`):
+   - Added `financial_impact_cents` property (computed from `budget_amount`)
+   - Updated `to_dict()` to include the computed property
+   - Converts float dollars to integer cents: `int(round(budget_amount * 100))`
+
+2. **Decisions table schema** (`packages/civic/src/civic/storage/postgres_backend.py`):
+   - Added `financial_impact_cents INTEGER` column to decisions table
+   - Updated `store_decisions()` to persist the field
+
+3. **Decision schema validation** (`packages/civic/src/civic/_internal/meetings/decision_schema.py`):
+   - Added `financial_impact_cents` field definition (type: integer or null)
+   - Added tests for the new field
+
+### Testing
+
+- Smoke tests: 39 passed
+- Decision schema tests: 23 passed (including 3 new financial_impact_cents tests)
+- Unit tests for HighStakesDecision.financial_impact_cents property verified:
+  - $150,000 → 15000000 cents
+  - None → None
+  - $250,000.50 → 25000050 cents
+  - Proper rounding ($100,000.999 → 10000100 cents)
+
+### Files Changed
+
+- `packages/civic-services/src/civic_services/processing/retrospective_analyzer.py`
+- `packages/civic/src/civic/storage/postgres_backend.py`
+- `packages/civic/src/civic/_internal/meetings/decision_schema.py`
+- `packages/civic/tests/test_decision_schema.py`
+- `pilot.json` (marked ready, set next P0)
+
+### Data Flow
+
+```
+Staff Report → RetrospectiveAnalyzer → HighStakesDecision
+    budget_amount: $150,000 (float)
+        ↓
+    financial_impact_cents: 15000000 (int)
+        ↓
+    to_dict() → decision_dict
+        ↓
+    store_decisions() → PostgreSQL decisions table
+```
+
+### Next Item
+
+P0 set to `federal_awards_schema` - begin intergovernmental funding tracking.
