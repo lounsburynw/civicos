@@ -8904,3 +8904,44 @@ Added federal_awards schema to StorageBackend protocol and PostgresBackend imple
 ### Next Item
 
 P0 set to `usaspending_ingestion` - ingest federal awards from USAspending.gov API.
+
+## Session 440 - 2026-01-02
+
+### Task: usaspending_ingestion (P0)
+
+Completed USAspending.gov API ingestion for federal awards.
+
+### Changes
+
+1. **Fixed USAspendingClient** (`packages/civic-extraction/src/civic_extraction/clients/usaspending.py`):
+   - Fixed bug: API requires award_type_codes from same group
+   - Added `_fetch_awards_for_codes()` helper method
+   - Modified `get_awards()` to query each group separately (grants, direct_payments)
+   - Successfully fetches 38+ awards for San Rafael
+
+2. **Implemented SQLite federal_awards** (`packages/civic/src/civic/storage/sqlite_backend.py`):
+   - Added federal_awards table schema with temporal versioning
+   - Implemented `store_federal_awards()` with upsert logic
+   - Implemented `get_federal_awards()` with filtering (cfda, period, as_of)
+   - Implemented `get_federal_awards_count()`
+
+3. **Added tests** (`packages/civic-extraction/tests/test_clients.py`):
+   - 8 unit tests for USAspendingClient (normalization, field mapping)
+   - 4 integration tests (marked @pytest.mark.integration)
+
+### Files Changed
+
+- `packages/civic-extraction/src/civic_extraction/clients/usaspending.py`
+- `packages/civic/src/civic/storage/sqlite_backend.py`
+- `packages/civic-extraction/tests/test_clients.py`
+- `pilot.json` (marked ready, set next P0)
+
+### Tests
+
+- 39 smoke tests passed (test_civic.py)
+- 69 storage protocol tests passed (test_storage_protocols.py)
+- 8 USAspending unit tests passed (test_clients.py::TestUSAspendingClient)
+
+### Next Item
+
+P0 set to `state_passthrough_schema` - Schema for state-administered federal funds.
