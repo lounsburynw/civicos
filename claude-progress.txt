@@ -9367,3 +9367,43 @@ FAC data is audited expenditures (what the city actually spent) vs USAspending w
 ### Next Session
 
 P1: `federal_awards_data_cleanup` - Clean federal_awards table to contain only City government awards (currently has schools, businesses). Or `funding_flow_e2e` - Now that FAC data is available, complete the budget→federal linkage.
+
+## Session 451: funding_flow_e2e - Document Funding Data Sources and Limitations
+
+**Date:** 2026-01-03
+**Item:** funding_flow_e2e (data_readiness > intergovernmental_funding)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+
+Documented the distinction between FAC (audited expenditures) and USAspending (direct awards), clarified API capabilities and limitations, and identified CA State Controller as a high-value data source for state/county revenue.
+
+### Key Findings
+
+1. **FAC vs USAspending**: Most local government federal funding is pass-through (state agencies administer federal grants). FAC captures this; USAspending misses it.
+
+2. **CA State Controller** (bythenumbers.sco.ca.gov): Structured Socrata API with:
+   - FY2024 data available (more recent than FAC FY2023)
+   - State revenue: $3.5M/year for San Rafael
+   - County revenue: $900K/year
+   - 20+ years of history
+
+3. **Budget→Grant Linkage Gap**: Can't automatically link budget line items to federal grants because city budgets don't contain CFDA numbers.
+
+### Files Changed
+
+- `packages/civic/src/civic/civic.py` - Updated docstrings for funding_flow() and federal_expenditures()
+- `docs/critical/FEDERAL_FUNDING_DATA_SOURCES.md` - New comprehensive documentation
+- `pilot.json` - Marked funding_flow_e2e ready, added ca_state_controller_ingestion task
+
+### San Rafael Intergovernmental Revenue (CA State Controller)
+
+| Year | Federal | State | County | Total |
+|------|---------|-------|--------|-------|
+| 2024 | $171K | $3.5M | $909K | $4.5M |
+| 2023 | $817K | $3.1M | $1.4M | $5.3M |
+| 2022 | $16.2M | $2.8M | $1.3M | $20.3M |
+
+### Next Session
+
+P0: `ca_state_controller_ingestion` - Build client to ingest intergovernmental revenue data from CA State Controller. This fills the state funding gap and provides more recent data than FAC.

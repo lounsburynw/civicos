@@ -1,69 +1,64 @@
-# Recommended: funding_flow_e2e
+# Recommended: ca_state_controller_ingestion
 
 **Priority:** P0
 **Area:** data_readiness > intergovernmental_funding
-**Date:** 2026-01-02
+**Date:** 2026-01-03
 
-> This is recommended context from Session 449. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 451. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 449 completed the FAC ingestion client. We now have audited federal expenditure data from the Federal Audit Clearinghouse (52 records, 2016-2023). The question is: how should `funding_flow()` use this authoritative data?
+Session 451 documented the distinction between FAC and USAspending data and discovered that the **CA State Controller** (bythenumbers.sco.ca.gov) provides structured, queryable intergovernmental revenue data that fills our state funding gap.
 
-**The problem:** Session 448 found that keyword-based matching of budget items to federal awards produces spurious links. Budget PDFs don't contain CFDA numbers, so there's no reliable way to automatically link them.
-
-**What we have now:**
-- `federal_expenditures()` - Returns audited SEFA data (authoritative)
-- `funding_flow()` - Returns budget→federal links (unreliable keyword matching)
+**Why this matters:**
+- FAC only has federal expenditures (audited, but 18-24 month lag)
+- USAspending only has direct federal awards (misses pass-through)
+- CA State Controller has federal + state + county revenue, with FY2024 already available
 
 ## Recommended Task
 
-Decide the approach for `funding_flow()` and implement it:
+Build a `CAStateControllerClient` to ingest intergovernmental revenue data from the CA State Controller's Socrata API.
 
-### Option A: Document the separation
-- `federal_expenditures()` = "What federal grants did we spend?" (authoritative)
-- `funding_flow()` = "Which budget items are grant-funded?" (best-effort, low confidence)
-- Update docstrings and possibly add warnings about match quality
+**API Endpoint:** `https://bythenumbers.sco.ca.gov/resource/rrtv-rsj9.csv`
 
-### Option B: Enhance funding_flow() with audit data
-- For each budget item with a federal link, enrich with FAC expenditure amounts
-- Show discrepancy between USAspending award amounts and audited expenditures
-- Mark source as "audited" vs "estimated"
+**San Rafael data verified in Session 451:**
 
-### Option C: Remove keyword matcher entirely
-- Delete the unreliable keyword matching logic
-- Only show links that are manually confirmed or have explicit CFDA in source data
+| Year | Federal | State | County | Total |
+|------|---------|-------|--------|-------|
+| 2024 | $171K | $3.5M | $909K | $4.5M |
+| 2023 | $817K | $3.1M | $1.4M | $5.3M |
+| 2022 | $16.2M | $2.8M | $1.3M | $20.3M |
 
 ## Key Files
 
-- `packages/civic/src/civic/civic.py:1135` - `funding_flow()` method
-- `packages/civic/src/civic/civic.py:1340` - `federal_expenditures()` method (NEW)
-- `packages/civic/src/civic/_internal/funding/matcher.py` - Keyword matcher (unreliable)
-- `packages/civic/src/civic/storage/postgres_backend.py:5064` - `store_federal_audit_expenditures()`
-
-## Current State
-
-```python
-# Authoritative FAC data available:
-c = Civic("san-rafael")
-exp = c.federal_expenditures(audit_year=2023)
-# Returns 7 programs: Medicaid $658K, Highway $637K, FEMA $562K, etc.
-
-summary = c.federal_expenditures_summary(audit_year=2023)
-# Returns: {total_dollars: 2022048, programs: [...]}
-
-# Unreliable funding_flow data:
-flows = c.funding_flow()
-# Returns 0 flows (we deleted spurious keyword matches in Session 448)
-```
+- `docs/critical/FEDERAL_FUNDING_DATA_SOURCES.md` - Documentation of all funding data sources
+- `packages/civic-extraction/src/civic_extraction/clients/fac.py` - FAC client (pattern to follow)
+- `packages/civic/src/civic/storage/postgres_backend.py` - Storage backend (may need new table)
+- `pilot.json:1453` - Task definition with resources
 
 ## Suggested Approach
 
-1. Read existing `funding_flow()` implementation (~100 lines)
-2. Decide on approach (A, B, or C above)
-3. Implement changes
-4. Update tests if needed
-5. Mark `funding_flow_e2e` as ready in pilot.json
+1. Create `packages/civic-extraction/src/civic_extraction/clients/ca_state_controller.py`
+2. Follow the FAC client pattern: `health()`, `validate()`, `get_revenues()` methods
+3. Query Socrata API with parameters: `entity_name`, `fiscal_year`, `$select`, `$where`
+4. Normalize data to a consistent schema (similar to FAC normalization)
+5. Add storage method to PostgresBackend (or reuse existing if appropriate)
+6. Add Civic API method: `c.intergovernmental_revenue(audit_year=2024)`
+
+## Example API Query
+
+```python
+import requests
+
+url = "https://bythenumbers.sco.ca.gov/resource/rrtv-rsj9.csv"
+params = {
+    "$limit": 500,
+    "entity_name": "San Rafael",
+    "fiscal_year": "2024"
+}
+response = requests.get(url, params=params)
+# Returns CSV with columns: entity_name, fiscal_year, category, subcategory_1, value, etc.
+```
 
 ## Tests to Run
 
@@ -73,7 +68,7 @@ pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
 
 ## Success Criteria
 
-- [ ] Clear documentation of what `funding_flow()` vs `federal_expenditures()` provide
-- [ ] No spurious keyword matches in output
-- [ ] Users can answer "what federal money did we spend?" using the API
-- [ ] `funding_flow_e2e` marked ready in pilot.json
+- [ ] CAStateControllerClient with `health()`, `validate()`, `get_revenues()` methods
+- [ ] Data ingested for San Rafael (FY2003-2024, 20+ years)
+- [ ] Civic API method to query intergovernmental revenue
+- [ ] `ca_state_controller_ingestion` marked ready in pilot.json

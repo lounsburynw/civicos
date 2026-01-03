@@ -1146,6 +1146,14 @@ class Civic:
         Shows how federal/state dollars flow through the system to city budget items.
         Enables analysis like "what if CDBG cut 20%?" by following the funding chain.
 
+        IMPORTANT: This method returns flows only when explicit linkages exist between
+        budget items and federal/state funding sources. Because city budget documents
+        rarely contain CFDA numbers or explicit grant identifiers, automatic matching
+        is unreliable and this method may return empty results.
+
+        For authoritative federal expenditure data, use `federal_expenditures()` which
+        returns audited SEFA data from the Federal Audit Clearinghouse.
+
         The flow traces:
         1. Federal Award (from USAspending.gov) →
         2. State Pass-Through (from CA Grants Portal, if applicable) →
@@ -1159,7 +1167,12 @@ class Civic:
             min_confidence: Minimum match confidence threshold (0.0-1.0, default 0.5)
 
         Returns:
-            List of FundingFlow objects showing federal→state→city paths
+            List of FundingFlow objects showing federal→state→city paths.
+            Returns empty list if no explicit budget-to-funding linkages exist.
+
+        See Also:
+            federal_expenditures(): Returns audited federal spending data (authoritative)
+            federal_expenditures_summary(): Aggregated summary of federal spending
 
         Example:
             >>> c = Civic("san-rafael")
@@ -1350,8 +1363,9 @@ class Civic:
         sourced from the Schedule of Expenditures of Federal Awards (SEFA) in
         the city's annual Single Audit filed with the Federal Audit Clearinghouse.
 
-        Unlike `funding_flow()` which relies on estimated links between budget items
-        and federal awards, this data is audited and verified.
+        This is the recommended method for understanding federal funding because the data
+        is audited and verified, unlike `funding_flow()` which relies on estimated
+        linkages between budget items and federal awards.
 
         Args:
             cfda_number: Filter by CFDA/ALN number (e.g., "20.205" for Highway Planning)
@@ -1360,6 +1374,10 @@ class Civic:
 
         Returns:
             List of FederalExpenditure objects with audited spending data
+
+        See Also:
+            federal_expenditures_summary(): Aggregated summary by program
+            funding_flow(): Budget→federal linkages (requires explicit mappings)
 
         Example:
             >>> c = Civic("san-rafael")
