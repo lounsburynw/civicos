@@ -1453,6 +1453,29 @@
           "https://app.fac.gov/dissemination/search/",
           "https://www.cityofsanrafael.org/financial-reports/"
         ]
+      },
+      "federal_awards_data_cleanup": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Clean federal_awards table to contain only City of San Rafael government awards",
+        "note": "Session 448: USAspending query returned 65 awards but only 5 are city government. Rest are schools (25), businesses with 'San Rafael' in name (35, including Puerto Rico pharmacies). Must filter by recipient UEI or exact name match.",
+        "current_noise": [
+          "San Rafael Elementary School District (14 awards)",
+          "San Rafael High School District (11 awards)",
+          "Random businesses: gyms, restaurants, pharmacies (35 awards)"
+        ],
+        "actual_city_awards": [
+          "SLFRF/ARPA: $16M",
+          "Port Security: $905K",
+          "Firefighters Grant: $190K",
+          "COVID Response: $21K"
+        ],
+        "approach": [
+          "1. Get City of San Rafael UEI from SAM.gov",
+          "2. Delete awards where recipient_name NOT IN ('CITY OF SAN RAFAEL', 'SAN RAFAEL, CITY OF')",
+          "3. Update USAspendingClient to filter by UEI instead of name search",
+          "4. Alternatively: wait for FAC data which is authoritative and clean"
+        ]
       }
     },
     "election_data": {
