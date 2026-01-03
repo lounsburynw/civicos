@@ -1334,8 +1334,8 @@
     "intergovernmental_funding": {
       "description": "Track funding flows from federal \u2192 state \u2192 county \u2192 city with deterministic accounting",
       "federal_awards_schema": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 99,
         "artifact": "StorageBackend methods for federal award/grant data",
         "note": "Schema: award_id (unique), cfda_number, recipient_id (DUNS/UEI), amount_cents, period, program_name. Enables deterministic tracking via federal identifiers.",
         "fields": [
@@ -1353,7 +1353,7 @@
       },
       "usaspending_ingestion": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Ingest federal awards from USAspending.gov API",
         "depends_on": [
           "federal_awards_schema"

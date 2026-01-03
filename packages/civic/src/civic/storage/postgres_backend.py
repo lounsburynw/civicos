@@ -805,6 +805,58 @@ class PostgresBackend:
             ON budget_items(jurisdiction_id, valid_from, valid_to)
         """)
 
+        # Federal Awards table (SESSION 439)
+        # Stores federal grants and awards for intergovernmental funding tracking
+        # Data source: USAspending.gov API
+        # Amounts in cents to avoid floating-point precision issues
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS federal_awards (
+                id SERIAL PRIMARY KEY,
+                award_id TEXT NOT NULL,
+                jurisdiction_id TEXT NOT NULL,
+                cfda_number TEXT,
+                recipient_uei TEXT,
+                recipient_name TEXT,
+                amount_cents BIGINT NOT NULL,
+                period_start DATE,
+                period_end DATE,
+                program_name TEXT,
+                awarding_agency TEXT,
+                funding_agency TEXT,
+                award_type TEXT,
+                metadata JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                UNIQUE (award_id, jurisdiction_id, valid_from),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                CHECK (valid_to IS NULL OR valid_to > valid_from),
+                CHECK (amount_cents >= 0)
+            )
+        """)
+
+        # Federal awards indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_federal_awards_jurisdiction
+            ON federal_awards(jurisdiction_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_federal_awards_cfda
+            ON federal_awards(jurisdiction_id, cfda_number)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_federal_awards_recipient
+            ON federal_awards(recipient_uei)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_federal_awards_period
+            ON federal_awards(jurisdiction_id, period_start, period_end)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_federal_awards_temporal
+            ON federal_awards(jurisdiction_id, valid_from, valid_to)
+        """)
+
         # Migration: Add full_text column if not exists (SESSION 418)
         cursor.execute("""
             DO $$
@@ -4604,6 +4656,209 @@ class PostgresBackend:
 
         return count
 
+    # ========== Federal Awards Methods (SESSION 439) ==========
+
+    def store_federal_awards(
+        self,
+        jurisdiction_id: str,
+        awards: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store federal awards/grants with temporal versioning.
+
+        Uses PostgreSQL COPY for bulk inserts.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "san-rafael")
+            awards: List of award dictionaries
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of awards successfully stored
+
+        Raises:
+            psycopg2.Error: If store operation fails
+        """
+        as_of = as_of or datetime.now()
+        as_of_str = as_of.isoformat()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Filter to valid awards with identifiers and positive amounts
+            valid_awards = [
+                award for award in awards
+                if award.get("award_id") and award.get("amount_cents", 0) >= 0
+            ]
+
+            # Close previous versions for these award_ids
+            award_ids = [award.get("award_id") for award in valid_awards if award.get("award_id")]
+            if award_ids:
+                for i in range(0, len(award_ids), 1000):
+                    chunk = award_ids[i:i + 1000]
+                    placeholders = ",".join(["%s"] * len(chunk))
+                    cursor.execute(f"""
+                        UPDATE federal_awards
+                        SET valid_to = %s
+                        WHERE jurisdiction_id = %s
+                          AND award_id IN ({placeholders})
+                          AND valid_to IS NULL
+                    """, [as_of_str, jurisdiction_id] + chunk)
+
+            # Insert new versions using execute_values for efficiency
+            values = []
+            for award in valid_awards:
+                # Build metadata from extra fields
+                metadata = {
+                    k: v for k, v in award.items()
+                    if k not in [
+                        "award_id", "cfda_number", "recipient_uei", "recipient_name",
+                        "amount_cents", "period_start", "period_end", "program_name",
+                        "awarding_agency", "funding_agency", "award_type"
+                    ]
+                }
+                values.append((
+                    award.get("award_id"),
+                    jurisdiction_id,
+                    award.get("cfda_number"),
+                    award.get("recipient_uei"),
+                    award.get("recipient_name"),
+                    award.get("amount_cents"),
+                    award.get("period_start"),
+                    award.get("period_end"),
+                    award.get("program_name"),
+                    award.get("awarding_agency"),
+                    award.get("funding_agency"),
+                    award.get("award_type"),
+                    json.dumps(metadata, cls=DateTimeEncoder) if metadata else None,
+                    as_of_str,
+                    as_of_str,
+                ))
+
+            if values:
+                psycopg2.extras.execute_values(
+                    cursor,
+                    """
+                    INSERT INTO federal_awards (
+                        award_id, jurisdiction_id, cfda_number, recipient_uei,
+                        recipient_name, amount_cents, period_start, period_end,
+                        program_name, awarding_agency, funding_agency, award_type,
+                        metadata, created_at, valid_from, valid_to
+                    ) VALUES %s
+                    """,
+                    values,
+                    template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)",
+                    page_size=500,
+                )
+
+            conn.commit()
+            return len(valid_awards)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_federal_awards(
+        self,
+        jurisdiction_id: str,
+        cfda_number: Optional[str] = None,
+        period_start: Optional[str] = None,
+        period_end: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve federal awards with optional filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            cfda_number: Filter by CFDA number (e.g., "20.205" for highway grants)
+            period_start: Filter awards with period_start on/after this date (YYYY-MM-DD)
+            period_end: Filter awards with period_end on/before this date (YYYY-MM-DD)
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of awards to return
+
+        Returns:
+            List of award dictionaries
+        """
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Build query with temporal filtering
+        query = """
+            SELECT * FROM federal_awards
+            WHERE jurisdiction_id = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+        """
+        params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+
+        if cfda_number is not None:
+            query += " AND cfda_number = %s"
+            params.append(cfda_number)
+
+        if period_start is not None:
+            query += " AND period_start >= %s"
+            params.append(period_start)
+
+        if period_end is not None:
+            query += " AND period_end <= %s"
+            params.append(period_end)
+
+        query += " ORDER BY amount_cents DESC"
+
+        if limit is not None:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to dictionaries with parsed metadata
+        awards = []
+        for row in rows:
+            award = dict(row)
+            # Convert datetime objects to ISO strings
+            for key in ['created_at', 'valid_from', 'valid_to', 'period_start', 'period_end']:
+                if key in award and award[key] is not None:
+                    if isinstance(award[key], (datetime, date)):
+                        award[key] = award[key].isoformat()
+            awards.append(award)
+
+        return awards
+
+    def get_federal_awards_count(self, jurisdiction_id: str) -> int:
+        """
+        Get count of current federal awards for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+
+        Returns:
+            Number of current (non-expired) awards
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT COUNT(*) FROM federal_awards
+            WHERE jurisdiction_id = %s
+              AND valid_to IS NULL
+        """, (jurisdiction_id,))
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
 
 # Verify protocol compliance at import time (only if psycopg2 available)
 # StorageBackend is @runtime_checkable, so isinstance() works
@@ -4639,6 +4894,8 @@ def _verify_protocol_compliance() -> None:
         'store_executive_orders', 'get_executive_orders', 'get_executive_orders_count',
         # Budget items methods (SESSION 434)
         'store_budget_items', 'get_budget_items', 'get_budget_summary', 'get_budget_items_count',
+        # Federal awards methods (SESSION 439)
+        'store_federal_awards', 'get_federal_awards', 'get_federal_awards_count',
     ]
     for method in required_methods:
         assert hasattr(PostgresBackend, method), (
