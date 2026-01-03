@@ -1419,14 +1419,24 @@
         "test": "test_funding_flow.py"
       },
       "populate_federal_state_awards": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Run USAspending and CA Grants ingestion to populate federal_awards and state_passthrough_funds tables",
         "depends_on": [
           "usaspending_ingestion",
           "ca_grants_ingestion"
         ],
-        "note": "Ingestion clients exist but database is empty. Run ingestion for San Rafael to enable funding_reconciliation validation and funding_flow_api with real data."
+        "note": "Session 447: Ingested 65 federal awards ($25.3M) and 141 state grants ($15B statewide). Federal includes SLFRF ($16M), Port Security, Fire grants. State includes housing, environment, education programs.",
+        "completed": "2026-01-02"
+      },
+      "funding_flow_e2e": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "Fix jurisdiction ID mismatch and validate funding_flow() returns complete data",
+        "depends_on": [
+          "populate_federal_state_awards"
+        ],
+        "note": "Session 447 ingested data but with jurisdiction ID split: budget uses 'city-san-rafael', awards use 'san-rafael'. Need to normalize to 'san-rafael' and regenerate funding links so funding_flow() shows budget descriptions instead of 'Unknown'."
       }
     },
     "election_data": {
