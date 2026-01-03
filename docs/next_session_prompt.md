@@ -51,16 +51,31 @@ Build a `FederalAuditClearinghouseClient` to ingest SEFA data from San Rafael's 
 ```
 city-san-rafael:
   - Budget items: 58 (FY25-26)
-  - Federal awards: 65 (from USAspending.gov)
-  - State grants: 141 (from CA Grants Portal - no federal CFDA linkage)
+  - Federal awards: 65 total, but only 5 are city government
+    - Noise: schools (25), random businesses (35)
+    - Actual city awards: SLFRF $16M, Port Security $905K, Firefighters $190K, COVID $21K
+  - State grants: 141 (from CA Grants Portal - these are grant OPPORTUNITIES, not awards)
   - Funding links: 0 (removed spurious keyword matches)
 ```
+
+**Data quality issues identified:**
+1. USAspending query matched "San Rafael" in name, pulling schools and businesses
+2. CA Grants Portal shows grant opportunities, not actual awards received
+3. FAC/Single Audit is the authoritative source for both issues
+
+## Tasks
+
+| Priority | Task | Description |
+|----------|------|-------------|
+| P0 | `fac_ingestion_client` | Build FAC client to ingest Single Audit SEFA data |
+| P1 | `federal_awards_data_cleanup` | Remove non-city-government awards from database |
 
 ## Key Files
 
 - `packages/civic/src/civic/storage/postgres_backend.py` - Now normalizes jurisdiction IDs
 - `packages/civic/src/civic/_internal/funding/matcher.py` - Keyword matcher (to be replaced/supplemented)
-- `pilot.json` - `fac_ingestion_client` item added
+- `packages/civic-extraction/src/civic_extraction/clients/usaspending.py` - Needs UEI filter instead of name search
+- `pilot.json` - `fac_ingestion_client` and `federal_awards_data_cleanup` items added
 
 ## Success Criteria
 
