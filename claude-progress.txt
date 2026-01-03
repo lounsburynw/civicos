@@ -9654,4 +9654,4 @@ Extended `scripts/reconcile_funding_sources.py` to output structured JSON reconc
 
 ### Next Session (P0)
 
-feedback_channel - Add feedback mechanism (GitHub link, email, or in-app form) for pilot users.
+shared_config_package - Fix cross-package imports (civic-services imports from civic)

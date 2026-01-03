@@ -224,7 +224,7 @@
     "cloud_storage": {
       "turso_backend": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 2,
         "artifact": "TursoBackend implements StorageBackend protocol for cloud SQLite",
         "note": "Turso (libSQL) is SQLite-compatible with 9GB free tier. DEPRIORITIZED: Using PostgresBackend instead for cloud."
       },
@@ -541,7 +541,7 @@
       },
       "update_legislative_button": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 2,
         "artifact": "Button: Update Legislative Context"
       }
     },
@@ -575,12 +575,12 @@
     "configuration": {
       "api_key_status": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 2,
         "artifact": "Show API key status for AssemblyAI, LegiScan"
       },
       "cost_tracking": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 2,
         "artifact": "Show AssemblyAI usage/cost this month"
       }
     },
@@ -857,7 +857,7 @@
       },
       "shared_config_package": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Move JurisdictionRegistry to shared package for clean layer separation",
         "note": "civic-services imports JurisdictionRegistry/CITY_CONFIGS from civic (cross-layer). Options: (1) Create packages/civic-config/, (2) Duplicate config in civic-services. Low priority - config sharing is pragmatic."
       },
@@ -1565,7 +1565,7 @@
       },
       "elected_officials_table": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 2,
         "artifact": "ElectedOfficial model + storage for linking candidates to voting records",
         "note": "Schema: id, name, seat, jurisdiction_id, term_start, term_end, name_variations (for fuzzy matching). Populated from Google Civic API representatives endpoint.",
         "depends_on": [
@@ -1581,7 +1581,7 @@
       },
       "voting_record_api": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 2,
         "artifact": "get_voting_record() method to query incumbent voting history by topic",
         "note": "The 'closed loop' - connects elections to decisions. Returns VotingRecord with yes/no/abstain counts and decision list. Enables 'Jane Smith voted YES on 80% of housing items'.",
         "depends_on": [
@@ -1702,13 +1702,13 @@
     "source_provenance": {
       "audio_hash_storage": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "Store SHA-256 of source audio file with each transcript",
         "note": "Ultimate provenance: transcript can be verified against original audio."
       },
       "pdf_hash_storage": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "Store SHA-256 of source PDF with each chunk",
         "note": "Enables verification that chunks came from unmodified PDF."
       },
@@ -1722,13 +1722,13 @@
     "audit_infrastructure": {
       "soft_delete_support": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "deleted_at column on all content tables",
         "note": "Never hard-delete. Preserve audit trail of what was removed, when, why."
       },
       "engagement_tracking_schema": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 2,
         "artifact": "civic_engagement table stub for future anti-astroturf measures",
         "note": "Schema only - don't populate until coordination features built. Tracks 311 reports, meeting testimony, etc."
       }
@@ -2027,12 +2027,12 @@
       },
       "public_profiles": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 2,
         "artifact": "Public user profiles"
       },
       "notification_badges": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 2,
         "artifact": "Notification badges for new activity"
       }
     }
@@ -2100,7 +2100,7 @@
       },
       "feedback_channel": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 2,
         "check": "Way for users to report issues",
         "note": "Add feedback mechanism (GitHub link, email, or in-app form) for pilot users to report bugs"
       },
