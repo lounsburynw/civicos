@@ -39,6 +39,8 @@ from civic.civic import (
     Suggestion,
     CoordinationPlan,
     Outcome,
+    FundingFlow,
+    FundingFlowImpact,
 )
 
 # Cross-corpus search result type
@@ -99,6 +101,8 @@ __all__ = [
     "Suggestion",
     "CoordinationPlan",
     "Outcome",
+    "FundingFlow",
+    "FundingFlowImpact",
     # Cross-corpus search result types
     "UnifiedSearchResult",
     "HybridSearchResult",

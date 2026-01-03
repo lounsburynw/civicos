@@ -328,6 +328,63 @@ class BudgetSummary:
     actual_dollars: Optional[float] = None
 
 
+@dataclass
+class FundingFlow:
+    """Complete funding flow from federal → state → city for tracing intergovernmental dollars.
+
+    Traces how federal/state funding flows through the system:
+    Federal Award (USAspending) → State Pass-Through (CA Grants Portal) → City Budget Item
+
+    Amounts are in dollars (converted from internal cents representation).
+    """
+    # Budget item (city level)
+    budget_item_id: str
+    budget_description: str
+    budget_dollars: float
+    department: Optional[str] = None
+    fund: Optional[str] = None
+    fiscal_year: Optional[str] = None
+
+    # Federal level (source)
+    federal_award_id: Optional[str] = None
+    federal_cfda_number: Optional[str] = None
+    federal_program_name: Optional[str] = None
+    federal_agency: Optional[str] = None
+    federal_dollars: Optional[float] = None
+    federal_period_start: Optional[str] = None
+    federal_period_end: Optional[str] = None
+
+    # State level (pass-through)
+    passthrough_id: Optional[str] = None
+    state_agency: Optional[str] = None
+    state_grant_id: Optional[str] = None
+    state_program_name: Optional[str] = None
+    state_dollars: Optional[float] = None
+    state_period_start: Optional[str] = None
+    state_period_end: Optional[str] = None
+
+    # Match quality
+    match_type: str = "unknown"
+    match_confidence: float = 0.0
+    reconciliation_status: str = "unverified"
+    variance_dollars: Optional[float] = None
+    variance_percentage: Optional[float] = None
+
+
+@dataclass
+class FundingFlowImpact:
+    """Impact analysis for hypothetical funding cuts.
+
+    Shows which budget items would be affected by a cut to a federal/state program.
+    """
+    program_name: str
+    cfda_number: Optional[str]
+    cut_percentage: float
+    total_current_dollars: float
+    total_impact_dollars: float
+    affected_items: List["FundingFlow"]
+
+
 # ─────────── MAIN CIVIC CLASS ───────────
 
 @dataclass
@@ -1040,6 +1097,211 @@ class Civic:
             )
             for r in results
         ]
+
+    def funding_flow(
+        self,
+        program: Optional[str] = None,
+        cfda_number: Optional[str] = None,
+        budget_item_id: Optional[str] = None,
+        fiscal_year: Optional[str] = None,
+        min_confidence: float = 0.5,
+    ) -> List["FundingFlow"]:
+        """
+        Trace intergovernmental funding flow from federal → state → city.
+
+        Shows how federal/state dollars flow through the system to city budget items.
+        Enables analysis like "what if CDBG cut 20%?" by following the funding chain.
+
+        The flow traces:
+        1. Federal Award (from USAspending.gov) →
+        2. State Pass-Through (from CA Grants Portal, if applicable) →
+        3. City Budget Item (local budget)
+
+        Args:
+            program: Filter by program name (e.g., "CDBG", "HOME", "FEMA")
+            cfda_number: Filter by CFDA number (e.g., "14.218" for CDBG)
+            budget_item_id: Trace specific budget item
+            fiscal_year: Filter by fiscal year
+            min_confidence: Minimum match confidence threshold (0.0-1.0, default 0.5)
+
+        Returns:
+            List of FundingFlow objects showing federal→state→city paths
+
+        Example:
+            >>> c = Civic("san-rafael")
+            >>> flows = c.funding_flow(program="CDBG")
+            >>> for flow in flows:
+            ...     print(f"{flow.budget_description}: ${flow.budget_dollars:,.0f}")
+            ...     if flow.federal_dollars:
+            ...         print(f"  Federal ({flow.federal_program_name}): ${flow.federal_dollars:,.0f}")
+            ...     if flow.state_dollars:
+            ...         print(f"  State ({flow.state_agency}): ${flow.state_dollars:,.0f}")
+        """
+        # Get budget items
+        budget_items = self._storage.get_budget_items(
+            jurisdiction_id=self.jurisdiction,
+            fiscal_year=fiscal_year,
+            limit=None,
+        )
+
+        # Get funding links (connections between budget & sources)
+        funding_links = self._storage.get_budget_funding_links(
+            jurisdiction_id=self.jurisdiction,
+            budget_item_id=budget_item_id,
+            federal_cfda_number=cfda_number,
+            limit=None,
+        )
+
+        # Get federal awards and state passthroughs
+        federal_awards = self._storage.get_federal_awards(
+            jurisdiction_id=self.jurisdiction,
+            cfda_number=cfda_number,
+            limit=None,
+        )
+
+        passthroughs = self._storage.get_state_passthrough_funds(
+            jurisdiction_id=self.jurisdiction,
+            federal_cfda_number=cfda_number,
+            limit=None,
+        )
+
+        # Build lookup maps
+        budget_by_id = {b.get("item_id"): b for b in budget_items}
+        awards_by_id = {a.get("award_id"): a for a in federal_awards}
+        passthroughs_by_id = {p.get("passthrough_id"): p for p in passthroughs}
+        # Also index passthroughs by federal_award_id for cross-referencing
+        passthroughs_by_award = {}
+        for p in passthroughs:
+            award_id = p.get("federal_award_id")
+            if award_id:
+                passthroughs_by_award.setdefault(award_id, []).append(p)
+
+        # Build flows from links
+        flows: List[FundingFlow] = []
+        for link in funding_links:
+            # Filter by confidence
+            confidence = link.get("match_confidence", 0)
+            if confidence < min_confidence:
+                continue
+
+            budget_item = budget_by_id.get(link.get("budget_item_id"), {})
+
+            # Filter by program name if provided
+            if program:
+                item_text = " ".join([
+                    budget_item.get("program") or "",
+                    budget_item.get("line_item") or "",
+                    budget_item.get("notes") or "",
+                ]).lower()
+                if program.lower() not in item_text:
+                    continue
+
+            # Get federal award info
+            federal_award = awards_by_id.get(link.get("federal_award_id"))
+
+            # Get passthrough info (either direct or via federal award)
+            passthrough = passthroughs_by_id.get(link.get("passthrough_id"))
+            if not passthrough and federal_award:
+                # Try to find passthrough linked to this federal award
+                linked_passthroughs = passthroughs_by_award.get(federal_award.get("award_id"), [])
+                if linked_passthroughs:
+                    passthrough = linked_passthroughs[0]
+
+            # Build flow
+            flow = FundingFlow(
+                # Budget item
+                budget_item_id=link.get("budget_item_id", ""),
+                budget_description=budget_item.get("line_item") or budget_item.get("program") or "Unknown",
+                budget_dollars=(link.get("budget_cents") or budget_item.get("budgeted_cents") or 0) / 100,
+                department=budget_item.get("department"),
+                fund=budget_item.get("fund"),
+                fiscal_year=budget_item.get("fiscal_year"),
+                # Federal
+                federal_award_id=federal_award.get("award_id") if federal_award else link.get("federal_award_id"),
+                federal_cfda_number=link.get("federal_cfda_number"),
+                federal_program_name=federal_award.get("program_name") if federal_award else None,
+                federal_agency=federal_award.get("awarding_agency") if federal_award else None,
+                federal_dollars=(federal_award.get("amount_cents") or 0) / 100 if federal_award else None,
+                federal_period_start=federal_award.get("period_start") if federal_award else None,
+                federal_period_end=federal_award.get("period_end") if federal_award else None,
+                # State passthrough
+                passthrough_id=passthrough.get("passthrough_id") if passthrough else link.get("passthrough_id"),
+                state_agency=passthrough.get("state_agency") if passthrough else None,
+                state_grant_id=passthrough.get("state_grant_id") if passthrough else link.get("state_grant_id"),
+                state_program_name=passthrough.get("state_program_name") if passthrough else None,
+                state_dollars=(passthrough.get("local_amount_cents") or 0) / 100 if passthrough else None,
+                state_period_start=passthrough.get("period_start") if passthrough else None,
+                state_period_end=passthrough.get("period_end") if passthrough else None,
+                # Match quality
+                match_type=link.get("match_type", "unknown"),
+                match_confidence=confidence,
+                reconciliation_status=link.get("reconciliation_status", "unverified"),
+                variance_dollars=(link.get("variance_cents") or 0) / 100 if link.get("variance_cents") is not None else None,
+                variance_percentage=link.get("variance_percentage"),
+            )
+            flows.append(flow)
+
+        return flows
+
+    def funding_flow_impact(
+        self,
+        program: Optional[str] = None,
+        cfda_number: Optional[str] = None,
+        cut_percentage: float = 0.20,
+        fiscal_year: Optional[str] = None,
+    ) -> FundingFlowImpact:
+        """
+        Analyze impact of hypothetical funding cut to a federal/state program.
+
+        Shows which budget items would be affected and by how much if a program
+        were cut by the specified percentage.
+
+        Args:
+            program: Program name to analyze (e.g., "CDBG")
+            cfda_number: CFDA number to analyze (e.g., "14.218")
+            cut_percentage: Fraction to cut (0.20 = 20% cut, default)
+            fiscal_year: Filter by fiscal year
+
+        Returns:
+            FundingFlowImpact with affected items and total impact
+
+        Example:
+            >>> c = Civic("san-rafael")
+            >>> impact = c.funding_flow_impact(program="CDBG", cut_percentage=0.20)
+            >>> print(f"20% CDBG cut would impact ${impact.total_impact_dollars:,.0f}")
+            >>> for flow in impact.affected_items:
+            ...     print(f"  - {flow.department}: ${flow.budget_dollars * 0.20:,.0f}")
+        """
+        flows = self.funding_flow(
+            program=program,
+            cfda_number=cfda_number,
+            fiscal_year=fiscal_year,
+            min_confidence=0.5,
+        )
+
+        # Calculate totals
+        total_current = sum(f.budget_dollars for f in flows)
+        total_impact = total_current * cut_percentage
+
+        # Determine program name for display
+        program_name = program or ""
+        if not program_name and cfda_number:
+            # Try to get program name from first flow
+            for f in flows:
+                if f.federal_program_name:
+                    program_name = f.federal_program_name
+                    break
+        if not program_name:
+            program_name = cfda_number or "Unknown"
+
+        return FundingFlowImpact(
+            program_name=program_name,
+            cfda_number=cfda_number,
+            cut_percentage=cut_percentage,
+            total_current_dollars=total_current,
+            total_impact_dollars=total_impact,
+            affected_items=flows,
+        )
 
     # ─────────── ACTION METHODS (Act) ───────────
 
