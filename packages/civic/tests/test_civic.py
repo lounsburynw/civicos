@@ -25,6 +25,8 @@ from civic.civic import (
     Suggestion,
     CoordinationPlan,
     Outcome,
+    BudgetItem,
+    BudgetSummary,
 )
 
 
@@ -113,6 +115,47 @@ class TestQueryMethods:
         # This verifies the types are properly exported
         assert DecisionWithContext is not None
         assert TranscriptLink is not None
+
+    def test_budget_returns_list(self):
+        """budget() returns list of BudgetItem."""
+        c = Civic("san-rafael-ca")
+        result = c.budget()
+        assert isinstance(result, list)
+        # If results exist, verify type
+        if result:
+            assert isinstance(result[0], BudgetItem)
+
+    def test_budget_with_department_filter(self):
+        """budget() accepts department filter."""
+        c = Civic("san-rafael-ca")
+        result = c.budget(department="Police")
+        assert isinstance(result, list)
+        # All results should be from Police department
+        for item in result:
+            assert item.department == "Police"
+
+    def test_budget_with_amount_filter(self):
+        """budget() accepts min_amount filter."""
+        c = Civic("san-rafael-ca")
+        result = c.budget(min_amount=1_000_000)
+        assert isinstance(result, list)
+        # All results should be >= $1M
+        for item in result:
+            assert item.budgeted_dollars >= 1_000_000
+
+    def test_budget_summary_returns_list(self):
+        """budget_summary() returns list of BudgetSummary."""
+        c = Civic("san-rafael-ca")
+        result = c.budget_summary()
+        assert isinstance(result, list)
+        # If results exist, verify type
+        if result:
+            assert isinstance(result[0], BudgetSummary)
+
+    def test_budget_item_and_summary_types_exist(self):
+        """BudgetItem and BudgetSummary can be imported from civic.civic."""
+        assert BudgetItem is not None
+        assert BudgetSummary is not None
 
 
 class TestActionMethods:
