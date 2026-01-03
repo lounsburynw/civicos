@@ -1352,19 +1352,21 @@
         ]
       },
       "usaspending_ingestion": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Ingest federal awards from USAspending.gov API",
         "depends_on": [
           "federal_awards_schema"
         ],
         "note": "Free API, no key required. Filter by recipient (San Rafael UEI), place of performance (94901-94915), or CFDA. Returns contracts, grants, loans, direct payments.",
         "data_source": "https://api.usaspending.gov/",
-        "example_query": "GET /api/v2/search/spending_by_award/ with filters for recipient_location"
+        "example_query": "GET /api/v2/search/spending_by_award/ with filters for recipient_location",
+        "completed": "2026-01-02",
+        "test_file": "packages/civic-extraction/tests/test_clients.py::TestUSAspendingClient"
       },
       "state_passthrough_schema": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Schema for state-administered federal funds (pass-through)",
         "depends_on": [
           "federal_awards_schema"

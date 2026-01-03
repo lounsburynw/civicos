@@ -362,6 +362,44 @@ class SQLiteBackend:
             "ON operations(started_at DESC)"
         )
 
+        # Federal awards table (SESSION 440)
+        # Stores federal grants, contracts, loans from USAspending.gov
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS federal_awards (
+                award_id TEXT NOT NULL,
+                jurisdiction_id TEXT NOT NULL,
+                cfda_number TEXT,
+                recipient_uei TEXT,
+                recipient_name TEXT,
+                amount_cents INTEGER CHECK(amount_cents >= 0),
+                period_start TEXT,
+                period_end TEXT,
+                program_name TEXT,
+                awarding_agency TEXT,
+                funding_agency TEXT,
+                award_type TEXT,
+                metadata TEXT,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                PRIMARY KEY (award_id, jurisdiction_id, valid_from),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                CHECK (valid_to IS NULL OR valid_to > valid_from)
+            )
+        """)
+
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_federal_awards_jurisdiction "
+            "ON federal_awards(jurisdiction_id)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_federal_awards_cfda "
+            "ON federal_awards(cfda_number)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_federal_awards_temporal "
+            "ON federal_awards(jurisdiction_id, valid_from, valid_to)"
+        )
+
         conn.commit()
         if should_close:
             conn.close()
@@ -1689,7 +1727,7 @@ class SQLiteBackend:
         """Get budget items count (stub for SQLite - uses Postgres in production)."""
         return 0
 
-    # ========== Federal Awards Methods (SESSION 439 - Protocol Compliance) ==========
+    # ========== Federal Awards Methods (SESSION 439/440) ==========
 
     def store_federal_awards(
         self,
@@ -1697,8 +1735,104 @@ class SQLiteBackend:
         awards: List[Dict[str, Any]],
         as_of: Optional[datetime] = None,
     ) -> int:
-        """Store federal awards (stub for SQLite - uses Postgres in production)."""
-        return len(awards)
+        """
+        Store federal awards with temporal versioning.
+
+        Atomic operation: either all awards are stored or none.
+        Updates existing awards if IDs match, inserts new ones.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "san-rafael")
+            awards: List of award dictionaries from USAspendingClient
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of awards successfully stored
+        """
+        if not awards:
+            return 0
+
+        as_of = as_of or datetime.now()
+
+        conn = sqlite3.connect(self._db_path)
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Ensure city_state exists
+            cursor.execute("""
+                INSERT OR IGNORE INTO city_states (jurisdiction_id, jurisdiction_name, as_of)
+                VALUES (?, ?, ?)
+            """, (
+                jurisdiction_id,
+                jurisdiction_id.replace('-', ' ').title(),
+                as_of.isoformat()
+            ))
+
+            # Get award IDs we're updating
+            award_ids = [a.get("award_id") for a in awards if a.get("award_id")]
+
+            # Close previous versions for these award_ids
+            placeholders = ",".join("?" for _ in award_ids)
+            if award_ids:
+                cursor.execute(f"""
+                    UPDATE federal_awards
+                    SET valid_to = ?
+                    WHERE jurisdiction_id = ?
+                      AND award_id IN ({placeholders})
+                      AND valid_to IS NULL
+                """, [as_of.isoformat(), jurisdiction_id] + award_ids)
+
+            # Insert new versions
+            for award in awards:
+                award_id = award.get("award_id")
+                if not award_id:
+                    continue
+
+                # Build metadata from any extra fields
+                metadata = {}
+                if "recipient_duns" in award:
+                    metadata["recipient_duns"] = award["recipient_duns"]
+
+                cursor.execute("""
+                    INSERT INTO federal_awards (
+                        award_id, jurisdiction_id, cfda_number, recipient_uei,
+                        recipient_name, amount_cents, period_start, period_end,
+                        program_name, awarding_agency, funding_agency, award_type,
+                        metadata, valid_from, valid_to
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+                """, (
+                    award_id,
+                    jurisdiction_id,
+                    award.get("cfda_number"),
+                    award.get("recipient_uei"),
+                    award.get("recipient_name"),
+                    award.get("amount_cents"),
+                    award.get("period_start"),
+                    award.get("period_end"),
+                    award.get("program_name"),
+                    award.get("awarding_agency"),
+                    award.get("funding_agency"),
+                    award.get("award_type"),
+                    json.dumps(metadata) if metadata else None,
+                    as_of.isoformat(),
+                ))
+
+            # Update city_state timestamp
+            cursor.execute("""
+                UPDATE city_states
+                SET as_of = ?, updated_at = ?
+                WHERE jurisdiction_id = ?
+            """, (as_of.isoformat(), datetime.now().isoformat(), jurisdiction_id))
+
+            conn.commit()
+            return len(awards)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
     def get_federal_awards(
         self,
@@ -1709,12 +1843,112 @@ class SQLiteBackend:
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
-        """Get federal awards (stub for SQLite - uses Postgres in production)."""
-        return []
+        """
+        Get federal awards with optional filtering and point-in-time queries.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            cfda_number: Filter by CFDA/Assistance Listing number
+            period_start: Filter by period starting on or after this date
+            period_end: Filter by period ending on or before this date
+            as_of: Point-in-time query (default: current data)
+            limit: Maximum number of results
+
+        Returns:
+            List of award dictionaries
+        """
+        conn = sqlite3.connect(self._db_path)
+        conn.row_factory = sqlite3.Row
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Build query
+            query = """
+                SELECT award_id, jurisdiction_id, cfda_number, recipient_uei,
+                       recipient_name, amount_cents, period_start, period_end,
+                       program_name, awarding_agency, funding_agency, award_type,
+                       metadata, valid_from, valid_to
+                FROM federal_awards
+                WHERE jurisdiction_id = ?
+            """
+            params: List[Any] = [jurisdiction_id]
+
+            # Point-in-time filter
+            if as_of:
+                query += " AND valid_from <= ? AND (valid_to IS NULL OR valid_to > ?)"
+                as_of_str = as_of.isoformat()
+                params.extend([as_of_str, as_of_str])
+            else:
+                query += " AND valid_to IS NULL"
+
+            # Optional filters
+            if cfda_number:
+                query += " AND cfda_number = ?"
+                params.append(cfda_number)
+
+            if period_start:
+                query += " AND period_start >= ?"
+                params.append(period_start)
+
+            if period_end:
+                query += " AND period_end <= ?"
+                params.append(period_end)
+
+            # Order and limit
+            query += " ORDER BY amount_cents DESC"
+            if limit:
+                query += " LIMIT ?"
+                params.append(limit)
+
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+            awards = []
+            for row in rows:
+                award = {
+                    "award_id": row["award_id"],
+                    "jurisdiction_id": row["jurisdiction_id"],
+                    "cfda_number": row["cfda_number"],
+                    "recipient_uei": row["recipient_uei"],
+                    "recipient_name": row["recipient_name"],
+                    "amount_cents": row["amount_cents"],
+                    "period_start": row["period_start"],
+                    "period_end": row["period_end"],
+                    "program_name": row["program_name"],
+                    "awarding_agency": row["awarding_agency"],
+                    "funding_agency": row["funding_agency"],
+                    "award_type": row["award_type"],
+                }
+                # Parse metadata if present
+                if row["metadata"]:
+                    try:
+                        award["metadata"] = json.loads(row["metadata"])
+                    except json.JSONDecodeError:
+                        pass
+                awards.append(award)
+
+            return awards
+
+        finally:
+            conn.close()
 
     def get_federal_awards_count(self, jurisdiction_id: str) -> int:
-        """Get federal awards count (stub for SQLite - uses Postgres in production)."""
-        return 0
+        """Get count of current (non-expired) federal awards."""
+        conn = sqlite3.connect(self._db_path)
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM federal_awards
+                WHERE jurisdiction_id = ?
+                  AND valid_to IS NULL
+            """, (jurisdiction_id,))
+            return cursor.fetchone()[0]
+        finally:
+            conn.close()
 
 
 # Verify protocol compliance at import time
