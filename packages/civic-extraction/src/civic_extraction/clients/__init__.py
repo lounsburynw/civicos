@@ -24,6 +24,10 @@ from civic_extraction.clients.fac import (
     FederalAuditClearinghouseClient,
     create_san_rafael_fac_client,
 )
+from civic_extraction.clients.ca_state_controller import (
+    CAStateControllerClient,
+    create_san_rafael_sco_client,
+)
 from civic_extraction.clients.base import (
     BaseExtractor,
     Meeting,
@@ -43,6 +47,8 @@ __all__ = [
     "CaliforniaGrantsClient",
     "FederalAuditClearinghouseClient",
     "create_san_rafael_fac_client",
+    "CAStateControllerClient",
+    "create_san_rafael_sco_client",
     "BaseExtractor",
     "Meeting",
     "ExtractionConfig",
