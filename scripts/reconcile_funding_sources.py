@@ -10,10 +10,18 @@ Usage:
 """
 
 import json
+import os
 import re
+import sys
+from datetime import datetime
 from pathlib import Path
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
+
+# Add packages to path for manifest imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "packages" / "civic-extraction" / "src"))
+
+from civic_extraction.manifest import IngestionManifest, SourceEntry, save_manifest
 
 # =============================================================================
 # STEP 1: Define what we're trying to match
@@ -30,6 +38,19 @@ class FundingMapping:
     acfr_fund: Optional[str]
     acfr_amount_cents: Optional[int]
     notes: str
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "budget_item": self.budget_item,
+            "budget_amount_cents": self.budget_amount_cents,
+            "matched_source": self.matched_source,
+            "source_type": self.source_type,
+            "confidence": self.confidence,
+            "acfr_fund": self.acfr_fund,
+            "acfr_amount_cents": self.acfr_amount_cents,
+            "notes": self.notes,
+        }
 
 
 # =============================================================================
@@ -242,16 +263,223 @@ def print_reconciliation_report(mappings: list[FundingMapping]):
     print("\n" + "=" * 80)
 
 
+# =============================================================================
+# STEP 5: JSON output and manifest integration
+# =============================================================================
+
+
+def create_reconciliation_report(
+    mappings: list[FundingMapping],
+    budget_data: dict,
+    acfr_data: dict,
+) -> dict[str, Any]:
+    """
+    Create a structured reconciliation report for JSON output.
+
+    Args:
+        mappings: List of FundingMapping objects from reconciliation
+        budget_data: Original budget JSON data
+        acfr_data: Original ACFR JSON data
+
+    Returns:
+        Dictionary suitable for JSON serialization
+    """
+    # Group by source type and calculate summaries
+    by_source: dict[str, list[FundingMapping]] = {}
+    for m in mappings:
+        by_source.setdefault(m.source_type, []).append(m)
+
+    summary_by_source = {}
+    for source_type, items in by_source.items():
+        total_cents = sum(i.budget_amount_cents for i in items)
+        high_confidence = sum(1 for i in items if i.confidence == "high")
+        summary_by_source[source_type] = {
+            "count": len(items),
+            "amount_cents": total_cents,
+            "high_confidence_count": high_confidence,
+        }
+
+    # Count matched vs unmatched
+    matched_items = [m for m in mappings if m.acfr_fund is not None]
+    unmatched_items = [m for m in mappings if m.acfr_fund is None]
+
+    return {
+        "jurisdiction_id": budget_data.get("jurisdiction_id", "unknown"),
+        "budget_fiscal_year": budget_data.get("fiscal_year", "unknown"),
+        "acfr_fiscal_year": acfr_data.get("fiscal_year", "unknown"),
+        "generated_at": datetime.now().isoformat(),
+        "summary": {
+            "total_items": len(mappings),
+            "matched_items": len(matched_items),
+            "unmatched_items": len(unmatched_items),
+            "by_source_type": summary_by_source,
+        },
+        "items": [m.to_dict() for m in mappings],
+    }
+
+
+def save_reconciliation_with_manifest(
+    budget_path: str,
+    acfr_path: str,
+    output_dir: str = "data/reconciliation",
+    jurisdiction_id: Optional[str] = None,
+) -> tuple[dict[str, Any], str, str]:
+    """
+    Run reconciliation, save report JSON, and create manifest for provenance tracking.
+
+    Args:
+        budget_path: Path to budget JSON
+        acfr_path: Path to ACFR JSON
+        output_dir: Directory to save reconciliation outputs
+        jurisdiction_id: Override jurisdiction ID (defaults to budget file's value)
+
+    Returns:
+        Tuple of (report_dict, report_path, manifest_path)
+    """
+    # Load data for report metadata
+    with open(budget_path) as f:
+        budget_data = json.load(f)
+    with open(acfr_path) as f:
+        acfr_data = json.load(f)
+
+    # Resolve jurisdiction
+    jid = jurisdiction_id or budget_data.get("jurisdiction_id", "unknown")
+
+    # Run reconciliation
+    mappings = reconcile_budget_with_acfr(budget_path, acfr_path)
+
+    # Create structured report
+    report = create_reconciliation_report(mappings, budget_data, acfr_data)
+
+    # Create manifest for provenance
+    manifest = IngestionManifest.create(
+        jurisdiction_id=jid,
+        run_type="manual",
+    )
+
+    # Add source entry for reconciliation
+    records_matched = report["summary"]["matched_items"]
+    records_unmatched = report["summary"]["unmatched_items"]
+    manifest.sources.append(
+        SourceEntry(
+            source_id="budget-acfr-reconciliation",
+            source_type="reconciliation",
+            records_ingested=records_matched,
+            records_failed=0,
+            records_skipped=records_unmatched,
+        )
+    )
+
+    # Add file checksums for input provenance
+    manifest.add_file_checksum("budget", budget_path)
+    manifest.add_file_checksum("acfr", acfr_path)
+
+    # Add metadata about the reconciliation
+    manifest.metadata["budget_file"] = budget_path
+    manifest.metadata["acfr_file"] = acfr_path
+    manifest.metadata["budget_fiscal_year"] = report["budget_fiscal_year"]
+    manifest.metadata["acfr_fiscal_year"] = report["acfr_fiscal_year"]
+    manifest.metadata["reconciliation_algorithm"] = "keyword_pattern_v1"
+
+    # Mark as success
+    manifest.success = True
+
+    # Ensure output directory exists
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Add report checksum before saving
+    report_json = json.dumps(report, indent=2)
+    manifest.add_checksum("report", report_json.encode("utf-8"))
+
+    # Add manifest ID to report for cross-reference
+    report["manifest_id"] = manifest.ingestion_id
+
+    # Save report
+    report_filename = f"reconciliation-{manifest.ingestion_id}.json"
+    report_path = os.path.join(output_dir, report_filename)
+    with open(report_path, "w") as f:
+        json.dump(report, f, indent=2)
+
+    # Save manifest to manifest directory
+    manifest_dir = os.path.join(output_dir, "manifests")
+    manifest_path = save_manifest(manifest, manifest_dir)
+
+    return report, report_path, manifest_path
+
+
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="Reconcile budget with ACFR funding sources")
-    parser.add_argument('--budget', default='data/budgets/san_rafael/FY25-26-extracted.json')
-    parser.add_argument('--acfr', default='data/acfr/acfr-san-rafael-2024-2025.json')
+    parser = argparse.ArgumentParser(
+        description="Reconcile budget with ACFR funding sources",
+        epilog="""
+Examples:
+  # Print human-readable report only
+  python scripts/reconcile_funding_sources.py
+
+  # Save JSON report with manifest (default output dir: data/reconciliation/)
+  python scripts/reconcile_funding_sources.py --save
+
+  # Save to custom output directory
+  python scripts/reconcile_funding_sources.py --save --output /tmp/reconciliation
+
+  # Save JSON report without manifest (for debugging)
+  python scripts/reconcile_funding_sources.py --save --no-manifest
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument('--budget', default='data/budgets/san_rafael/FY25-26-extracted.json',
+                        help='Path to budget JSON file')
+    parser.add_argument('--acfr', default='data/acfr/acfr-san-rafael-2024-2025.json',
+                        help='Path to ACFR JSON file')
+    parser.add_argument('--save', action='store_true',
+                        help='Save JSON report and manifest (default: print human-readable only)')
+    parser.add_argument('--output', default='data/reconciliation',
+                        help='Output directory for JSON report and manifest')
+    parser.add_argument('--no-manifest', action='store_true',
+                        help='Skip manifest creation (only valid with --save)')
+    parser.add_argument('--quiet', '-q', action='store_true',
+                        help='Suppress human-readable output (only valid with --save)')
     args = parser.parse_args()
 
     print("🔍 Loading budget and ACFR data...")
-    mappings = reconcile_budget_with_acfr(args.budget, args.acfr)
-    print_reconciliation_report(mappings)
+
+    if args.save:
+        if args.no_manifest:
+            # Save JSON report only, no manifest
+            with open(args.budget) as f:
+                budget_data = json.load(f)
+            with open(args.acfr) as f:
+                acfr_data = json.load(f)
+
+            mappings = reconcile_budget_with_acfr(args.budget, args.acfr)
+            report = create_reconciliation_report(mappings, budget_data, acfr_data)
+
+            os.makedirs(args.output, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            report_path = os.path.join(args.output, f"reconciliation-{timestamp}.json")
+            with open(report_path, "w") as f:
+                json.dump(report, f, indent=2)
+
+            print(f"✅ Report saved to: {report_path}")
+        else:
+            # Save with manifest (full provenance tracking)
+            report, report_path, manifest_path = save_reconciliation_with_manifest(
+                args.budget,
+                args.acfr,
+                args.output,
+            )
+            print(f"✅ Report saved to: {report_path}")
+            print(f"✅ Manifest saved to: {manifest_path}")
+            print(f"   Manifest ID: {report['manifest_id']}")
+
+        if not args.quiet:
+            # Also print human-readable report
+            mappings = reconcile_budget_with_acfr(args.budget, args.acfr)
+            print_reconciliation_report(mappings)
+    else:
+        # Original behavior: print human-readable report only
+        mappings = reconcile_budget_with_acfr(args.budget, args.acfr)
+        print_reconciliation_report(mappings)
 
 
 if __name__ == '__main__':

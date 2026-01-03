@@ -149,30 +149,12 @@ class FinancialConfig:
     """
     Financial data source configuration.
 
-    Provides configuration for financial data clients (SCO, FAC, USAspending).
-    Loaded from the 'financial' section of extraction config JSON files.
+    Minimal configuration for financial data extraction.
+    Complex lookups (entity names, UEIs) happen at runtime.
     """
 
-    # Common identifiers
     state: str  # "CA" - state code
     county: Optional[str] = None  # "Marin" - county name
-
-    # CA State Controller (SCO)
-    sco_entity_name: Optional[str] = None  # "San Rafael" - entity name in SCO database
-
-    # Federal Audit Clearinghouse (FAC)
-    fac_auditee_name: Optional[str] = None  # "City of San Rafael"
-    fac_auditee_city: Optional[str] = None  # "San Rafael"
-
-    # USAspending
-    uei: Optional[str] = None  # "MC7TGCCKLED5" - Unique Entity Identifier
-    usaspending_recipient_name: Optional[str] = None  # "CITY OF SAN RAFAEL"
-
-    # Document patterns (URL templates)
-    budget_pdf_pattern: Optional[str] = None  # e.g., "https://example.com/budget-{fiscal_year}.pdf"
-    acfr_pdf_pattern: Optional[str] = None  # e.g., "https://example.com/acfr-{fiscal_year}.pdf"
-
-    # Fiscal year configuration
     fiscal_year_start_month: int = 7  # July = 7 (CA standard)
 
     @classmethod
@@ -181,13 +163,6 @@ class FinancialConfig:
         return cls(
             state=data["state"],
             county=data.get("county"),
-            sco_entity_name=data.get("sco_entity_name"),
-            fac_auditee_name=data.get("fac_auditee_name"),
-            fac_auditee_city=data.get("fac_auditee_city"),
-            uei=data.get("uei"),
-            usaspending_recipient_name=data.get("usaspending_recipient_name"),
-            budget_pdf_pattern=data.get("budget_pdf_pattern"),
-            acfr_pdf_pattern=data.get("acfr_pdf_pattern"),
             fiscal_year_start_month=data.get("fiscal_year_start_month", 7),
         )
 
@@ -196,20 +171,6 @@ class FinancialConfig:
         result: Dict[str, Any] = {"state": self.state}
         if self.county:
             result["county"] = self.county
-        if self.sco_entity_name:
-            result["sco_entity_name"] = self.sco_entity_name
-        if self.fac_auditee_name:
-            result["fac_auditee_name"] = self.fac_auditee_name
-        if self.fac_auditee_city:
-            result["fac_auditee_city"] = self.fac_auditee_city
-        if self.uei:
-            result["uei"] = self.uei
-        if self.usaspending_recipient_name:
-            result["usaspending_recipient_name"] = self.usaspending_recipient_name
-        if self.budget_pdf_pattern:
-            result["budget_pdf_pattern"] = self.budget_pdf_pattern
-        if self.acfr_pdf_pattern:
-            result["acfr_pdf_pattern"] = self.acfr_pdf_pattern
         if self.fiscal_year_start_month != 7:
             result["fiscal_year_start_month"] = self.fiscal_year_start_month
         return result
