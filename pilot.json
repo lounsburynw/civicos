@@ -1431,24 +1431,19 @@
       },
       "funding_flow_e2e": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "funding_flow() returns audited federal grant data with correct budget linkages",
         "depends_on": [
           "fac_ingestion_client"
         ],
-        "note": "Session 448: Fixed jurisdiction normalization in storage layer. Discovered that keyword-based matching (fire prevention → CFDA 97.044) produces spurious links. Need authoritative source data from Federal Audit Clearinghouse (Single Audit SEFA) for reliable funding linkages."
+        "note": "Session 448: Keyword-based matching is unreliable. Session 449: FAC data now available via federal_expenditures(). Next step: Update funding_flow() to incorporate audited expenditures, or provide guidance that federal_expenditures() is the authoritative source while funding_flow() shows best-effort budget linkages."
       },
       "fac_ingestion_client": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "FederalAuditClearinghouseClient that ingests Schedule of Expenditures of Federal Awards (SEFA) from Single Audit reports",
-        "note": "The FAC (app.fac.gov) contains audited, authoritative federal grant data. Single Audits include SEFA table with: CFDA number, federal agency, pass-through grantor (state), program name, expenditures. This is the accounting source of truth - not keyword matching.",
-        "approach": [
-          "1. Search FAC API for San Rafael Single Audit",
-          "2. Parse SEFA table from PDF or structured data",
-          "3. Store as federal_audit_expenditures with explicit CFDA→expenditure links",
-          "4. Use for funding_flow() instead of keyword-based matcher"
-        ],
+        "completed": "2026-01-02",
+        "note": "Session 449: Built FAC client with api.fac.gov integration. Ingested 52 expenditure records from 7 audits (2016-2023). Added federal_audit_expenditures table to PostgreSQL. Created Civic.federal_expenditures() and federal_expenditures_summary() methods for API access. FY2023 shows $2M in federal expenditures: Medicaid ($658K), Highway ($637K), FEMA Disaster ($562K), CDBG ($23K).",
         "resources": [
           "https://app.fac.gov/dissemination/search/",
           "https://www.cityofsanrafael.org/financial-reports/"
