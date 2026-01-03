@@ -6,13 +6,19 @@ Supports semantic search via embeddings for jurisdictions with vector indexes.
 """
 
 import json
+import logging
 import os
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, TYPE_CHECKING
 from dataclasses import dataclass
 from datetime import datetime
 
 from civic._internal.state import StateManager
 from civic._internal.jurisdiction import normalize_jurisdiction
+
+if TYPE_CHECKING:
+    from civic.storage.vector import VectorBackend
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -350,6 +356,8 @@ def _jurisdiction_has_embeddings(jurisdiction: str) -> bool:
     """
     Check if a jurisdiction has a vector index available.
 
+    Checks pgvector (production) first, then falls back to local ChromaDB.
+
     Args:
         jurisdiction: Jurisdiction ID (e.g., "city-san-rafael" or "san-rafael")
 
@@ -359,7 +367,18 @@ def _jurisdiction_has_embeddings(jurisdiction: str) -> bool:
     # Normalize jurisdiction ID to canonical format
     jurisdiction = normalize_jurisdiction(jurisdiction)
 
-    # Check for path: data/pilot/vectors/{jurisdiction}/
+    # Check pgvector first (production backend)
+    try:
+        from civic.storage import get_vector_backend
+        vb = get_vector_backend()
+        if vb.backend_type == "pgvector":
+            stats = vb.get_stats(jurisdiction)
+            if stats and stats.document_count > 0:
+                return True
+    except Exception:
+        pass  # Fall through to ChromaDB check
+
+    # Fall back to local ChromaDB path check
     path = f"data/pilot/vectors/{jurisdiction}"
     return os.path.exists(path)
 
@@ -395,6 +414,8 @@ def _search_semantic_decisions(
     """
     Search decisions using vector embeddings for a jurisdiction.
 
+    Uses pgvector (production) when available, falls back to local ChromaDB.
+
     Args:
         jurisdiction: Jurisdiction ID (e.g., "city-san-rafael")
         query: Search query
@@ -405,6 +426,40 @@ def _search_semantic_decisions(
     Returns:
         List of Decision objects from semantic search
     """
+    jurisdiction = normalize_jurisdiction(jurisdiction)
+
+    # Try pgvector first (production backend)
+    try:
+        from civic.storage import get_vector_backend
+        vb = get_vector_backend()
+        if vb.backend_type == "pgvector":
+            results = vb.search(query, jurisdiction, corpus_type="decisions", top_k=top_k)
+            if results:
+                decisions = []
+                for r in results:
+                    # Parse meeting date
+                    meeting_date = r.meeting_datetime
+                    if meeting_date is None:
+                        meeting_date = datetime.now()
+
+                    # Extract metadata
+                    metadata = r.metadata or {}
+
+                    decisions.append(Decision(
+                        id=r.id,
+                        title=metadata.get("title", r.meeting_title or ""),
+                        date=meeting_date,
+                        outcome=metadata.get("outcome", "unknown"),
+                        body="City Council",
+                        votes=None,
+                    ))
+
+                decisions.sort(key=lambda d: d.date, reverse=True)
+                return decisions
+    except Exception:
+        pass  # Fall through to ChromaDB
+
+    # Fall back to local ChromaDB
     try:
         from civic._internal.meetings.embeddings import CivicEmbeddings
     except ImportError:
@@ -766,11 +821,59 @@ def search_hybrid(
     )
 
 
+def _search_with_vector_backend(
+    vector_backend: "VectorBackend",
+    jurisdiction: str,
+    query: str,
+    top_k: int = 10,
+) -> List[Decision]:
+    """
+    Search decisions using an explicit vector backend.
+
+    Args:
+        vector_backend: The vector backend to use (pgvector, etc.)
+        jurisdiction: Jurisdiction ID
+        query: Search query
+        top_k: Maximum results
+
+    Returns:
+        List of Decision objects
+    """
+    try:
+        results = vector_backend.search(query, jurisdiction, corpus_type="decisions", top_k=top_k)
+    except Exception as e:
+        logger.warning(f"Vector search failed: {e}")
+        return []
+
+    decisions = []
+    for r in results:
+        # Parse meeting date
+        meeting_date = r.meeting_datetime
+        if meeting_date is None:
+            meeting_date = datetime.now()
+
+        # Extract metadata
+        metadata = r.metadata or {}
+
+        decisions.append(Decision(
+            id=r.id,
+            title=metadata.get("title", r.meeting_title or ""),
+            date=meeting_date,
+            outcome=metadata.get("outcome", "unknown"),
+            body="City Council",
+            votes=None,
+        ))
+
+    decisions.sort(key=lambda d: d.date, reverse=True)
+    return decisions
+
+
 def search_decisions(
     state_manager: StateManager,
     jurisdiction: str,
     query: str,
-    since: str = None
+    since: str = None,
+    vector_backend: Optional["VectorBackend"] = None,
 ) -> List[Decision]:
     """
     Search past decisions.
@@ -783,14 +886,29 @@ def search_decisions(
         jurisdiction: City/jurisdiction ID
         query: Search query
         since: Optional date filter (ISO format)
+        vector_backend: Explicit vector backend to use (pgvector or None for ChromaDB)
 
     Returns:
         List of matching decisions
     """
-    # Check if jurisdiction has embeddings - use semantic search
+    jurisdiction = normalize_jurisdiction(jurisdiction)
+
+    # Use explicit vector backend if provided
+    if vector_backend is not None:
+        logger.debug(f"search_decisions: using {vector_backend.backend_type} for '{query}'")
+        results = _search_with_vector_backend(vector_backend, jurisdiction, query)
+        if results:
+            return results
+        logger.debug(f"search_decisions: {vector_backend.backend_type} returned empty, trying fallbacks")
+
+    # Fall back to auto-detection (legacy path for direct callers)
     if _jurisdiction_has_embeddings(jurisdiction):
         # Semantic search for jurisdictions with vector indexes
-        return _search_semantic_decisions(jurisdiction, query)
+        logger.debug(f"search_decisions: using auto-detected backend for '{query}'")
+        results = _search_semantic_decisions(jurisdiction, query)
+        if results:
+            return results
+        # Fall through to keyword search if semantic returned empty
 
     # Standard search: Basic keyword matching implementation
 
