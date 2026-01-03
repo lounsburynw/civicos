@@ -89,14 +89,16 @@ class Match:
         return self.budget_cents - compare_cents
 
     def _calc_variance_pct(self) -> Optional[float]:
-        """Calculate variance percentage."""
+        """Calculate variance percentage, capped at +/-999.99 for database storage."""
         compare_cents = self.local_cents or self.federal_cents
         if compare_cents is None or compare_cents == 0:
             return None
         variance = self._calc_variance_cents()
         if variance is None:
             return None
-        return round((variance / compare_cents) * 100, 2)
+        pct = round((variance / compare_cents) * 100, 2)
+        # Cap to database NUMERIC(5,2) limit
+        return max(-999.99, min(999.99, pct))
 
 
 # Common CFDA patterns in budget text
@@ -269,7 +271,8 @@ class FundingMatcher:
         """
         matches: List[Match] = []
 
-        item_id = budget_item.get("id") or budget_item.get("item_id")
+        # Prefer item_id (semantic identifier) over id (row number)
+        item_id = budget_item.get("item_id") or budget_item.get("id")
         if not item_id:
             return matches
 

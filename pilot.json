@@ -1431,12 +1431,28 @@
       },
       "funding_flow_e2e": {
         "status": "not_ready",
-        "priority": 0,
-        "artifact": "Fix jurisdiction ID mismatch and validate funding_flow() returns complete data",
+        "priority": 1,
+        "artifact": "funding_flow() returns audited federal grant data with correct budget linkages",
         "depends_on": [
-          "populate_federal_state_awards"
+          "fac_ingestion_client"
         ],
-        "note": "Session 447 ingested data but with jurisdiction ID split: budget uses 'city-san-rafael', awards use 'san-rafael'. Need to normalize to 'san-rafael' and regenerate funding links so funding_flow() shows budget descriptions instead of 'Unknown'."
+        "note": "Session 448: Fixed jurisdiction normalization in storage layer. Discovered that keyword-based matching (fire prevention → CFDA 97.044) produces spurious links. Need authoritative source data from Federal Audit Clearinghouse (Single Audit SEFA) for reliable funding linkages."
+      },
+      "fac_ingestion_client": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "FederalAuditClearinghouseClient that ingests Schedule of Expenditures of Federal Awards (SEFA) from Single Audit reports",
+        "note": "The FAC (app.fac.gov) contains audited, authoritative federal grant data. Single Audits include SEFA table with: CFDA number, federal agency, pass-through grantor (state), program name, expenditures. This is the accounting source of truth - not keyword matching.",
+        "approach": [
+          "1. Search FAC API for San Rafael Single Audit",
+          "2. Parse SEFA table from PDF or structured data",
+          "3. Store as federal_audit_expenditures with explicit CFDA→expenditure links",
+          "4. Use for funding_flow() instead of keyword-based matcher"
+        ],
+        "resources": [
+          "https://app.fac.gov/dissemination/search/",
+          "https://www.cityofsanrafael.org/financial-reports/"
+        ]
       }
     },
     "election_data": {
