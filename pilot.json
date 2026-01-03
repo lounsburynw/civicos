@@ -1409,17 +1409,18 @@
         "test_file": "packages/civic/tests/test_funding_reconciler.py"
       },
       "funding_flow_api": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Civic.funding_flow() method for tracing intergovernmental dollars",
         "depends_on": [
           "funding_reconciliation"
         ],
-        "note": "Queries like c.funding_flow(program='CDBG') \u2192 federal allocation \u2192 state pass-through \u2192 city receipt \u2192 department budget. Enables 'what if CDBG cut 20%?' analysis."
+        "note": "Queries like c.funding_flow(program='CDBG') \u2192 federal allocation \u2192 state pass-through \u2192 city receipt \u2192 department budget. Enables 'what if CDBG cut 20%?' analysis.",
+        "test": "test_funding_flow.py"
       },
       "populate_federal_state_awards": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Run USAspending and CA Grants ingestion to populate federal_awards and state_passthrough_funds tables",
         "depends_on": [
           "usaspending_ingestion",
