@@ -10,7 +10,9 @@ requires-python = ">=3.10"
 license = {text = "MIT"}
 
 # Minimal dependencies - most come from civic package and requirements.txt
-dependencies = []
+dependencies = [
+    "civic-config",       # Shared jurisdiction configuration
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

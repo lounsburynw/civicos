@@ -16,7 +16,7 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 import re
 
-from civic.jurisdiction import JurisdictionRegistry
+from civic_config import JurisdictionRegistry
 
 
 # Schema-compliant data classes based on civic-app-schema.json

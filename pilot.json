@@ -856,10 +856,11 @@
         "test_file": "packages/civic/tests/test_integration_rag_san_rafael.py"
       },
       "shared_config_package": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Move JurisdictionRegistry to shared package for clean layer separation",
-        "note": "civic-services imports JurisdictionRegistry/CITY_CONFIGS from civic (cross-layer). Options: (1) Create packages/civic-config/, (2) Duplicate config in civic-services. Low priority - config sharing is pragmatic."
+        "note": "Session 456: Created packages/civic-config/ with JurisdictionRegistry, JurisdictionConfig, GranicusConfig, CITY_CONFIGS. Updated civic-services to import from civic_config. Backward-compatible re-exports in civic.jurisdiction.",
+        "completed": "2026-01-03"
       },
       "chunker_layer_separation": {
         "status": "ready",
@@ -922,7 +923,7 @@
       },
       "deprecate_chromadb_legal_indexer": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Remove LegalIndexer -> ChromaDB path after pgvector unification",
         "artifact": "Delete civic/_internal/legal/embeddings/indexer.py, update imports",
         "depends_on": "legislation_full_text_chunking",
@@ -1127,7 +1128,7 @@
       },
       "budget_acfr_reconciliation_automation": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Automated budget-to-ACFR reconciliation with IngestionManifest integration",
         "note": "Extend scripts/reconcile_funding_sources.py. Output reconciliation report. Track provenance via manifest.",
         "depends_on": "budget_extractor_protocol"

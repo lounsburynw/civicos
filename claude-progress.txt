@@ -9655,3 +9655,42 @@ Extended `scripts/reconcile_funding_sources.py` to output structured JSON reconc
 ### Next Session (P0)
 
 shared_config_package - Fix cross-package imports (civic-services imports from civic)
+
+---
+
+## Session 456 (2026-01-03)
+
+### Completed: shared_config_package (P0)
+
+Fixed cross-package imports where `civic-services` was importing from `civic.jurisdiction`.
+
+#### Changes
+
+1. **Created `packages/civic-config/`** - New shared package for jurisdiction configuration
+   - `src/civic_config/__init__.py` - Package exports
+   - `src/civic_config/jurisdiction.py` - JurisdictionRegistry, JurisdictionConfig, GranicusConfig, CITY_CONFIGS
+
+2. **Updated `civic/jurisdiction.py`** - Now re-exports from `civic_config` for backward compatibility
+
+3. **Updated `civic-services` imports**:
+   - `civic_services/processing/civic_schema_adapter.py` - Now imports from `civic_config`
+   - `civic_services/monitoring/automated_civic_refresh.py` - Now imports from `civic_config`
+
+4. **Updated `civic._internal.jurisdiction`** - Imports `JurisdictionRegistry` from `civic_config`
+
+5. **Added dependencies** - Both `civic` and `civic-services` pyproject.toml now depend on `civic-config`
+
+#### Tests
+
+- 39 smoke tests pass
+- All import paths verified working
+
+#### Architecture Benefit
+
+- Clean layer separation: `civic-services` no longer imports from `civic` core package for config
+- Both packages can import from shared `civic-config` without creating cross-layer dependencies
+- Backward compatibility: existing `from civic.jurisdiction import ...` continues to work
+
+### Next Session (P0)
+
+deprecate_chromadb_legal_indexer - Remove LegalIndexer -> ChromaDB path after pgvector unification
