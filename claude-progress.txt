@@ -9312,3 +9312,58 @@ Started investigating why `funding_flow()` showed "Unknown" for budget descripti
 ### Next Session
 
 P0: `fac_ingestion_client` - Build client to ingest SEFA data from Federal Audit Clearinghouse (app.fac.gov). This provides audited federal grant data with explicit CFDA linkages.
+
+## Session 449 (2026-01-02)
+
+### Task: fac_ingestion_client (P0)
+
+Built Federal Audit Clearinghouse (FAC) client to ingest audited federal expenditure data.
+
+### What We Built
+
+1. **FederalAuditClearinghouseClient** (`packages/civic-extraction/src/civic_extraction/clients/fac.py`)
+   - Connects to api.fac.gov (requires API key from api.data.gov)
+   - Search audits by entity name, city, state
+   - Retrieve federal award expenditures (SEFA data)
+   - Normalize to civic storage format
+   - Rate limiting and exponential backoff
+
+2. **PostgreSQL Storage** (`packages/civic/src/civic/storage/postgres_backend.py`)
+   - New `federal_audit_expenditures` table with temporal versioning
+   - Fields: report_id, cfda_number, audit_year, amount_expended_cents, program_name, etc.
+   - Methods: `store_federal_audit_expenditures()`, `get_federal_audit_expenditures()`
+
+3. **Civic API** (`packages/civic/src/civic/civic.py`)
+   - `federal_expenditures(cfda_number, audit_year)` - Get audited expenditure records
+   - `federal_expenditures_summary(audit_year)` - Summary by program
+   - New `FederalExpenditure` dataclass
+
+### Data Ingested
+
+San Rafael Single Audits (2016-2023): 7 audits, 52 expenditure records
+
+FY2023 Federal Expenditures ($2.0M total):
+- 93.778 Medicaid: $658K
+- 20.205 Highway Planning: $637K  
+- 97.036 FEMA Disaster Grants: $562K [MAJOR]
+- 20.600 Highway Safety: $86K
+- 97.039 Hazard Mitigation: $55K
+- 14.218 CDBG: $23K
+
+FY2022 spike to $19M due to SLFRF COVID relief funds.
+
+### Key Insight
+
+FAC data is audited expenditures (what the city actually spent) vs USAspending which shows award amounts (what was allocated). FAC is the authoritative source for "how much did we spend from federal grant X?"
+
+### Files Changed
+
+- `packages/civic-extraction/src/civic_extraction/clients/fac.py` - New FAC client
+- `packages/civic-extraction/src/civic_extraction/clients/__init__.py` - Export FAC client
+- `packages/civic/src/civic/storage/postgres_backend.py` - Added federal_audit_expenditures table and methods
+- `packages/civic/src/civic/civic.py` - Added FederalExpenditure class and federal_expenditures() methods
+- `pilot.json` - Marked fac_ingestion_client ready
+
+### Next Session
+
+P1: `federal_awards_data_cleanup` - Clean federal_awards table to contain only City government awards (currently has schools, businesses). Or `funding_flow_e2e` - Now that FAC data is available, complete the budget→federal linkage.

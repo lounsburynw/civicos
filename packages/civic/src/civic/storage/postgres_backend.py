@@ -982,6 +982,67 @@ class PostgresBackend:
             ON budget_funding_source_links(jurisdiction_id, valid_from, valid_to)
         """)
 
+        # Federal Audit Expenditures table (SESSION 449)
+        # Stores Schedule of Expenditures of Federal Awards (SEFA) data from
+        # Single Audits filed with the Federal Audit Clearinghouse (FAC).
+        # This is audited expenditure data - the authoritative source for
+        # "how much did the city actually spend from federal grant X?"
+        # Unlike federal_awards (which stores award amounts), this stores
+        # actual expenditures reported in annual audits.
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS federal_audit_expenditures (
+                id SERIAL PRIMARY KEY,
+                report_id TEXT NOT NULL,
+                award_reference TEXT,
+                jurisdiction_id TEXT NOT NULL,
+                cfda_number TEXT NOT NULL,
+                auditee_uei TEXT,
+                auditee_ein TEXT,
+                audit_year INTEGER NOT NULL,
+                fy_start_date DATE,
+                fy_end_date DATE,
+                amount_expended_cents BIGINT NOT NULL,
+                federal_program_total_cents BIGINT,
+                cluster_total_cents BIGINT,
+                federal_program_name TEXT,
+                cluster_name TEXT,
+                is_major BOOLEAN DEFAULT FALSE,
+                is_passthrough BOOLEAN DEFAULT FALSE,
+                federal_agency_prefix TEXT,
+                source_url TEXT,
+                metadata JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                UNIQUE (report_id, award_reference, jurisdiction_id, valid_from),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                CHECK (valid_to IS NULL OR valid_to > valid_from),
+                CHECK (amount_expended_cents >= 0)
+            )
+        """)
+
+        # Federal audit expenditures indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_audit_expenditures_jurisdiction
+            ON federal_audit_expenditures(jurisdiction_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_audit_expenditures_cfda
+            ON federal_audit_expenditures(jurisdiction_id, cfda_number)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_audit_expenditures_year
+            ON federal_audit_expenditures(jurisdiction_id, audit_year DESC)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_audit_expenditures_report
+            ON federal_audit_expenditures(report_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_audit_expenditures_temporal
+            ON federal_audit_expenditures(jurisdiction_id, valid_from, valid_to)
+        """)
+
         # Migration: Add full_text column if not exists (SESSION 418)
         cursor.execute("""
             DO $$
@@ -4988,6 +5049,267 @@ class PostgresBackend:
 
         cursor.execute("""
             SELECT COUNT(*) FROM federal_awards
+            WHERE jurisdiction_id = %s
+              AND valid_to IS NULL
+        """, (jurisdiction_id,))
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
+    # =======================================================================
+    # FEDERAL AUDIT EXPENDITURES (SESSION 449)
+    # =======================================================================
+
+    def store_federal_audit_expenditures(
+        self,
+        jurisdiction_id: str,
+        expenditures: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store federal audit expenditures (SEFA data) with temporal versioning.
+
+        SEFA = Schedule of Expenditures of Federal Awards, from Single Audits
+        filed with the Federal Audit Clearinghouse. This is audited data showing
+        actual expenditures, not just award amounts.
+
+        Args:
+            jurisdiction_id: Jurisdiction identifier (e.g., "san-rafael")
+            expenditures: List of expenditure dicts from FAC client
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of records successfully stored
+
+        Raises:
+            psycopg2.Error: If store operation fails
+        """
+        # Normalize jurisdiction to canonical form
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+
+        as_of = as_of or datetime.now()
+        as_of_str = as_of.isoformat()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Filter to valid expenditures with identifiers
+            valid_expenditures = [
+                e for e in expenditures
+                if e.get("report_id") and e.get("cfda_number")
+            ]
+
+            # Close previous versions for these report_id + award_reference combos
+            for exp in valid_expenditures:
+                report_id = exp.get("report_id")
+                award_ref = exp.get("award_reference")
+                if report_id:
+                    if award_ref:
+                        cursor.execute("""
+                            UPDATE federal_audit_expenditures
+                            SET valid_to = %s
+                            WHERE jurisdiction_id = %s
+                              AND report_id = %s
+                              AND award_reference = %s
+                              AND valid_to IS NULL
+                        """, [as_of_str, jurisdiction_id, report_id, award_ref])
+                    else:
+                        cursor.execute("""
+                            UPDATE federal_audit_expenditures
+                            SET valid_to = %s
+                            WHERE jurisdiction_id = %s
+                              AND report_id = %s
+                              AND award_reference IS NULL
+                              AND valid_to IS NULL
+                        """, [as_of_str, jurisdiction_id, report_id])
+
+            # Insert new versions using execute_values for efficiency
+            values = []
+            for e in valid_expenditures:
+                # Build metadata from extra fields
+                metadata = {
+                    k: v for k, v in e.items()
+                    if k not in [
+                        "report_id", "award_reference", "cfda_number", "aln_number",
+                        "auditee_uei", "auditee_ein", "auditee_name",
+                        "audit_year", "fy_start_date", "fy_end_date",
+                        "amount_expended_cents", "federal_program_total_cents",
+                        "cluster_total_cents", "federal_program_name", "cluster_name",
+                        "is_major", "is_passthrough", "is_passthrough_award",
+                        "federal_agency_prefix", "source_url", "source",
+                    ]
+                }
+                values.append((
+                    e.get("report_id"),
+                    e.get("award_reference"),
+                    jurisdiction_id,
+                    e.get("cfda_number") or e.get("aln_number"),
+                    e.get("auditee_uei"),
+                    e.get("auditee_ein"),
+                    e.get("audit_year"),
+                    e.get("fy_start_date"),
+                    e.get("fy_end_date"),
+                    e.get("amount_expended_cents", 0),
+                    e.get("federal_program_total_cents"),
+                    e.get("cluster_total_cents"),
+                    e.get("federal_program_name"),
+                    e.get("cluster_name"),
+                    e.get("is_major", False),
+                    e.get("is_passthrough") or e.get("is_passthrough_award", False),
+                    e.get("federal_agency_prefix"),
+                    e.get("source_url"),
+                    json.dumps(metadata, cls=DateTimeEncoder) if metadata else None,
+                    as_of_str,
+                    as_of_str,
+                ))
+
+            if values:
+                psycopg2.extras.execute_values(
+                    cursor,
+                    """
+                    INSERT INTO federal_audit_expenditures (
+                        report_id, award_reference, jurisdiction_id, cfda_number,
+                        auditee_uei, auditee_ein, audit_year, fy_start_date, fy_end_date,
+                        amount_expended_cents, federal_program_total_cents,
+                        cluster_total_cents, federal_program_name, cluster_name,
+                        is_major, is_passthrough, federal_agency_prefix, source_url,
+                        metadata, created_at, valid_from, valid_to
+                    ) VALUES %s
+                    """,
+                    values,
+                    template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)",
+                    page_size=500,
+                )
+
+            conn.commit()
+            return len(valid_expenditures)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_federal_audit_expenditures(
+        self,
+        jurisdiction_id: str,
+        cfda_number: Optional[str] = None,
+        audit_year: Optional[int] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve federal audit expenditures with optional filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            cfda_number: Filter by CFDA/ALN number (e.g., "20.205")
+            audit_year: Filter by audit fiscal year
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of records to return
+
+        Returns:
+            List of expenditure dictionaries
+        """
+        # Normalize jurisdiction to canonical form
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Build query with temporal filtering
+        query = """
+            SELECT * FROM federal_audit_expenditures
+            WHERE jurisdiction_id = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+        """
+        params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+
+        if cfda_number is not None:
+            query += " AND cfda_number = %s"
+            params.append(cfda_number)
+
+        if audit_year is not None:
+            query += " AND audit_year = %s"
+            params.append(audit_year)
+
+        query += " ORDER BY audit_year DESC, amount_expended_cents DESC"
+
+        if limit is not None:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to dictionaries with proper serialization
+        expenditures = []
+        for row in rows:
+            exp = dict(row)
+            # Convert datetime objects to ISO strings
+            for key in ['created_at', 'valid_from', 'valid_to', 'fy_start_date', 'fy_end_date']:
+                if key in exp and exp[key] is not None:
+                    if isinstance(exp[key], (datetime, date)):
+                        exp[key] = exp[key].isoformat()
+            expenditures.append(exp)
+
+        return expenditures
+
+    def get_federal_audit_expenditures_by_year(
+        self,
+        jurisdiction_id: str,
+        as_of: Optional[datetime] = None,
+    ) -> Dict[int, List[Dict[str, Any]]]:
+        """
+        Get federal audit expenditures grouped by audit year.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            as_of: Point-in-time query (for temporal versioning)
+
+        Returns:
+            Dict mapping audit_year -> list of expenditures
+        """
+        expenditures = self.get_federal_audit_expenditures(
+            jurisdiction_id=jurisdiction_id,
+            as_of=as_of,
+        )
+
+        by_year: Dict[int, List[Dict[str, Any]]] = {}
+        for exp in expenditures:
+            year = exp.get("audit_year")
+            if year:
+                if year not in by_year:
+                    by_year[year] = []
+                by_year[year].append(exp)
+
+        return by_year
+
+    def get_federal_audit_expenditures_count(self, jurisdiction_id: str) -> int:
+        """
+        Get count of current federal audit expenditures for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+
+        Returns:
+            Number of current (non-expired) expenditure records
+        """
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT COUNT(*) FROM federal_audit_expenditures
             WHERE jurisdiction_id = %s
               AND valid_to IS NULL
         """, (jurisdiction_id,))

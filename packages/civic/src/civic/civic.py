@@ -26,7 +26,7 @@ Usage:
     c.report_outcome("item_789", "passed")
 """
 
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Dict
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -383,6 +383,40 @@ class FundingFlowImpact:
     total_current_dollars: float
     total_impact_dollars: float
     affected_items: List["FundingFlow"]
+
+
+@dataclass
+class FederalExpenditure:
+    """
+    Audited federal expenditure from Single Audit (SEFA data).
+
+    This is authoritative spending data from the Federal Audit Clearinghouse (FAC).
+    Unlike federal_awards (which show allocations/awards), these are actual
+    audited expenditures - what the city actually spent.
+
+    Amounts are in dollars (converted from internal cents representation).
+    """
+    # Identifiers
+    report_id: str
+    cfda_number: str
+    audit_year: int
+
+    # Amounts
+    amount_expended_dollars: float
+    federal_program_total_dollars: Optional[float] = None
+    cluster_total_dollars: Optional[float] = None
+
+    # Program info
+    federal_program_name: Optional[str] = None
+    cluster_name: Optional[str] = None
+    federal_agency_prefix: Optional[str] = None
+
+    # Flags
+    is_major: bool = False
+    is_passthrough: bool = False
+
+    # Source
+    source_url: Optional[str] = None
 
 
 # ─────────── MAIN CIVIC CLASS ───────────
@@ -1302,6 +1336,133 @@ class Civic:
             total_impact_dollars=total_impact,
             affected_items=flows,
         )
+
+    def federal_expenditures(
+        self,
+        cfda_number: Optional[str] = None,
+        audit_year: Optional[int] = None,
+        limit: Optional[int] = None,
+    ) -> List["FederalExpenditure"]:
+        """
+        Get audited federal expenditures from Single Audit data (FAC).
+
+        This returns authoritative data on how the city actually spent federal funds,
+        sourced from the Schedule of Expenditures of Federal Awards (SEFA) in
+        the city's annual Single Audit filed with the Federal Audit Clearinghouse.
+
+        Unlike `funding_flow()` which relies on estimated links between budget items
+        and federal awards, this data is audited and verified.
+
+        Args:
+            cfda_number: Filter by CFDA/ALN number (e.g., "20.205" for Highway Planning)
+            audit_year: Filter by audit fiscal year (e.g., 2023)
+            limit: Maximum number of records to return
+
+        Returns:
+            List of FederalExpenditure objects with audited spending data
+
+        Example:
+            >>> c = Civic("san-rafael")
+            >>> expenditures = c.federal_expenditures(audit_year=2023)
+            >>> for exp in expenditures:
+            ...     print(f"{exp.cfda_number}: ${exp.amount_expended_dollars:,.0f}")
+            ...     print(f"  Program: {exp.federal_program_name}")
+            93.778: $658,492
+              Program: MEDICAL ASSISTANCE PROGRAM
+            20.205: $637,452
+              Program: HIGHWAY PLANNING AND CONSTRUCTION
+        """
+        # Try postgres backend first (has federal_audit_expenditures table)
+        if hasattr(self._storage, 'get_federal_audit_expenditures'):
+            records = self._storage.get_federal_audit_expenditures(
+                jurisdiction_id=self.jurisdiction,
+                cfda_number=cfda_number,
+                audit_year=audit_year,
+                limit=limit,
+            )
+
+            expenditures = []
+            for r in records:
+                exp = FederalExpenditure(
+                    report_id=r.get("report_id", ""),
+                    cfda_number=r.get("cfda_number", ""),
+                    audit_year=r.get("audit_year", 0),
+                    amount_expended_dollars=(r.get("amount_expended_cents", 0) or 0) / 100,
+                    federal_program_total_dollars=(
+                        (r.get("federal_program_total_cents") or 0) / 100
+                        if r.get("federal_program_total_cents") else None
+                    ),
+                    cluster_total_dollars=(
+                        (r.get("cluster_total_cents") or 0) / 100
+                        if r.get("cluster_total_cents") else None
+                    ),
+                    federal_program_name=r.get("federal_program_name"),
+                    cluster_name=r.get("cluster_name"),
+                    federal_agency_prefix=r.get("federal_agency_prefix"),
+                    is_major=r.get("is_major", False),
+                    is_passthrough=r.get("is_passthrough", False),
+                    source_url=r.get("source_url"),
+                )
+                expenditures.append(exp)
+
+            return expenditures
+
+        # Fallback: return empty list if backend doesn't support audit data
+        return []
+
+    def federal_expenditures_summary(
+        self,
+        audit_year: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Get summary of federal expenditures by program for a given audit year.
+
+        Provides a quick overview of where federal dollars went.
+
+        Args:
+            audit_year: Audit fiscal year (default: most recent available)
+
+        Returns:
+            Dict with total, year, and breakdown by CFDA number
+
+        Example:
+            >>> c = Civic("san-rafael")
+            >>> summary = c.federal_expenditures_summary(audit_year=2023)
+            >>> print(f"Total: ${summary['total_dollars']:,.0f}")
+            >>> for program in summary['programs']:
+            ...     print(f"  {program['cfda']}: ${program['dollars']:,.0f}")
+        """
+        expenditures = self.federal_expenditures(audit_year=audit_year)
+
+        if not expenditures:
+            return {
+                "total_dollars": 0,
+                "audit_year": audit_year,
+                "programs": [],
+            }
+
+        # Aggregate by CFDA
+        by_cfda: Dict[str, Dict[str, Any]] = {}
+        for exp in expenditures:
+            cfda = exp.cfda_number
+            if cfda not in by_cfda:
+                by_cfda[cfda] = {
+                    "cfda": cfda,
+                    "program_name": exp.federal_program_name,
+                    "dollars": 0,
+                    "is_major": exp.is_major,
+                }
+            by_cfda[cfda]["dollars"] += exp.amount_expended_dollars
+
+        programs = sorted(by_cfda.values(), key=lambda x: x["dollars"], reverse=True)
+        total = sum(p["dollars"] for p in programs)
+        year = expenditures[0].audit_year if expenditures else audit_year
+
+        return {
+            "total_dollars": total,
+            "audit_year": year,
+            "programs": programs,
+        }
 
     # ─────────── ACTION METHODS (Act) ───────────
 
