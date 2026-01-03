@@ -1249,3 +1249,87 @@ class StorageBackend(Protocol):
             Number of current (non-expired) awards
         """
         ...
+
+    # =======================================================================
+    # STATE PASS-THROUGH FUNDING - Federal funds via state agencies to local
+    # =======================================================================
+
+    def store_state_passthrough_funds(
+        self,
+        jurisdiction_id: str,
+        passthroughs: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store state pass-through funding records with temporal versioning.
+
+        Tracks how federal funds flow through state agencies to local governments.
+        Example: HUD → California HCD → San Rafael (CDBG allocation).
+
+        Atomic operation: either all records are stored or none.
+        Uses upsert semantics based on passthrough_id.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "san-rafael")
+            passthroughs: List of passthrough dictionaries with keys:
+                - passthrough_id: Unique identifier for this pass-through record
+                - federal_award_id: Link to source federal_awards.award_id (optional)
+                - federal_cfda_number: Federal CFDA/Assistance Listing number
+                - federal_program_name: Federal program name (e.g., "CDBG")
+                - federal_amount_cents: Original federal allocation in cents
+                - state_agency: State agency managing pass-through (e.g., "HCD")
+                - state_program_name: State-level program name (optional)
+                - state_grant_id: State grant identifier (optional)
+                - local_amount_cents: Amount received by local jurisdiction in cents
+                - allocation_percentage: (local_amount / federal_amount) * 100
+                - period_start: Performance period start date (YYYY-MM-DD)
+                - period_end: Performance period end date (YYYY-MM-DD)
+                - federal_fiscal_year: Federal fiscal year (e.g., 2025)
+                - state_fiscal_year: State fiscal year (optional)
+                - source_url: Data source URL (optional)
+                - notes: Allocation notes (optional)
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of records successfully stored
+        """
+        ...
+
+    def get_state_passthrough_funds(
+        self,
+        jurisdiction_id: str,
+        state_agency: Optional[str] = None,
+        federal_cfda_number: Optional[str] = None,
+        federal_award_id: Optional[str] = None,
+        federal_fiscal_year: Optional[int] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve state pass-through funding records with optional filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            state_agency: Filter by state agency (e.g., "HCD", "Caltrans")
+            federal_cfda_number: Filter by federal CFDA number
+            federal_award_id: Filter by linked federal award
+            federal_fiscal_year: Filter by federal fiscal year
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of records to return
+
+        Returns:
+            List of passthrough dictionaries
+        """
+        ...
+
+    def get_state_passthrough_count(self, jurisdiction_id: str) -> int:
+        """
+        Get count of current state pass-through records for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+
+        Returns:
+            Number of current (non-expired) passthrough records
+        """
+        ...
