@@ -1312,11 +1312,14 @@
         "completed": "2026-01-02"
       },
       "budget_query_api": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Civic.budget() method for structured budget queries",
         "doc": "docs/BUDGET_EXTRACTION.md#query-api",
-        "depends_on": ["budget_schema", "san_rafael_fy2526_budget"],
+        "depends_on": [
+          "budget_schema",
+          "san_rafael_fy2526_budget"
+        ],
         "note": "Enables queries like c.budget(department='Police') or c.budget(min_amount=1_000_000)"
       },
       "decision_financial_extraction": {
@@ -1328,19 +1331,32 @@
       }
     },
     "intergovernmental_funding": {
-      "description": "Track funding flows from federal → state → county → city with deterministic accounting",
+      "description": "Track funding flows from federal \u2192 state \u2192 county \u2192 city with deterministic accounting",
       "federal_awards_schema": {
         "status": "not_ready",
         "priority": 2,
         "artifact": "StorageBackend methods for federal award/grant data",
         "note": "Schema: award_id (unique), cfda_number, recipient_id (DUNS/UEI), amount_cents, period, program_name. Enables deterministic tracking via federal identifiers.",
-        "fields": ["award_id", "cfda_number", "recipient_uei", "recipient_name", "amount_cents", "period_start", "period_end", "program_name", "awarding_agency", "funding_agency"]
+        "fields": [
+          "award_id",
+          "cfda_number",
+          "recipient_uei",
+          "recipient_name",
+          "amount_cents",
+          "period_start",
+          "period_end",
+          "program_name",
+          "awarding_agency",
+          "funding_agency"
+        ]
       },
       "usaspending_ingestion": {
         "status": "not_ready",
         "priority": 2,
         "artifact": "Ingest federal awards from USAspending.gov API",
-        "depends_on": ["federal_awards_schema"],
+        "depends_on": [
+          "federal_awards_schema"
+        ],
         "note": "Free API, no key required. Filter by recipient (San Rafael UEI), place of performance (94901-94915), or CFDA. Returns contracts, grants, loans, direct payments.",
         "data_source": "https://api.usaspending.gov/",
         "example_query": "GET /api/v2/search/spending_by_award/ with filters for recipient_location"
@@ -1349,14 +1365,18 @@
         "status": "not_ready",
         "priority": 2,
         "artifact": "Schema for state-administered federal funds (pass-through)",
-        "depends_on": ["federal_awards_schema"],
-        "note": "Many federal programs flow through state agencies (HUD→HCD, DOT→Caltrans). Track: federal_award_id, state_grant_id, local_allocation_cents. Links federal source to local receipt."
+        "depends_on": [
+          "federal_awards_schema"
+        ],
+        "note": "Many federal programs flow through state agencies (HUD\u2192HCD, DOT\u2192Caltrans). Track: federal_award_id, state_grant_id, local_allocation_cents. Links federal source to local receipt."
       },
       "ca_grants_ingestion": {
         "status": "not_ready",
         "priority": 2,
         "artifact": "Ingest CA state grants from grants.ca.gov",
-        "depends_on": ["state_passthrough_schema"],
+        "depends_on": [
+          "state_passthrough_schema"
+        ],
         "note": "CA Grants Portal launched 2023. Has API for active grants. Key programs: LEAP, HHAP, SB2 housing funds. May need supplemental scraping for historical data.",
         "data_source": "https://www.grants.ca.gov/"
       },
@@ -1364,22 +1384,30 @@
         "status": "not_ready",
         "priority": 2,
         "artifact": "Link city budget line items to federal/state funding sources",
-        "depends_on": ["usaspending_ingestion", "ca_grants_ingestion", "san_rafael_fy2526_budget"],
+        "depends_on": [
+          "usaspending_ingestion",
+          "ca_grants_ingestion",
+          "san_rafael_fy2526_budget"
+        ],
         "note": "Match budget_items.notes/program to federal CFDA or state grant ID. Semi-automated: AI suggests matches, human confirms. Enables 'trace this dollar to source' queries."
       },
       "funding_reconciliation": {
         "status": "not_ready",
         "priority": 2,
         "artifact": "Reconcile federal award amounts with city budget receipts",
-        "depends_on": ["budget_funding_source_linking"],
-        "note": "Validate: SUM(city budget grants) ≈ SUM(federal/state awards to city). Flag discrepancies >5%. Account for multi-year awards, indirect costs, pass-through timing."
+        "depends_on": [
+          "budget_funding_source_linking"
+        ],
+        "note": "Validate: SUM(city budget grants) \u2248 SUM(federal/state awards to city). Flag discrepancies >5%. Account for multi-year awards, indirect costs, pass-through timing."
       },
       "funding_flow_api": {
         "status": "not_ready",
         "priority": 2,
         "artifact": "Civic.funding_flow() method for tracing intergovernmental dollars",
-        "depends_on": ["funding_reconciliation"],
-        "note": "Queries like c.funding_flow(program='CDBG') → federal allocation → state pass-through → city receipt → department budget. Enables 'what if CDBG cut 20%?' analysis."
+        "depends_on": [
+          "funding_reconciliation"
+        ],
+        "note": "Queries like c.funding_flow(program='CDBG') \u2192 federal allocation \u2192 state pass-through \u2192 city receipt \u2192 department budget. Enables 'what if CDBG cut 20%?' analysis."
       }
     },
     "election_data": {
