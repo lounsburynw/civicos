@@ -76,9 +76,24 @@ class HighStakesDecision:
         if self.vote_results is None:
             self.vote_results = {}
 
+    @property
+    def financial_impact_cents(self) -> Optional[int]:
+        """
+        Convert budget_amount (dollars as float) to cents (integer).
+
+        SESSION 438: Added for precision storage and consistent API.
+        Returns None if no budget_amount, otherwise integer cents.
+        """
+        if self.budget_amount is None:
+            return None
+        return int(round(self.budget_amount * 100))
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
-        return asdict(self)
+        result = asdict(self)
+        # Add computed property
+        result['financial_impact_cents'] = self.financial_impact_cents
+        return result
 
 
 class RetrospectiveAnalyzer(AgendaIntegrator):

@@ -1323,18 +1323,19 @@
         "note": "Enables queries like c.budget(department='Police') or c.budget(min_amount=1_000_000)"
       },
       "decision_financial_extraction": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Enhanced staff report extraction populates financial_impact_cents",
         "doc": "docs/BUDGET_EXTRACTION.md#track-2-per-decision-financial",
-        "note": "Currently extracts text only; upgrade to structured amount + fund source"
+        "note": "SESSION 438: HighStakesDecision.financial_impact_cents computed from budget_amount; stored in decisions table; validated in decision_schema.py",
+        "completed": "2026-01-02"
       }
     },
     "intergovernmental_funding": {
       "description": "Track funding flows from federal \u2192 state \u2192 county \u2192 city with deterministic accounting",
       "federal_awards_schema": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "StorageBackend methods for federal award/grant data",
         "note": "Schema: award_id (unique), cfda_number, recipient_id (DUNS/UEI), amount_cents, period, program_name. Enables deterministic tracking via federal identifiers.",
         "fields": [
