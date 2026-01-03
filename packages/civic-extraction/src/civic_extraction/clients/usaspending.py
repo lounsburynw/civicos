@@ -48,6 +48,7 @@ class USAspendingClient:
         self,
         jurisdiction_id: str,
         recipient_name: Optional[str] = None,
+        recipient_uei: Optional[str] = None,
         zip_codes: Optional[List[str]] = None,
     ):
         """
@@ -55,11 +56,17 @@ class USAspendingClient:
 
         Args:
             jurisdiction_id: Civic jurisdiction ID (e.g., "san-rafael")
-            recipient_name: Organization name to search (e.g., "San Rafael")
+            recipient_name: Organization name to search (e.g., "City of San Rafael")
+            recipient_uei: Unique Entity Identifier for precise matching (e.g., "MC7TGCCKLED5")
             zip_codes: List of zip codes for place of performance filter
+
+        Note:
+            recipient_uei is preferred over recipient_name for accuracy.
+            Name searches can match unrelated entities (schools, businesses).
         """
         self.jurisdiction_id = jurisdiction_id
         self.recipient_name = recipient_name
+        self.recipient_uei = recipient_uei
         self.zip_codes = zip_codes
         self.base_url = "https://api.usaspending.gov/api/v2"
         self.session = requests.Session()
@@ -372,8 +379,10 @@ class USAspendingClient:
             "time_period": [{"start_date": start_date, "end_date": end_date}],
         }
 
-        # Add recipient filter if specified
-        if self.recipient_name:
+        # Add recipient filter - prefer UEI for precise matching
+        if self.recipient_uei:
+            filters["recipient_search_text"] = [self.recipient_uei]
+        elif self.recipient_name:
             filters["recipient_search_text"] = [self.recipient_name]
 
         # Add place of performance filter if zip codes specified
@@ -539,8 +548,10 @@ class USAspendingClient:
             "program_numbers": cfda_numbers,
         }
 
-        # Add recipient filter if specified
-        if self.recipient_name:
+        # Add recipient filter - prefer UEI for precise matching
+        if self.recipient_uei:
+            filters["recipient_search_text"] = [self.recipient_uei]
+        elif self.recipient_name:
             filters["recipient_search_text"] = [self.recipient_name]
 
         fields = [
@@ -596,3 +607,20 @@ class USAspendingClient:
             page += 1
 
         return all_awards
+
+
+def create_san_rafael_usaspending_client() -> USAspendingClient:
+    """
+    Create USAspending client configured for City of San Rafael.
+
+    Uses the city's UEI (MC7TGCCKLED5) for precise matching,
+    avoiding false positives from schools and businesses.
+
+    Returns:
+        Configured USAspendingClient
+    """
+    return USAspendingClient(
+        jurisdiction_id="san-rafael",
+        recipient_name="CITY OF SAN RAFAEL",  # Fallback for name display
+        recipient_uei="MC7TGCCKLED5",  # Precise matching
+    )
