@@ -3,7 +3,7 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2026-01-02",
+  "last_updated": "2026-01-03",
   "category_order": [
     "test_infrastructure",
     "data_architecture",
@@ -1450,26 +1450,22 @@
         ]
       },
       "federal_awards_data_cleanup": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": "Clean federal_awards table to contain only City of San Rafael government awards",
-        "note": "Session 448: USAspending query returned 65 awards but only 5 are city government. Rest are schools (25), businesses with 'San Rafael' in name (35, including Puerto Rico pharmacies). Must filter by recipient UEI or exact name match.",
-        "current_noise": [
-          "San Rafael Elementary School District (14 awards)",
-          "San Rafael High School District (11 awards)",
-          "Random businesses: gyms, restaurants, pharmacies (35 awards)"
+        "completed": "2026-01-03",
+        "note": "Session 450: Added UEI support to USAspendingClient (recipient_uei parameter). Created create_san_rafael_usaspending_client() convenience function with UEI MC7TGCCKLED5. Cleaned database: 5 verified city awards totaling $17.2M.",
+        "final_awards": [
+          "21.027 SLFRF/ARPA: $16,088,886",
+          "97.056 Port Security: $904,988",
+          "97.044 Firefighters Grant: $190,012",
+          "16.034 COVID Response: $20,553",
+          "97.044 Firefighters Grant (planning): $0"
         ],
-        "actual_city_awards": [
-          "SLFRF/ARPA: $16M",
-          "Port Security: $905K",
-          "Firefighters Grant: $190K",
-          "COVID Response: $21K"
-        ],
-        "approach": [
-          "1. Get City of San Rafael UEI from SAM.gov",
-          "2. Delete awards where recipient_name NOT IN ('CITY OF SAN RAFAEL', 'SAN RAFAEL, CITY OF')",
-          "3. Update USAspendingClient to filter by UEI instead of name search",
-          "4. Alternatively: wait for FAC data which is authoritative and clean"
+        "code_changes": [
+          "usaspending.py: Added recipient_uei parameter to USAspendingClient.__init__()",
+          "usaspending.py: UEI filtering takes precedence over name search",
+          "usaspending.py: Added create_san_rafael_usaspending_client() helper"
         ]
       }
     },
