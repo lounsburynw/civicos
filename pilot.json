@@ -92,8 +92,9 @@
       },
       "slow_test_markers": {
         "status": "not_ready",
-        "priority": 1,
-        "artifact": "Mark performance/load tests with @pytest.mark.slow"
+        "priority": 0,
+        "artifact": "Mark performance/load tests with @pytest.mark.slow",
+        "note": "Add @pytest.mark.slow to performance/load tests, update pytest.ini to register marker, enable CI to skip slow tests by default"
       }
     },
     "code_packaging": {
@@ -922,12 +923,12 @@
         "pattern": "Consistent chunking across legal corpus types - LegalChunker handles sections, chapters, articles"
       },
       "deprecate_chromadb_legal_indexer": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Remove LegalIndexer -> ChromaDB path after pgvector unification",
         "artifact": "Delete civic/_internal/legal/embeddings/indexer.py, update imports",
         "depends_on": "legislation_full_text_chunking",
-        "note": "After legislation uses pgvector like other corpus types, the separate ChromaDB path is redundant. LegalChunker remains (it's the chunking logic), but LegalIndexer/VectorStore ChromaDB wrapper can be removed. Simplifies architecture: one vector store (pgvector), one search path."
+        "note": "Session 457: Deleted indexer.py, updated embeddings/__init__.py and legal/__init__.py to remove LegalIndexer exports. Updated test_unified_vector_store.py to remove LegalIndexer tests. VectorStore and LegalSearch remain (still used by MCP, enrichment). 17 vector tests + 39 smoke tests pass."
       }
     },
     "schema_documentation": {

@@ -9694,3 +9694,46 @@ Fixed cross-package imports where `civic-services` was importing from `civic.jur
 ### Next Session (P0)
 
 deprecate_chromadb_legal_indexer - Remove LegalIndexer -> ChromaDB path after pgvector unification
+
+## Session 457 - 2026-01-03 - Deprecate ChromaDB LegalIndexer
+
+### P0 Completed: deprecate_chromadb_legal_indexer
+
+Removed the redundant `LegalIndexer` ChromaDB path after legislation was unified to use pgvector.
+
+#### Changes
+
+1. **Deleted `indexer.py`** - Removed `civic/_internal/legal/embeddings/indexer.py` containing `LegalIndexer` class
+
+2. **Updated `embeddings/__init__.py`**:
+   - Removed `LegalIndexer` import and export
+   - Updated docstring to note removal
+   - Kept `LegalChunker` and `VectorStore`
+
+3. **Updated `legal/__init__.py`**:
+   - Removed `LegalIndexer` from imports and `__all__`
+   - Updated docstring to note new indexing path
+
+4. **Updated tests**:
+   - Renamed `TestLegalIndexerAndSearchIntegration` -> `TestLegalSearchIntegration`
+   - Removed 2 `LegalIndexer` tests
+   - Added 1 test for VectorStore + LegalSearch integration
+
+#### Architecture Simplification
+
+- **Indexing path**: Now unified via `expand_legislation_to_chunks()` + `PgVectorBackend.index_from_storage()`
+- **Search paths** (still exist):
+  - `LegalSearch` (ChromaDB via VectorStore) - used by MCP, enrichment, civic.py
+  - `CivicEmbeddings.search_legislation()` (ChromaDB) - used by UnifiedSearch
+  - `PgVectorBackend.search()` (pgvector) - production path
+
+#### Tests
+
+- 17 vector store tests pass
+- 39 smoke tests pass
+- 78 storage protocol tests pass
+
+
+### Next Session (P0)
+
+slow_test_markers - Mark performance/load tests with @pytest.mark.slow

@@ -4,7 +4,9 @@ Embeddings layer for legal document vectors.
 Provides:
 - LegalChunker: Document splitting aware of legal structure
 - VectorStore: ChromaDB interface for storage
-- LegalIndexer: Build and update the vector index
+
+Note: LegalIndexer was removed - legislation is now indexed via pgvector using
+expand_legislation_to_chunks() + PgVectorBackend.index_from_storage().
 
 Requires: pip install civic-legal[embeddings]
 """
@@ -19,9 +21,8 @@ except ImportError:
 if DEPS_AVAILABLE:
     from civic._internal.legal.embeddings.chunker import LegalChunker
     from civic._internal.legal.embeddings.store import VectorStore
-    from civic._internal.legal.embeddings.indexer import LegalIndexer
 
-    __all__ = ["LegalChunker", "VectorStore", "LegalIndexer"]
+    __all__ = ["LegalChunker", "VectorStore"]
 else:
     __all__ = []
 
@@ -33,4 +34,3 @@ else:
 
     LegalChunker = _raise_import_error
     VectorStore = _raise_import_error
-    LegalIndexer = _raise_import_error

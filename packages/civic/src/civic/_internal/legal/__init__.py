@@ -6,9 +6,12 @@ Supersedes civic-enrichment with true vector retrieval capabilities.
 
 Architecture:
     - corpus/     Data acquisition (CA bills, federal programs, case law)
-    - embeddings/ Vector layer (chunking, ChromaDB storage, indexing)
+    - embeddings/ Vector layer (chunking, ChromaDB storage)
     - retrieval/  Search layer (similarity search, reranking, context building)
     - enrichment/ Event enrichment (keyword + semantic paths)
+
+Note: Legislation indexing now uses pgvector via expand_legislation_to_chunks()
++ PgVectorBackend.index_from_storage(). LegalIndexer was removed.
 
 Usage:
     # Corpus fetching
@@ -45,13 +48,12 @@ from civic._internal.legal.enrichment import (
 
 # Optional: Embeddings (requires [embeddings])
 try:
-    from civic._internal.legal.embeddings import LegalChunker, VectorStore, LegalIndexer
+    from civic._internal.legal.embeddings import LegalChunker, VectorStore
     EMBEDDINGS_AVAILABLE = True
 except ImportError:
     EMBEDDINGS_AVAILABLE = False
     LegalChunker = None
     VectorStore = None
-    LegalIndexer = None
 
 # Optional: Retrieval (requires [embeddings])
 try:
@@ -90,7 +92,6 @@ __all__ = [
     # Embeddings (optional)
     "LegalChunker",
     "VectorStore",
-    "LegalIndexer",
     "EMBEDDINGS_AVAILABLE",
     # Retrieval (optional)
     "LegalSearch",
