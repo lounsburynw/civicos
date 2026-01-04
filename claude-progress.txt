@@ -10055,3 +10055,56 @@ officials = storage.get_elected_officials("san-rafael", current_only=True)
 Continue with related items:
 - `roll_call_extraction`: Extract vote results from meeting minutes (P1)
 - `voting_record_api`: get_voting_record() method (depends on roll_call_extraction + elected_officials_table)
+
+## Session 465: roll_call_extraction - Extract Vote Patterns from Minutes
+
+**Date:** 2026-01-03
+**Item:** roll_call_extraction (data_readiness > election_data)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+
+Implemented roll call vote extraction from city council meeting minutes. The system now parses AYES/NOES/ABSENT vote patterns to populate the `vote_results` field in decisions.
+
+### Implementation
+
+1. **Roll call extraction functions** (`packages/civic/src/civic/_internal/meetings/decision.py`):
+   - `extract_roll_call(text)` - Parses AYES/NOES/ABSENT patterns, returns {"ayes": [], "noes": [], "absent": []}
+   - `extract_motion_attribution(text)` - Extracts "X moved, Y seconded" patterns
+   - `extract_vote_tally(text)` - Combines roll call + motion into VoteTally object
+   - `normalize_vote_names(tally, officials)` - Matches extracted names to elected officials via name_variations
+
+2. **Helper functions**:
+   - `_parse_names(text)` - Handles comma/ampersand separation, "None" values
+   - `_strip_title(name)` - Removes "Mayor", "Vice Mayor", "Councilmember" prefixes
+   - `_find_official(name, lookup, officials, match_func)` - Fuzzy matching
+
+3. **VoteTally enhancement**:
+   - Added `to_vote_results()` method for converting to {"Name": "yes/no/absent"} format
+
+4. **Patterns handled** (from real San Rafael minutes):
+   - `AYES: Councilmembers: Bushey, Hill, Kertz & Mayor Kate`
+   - `NOES: Councilmembers: None`
+   - `ABSENT: Councilmembers: Llorens Gulati`
+   - `Vice Mayor Bushey moved, and Councilmember Kertz seconded`
+
+### Tests
+
+Created `packages/civic/tests/test_roll_call_extraction.py` with 31 tests:
+- TestExtractRollCall (7 tests) - AYES/NOES/ABSENT pattern variations
+- TestParseNames (6 tests) - Name list parsing
+- TestStripTitle (5 tests) - Title prefix removal
+- TestExtractMotionAttribution (4 tests) - Motion/second patterns
+- TestExtractVoteTally (3 tests) - Complete vote extraction
+- TestNormalizeVoteNames (3 tests) - Name normalization
+- TestRealMinutesPatterns (3 tests) - Actual Oct 6 minutes patterns
+
+### Status
+`roll_call_extraction` marked **ready** in pilot.json (257/287 items, 90%)
+
+### Next Session
+Continue with `voting_record_api` (P0):
+- Implement `c.get_voting_record('Jane Smith', topic='housing')` method
+- Query decisions by official name and topic
+- Return VotingRecord with yes/no/absent counts and decision list
+- Dependencies (roll_call_extraction + elected_officials_table) now complete
