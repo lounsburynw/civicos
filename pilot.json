@@ -1554,8 +1554,8 @@
     },
     "election_data": {
       "election_integration": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Election data integration for whats_next() - upcoming elections, deadlines, ballot measures",
         "note": "Post-core-ingestion feature. Multi-source strategy: Google Civic API (primary) + Marin County Registrar (authoritative local). Reference doc: docs/critical/ELECTION_INTEGRATION.md",
         "depends_on": [
@@ -1590,7 +1590,7 @@
       },
       "elected_officials_table": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "ElectedOfficial model + storage for linking candidates to voting records",
         "note": "Schema: id, name, seat, jurisdiction_id, term_start, term_end, name_variations (for fuzzy matching). Populated from Google Civic API representatives endpoint.",
         "depends_on": [
