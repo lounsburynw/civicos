@@ -1,96 +1,124 @@
-# Recommended: roll_call_extraction
+# Recommended: voting_record_api
 
 **Priority:** P0
 **Area:** data_readiness > election_data
 **Date:** 2026-01-03
 
-> This is recommended context from Session 464. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 465. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 464 completed `elected_officials_table` - the storage layer for elected officials with name variations for fuzzy matching. The elected_officials table is now populated with local officials (Mayor, Council Members, Supervisor) via `extract_elected_officials_to_storage()`.
+Session 465 completed `roll_call_extraction` - parsing AYES/NOES/ABSENT vote patterns from meeting minutes. Combined with Session 464's `elected_officials_table`, all dependencies for voting record API are now ready.
 
 **What's ready:**
-- `ElectedOfficial` data model with `matches_name()` for fuzzy matching
-- `store_elected_officials()` / `get_elected_officials()` / `get_official_by_name()` in storage
-- `_generate_name_variations()` produces variants like "Councilmember Smith", "J. Smith"
+- `extract_roll_call(text)` - Parses vote patterns into {"ayes": [], "noes": [], "absent": []}
+- `extract_vote_tally(text)` - Returns complete VoteTally with motion attribution
+- `normalize_vote_names(tally, officials)` - Maps names to official records
+- `VoteTally.to_vote_results()` - Converts to {"Name": "yes/no/absent"} format
+- `ElectedOfficial` model with `matches_name()` and storage methods
+- 31 tests for roll call extraction, all passing
 
 **What's missing:**
-Roll call votes are not yet extracted from meeting minutes. The decisions table has a `vote_results` field but it's empty.
+The `get_voting_record()` API method that connects everything:
+```python
+c.get_voting_record("Jane Smith", topic="housing")
+# Returns VotingRecord with:
+# - yes_count: 8
+# - no_count: 2
+# - absent_count: 1
+# - decisions: [list of decision summaries with votes]
+```
 
 ## Recommended Task
 
-Extract roll call votes from meeting minutes and populate `vote_results` in decisions:
+Implement `get_voting_record()` in the Civic API:
 
-1. **Find roll call patterns in minutes:**
-   - Pattern: `AYES: Smith, Jones, Brown; NOES: Wilson; ABSENT: Davis`
-   - Pattern: `Motion carried unanimously` (all council members = yes)
-
-2. **Create extraction function:**
+1. **Create VotingRecord dataclass:**
    ```python
-   def extract_roll_call(text: str, officials: List[Dict]) -> Dict[str, str]:
-       """
-       Extract roll call vote from text.
+   @dataclass
+   class VotingRecord:
+       official_name: str
+       topic: Optional[str]
+       yes_count: int
+       no_count: int
+       absent_count: int
+       decisions: list[dict]  # Decision summaries with this official's vote
 
-       Args:
-           text: Decision text or motion text from minutes
-           officials: List from get_elected_officials()
+       @property
+       def total_votes(self) -> int
 
-       Returns:
-           {"Jane Smith": "yes", "Bob Jones": "no", "Mary Wilson": "absent"}
-       """
+       @property
+       def yes_percentage(self) -> float
    ```
 
-3. **Link to decision extraction pipeline:**
-   - Add roll call extraction to decision processing
-   - Populate `vote_results` field in stored decisions
+2. **Implement get_voting_record():**
+   ```python
+   def get_voting_record(
+       self,
+       official_name: str,
+       topic: Optional[str] = None,
+       start_date: Optional[str] = None,
+       end_date: Optional[str] = None,
+   ) -> VotingRecord:
+       # 1. Find official by name (fuzzy match via elected_officials)
+       # 2. Query decisions with vote_results containing this official
+       # 3. Filter by topic if specified
+       # 4. Aggregate yes/no/absent counts
+       # 5. Return VotingRecord
+   ```
+
+3. **Storage query needed:**
+   - `get_decisions_by_voter(official_name, topic, date_range)` - Find decisions where official voted
+   - May need to add `vote_results` column to decisions table if not already present
 
 ## Key Files
 
-- `packages/civic/src/civic/_internal/meetings/transcript.py` - Has partial `_parse_roll_call` (lines ~200-250)
-- `packages/civic-extraction/src/civic_extraction/decision_extractor.py` - Decision extraction pipeline
-- `packages/civic/src/civic/storage/backend.py:1609-1669` - `get_elected_officials()`, `get_official_by_name()`
-- `packages/civic-extraction/src/civic_extraction/clients/representatives.py:842-879` - `_generate_name_variations()`
+- `packages/civic/src/civic/civic.py` - Add get_voting_record() method
+- `packages/civic/src/civic/_internal/meetings/decision.py:62-75` - VoteTally.to_vote_results()
+- `packages/civic/src/civic/storage/backend.py:1609-1669` - Elected officials storage methods
+- `packages/civic/tests/test_roll_call_extraction.py` - Extraction tests to reference
 
-## Sample Data
+## Sample Usage
 
-Meeting minutes from San Rafael contain patterns like:
+```python
+from civic import Civic
+
+c = Civic("san-rafael")
+
+# Get voting record for a council member on housing issues
+record = c.get_voting_record("Maribeth Bushey", topic="housing")
+print(f"Voted YES on {record.yes_percentage:.0%} of housing items")
+print(f"Total votes: {record.total_votes} (Y:{record.yes_count} N:{record.no_count} A:{record.absent_count})")
+
+# Show specific decisions
+for d in record.decisions[:3]:
+    print(f"- {d['title']}: {d['vote']}")
 ```
-AYES: COUNCILMEMBERS: Bushey, Hill, Kertz, Vice Mayor Llorens Gulati, and Mayor Colin
-NOES: COUNCILMEMBERS: None
-ABSENT: COUNCILMEMBERS: None
-```
-
-## Suggested Approach
-
-1. Explore existing `_parse_roll_call` in transcript.py to understand current state
-2. Create robust regex patterns for AYES/NOES/ABSENT extraction
-3. Use `get_elected_officials()` + `matches_name()` to normalize names
-4. Add `extract_roll_call()` function to decision extractor
-5. Write tests with sample minutes text
 
 ## Tests to Run
 
 ```bash
-# Decision extractor tests
-pytest packages/civic-extraction/tests/test_decision_extractor.py -v -q --override-ini="addopts="
+# Smoke tests
+pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
+
+# Roll call extraction (related)
+pytest packages/civic/tests/test_roll_call_extraction.py -v -q --override-ini="addopts="
 
 # Storage protocols (officials)
 pytest packages/civic/tests/test_storage_protocols.py -k "elected" -v -q --override-ini="addopts="
-
-# Smoke tests
-pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] `extract_roll_call()` function parses AYES/NOES/ABSENT patterns
-- [ ] Names matched to elected_officials via fuzzy matching
-- [ ] `vote_results` field populated in decisions
-- [ ] Unit tests for roll call extraction
+- [ ] VotingRecord dataclass created
+- [ ] `get_voting_record()` implemented in Civic class
+- [ ] Queries decisions with populated vote_results
+- [ ] Filters by topic when specified
+- [ ] Returns accurate vote counts
+- [ ] Unit tests for voting record API
 - [ ] All existing tests passing
 
 ## Dependencies (Already Complete)
 
-- `election_integration` (Session 463): Elections storage mappers
-- `elected_officials_table` (Session 464): Official storage with name variations
+- `roll_call_extraction` (Session 465): extract_roll_call(), normalize_vote_names()
+- `elected_officials_table` (Session 464): ElectedOfficial storage + fuzzy matching

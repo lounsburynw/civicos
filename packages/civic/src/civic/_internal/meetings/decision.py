@@ -19,6 +19,7 @@ from datetime import date
 from pathlib import Path
 from typing import Optional
 import json
+import re
 
 
 @dataclass
@@ -57,6 +58,284 @@ class VoteTally:
             "unanimous": self.unanimous,
             "vote_count": self.vote_count,
         }
+
+    def to_vote_results(self) -> dict[str, str]:
+        """
+        Convert to vote_results format: {"Name": "yes/no/absent"}.
+
+        This is the format expected by the decisions table vote_results field.
+        """
+        result = {}
+        for name in self.ayes:
+            result[name] = "yes"
+        for name in self.noes:
+            result[name] = "no"
+        for name in self.absent:
+            result[name] = "absent"
+        return result
+
+
+def extract_roll_call(text: str) -> dict[str, list[str]]:
+    """
+    Extract roll call vote from meeting minutes text.
+
+    Parses patterns like:
+        AYES: Councilmembers: Bushey, Hill, Kertz & Mayor Kate
+        NOES: Councilmembers: None
+        ABSENT: Councilmembers: Llorens Gulati
+
+    Args:
+        text: Decision text or motion text from minutes
+
+    Returns:
+        {"ayes": ["Bushey", "Hill", "Kertz", "Kate"],
+         "noes": [],
+         "absent": ["Llorens Gulati"]}
+    """
+    result = {"ayes": [], "noes": [], "absent": []}
+
+    # Normalize text: handle line breaks, extra spaces
+    text = re.sub(r'\s+', ' ', text)
+
+    # Pattern for AYES section - capture until NOES or end
+    ayes_match = re.search(
+        r'AYES:?\s*(?:Councilmembers?:?)?\s*(.+?)(?=NOES:|ABSENT:|$)',
+        text,
+        re.IGNORECASE
+    )
+    if ayes_match:
+        result["ayes"] = _parse_names(ayes_match.group(1))
+
+    # Pattern for NOES section - capture until ABSENT or end
+    noes_match = re.search(
+        r'NOES:?\s*(?:Councilmembers?:?)?\s*(.+?)(?=ABSENT:|$)',
+        text,
+        re.IGNORECASE
+    )
+    if noes_match:
+        result["noes"] = _parse_names(noes_match.group(1))
+
+    # Pattern for ABSENT section - capture until end of vote block
+    # Stop at: numbered items, "Also Present", "Adopted", "Mayor", next section headers
+    absent_match = re.search(
+        r'ABSENT:?\s*(?:Councilmembers?:?)?\s*(.+?)(?=\d+\.|Also\s+Present|Adopted|Mayor\s+\w+\s+(?:adjourned|called)|[A-Z][a-z]+\s+moved|$)',
+        text,
+        re.IGNORECASE
+    )
+    if absent_match:
+        result["absent"] = _parse_names(absent_match.group(1))
+
+    return result
+
+
+def _parse_names(names_text: str) -> list[str]:
+    """
+    Parse a comma/ampersand-separated list of names.
+
+    Handles:
+        - "Bushey, Hill, Kertz & Mayor Kate" -> ["Bushey", "Hill", "Kertz", "Kate"]
+        - "None" -> []
+        - "Vice Mayor Llorens Gulati" -> ["Llorens Gulati"]
+    """
+    if not names_text:
+        return []
+
+    # Clean up and check for "None"
+    names_text = names_text.strip()
+    if names_text.lower() in ("none", "none.", "n/a", ""):
+        return []
+
+    # Split on comma, ampersand, and "and"
+    # First replace & and "and" with comma
+    names_text = re.sub(r'\s*[&]\s*', ', ', names_text)
+    names_text = re.sub(r'\s+and\s+', ', ', names_text, flags=re.IGNORECASE)
+
+    names = []
+    for part in names_text.split(','):
+        part = part.strip()
+        if not part or part.lower() in ("none", "none."):
+            continue
+
+        # Remove title prefixes
+        name = _strip_title(part)
+        if name:
+            names.append(name)
+
+    return names
+
+
+def _strip_title(name: str) -> str:
+    """
+    Strip title prefixes from a name.
+
+    "Mayor Kate" -> "Kate"
+    "Vice Mayor Bushey" -> "Bushey"
+    "Councilmember Kertz" -> "Kertz"
+    "Councilmember Llorens Gulati" -> "Llorens Gulati"
+    """
+    # Remove common title prefixes
+    title_patterns = [
+        r'^Vice\s+Mayor\s+',
+        r'^Mayor\s+',
+        r'^Council\s*member\s+',
+        r'^Councilmember\s+',
+        r'^CM\s+',
+    ]
+
+    for pattern in title_patterns:
+        name = re.sub(pattern, '', name, flags=re.IGNORECASE)
+
+    return name.strip()
+
+
+def extract_motion_attribution(text: str) -> tuple[Optional[str], Optional[str]]:
+    """
+    Extract who made and seconded a motion.
+
+    Parses patterns like:
+        "Vice Mayor Bushey moved, and Councilmember Kertz seconded"
+        "Councilmember Hill moved and Councilmember Kertz seconded"
+
+    Returns:
+        (motion_by, second_by) tuple, e.g., ("Bushey", "Kertz")
+    """
+    motion_by = None
+    second_by = None
+
+    # Pattern for motion maker
+    motion_match = re.search(
+        r'(?:Vice\s+Mayor|Mayor|Council\s*member|Councilmember|CM)\s+'
+        r'(\w+(?:\s+\w+)?)\s+moved',
+        text,
+        re.IGNORECASE
+    )
+    if motion_match:
+        motion_by = motion_match.group(1).strip()
+
+    # Pattern for seconder
+    second_match = re.search(
+        r'(?:Vice\s+Mayor|Mayor|Council\s*member|Councilmember|CM)\s+'
+        r'(\w+(?:\s+\w+)?)\s+seconded',
+        text,
+        re.IGNORECASE
+    )
+    if second_match:
+        second_by = second_match.group(1).strip()
+
+    return motion_by, second_by
+
+
+def extract_vote_tally(text: str) -> VoteTally:
+    """
+    Extract a complete VoteTally from meeting minutes text.
+
+    Combines roll call extraction with motion attribution.
+
+    Args:
+        text: Text containing vote information (e.g., a paragraph from minutes)
+
+    Returns:
+        VoteTally with ayes, noes, absent, motion_by, second_by populated
+    """
+    roll_call = extract_roll_call(text)
+    motion_by, second_by = extract_motion_attribution(text)
+
+    return VoteTally(
+        ayes=roll_call["ayes"],
+        noes=roll_call["noes"],
+        absent=roll_call["absent"],
+        motion_by=motion_by,
+        second_by=second_by,
+    )
+
+
+def normalize_vote_names(
+    vote_tally: VoteTally,
+    officials: list[dict],
+    match_func: Optional[callable] = None,
+) -> dict[str, str]:
+    """
+    Normalize extracted vote names to official records.
+
+    Uses fuzzy matching to map extracted names (e.g., "Bushey")
+    to official names (e.g., "Maribeth Bushey").
+
+    Args:
+        vote_tally: VoteTally with extracted names
+        officials: List of elected official dicts with 'name' and 'name_variations' keys
+        match_func: Optional custom matching function(name, official) -> bool
+
+    Returns:
+        Dict mapping official names to votes: {"Maribeth Bushey": "yes", ...}
+    """
+    result = {}
+
+    # Build lookup from variations to official name
+    variation_to_official = {}
+    for official in officials:
+        official_name = official.get("name", "")
+        variations = official.get("name_variations", [])
+
+        for var in variations:
+            variation_to_official[var.lower()] = official_name
+
+        # Also add the official name itself
+        variation_to_official[official_name.lower()] = official_name
+
+        # Add surname only
+        surname = official_name.split()[-1] if official_name else ""
+        if surname:
+            variation_to_official[surname.lower()] = official_name
+
+    # Match each vote
+    for name in vote_tally.ayes:
+        official = _find_official(name, variation_to_official, officials, match_func)
+        if official:
+            result[official] = "yes"
+        else:
+            result[name] = "yes"  # Keep original if no match
+
+    for name in vote_tally.noes:
+        official = _find_official(name, variation_to_official, officials, match_func)
+        if official:
+            result[official] = "no"
+        else:
+            result[name] = "no"
+
+    for name in vote_tally.absent:
+        official = _find_official(name, variation_to_official, officials, match_func)
+        if official:
+            result[official] = "absent"
+        else:
+            result[name] = "absent"
+
+    return result
+
+
+def _find_official(
+    name: str,
+    variation_lookup: dict[str, str],
+    officials: list[dict],
+    match_func: Optional[callable],
+) -> Optional[str]:
+    """Find official name matching extracted name."""
+    # Try direct lookup first
+    name_lower = name.lower()
+    if name_lower in variation_lookup:
+        return variation_lookup[name_lower]
+
+    # Try custom match function if provided
+    if match_func:
+        for official in officials:
+            if match_func(name, official):
+                return official.get("name")
+
+    # Try partial match on surname
+    for var, official_name in variation_lookup.items():
+        if name_lower in var or var in name_lower:
+            return official_name
+
+    return None
 
 
 @dataclass

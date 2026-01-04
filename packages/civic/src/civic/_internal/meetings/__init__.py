@@ -28,6 +28,11 @@ from .decision import (
     PublicInput,
     StaffRecommendation,
     extract_decisions,
+    # Roll call extraction
+    extract_roll_call,
+    extract_vote_tally,
+    extract_motion_attribution,
+    normalize_vote_names,
 )
 from .embeddings import (
     # New jurisdiction-based API
@@ -65,6 +70,11 @@ __all__ = [
     "PublicInput",
     "StaffRecommendation",
     "extract_decisions",
+    # Roll call extraction
+    "extract_roll_call",
+    "extract_vote_tally",
+    "extract_motion_attribution",
+    "normalize_vote_names",
     # New jurisdiction-based API
     "CivicEmbeddings",
     "SearchResult",
