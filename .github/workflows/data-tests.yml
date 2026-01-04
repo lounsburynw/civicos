@@ -1,0 +1,151 @@
+# Data Tests (Weekly) for Civic Platform
+#
+# Runs slow/heavy tests that are excluded from main CI:
+# - Load testing (performance benchmarks, concurrency)
+# - End-to-end verification flows
+# - Deployment rollback procedures
+# - Extraction failure handling
+# - Seed data operations
+#
+# These tests are more intensive and run weekly to avoid
+# blocking PRs while still providing coverage.
+#
+# Triggers:
+#   - Weekly on Sunday at 6:00 AM UTC (Saturday 10:00 PM Pacific)
+#   - Manual trigger via workflow_dispatch
+
+name: Data Tests
+
+on:
+  schedule:
+    # Weekly on Sunday at 6:00 AM UTC (same as vector-refresh)
+    - cron: '0 6 * * 0'
+
+  # Allow manual trigger for testing
+  workflow_dispatch:
+
+# Permissions for creating issues on failure
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  slow-tests:
+    name: Slow Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Install CPU-only PyTorch first (saves ~2GB by skipping CUDA)
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e packages/civic[all]
+          pip install -e packages/civic-extraction
+          pip install -e packages/civic-services/
+          pip install -r requirements.txt
+
+      - name: Run slow tests
+        run: |
+          pytest packages/civic/tests/ \
+            -m slow \
+            --override-ini="addopts=" \
+            -v \
+            --tb=short \
+            -n 2
+
+      - name: Test Summary
+        if: always()
+        run: |
+          echo "=========================================="
+          echo "Slow Test Summary"
+          echo "=========================================="
+          echo "Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo ""
+          echo "Tests marked @pytest.mark.slow:"
+          echo "  - test_integration_load.py (performance benchmarks)"
+          echo "  - test_e2e_verification.py (end-to-end flows)"
+          echo "  - test_deployment_rollback.py (backup/restore)"
+          echo "  - test_integration_extraction_failures.py (error handling)"
+          echo "  - test_seed_san_rafael.py (seed data operations)"
+
+  notify-failure:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: slow-tests
+    if: failure()
+
+    steps:
+      - name: Create Issue on Failure
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `Data tests failed - ${new Date().toISOString().split('T')[0]}`;
+            const body = `## Data Tests Failure
+
+            The scheduled slow/data tests workflow failed.
+
+            **Time:** ${new Date().toISOString()}
+            **Workflow Run:** [View logs](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
+
+            ### Test Files
+
+            Tests marked with \`@pytest.mark.slow\`:
+            - \`test_integration_load.py\` - Performance and concurrency tests
+            - \`test_e2e_verification.py\` - End-to-end flows
+            - \`test_deployment_rollback.py\` - Backup/restore procedures
+            - \`test_integration_extraction_failures.py\` - Error handling
+            - \`test_seed_san_rafael.py\` - Seed data operations
+
+            ### Troubleshooting Steps
+
+            1. Check the [workflow logs](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
+            2. Run slow tests locally: \`pytest packages/civic/tests/ -m slow -v --override-ini="addopts="\`
+            3. Check for resource exhaustion (memory, disk space)
+
+            ### Manual Recovery
+
+            If tests are flaky, try running specific test file:
+            \`\`\`bash
+            source civic-env/bin/activate
+            pytest packages/civic/tests/test_integration_load.py -v --override-ini="addopts="
+            \`\`\`
+            `;
+
+            // Check for existing open issue
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'data-tests-failure',
+              state: 'open'
+            });
+
+            if (issues.data.length === 0) {
+              // Create new issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['data-tests-failure', 'automated']
+              });
+              console.log('Created new issue for data tests failure');
+            } else {
+              // Add comment to existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                body: `Another data tests failure occurred at ${new Date().toISOString()}\n\n[View workflow run](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`
+              });
+              console.log('Added comment to existing issue');
+            }
