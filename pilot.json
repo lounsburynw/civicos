@@ -86,7 +86,7 @@
       },
       "scheduled_data_tests": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Weekly CI workflow for heavy data tests",
         "note": "GitHub Actions workflow for full corpus tests on schedule (35MB PDFs, real transcripts)"
       },
@@ -1609,10 +1609,11 @@
         "test": "pytest packages/civic-extraction/tests/test_clients.py::TestElectedOfficialsMappers packages/civic-extraction/tests/test_clients.py::TestElectedOfficialsExtraction packages/civic-extraction/tests/test_clients.py::TestElectedOfficialsStorageIntegration -v"
       },
       "voting_record_api": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "get_voting_record() method to query incumbent voting history by topic",
-        "note": "The 'closed loop' - connects elections to decisions. Returns VotingRecord with yes/no/abstain counts and decision list. Enables 'Jane Smith voted YES on 80% of housing items'.",
+        "note": "Session 466: Implemented get_voting_record() in Civic class. Queries decisions with vote_json, matches official by name with fuzzy matching, filters by topic/date, returns VotingRecord with yes/no/abstain counts. 17 tests pass.",
+        "completed": "2026-01-03",
         "depends_on": [
           "roll_call_extraction",
           "elected_officials_table"
@@ -1620,6 +1621,7 @@
         "modified_files": [
           "packages/civic/src/civic/civic.py"
         ],
+        "test_file": "packages/civic/tests/test_voting_record_api.py",
         "example_query": "c.get_voting_record('Jane Smith', topic='housing') -> VotingRecord"
       }
     }
