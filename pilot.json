@@ -1114,10 +1114,18 @@
         "completed": "2025-12-26"
       },
       "corpus_type_registry": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Pluggable CorpusType enum with metadata per corpus",
-        "note": "Extend CORPUS_TYPES frozenset with metadata: source_table, vector_collection, has_sql_source, etc."
+        "note": "Session 468: Extended CorpusConfig with sql_table, vector_collection_suffix, has_sql_source, has_vector_index. Added get_sql_backed_types(), get_vector_indexed_types(), get_corpus_metadata(), get_all_corpus_metadata(). unified.py now imports UNIFIED_CORPUS_TYPES from centralized registry.",
+        "completed": "2026-01-04"
+      },
+      "pgvector_integration_tests": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Integration tests running against pgvector in Supabase",
+        "note": "Add @pytest.mark.requires_pgvector tests that validate vector search against production pgvector. Use GitHub Actions secrets for DATABASE_URL. Follow security best practices: separate test schema or dedicated test database, no secrets in code.",
+        "depends_on": "corpus_type_registry"
       }
     },
     "financial_data_infrastructure": {
@@ -1771,6 +1779,34 @@
         "priority": 2,
         "artifact": "civic_engagement table stub for future anti-astroturf measures",
         "note": "Schema only - don't populate until coordination features built. Tracks 311 reports, meeting testimony, etc."
+      }
+    },
+    "pipeline_completeness": {
+      "decision_extraction_diagnosis": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "Diagnose why decision extraction stopped at Dec 15 despite meetings through Jan 6",
+        "note": "Session 468 found: 97 meetings in SQL but only 44 decisions (through Dec 15). Automated pipeline (modal_ingest.py) handles meetings/issues but NOT decision extraction. Need to understand: 1) Current decision extraction process, 2) Why it's not automated, 3) Manual vs automated path forward."
+      },
+      "automated_decision_extraction": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Add decision extraction to Modal automated pipeline",
+        "note": "After meetings ingested, extract decisions from meeting minutes. Integrate with scheduled_high_velocity_refresh or create separate schedule. Decision extraction requires: meeting minutes PDF → LLM extraction → store in decisions table.",
+        "depends_on": "decision_extraction_diagnosis"
+      },
+      "vector_sql_sync_verification": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Add verification step to vector-refresh.yml ensuring vector count matches SQL count",
+        "note": "Session 468 found mismatches: issues (1430 vectors vs 1630 SQL), meetings (46 vectors vs 97 SQL). Add post-refresh validation that alerts on >5% discrepancy. May need to investigate why some records aren't being indexed."
+      },
+      "data_freshness_alerting": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "GitHub Action that alerts when data falls behind expected freshness thresholds",
+        "note": "Daily check: decisions should be within 7 days of latest meeting, vectors should match SQL within 5%. Create GitHub Issue on threshold breach. Builds on existing freshness_warnings infrastructure.",
+        "depends_on": "vector_sql_sync_verification"
       }
     }
   },

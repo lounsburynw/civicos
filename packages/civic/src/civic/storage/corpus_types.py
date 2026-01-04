@@ -72,11 +72,29 @@ class CorpusConfig:
     # Jurisdiction type this corpus applies to
     jurisdiction_type: str  # "city", "state", or "both"
 
+    # SQL table name in postgres_backend (e.g., "decisions", "chunks")
+    # None if this corpus is vector-only with no SQL backing
+    sql_table: Optional[str] = None
+
+    # Vector collection suffix (appended to jurisdiction_id, e.g., "decisions" -> "{jurisdiction}_decisions")
+    # None if this corpus is SQL-only with no vector embedding
+    vector_collection_suffix: Optional[str] = None
+
     # Aliases used in other subsystems (for mapping)
     aliases: tuple = ()
 
     # Whether this corpus has meeting context (meeting_id, meeting_title, etc.)
     has_meeting_context: bool = False
+
+    @property
+    def has_sql_source(self) -> bool:
+        """True if this corpus is backed by a SQL table."""
+        return self.sql_table is not None
+
+    @property
+    def has_vector_index(self) -> bool:
+        """True if this corpus has vector embeddings."""
+        return self.vector_collection_suffix is not None
 
 
 # Registry of all corpus types with their configurations
@@ -87,6 +105,8 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         count_method="get_chunk_count",
         text_extractor="_chunk_to_text",
         jurisdiction_type="city",
+        sql_table="chunks",
+        vector_collection_suffix="chunks",
         aliases=("pdf", "chunk"),
         has_meeting_context=True,
     ),
@@ -96,6 +116,8 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         count_method="get_decision_count",
         text_extractor="_decision_to_text",
         jurisdiction_type="city",
+        sql_table="decisions",
+        vector_collection_suffix="decisions",
         aliases=("decision",),
         has_meeting_context=True,
     ),
@@ -105,6 +127,8 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         count_method=None,  # Uses len(get_meetings())
         text_extractor="_meeting_to_text",
         jurisdiction_type="city",
+        sql_table="meetings",
+        vector_collection_suffix=None,  # Meetings are SQL-only, not vectorized
         aliases=("meeting",),
         has_meeting_context=True,
     ),
@@ -114,6 +138,8 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         count_method="get_transcript_count",
         text_extractor="_transcript_to_text",
         jurisdiction_type="city",
+        sql_table="transcripts",
+        vector_collection_suffix="transcripts",
         aliases=("transcript",),
         has_meeting_context=True,
     ),
@@ -123,6 +149,8 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         count_method="get_municipal_code_count",
         text_extractor="_municipal_code_to_text",
         jurisdiction_type="city",
+        sql_table=None,  # Vector-only corpus
+        vector_collection_suffix="municipal_code",
         aliases=(),
         has_meeting_context=False,
     ),
@@ -132,6 +160,8 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         count_method="get_issue_count",
         text_extractor="_issue_to_text",
         jurisdiction_type="city",
+        sql_table="issues",
+        vector_collection_suffix="issues",
         aliases=("issue",),
         has_meeting_context=False,
     ),
@@ -141,6 +171,8 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         count_method="get_election_count",
         text_extractor="_election_to_text",
         jurisdiction_type="both",  # Elections span federal/state/local
+        sql_table=None,  # Vector-only corpus
+        vector_collection_suffix="elections",
         aliases=("election", "ballot", "vote"),
         has_meeting_context=False,
     ),
@@ -150,6 +182,8 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         count_method="get_legislation_count",
         text_extractor="_legislation_to_text",
         jurisdiction_type="state",
+        sql_table=None,  # Vector-only corpus
+        vector_collection_suffix="legislation",
         aliases=(),
         has_meeting_context=False,
     ),
@@ -159,6 +193,8 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         count_method="get_program_count",
         text_extractor="_program_to_text",
         jurisdiction_type="both",  # Can be queried from any jurisdiction
+        sql_table=None,  # Vector-only corpus (federal + county)
+        vector_collection_suffix="federal_programs",  # Also has county_programs
         aliases=("program",),
         has_meeting_context=False,
     ),
@@ -168,6 +204,8 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         count_method="get_codified_law_count",
         text_extractor="_codified_law_to_text",
         jurisdiction_type="both",  # Federal (U.S. Code) or state (CA Codes, etc.)
+        sql_table=None,  # Vector-only corpus
+        vector_collection_suffix="codified_law",
         aliases=("statutes", "code", "us_code", "state_code"),
         has_meeting_context=False,
     ),
@@ -177,6 +215,8 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         count_method="get_executive_orders_count",
         text_extractor="_executive_order_to_text",
         jurisdiction_type="both",  # Federal orders, queryable from any jurisdiction
+        sql_table=None,  # Vector-only corpus
+        vector_collection_suffix="executive_orders",
         aliases=("eo", "executive_order"),
         has_meeting_context=False,
     ),
@@ -292,3 +332,60 @@ UNIFIED_SEARCH_ALIASES = {
     "executive_orders": CorpusType.EXECUTIVE_ORDERS,
     "eo": CorpusType.EXECUTIVE_ORDERS,
 }
+
+
+# Backward-compatible frozenset of valid search corpus type names (for unified.py)
+# Uses the aliases that unified search expects (singular forms like "decision", "pdf", etc.)
+UNIFIED_CORPUS_TYPES = frozenset({
+    "decision",
+    "pdf",
+    "transcript",
+    "issue",
+    "municipal_code",
+    "legislation",
+    "programs",
+})
+
+
+def get_sql_backed_types() -> List[CorpusType]:
+    """Get corpus types that have SQL table backing."""
+    return [ct for ct, cfg in CORPUS_REGISTRY.items() if cfg.has_sql_source]
+
+
+def get_vector_indexed_types() -> List[CorpusType]:
+    """Get corpus types that have vector embeddings."""
+    return [ct for ct, cfg in CORPUS_REGISTRY.items() if cfg.has_vector_index]
+
+
+def get_corpus_metadata(corpus_type: CorpusType) -> Dict[str, Any]:
+    """
+    Get metadata dict for a corpus type, suitable for API responses.
+
+    Args:
+        corpus_type: The corpus type to get metadata for
+
+    Returns:
+        Dict with display_name, sql_table, vector_collection_suffix, etc.
+    """
+    config = CORPUS_REGISTRY[corpus_type]
+    return {
+        "name": corpus_type.value,
+        "display_name": config.display_name,
+        "sql_table": config.sql_table,
+        "vector_collection_suffix": config.vector_collection_suffix,
+        "has_sql_source": config.has_sql_source,
+        "has_vector_index": config.has_vector_index,
+        "jurisdiction_type": config.jurisdiction_type,
+        "has_meeting_context": config.has_meeting_context,
+        "aliases": list(config.aliases),
+    }
+
+
+def get_all_corpus_metadata() -> Dict[str, Dict[str, Any]]:
+    """
+    Get metadata for all corpus types.
+
+    Returns:
+        Dict mapping corpus type name to metadata dict
+    """
+    return {ct.value: get_corpus_metadata(ct) for ct in CorpusType}
