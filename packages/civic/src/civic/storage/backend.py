@@ -1445,3 +1445,226 @@ class StorageBackend(Protocol):
             True if link was confirmed, False if link not found
         """
         ...
+
+    # ========== Election Methods ==========
+    #
+    # Elections track upcoming/past elections, contests, candidates, and ballot measures.
+    # Multi-level: federal, state, county, city elections.
+    # Primary data source: Google Civic API.
+
+    def store_elections(
+        self,
+        jurisdiction_id: str,
+        elections: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store elections with temporal versioning.
+
+        Atomic operation: either all elections are stored or none.
+        Uses upsert semantics based on election id.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            elections: List of election dictionaries with keys:
+                - id: Unique election identifier
+                - name: Election name (e.g., "California Primary Election")
+                - election_date: Election date (YYYY-MM-DD)
+                - election_type: Type ("general", "primary", "special", "runoff", "recall")
+                - source: Data source (e.g., "google_civic", "marin_registrar")
+                - source_url: Optional URL to source
+                - raw_data: Optional raw API response
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of elections successfully stored
+        """
+        ...
+
+    def get_elections(
+        self,
+        jurisdiction_id: str,
+        as_of: Optional[datetime] = None,
+        include_past: bool = False,
+        election_type: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve elections with optional filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            as_of: Point-in-time query (for temporal versioning)
+            include_past: If True, include past elections (default: future only)
+            election_type: Filter by election type
+            limit: Maximum number of elections to return
+
+        Returns:
+            List of election dictionaries
+        """
+        ...
+
+    def get_election_count(self, jurisdiction_id: str) -> int:
+        """
+        Get count of current elections for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+
+        Returns:
+            Number of current (non-expired) elections
+        """
+        ...
+
+    # ========== Election Deadline Methods ==========
+
+    def store_election_deadlines(
+        self,
+        election_id: str,
+        deadlines: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store election deadlines with temporal versioning.
+
+        Args:
+            election_id: Parent election ID
+            deadlines: List of deadline dictionaries with keys:
+                - deadline_type: Type (e.g., "registration", "early_voting_start")
+                - deadline_date: Deadline date (YYYY-MM-DD)
+                - description: Description of the deadline
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of deadlines successfully stored
+        """
+        ...
+
+    def get_election_deadlines(
+        self,
+        election_id: str,
+        as_of: Optional[datetime] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve deadlines for an election.
+
+        Args:
+            election_id: Election ID
+            as_of: Point-in-time query (for temporal versioning)
+
+        Returns:
+            List of deadline dictionaries
+        """
+        ...
+
+    # ========== Election Contest Methods ==========
+
+    def store_election_contests(
+        self,
+        election_id: str,
+        contests: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store election contests with temporal versioning.
+
+        Args:
+            election_id: Parent election ID
+            contests: List of contest dictionaries with keys:
+                - id: Unique contest identifier
+                - title: Contest title
+                - contest_type: Type (e.g., "federal_senate", "local_council")
+                - district_name: Optional district name
+                - raw_data: Optional raw API response
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of contests successfully stored
+        """
+        ...
+
+    def get_election_contests(
+        self,
+        election_id: str,
+        contest_type: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve contests for an election.
+
+        Args:
+            election_id: Election ID
+            contest_type: Filter by contest type
+            as_of: Point-in-time query (for temporal versioning)
+
+        Returns:
+            List of contest dictionaries
+        """
+        ...
+
+    # ========== Elected Officials Methods ==========
+    #
+    # Elected officials link elections (candidates) to decisions (votes).
+    # Used for voting record queries: "How did Councilmember X vote on housing?"
+
+    def store_elected_officials(
+        self,
+        jurisdiction_id: str,
+        officials: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store elected officials with temporal versioning.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            officials: List of official dictionaries with keys:
+                - id: Unique official identifier
+                - name: Full name (e.g., "Jane Smith")
+                - seat: Office held (e.g., "City Council District 1")
+                - term_start: Term start date (YYYY-MM-DD)
+                - term_end: Term end date or None if current
+                - name_variations: JSON array of name variations for matching
+                - candidate_id: Optional link to election candidate
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of officials successfully stored
+        """
+        ...
+
+    def get_elected_officials(
+        self,
+        jurisdiction_id: str,
+        current_only: bool = True,
+        as_of: Optional[datetime] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve elected officials.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            current_only: If True, only return current officials (term_end is NULL)
+            as_of: Point-in-time query (for temporal versioning)
+
+        Returns:
+            List of official dictionaries
+        """
+        ...
+
+    def get_official_by_name(
+        self,
+        jurisdiction_id: str,
+        name: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Find official by name (fuzzy match on name_variations).
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            name: Name to search for (matches against name and name_variations)
+
+        Returns:
+            Official dictionary or None if not found
+        """
+        ...
