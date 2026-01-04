@@ -9765,3 +9765,23 @@ Added `@pytest.mark.slow` to 3 test files missing the marker:
 ### Next Session (P0)
 
 TBD - session ending without handoff prep (use /nextsesh to prepare)
+
+### Priority Framework Update
+
+User identified better prioritization:
+1. **Audit** - Verify claimed-ready data items are actually complete
+2. **Extraction** - Complete remaining data sources (election data)
+3. **FAIR Standards** - Harden data integrity (hashing, versioning)
+
+Updated pilot.json:
+- Added `data_completeness_audit` as new P0 (audit 37 claimed-ready items)
+- Promoted election items from P2 → P1:
+  - election_integration
+  - roll_call_extraction
+  - elected_officials_table
+  - voting_record_api
+- Demoted `scheduled_data_tests` from P0 → P1
+
+### Next Session (P0)
+
+data_completeness_audit - Verify all 37 'ready' data items are actually complete and current
