@@ -1576,15 +1576,17 @@
         ]
       },
       "roll_call_extraction": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Extract roll call votes from meeting minutes (AYES/NOES/ABSENT patterns)",
-        "note": "Prerequisite for voting record linkage. Minutes contain 'AYES: Smith, Jones; NOES: Brown' patterns. Add extract_roll_call() to decision extraction pipeline.",
+        "note": "Session 465: Added extract_roll_call(), extract_vote_tally(), extract_motion_attribution(), normalize_vote_names() to packages/civic/src/civic/_internal/meetings/decision.py. Parses AYES/NOES/ABSENT patterns with title stripping and name normalization via elected officials name_variations. 31 unit tests in test_roll_call_extraction.py.",
+        "completed": "2026-01-03",
         "depends_on": [
           "election_integration"
         ],
         "modified_files": [
-          "packages/civic-extraction/src/civic_extraction/decision_extractor.py"
+          "packages/civic/src/civic/_internal/meetings/decision.py",
+          "packages/civic/tests/test_roll_call_extraction.py"
         ],
         "output": "Decisions have populated vote_results: {'Smith': 'yes', 'Jones': 'yes', 'Brown': 'no'}"
       },
@@ -1608,7 +1610,7 @@
       },
       "voting_record_api": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "get_voting_record() method to query incumbent voting history by topic",
         "note": "The 'closed loop' - connects elections to decisions. Returns VotingRecord with yes/no/abstain counts and decision list. Enables 'Jane Smith voted YES on 80% of housing items'.",
         "depends_on": [
