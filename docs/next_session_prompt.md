@@ -1,73 +1,99 @@
-# Recommended: election_integration (Phase 2)
+# Recommended: election_integration (Phase 3 - OAuth + Storage)
 
 **Priority:** P0
 **Area:** data_readiness > election_data
 **Date:** 2026-01-03
 
-> This is recommended context from Session 460. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 461. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 460 completed **Phase 1: Foundation** of election_integration:
-- Election data models (`Election`, `Contest`, `Candidate`, `BallotMeasure`, `ElectedOfficial`, `VotingRecord`)
-- `ELECTIONS` CorpusType with registry entry
-- StorageBackend protocol extended with 10 election methods
-- Both SQLite and Postgres backends implemented (4 tables each + indexes)
+Session 461 completed **Phase 2: Google Civic API Client**:
+- `GoogleCivicClient` created with `get_elections()`, `get_voter_info()`, `get_representatives()`
+- API key handling from `GOOGLE_CIVIC_API_KEY` or `GOOGLE_API_KEY` env vars
+- Request throttling (5 req/sec), exponential backoff
+- 25 unit tests passing
 
-All 39 smoke tests passing. Commit: `efe845b`
+**API Status (verified with real key):**
+- `elections` endpoint: **Working** - returns available elections
+- `voterinfo` endpoint: **Working** - returns polling locations, contests (when election available)
+- `representatives` endpoint: **Returns "Method not found"** - needs OAuth investigation
+
+Commit: `d02c2e9`
 
 ## Recommended Task
 
-Continue to **Phase 2: Google Civic API Client** - create the data source client to fetch election data.
+1. **Investigate OAuth for representatives endpoint** - the API returns "Method not found" with API key auth, may require OAuth 2.0
+2. **Integrate with storage backend** - map API responses to Election data models and store via StorageBackend
 
 ## Key Files
 
+- `packages/civic-extraction/src/civic_extraction/clients/google_civic.py` - Client implementation (620 lines)
+- `packages/civic/src/civic/_internal/elections/__init__.py` - Data models (Election, Contest, etc.)
+- `packages/civic/src/civic/storage/backend.py:1448-1670` - Election storage methods
 - `docs/critical/ELECTION_INTEGRATION.md` - Full implementation reference
-- `packages/civic/src/civic/_internal/elections/__init__.py` - Data models (created)
-- `packages/civic/src/civic/storage/backend.py:1448-1670` - Election protocol methods
-- `packages/civic-extraction/src/civic_extraction/clients/` - Where Google Civic client goes
 
-## Suggested Approach (Phase 2)
+## Suggested Approach
 
-1. Create `packages/civic-extraction/src/civic_extraction/clients/google_civic.py`:
-   - `GoogleCivicClient` class
-   - Methods: `get_elections()`, `get_voter_info()`, `get_representatives()`
-   - Handle API key from environment (`GOOGLE_CIVIC_API_KEY`)
-   - Free tier: 25k requests/day
+### Part A: OAuth for Representatives
 
-2. Reference the Google Civic API docs:
-   - Elections: `https://civicinfo.googleapis.com/civicinfo/v2/elections`
-   - Voter Info: `https://civicinfo.googleapis.com/civicinfo/v2/voterinfo`
-   - Representatives: `https://civicinfo.googleapis.com/civicinfo/v2/representatives`
+1. Check Google Cloud Console for OAuth 2.0 credentials
+2. Research if Civic Information API representatives endpoint requires OAuth vs API key
+3. If OAuth needed:
+   - Add `google-auth` / `google-auth-oauthlib` dependencies
+   - Implement OAuth flow in `GoogleCivicClient`
+   - Test with real API
 
-3. Map API responses to our data models:
-   - `election` → `Election`
-   - `contest` → `Contest`
-   - `candidate` → `Candidate`
-   - `official` → `ElectedOfficial`
+### Part B: Storage Integration
 
-4. Add tests with mocked responses
+1. Create helper to map `GoogleCivicClient` responses to `Election` data models:
+   ```python
+   def google_civic_to_election(api_response: dict, jurisdiction_id: str) -> Election:
+       # Map elections endpoint response to Election dataclass
+   ```
+
+2. Add extraction method to fetch and store:
+   ```python
+   def extract_elections(client: GoogleCivicClient, storage: StorageBackend) -> int:
+       elections = client.get_elections()
+       mapped = [google_civic_to_election(e, client.jurisdiction_id) for e in elections]
+       storage.store_elections(mapped)
+       return len(mapped)
+   ```
+
+3. Test with SQLite backend
 
 ## Tests to Run
 
 ```bash
-# After creating client
-pytest packages/civic-extraction/tests/ -v -q -k "google_civic" --override-ini="addopts="
+# GoogleCivicClient tests
+pytest packages/civic-extraction/tests/test_clients.py::TestGoogleCivicClient -v -q --override-ini="addopts="
 
-# Smoke test
+# Smoke tests
 pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] `GoogleCivicClient` class created with API key handling
-- [ ] `get_elections()` returns list of elections
-- [ ] `get_voter_info(address)` returns ballot info for an address
-- [ ] `get_representatives(address)` returns elected officials
-- [ ] Response mapping to our data models
-- [ ] Tests with mocked API responses
-- [ ] Integration test with real API (optional, requires key)
+- [ ] Representatives endpoint working (OAuth or determine it's not needed)
+- [ ] `google_civic_to_election()` mapper function created
+- [ ] Elections fetched and stored via StorageBackend
+- [ ] Integration test with real API + SQLite storage
+- [ ] All tests passing
 
-## Alternative: roll_call_extraction
+## API Reference
 
-If Google Civic API work is blocked (no API key), consider `roll_call_extraction` (priority 1) instead - extracting AYES/NOES patterns from meeting minutes to populate vote results in decisions. This enables voting record queries.
+```bash
+# Load .env for API key
+from dotenv import load_dotenv; load_dotenv()
+
+# Test elections (works)
+curl "https://civicinfo.googleapis.com/civicinfo/v2/elections?key=$GOOGLE_API_KEY"
+
+# Test representatives (returns 404 "Method not found")
+curl "https://civicinfo.googleapis.com/civicinfo/v2/representatives?key=$GOOGLE_API_KEY&address=San+Rafael,+CA"
+```
+
+## Alternative
+
+If OAuth investigation is blocked, focus on storage integration with the working endpoints (elections, voterinfo) first. Representatives can be added later.
