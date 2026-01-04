@@ -9931,3 +9931,41 @@ election_integration Phase 3 - Integration with storage backend:
 - Create election extraction pipeline
 - Map Google Civic responses to Election data models
 - Store elections via StorageBackend.store_elections()
+
+## Session 462 (2026-01-03)
+
+### Task: election_integration (P0) - Representative Data Infrastructure
+
+**What happened:**
+- Investigated Google Civic API Representatives endpoint → discovered it was **turned down April 2025**
+- Researched alternatives: BallotReady (paid), Ballotpedia (paid), Cicero ($100+), Open States (free), Congress.gov (free)
+- ProPublica Congress API also shut down
+- Created `RepresentativesClient` combining free APIs for Ballotpedia-equivalent coverage
+
+**Key discovery:**
+- Open States v3 provides federal + state legislators in single geo query
+- No free API exists for local officials → manual curation required
+
+**Files created:**
+- `packages/civic-extraction/src/civic_extraction/clients/representatives.py` (812 lines)
+  - `CongressGovClient`: Congress.gov API (backup, uses FAC_API_KEY)
+  - `OpenStatesClient`: Open States v3 (primary for federal+state)
+  - `RepresentativesClient`: Unified client with local data
+
+**Coverage achieved:**
+| Level | Source | Count |
+|-------|--------|-------|
+| Federal | Open States | 3 (2 Senators + 1 Rep) |
+| State | Open States | 2 (1 Senator + 1 Assembly) |
+| Local | Curated | 6 (Mayor, Council, Supervisor) |
+
+**Not completed:**
+- Elections storage integration (google_civic_to_election mapper)
+- Storage backend integration
+
+### Next Session (P0)
+
+Continue `election_integration` Phase 3:
+1. Create `google_civic_to_election()` mapper function
+2. Integrate with StorageBackend.store_elections()
+3. Test with working endpoints (elections, voterinfo)
