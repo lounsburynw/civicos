@@ -9995,3 +9995,63 @@ Phase: PILOT | Item: election_integration (P0)
 Continue with related items:
 - `roll_call_extraction`: Extract vote results from meeting minutes
 - `elected_officials_table`: Link officials to voting records
+
+## Session 464 (2026-01-03)
+**Item**: `elected_officials_table` (P0)
+
+### Summary
+Created storage mapper functions to link elected officials from RepresentativesClient to the elected_officials table in storage backends.
+
+### Changes Made
+1. **Added mapper functions to `representatives.py`** (lines 815-981):
+   - `_generate_name_variations(name, office)` - Generates name variations for roll call matching (e.g., "Jane Smith" → ["Jane Smith", "Smith", "J. Smith", "Councilmember Smith"])
+   - `representative_to_elected_official(rep, jurisdiction_id)` - Maps Representative dataclass to storage dict format
+   - `extract_elected_officials_to_storage(client, storage, jurisdiction_id, ...)` - End-to-end extraction helper
+   - `ElectedOfficialStorageProtocol` - Protocol for storage type checking
+
+2. **Updated exports in `clients/__init__.py`**:
+   - Added `representative_to_elected_official`, `extract_elected_officials_to_storage`, `ElectedOfficialStorageProtocol`
+
+3. **Added 14 tests in `test_clients.py`**:
+   - `TestElectedOfficialsMappers` (9 unit tests): name variations, mapper with full/partial data
+   - `TestElectedOfficialsExtraction` (3 unit tests): empty list, with data, level filtering
+   - `TestElectedOfficialsStorageIntegration` (2 integration tests): SQLite storage round-trip, name lookup
+
+### Key Files
+- `packages/civic-extraction/src/civic_extraction/clients/representatives.py` (lines 815-981)
+- `packages/civic-extraction/src/civic_extraction/clients/__init__.py` (exports)
+- `packages/civic-extraction/tests/test_clients.py` (TestElectedOfficialsMappers, TestElectedOfficialsExtraction, TestElectedOfficialsStorageIntegration)
+
+### Usage Example
+```python
+from civic_extraction.clients import (
+    create_san_rafael_representatives_client,
+    extract_elected_officials_to_storage,
+)
+from civic.storage import SQLiteBackend
+
+client = create_san_rafael_representatives_client()
+storage = SQLiteBackend("civic_state.db")
+
+# Store all officials (local only - no API keys needed)
+count = extract_elected_officials_to_storage(
+    client=client,
+    storage=storage,
+    jurisdiction_id="san-rafael",
+    include_local=True,
+    include_federal=False,  # Requires CONGRESS_GOV_API_KEY
+    include_state=False,    # Requires OPENSTATES_API_KEY
+)
+print(f"Stored {count} officials")
+
+# Retrieve
+officials = storage.get_elected_officials("san-rafael", current_only=True)
+```
+
+### Status
+`elected_officials_table` marked **ready** in pilot.json (256/287 items, 89%)
+
+### Next Session
+Continue with related items:
+- `roll_call_extraction`: Extract vote results from meeting minutes (P1)
+- `voting_record_api`: get_voting_record() method (depends on roll_call_extraction + elected_officials_table)
