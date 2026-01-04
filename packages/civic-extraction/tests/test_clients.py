@@ -1379,15 +1379,19 @@ class TestGoogleCivicClient:
         assert official["party"] == "Nonpartisan"
         assert "(415) 485-3070" in official["phones"]
 
-    def test_health_no_api_key(self):
+    def test_health_no_api_key(self, monkeypatch):
         """Test health check returns error without API key."""
+        monkeypatch.delenv("GOOGLE_CIVIC_API_KEY", raising=False)
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
         client = GoogleCivicClient("san-rafael", api_key=None)
         health = client.health()
         assert health.is_available is False
         assert any("API key" in e for e in health.errors)
 
-    def test_validate_no_api_key(self):
+    def test_validate_no_api_key(self, monkeypatch):
         """Test validation returns error without API key."""
+        monkeypatch.delenv("GOOGLE_CIVIC_API_KEY", raising=False)
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
         client = GoogleCivicClient("san-rafael", api_key=None)
         result = client.validate()
         assert result.is_valid is False
@@ -1412,6 +1416,120 @@ class TestGoogleCivicClient:
         client = GoogleCivicClient("san-rafael", api_key="test")
         with pytest.raises(ValueError, match="Either address or ocd_division_id required"):
             client.get_representatives()
+
+
+class TestGoogleCivicMappers:
+    """Test the storage mapper functions for Google Civic data."""
+
+    def test_infer_election_type_primary(self):
+        """Test _infer_election_type detects primary elections."""
+        from civic_extraction.clients.google_civic import _infer_election_type
+        assert _infer_election_type("California Primary Election") == "primary"
+        assert _infer_election_type("2026 Primary") == "primary"
+
+    def test_infer_election_type_runoff(self):
+        """Test _infer_election_type detects runoff elections."""
+        from civic_extraction.clients.google_civic import _infer_election_type
+        assert _infer_election_type("Georgia Senate Runoff") == "runoff"
+
+    def test_infer_election_type_special(self):
+        """Test _infer_election_type detects special elections."""
+        from civic_extraction.clients.google_civic import _infer_election_type
+        assert _infer_election_type("Special Election") == "special"
+
+    def test_infer_election_type_recall(self):
+        """Test _infer_election_type detects recall elections."""
+        from civic_extraction.clients.google_civic import _infer_election_type
+        assert _infer_election_type("California Governor Recall") == "recall"
+
+    def test_infer_election_type_general(self):
+        """Test _infer_election_type defaults to general."""
+        from civic_extraction.clients.google_civic import _infer_election_type
+        assert _infer_election_type("California General Election") == "general"
+        assert _infer_election_type("2026 Presidential Election") == "general"
+        assert _infer_election_type("Unknown Election Type") == "general"
+
+    def test_google_civic_to_election_normalized(self):
+        """Test google_civic_to_election with normalized input."""
+        from datetime import date
+        from civic_extraction.clients.google_civic import google_civic_to_election
+
+        normalized = {
+            "id": "5000",
+            "name": "California Primary Election",
+            "election_date": date(2026, 3, 3),
+            "ocd_division_id": "ocd-division/country:us/state:ca",
+            "source": "google_civic",
+            "raw_data": {"id": "5000", "name": "California Primary Election"}
+        }
+        result = google_civic_to_election(normalized, "san-rafael")
+        assert result["id"] == "5000"
+        assert result["name"] == "California Primary Election"
+        assert result["election_date"] == "2026-03-03"
+        assert result["election_type"] == "primary"
+        assert result["source"] == "google_civic"
+        assert result["ocd_division_id"] == "ocd-division/country:us/state:ca"
+
+    def test_google_civic_to_election_raw(self):
+        """Test google_civic_to_election with raw API response."""
+        from civic_extraction.clients.google_civic import google_civic_to_election
+
+        raw = {
+            "id": "6000",
+            "name": "2026 General Election",
+            "electionDay": "2026-11-03",
+            "ocdDivisionId": "ocd-division/country:us"
+        }
+        result = google_civic_to_election(raw, "san-rafael")
+        assert result["id"] == "6000"
+        assert result["name"] == "2026 General Election"
+        assert result["election_date"] == "2026-11-03"
+        assert result["election_type"] == "general"
+        assert result["ocd_division_id"] == "ocd-division/country:us"
+
+    def test_google_civic_to_election_generates_id(self):
+        """Test google_civic_to_election generates ID when missing."""
+        from civic_extraction.clients.google_civic import google_civic_to_election
+
+        raw = {
+            "name": "Special Election",
+            "electionDay": "2026-06-01"
+        }
+        result = google_civic_to_election(raw, "san-rafael")
+        assert result["id"].startswith("gc-2026-06-01")
+        assert result["election_type"] == "special"
+
+    def test_google_civic_to_voter_info(self):
+        """Test google_civic_to_voter_info maps correctly."""
+        from datetime import date
+        from civic_extraction.clients.google_civic import google_civic_to_voter_info
+
+        voter_info = {
+            "election": {
+                "id": "5000",
+                "name": "Primary Election",
+                "election_date": date(2026, 3, 3)
+            },
+            "contests": [
+                {
+                    "id": "contest-1",
+                    "title": "U.S. Senate",
+                    "contest_type": "federal_senate",
+                    "district_name": "California",
+                    "candidates": [{"name": "Candidate A"}]
+                }
+            ],
+            "polling_locations": [
+                {"name": "City Hall", "address": "123 Main St"}
+            ],
+            "normalized_address": {"city": "San Rafael"}
+        }
+        result = google_civic_to_voter_info(voter_info, "san-rafael")
+        assert result["election"]["id"] == "5000"
+        assert result["election"]["election_type"] == "primary"
+        assert len(result["contests"]) == 1
+        assert result["contests"][0]["title"] == "U.S. Senate"
+        assert len(result["polling_locations"]) == 1
 
 
 class TestGoogleCivicClientIntegration:
