@@ -9869,3 +9869,65 @@ Implemented election data infrastructure:
 ### Next Session (P0)
 
 election_integration Phase 2 - Google Civic API Client
+
+---
+
+## Session 461 - 2026-01-03
+
+### Task
+
+election_integration Phase 2: Google Civic API Client
+
+### What Was Done
+
+Created `GoogleCivicClient` in `packages/civic-extraction/src/civic_extraction/clients/google_civic.py`:
+
+1. **Core Methods**:
+   - `get_elections()` - List available elections
+   - `get_voter_info(address, election_id)` - Polling locations, contests, ballot measures
+   - `get_representatives(address)` - Elected officials
+   - `get_election_details(address)` - Combined election data
+
+2. **Infrastructure**:
+   - Request throttling (5 req/sec)
+   - Exponential backoff on 429/5xx errors
+   - API key from `GOOGLE_CIVIC_API_KEY` or `GOOGLE_API_KEY` env var
+   - `health()` and `validate()` methods
+
+3. **Response Mapping**:
+   - Elections → normalized dict with id, name, election_date
+   - Contests → mapped to ContestType enum values
+   - Polling locations (regular, early voting, drop-off)
+   - Candidates and ballot measures
+
+4. **Tests**:
+   - 25 unit tests for normalization and mapping
+   - Integration tests (skip if no API key)
+   - All tests passing
+
+### API Status (verified with real API)
+
+| Endpoint | Status |
+|----------|--------|
+| elections | ✅ Working |
+| voterinfo | ✅ Working (when election available) |
+| representatives | ❌ Returns "Method not found" (may need OAuth) |
+
+### Files Changed
+
+- `packages/civic-extraction/src/civic_extraction/clients/google_civic.py` (new)
+- `packages/civic-extraction/src/civic_extraction/clients/__init__.py` (export added)
+- `packages/civic-extraction/src/civic_extraction/__init__.py` (export added)
+- `packages/civic-extraction/tests/test_clients.py` (25 tests added)
+
+### Tests
+
+- 25/25 GoogleCivicClient tests passing
+- 39/39 smoke tests passing
+
+### Next Session (P0)
+
+election_integration Phase 3 - Integration with storage backend:
+- Create election extraction pipeline
+- Map Google Civic responses to Election data models
+- Store elections via StorageBackend.store_elections()
