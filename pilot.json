@@ -85,10 +85,11 @@
         "completed": "2025-12-15"
       },
       "scheduled_data_tests": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Weekly CI workflow for heavy data tests",
-        "note": "GitHub Actions workflow for full corpus tests on schedule (35MB PDFs, real transcripts)"
+        "note": "Created .github/workflows/data-tests.yml. Runs @pytest.mark.slow tests weekly (Sundays 6am UTC). Includes load tests, e2e verification, rollback procedures, extraction failures, seed operations. 285 tests total. Manual trigger via workflow_dispatch.",
+        "completed": "2026-01-04"
       },
       "slow_test_markers": {
         "status": "ready",
@@ -1106,7 +1107,7 @@
       },
       "corpus_type_registry": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Pluggable CorpusType enum with metadata per corpus",
         "note": "Extend CORPUS_TYPES frozenset with metadata: source_table, vector_collection, has_sql_source, etc."
       }
