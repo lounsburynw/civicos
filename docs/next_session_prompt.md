@@ -1,64 +1,82 @@
-# Recommended: election_integration (Phase 3 - Elections Storage)
+# Recommended: roll_call_extraction
 
 **Priority:** P0
 **Area:** data_readiness > election_data
 **Date:** 2026-01-03
 
-> This is recommended context from Session 462. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 464. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 462 discovered Google Civic Representatives API was **turned down April 2025** and created an alternative:
+Session 464 completed `elected_officials_table` - the storage layer for elected officials with name variations for fuzzy matching. The elected_officials table is now populated with local officials (Mayor, Council Members, Supervisor) via `extract_elected_officials_to_storage()`.
 
-- Created `RepresentativesClient` combining free APIs (Open States + Congress.gov + local data)
-- Achieves Ballotpedia-equivalent coverage at $0/month
-- Commit: `8f3195e`
+**What's ready:**
+- `ElectedOfficial` data model with `matches_name()` for fuzzy matching
+- `store_elected_officials()` / `get_elected_officials()` / `get_official_by_name()` in storage
+- `_generate_name_variations()` produces variants like "Councilmember Smith", "J. Smith"
 
-**What still needs to be done for election_integration:**
-1. Elections storage integration (mapper + StorageBackend)
-2. The elections and voterinfo endpoints still work - just representatives is gone
+**What's missing:**
+Roll call votes are not yet extracted from meeting minutes. The decisions table has a `vote_results` field but it's empty.
 
 ## Recommended Task
 
-Create the elections storage integration:
+Extract roll call votes from meeting minutes and populate `vote_results` in decisions:
 
-1. **Map Google Civic responses to Election models:**
+1. **Find roll call patterns in minutes:**
+   - Pattern: `AYES: Smith, Jones, Brown; NOES: Wilson; ABSENT: Davis`
+   - Pattern: `Motion carried unanimously` (all council members = yes)
+
+2. **Create extraction function:**
    ```python
-   def google_civic_to_election(api_response: dict, jurisdiction_id: str) -> Election:
-       # Map elections endpoint response to Election dataclass
+   def extract_roll_call(text: str, officials: List[Dict]) -> Dict[str, str]:
+       """
+       Extract roll call vote from text.
+
+       Args:
+           text: Decision text or motion text from minutes
+           officials: List from get_elected_officials()
+
+       Returns:
+           {"Jane Smith": "yes", "Bob Jones": "no", "Mary Wilson": "absent"}
+       """
    ```
 
-2. **Create extraction helper:**
-   ```python
-   def extract_elections(client: GoogleCivicClient, storage: StorageBackend) -> int:
-       elections = client.get_elections()
-       mapped = [google_civic_to_election(e, jurisdiction_id) for e in elections]
-       storage.store_elections(mapped)
-       return len(mapped)
-   ```
-
-3. **Test with SQLite backend**
+3. **Link to decision extraction pipeline:**
+   - Add roll call extraction to decision processing
+   - Populate `vote_results` field in stored decisions
 
 ## Key Files
 
-- `packages/civic-extraction/src/civic_extraction/clients/google_civic.py` - Client (620 lines, working)
-- `packages/civic/src/civic/_internal/elections/__init__.py` - Data models (Election, Contest, etc.)
-- `packages/civic/src/civic/storage/backend.py:1448-1670` - Election storage methods
-- `docs/critical/ELECTION_INTEGRATION.md` - Full implementation reference
+- `packages/civic/src/civic/_internal/meetings/transcript.py` - Has partial `_parse_roll_call` (lines ~200-250)
+- `packages/civic-extraction/src/civic_extraction/decision_extractor.py` - Decision extraction pipeline
+- `packages/civic/src/civic/storage/backend.py:1609-1669` - `get_elected_officials()`, `get_official_by_name()`
+- `packages/civic-extraction/src/civic_extraction/clients/representatives.py:842-879` - `_generate_name_variations()`
 
-## API Status (verified Session 462)
+## Sample Data
 
-| Endpoint | Status | Notes |
-|----------|--------|-------|
-| `elections` | ✅ Working | Returns available elections list |
-| `voterinfo` | ✅ Working | Returns contests, polling locations |
-| `representatives` | ❌ Gone | Turned down April 2025 |
+Meeting minutes from San Rafael contain patterns like:
+```
+AYES: COUNCILMEMBERS: Bushey, Hill, Kertz, Vice Mayor Llorens Gulati, and Mayor Colin
+NOES: COUNCILMEMBERS: None
+ABSENT: COUNCILMEMBERS: None
+```
+
+## Suggested Approach
+
+1. Explore existing `_parse_roll_call` in transcript.py to understand current state
+2. Create robust regex patterns for AYES/NOES/ABSENT extraction
+3. Use `get_elected_officials()` + `matches_name()` to normalize names
+4. Add `extract_roll_call()` function to decision extractor
+5. Write tests with sample minutes text
 
 ## Tests to Run
 
 ```bash
-# GoogleCivicClient tests
-pytest packages/civic-extraction/tests/test_clients.py::TestGoogleCivicClient -v -q --override-ini="addopts="
+# Decision extractor tests
+pytest packages/civic-extraction/tests/test_decision_extractor.py -v -q --override-ini="addopts="
+
+# Storage protocols (officials)
+pytest packages/civic/tests/test_storage_protocols.py -k "elected" -v -q --override-ini="addopts="
 
 # Smoke tests
 pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
@@ -66,18 +84,13 @@ pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
 
 ## Success Criteria
 
-- [ ] `google_civic_to_election()` mapper function created
-- [ ] Elections fetched and stored via StorageBackend
-- [ ] Integration test with real API + SQLite storage
-- [ ] All tests passing
+- [ ] `extract_roll_call()` function parses AYES/NOES/ABSENT patterns
+- [ ] Names matched to elected_officials via fuzzy matching
+- [ ] `vote_results` field populated in decisions
+- [ ] Unit tests for roll call extraction
+- [ ] All existing tests passing
 
-## Related Work (Completed Session 462)
+## Dependencies (Already Complete)
 
-The `RepresentativesClient` is available if needed:
-```python
-from civic_extraction.clients import create_san_rafael_representatives_client
-client = create_san_rafael_representatives_client()
-reps = client.get_representatives()  # Returns 11 reps (federal + state + local)
-```
-
-Uses existing env vars: `FAC_API_KEY` (Congress.gov) and `OPENSTATES_API_KEY` (Open States).
+- `election_integration` (Session 463): Elections storage mappers
+- `elected_officials_table` (Session 464): Official storage with name variations
