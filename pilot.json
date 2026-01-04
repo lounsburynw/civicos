@@ -395,6 +395,14 @@
         "artifact": "Global API rate limit to prevent cost spikes from traffic surges",
         "note": "Simple slowapi limiter on API endpoints. No auth required. Set ceiling at 10x expected pilot traffic. Protects against viral spikes or bot traffic."
       }
+    },
+    "data_source_validation": {
+      "real_data_canary": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Monthly CI workflow that validates external data sources haven't changed",
+        "note": "GitHub Actions workflow on monthly schedule. Downloads sample from each source (Legistar, SeeClickFix, San Rafael agendas), runs extraction, validates output structure. Creates GitHub Issue on failure. Not for ingestion - just validates APIs and formats haven't broken."
+      }
     }
   },
   "ingestion_visibility": {
