@@ -96,6 +96,13 @@
         "artifact": "Mark performance/load tests with @pytest.mark.slow",
         "note": "Added @pytest.mark.slow to test_seed_san_rafael.py, test_deployment_rollback.py, test_e2e_verification.py. Marker already registered in pyproject.toml. Smoke tests (test_civic.py) are @fast only, excluding slow tests.",
         "completed": "2026-01-03"
+      },
+      "eval_framework": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Expand eval framework with F1, coverage, and bias metrics",
+        "note": "Current benchmark (scripts/benchmark_api_vs_llm.py) has accuracy/precision/recall. Add: F1 score, topic coverage, freshness, source diversity, NDCG, null rate, meeting type coverage, geographic coverage, temporal bias. Session 461.",
+        "test_file": "scripts/benchmark_api_vs_llm.py"
       }
     },
     "code_packaging": {
