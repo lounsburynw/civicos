@@ -11,6 +11,7 @@ from civic_extraction import ProudCitySource, ExtractionConfig, DataSource, Vali
 from civic_extraction.clients.base import BaseExtractor, Extractor
 from civic_extraction.clients.usaspending import USAspendingClient
 from civic_extraction.clients.cagrants import CaliforniaGrantsClient
+from civic_extraction.clients.google_civic import GoogleCivicClient, create_san_rafael_civic_client
 
 
 class TestMeetingDataclass:
@@ -1126,6 +1127,355 @@ class TestCaliforniaGrantsClientIntegration:
         for grant in grants:
             categories = grant.get("metadata", {}).get("categories", "")
             assert "Housing" in categories or categories == ""
+
+
+class TestGoogleCivicClient:
+    """Test GoogleCivicClient for election and representative data."""
+
+    def test_client_initialization(self):
+        """Test client creates with correct defaults."""
+        client = GoogleCivicClient("san-rafael", api_key="test-key")
+        assert client.jurisdiction_id == "san-rafael"
+        assert client.api_key == "test-key"
+        assert client.platform_name == "google_civic"
+        assert client.source_id == "google_civic-san-rafael"
+
+    def test_client_env_api_key(self, monkeypatch):
+        """Test client uses environment variable for API key."""
+        monkeypatch.setenv("GOOGLE_CIVIC_API_KEY", "env-key")
+        client = GoogleCivicClient("san-rafael")
+        assert client.api_key == "env-key"
+
+    def test_client_falls_back_to_google_api_key(self, monkeypatch):
+        """Test client falls back to GOOGLE_API_KEY env var."""
+        monkeypatch.delenv("GOOGLE_CIVIC_API_KEY", raising=False)
+        monkeypatch.setenv("GOOGLE_API_KEY", "google-key")
+        client = GoogleCivicClient("san-rafael")
+        assert client.api_key == "google-key"
+
+    def test_normalize_election(self):
+        """Test _normalize_election maps API response correctly."""
+        client = GoogleCivicClient("san-rafael", api_key="test")
+        raw = {
+            "id": "5000",
+            "name": "VIP Test Election",
+            "electionDay": "2025-11-04",
+            "ocdDivisionId": "ocd-division/country:us"
+        }
+        result = client._normalize_election(raw)
+        assert result["id"] == "5000"
+        assert result["name"] == "VIP Test Election"
+        assert result["election_date"].isoformat() == "2025-11-04"
+        assert result["source"] == "google_civic"
+
+    def test_normalize_election_invalid_date(self):
+        """Test _normalize_election handles invalid date gracefully."""
+        client = GoogleCivicClient("san-rafael", api_key="test")
+        raw = {"id": "123", "name": "Test", "electionDay": "invalid-date"}
+        result = client._normalize_election(raw)
+        assert result["election_date"] is None
+        assert result["election_day_raw"] == "invalid-date"
+
+    def test_map_contest_type_president(self):
+        """Test _map_contest_type identifies presidential race."""
+        client = GoogleCivicClient("san-rafael", api_key="test")
+        contest = {"office": "President of the United States", "level": ["country"]}
+        assert client._map_contest_type(contest) == "federal_president"
+
+    def test_map_contest_type_senate(self):
+        """Test _map_contest_type identifies senate race."""
+        client = GoogleCivicClient("san-rafael", api_key="test")
+        contest = {"office": "U.S. Senate", "level": ["country"]}
+        assert client._map_contest_type(contest) == "federal_senate"
+
+    def test_map_contest_type_house(self):
+        """Test _map_contest_type identifies house race."""
+        client = GoogleCivicClient("san-rafael", api_key="test")
+        contest = {"office": "U.S. Representative", "level": ["country"]}
+        assert client._map_contest_type(contest) == "federal_house"
+
+    def test_map_contest_type_governor(self):
+        """Test _map_contest_type identifies governor race."""
+        client = GoogleCivicClient("san-rafael", api_key="test")
+        contest = {"office": "Governor", "level": ["administrativeArea1"]}
+        assert client._map_contest_type(contest) == "state_governor"
+
+    def test_map_contest_type_council(self):
+        """Test _map_contest_type identifies city council race."""
+        client = GoogleCivicClient("san-rafael", api_key="test")
+        contest = {"office": "City Council", "level": ["locality"]}
+        assert client._map_contest_type(contest) == "local_council"
+
+    def test_map_contest_type_mayor(self):
+        """Test _map_contest_type identifies mayor race."""
+        client = GoogleCivicClient("san-rafael", api_key="test")
+        contest = {"office": "Mayor", "level": ["locality"]}
+        assert client._map_contest_type(contest) == "local_mayor"
+
+    def test_map_contest_type_referendum(self):
+        """Test _map_contest_type identifies ballot measure."""
+        client = GoogleCivicClient("san-rafael", api_key="test")
+        contest = {"type": "Referendum", "referendumTitle": "Measure A", "level": ["local"]}
+        assert client._map_contest_type(contest) == "local_measure"
+
+    def test_map_contest_type_judicial(self):
+        """Test _map_contest_type identifies judicial race."""
+        client = GoogleCivicClient("san-rafael", api_key="test")
+        contest = {"office": "Superior Court Judge", "level": ["administrativeArea2"]}
+        assert client._map_contest_type(contest) == "judicial"
+
+    def test_map_contest_type_school_board(self):
+        """Test _map_contest_type identifies school board race."""
+        client = GoogleCivicClient("san-rafael", api_key="test")
+        contest = {"office": "School Board Member", "level": ["locality"]}
+        assert client._map_contest_type(contest) == "local_school_board"
+
+    def test_normalize_voter_info_polling_locations(self):
+        """Test _normalize_voter_info extracts polling locations."""
+        client = GoogleCivicClient("san-rafael", api_key="test")
+        raw = {
+            "election": {"id": "1", "name": "Test", "electionDay": "2025-11-04"},
+            "pollingLocations": [{
+                "address": {
+                    "locationName": "City Hall",
+                    "line1": "1400 Fifth Ave",
+                    "city": "San Rafael",
+                    "state": "CA",
+                    "zip": "94901"
+                },
+                "pollingHours": "7am-8pm"
+            }],
+            "earlyVoteSites": [],
+            "dropOffLocations": [],
+            "contests": []
+        }
+        result = client._normalize_voter_info(raw)
+        assert len(result["polling_locations"]) == 1
+        assert result["polling_locations"][0]["name"] == "City Hall"
+        assert result["polling_locations"][0]["is_early_voting"] is False
+
+    def test_normalize_voter_info_early_voting(self):
+        """Test _normalize_voter_info marks early voting sites."""
+        client = GoogleCivicClient("san-rafael", api_key="test")
+        raw = {
+            "election": {"id": "1", "name": "Test", "electionDay": "2025-11-04"},
+            "pollingLocations": [],
+            "earlyVoteSites": [{
+                "address": {
+                    "locationName": "Civic Center",
+                    "line1": "100 Main St",
+                    "city": "San Rafael",
+                    "state": "CA",
+                    "zip": "94901"
+                }
+            }],
+            "dropOffLocations": [],
+            "contests": []
+        }
+        result = client._normalize_voter_info(raw)
+        assert len(result["polling_locations"]) == 1
+        assert result["polling_locations"][0]["is_early_voting"] is True
+
+    def test_normalize_voter_info_dropbox(self):
+        """Test _normalize_voter_info marks drop-off locations."""
+        client = GoogleCivicClient("san-rafael", api_key="test")
+        raw = {
+            "election": {"id": "1", "name": "Test", "electionDay": "2025-11-04"},
+            "pollingLocations": [],
+            "earlyVoteSites": [],
+            "dropOffLocations": [{
+                "address": {
+                    "locationName": "Library",
+                    "line1": "200 Oak St",
+                    "city": "San Rafael",
+                    "state": "CA",
+                    "zip": "94901"
+                }
+            }],
+            "contests": []
+        }
+        result = client._normalize_voter_info(raw)
+        assert len(result["polling_locations"]) == 1
+        assert result["polling_locations"][0]["is_dropbox"] is True
+
+    def test_normalize_voter_info_contests(self):
+        """Test _normalize_voter_info extracts contests."""
+        client = GoogleCivicClient("san-rafael", api_key="test")
+        raw = {
+            "election": {"id": "1", "name": "Test", "electionDay": "2025-11-04"},
+            "pollingLocations": [],
+            "earlyVoteSites": [],
+            "dropOffLocations": [],
+            "contests": [{
+                "office": "City Council",
+                "district": {"name": "District 1"},
+                "numberElected": 1,
+                "candidates": [
+                    {"name": "John Doe", "party": "Democratic", "candidateUrl": "https://example.com"},
+                    {"name": "Jane Smith", "party": "Republican"}
+                ]
+            }]
+        }
+        result = client._normalize_voter_info(raw)
+        assert len(result["contests"]) == 1
+        contest = result["contests"][0]
+        assert contest["title"] == "City Council"
+        assert contest["district_name"] == "District 1"
+        assert len(contest["candidates"]) == 2
+        assert contest["candidates"][0]["name"] == "John Doe"
+        assert contest["candidates"][0]["party"] == "Democratic"
+
+    def test_normalize_voter_info_ballot_measure(self):
+        """Test _normalize_voter_info extracts ballot measures."""
+        client = GoogleCivicClient("san-rafael", api_key="test")
+        raw = {
+            "election": {"id": "1", "name": "Test", "electionDay": "2025-11-04"},
+            "pollingLocations": [],
+            "earlyVoteSites": [],
+            "dropOffLocations": [],
+            "contests": [{
+                "type": "Referendum",
+                "referendumTitle": "Measure A",
+                "referendumText": "Shall the city increase sales tax by 0.5%?",
+                "referendumUrl": "https://example.com/measure-a"
+            }]
+        }
+        result = client._normalize_voter_info(raw)
+        assert len(result["contests"]) == 1
+        contest = result["contests"][0]
+        assert contest["title"] == "Measure A"
+        assert contest["ballot_measure"] is not None
+        assert contest["ballot_measure"]["title"] == "Measure A"
+        assert "sales tax" in contest["ballot_measure"]["description"]
+
+    def test_normalize_representatives(self):
+        """Test _normalize_representatives extracts officials."""
+        client = GoogleCivicClient("san-rafael", api_key="test")
+        raw = {
+            "normalizedInput": {"city": "San Rafael", "state": "CA"},
+            "divisions": {
+                "ocd-division/country:us/state:ca/place:san_rafael": {"name": "San Rafael"}
+            },
+            "offices": [{
+                "name": "Mayor",
+                "divisionId": "ocd-division/country:us/state:ca/place:san_rafael",
+                "levels": ["locality"],
+                "roles": ["headOfGovernment"],
+                "officialIndices": [0]
+            }],
+            "officials": [{
+                "name": "Kate Colin",
+                "party": "Nonpartisan",
+                "phones": ["(415) 485-3070"],
+                "urls": ["https://www.cityofsanrafael.org"],
+                "photoUrl": "https://example.com/photo.jpg"
+            }]
+        }
+        result = client._normalize_representatives(raw)
+        assert len(result["officials"]) == 1
+        official = result["officials"][0]
+        assert official["name"] == "Kate Colin"
+        assert official["seat"] == "Mayor"
+        assert official["party"] == "Nonpartisan"
+        assert "(415) 485-3070" in official["phones"]
+
+    def test_health_no_api_key(self):
+        """Test health check returns error without API key."""
+        client = GoogleCivicClient("san-rafael", api_key=None)
+        health = client.health()
+        assert health.is_available is False
+        assert any("API key" in e for e in health.errors)
+
+    def test_validate_no_api_key(self):
+        """Test validation returns error without API key."""
+        client = GoogleCivicClient("san-rafael", api_key=None)
+        result = client.validate()
+        assert result.is_valid is False
+        assert result.config_valid is False
+        assert any("API key" in e for e in result.errors)
+
+    def test_validate_short_api_key(self):
+        """Test validation catches short API key."""
+        client = GoogleCivicClient("san-rafael", api_key="short")
+        result = client.validate()
+        assert result.is_valid is False
+        assert any("invalid" in e.lower() for e in result.errors)
+
+    def test_create_san_rafael_factory(self):
+        """Test convenience factory creates correct client."""
+        client = create_san_rafael_civic_client()
+        assert client.jurisdiction_id == "san-rafael"
+        assert client.platform_name == "google_civic"
+
+    def test_get_representatives_requires_address_or_division(self):
+        """Test get_representatives requires either address or ocd_division_id."""
+        client = GoogleCivicClient("san-rafael", api_key="test")
+        with pytest.raises(ValueError, match="Either address or ocd_division_id required"):
+            client.get_representatives()
+
+
+class TestGoogleCivicClientIntegration:
+    """Integration tests that call the real Google Civic API."""
+
+    @pytest.mark.integration
+    def test_health_check(self, monkeypatch):
+        """Test health check against real API."""
+        import os
+        api_key = os.environ.get("GOOGLE_CIVIC_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            pytest.skip("No Google Civic API key configured")
+
+        client = GoogleCivicClient("san-rafael", api_key=api_key)
+        health = client.health()
+        assert health.is_available is True
+        assert health.source_id == "google_civic-san-rafael"
+        assert health.check_duration_ms > 0
+
+    @pytest.mark.integration
+    def test_validate(self):
+        """Test validation against real API."""
+        import os
+        api_key = os.environ.get("GOOGLE_CIVIC_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            pytest.skip("No Google Civic API key configured")
+
+        client = GoogleCivicClient("san-rafael", api_key=api_key)
+        result = client.validate()
+        assert result.is_valid is True
+        assert result.api_reachable is True
+        assert result.check_duration_ms > 0
+
+    @pytest.mark.integration
+    def test_get_elections(self):
+        """Test fetching elections from real API."""
+        import os
+        api_key = os.environ.get("GOOGLE_CIVIC_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            pytest.skip("No Google Civic API key configured")
+
+        client = GoogleCivicClient("san-rafael", api_key=api_key)
+        elections = client.get_elections()
+        # API always returns at least the "VIP Test Election" (id=2000)
+        assert len(elections) >= 1
+        assert all("id" in e for e in elections)
+        assert all("name" in e for e in elections)
+
+    @pytest.mark.integration
+    def test_get_representatives(self):
+        """Test fetching representatives from real API."""
+        import os
+        api_key = os.environ.get("GOOGLE_CIVIC_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            pytest.skip("No Google Civic API key configured")
+
+        client = GoogleCivicClient("san-rafael", api_key=api_key)
+        result = client.get_representatives(address="San Rafael, CA")
+        assert result is not None
+        assert "officials" in result
+        assert len(result["officials"]) > 0
+        # Should include some federal, state, and local officials
+        assert any("President" in o["seat"] or "Governor" in o["seat"] or "Mayor" in o["seat"]
+                   for o in result["officials"])
 
 
 if __name__ == "__main__":

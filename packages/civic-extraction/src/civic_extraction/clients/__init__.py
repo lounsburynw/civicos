@@ -8,6 +8,7 @@ Each client wraps a specific municipal platform API:
 - usaspending: USAspending.gov federal awards API
 - cagrants: California Grants Portal (grants.ca.gov via data.ca.gov)
 - fac: Federal Audit Clearinghouse (Single Audit / SEFA data)
+- google_civic: Google Civic Information API (elections, representatives)
 """
 
 from civic_extraction.clients.legistar import LegistarClient
@@ -27,6 +28,10 @@ from civic_extraction.clients.fac import (
 from civic_extraction.clients.ca_state_controller import (
     CAStateControllerClient,
     create_san_rafael_sco_client,
+)
+from civic_extraction.clients.google_civic import (
+    GoogleCivicClient,
+    create_san_rafael_civic_client,
 )
 from civic_extraction.clients.base import (
     BaseExtractor,
@@ -49,6 +54,8 @@ __all__ = [
     "create_san_rafael_fac_client",
     "CAStateControllerClient",
     "create_san_rafael_sco_client",
+    "GoogleCivicClient",
+    "create_san_rafael_civic_client",
     "BaseExtractor",
     "Meeting",
     "ExtractionConfig",
