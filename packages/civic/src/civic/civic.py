@@ -1049,6 +1049,152 @@ class Civic:
             # Any error - fall back to empty list (exact match will be used)
             return []
 
+    # ─────────── VOTING RECORD METHODS ───────────
+
+    def get_voting_record(
+        self,
+        official_name: str,
+        topic: Optional[str] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+    ) -> "VotingRecord":
+        """
+        Get an elected official's voting record.
+
+        Queries decisions where the official voted and aggregates their
+        voting statistics (yes/no/absent counts).
+
+        Args:
+            official_name: Name of the elected official (fuzzy matched)
+            topic: Optional topic filter (e.g., "housing", "transportation")
+            since: Filter decisions on/after this date (YYYY-MM-DD)
+            until: Filter decisions on/before this date (YYYY-MM-DD)
+
+        Returns:
+            VotingRecord with vote statistics and decision list
+
+        Raises:
+            ValueError: If official not found
+
+        Example:
+            >>> c = Civic("san-rafael")
+            >>> record = c.get_voting_record("Maribeth Bushey", topic="housing")
+            >>> print(f"Voted YES on {record.yes_percentage:.0f}% of housing items")
+        """
+        from civic._internal.elections import VotingRecord, ElectedOfficial
+
+        # 1. Find official by name
+        official = self._storage.get_official_by_name(
+            jurisdiction_id=self.jurisdiction,
+            name=official_name,
+        )
+
+        if not official:
+            # Try loading elected officials and fuzzy matching
+            officials = self._storage.get_elected_officials(
+                jurisdiction_id=self.jurisdiction,
+                current_only=True,
+            )
+
+            # Fuzzy match using ElectedOfficial.matches_name()
+            for o in officials:
+                eo = ElectedOfficial(
+                    id=o["id"],
+                    name=o["name"],
+                    seat=o["seat"],
+                    jurisdiction_id=o["jurisdiction_id"],
+                    term_start=o.get("term_start") or "2020-01-01",
+                    term_end=o.get("term_end"),  # None if current
+                    name_variations=o.get("name_variations", []),
+                )
+                if eo.matches_name(official_name):
+                    official = o
+                    break
+
+        if not official:
+            raise ValueError(f"Official not found: {official_name}")
+
+        # 2. Get all decisions for this jurisdiction
+        decisions = self._storage.get_decisions(
+            jurisdiction_id=self.jurisdiction,
+            since=since,
+            until=until,
+            limit=1000,  # Get more decisions for comprehensive record
+        )
+
+        # 3. Filter decisions where this official voted
+        yes_count = 0
+        no_count = 0
+        abstain_count = 0
+        matched_decisions = []
+
+        official_name_lower = official["name"].lower()
+        variations = [v.lower() for v in official.get("name_variations", [])]
+
+        for d in decisions:
+            # Get vote data - try vote_json first, then vote field
+            vote_data = d.get("vote_json") or d.get("vote") or {}
+
+            # Skip if no vote data or vote_results not populated
+            if not vote_data:
+                continue
+
+            # vote_data could be {"vote_count": "4-1", "passed": true, ...}
+            # or it could be vote_results format {"Name": "yes/no/absent"}
+            vote_results = vote_data if isinstance(vote_data, dict) else {}
+
+            # Look for this official in the vote results
+            official_vote = None
+            for voter_name, vote in vote_results.items():
+                if vote not in ("yes", "no", "absent"):
+                    # This isn't a vote_results entry, skip
+                    continue
+                voter_lower = voter_name.lower()
+                if (official_name_lower in voter_lower or
+                    voter_lower in official_name_lower or
+                    any(v in voter_lower for v in variations)):
+                    official_vote = vote
+                    break
+
+            if official_vote is None:
+                continue
+
+            # Apply topic filter if specified
+            if topic:
+                decision_topics = d.get("topics") or []
+                topic_lower = topic.lower()
+                if not any(topic_lower in t.lower() for t in decision_topics):
+                    continue
+
+            # Count the vote
+            if official_vote == "yes":
+                yes_count += 1
+            elif official_vote == "no":
+                no_count += 1
+            elif official_vote == "absent":
+                abstain_count += 1
+
+            # Add to decision list
+            matched_decisions.append({
+                "decision_id": d.get("id"),
+                "title": d.get("title", ""),
+                "date": d.get("meeting_date", ""),
+                "vote": official_vote,
+                "outcome": d.get("outcome", ""),
+                "topics": d.get("topics", []),
+            })
+
+        return VotingRecord(
+            official_id=official["id"],
+            official_name=official["name"],
+            topic=topic or "all",
+            total_votes=yes_count + no_count + abstain_count,
+            yes_votes=yes_count,
+            no_votes=no_count,
+            abstain_votes=abstain_count,
+            decisions=matched_decisions,
+        )
+
     # ─────────── BUDGET METHODS ───────────
 
     def budget(

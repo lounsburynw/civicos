@@ -10108,3 +10108,46 @@ Continue with `voting_record_api` (P0):
 - Query decisions by official name and topic
 - Return VotingRecord with yes/no/absent counts and decision list
 - Dependencies (roll_call_extraction + elected_officials_table) now complete
+
+---
+
+## Session 466 (2026-01-03)
+
+### Work Item
+`voting_record_api` (P0) - Implement get_voting_record() API method
+
+### Changes
+
+1. **Implemented `get_voting_record()` in Civic class** (`packages/civic/src/civic/civic.py:1054-1195`)
+   - Finds official by name using storage.get_official_by_name() with fallback to fuzzy matching
+   - Queries decisions with get_decisions() and filters by vote_json presence
+   - Matches official in vote results using name and variations
+   - Supports topic filtering (e.g., "housing", "transportation")
+   - Supports date range filtering (since/until parameters)
+   - Returns VotingRecord with yes/no/abstain counts and decision list
+
+2. **Created unit tests** (`packages/civic/tests/test_voting_record_api.py`)
+   - 17 tests covering:
+     - Basic voting record retrieval
+     - Topic filtering
+     - Date range filtering
+     - Yes percentage calculation
+     - Official not found error handling
+     - Fuzzy name matching
+     - Decision structure validation
+     - Empty vote_json handling
+     - Name variation matching in votes
+     - ElectedOfficial.matches_name() behavior
+
+### Tests
+- 17/17 voting record API tests pass
+- 70/70 smoke + roll call tests pass
+
+### Status
+`voting_record_api` marked **ready** in pilot.json (258/287 items, 90%)
+
+### Next Session
+Continue with `scheduled_data_tests` (P0):
+- Create GitHub Actions workflow for weekly data tests
+- Run heavy tests (35MB PDFs, real transcripts) on schedule
+- Separate from main CI to avoid blocking PRs
