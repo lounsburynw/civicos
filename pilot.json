@@ -86,7 +86,7 @@
       },
       "scheduled_data_tests": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Weekly CI workflow for heavy data tests",
         "note": "GitHub Actions workflow for full corpus tests on schedule (35MB PDFs, real transcripts)"
       },
@@ -1153,6 +1153,21 @@
   },
   "data_readiness": {
     "description": "Pre-pilot data quality requirements",
+    "audit": {
+      "data_completeness_audit": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "Verify all 'ready' data items are actually complete and current",
+        "note": "Systematic audit of 37 claimed-ready items: check row counts, vector index populations, data freshness, file existence. Create audit script that validates each data source.",
+        "checks": [
+          "Row counts in tables (meetings, decisions, issues, transcripts)",
+          "Vector index populations (ChromaDB/pgvector collections)",
+          "Data freshness (last ingestion dates)",
+          "File existence for claimed corpora",
+          "API endpoint responses"
+        ]
+      }
+    },
     "seeclickfix": {
       "fresh_pull": {
         "status": "ready",
@@ -1533,7 +1548,7 @@
     "election_data": {
       "election_integration": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "Election data integration for whats_next() - upcoming elections, deadlines, ballot measures",
         "note": "Post-core-ingestion feature. Multi-source strategy: Google Civic API (primary) + Marin County Registrar (authoritative local). Reference doc: docs/critical/ELECTION_INTEGRATION.md",
         "depends_on": [
@@ -1555,7 +1570,7 @@
       },
       "roll_call_extraction": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "Extract roll call votes from meeting minutes (AYES/NOES/ABSENT patterns)",
         "note": "Prerequisite for voting record linkage. Minutes contain 'AYES: Smith, Jones; NOES: Brown' patterns. Add extract_roll_call() to decision extraction pipeline.",
         "depends_on": [
@@ -1568,7 +1583,7 @@
       },
       "elected_officials_table": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "ElectedOfficial model + storage for linking candidates to voting records",
         "note": "Schema: id, name, seat, jurisdiction_id, term_start, term_end, name_variations (for fuzzy matching). Populated from Google Civic API representatives endpoint.",
         "depends_on": [
@@ -1584,7 +1599,7 @@
       },
       "voting_record_api": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "get_voting_record() method to query incumbent voting history by topic",
         "note": "The 'closed loop' - connects elections to decisions. Returns VotingRecord with yes/no/abstain counts and decision list. Enables 'Jane Smith voted YES on 80% of housing items'.",
         "depends_on": [
