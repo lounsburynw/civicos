@@ -9830,3 +9830,42 @@ Created and ran a comprehensive audit script to verify all 37 claimed "ready" da
 
 election_integration - Multi-source election data integration (Google Civic API + county registrar)
 
+
+## Session 460 (2026-01-03)
+
+### Goal: election_integration Phase 1 - Foundation
+
+Implemented election data infrastructure:
+
+1. **Data Models** (`packages/civic/src/civic/_internal/elections/__init__.py`):
+   - `ElectionType`, `ContestType` enums
+   - `Election`, `Contest`, `Candidate`, `BallotMeasure` dataclasses
+   - `ElectedOfficial`, `VotingRecord` for voting record linkage
+
+2. **CorpusType** (`corpus_types.py`):
+   - Added `ELECTIONS` to enum
+   - Registry entry with `jurisdiction_type="both"` (federal/state/local)
+
+3. **StorageBackend Protocol** (`backend.py`):
+   - 10 new methods: store/get elections, deadlines, contests, officials
+
+4. **SQLite Implementation** (`sqlite_backend.py`):
+   - 4 tables: elections, election_deadlines, election_contests, elected_officials
+   - Full temporal versioning support
+
+5. **Postgres Implementation** (`postgres_backend.py`):
+   - Identical 4 tables with JSONB for raw_data
+   - Full temporal versioning support
+
+### Tests
+
+- All 39 smoke tests passing
+- Manual verification of storage methods
+
+### Commit
+
+`efe845b` - Session 460: Add election data infrastructure (Phase 1)
+
+### Next Session (P0)
+
+election_integration Phase 2 - Google Civic API Client

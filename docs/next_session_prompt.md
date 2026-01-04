@@ -1,53 +1,58 @@
-# Recommended: election_integration
+# Recommended: election_integration (Phase 2)
 
 **Priority:** P0
 **Area:** data_readiness > election_data
 **Date:** 2026-01-03
 
-> This is recommended context from Session 459. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 460. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 459 completed `data_completeness_audit` - verified all 37 claimed-ready data items are actually complete. The audit script (`scripts/audit_data_completeness.py`) confirms:
-- 31,951 vector embeddings in pgvector
-- All storage tables populated (meetings, decisions, issues, budget, funding)
-- All API methods exist (what_applies, budget, funding_flow, etc.)
+Session 460 completed **Phase 1: Foundation** of election_integration:
+- Election data models (`Election`, `Contest`, `Candidate`, `BallotMeasure`, `ElectedOfficial`, `VotingRecord`)
+- `ELECTIONS` CorpusType with registry entry
+- StorageBackend protocol extended with 10 election methods
+- Both SQLite and Postgres backends implemented (4 tables each + indexes)
 
-With core data verified, the next priority is election integration for the `whats_next()` feature.
+All 39 smoke tests passing. Commit: `efe845b`
 
 ## Recommended Task
 
-Implement election data integration following the phased approach in the reference doc. Start with **Phase 1: Foundation** - data models and storage.
+Continue to **Phase 2: Google Civic API Client** - create the data source client to fetch election data.
 
 ## Key Files
 
-- `docs/critical/ELECTION_INTEGRATION.md` - Full implementation reference (read first!)
-- `packages/civic/src/civic/storage/corpus_types.py:44` - Add ELECTIONS to CorpusType enum
-- `packages/civic/src/civic/storage/backend.py:727` - Add election storage methods
-- `packages/civic/src/civic/storage/sqlite_backend.py` - Implement SQLite storage
-- `packages/civic/src/civic/storage/postgres_backend.py` - Implement Postgres storage
+- `docs/critical/ELECTION_INTEGRATION.md` - Full implementation reference
+- `packages/civic/src/civic/_internal/elections/__init__.py` - Data models (created)
+- `packages/civic/src/civic/storage/backend.py:1448-1670` - Election protocol methods
+- `packages/civic-extraction/src/civic_extraction/clients/` - Where Google Civic client goes
 
-## Suggested Approach (Phase 1 Only)
+## Suggested Approach (Phase 2)
 
-1. Create `packages/civic/src/civic/_internal/elections/__init__.py` with data models:
-   - `ElectionType`, `ContestType` enums
-   - `Election`, `Contest`, `Candidate`, `BallotMeasure` dataclasses
-   - `ElectedOfficial`, `VotingRecord` for future linkage
+1. Create `packages/civic-extraction/src/civic_extraction/clients/google_civic.py`:
+   - `GoogleCivicClient` class
+   - Methods: `get_elections()`, `get_voter_info()`, `get_representatives()`
+   - Handle API key from environment (`GOOGLE_CIVIC_API_KEY`)
+   - Free tier: 25k requests/day
 
-2. Add `ELECTIONS` to `CorpusType` in `corpus_types.py`:
-   - Set `jurisdiction_type="both"` (elections span federal/state/local)
+2. Reference the Google Civic API docs:
+   - Elections: `https://civicinfo.googleapis.com/civicinfo/v2/elections`
+   - Voter Info: `https://civicinfo.googleapis.com/civicinfo/v2/voterinfo`
+   - Representatives: `https://civicinfo.googleapis.com/civicinfo/v2/representatives`
 
-3. Add election methods to `StorageBackend` protocol:
-   - `store_elections()`, `get_elections()`, `get_election_count()`
-   - `store_elected_officials()`, `get_elected_officials()`
+3. Map API responses to our data models:
+   - `election` → `Election`
+   - `contest` → `Contest`
+   - `candidate` → `Candidate`
+   - `official` → `ElectedOfficial`
 
-4. Implement in SQLiteBackend (Postgres can follow same pattern)
+4. Add tests with mocked responses
 
 ## Tests to Run
 
 ```bash
-# After adding models
-pytest packages/civic/tests/test_storage_protocols.py -v -q --override-ini="addopts="
+# After creating client
+pytest packages/civic-extraction/tests/ -v -q -k "google_civic" --override-ini="addopts="
 
 # Smoke test
 pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
@@ -55,13 +60,14 @@ pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
 
 ## Success Criteria
 
-- [ ] `Election`, `Contest`, `Candidate`, `BallotMeasure` models created
-- [ ] `ElectedOfficial`, `VotingRecord` models created
-- [ ] `ELECTIONS` added to CorpusType with jurisdiction_type="both"
-- [ ] Election storage methods added to StorageBackend protocol
-- [ ] SQLite implementation with elections/election_deadlines/election_contests tables
-- [ ] Tests pass
+- [ ] `GoogleCivicClient` class created with API key handling
+- [ ] `get_elections()` returns list of elections
+- [ ] `get_voter_info(address)` returns ballot info for an address
+- [ ] `get_representatives(address)` returns elected officials
+- [ ] Response mapping to our data models
+- [ ] Tests with mocked API responses
+- [ ] Integration test with real API (optional, requires key)
 
-## Dependencies
+## Alternative: roll_call_extraction
 
-Note from reference doc: Roll call extraction (`roll_call_extraction` item) is needed to populate `vote_results` in decisions, which enables voting record queries. Consider tackling that as a follow-up.
+If Google Civic API work is blocked (no API key), consider `roll_call_extraction` (priority 1) instead - extracting AYES/NOES patterns from meeting minutes to populate vote results in decisions. This enables voting record queries.
