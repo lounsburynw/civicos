@@ -1043,6 +1043,125 @@ class PostgresBackend:
             ON federal_audit_expenditures(jurisdiction_id, valid_from, valid_to)
         """)
 
+        # Elections table (SESSION 460)
+        # Stores elections, contests, and ballot measures for whats_next()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS elections (
+                id TEXT NOT NULL,
+                jurisdiction_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                election_date TEXT NOT NULL,
+                election_type TEXT NOT NULL,
+                source TEXT NOT NULL,
+                source_url TEXT,
+                raw_data JSONB,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                PRIMARY KEY (id, jurisdiction_id, valid_from),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                CHECK (valid_to IS NULL OR valid_to > valid_from)
+            )
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_elections_jurisdiction
+            ON elections(jurisdiction_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_elections_date
+            ON elections(election_date)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_elections_type
+            ON elections(election_type)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_elections_temporal
+            ON elections(jurisdiction_id, valid_from, valid_to)
+        """)
+
+        # Election deadlines table (SESSION 460)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS election_deadlines (
+                id TEXT NOT NULL,
+                election_id TEXT NOT NULL,
+                deadline_type TEXT NOT NULL,
+                deadline_date TEXT NOT NULL,
+                description TEXT,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                PRIMARY KEY (id, election_id, valid_from),
+                CHECK (valid_to IS NULL OR valid_to > valid_from)
+            )
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_election_deadlines_election
+            ON election_deadlines(election_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_election_deadlines_date
+            ON election_deadlines(deadline_date)
+        """)
+
+        # Election contests table (SESSION 460)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS election_contests (
+                id TEXT NOT NULL,
+                election_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                contest_type TEXT NOT NULL,
+                district_name TEXT,
+                raw_data JSONB,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                PRIMARY KEY (id, election_id, valid_from),
+                CHECK (valid_to IS NULL OR valid_to > valid_from)
+            )
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_election_contests_election
+            ON election_contests(election_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_election_contests_type
+            ON election_contests(contest_type)
+        """)
+
+        # Elected officials table (SESSION 460)
+        # Links elections to decisions via voting records
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS elected_officials (
+                id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                seat TEXT NOT NULL,
+                jurisdiction_id TEXT NOT NULL,
+                term_start TEXT NOT NULL,
+                term_end TEXT,
+                name_variations JSONB,
+                candidate_id TEXT,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                PRIMARY KEY (id, jurisdiction_id, valid_from),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                CHECK (valid_to IS NULL OR valid_to > valid_from)
+            )
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_officials_jurisdiction
+            ON elected_officials(jurisdiction_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_officials_current
+            ON elected_officials(term_end) WHERE term_end IS NULL
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_officials_temporal
+            ON elected_officials(jurisdiction_id, valid_from, valid_to)
+        """)
+
         # Migration: Add full_text column if not exists (SESSION 418)
         cursor.execute("""
             DO $$
@@ -5809,6 +5928,531 @@ class PostgresBackend:
         finally:
             conn.close()
 
+    # ========== Election Methods (SESSION 460) ==========
+
+    def store_elections(
+        self,
+        jurisdiction_id: str,
+        elections: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store elections with temporal versioning.
+
+        Atomic operation: either all elections are stored or none.
+        Uses upsert semantics based on election id.
+        """
+        if not elections:
+            return 0
+
+        # Normalize jurisdiction to canonical form
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+        as_of = as_of or datetime.now()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Ensure city_state exists
+            cursor.execute("""
+                INSERT INTO city_states (jurisdiction_id, jurisdiction_name, as_of)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (jurisdiction_id) DO NOTHING
+            """, (
+                jurisdiction_id,
+                jurisdiction_id.replace('-', ' ').title(),
+                as_of.isoformat()
+            ))
+
+            # Get election IDs we're updating
+            election_ids = [e.get("id") for e in elections if e.get("id")]
+
+            # Close previous versions for these election_ids
+            if election_ids:
+                cursor.execute("""
+                    UPDATE elections
+                    SET valid_to = %s
+                    WHERE jurisdiction_id = %s
+                      AND id = ANY(%s)
+                      AND valid_to IS NULL
+                """, (as_of.isoformat(), jurisdiction_id, election_ids))
+
+            # Insert new versions
+            for election in elections:
+                election_id = election.get("id")
+                if not election_id:
+                    continue
+
+                raw_data = election.get("raw_data")
+                if raw_data and not isinstance(raw_data, str):
+                    raw_data = json.dumps(raw_data, cls=DateTimeEncoder)
+
+                cursor.execute("""
+                    INSERT INTO elections (
+                        id, jurisdiction_id, name, election_date, election_type,
+                        source, source_url, raw_data, valid_from, valid_to
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)
+                """, (
+                    election_id,
+                    jurisdiction_id,
+                    election.get("name"),
+                    election.get("election_date"),
+                    election.get("election_type"),
+                    election.get("source", "unknown"),
+                    election.get("source_url"),
+                    raw_data,
+                    as_of.isoformat(),
+                ))
+
+            conn.commit()
+            return len(elections)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_elections(
+        self,
+        jurisdiction_id: str,
+        as_of: Optional[datetime] = None,
+        include_past: bool = False,
+        election_type: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve elections with optional filtering.
+        """
+        # Normalize jurisdiction to canonical form
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+        as_of = as_of or datetime.now()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Build query with temporal filtering
+        query = """
+            SELECT id, jurisdiction_id, name, election_date, election_type,
+                   source, source_url, raw_data, valid_from, valid_to
+            FROM elections
+            WHERE jurisdiction_id = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+        """
+        params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+
+        if not include_past:
+            today = date.today().isoformat()
+            query += " AND election_date >= %s"
+            params.append(today)
+
+        if election_type is not None:
+            query += " AND election_type = %s"
+            params.append(election_type)
+
+        query += " ORDER BY election_date ASC"
+
+        if limit is not None:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [dict(row) for row in rows]
+
+    def get_election_count(self, jurisdiction_id: str) -> int:
+        """
+        Get count of current (future) elections for a jurisdiction.
+        """
+        # Normalize jurisdiction to canonical form
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        today = date.today().isoformat()
+        cursor.execute("""
+            SELECT COUNT(*) FROM elections
+            WHERE jurisdiction_id = %s
+              AND valid_to IS NULL
+              AND election_date >= %s
+        """, (jurisdiction_id, today))
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count
+
+    # ========== Election Deadline Methods ==========
+
+    def store_election_deadlines(
+        self,
+        election_id: str,
+        deadlines: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store election deadlines with temporal versioning.
+        """
+        if not deadlines:
+            return 0
+
+        as_of = as_of or datetime.now()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Close previous versions for this election
+            cursor.execute("""
+                UPDATE election_deadlines
+                SET valid_to = %s
+                WHERE election_id = %s
+                  AND valid_to IS NULL
+            """, (as_of.isoformat(), election_id))
+
+            # Insert new versions
+            for i, deadline in enumerate(deadlines):
+                deadline_id = f"{election_id}-{deadline.get('deadline_type', i)}"
+
+                cursor.execute("""
+                    INSERT INTO election_deadlines (
+                        id, election_id, deadline_type, deadline_date,
+                        description, valid_from, valid_to
+                    ) VALUES (%s, %s, %s, %s, %s, %s, NULL)
+                """, (
+                    deadline_id,
+                    election_id,
+                    deadline.get("deadline_type"),
+                    deadline.get("deadline_date"),
+                    deadline.get("description"),
+                    as_of.isoformat(),
+                ))
+
+            conn.commit()
+            return len(deadlines)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_election_deadlines(
+        self,
+        election_id: str,
+        as_of: Optional[datetime] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve deadlines for an election.
+        """
+        as_of = as_of or datetime.now()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        cursor.execute("""
+            SELECT id, election_id, deadline_type, deadline_date, description
+            FROM election_deadlines
+            WHERE election_id = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+            ORDER BY deadline_date ASC
+        """, (election_id, as_of.isoformat(), as_of.isoformat()))
+
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [dict(row) for row in rows]
+
+    # ========== Election Contest Methods ==========
+
+    def store_election_contests(
+        self,
+        election_id: str,
+        contests: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store election contests with temporal versioning.
+        """
+        if not contests:
+            return 0
+
+        as_of = as_of or datetime.now()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Get contest IDs we're updating
+            contest_ids = [c.get("id") for c in contests if c.get("id")]
+
+            # Close previous versions for these contest_ids
+            if contest_ids:
+                cursor.execute("""
+                    UPDATE election_contests
+                    SET valid_to = %s
+                    WHERE election_id = %s
+                      AND id = ANY(%s)
+                      AND valid_to IS NULL
+                """, (as_of.isoformat(), election_id, contest_ids))
+
+            # Insert new versions
+            for contest in contests:
+                contest_id = contest.get("id")
+                if not contest_id:
+                    continue
+
+                raw_data = contest.get("raw_data")
+                if raw_data and not isinstance(raw_data, str):
+                    raw_data = json.dumps(raw_data, cls=DateTimeEncoder)
+
+                cursor.execute("""
+                    INSERT INTO election_contests (
+                        id, election_id, title, contest_type, district_name,
+                        raw_data, valid_from, valid_to
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, NULL)
+                """, (
+                    contest_id,
+                    election_id,
+                    contest.get("title"),
+                    contest.get("contest_type"),
+                    contest.get("district_name"),
+                    raw_data,
+                    as_of.isoformat(),
+                ))
+
+            conn.commit()
+            return len(contests)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_election_contests(
+        self,
+        election_id: str,
+        contest_type: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve contests for an election.
+        """
+        as_of = as_of or datetime.now()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        query = """
+            SELECT id, election_id, title, contest_type, district_name, raw_data
+            FROM election_contests
+            WHERE election_id = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+        """
+        params: List[Any] = [election_id, as_of.isoformat(), as_of.isoformat()]
+
+        if contest_type is not None:
+            query += " AND contest_type = %s"
+            params.append(contest_type)
+
+        query += " ORDER BY title ASC"
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [dict(row) for row in rows]
+
+    # ========== Elected Officials Methods ==========
+
+    def store_elected_officials(
+        self,
+        jurisdiction_id: str,
+        officials: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store elected officials with temporal versioning.
+        """
+        if not officials:
+            return 0
+
+        # Normalize jurisdiction to canonical form
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+        as_of = as_of or datetime.now()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Ensure city_state exists
+            cursor.execute("""
+                INSERT INTO city_states (jurisdiction_id, jurisdiction_name, as_of)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (jurisdiction_id) DO NOTHING
+            """, (
+                jurisdiction_id,
+                jurisdiction_id.replace('-', ' ').title(),
+                as_of.isoformat()
+            ))
+
+            # Get official IDs we're updating
+            official_ids = [o.get("id") for o in officials if o.get("id")]
+
+            # Close previous versions for these official_ids
+            if official_ids:
+                cursor.execute("""
+                    UPDATE elected_officials
+                    SET valid_to = %s
+                    WHERE jurisdiction_id = %s
+                      AND id = ANY(%s)
+                      AND valid_to IS NULL
+                """, (as_of.isoformat(), jurisdiction_id, official_ids))
+
+            # Insert new versions
+            for official in officials:
+                official_id = official.get("id")
+                if not official_id:
+                    continue
+
+                # Handle name_variations - store as JSON array
+                name_variations = official.get("name_variations", [])
+                if isinstance(name_variations, list):
+                    name_variations_json = json.dumps(name_variations)
+                else:
+                    name_variations_json = name_variations
+
+                cursor.execute("""
+                    INSERT INTO elected_officials (
+                        id, name, seat, jurisdiction_id, term_start, term_end,
+                        name_variations, candidate_id, valid_from, valid_to
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)
+                """, (
+                    official_id,
+                    official.get("name"),
+                    official.get("seat"),
+                    jurisdiction_id,
+                    official.get("term_start"),
+                    official.get("term_end"),
+                    name_variations_json,
+                    official.get("candidate_id"),
+                    as_of.isoformat(),
+                ))
+
+            conn.commit()
+            return len(officials)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_elected_officials(
+        self,
+        jurisdiction_id: str,
+        current_only: bool = True,
+        as_of: Optional[datetime] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve elected officials.
+        """
+        # Normalize jurisdiction to canonical form
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+        as_of = as_of or datetime.now()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        query = """
+            SELECT id, name, seat, jurisdiction_id, term_start, term_end,
+                   name_variations, candidate_id
+            FROM elected_officials
+            WHERE jurisdiction_id = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+        """
+        params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+
+        if current_only:
+            query += " AND term_end IS NULL"
+
+        query += " ORDER BY name ASC"
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [dict(row) for row in rows]
+
+    def get_official_by_name(
+        self,
+        jurisdiction_id: str,
+        name: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Find official by name (fuzzy match on name_variations).
+        """
+        # Normalize jurisdiction to canonical form
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # First try exact name match or partial match
+        cursor.execute("""
+            SELECT id, name, seat, jurisdiction_id, term_start, term_end,
+                   name_variations, candidate_id
+            FROM elected_officials
+            WHERE jurisdiction_id = %s
+              AND valid_to IS NULL
+              AND (name = %s OR name ILIKE %s OR name ILIKE %s)
+            LIMIT 1
+        """, (
+            jurisdiction_id,
+            name,
+            f"%{name}%",
+            f"{name}%",
+        ))
+
+        row = cursor.fetchone()
+        if row:
+            conn.close()
+            return dict(row)
+
+        # If not found, search in name_variations JSONB
+        cursor.execute("""
+            SELECT id, name, seat, jurisdiction_id, term_start, term_end,
+                   name_variations, candidate_id
+            FROM elected_officials
+            WHERE jurisdiction_id = %s
+              AND valid_to IS NULL
+              AND name_variations::text ILIKE %s
+            LIMIT 1
+        """, (jurisdiction_id, f"%{name}%"))
+
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            return dict(row)
+        return None
+
 
 # Verify protocol compliance at import time (only if psycopg2 available)
 # StorageBackend is @runtime_checkable, so isinstance() works
@@ -5851,6 +6495,11 @@ def _verify_protocol_compliance() -> None:
         # Budget funding source links methods (SESSION 444)
         'store_budget_funding_links', 'get_budget_funding_links', 'get_budget_funding_links_count',
         'confirm_budget_funding_link',
+        # Election methods (SESSION 460)
+        'store_elections', 'get_elections', 'get_election_count',
+        'store_election_deadlines', 'get_election_deadlines',
+        'store_election_contests', 'get_election_contests',
+        'store_elected_officials', 'get_elected_officials', 'get_official_by_name',
     ]
     for method in required_methods:
         assert hasattr(PostgresBackend, method), (

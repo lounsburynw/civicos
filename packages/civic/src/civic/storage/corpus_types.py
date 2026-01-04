@@ -40,6 +40,7 @@ class CorpusType(str, Enum):
     TRANSCRIPTS = "transcripts" # Meeting transcripts (aka "transcript" singular)
     MUNICIPAL_CODE = "municipal_code"  # Local municipal code sections
     ISSUES = "issues"           # Community issues (aka "issue" singular)
+    ELECTIONS = "elections"     # Elections, contests, ballot measures
 
     # State/federal-level corpora
     LEGISLATION = "legislation"   # Bills (pending/historical) - parameterized by state
@@ -132,6 +133,15 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         text_extractor="_issue_to_text",
         jurisdiction_type="city",
         aliases=("issue",),
+        has_meeting_context=False,
+    ),
+    CorpusType.ELECTIONS: CorpusConfig(
+        display_name="Elections",
+        storage_method="get_elections",
+        count_method="get_election_count",
+        text_extractor="_election_to_text",
+        jurisdiction_type="both",  # Elections span federal/state/local
+        aliases=("election", "ballot", "vote"),
         has_meeting_context=False,
     ),
     CorpusType.LEGISLATION: CorpusConfig(
