@@ -19,18 +19,11 @@ from typing import Any, Dict, List, Optional, Union
 
 from civic._internal.meetings.embeddings import CivicEmbeddings
 from civic.history import UnifiedSearchResult
+from civic.storage.corpus_types import UNIFIED_CORPUS_TYPES
 
 
-# Valid corpus types
-CORPUS_TYPES = frozenset({
-    "decision",
-    "pdf",
-    "transcript",
-    "issue",
-    "municipal_code",
-    "legislation",
-    "programs",
-})
+# Valid corpus types - imported from centralized registry for consistency
+CORPUS_TYPES = UNIFIED_CORPUS_TYPES
 
 
 @dataclass
