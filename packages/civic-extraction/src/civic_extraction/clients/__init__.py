@@ -45,6 +45,9 @@ from civic_extraction.clients.representatives import (
     CongressGovClient,
     OpenStatesClient,
     create_san_rafael_representatives_client,
+    representative_to_elected_official,
+    extract_elected_officials_to_storage,
+    ElectedOfficialStorageProtocol,
 )
 from civic_extraction.clients.base import (
     BaseExtractor,
@@ -79,6 +82,9 @@ __all__ = [
     "CongressGovClient",
     "OpenStatesClient",
     "create_san_rafael_representatives_client",
+    "representative_to_elected_official",
+    "extract_elected_officials_to_storage",
+    "ElectedOfficialStorageProtocol",
     "BaseExtractor",
     "Meeting",
     "ExtractionConfig",
