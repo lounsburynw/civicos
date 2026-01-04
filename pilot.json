@@ -1577,7 +1577,7 @@
       },
       "roll_call_extraction": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Extract roll call votes from meeting minutes (AYES/NOES/ABSENT patterns)",
         "note": "Prerequisite for voting record linkage. Minutes contain 'AYES: Smith, Jones; NOES: Brown' patterns. Add extract_roll_call() to decision extraction pipeline.",
         "depends_on": [
@@ -1589,20 +1589,22 @@
         "output": "Decisions have populated vote_results: {'Smith': 'yes', 'Jones': 'yes', 'Brown': 'no'}"
       },
       "elected_officials_table": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "ElectedOfficial model + storage for linking candidates to voting records",
-        "note": "Schema: id, name, seat, jurisdiction_id, term_start, term_end, name_variations (for fuzzy matching). Populated from Google Civic API representatives endpoint.",
+        "note": "Schema: id, name, seat, jurisdiction_id, term_start, term_end, name_variations (for fuzzy matching). Populated via RepresentativesClient (Congress.gov, Open States, local data) since Google Civic reps endpoint was turned down April 2025.",
+        "completed": "2026-01-03",
         "depends_on": [
           "election_integration"
         ],
         "new_files": [
-          "packages/civic/src/civic/_internal/elections/officials.py"
+          "packages/civic-extraction/src/civic_extraction/clients/representatives.py (mappers added)"
         ],
         "modified_files": [
-          "packages/civic/src/civic/storage/backend.py",
-          "packages/civic/src/civic/storage/sqlite_backend.py"
-        ]
+          "packages/civic-extraction/src/civic_extraction/clients/__init__.py",
+          "packages/civic-extraction/tests/test_clients.py"
+        ],
+        "test": "pytest packages/civic-extraction/tests/test_clients.py::TestElectedOfficialsMappers packages/civic-extraction/tests/test_clients.py::TestElectedOfficialsExtraction packages/civic-extraction/tests/test_clients.py::TestElectedOfficialsStorageIntegration -v"
       },
       "voting_record_api": {
         "status": "not_ready",

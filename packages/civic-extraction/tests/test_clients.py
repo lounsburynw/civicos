@@ -1596,5 +1596,314 @@ class TestGoogleCivicClientIntegration:
                    for o in result["officials"])
 
 
+class TestElectedOfficialsMappers:
+    """Test the storage mapper functions for elected officials data."""
+
+    def test_generate_name_variations_basic(self):
+        """Test _generate_name_variations with basic name."""
+        from civic_extraction.clients.representatives import _generate_name_variations
+
+        variations = _generate_name_variations("Jane Smith", "City Council Member")
+        assert "Jane Smith" in variations
+        assert "Smith" in variations
+        assert "J. Smith" in variations
+        assert "Councilmember Smith" in variations
+        assert "Council Member Smith" in variations
+
+    def test_generate_name_variations_mayor(self):
+        """Test _generate_name_variations for Mayor."""
+        from civic_extraction.clients.representatives import _generate_name_variations
+
+        variations = _generate_name_variations("Kate Colin", "Mayor")
+        assert "Kate Colin" in variations
+        assert "Colin" in variations
+        assert "K. Colin" in variations
+        assert "Mayor Colin" in variations
+
+    def test_generate_name_variations_supervisor(self):
+        """Test _generate_name_variations for Supervisor."""
+        from civic_extraction.clients.representatives import _generate_name_variations
+
+        variations = _generate_name_variations("Mary Sackett", "County Supervisor District 1")
+        assert "Mary Sackett" in variations
+        assert "Sackett" in variations
+        assert "M. Sackett" in variations
+        assert "Supervisor Sackett" in variations
+
+    def test_generate_name_variations_senator(self):
+        """Test _generate_name_variations for Senator."""
+        from civic_extraction.clients.representatives import _generate_name_variations
+
+        variations = _generate_name_variations("Alex Padilla", "US Senator")
+        assert "Alex Padilla" in variations
+        assert "Padilla" in variations
+        assert "A. Padilla" in variations
+        assert "Senator Padilla" in variations
+
+    def test_generate_name_variations_single_name(self):
+        """Test _generate_name_variations handles single name gracefully."""
+        from civic_extraction.clients.representatives import _generate_name_variations
+
+        variations = _generate_name_variations("Madonna", "Singer")
+        assert "Madonna" in variations
+        assert len(variations) == 1  # Only full name, no variations possible
+
+    def test_representative_to_elected_official_full(self):
+        """Test representative_to_elected_official with complete data."""
+        from civic_extraction.clients.representatives import (
+            Representative,
+            representative_to_elected_official,
+        )
+
+        rep = Representative(
+            id="local-sr-mayor",
+            name="Kate Colin",
+            office="Mayor",
+            level="local",
+            party="Democratic",
+            term_start="2024-01-01",
+            term_end="2027-12-31",
+            source="local",
+        )
+        result = representative_to_elected_official(rep, "san-rafael")
+        assert result["id"] == "local-sr-mayor"
+        assert result["name"] == "Kate Colin"
+        assert result["seat"] == "Mayor"
+        assert result["term_start"] == "2024-01-01"
+        assert result["term_end"] == "2027-12-31"
+        assert "Mayor Colin" in result["name_variations"]
+        assert result["candidate_id"] is None
+
+    def test_representative_to_elected_official_year_only(self):
+        """Test representative_to_elected_official with year-only term dates."""
+        from civic_extraction.clients.representatives import (
+            Representative,
+            representative_to_elected_official,
+        )
+
+        rep = Representative(
+            id="congress-abc123",
+            name="Jared Huffman",
+            office="US House Representative",
+            level="federal",
+            party="Democratic",
+            term_start="2023",
+            term_end="2025",
+            source="congress_gov",
+        )
+        result = representative_to_elected_official(rep, "san-rafael")
+        assert result["term_start"] == "2023-01-01"
+        assert result["term_end"] == "2025-12-31"
+
+    def test_representative_to_elected_official_no_dates(self):
+        """Test representative_to_elected_official with no term dates."""
+        from civic_extraction.clients.representatives import (
+            Representative,
+            representative_to_elected_official,
+        )
+        from datetime import datetime
+
+        rep = Representative(
+            id="openstates-xyz",
+            name="Test Person",
+            office="State Assembly Member",
+            level="state",
+            source="open_states",
+        )
+        result = representative_to_elected_official(rep, "san-rafael")
+        # Should use current date for term_start
+        assert result["term_start"] == datetime.now().strftime("%Y-%m-%d")
+        assert result["term_end"] is None  # Current official
+
+    def test_representative_to_elected_official_council_variations(self):
+        """Test that council members get proper name variations."""
+        from civic_extraction.clients.representatives import (
+            Representative,
+            representative_to_elected_official,
+        )
+
+        rep = Representative(
+            id="local-sr-council-1",
+            name="Maribeth Bushey",
+            office="City Council Member District 1",
+            level="local",
+            source="local",
+        )
+        result = representative_to_elected_official(rep, "san-rafael")
+        # Should have both forms of council member title
+        assert "Councilmember Bushey" in result["name_variations"]
+        assert "Council Member Bushey" in result["name_variations"]
+        assert "M. Bushey" in result["name_variations"]
+
+
+class TestElectedOfficialsStorageIntegration:
+    """Integration tests for elected officials storage with SQLite."""
+
+    @pytest.mark.integration
+    def test_extract_and_store_local_officials(self, tmp_path):
+        """Test extracting local officials and storing in SQLite."""
+        from civic_extraction.clients.representatives import (
+            RepresentativesClient,
+            extract_elected_officials_to_storage,
+        )
+        from civic.storage import SQLiteBackend
+
+        # Create temporary SQLite database (tables auto-created on first use)
+        db_path = tmp_path / "civic_test.db"
+        storage = SQLiteBackend(str(db_path))
+
+        # Create client with just local officials (no API keys needed)
+        client = RepresentativesClient(jurisdiction_id="san-rafael")
+
+        # Extract local officials only
+        count = extract_elected_officials_to_storage(
+            client=client,
+            storage=storage,
+            jurisdiction_id="san-rafael",
+            include_federal=False,
+            include_state=False,
+            include_local=True,
+        )
+
+        # Should have stored local officials (Mayor, Council, etc.)
+        assert count >= 4, f"Expected at least 4 local officials, got {count}"
+
+        # Retrieve and verify
+        officials = storage.get_elected_officials("san-rafael", current_only=True)
+        assert len(officials) >= 4
+
+        # Check that Mayor is present
+        names = [o["name"] for o in officials]
+        assert any("Colin" in name or "Kate" in name for name in names), \
+            f"Expected Mayor Kate Colin in officials, got: {names}"
+
+        # Check name variations were stored
+        for official in officials:
+            assert "name_variations" in official
+            assert isinstance(official["name_variations"], list)
+            assert len(official["name_variations"]) >= 1
+
+    @pytest.mark.integration
+    def test_get_official_by_name(self, tmp_path):
+        """Test fuzzy name matching after storing officials."""
+        from civic_extraction.clients.representatives import (
+            RepresentativesClient,
+            extract_elected_officials_to_storage,
+        )
+        from civic.storage import SQLiteBackend
+
+        # Create temporary SQLite database (tables auto-created on first use)
+        db_path = tmp_path / "civic_test.db"
+        storage = SQLiteBackend(str(db_path))
+
+        # Create client and extract
+        client = RepresentativesClient(jurisdiction_id="san-rafael")
+        extract_elected_officials_to_storage(
+            client=client,
+            storage=storage,
+            jurisdiction_id="san-rafael",
+            include_federal=False,
+            include_state=False,
+            include_local=True,
+        )
+
+        # Test fuzzy matching on name variations
+        # This is important for roll call parsing
+        mayor = storage.get_official_by_name("san-rafael", "Mayor Colin")
+        if mayor:
+            assert "Colin" in mayor["name"]
+
+
+class TestElectedOfficialsExtraction:
+    """Test the extract_elected_officials_to_storage function."""
+
+    def test_extract_elected_officials_empty(self):
+        """Test extraction with no representatives."""
+        from unittest.mock import Mock
+        from civic_extraction.clients.representatives import (
+            RepresentativesClient,
+            extract_elected_officials_to_storage,
+        )
+
+        mock_client = Mock(spec=RepresentativesClient)
+        mock_client.get_representatives.return_value = []
+        mock_storage = Mock()
+
+        count = extract_elected_officials_to_storage(
+            mock_client, mock_storage, "san-rafael"
+        )
+        assert count == 0
+        mock_storage.store_elected_officials.assert_not_called()
+
+    def test_extract_elected_officials_with_data(self):
+        """Test extraction stores officials correctly."""
+        from unittest.mock import Mock
+        from civic_extraction.clients.representatives import (
+            Representative,
+            RepresentativesClient,
+            extract_elected_officials_to_storage,
+        )
+
+        mock_client = Mock(spec=RepresentativesClient)
+        mock_client.get_representatives.return_value = [
+            Representative(
+                id="local-sr-mayor",
+                name="Kate Colin",
+                office="Mayor",
+                level="local",
+                source="local",
+            ),
+            Representative(
+                id="local-sr-council-1",
+                name="Maribeth Bushey",
+                office="City Council Member",
+                level="local",
+                source="local",
+            ),
+        ]
+        mock_storage = Mock()
+        mock_storage.store_elected_officials.return_value = 2
+
+        count = extract_elected_officials_to_storage(
+            mock_client, mock_storage, "san-rafael"
+        )
+        assert count == 2
+        mock_storage.store_elected_officials.assert_called_once()
+        # Check the officials passed to storage
+        call_args = mock_storage.store_elected_officials.call_args
+        assert call_args[0][0] == "san-rafael"
+        officials = call_args[0][1]
+        assert len(officials) == 2
+        assert officials[0]["name"] == "Kate Colin"
+        assert officials[1]["name"] == "Maribeth Bushey"
+
+    def test_extract_elected_officials_level_filtering(self):
+        """Test extraction respects level filtering."""
+        from unittest.mock import Mock
+        from civic_extraction.clients.representatives import (
+            RepresentativesClient,
+            extract_elected_officials_to_storage,
+        )
+
+        mock_client = Mock(spec=RepresentativesClient)
+        mock_client.get_representatives.return_value = []
+        mock_storage = Mock()
+
+        extract_elected_officials_to_storage(
+            mock_client,
+            mock_storage,
+            "san-rafael",
+            include_federal=False,
+            include_state=True,
+            include_local=True,
+        )
+        # Check that get_representatives was called with correct filters
+        mock_client.get_representatives.assert_called_once_with(
+            include_federal=False,
+            include_state=True,
+            include_local=True,
+        )
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -810,3 +810,172 @@ def create_san_rafael_representatives_client(
         congress_api_key=congress_api_key,
         open_states_api_key=open_states_api_key,
     )
+
+
+# ==================== Storage Mappers ====================
+
+try:
+    from typing import Protocol, runtime_checkable
+except ImportError:
+    from typing_extensions import Protocol, runtime_checkable
+
+
+@runtime_checkable
+class ElectedOfficialStorageProtocol(Protocol):
+    """
+    Protocol for storage backends that support elected official operations.
+
+    This is a subset of StorageBackend defined locally to avoid circular imports.
+    The civic.storage.StorageBackend implements this protocol.
+    """
+
+    def store_elected_officials(
+        self,
+        jurisdiction_id: str,
+        officials: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """Store elected officials with temporal versioning."""
+        ...
+
+
+def _generate_name_variations(name: str, office: str) -> List[str]:
+    """
+    Generate name variations for matching in roll call votes.
+
+    Args:
+        name: Full name (e.g., "Jane Smith")
+        office: Office held (e.g., "City Council Member")
+
+    Returns:
+        List of name variations for fuzzy matching
+    """
+    variations = [name]
+    parts = name.split()
+
+    if len(parts) >= 2:
+        # Last name only
+        last_name = parts[-1]
+        variations.append(last_name)
+
+        # First initial + last name (e.g., "J. Smith")
+        first_initial = parts[0][0] + "."
+        variations.append(f"{first_initial} {last_name}")
+
+        # Title + last name variations
+        office_lower = office.lower()
+        if "council" in office_lower:
+            variations.append(f"Councilmember {last_name}")
+            variations.append(f"Council Member {last_name}")
+        if "mayor" in office_lower:
+            variations.append(f"Mayor {last_name}")
+        if "supervisor" in office_lower:
+            variations.append(f"Supervisor {last_name}")
+        if "senator" in office_lower:
+            variations.append(f"Senator {last_name}")
+        if "representative" in office_lower or "assembly" in office_lower:
+            variations.append(f"Representative {last_name}")
+
+    return variations
+
+
+def representative_to_elected_official(
+    representative: Representative,
+    jurisdiction_id: str,
+) -> Dict[str, Any]:
+    """
+    Map Representative (from RepresentativesClient) to storage format.
+
+    Args:
+        representative: Representative object with all details
+        jurisdiction_id: Target jurisdiction (e.g., "san-rafael")
+
+    Returns:
+        Dict ready for StorageBackend.store_elected_officials()
+    """
+    # Parse term dates if available
+    term_start = None
+    if representative.term_start:
+        try:
+            # Handle both ISO format and year-only
+            if len(representative.term_start) == 4:
+                term_start = f"{representative.term_start}-01-01"
+            else:
+                term_start = representative.term_start
+        except (ValueError, TypeError):
+            pass
+
+    term_end = None
+    if representative.term_end:
+        try:
+            if len(representative.term_end) == 4:
+                term_end = f"{representative.term_end}-12-31"
+            else:
+                term_end = representative.term_end
+        except (ValueError, TypeError):
+            pass
+
+    # Use current date if no term_start (for active officials)
+    if not term_start:
+        term_start = datetime.now().strftime("%Y-%m-%d")
+
+    # Generate name variations for roll call matching
+    name_variations = _generate_name_variations(
+        representative.name,
+        representative.office,
+    )
+
+    return {
+        "id": representative.id,
+        "name": representative.name,
+        "seat": representative.office,
+        "term_start": term_start,
+        "term_end": term_end,
+        "name_variations": name_variations,
+        "candidate_id": None,  # Linked later after elections sync
+    }
+
+
+def extract_elected_officials_to_storage(
+    client: RepresentativesClient,
+    storage: ElectedOfficialStorageProtocol,
+    jurisdiction_id: str,
+    include_federal: bool = True,
+    include_state: bool = True,
+    include_local: bool = True,
+) -> int:
+    """
+    Extract officials from RepresentativesClient and store them.
+
+    Args:
+        client: RepresentativesClient instance
+        storage: StorageBackend instance with store_elected_officials method
+        jurisdiction_id: Target jurisdiction (e.g., "san-rafael")
+        include_federal: Include federal representatives
+        include_state: Include state representatives
+        include_local: Include local officials
+
+    Returns:
+        Number of officials stored
+    """
+    representatives = client.get_representatives(
+        include_federal=include_federal,
+        include_state=include_state,
+        include_local=include_local,
+    )
+
+    if not representatives:
+        logger.info(f"No representatives found for {jurisdiction_id}")
+        return 0
+
+    officials = [
+        representative_to_elected_official(rep, jurisdiction_id)
+        for rep in representatives
+    ]
+
+    count = storage.store_elected_officials(jurisdiction_id, officials)
+    logger.info(
+        f"Stored {count} elected officials for {jurisdiction_id} "
+        f"(federal={include_federal}, state={include_state}, local={include_local})"
+    )
+    return count
