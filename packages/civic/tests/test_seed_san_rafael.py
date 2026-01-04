@@ -30,6 +30,9 @@ from seed_san_rafael import (
     JURISDICTION_ID,
 )
 
+# Mark as slow: seeds database with 100+ records from manifest/JSON
+pytestmark = pytest.mark.slow
+
 
 # ============================================================================
 # Test Fixtures

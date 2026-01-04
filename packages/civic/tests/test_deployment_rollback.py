@@ -42,6 +42,9 @@ from backup import (
     RETENTION_WEEKLY,
 )
 
+# Mark as slow: backup/restore operations with time.sleep() delays
+pytestmark = pytest.mark.slow
+
 
 # ============================================================================
 # Test Fixtures

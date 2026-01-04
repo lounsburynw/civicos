@@ -39,6 +39,9 @@ skip_without_server = pytest.mark.skipif(
     reason="API server not available (src/ dependencies not installed)"
 )
 
+# Mark as slow: server startup, HTTP loops, and timeout handling
+pytestmark = pytest.mark.slow
+
 
 def _check_db_tables_exist():
     """Check if the civic database has required tables for REST API tests."""
