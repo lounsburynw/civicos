@@ -33,6 +33,11 @@ from civic_extraction.clients.ca_state_controller import (
 from civic_extraction.clients.google_civic import (
     GoogleCivicClient,
     create_san_rafael_civic_client,
+    google_civic_to_election,
+    google_civic_to_voter_info,
+    extract_elections_to_storage,
+    extract_voter_info_to_storage,
+    ElectionStorageProtocol,
 )
 from civic_extraction.clients.representatives import (
     RepresentativesClient,
@@ -64,6 +69,11 @@ __all__ = [
     "create_san_rafael_sco_client",
     "GoogleCivicClient",
     "create_san_rafael_civic_client",
+    "google_civic_to_election",
+    "google_civic_to_voter_info",
+    "extract_elections_to_storage",
+    "extract_voter_info_to_storage",
+    "ElectionStorageProtocol",
     "RepresentativesClient",
     "Representative",
     "CongressGovClient",

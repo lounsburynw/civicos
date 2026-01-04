@@ -16,7 +16,7 @@ import os
 import requests
 import time
 from datetime import datetime, date
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Protocol, runtime_checkable
 
 from civic_extraction.clients.base import HealthStatus, ValidationResult
 
@@ -659,3 +659,227 @@ def create_san_rafael_civic_client(api_key: Optional[str] = None) -> GoogleCivic
         jurisdiction_id="san-rafael",
         api_key=api_key,
     )
+
+
+# ==================== Storage Mappers ====================
+
+
+@runtime_checkable
+class ElectionStorageProtocol(Protocol):
+    """
+    Protocol for storage backends that support election operations.
+
+    This is a subset of StorageBackend defined locally to avoid circular imports.
+    The civic.storage.StorageBackend implements this protocol.
+    """
+
+    def store_elections(
+        self,
+        jurisdiction_id: str,
+        elections: List[Dict[str, Any]],
+    ) -> int:
+        """Store elections with temporal versioning."""
+        ...
+
+    def store_election_contests(
+        self,
+        election_id: str,
+        contests: List[Dict[str, Any]],
+    ) -> int:
+        """Store election contests with temporal versioning."""
+        ...
+
+
+def _infer_election_type(name: str) -> str:
+    """Infer election type from election name."""
+    name_lower = name.lower()
+    if "primary" in name_lower:
+        return "primary"
+    if "runoff" in name_lower:
+        return "runoff"
+    if "special" in name_lower:
+        return "special"
+    if "recall" in name_lower:
+        return "recall"
+    # Default to general for regular elections
+    return "general"
+
+
+def google_civic_to_election(
+    api_response: Dict[str, Any],
+    jurisdiction_id: str,
+) -> Dict[str, Any]:
+    """
+    Map Google Civic API election response to storage format.
+
+    Args:
+        api_response: Normalized election from GoogleCivicClient._normalize_election()
+        jurisdiction_id: Target jurisdiction (e.g., "san-rafael")
+
+    Returns:
+        Election dict ready for StorageBackend.store_elections()
+    """
+    # Handle both raw API format and normalized format
+    if "election_date" in api_response:
+        # Already normalized
+        election_date = api_response["election_date"]
+        name = api_response.get("name", "Unknown Election")
+        raw_data = api_response.get("raw_data", api_response)
+    else:
+        # Raw API format
+        election_day = api_response.get("electionDay", "")
+        try:
+            election_date = datetime.strptime(election_day, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            election_date = None
+        name = api_response.get("name", "Unknown Election")
+        raw_data = api_response
+
+    # Build storage-compatible election dict
+    election_id = api_response.get("id")
+    if not election_id:
+        # Generate ID from name and date
+        date_str = election_date.isoformat() if election_date else "unknown"
+        election_id = f"gc-{date_str}-{name.replace(' ', '-')[:30].lower()}"
+
+    return {
+        "id": election_id,
+        "name": name,
+        "election_date": election_date.isoformat() if election_date else None,
+        "election_type": _infer_election_type(name),
+        "source": "google_civic",
+        "source_url": "https://civicinfo.googleapis.com/civicinfo/v2/elections",
+        "ocd_division_id": api_response.get("ocd_division_id") or api_response.get("ocdDivisionId"),
+        "raw_data": raw_data,
+    }
+
+
+def google_civic_to_voter_info(
+    voter_info: Dict[str, Any],
+    jurisdiction_id: str,
+) -> Dict[str, Any]:
+    """
+    Map Google Civic voter info response to storage format.
+
+    Voter info includes contests, polling locations, and address-specific data.
+
+    Args:
+        voter_info: Normalized voter info from GoogleCivicClient.get_voter_info()
+        jurisdiction_id: Target jurisdiction
+
+    Returns:
+        Dict with election, contests, and polling_locations ready for storage
+    """
+    election_data = voter_info.get("election", {})
+    election_date = election_data.get("election_date")
+
+    # Map election
+    election = {
+        "id": election_data.get("id"),
+        "name": election_data.get("name", "Unknown Election"),
+        "election_date": election_date.isoformat() if election_date else None,
+        "election_type": _infer_election_type(election_data.get("name", "")),
+        "source": "google_civic",
+        "source_url": "https://civicinfo.googleapis.com/civicinfo/v2/voterinfo",
+    }
+
+    # Map contests - these go to store_election_contests()
+    contests = []
+    for c in voter_info.get("contests", []):
+        contest = {
+            "id": c.get("id"),
+            "title": c.get("title"),
+            "contest_type": c.get("contest_type", "other"),
+            "district_name": c.get("district_name"),
+            "number_elected": c.get("number_elected", 1),
+            "candidates": c.get("candidates", []),
+            "ballot_measure": c.get("ballot_measure"),
+            "raw_data": c,
+        }
+        contests.append(contest)
+
+    # Polling locations are address-specific and typically stored separately
+    polling_locations = voter_info.get("polling_locations", [])
+
+    return {
+        "election": election,
+        "contests": contests,
+        "polling_locations": polling_locations,
+        "normalized_address": voter_info.get("normalized_address"),
+    }
+
+
+def extract_elections_to_storage(
+    client: "GoogleCivicClient",
+    storage: ElectionStorageProtocol,
+    jurisdiction_id: str,
+) -> int:
+    """
+    Extract elections from Google Civic API and store them.
+
+    Args:
+        client: GoogleCivicClient instance
+        storage: StorageBackend instance with store_elections method
+        jurisdiction_id: Target jurisdiction (e.g., "san-rafael")
+
+    Returns:
+        Number of elections stored
+    """
+    elections = client.get_elections()
+    if not elections:
+        logger.info("No elections returned from Google Civic API")
+        return 0
+
+    mapped = [google_civic_to_election(e, jurisdiction_id) for e in elections]
+    count = storage.store_elections(jurisdiction_id, mapped)
+    logger.info(f"Stored {count} elections for {jurisdiction_id}")
+    return count
+
+
+def extract_voter_info_to_storage(
+    client: "GoogleCivicClient",
+    storage: ElectionStorageProtocol,
+    jurisdiction_id: str,
+    address: str,
+    election_id: Optional[str] = None,
+) -> Dict[str, int]:
+    """
+    Extract voter info from Google Civic API and store election + contests.
+
+    Args:
+        client: GoogleCivicClient instance
+        storage: StorageBackend instance
+        jurisdiction_id: Target jurisdiction
+        address: Street address for voter info lookup
+        election_id: Optional specific election ID
+
+    Returns:
+        Dict with counts: {"elections": N, "contests": M}
+    """
+    voter_info = client.get_voter_info(address, election_id)
+    if not voter_info:
+        logger.info(f"No voter info for address: {address}")
+        return {"elections": 0, "contests": 0}
+
+    mapped = google_civic_to_voter_info(voter_info, jurisdiction_id)
+
+    # Store election
+    elections_stored = 0
+    if mapped["election"].get("id"):
+        elections_stored = storage.store_elections(
+            jurisdiction_id, [mapped["election"]]
+        )
+
+    # Store contests
+    contests_stored = 0
+    if mapped["contests"] and mapped["election"].get("id"):
+        contests_stored = storage.store_election_contests(
+            mapped["election"]["id"], mapped["contests"]
+        )
+
+    logger.info(
+        f"Stored {elections_stored} election(s), {contests_stored} contest(s) "
+        f"for {jurisdiction_id} at {address}"
+    )
+
+    return {"elections": elections_stored, "contests": contests_stored}

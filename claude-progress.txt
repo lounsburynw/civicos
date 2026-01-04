@@ -9969,3 +9969,29 @@ Continue `election_integration` Phase 3:
 1. Create `google_civic_to_election()` mapper function
 2. Integrate with StorageBackend.store_elections()
 3. Test with working endpoints (elections, voterinfo)
+
+## Session 463 (2026-01-03)
+Phase: PILOT | Item: election_integration (P0)
+
+### Completed
+- Created `google_civic_to_election()` mapper function (maps API responses to storage format)
+- Created `google_civic_to_voter_info()` mapper for contests/polling locations
+- Created `extract_elections_to_storage()` helper for API-to-DB flow
+- Created `extract_voter_info_to_storage()` helper for voter info storage
+- Added 9 unit tests for mapper functions (all passing)
+- Added integration test with real API + Postgres/Supabase storage
+- Fixed existing tests that were failing when env vars were set
+- Elections successfully stored to production Postgres via Google Civic API
+
+### Key Files
+- `packages/civic-extraction/src/civic_extraction/clients/google_civic.py` (lines 664-859)
+- `packages/civic-extraction/tests/test_clients.py` (TestGoogleCivicMappers, TestGoogleCivicStorageIntegration)
+- `packages/civic-extraction/src/civic_extraction/clients/__init__.py` (exports added)
+
+### Status
+`election_integration` marked **ready** in pilot.json (255/287 items, 89%)
+
+### Next Session
+Continue with related items:
+- `roll_call_extraction`: Extract vote results from meeting minutes
+- `elected_officials_table`: Link officials to voting records
