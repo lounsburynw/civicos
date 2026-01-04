@@ -1,101 +1,86 @@
-# Recommended: scheduled_data_tests
+# Recommended: corpus_type_registry
 
 **Priority:** P0
-**Area:** test_infrastructure > test_categorization
-**Date:** 2026-01-03
+**Area:** data_architecture > vector_sql_linkage
+**Date:** 2026-01-04
 
-> This is recommended context from Session 466. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 467. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 466 completed `voting_record_api` - the API method that connects elections to decisions. The test infrastructure now has all heavy tests marked with `@pytest.mark.slow`, but they only run locally. Need a scheduled CI workflow to run these weekly without blocking PRs.
+Session 467 completed `scheduled_data_tests` - the weekly CI workflow for slow/heavy tests. The test infrastructure is now complete with both main CI (push/PR) and scheduled data tests (weekly).
 
 **Current state:**
 - Main CI (`tests.yml`) runs smoke + full suite on push/PR (~15 min)
-- Heavy tests marked with `@pytest.mark.slow`:
-  - `test_seed_san_rafael.py` - Real data seeding (35MB PDFs)
-  - `test_deployment_rollback.py` - Rollback procedures
-  - `test_e2e_verification.py` - End-to-end flows
-  - `test_integration_load.py` - Load testing
-  - `test_integration_extraction_failures.py` - Failure handling
-- These tests skip in CI because they need large test data
+- Data tests (`data-tests.yml`) runs `@pytest.mark.slow` weekly (Sundays 6am UTC)
+- 285 slow tests: load testing, e2e verification, rollback, extraction failures, seed ops
 
 ## Recommended Task
 
-Create a GitHub Actions workflow for weekly scheduled data tests:
+Create a CorpusType registry with metadata for each corpus type:
 
-1. **Create `.github/workflows/data-tests.yml`:**
-   ```yaml
-   name: Data Tests (Weekly)
+1. **Current state in `packages/civic/src/civic/rag/search.py`:**
+   ```python
+   CORPUS_TYPES = frozenset({"decision", "issue", "chunk", "transcript", "municipal_code", "meeting"})
+   ```
+   This is just a set of strings with no metadata.
 
-   on:
-     schedule:
-       - cron: '0 6 * * 0'  # 6am UTC every Sunday
-     workflow_dispatch:  # Manual trigger
+2. **Goal: Add CorpusTypeRegistry with metadata:**
+   ```python
+   @dataclass
+   class CorpusTypeInfo:
+       name: str
+       source_table: str | None  # SQL table name, e.g., "decisions"
+       vector_collection: str  # pgvector collection name
+       has_sql_source: bool  # True if backed by SQL table
+       description: str
+       icon: str | None = None  # For UI (optional)
 
-   jobs:
-     data-tests:
-       runs-on: ubuntu-latest
-       timeout-minutes: 60
-
-       steps:
-         - uses: actions/checkout@v4
-         - uses: actions/setup-python@v5
-           with:
-             python-version: '3.11'
-             cache: 'pip'
-
-         - name: Install dependencies
-           run: |
-             pip install torch --index-url https://download.pytorch.org/whl/cpu
-             pip install -e packages/civic[all]
-             pip install -e packages/civic-extraction
-
-         - name: Download test data
-           run: |
-             # Download San Rafael PDFs and transcripts
-             # (Need to set up data download step)
-
-         - name: Run slow tests
-           run: |
-             pytest packages/civic/tests/ -m slow -v --tb=short
+   CORPUS_REGISTRY = {
+       "decision": CorpusTypeInfo(
+           name="decision",
+           source_table="decisions",
+           vector_collection="decisions",
+           has_sql_source=True,
+           description="City council decisions and votes"
+       ),
+       "issue": CorpusTypeInfo(...),
+       # etc.
+   }
    ```
 
-2. **Set up test data download:**
-   - Store test corpus in R2 or GCS (35MB compressed)
-   - Download script in workflow
-   - Cache between runs
-
-3. **Add notification on failure:**
-   - GitHub Actions notification or Slack webhook
+3. **Benefits:**
+   - ERD diagram can dynamically show which corpora have SQL backing
+   - Unified search knows which corpora support SQL joins
+   - Admin API can list all corpus types with metadata
+   - Adding new corpus types is self-documenting
 
 ## Key Files
 
-- `.github/workflows/tests.yml` - Existing CI workflow (pattern to follow)
-- `.github/workflows/daily-backup.yml` - Example of scheduled workflow
-- `packages/civic/tests/test_seed_san_rafael.py:34` - Slow marker example
-- `packages/civic/pyproject.toml` - pytest markers config
+- `packages/civic/src/civic/rag/search.py:42` - Current CORPUS_TYPES frozenset
+- `packages/civic/src/civic/rag/unified_search.py` - Uses CORPUS_TYPES
+- `apps/civic-workspace/src/components/ERDDiagram.vue` - Renders corpus types
+- `packages/civic/src/civic/storage/postgres_backend.py` - SQL tables for corpora
 
 ## Tests to Run
 
 ```bash
-# Check which tests are marked slow
-pytest packages/civic/tests/ -m slow --collect-only
+# Check current CORPUS_TYPES usage
+grep -r "CORPUS_TYPES" packages/civic/src/
 
-# Run slow tests locally (to verify they work)
-pytest packages/civic/tests/ -m slow -v --tb=short
+# Run RAG tests after changes
+pytest packages/civic/tests/test_integration_rag_san_rafael.py -v --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] `.github/workflows/data-tests.yml` created
-- [ ] Workflow runs on weekly schedule (Sundays)
-- [ ] Workflow can be triggered manually (workflow_dispatch)
-- [ ] Runs all `@pytest.mark.slow` tests
-- [ ] Test data download/cache strategy documented
-- [ ] Workflow tested via manual trigger
+- [ ] CorpusTypeInfo dataclass defined with metadata fields
+- [ ] CORPUS_REGISTRY dict mapping corpus name to CorpusTypeInfo
+- [ ] Backward-compatible: CORPUS_TYPES frozenset still works
+- [ ] API endpoint to list corpus types (if time permits)
+- [ ] Tests verify registry metadata is correct
 
 ## Dependencies
 
-- Test data needs to be accessible (may need to upload to R2 first)
-- Slow tests must pass locally before adding to CI
+- No external dependencies
+- Should be a self-contained refactor

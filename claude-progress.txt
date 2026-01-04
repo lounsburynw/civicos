@@ -1,3 +1,48 @@
+## Session 467: scheduled_data_tests - Weekly CI for Slow Tests
+
+**Date:** 2026-01-04
+**Item:** scheduled_data_tests (test_infrastructure > test_categorization)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+
+Created GitHub Actions workflow for running slow/heavy tests on a weekly schedule. These tests (285 total) are excluded from main CI to avoid blocking PRs but provide important coverage for load testing, e2e verification, and data operations.
+
+### Implementation
+
+1. **Created `.github/workflows/data-tests.yml`:**
+   - Weekly schedule: Sundays at 6:00 AM UTC (same as vector-refresh)
+   - Manual trigger via workflow_dispatch
+   - Runs `pytest -m slow` with parallelization (-n 2)
+   - 45-minute timeout for full slow test suite
+   - Issue creation on failure (like daily-backup.yml pattern)
+
+2. **Test files covered (already marked with `@pytest.mark.slow`):**
+   - `test_integration_load.py` - Performance benchmarks, concurrency tests
+   - `test_e2e_verification.py` - End-to-end verification flows
+   - `test_deployment_rollback.py` - Backup/restore procedures
+   - `test_integration_extraction_failures.py` - Error handling
+   - `test_seed_san_rafael.py` - Seed data operations
+
+### Tests
+
+- 285 tests marked with `@pytest.mark.slow`
+- Sample test run verified: `test_deployment_rollback.py` passes locally
+- YAML validation passed
+
+### Status
+
+`scheduled_data_tests` marked **ready** in pilot.json (259/287 items, 90%)
+
+### Next Session
+
+Continue with `corpus_type_registry` (P0):
+- Extend CORPUS_TYPES frozenset with metadata per corpus
+- Add source_table, vector_collection, has_sql_source fields
+- Enable dynamic corpus discovery for ERD and search
+
+---
+
 ## Session 434: budget_schema - Add Budget Items Table Schema
 
 **Date:** 2026-01-02
