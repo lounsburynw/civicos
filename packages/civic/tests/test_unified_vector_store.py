@@ -299,19 +299,8 @@ class TestVectorStoreIntegration:
             assert 0.0 <= result.score <= 1.0, f"Score {result.score} out of range"
 
 
-class TestLegalIndexerAndSearchIntegration:
-    """Tests that LegalIndexer and LegalSearch work with unified VectorStore."""
-
-    def test_legal_indexer_accepts_provider(self, temp_store_dir, local_provider):
-        """LegalIndexer accepts provider parameter."""
-        from civic._internal.legal.embeddings.indexer import LegalIndexer
-
-        indexer = LegalIndexer(
-            persist_directory=temp_store_dir,
-            provider=local_provider,
-        )
-
-        assert indexer.store.provider is local_provider
+class TestLegalSearchIntegration:
+    """Tests that LegalSearch works with unified VectorStore."""
 
     def test_legal_search_accepts_provider(self, temp_store_dir, local_provider):
         """LegalSearch accepts provider parameter."""
@@ -324,20 +313,20 @@ class TestLegalIndexerAndSearchIntegration:
 
         assert search.store.provider is local_provider
 
-    def test_indexer_and_search_share_provider_compatibility(self, temp_store_dir, local_provider):
-        """Indexer and Search work together with same provider type."""
-        from civic._internal.legal.embeddings.indexer import LegalIndexer
+    def test_search_with_indexed_documents(self, temp_store_dir, local_provider):
+        """LegalSearch can query documents indexed via VectorStore."""
+        from civic._internal.legal.embeddings.store import VectorStore
         from civic._internal.legal.retrieval.search import LegalSearch
 
-        # Index with local provider
-        indexer = LegalIndexer(
+        # Index documents directly via VectorStore
+        store = VectorStore(
             persist_directory=temp_store_dir,
             provider=local_provider,
         )
-        indexer.store.add_documents([
+        store.add_documents([
             {"id": "bill1", "text": "Housing affordability bill", "metadata": {"bill_id": "AB-123"}},
         ])
-        del indexer
+        del store
 
         # Search with new local provider instance
         new_provider = SentenceTransformerProvider()
