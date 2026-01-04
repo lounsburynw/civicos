@@ -9737,3 +9737,31 @@ Removed the redundant `LegalIndexer` ChromaDB path after legislation was unified
 ### Next Session (P0)
 
 slow_test_markers - Mark performance/load tests with @pytest.mark.slow
+
+---
+
+## Session 458 (2026-01-03)
+
+### Completed: slow_test_markers (P0)
+
+Added `@pytest.mark.slow` to 3 test files missing the marker:
+
+1. **test_seed_san_rafael.py** - Seeds database with 100+ records from manifest/JSON
+2. **test_deployment_rollback.py** - Backup/restore operations with time.sleep() delays
+3. **test_e2e_verification.py** - Server startup, HTTP loops, and timeout handling
+
+#### Changes
+
+- Added `pytestmark = pytest.mark.slow` to each file
+- Verified all 3 files now appear in `pytest -m "slow"` collection (285 total slow tests)
+- Smoke tests (`test_civic.py`) are `@fast` only, so slow tests excluded
+- Updated pilot.json to mark item as ready
+
+#### Tests
+
+- 39 smoke tests pass
+- 285 tests now in slow marker collection
+
+### Next Session (P0)
+
+TBD - session ending without handoff prep (use /nextsesh to prepare)

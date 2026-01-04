@@ -91,10 +91,11 @@
         "note": "GitHub Actions workflow for full corpus tests on schedule (35MB PDFs, real transcripts)"
       },
       "slow_test_markers": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "artifact": "Mark performance/load tests with @pytest.mark.slow",
-        "note": "Add @pytest.mark.slow to performance/load tests, update pytest.ini to register marker, enable CI to skip slow tests by default"
+        "note": "Added @pytest.mark.slow to test_seed_san_rafael.py, test_deployment_rollback.py, test_e2e_verification.py. Marker already registered in pyproject.toml. Smoke tests (test_civic.py) are @fast only, excluding slow tests.",
+        "completed": "2026-01-03"
       }
     },
     "code_packaging": {
