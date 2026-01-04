@@ -10196,3 +10196,34 @@ Continue with `scheduled_data_tests` (P0):
 - Create GitHub Actions workflow for weekly data tests
 - Run heavy tests (35MB PDFs, real transcripts) on schedule
 - Separate from main CI to avoid blocking PRs
+
+## Session 468 (2026-01-04)
+### Task: corpus_type_registry (P0)
+
+### Changes
+- Extended `CorpusConfig` dataclass with SQL/vector metadata:
+  - `sql_table`: SQL table name (e.g., "decisions", "chunks")
+  - `vector_collection_suffix`: Vector collection suffix (e.g., "decisions")
+  - `has_sql_source` property: True if backed by SQL table
+  - `has_vector_index` property: True if has vector embeddings
+- Updated all 11 corpus types in `CORPUS_REGISTRY` with metadata
+- Added helper functions: `get_sql_backed_types()`, `get_vector_indexed_types()`, `get_corpus_metadata()`, `get_all_corpus_metadata()`
+- Created `UNIFIED_CORPUS_TYPES` frozenset for backward compatibility
+- Updated `unified.py` to import from centralized registry
+
+### Data Staleness Analysis
+Diagnosed PostgreSQL data status:
+- **Meetings**: 97 (current through Jan 6) ✅
+- **Decisions**: 44 (stale - stops at Dec 15) ⚠️
+- **Vectors**: 31,951 total, with SQL mismatches (issues: 1430 vs 1630, meetings: 46 vs 97)
+
+### New pilot.json Items (data_integrity > pipeline_completeness)
+1. `decision_extraction_diagnosis` (P0) - Next session
+2. `automated_decision_extraction` (P1)
+3. `vector_sql_sync_verification` (P1)
+4. `data_freshness_alerting` (P2)
+5. `pgvector_integration_tests` (P2) - Added under vector_sql_linkage
+
+### Status
+- `corpus_type_registry` marked **ready** (260/293 items, 89%)
+- P0 set to `decision_extraction_diagnosis`
