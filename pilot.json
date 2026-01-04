@@ -1155,10 +1155,10 @@
     "description": "Pre-pilot data quality requirements",
     "audit": {
       "data_completeness_audit": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Verify all 'ready' data items are actually complete and current",
-        "note": "Systematic audit of 37 claimed-ready items: check row counts, vector index populations, data freshness, file existence. Create audit script that validates each data source.",
+        "note": "Session 459: All 37 data items verified complete. Created scripts/audit_data_completeness.py for repeatable validation. Results in audit_results.json.",
         "checks": [
           "Row counts in tables (meetings, decisions, issues, transcripts)",
           "Vector index populations (ChromaDB/pgvector collections)",
@@ -1548,7 +1548,7 @@
     "election_data": {
       "election_integration": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Election data integration for whats_next() - upcoming elections, deadlines, ballot measures",
         "note": "Post-core-ingestion feature. Multi-source strategy: Google Civic API (primary) + Marin County Registrar (authoritative local). Reference doc: docs/critical/ELECTION_INTEGRATION.md",
         "depends_on": [
