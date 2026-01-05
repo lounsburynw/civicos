@@ -1791,9 +1791,9 @@
       },
       "temporal_versioning_review": {
         "status": "not_ready",
-        "priority": 2,
-        "artifact": "Review temporal versioning design for meetings/chunks - may need to preserve historical data differently",
-        "note": "Current store_meetings() closes ALL existing records then inserts current scrape window. This means older meetings are only accessible via valid_to queries. Consider: 1) Keep historical meetings valid, only close/update if changed, 2) Add meeting_id + source_url as natural key for proper upsert. Low priority - current design works but could be improved.",
+        "priority": 0,
+        "artifact": "Fix temporal versioning so historical meetings remain queryable",
+        "note": "BLOCKING ISSUE: store_meetings() closes ALL existing records, leaving only ~1 meeting visible to get_meetings(). Chunk/decision extraction can't process historical meetings. Fix: Change to proper upsert - only close records that actually changed, keep unchanged meetings with valid_to IS NULL. Natural key: meeting_id (from source). Current state: 97 meetings exist but only 1 is 'current'. 5,084 existing chunks still work but no new extraction possible until this is fixed.",
         "depends_on": "decision_extraction_diagnosis"
       },
       "automated_chunk_extraction": {
@@ -1806,10 +1806,10 @@
       },
       "automated_decision_extraction": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Add decision extraction to Modal automated pipeline",
-        "note": "batch_extract_decisions.py is manual. 44 decisions exist (Oct-Dec 2025). FIX: Add to weekly schedule (not daily - minutes PDFs lag meetings). Implementation: requires meeting minutes PDF → regex extraction → optional LLM QA → store_decisions(). Lower priority than chunks since decisions depend on minutes which take weeks to publish.",
-        "depends_on": "decision_extraction_diagnosis"
+        "note": "batch_extract_decisions.py is manual. 44 decisions exist (Oct-Dec 2025). FIX: Add to weekly schedule (not daily - minutes PDFs lag meetings). Implementation: requires meeting minutes PDF → regex extraction → optional LLM QA → store_decisions(). BLOCKED BY: temporal_versioning_review - can't query historical meetings until that's fixed.",
+        "depends_on": "temporal_versioning_review"
       },
       "vector_sql_sync_verification": {
         "status": "not_ready",
