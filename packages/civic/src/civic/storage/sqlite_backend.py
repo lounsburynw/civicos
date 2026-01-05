@@ -632,18 +632,23 @@ class SQLiteBackend:
         as_of: Optional[datetime] = None,
     ) -> int:
         """
-        Store meetings with temporal versioning.
+        Store meetings with temporal versioning (upsert pattern).
 
-        Atomic operation: either all meetings are stored or none.
-        Updates existing meetings if IDs match, inserts new ones.
+        Uses upsert semantics: for each meeting in the input list:
+        - If meeting.id exists and data unchanged: update last_verified timestamp
+        - If meeting.id exists and data changed: close old version, insert new
+        - If meeting.id is new: insert as new record
+        - If meeting lacks id: skip (not counted in return value)
+
+        Meetings NOT in the input list are preserved (not closed).
 
         Args:
             jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
-            meetings: List of meeting objects or dictionaries
+            meetings: List of meeting objects or dictionaries with 'id' field
             as_of: Timestamp for temporal versioning (default: now)
 
         Returns:
-            Number of meetings successfully stored
+            Number of meetings successfully stored or updated (excludes skipped)
 
         Raises:
             sqlite3.Error: If atomic store operation fails
@@ -665,15 +670,9 @@ class SQLiteBackend:
                 as_of.isoformat()
             ))
 
-            # Close previous versions (set valid_to)
-            cursor.execute("""
-                UPDATE meetings
-                SET valid_to = ?
-                WHERE jurisdiction_id = ?
-                  AND valid_to IS NULL
-            """, (as_of.isoformat(), jurisdiction_id))
-
-            # Insert new versions
+            # Use upsert pattern: only close/update meetings that changed
+            # This preserves historical meetings not in the current scrape window
+            stored_count = 0
             for meeting in meetings:
                 # Handle both dict and object access
                 if hasattr(meeting, "__dict__"):
@@ -682,6 +681,10 @@ class SQLiteBackend:
                     meeting_dict = meeting.to_dict()
                 else:
                     meeting_dict = meeting
+
+                meeting_id = meeting_dict.get('id')
+                if not meeting_id:
+                    continue  # Skip meetings without ID
 
                 # Convert datetime fields to ISO strings for SQLite
                 meeting_dt = meeting_dict.get('meeting_datetime')
@@ -696,6 +699,52 @@ class SQLiteBackend:
                 elif isinstance(comment_dl, date):
                     comment_dl = comment_dl.isoformat()
 
+                # Check if meeting exists (current version)
+                cursor.execute("""
+                    SELECT title, meeting_datetime, agenda_url, minutes_url,
+                           status, location, virtual_url, video_url
+                    FROM meetings
+                    WHERE id = ? AND jurisdiction_id = ? AND valid_to IS NULL
+                """, (meeting_id, jurisdiction_id))
+                existing = cursor.fetchone()
+
+                if existing:
+                    # Compare key fields to detect changes
+                    (ex_title, ex_dt, ex_agenda, ex_minutes,
+                     ex_status, ex_location, ex_virtual, ex_video) = existing
+
+                    # Normalize datetime for comparison
+                    ex_dt_str = ex_dt if isinstance(ex_dt, str) else str(ex_dt) if ex_dt else None
+
+                    has_changes = (
+                        meeting_dict.get('title') != ex_title or
+                        meeting_dt != ex_dt_str or
+                        meeting_dict.get('agenda_url') != ex_agenda or
+                        meeting_dict.get('minutes_url') != ex_minutes or
+                        meeting_dict.get('status') != ex_status or
+                        meeting_dict.get('location') != ex_location or
+                        meeting_dict.get('virtual_url') != ex_virtual or
+                        meeting_dict.get('video_url') != ex_video
+                    )
+
+                    if not has_changes:
+                        # Update last_verified timestamp only
+                        cursor.execute("""
+                            UPDATE meetings
+                            SET last_verified = ?
+                            WHERE id = ? AND jurisdiction_id = ? AND valid_to IS NULL
+                        """, (as_of.isoformat(), meeting_id, jurisdiction_id))
+                        stored_count += 1
+                        continue
+
+                    # Close the old version (data changed)
+                    cursor.execute("""
+                        UPDATE meetings
+                        SET valid_to = ?
+                        WHERE id = ? AND jurisdiction_id = ? AND valid_to IS NULL
+                    """, (as_of.isoformat(), meeting_id, jurisdiction_id))
+
+                # Insert new version (either new meeting or updated version)
                 cursor.execute("""
                     INSERT INTO meetings (
                         id, jurisdiction_id, title, meeting_datetime,
@@ -705,7 +754,7 @@ class SQLiteBackend:
                         data_quality_score, valid_from, valid_to, full_data
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
                 """, (
-                    meeting_dict.get('id'),
+                    meeting_id,
                     jurisdiction_id,
                     meeting_dict.get('title'),
                     meeting_dt,
@@ -724,6 +773,7 @@ class SQLiteBackend:
                     as_of.isoformat(),
                     json.dumps(meeting_dict, cls=DateTimeEncoder)
                 ))
+                stored_count += 1
 
             # Update city_state timestamp
             cursor.execute("""
@@ -733,7 +783,7 @@ class SQLiteBackend:
             """, (as_of.isoformat(), datetime.now().isoformat(), jurisdiction_id))
 
             conn.commit()
-            return len(meetings)
+            return stored_count
 
         except Exception:
             conn.rollback()
