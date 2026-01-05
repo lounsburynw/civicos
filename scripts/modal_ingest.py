@@ -7,6 +7,7 @@ in parallel on Modal's serverless compute infrastructure. It orchestrates:
 - Legislation text fetch (LegiScan API)
 - Meeting discovery (ProudCity API) - supports incremental fetch
 - Issue fetch (SeeClickFix API) - supports incremental fetch
+- Chunk extraction (PDF parsing) - downloads agenda PDFs and extracts text chunks
 - Vector indexing (fastembed embeddings)
 
 Architecture:
@@ -16,11 +17,12 @@ Architecture:
         ├── fetch_legislation()     → Postgres
         ├── fetch_meetings()        → Postgres (incremental)
         ├── fetch_issues()          → Postgres (incremental)
+        ├── extract_chunks()        → Postgres (incremental, after meetings)
         └── index_vectors()         → pgvector
 
     Scheduled refreshes (via modal deploy):
         scheduled_low_velocity_refresh()  # Weekly: municipal code, legislation
-        scheduled_high_velocity_refresh() # Daily: meetings, issues, vectors
+        scheduled_high_velocity_refresh() # Daily: meetings, issues, chunks, vectors
 
 Setup:
     1. Install Modal CLI: pip install modal
@@ -93,9 +95,10 @@ civic_image = (
         "fastembed>=0.3.0",  # For embeddings
         "numpy<2",  # fastembed compatibility
         "langgraph>=0.2.0",
+        "pymupdf>=1.24.0",  # For PDF parsing (chunk extraction)
     )
     # Add local civic packages
-    .add_local_python_source("civic", "civic_extraction", "civic_services")
+    .add_local_python_source("civic", "civic_config", "civic_extraction", "civic_services")
 )
 
 
@@ -684,6 +687,104 @@ def fetch_issues(
 
 
 # =============================================================================
+# Chunk Extraction (PDF Processing)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=8192,  # 8GB for PDF processing
+    timeout=3600,  # 1 hour (PDFs can be slow)
+    retries=modal.Retries(max_retries=1, backoff_coefficient=2.0, initial_delay=30.0),
+)
+def extract_chunks(
+    jurisdiction: str = "city-san-rafael",
+    limit: int = 0,
+    dry_run: bool = False,
+) -> dict:
+    """Extract text chunks from meeting agenda PDFs.
+
+    This function:
+    1. Reads meetings from Postgres that have agenda_url
+    2. Checks which meetings haven't been chunked yet (incremental)
+    3. Downloads PDFs, parses them, and stores chunks to Postgres
+
+    Args:
+        jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
+        limit: Maximum meetings to process (0 = no limit)
+        dry_run: If True, show what would be processed without extracting
+    """
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civic_extraction.cli.chunks import run_chunk_extraction
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    logger.info(f"[CHUNKS] Starting extraction: jurisdiction={jurisdiction}, limit={limit}")
+
+    # run_chunk_extraction handles:
+    # - Reading meetings from Postgres (cloud mode via DATABASE_URL)
+    # - Incremental extraction (skips already-chunked meetings)
+    # - PDF download, parsing, and storage
+    # - Checkpointing for resumption
+    results = run_chunk_extraction(
+        jurisdiction_id=jurisdiction,
+        # Local dirs not used in cloud mode, but required params
+        input_dir="data/meetings",
+        output_dir="data/chunks",
+        checkpoint_dir="data/checkpoints",
+        dry_run=dry_run,
+        limit=limit,
+        cloud=True,  # Force cloud storage mode
+    )
+
+    # Summarize results
+    if results is None:
+        # Dry run or no meetings to process
+        elapsed = time.time() - start_time
+        return {
+            "task": "chunks",
+            "jurisdiction": jurisdiction,
+            "status": "dry_run" if dry_run else "no_meetings",
+            "chunks_extracted": 0,
+            "meetings_processed": 0,
+            "elapsed_seconds": elapsed,
+            "cost_usd": 8 * elapsed * 0.000463,
+        }
+
+    # Count actual extractions
+    extracted = sum(1 for r in results if r.status == "success")
+    skipped = sum(1 for r in results if r.status == "skipped")
+    failed = sum(1 for r in results if r.status == "error")
+    total_chunks = sum(r.chunks_count for r in results if r.status == "success")
+
+    elapsed = time.time() - start_time
+    logger.info(f"[CHUNKS] Extracted {total_chunks} chunks from {extracted} meetings")
+    logger.info(f"[CHUNKS] Skipped {skipped} (already chunked), {failed} failed")
+
+    return {
+        "task": "chunks",
+        "jurisdiction": jurisdiction,
+        "meetings_processed": len(results),
+        "meetings_extracted": extracted,
+        "meetings_skipped": skipped,
+        "meetings_failed": failed,
+        "chunks_extracted": total_chunks,
+        "dry_run": dry_run,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 8 * elapsed * 0.000463,
+    }
+
+
+# =============================================================================
 # Scheduled Refreshes
 # =============================================================================
 
@@ -762,10 +863,16 @@ def scheduled_low_velocity_refresh():
     schedule=modal.Cron("0 14 * * *"),  # Daily at 2 PM UTC (6 AM Pacific)
 )
 def scheduled_high_velocity_refresh():
-    """Daily scheduled refresh for high-velocity corpora (meetings, issues).
+    """Daily scheduled refresh for high-velocity corpora (meetings, issues, chunks).
 
     Runs daily at 2 PM UTC = 6 AM Pacific.
     Incremental fetch for data that changes frequently.
+
+    Pipeline:
+        1. fetch_meetings() - Scrape new meetings from ProudCity
+        2. fetch_issues() - Fetch new issues from SeeClickFix
+        3. extract_chunks() - Download PDFs and extract text chunks (incremental)
+        4. index_vectors() - Index meetings, issues, and chunks to pgvector
     """
     import logging
     import time
@@ -806,10 +913,23 @@ def scheduled_high_velocity_refresh():
         logger.exception("Issues fetch failed")
         results["issues"] = {"status": "failed", "error": str(e)}
 
-    # Quick vector indexing for meetings and issues only
+    # Chunk extraction (incremental - skips already-chunked meetings)
     try:
-        logger.info("Indexing vectors (meetings, issues)...")
-        for corpus_type in ["meetings", "issues"]:
+        logger.info("Extracting chunks from new meetings...")
+        result = extract_chunks.local(
+            jurisdiction="city-san-rafael",
+            dry_run=False,
+        )
+        results["chunks"] = result
+        logger.info(f"  Chunks: {result.get('chunks_extracted', 0)} extracted from {result.get('meetings_extracted', 0)} meetings")
+    except Exception as e:
+        logger.exception("Chunk extraction failed")
+        results["chunks"] = {"status": "failed", "error": str(e)}
+
+    # Quick vector indexing for meetings, issues, and chunks
+    try:
+        logger.info("Indexing vectors (meetings, issues, chunks)...")
+        for corpus_type in ["meetings", "issues", "chunks"]:
             result = index_vectors.local(
                 jurisdiction="city-san-rafael",
                 corpus=corpus_type,
@@ -929,10 +1049,12 @@ def main(
     legislation: bool = False,
     meetings: bool = False,
     issues: bool = False,
+    chunks: bool = False,
     vectors: bool = False,
     jurisdiction: str = "city-san-rafael",
     legislation_jurisdiction: str = "state-CA",
     legislation_limit: int | None = None,
+    chunks_limit: int = 0,
     incremental: bool = False,
     reindex: bool = False,
     dry_run: bool = False,
@@ -950,11 +1072,16 @@ def main(
         modal run scripts/modal_ingest.py --legislation --legislation-jurisdiction state-CA
         modal run scripts/modal_ingest.py --meetings
         modal run scripts/modal_ingest.py --issues
+        modal run scripts/modal_ingest.py --chunks
         modal run scripts/modal_ingest.py --vectors
 
         # Incremental mode (only fetch since last refresh)
         modal run scripts/modal_ingest.py --meetings --incremental
         modal run scripts/modal_ingest.py --issues --incremental
+
+        # Extract chunks (incremental by default - skips already-chunked meetings)
+        modal run scripts/modal_ingest.py --chunks
+        modal run scripts/modal_ingest.py --chunks --chunks-limit 5  # Limit to 5 meetings
 
         # Combine components (skip legislation to save API quota)
         modal run scripts/modal_ingest.py --municipal --vectors
@@ -1002,10 +1129,11 @@ def main(
     run_legislation = all or legislation
     run_meetings = all or meetings
     run_issues = all or issues
+    run_chunks = all or chunks
     run_vectors = all or vectors
 
-    if not (run_municipal or run_legislation or run_meetings or run_issues or run_vectors):
-        print("No tasks specified. Use --all, --municipal, --legislation, --meetings, --issues, or --vectors")
+    if not (run_municipal or run_legislation or run_meetings or run_issues or run_chunks or run_vectors):
+        print("No tasks specified. Use --all, --municipal, --legislation, --meetings, --issues, --chunks, or --vectors")
         print("Use --stats-only to check current state")
         return
 
@@ -1021,6 +1149,8 @@ def main(
         task_list.append("meetings")
     if run_issues:
         task_list.append("issues")
+    if run_chunks:
+        task_list.append("chunks")
     if run_vectors:
         task_list.append("vectors")
     print(f"Tasks: {' '.join(task_list)}")
@@ -1032,6 +1162,8 @@ def main(
         print(f"  Meetings: {jurisdiction}" + (" (incremental)" if incremental else ""))
     if run_issues:
         print(f"  Issues: {jurisdiction}" + (" (incremental)" if incremental else ""))
+    if run_chunks:
+        print(f"  Chunks: {jurisdiction}" + (f" (limit: {chunks_limit})" if chunks_limit else " (incremental)"))
     if run_vectors:
         print(f"  Vectors: {jurisdiction}")
     print(f"Dry run: {dry_run}")
@@ -1075,8 +1207,8 @@ def main(
         )
         handles.append(("issues", handle))
 
-    # Wait for fetch tasks to complete before vectorizing
-    # (vectors should index the fresh data)
+    # Wait for fetch tasks to complete before chunks and vectors
+    # (chunks need meetings fetched, vectors need all data ready)
     fetch_results = {}
     for name, handle in handles:
         print(f"\nWaiting for {name}...")
@@ -1084,7 +1216,18 @@ def main(
         fetch_results[name] = result
         print(f"  {name}: {result.get('elapsed_seconds', 0):.1f}s, cost: ${result.get('cost_usd', 0):.4f}")
 
-    # Now run vectors (after fetches complete, so we index fresh data)
+    # Extract chunks after meetings are fetched
+    chunks_result = None
+    if run_chunks:
+        print("\nRunning chunk extraction...")
+        chunks_result = extract_chunks.remote(
+            jurisdiction=jurisdiction,
+            limit=chunks_limit,
+            dry_run=dry_run,
+        )
+        print(f"  chunks: {chunks_result.get('elapsed_seconds', 0):.1f}s, cost: ${chunks_result.get('cost_usd', 0):.4f}")
+
+    # Now run vectors (after fetches and chunks complete, so we index all data)
     vector_result = None
     if run_vectors:
         print("\nRunning vector indexing...")
@@ -1115,6 +1258,14 @@ def main(
         elif name == "issues":
             incr = " (incremental)" if result.get("incremental") else ""
             print(f"+ Issues{incr}: {result.get('issues_fetched', 0)} fetched, {result.get('issues_stored', 0)} stored")
+
+    if chunks_result:
+        cost = chunks_result.get("cost_usd", 0)
+        total_cost += cost
+        extracted = chunks_result.get("meetings_extracted", 0)
+        skipped = chunks_result.get("meetings_skipped", 0)
+        total_chunks = chunks_result.get("chunks_extracted", 0)
+        print(f"+ Chunks: {total_chunks} chunks from {extracted} meetings, {skipped} skipped (already chunked)")
 
     if vector_result:
         cost = vector_result.get("cost_usd", 0)
