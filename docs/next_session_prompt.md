@@ -1,86 +1,79 @@
-# Recommended: corpus_type_registry
+# Recommended: decision_extraction_diagnosis
 
 **Priority:** P0
-**Area:** data_architecture > vector_sql_linkage
+**Area:** data_integrity > pipeline_completeness
 **Date:** 2026-01-04
 
-> This is recommended context from Session 467. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 468. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 467 completed `scheduled_data_tests` - the weekly CI workflow for slow/heavy tests. The test infrastructure is now complete with both main CI (push/PR) and scheduled data tests (weekly).
+Session 468 completed `corpus_type_registry` and diagnosed a data staleness issue:
+- **Meetings**: 97 in SQL (through Jan 6, 2026) - current
+- **Decisions**: 44 in SQL (through Dec 15, 2025) - **3 weeks stale**
+- The automated pipeline (`modal_ingest.py`) handles meetings/issues but NOT decision extraction
 
-**Current state:**
-- Main CI (`tests.yml`) runs smoke + full suite on push/PR (~15 min)
-- Data tests (`data-tests.yml`) runs `@pytest.mark.slow` weekly (Sundays 6am UTC)
-- 285 slow tests: load testing, e2e verification, rollback, extraction failures, seed ops
+This is blocking because users querying "what happened" will get stale results.
 
 ## Recommended Task
 
-Create a CorpusType registry with metadata for each corpus type:
+Diagnose why decision extraction stopped at Dec 15:
 
-1. **Current state in `packages/civic/src/civic/rag/search.py`:**
-   ```python
-   CORPUS_TYPES = frozenset({"decision", "issue", "chunk", "transcript", "municipal_code", "meeting"})
-   ```
-   This is just a set of strings with no metadata.
+1. **Understand current decision extraction process**
+   - How are decisions currently extracted? (manual script? automated?)
+   - What triggers decision extraction?
+   - Is it dependent on meeting minutes PDFs?
 
-2. **Goal: Add CorpusTypeRegistry with metadata:**
-   ```python
-   @dataclass
-   class CorpusTypeInfo:
-       name: str
-       source_table: str | None  # SQL table name, e.g., "decisions"
-       vector_collection: str  # pgvector collection name
-       has_sql_source: bool  # True if backed by SQL table
-       description: str
-       icon: str | None = None  # For UI (optional)
+2. **Identify the gap**
+   - Are meeting minutes available for Dec 16 - Jan 6?
+   - Is there an extraction script that needs to be run?
+   - Is there a broken automation?
 
-   CORPUS_REGISTRY = {
-       "decision": CorpusTypeInfo(
-           name="decision",
-           source_table="decisions",
-           vector_collection="decisions",
-           has_sql_source=True,
-           description="City council decisions and votes"
-       ),
-       "issue": CorpusTypeInfo(...),
-       # etc.
-   }
-   ```
-
-3. **Benefits:**
-   - ERD diagram can dynamically show which corpora have SQL backing
-   - Unified search knows which corpora support SQL joins
-   - Admin API can list all corpus types with metadata
-   - Adding new corpus types is self-documenting
+3. **Document the path forward**
+   - Manual catch-up steps
+   - What's needed to automate (P1 task: `automated_decision_extraction`)
 
 ## Key Files
 
-- `packages/civic/src/civic/rag/search.py:42` - Current CORPUS_TYPES frozenset
-- `packages/civic/src/civic/rag/unified_search.py` - Uses CORPUS_TYPES
-- `apps/civic-workspace/src/components/ERDDiagram.vue` - Renders corpus types
-- `packages/civic/src/civic/storage/postgres_backend.py` - SQL tables for corpora
+- `scripts/modal_ingest.py` - Automated ingestion (meetings/issues, NOT decisions)
+- `packages/civic-extraction/src/civic_extraction/extractors/` - Extraction logic
+- `.github/workflows/vector-refresh.yml` - Weekly vector indexing
+- `pilot.json:1784-1810` - Pipeline completeness tasks
 
-## Tests to Run
+## Diagnostic Commands
 
 ```bash
-# Check current CORPUS_TYPES usage
-grep -r "CORPUS_TYPES" packages/civic/src/
+# Check what modal_ingest.py supports
+grep -n "decision" scripts/modal_ingest.py
 
-# Run RAG tests after changes
-pytest packages/civic/tests/test_integration_rag_san_rafael.py -v --override-ini="addopts="
+# Find decision extraction scripts
+find scripts -name "*decision*" -o -name "*extract*" | head -20
+
+# Check extraction package for decision extractor
+ls -la packages/civic-extraction/src/civic_extraction/extractors/
+
+# Query Supabase for decision dates
+source civic-env/bin/activate
+DATABASE_URL=$(grep "^DATABASE_URL=" .env | cut -d'=' -f2-) python3 -c "
+import os, psycopg2
+conn = psycopg2.connect(os.environ['DATABASE_URL'])
+cur = conn.cursor()
+cur.execute('SELECT meeting_date, COUNT(*) FROM decisions GROUP BY meeting_date ORDER BY meeting_date DESC LIMIT 10')
+for row in cur.fetchall(): print(row)
+"
 ```
 
 ## Success Criteria
 
-- [ ] CorpusTypeInfo dataclass defined with metadata fields
-- [ ] CORPUS_REGISTRY dict mapping corpus name to CorpusTypeInfo
-- [ ] Backward-compatible: CORPUS_TYPES frozenset still works
-- [ ] API endpoint to list corpus types (if time permits)
-- [ ] Tests verify registry metadata is correct
+- [ ] Documented how decisions are currently extracted
+- [ ] Identified why extraction stopped at Dec 15
+- [ ] Listed meetings between Dec 16 - Jan 6 that need decision extraction
+- [ ] Created clear path forward (manual steps + automation requirements)
+- [ ] Updated `decision_extraction_diagnosis` to ready in pilot.json
 
-## Dependencies
+## Related Tasks (Do NOT work on these yet)
 
-- No external dependencies
-- Should be a self-contained refactor
+These depend on this diagnosis:
+- `automated_decision_extraction` (P1) - Add to Modal pipeline
+- `vector_sql_sync_verification` (P1) - Fix vector-SQL mismatches
+- `data_freshness_alerting` (P2) - Add monitoring
