@@ -10239,3 +10239,41 @@ Added new pilot.json items:
 - `automated_chunk_extraction` (P1)
 
 Updated P0 scope to cover full pipeline diagnosis.
+
+## Session 469 - 2026-01-04
+
+### P0: decision_extraction_diagnosis
+
+**Objective**: Diagnose full pipeline completeness issue (duplicates, chunks, decisions)
+
+### Findings
+
+1. **Meeting "Duplicates" - MISDIAGNOSIS CORRECTED**
+   - 97 rows from temporal versioning, NOT duplicates
+   - 46 unique meeting IDs with version history
+   - Only 1 "current" meeting (valid_to IS NULL)
+   - Temporal versioning design: `store_meetings()` closes ALL meetings, inserts only current scrape window
+   - **Not a bug** - but historical meetings require valid_to queries
+
+2. **Chunk Extraction Gap - ROOT CAUSE**
+   - 5,084 chunks exist (extracted Dec 28-29)
+   - Most recent meeting_ids in chunks: October 2025
+   - `civic-extract chunks --cloud` is NOT in `modal_ingest.py`
+   - **Fix**: Add to `scheduled_high_velocity_refresh`
+
+3. **Decision Extraction Gap - ROOT CAUSE**
+   - 44 decisions (Oct 1 - Dec 15, 2025)
+   - `batch_extract_decisions.py` is a manual script
+   - **Fix**: Add to weekly schedule (minutes PDFs lag meetings)
+
+### Changes
+
+- pilot.json: `decision_extraction_diagnosis` marked **ready**
+- pilot.json: Added `temporal_versioning_review` P2 item
+- pilot.json: Updated notes on `automated_chunk_extraction`, `automated_decision_extraction`
+- pilot.json: Fixed `vector_sql_sync_verification` dependency and clarified mismatch
+
+### Next Actions (P1)
+1. `automated_chunk_extraction` - Add to Modal pipeline
+2. `automated_decision_extraction` - Add to weekly schedule
+3. `vector_sql_sync_verification` - Investigate issues mismatch (1430 vs 1630)
