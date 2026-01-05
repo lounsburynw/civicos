@@ -141,18 +141,23 @@ class StorageBackend(Protocol):
         as_of: Optional[datetime] = None,
     ) -> int:
         """
-        Store meetings with temporal versioning.
+        Store meetings with temporal versioning (upsert pattern).
 
-        Atomic operation: either all meetings are stored or none.
-        Updates existing meetings if IDs match, inserts new ones.
+        Uses upsert semantics: for each meeting in the input list:
+        - If meeting.id exists and data unchanged: update last_verified timestamp
+        - If meeting.id exists and data changed: close old version, insert new
+        - If meeting.id is new: insert as new record
+        - If meeting lacks id: skip (not counted in return value)
+
+        Meetings NOT in the input list are preserved (not closed).
 
         Args:
             jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
-            meetings: List of normalized Meeting objects
+            meetings: List of normalized Meeting objects or dicts with 'id' field
             as_of: Timestamp for temporal versioning (default: now)
 
         Returns:
-            Number of meetings successfully stored
+            Number of meetings successfully stored or updated (excludes skipped)
 
         Raises:
             StorageError: If atomic store operation fails
