@@ -1,82 +1,68 @@
-# Recommended: automated_chunk_extraction
+# Recommended: automated_decision_extraction
 
 **Priority:** P0
 **Area:** data_integrity > pipeline_completeness
 **Date:** 2026-01-04
 
-> This is recommended context from Session 469. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 470. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 469 completed the pipeline diagnosis. Key findings:
-- Meeting "duplicates" were actually temporal versioning (not a bug)
-- **Chunk extraction is NOT automated** - `civic-extract chunks --cloud` is not in `modal_ingest.py`
-- Decision extraction is also manual (`batch_extract_decisions.py`)
+Session 470 completed automated chunk extraction. The pipeline now runs:
+1. `fetch_meetings()` - Scrape meetings from ProudCity
+2. `fetch_issues()` - Fetch issues from SeeClickFix
+3. `extract_chunks()` - **NEW** Download PDFs, extract text chunks (incremental)
+4. `index_vectors()` - Index meetings, issues, chunks to pgvector
 
-This session should add chunk extraction to the Modal automated pipeline.
+Decision extraction is still manual (`batch_extract_decisions.py`). This session should add it to the Modal pipeline.
 
 ## Recommended Task
 
-Add chunk extraction to `scheduled_high_velocity_refresh` in `scripts/modal_ingest.py`.
+Add decision extraction to `scheduled_low_velocity_refresh` in `scripts/modal_ingest.py`.
 
-### Current Pipeline Flow
-```
-scheduled_high_velocity_refresh()  # Daily at 2 PM UTC
-  ├── fetch_meetings()     → Scrapes meetings from ProudCity
-  ├── fetch_issues()       → Scrapes issues from SeeClickFix
-  └── index_vectors()      → Indexes meetings, issues to pgvector
-```
+**Why weekly (not daily)?** Minutes PDFs lag meetings by weeks. Daily extraction would find nothing new most days.
 
-### Target Pipeline Flow
-```
-scheduled_high_velocity_refresh()
-  ├── fetch_meetings()
-  ├── fetch_issues()
-  ├── extract_chunks()     → NEW: Download PDFs, chunk, store
-  └── index_vectors()      → Indexes all including new chunks
-```
+### Key Files
 
-## Key Files
-
-- `scripts/modal_ingest.py:764-832` - `scheduled_high_velocity_refresh()` function
-- `packages/civic-extraction/src/civic_extraction/cli/chunks.py` - Chunk extraction CLI
-- `packages/civic-extraction/src/civic_extraction/cli/chunks.py:897-916` - `store_chunks_to_cloud()`
-- `packages/civic/src/civic/storage/postgres_backend.py:2159-2250` - `store_chunks()` method
+- `scripts/modal_ingest.py:788-854` - `scheduled_low_velocity_refresh()` function
+- `scripts/batch_extract_decisions.py` - Current manual extraction script
+- `packages/civic-extraction/src/civic_extraction/cli/decisions.py` - Decision extraction CLI (if exists)
+- `packages/civic/src/civic/storage/postgres_backend.py` - `store_decisions()` method
 
 ## Suggested Approach
 
-1. **Review existing chunk extraction CLI:**
+1. **Review existing decision extraction:**
    ```bash
-   grep -n "def.*extract\|def.*store" packages/civic-extraction/src/civic_extraction/cli/chunks.py | head -20
+   grep -rn "extract.*decision\|store_decisions" packages/ scripts/
    ```
 
-2. **Create new Modal function `extract_chunks()`:**
-   - Read meetings from Postgres (with agenda_url)
-   - Download PDFs that haven't been chunked yet
-   - Parse PDFs and extract chunks
-   - Store chunks via `store_chunks()`
+2. **Understand the extraction flow:**
+   - Decisions are extracted from meeting **minutes** PDFs (not agendas)
+   - Minutes are published weeks after meetings
+   - Extraction uses regex patterns + optional LLM QA
 
-3. **Add to scheduled_high_velocity_refresh:**
-   - Call after `fetch_meetings()`, before `index_vectors()`
-   - Handle errors gracefully (chunk extraction failures shouldn't block other tasks)
+3. **Create new Modal function `extract_decisions()`:**
+   - Similar pattern to `extract_chunks()`
+   - Read meetings from Postgres that have minutes_url
+   - Check which meetings haven't had decisions extracted
+   - Parse minutes PDFs, extract decisions
+   - Store via `store_decisions()`
 
-4. **Test locally:**
-   ```bash
-   modal run scripts/modal_ingest.py::extract_chunks --dry-run
-   ```
+4. **Add to `scheduled_low_velocity_refresh()`:**
+   - Runs weekly (Sunday 3 AM UTC)
+   - Good fit since minutes don't change frequently
 
 ## Implementation Notes
 
-- The CLI already has cloud support (`--cloud` flag reads from Postgres)
-- May need to refactor CLI functions to be importable (not just CLI entry points)
-- Consider incremental extraction (skip meetings already chunked)
-- PDF parsing can be slow - may need timeout handling
+- Decision extraction may not have a CLI wrapper like chunks
+- May need to import functions directly from extraction package
+- Consider: 44 decisions exist (Oct-Dec 2025), ~2 months of coverage
 
 ## Tests to Run
 
 ```bash
-# Targeted test for RAG/chunking
-pytest packages/civic/tests/test_integration_rag_san_rafael.py -v
+# Check existing decisions
+pytest packages/civic/tests/test_integration_rag_san_rafael.py -v -k "decision"
 
 # Full test suite before commit
 pytest packages/civic/tests/ -q --override-ini="addopts="
@@ -84,17 +70,16 @@ pytest packages/civic/tests/ -q --override-ini="addopts="
 
 ## Success Criteria
 
-- [ ] New `extract_chunks()` function in modal_ingest.py
-- [ ] Function added to `scheduled_high_velocity_refresh()`
-- [ ] Incremental extraction (skip already-chunked meetings)
+- [ ] New `extract_decisions()` function in modal_ingest.py
+- [ ] Function added to `scheduled_low_velocity_refresh()`
+- [ ] Incremental extraction (skip meetings with existing decisions)
 - [ ] Error handling (failures don't crash pipeline)
-- [ ] Local test passes with `--dry-run`
-- [ ] pilot.json updated: `automated_chunk_extraction` → ready
+- [ ] pilot.json updated: `automated_decision_extraction` -> ready
 
 ## Scope Boundaries
 
-**This session:** Implement chunk extraction automation only.
+**This session:** Implement decision extraction automation only.
 
-**Future P1 items (don't tackle yet):**
-- `automated_decision_extraction` - Separate weekly schedule (minutes lag)
+**Future items (don't tackle yet):**
 - `vector_sql_sync_verification` - Issues mismatch investigation
+- `temporal_versioning_review` - Meeting versioning design

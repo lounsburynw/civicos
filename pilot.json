@@ -1797,15 +1797,16 @@
         "depends_on": "decision_extraction_diagnosis"
       },
       "automated_chunk_extraction": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Add chunk extraction to Modal automated pipeline",
-        "note": "civic-extract chunks --cloud is NOT in modal_ingest.py. 5,084 chunks exist through Oct 2025 meetings. FIX: Add to scheduled_high_velocity_refresh after fetch_meetings. Implementation: call civic_extraction.cli.chunks functions or add new Modal function. May need to handle PDF download, chunking, and store_chunks() in sequence.",
+        "note": "Session 470: Added extract_chunks() function to modal_ingest.py. Uses run_chunk_extraction from civic_extraction.cli.chunks. Incremental by default (skips already-chunked meetings). Added to scheduled_high_velocity_refresh after issues, before vectors. CLI: modal run scripts/modal_ingest.py --chunks [--chunks-limit N] [--dry-run]. PyMuPDF added to Modal image for PDF parsing.",
+        "completed": "2026-01-04",
         "depends_on": "decision_extraction_diagnosis"
       },
       "automated_decision_extraction": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Add decision extraction to Modal automated pipeline",
         "note": "batch_extract_decisions.py is manual. 44 decisions exist (Oct-Dec 2025). FIX: Add to weekly schedule (not daily - minutes PDFs lag meetings). Implementation: requires meeting minutes PDF → regex extraction → optional LLM QA → store_decisions(). Lower priority than chunks since decisions depend on minutes which take weeks to publish.",
         "depends_on": "decision_extraction_diagnosis"

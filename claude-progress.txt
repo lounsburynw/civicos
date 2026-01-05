@@ -1,3 +1,51 @@
+## Session 470: automated_chunk_extraction - Modal Pipeline Integration
+
+**Date:** 2026-01-04
+**Item:** automated_chunk_extraction (data_integrity > pipeline_completeness)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+
+Added chunk extraction to the Modal automated pipeline. Previously, chunk extraction was manual (`civic-extract chunks --cloud`). Now it's integrated into `scheduled_high_velocity_refresh()` and available via CLI.
+
+### Implementation
+
+1. **Added `extract_chunks()` function to `modal_ingest.py:691-782`:**
+   - Wraps `run_chunk_extraction()` from civic_extraction.cli.chunks
+   - Reads meetings from Postgres, downloads PDFs, extracts text chunks
+   - Incremental by default (skips already-chunked meetings via `chunks_exist_in_cloud()`)
+   - 8GB memory, 1 hour timeout for PDF processing
+   - Error handling with single retry
+
+2. **Added to `scheduled_high_velocity_refresh()` pipeline:**
+   - Runs after `fetch_issues()`, before `index_vectors()`
+   - Includes "chunks" in vector indexing list
+
+3. **Added CLI support:**
+   - `--chunks` flag for standalone chunk extraction
+   - `--chunks-limit N` to limit number of meetings processed
+   - Included in `--all` umbrella flag
+
+4. **Dependencies added to Modal image:**
+   - `pymupdf>=1.24.0` for PDF parsing
+   - `civic_config` package for jurisdiction configuration
+
+### Changes
+
+- `scripts/modal_ingest.py`: New extract_chunks function, updated scheduled pipeline, CLI support
+- `pilot.json`: `automated_chunk_extraction` marked **ready**, `automated_decision_extraction` set as P0
+
+### Testing
+
+- `modal run scripts/modal_ingest.py --chunks --dry-run --chunks-limit 2`: Successfully showed 1 meeting to process
+- Syntax check passed
+
+### Next Session (P0)
+
+`automated_decision_extraction` - Add decision extraction to Modal pipeline (weekly schedule since minutes lag meetings)
+
+---
+
 ## Session 467: scheduled_data_tests - Weekly CI for Slow Tests
 
 **Date:** 2026-01-04
