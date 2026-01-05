@@ -10227,3 +10227,15 @@ Diagnosed PostgreSQL data status:
 ### Status
 - `corpus_type_registry` marked **ready** (260/293 items, 89%)
 - P0 set to `decision_extraction_diagnosis`
+
+### Additional Findings (same session)
+Deeper analysis revealed broader pipeline issues:
+- **Meeting duplicates**: 17 meeting types duplicated 3-9x (ingestion bug)
+- **Chunks stale**: Stop at Dec 17 (not just decisions)
+- **Root cause**: modal_ingest.py not deduplicating, not triggering chunk/decision extraction
+
+Added new pilot.json items:
+- `meeting_deduplication_fix` (P1)
+- `automated_chunk_extraction` (P1)
+
+Updated P0 scope to cover full pipeline diagnosis.

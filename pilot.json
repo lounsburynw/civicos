@@ -1785,8 +1785,22 @@
       "decision_extraction_diagnosis": {
         "status": "not_ready",
         "priority": 0,
-        "artifact": "Diagnose why decision extraction stopped at Dec 15 despite meetings through Jan 6",
-        "note": "Session 468 found: 97 meetings in SQL but only 44 decisions (through Dec 15). Automated pipeline (modal_ingest.py) handles meetings/issues but NOT decision extraction. Need to understand: 1) Current decision extraction process, 2) Why it's not automated, 3) Manual vs automated path forward."
+        "artifact": "Diagnose full pipeline completeness: duplicates, chunks, decisions",
+        "note": "Session 468 found broader issues: 1) Meeting duplicates (17 types duplicated 3-9x - ingestion bug), 2) Chunks stale (stop Dec 17), 3) Decisions stale (stop Dec 15). Root cause: modal_ingest.py not deduplicating, not triggering chunk/decision extraction. Diagnose all three, create fix plan."
+      },
+      "meeting_deduplication_fix": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Fix meeting deduplication in ingestion pipeline and clean up existing duplicates",
+        "note": "Session 468 found 17 meeting types duplicated 3-9x each (97 rows but ~46 unique). Need: 1) SQL cleanup script, 2) Fix store_meetings() to upsert by source_url or meeting_id+datetime, 3) Prevent future duplicates.",
+        "depends_on": "decision_extraction_diagnosis"
+      },
+      "automated_chunk_extraction": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Add chunk extraction to Modal automated pipeline",
+        "note": "Chunks stop at Dec 17 but meetings exist through Jan 6. After meetings ingested, trigger agenda PDF download + chunking. Integrate with scheduled_high_velocity_refresh.",
+        "depends_on": "decision_extraction_diagnosis"
       },
       "automated_decision_extraction": {
         "status": "not_ready",
@@ -1799,7 +1813,8 @@
         "status": "not_ready",
         "priority": 1,
         "artifact": "Add verification step to vector-refresh.yml ensuring vector count matches SQL count",
-        "note": "Session 468 found mismatches: issues (1430 vectors vs 1630 SQL), meetings (46 vectors vs 97 SQL). Add post-refresh validation that alerts on >5% discrepancy. May need to investigate why some records aren't being indexed."
+        "note": "Session 468 found mismatches: issues (1430 vectors vs 1630 SQL), meetings (46 vectors vs 97 SQL). Add post-refresh validation that alerts on >5% discrepancy. May need to investigate why some records aren't being indexed.",
+        "depends_on": "meeting_deduplication_fix"
       },
       "data_freshness_alerting": {
         "status": "not_ready",
