@@ -3,7 +3,7 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2026-01-03",
+  "last_updated": "2026-01-04",
   "category_order": [
     "test_infrastructure",
     "data_architecture",
@@ -1783,38 +1783,39 @@
     },
     "pipeline_completeness": {
       "decision_extraction_diagnosis": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Diagnose full pipeline completeness: duplicates, chunks, decisions",
-        "note": "Session 468 found broader issues: 1) Meeting duplicates (17 types duplicated 3-9x - ingestion bug), 2) Chunks stale (stop Dec 17), 3) Decisions stale (stop Dec 15). Root cause: modal_ingest.py not deduplicating, not triggering chunk/decision extraction. Diagnose all three, create fix plan."
+        "completed": "2026-01-04",
+        "note": "Session 469 diagnosis complete. FINDINGS: 1) Meeting 'duplicates' were temporal versioning (97 rows = 46 unique IDs with history, 1 current). Not a bug but design issue - store_meetings() closes ALL meetings then inserts scrape window only. Historical meetings become valid_to != NULL. 2) Chunks stale because civic-extract chunks --cloud is NOT in modal_ingest.py. 3) Decisions stale because batch_extract_decisions.py is manual. FIX PLAN: Add chunks to scheduled_high_velocity_refresh, add decisions to weekly schedule (requires minutes PDFs which lag)."
       },
-      "meeting_deduplication_fix": {
+      "temporal_versioning_review": {
         "status": "not_ready",
-        "priority": 1,
-        "artifact": "Fix meeting deduplication in ingestion pipeline and clean up existing duplicates",
-        "note": "Session 468 found 17 meeting types duplicated 3-9x each (97 rows but ~46 unique). Need: 1) SQL cleanup script, 2) Fix store_meetings() to upsert by source_url or meeting_id+datetime, 3) Prevent future duplicates.",
+        "priority": 2,
+        "artifact": "Review temporal versioning design for meetings/chunks - may need to preserve historical data differently",
+        "note": "Current store_meetings() closes ALL existing records then inserts current scrape window. This means older meetings are only accessible via valid_to queries. Consider: 1) Keep historical meetings valid, only close/update if changed, 2) Add meeting_id + source_url as natural key for proper upsert. Low priority - current design works but could be improved.",
         "depends_on": "decision_extraction_diagnosis"
       },
       "automated_chunk_extraction": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Add chunk extraction to Modal automated pipeline",
-        "note": "Chunks stop at Dec 17 but meetings exist through Jan 6. After meetings ingested, trigger agenda PDF download + chunking. Integrate with scheduled_high_velocity_refresh.",
+        "note": "civic-extract chunks --cloud is NOT in modal_ingest.py. 5,084 chunks exist through Oct 2025 meetings. FIX: Add to scheduled_high_velocity_refresh after fetch_meetings. Implementation: call civic_extraction.cli.chunks functions or add new Modal function. May need to handle PDF download, chunking, and store_chunks() in sequence.",
         "depends_on": "decision_extraction_diagnosis"
       },
       "automated_decision_extraction": {
         "status": "not_ready",
         "priority": 1,
         "artifact": "Add decision extraction to Modal automated pipeline",
-        "note": "After meetings ingested, extract decisions from meeting minutes. Integrate with scheduled_high_velocity_refresh or create separate schedule. Decision extraction requires: meeting minutes PDF → LLM extraction → store in decisions table.",
+        "note": "batch_extract_decisions.py is manual. 44 decisions exist (Oct-Dec 2025). FIX: Add to weekly schedule (not daily - minutes PDFs lag meetings). Implementation: requires meeting minutes PDF → regex extraction → optional LLM QA → store_decisions(). Lower priority than chunks since decisions depend on minutes which take weeks to publish.",
         "depends_on": "decision_extraction_diagnosis"
       },
       "vector_sql_sync_verification": {
         "status": "not_ready",
         "priority": 1,
         "artifact": "Add verification step to vector-refresh.yml ensuring vector count matches SQL count",
-        "note": "Session 468 found mismatches: issues (1430 vectors vs 1630 SQL), meetings (46 vectors vs 97 SQL). Add post-refresh validation that alerts on >5% discrepancy. May need to investigate why some records aren't being indexed.",
-        "depends_on": "meeting_deduplication_fix"
+        "note": "Session 469 clarification: meetings mismatch (46 vectors vs 97 SQL) is expected - SQL includes historical versions, vectors only current. Issues mismatch (1430 vectors vs 1630 SQL) still needs investigation. Add post-refresh validation that compares vectors to SQL rows with valid_to IS NULL.",
+        "depends_on": "decision_extraction_diagnosis"
       },
       "data_freshness_alerting": {
         "status": "not_ready",
