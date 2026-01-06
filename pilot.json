@@ -1750,7 +1750,7 @@
     "source_provenance": {
       "audio_hash_storage": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Store SHA-256 of source audio file with each transcript",
         "note": "Ultimate provenance: transcript can be verified against original audio."
       },
@@ -1836,11 +1836,12 @@
         "completed": "2026-01-05"
       },
       "whats_next_postgres_migration": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Migrate whats_next() from StateManager SQLite to PostgresBackend for cloud data",
-        "note": "Session 476 stress test found: whats_next() returns empty despite 46 meetings and 121 agenda items in Postgres. Root cause: Civic.whats_next() reads from StateManager (local SQLite) instead of PostgresBackend. Also: 121 agenda items exist but 0 marked is_actionable=True. Need to update Civic class to use cloud storage for upcoming meetings/agenda items.",
-        "depends_on": "automated_agenda_extraction"
+        "note": "Session 477: COMPLETE. Updated Civic.whats_next() to use self._storage (PostgresBackend when DATABASE_URL set) instead of StateManager. Now correctly fetches meetings with date filters and agenda items via get_agenda_items(meeting_id=...). Returns 0 meetings currently because latest DB meeting is Jan 6 2026 (cancelled). The is_actionable flag remains NULL for all 121 items - extraction doesn't set it yet (separate issue). 39 smoke tests pass.",
+        "depends_on": "automated_agenda_extraction",
+        "completed": "2026-01-06"
       }
     },
     "architectural_debt": {
