@@ -10807,3 +10807,59 @@ PDF URL → download_and_validate_pdf() → pdf_bytes
 **Tests:** 56/56 integrity tests pass, 39/39 smoke tests pass
 
 **Next P0:** extraction_versioning (track which extractor version produced each record)
+
+---
+
+## Session 484: extraction_versioning - Track Extractor Versions
+
+**Date:** 2026-01-06
+**Item:** extraction_versioning (data_integrity > source_provenance)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+Implemented extraction version tracking to record which version of the civic-extraction package produced each record. This enables selective re-extraction when extractors improve.
+
+### Implementation
+
+1. **Updated Meeting dataclass** (`base.py:310-328`):
+   - Added `extraction_version: Optional[str] = None` field
+   - Updated `to_dict()` to include extraction_version in serialization
+
+2. **Updated Pipeline._run_ingest()** (`pipeline.py:547-558`):
+   - Imports `_get_version()` from manifest.py
+   - Injects extraction_version into each meeting after fetching
+   - Records extraction_version in stage metadata
+
+3. **Updated PostgresBackend store methods** to populate extraction_version column:
+   - `store_meetings()` (line 1391): Added extraction_version to INSERT
+   - `store_chunks()` (line 2366): Added extraction_version to INSERT
+   - `store_decisions()` (line 1971): Added extraction_version to INSERT
+   - `store_transcripts()` (line 2749): Added extraction_version to INSERT
+   - `store_issues()` (line 3234): Added extraction_version to INSERT
+   - `store_municipal_code()` (line 2975): Added extraction_version to INSERT
+
+4. **Added 5 tests** (`test_postgres_backend.py:384-519`):
+   - TestExtractionVersioning class
+   - Tests for meetings, chunks, decisions, issues with/without extraction_version
+   - Tests skip when PostgreSQL not available (run in CI)
+
+### Schema
+Columns already existed from migration 015_data_integrity.sql:
+- transcripts.extraction_version
+- chunks.extraction_version
+- decisions.extraction_version
+- meetings.extraction_version
+- issues.extraction_version
+- municipal_code.extraction_version
+
+### Data Flow
+```
+civic-extraction:_get_version() → "0.1.0"
+Pipeline._run_ingest() → meetings[i].extraction_version = version
+Pipeline._run_store() → storage_target.store_meetings(meetings)
+PostgresBackend.store_meetings() → INSERT ... extraction_version = %s
+```
+
+**Tests:** 39/39 smoke tests pass, 5 extraction versioning tests added (skip locally, run in CI)
+
+**Next P0:** chatgpt_gpt (Custom GPT 'Civic San Rafael' in ChatGPT GPT store)

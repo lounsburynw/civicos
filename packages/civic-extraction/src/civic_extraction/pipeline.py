@@ -45,7 +45,7 @@ from typing import (
 import time
 
 from civic_extraction.meeting_schema import MeetingValidator, BatchValidationResult
-from civic_extraction.manifest import IngestionManifest, save_manifest as _save_manifest
+from civic_extraction.manifest import IngestionManifest, save_manifest as _save_manifest, _get_version
 
 logger = logging.getLogger(__name__)
 
@@ -544,11 +544,18 @@ class Pipeline:
                 status.metadata["resumed_from"] = resume_from.to_dict()
                 status.metadata["skipped_count"] = skipped_count
 
+            # Inject extraction version into each meeting for provenance tracking
+            extraction_version = _get_version()
+            for meeting in meetings:
+                if hasattr(meeting, "extraction_version"):
+                    meeting.extraction_version = extraction_version
+
             self._ingested_meetings = meetings
             status.items_found = total_found
             status.items_processed = len(meetings)
             status.state = StageState.COMPLETED
             status.progress_percent = 100.0
+            status.metadata["extraction_version"] = extraction_version
 
             # Report progress if callback provided
             if on_stage_progress and len(meetings) > 0:
