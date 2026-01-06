@@ -1,49 +1,84 @@
-# Recommended: vector_sql_sync_verification
+# Recommended: whats_next_postgres_migration
 
 **Priority:** P0
 **Area:** data_integrity > pipeline_completeness
 **Date:** 2026-01-05
 
-> This is recommended context from Session 475. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 476. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 475 completed `automated_decision_extraction` - added `extract_decisions()` to Modal pipeline with weekly scheduling. Decision extraction now runs automatically on Sundays alongside municipal code and legislation refresh.
+Session 476 ran a stress test on the data pipelines and found a critical issue:
+- `whats_next()` returns **empty** despite 46 meetings and 121 agenda items in Postgres
+- Root cause: `Civic.whats_next()` reads from **StateManager (local SQLite)** instead of PostgresBackend
+- Also discovered: 121 agenda items exist but **0 marked `is_actionable=True`**
 
-The vector-SQL sync verification is needed to ensure pgvector indices stay in sync with SQL data. Session 469 found mismatches (meetings: 46 vectors vs 97 SQL, issues: 1430 vectors vs 1630 SQL). The meetings mismatch is expected (SQL includes historical versions), but issues mismatch needs investigation.
+All other data pipelines verified working:
+- Meetings: 46 total, latest Jan 6, 2026
+- Decisions: 44 total, latest Dec 15, 2025
+- Issues: 1,433 (vectors synced within 1.8%)
+- Semantic search: Working with good relevance scores
+- `what_happened()`, `what_applies()`, `whos_with_me()`: All functional
 
 ## Recommended Task
 
-Add post-refresh validation to `vector-refresh.yml` GitHub Action that compares vector counts to SQL row counts (with `valid_to IS NULL` filter for temporal tables).
+Migrate `Civic.whats_next()` to use PostgresBackend for cloud storage, and investigate why no agenda items have `is_actionable=True`.
 
 ## Key Files
 
-- `.github/workflows/vector-refresh.yml` - Current vector refresh workflow
-- `packages/civic/src/civic/storage/pgvector_backend.py` - PgVectorBackend.get_stats()
-- `packages/civic/src/civic/storage/postgres_backend.py` - PostgresBackend for SQL counts
+- `packages/civic/src/civic/civic.py` - Civic class with `whats_next()` method
+- `packages/civic/src/civic/state_manager.py` - StateManager (legacy SQLite)
+- `packages/civic/src/civic/storage/postgres_backend.py` - PostgresBackend.get_agenda_items()
+- `packages/civic/src/civic/storage/backend.py:461-527` - StorageBackend protocol (agenda methods)
 
 ## Suggested Approach
 
-1. **Review current workflow:**
+1. **Understand current implementation:**
    ```bash
-   cat .github/workflows/vector-refresh.yml
+   grep -n "whats_next" packages/civic/src/civic/civic.py
+   ```
+   Find where StateManager is used vs StorageBackend
+
+2. **Update whats_next() to use PostgresBackend:**
+   - Replace StateManager calls with `get_storage_backend()`
+   - Use `backend.get_meetings()` filtered by future dates
+   - Use `backend.get_agenda_items()` for upcoming agenda items
+
+3. **Investigate is_actionable flag:**
+   ```python
+   # Check what's in the database
+   items = backend.get_agenda_items("city-san-rafael")
+   actionable = [i for i in items if i.get('is_actionable')]
+   print(f"Actionable: {len(actionable)} / {len(items)}")
+   ```
+   - May need to update extraction to set this flag
+   - Or update API query to not filter by this flag
+
+4. **Test the fix:**
+   ```python
+   from civic import Civic
+   c = Civic("san-rafael")
+   result = c.whats_next()
+   print(f"Upcoming items: {len(result)}")
    ```
 
-2. **Add verification step** that:
-   - Gets vector counts per corpus type via PgVectorBackend.get_stats()
-   - Gets SQL counts via PostgresBackend (filter by `valid_to IS NULL`)
-   - Compares and warns on mismatches (allow tolerance for timing)
-   - Fails workflow if mismatch exceeds threshold (e.g., >10%)
+## Tests to Run
 
-3. **Investigate issues mismatch:**
-   - 1430 vectors vs 1630 SQL rows
-   - May be stale vectors from deleted issues
-   - Consider reindex if significantly out of sync
+```bash
+# Smoke test
+pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
+
+# Integration test with cloud data
+TOKENIZERS_PARALLELISM=false python3 -c "
+from civic import Civic
+c = Civic('san-rafael')
+print(f'whats_next: {len(c.whats_next())} items')
+"
+```
 
 ## Success Criteria
 
-- [ ] Verification step added to vector-refresh.yml
-- [ ] Step compares vector count to SQL count (with valid_to IS NULL)
-- [ ] Threshold-based warning/failure for mismatches
-- [ ] Issues mismatch investigated and resolved (or documented as expected)
-- [ ] pilot.json updated: vector_sql_sync_verification -> ready
+- [ ] `whats_next()` returns upcoming meetings from PostgresBackend
+- [ ] `whats_next()` returns agenda items (or documents why none are actionable)
+- [ ] Works with cloud DATABASE_URL (not just local SQLite)
+- [ ] pilot.json updated: whats_next_postgres_migration -> ready
