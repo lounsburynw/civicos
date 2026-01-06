@@ -1,80 +1,83 @@
-# Recommended: chatgpt_gpt
+# Recommended: cfr_ingestion
 
 **Priority:** P0
-**Area:** pilot_validation > distribution_channels
+**Area:** pilot_validation > e2e_cloud_data_verification
 **Date:** 2026-01-06
 
 > This is recommended context from Session 484. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 484 completed `extraction_versioning` - all extracted records now track which version of civic-extraction produced them (enables selective re-extraction when extractors improve).
-
-The next P0 is `chatgpt_gpt` - creating a Custom GPT in ChatGPT's GPT store for the San Rafael pilot demo. This is the primary distribution channel for demonstrating Civic to the city clerk.
+Session 484 completed `extraction_versioning`. Priorities were reordered: data completeness before distribution. The new order is:
+1. **P0-P1:** Data gaps (CFR, case law, codified law, elections, financial configs)
+2. **P2:** Monitoring/admin tools
+3. **P3:** Social features
+4. **P4:** Distribution channels (GPT, MCP, web frontend)
 
 ## Recommended Task
 
-Create a ChatGPT Custom GPT called "Civic San Rafael" that uses Actions to call the Civic API. The GPT should answer questions about San Rafael city council meetings, decisions, and municipal code.
+Implement CFR (Code of Federal Regulations) ingestion pipeline to add federal regulatory context to the what_applies() method.
 
 ## Key Files
 
-- `packages/civic-services/src/civic_services/api/civic_api_integrated.py` - REST API server
-- `apps/civic-mcp/` - MCP server (pattern reference for tool definitions)
-- `docs/critical/MCP_INTEGRATION_STRATEGY.md` - API design guidance
-- `.env` - API keys and configuration
+- `scripts/modal_legislation.py` - Pattern for federal data ingestion
+- `scripts/modal_executive_orders.py` - Similar federal ingestion job
+- `packages/civic/src/civic/storage/postgres_backend.py` - Storage methods
+- `packages/civic-extraction/src/civic_extraction/clients/` - Extractor patterns
 
 ## Suggested Approach
 
-1. **Verify Civic API is accessible:**
-   ```bash
-   ./scripts/dev.sh api  # Start API server
-   curl http://localhost:8001/health
+1. **Research CFR API access:**
+   - eCFR API: https://www.ecfr.gov/api/
+   - GovInfo bulk data: https://www.govinfo.gov/bulkdata/CFR
+
+2. **Create CFR extractor client:**
+   ```python
+   # packages/civic-extraction/src/civic_extraction/clients/ecfr.py
+   class ECFRClient:
+       def get_titles(self, title_numbers: List[int]) -> List[CFRSection]:
+           # Title 24 (HUD), Title 40 (EPA), etc.
    ```
 
-2. **Create OpenAPI spec for GPT Actions:**
-   - Define endpoints: `/whats_next`, `/what_happened`, `/what_applies`
-   - Include authentication (API key header)
-   - Document response schemas
+3. **Create Modal job:**
+   ```python
+   # scripts/modal_cfr.py
+   @app.function()
+   def fetch_cfr(titles: List[int]) -> int:
+       # Fetch relevant CFR titles, store to Supabase
+   ```
 
-3. **Write GPT system prompt:**
-   - Focus on San Rafael city government
-   - Emphasize accuracy - cite sources, link to original documents
-   - Avoid speculation on political outcomes
-   - Direct users to web frontend for detailed analysis
+4. **Add storage method:**
+   ```python
+   # PostgresBackend.store_cfr_sections()
+   ```
 
-4. **Create Custom GPT in ChatGPT:**
-   - Go to https://chat.openai.com/gpts/editor
-   - Configure Actions with OpenAPI spec
-   - Add system prompt
-   - Set conversation starters
+5. **Wire into what_applies():**
+   Include CFR sections in regulatory stack results
 
-5. **Test thoroughly:**
-   - Ask about upcoming meetings
-   - Query past decisions on housing
-   - Check for hallucinations
-   - Verify links work
+## Data Scope (Start Small)
 
-## Dependencies
-
-Per pilot.json, this item has dependencies:
-- OpenAPI spec for Civic API endpoints
-- GPT system prompt
-- Example conversations
+Focus on titles relevant to local government:
+- Title 24: Housing and Urban Development
+- Title 40: Protection of Environment (EPA)
+- Title 49: Transportation
 
 ## Tests to Run
 
 ```bash
-# Ensure API works before creating GPT
-./scripts/dev.sh api
-curl -X POST http://localhost:8001/whats_next -H "Content-Type: application/json" -d '{"jurisdiction_id": "city-san-rafael"}'
+pytest packages/civic/tests/test_civic.py -v -k "what_applies"
 ```
 
 ## Success Criteria
 
-- [ ] Custom GPT "Civic San Rafael" created and accessible
-- [ ] GPT can answer "What's happening this week at San Rafael City Council?"
-- [ ] GPT can answer "What decisions were made about housing in the last 6 months?"
-- [ ] GPT cites sources and provides links to original documents
-- [ ] No obvious hallucinations in standard queries
-- [ ] Demo-ready for city clerk presentation
-- [ ] pilot.json updated: chatgpt_gpt -> ready
+- [ ] ECFRClient can fetch CFR sections by title
+- [ ] Modal job stores CFR sections to Supabase
+- [ ] what_applies() includes relevant CFR sections
+- [ ] pilot.json updated: cfr_ingestion -> ready
+
+## Related P1 Items (Next)
+
+After cfr_ingestion:
+- `case_law_ingestion` - Court decisions affecting local policy
+- `codified_law_vectors` - Vector embeddings for code search
+- `election_*` items - Election data integration
