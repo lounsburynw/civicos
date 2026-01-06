@@ -220,6 +220,22 @@ jobs:
             --stats \
             --test-search "housing development" || true
 
+      - name: Verify vector-SQL sync
+        id: verify
+        run: |
+          echo "=========================================="
+          echo "Vector-SQL Sync Verification"
+          echo "=========================================="
+          # Verify that vector counts match SQL row counts (with 15% threshold)
+          # This catches drift between pgvector indices and source SQL tables
+          # Uses valid_to IS NULL filter to count current versions only
+          civic-extract vectors \
+            --jurisdiction $JURISDICTION \
+            --corpus all \
+            --verify-sync \
+            --sync-threshold 0.15 \
+            --provider fastembed
+
   # Notify on failure
   notify-failure:
     name: Notify on Failure
