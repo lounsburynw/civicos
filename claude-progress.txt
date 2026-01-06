@@ -10575,3 +10575,28 @@ modal run scripts/modal_ingest.py --decisions --dry-run           # Preview
 - Found critical bug: `whats_next()` returns empty (uses StateManager SQLite, not PostgresBackend)
 - Created new P0: `whats_next_postgres_migration`
 - Demoted `audio_hash_storage` to P1
+
+## Session 477 (2026-01-06)
+
+**Item**: whats_next_postgres_migration (P0)
+**Status**: COMPLETE
+
+**Changes:**
+- Updated `Civic.whats_next()` in `packages/civic/src/civic/civic.py` to use `self._storage` (PostgresBackend/SQLiteBackend) instead of StateManager SQLite
+- Now fetches meetings with date filters via `storage.get_meetings(since=now, until=cutoff)`
+- Retrieves agenda items via `storage.get_agenda_items(meeting_id=...)`
+- Falls back to StateManager for local dev without DATABASE_URL
+- Properly handles timezone-aware datetime comparisons
+
+**Testing:**
+- 39 smoke tests pass
+- Verified with PostgresBackend using cloud DATABASE_URL
+- Returns 0 meetings currently (expected - latest DB meeting is Jan 6 2026 cancelled)
+- Simulated Dec 15 2025 returns 5 meetings correctly
+
+**Observations:**
+- All 121 agenda items have `is_actionable=None` - extraction doesn't set this flag yet
+- Database contains meetings Oct 2025 - Jan 6 2026 (46 total)
+- This is a data availability issue, not a code bug
+
+**Next P0:** audio_hash_storage (store SHA-256 of source audio with transcripts)
