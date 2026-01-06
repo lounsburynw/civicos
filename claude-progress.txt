@@ -10492,3 +10492,56 @@ Fixed protocol conformance violation flagged by Session 472's protocol critic. T
 - Fix: civic-extraction imports from civic-services (violates layer boundaries)
 - Options: 1) Move AgendaIntegrator to civic-extraction, 2) Dependency injection
 - Affects: civic-extraction/cli/agenda.py, scripts/aggregate_agenda_from_chunks.py
+
+## Session 474 (2026-01-05)
+
+### extraction_services_layer_violation (P0) - COMPLETE
+
+Fixed architecture rule: 'civic-extraction doesn't import from civic-services'
+
+**Moved to civic-extraction:**
+- processing/agenda_integration.py (AgendaIntegrator, 1400+ lines)
+- processing/retrospective_analyzer.py (RetrospectiveAnalyzer)
+- legislative/legislative_discovery.py (LegislativeDiscovery)
+- clients/legiscan.py (LegiScanClient)
+- clients/seeclickfix.py (SeeClickFixClient)
+
+**Pattern used:** Dependency injection for LLM provider
+- AgendaIntegrator/RetrospectiveAnalyzer require provider param (no fallback)
+- CLI entry points import provider from civic_services, pass to classes
+- Library code has ZERO civic_services imports
+
+**Verification:** Architecture critic passed
+
+**Next P0:** automated_decision_extraction (add decision extraction to Modal pipeline)
+
+
+---
+
+### automated_decision_extraction (P0) - COMPLETE
+
+Added decision extraction to Modal automated pipeline (`scripts/modal_ingest.py`).
+
+**Changes:**
+1. Added `extract_decisions()` function (lines 900-986) - LLM-powered extraction using `run_decision_extraction()` from `civic_extraction.cli.decisions`
+2. Added CLI args: `--decisions`, `--decisions-limit`
+3. Added to weekly schedule (`scheduled_low_velocity_refresh`) - runs Sunday 3 AM UTC
+4. Decisions NOT in `--all` flag (weekly only, not daily) because meeting minutes PDFs lag behind meetings
+
+**Pattern followed:** Same as `extract_agenda_items()` - uses existing CLI function with `cloud=True`
+
+**Why weekly, not daily:**
+- Meeting minutes PDFs are typically published 1-2 weeks after meetings
+- Running daily would waste LLM costs on meetings without available minutes
+- Placed in `scheduled_low_velocity_refresh` alongside municipal code and legislation
+
+**Verification:** `python3 -m py_compile scripts/modal_ingest.py` passes
+
+**Usage:**
+```bash
+modal run scripts/modal_ingest.py --decisions                    # All meetings
+modal run scripts/modal_ingest.py --decisions --decisions-limit 5  # Limit to 5
+modal run scripts/modal_ingest.py --decisions --dry-run           # Preview
+```
+
+**Next P0:** vector_sql_sync_verification (verify pgvector indices stay in sync with SQL data)
