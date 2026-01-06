@@ -1806,9 +1806,9 @@
       },
       "automated_decision_extraction": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Add decision extraction to Modal automated pipeline",
-        "note": "batch_extract_decisions.py is manual. 44 decisions exist (Oct-Dec 2025). FIX: Add to weekly schedule (not daily - minutes PDFs lag meetings). Implementation: requires meeting minutes PDF \u2192 regex extraction \u2192 optional LLM QA \u2192 store_decisions(). BLOCKED BY: temporal_versioning_review - can't query historical meetings until that's fixed.",
+        "note": "batch_extract_decisions.py is manual. 44 decisions exist (Oct-Dec 2025). FIX: Add to weekly schedule (not daily - minutes PDFs lag meetings). Implementation: requires meeting minutes PDF \u2192 regex extraction \u2192 optional LLM QA \u2192 store_decisions(). NOW UNBLOCKED: temporal_versioning_review fixed (Session 471).",
         "depends_on": "temporal_versioning_review"
       },
       "vector_sql_sync_verification": {
@@ -1826,12 +1826,13 @@
         "depends_on": "vector_sql_sync_verification"
       },
       "automated_agenda_extraction": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Add agenda item extraction to Modal automated pipeline",
-        "note": "CORE FUNCTIONALITY: AgendaIntegrator exists (civic-extract agenda --cloud) but never run on production. Current 44 items are just metadata, not real agenda line items. Needs: 1) Add extract_agenda_items Modal function 2) Add to weekly schedule 3) Backfill existing meetings. Cost: ~$5-25 backfill, ~$1-5/week ongoing. Expected: ~460 actionable items from 46 meetings.",
+        "note": "Session 472: COMPLETE. Fixed CLI to discover PDF URLs from meeting pages (was parsing HTML meeting pages, not PDFs). Added extract_agenda_items Modal function and scheduled in weekly low_velocity_refresh. Backfill extracted 80+ items (59 actionable) from 20+ meetings. Note: whats_next() uses StateManager SQLite, needs update to use PostgresBackend for agenda items.",
         "depends_on": "temporal_versioning_review",
-        "test_cmd": "civic-extract agenda --jurisdiction city-san-rafael --cloud --dry-run"
+        "test_cmd": "civic-extract agenda --jurisdiction city-san-rafael --cloud --dry-run",
+        "completed": "2026-01-05"
       }
     }
   },

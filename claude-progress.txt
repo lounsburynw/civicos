@@ -10418,3 +10418,39 @@ This is more fundamental than decision extraction.
 | Vector indexing | ✅ Daily | Working |
 | **Agenda items** | ❌ Not yet | **P0 NEXT** |
 | Decision extraction | ❌ Not yet | P1 |
+
+## Session 472 (2026-01-05)
+
+### Completed: automated_agenda_extraction (P0)
+
+**Problem**: `whats_next()` returned meetings but no agenda items. Only 44 generic metadata entries ("Agenda", "Agenda Packet") existed in the database - not actual agenda items like "7.1 Housing Element Update".
+
+**Root Cause**: The CLI's `extract_agenda_items_from_meeting()` was calling `parse_agenda_content(agenda_url)` with the meeting PAGE URL (HTML), not the actual PDF URL. The LLM correctly extracted what it saw - the download links on the page.
+
+**Fix** (packages/civic-extraction/src/civic_extraction/cli/agenda.py):
+1. Changed `extract_agenda_items_from_meeting()` to call `AgendaIntegrator.discover_agenda_url()` first
+2. This discovers the actual PDF URL from the meeting page
+3. Then `parse_agenda_content()` parses the PDF content correctly
+
+**Added to scripts/modal_ingest.py**:
+1. `extract_agenda_items()` function - LLM-powered agenda extraction
+2. Added to `scheduled_low_velocity_refresh` (weekly schedule)
+3. Added `--agenda` flag to main entrypoint
+
+**Results**:
+- Backfill in progress: ~80+ items from ~20+ meetings (vs 44 metadata entries before)
+- ~59 actionable items extracted
+- City Council meetings now have proper numbered items (7.a, 5.b, etc.)
+
+**Note**: `whats_next()` uses StateManager (SQLite), not PostgresBackend. Agenda items are now in Postgres but `whats_next()` won't see them until the Civic API is updated to use `_storage` for meetings+agenda items.
+
+### Files Changed:
+- packages/civic-extraction/src/civic_extraction/cli/agenda.py (PDF discovery fix)
+- scripts/modal_ingest.py (Modal function + schedule + entrypoint)
+- pilot.json (marked ready, set next P0)
+- scripts/aggregate_agenda_from_chunks.py (created but not used - chunk aggregation approach)
+
+### Next Session: automated_decision_extraction (P0)
+- Similar pattern: add Modal function for decision extraction
+- Depends on: temporal_versioning_review (now FIXED in Session 471)
+- Implementation: meeting minutes PDF → regex extraction → optional LLM QA → store_decisions()

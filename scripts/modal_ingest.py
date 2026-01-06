@@ -785,6 +785,105 @@ def extract_chunks(
 
 
 # =============================================================================
+# Agenda Items Extraction (LLM-powered)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+        modal.Secret.from_name("civic-openai"),  # For LLM extraction
+    ],
+    memory=8192,  # 8GB for LLM processing
+    timeout=7200,  # 2 hours (many meetings to process)
+    retries=modal.Retries(max_retries=1, backoff_coefficient=2.0, initial_delay=30.0),
+)
+def extract_agenda_items(
+    jurisdiction: str = "city-san-rafael",
+    limit: int = 0,
+    dry_run: bool = False,
+) -> dict:
+    """Extract actionable agenda items from meeting PDFs using LLM.
+
+    This function:
+    1. Reads meetings from Postgres that have agenda_url
+    2. Discovers actual PDF URLs from meeting pages
+    3. Downloads PDFs and extracts actionable items using LLM
+    4. Stores agenda items to Postgres
+
+    Args:
+        jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
+        limit: Maximum meetings to process (0 = no limit)
+        dry_run: If True, show what would be processed without extracting
+    """
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civic_extraction.cli.agenda import run_agenda_extraction
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    logger.info(f"[AGENDA] Starting extraction: jurisdiction={jurisdiction}, limit={limit}")
+
+    # run_agenda_extraction handles:
+    # - Reading meetings from Postgres (cloud mode via DATABASE_URL)
+    # - PDF discovery from meeting pages
+    # - LLM-powered agenda item extraction
+    # - Storing agenda items to Postgres
+    results = run_agenda_extraction(
+        jurisdiction_id=jurisdiction,
+        dry_run=dry_run,
+        limit=limit,
+        cloud=True,  # Force cloud storage mode
+    )
+
+    # Summarize results
+    if results is None:
+        elapsed = time.time() - start_time
+        return {
+            "task": "agenda_items",
+            "jurisdiction": jurisdiction,
+            "status": "dry_run" if dry_run else "no_meetings",
+            "items_extracted": 0,
+            "meetings_processed": 0,
+            "elapsed_seconds": elapsed,
+            "cost_usd": 8 * elapsed * 0.000463,
+        }
+
+    # Count actual extractions
+    extracted = sum(1 for r in results if r.status == "success")
+    skipped = sum(1 for r in results if r.status == "skipped")
+    failed = sum(1 for r in results if r.status == "error")
+    total_items = sum(r.items_count for r in results if r.status == "success")
+    actionable_items = sum(r.actionable_count for r in results if r.status == "success")
+
+    elapsed = time.time() - start_time
+    logger.info(f"[AGENDA] Extracted {total_items} items ({actionable_items} actionable) from {extracted} meetings")
+    logger.info(f"[AGENDA] Skipped {skipped} (already extracted), {failed} failed")
+
+    return {
+        "task": "agenda_items",
+        "jurisdiction": jurisdiction,
+        "meetings_processed": len(results),
+        "meetings_extracted": extracted,
+        "meetings_skipped": skipped,
+        "meetings_failed": failed,
+        "items_extracted": total_items,
+        "actionable_items": actionable_items,
+        "dry_run": dry_run,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 8 * elapsed * 0.000463,
+    }
+
+
+# =============================================================================
 # Scheduled Refreshes
 # =============================================================================
 
@@ -834,6 +933,16 @@ def scheduled_low_velocity_refresh():
     except Exception as e:
         logger.exception("CA legislation fetch failed")
         results["legislation_CA"] = {"status": "failed", "error": str(e)}
+
+    # Agenda items extraction (LLM-powered, after meetings are available)
+    try:
+        logger.info("Extracting agenda items...")
+        result = extract_agenda_items.local(jurisdiction="city-san-rafael", dry_run=False)
+        results["agenda_items"] = result
+        logger.info(f"  Agenda items: {result.get('items_extracted', 0)} items ({result.get('actionable_items', 0)} actionable)")
+    except Exception as e:
+        logger.exception("Agenda items extraction failed")
+        results["agenda_items"] = {"status": "failed", "error": str(e)}
 
     # Vector indexing (after data is refreshed)
     try:
@@ -1050,11 +1159,13 @@ def main(
     meetings: bool = False,
     issues: bool = False,
     chunks: bool = False,
+    agenda: bool = False,
     vectors: bool = False,
     jurisdiction: str = "city-san-rafael",
     legislation_jurisdiction: str = "state-CA",
     legislation_limit: int | None = None,
     chunks_limit: int = 0,
+    agenda_limit: int = 0,
     incremental: bool = False,
     reindex: bool = False,
     dry_run: bool = False,
@@ -1130,10 +1241,11 @@ def main(
     run_meetings = all or meetings
     run_issues = all or issues
     run_chunks = all or chunks
+    run_agenda = all or agenda
     run_vectors = all or vectors
 
-    if not (run_municipal or run_legislation or run_meetings or run_issues or run_chunks or run_vectors):
-        print("No tasks specified. Use --all, --municipal, --legislation, --meetings, --issues, --chunks, or --vectors")
+    if not (run_municipal or run_legislation or run_meetings or run_issues or run_chunks or run_agenda or run_vectors):
+        print("No tasks specified. Use --all, --municipal, --legislation, --meetings, --issues, --chunks, --agenda, or --vectors")
         print("Use --stats-only to check current state")
         return
 
@@ -1151,6 +1263,8 @@ def main(
         task_list.append("issues")
     if run_chunks:
         task_list.append("chunks")
+    if run_agenda:
+        task_list.append("agenda")
     if run_vectors:
         task_list.append("vectors")
     print(f"Tasks: {' '.join(task_list)}")
@@ -1164,6 +1278,8 @@ def main(
         print(f"  Issues: {jurisdiction}" + (" (incremental)" if incremental else ""))
     if run_chunks:
         print(f"  Chunks: {jurisdiction}" + (f" (limit: {chunks_limit})" if chunks_limit else " (incremental)"))
+    if run_agenda:
+        print(f"  Agenda: {jurisdiction}" + (f" (limit: {agenda_limit})" if agenda_limit else " (incremental)"))
     if run_vectors:
         print(f"  Vectors: {jurisdiction}")
     print(f"Dry run: {dry_run}")
@@ -1227,6 +1343,17 @@ def main(
         )
         print(f"  chunks: {chunks_result.get('elapsed_seconds', 0):.1f}s, cost: ${chunks_result.get('cost_usd', 0):.4f}")
 
+    # Extract agenda items after meetings are fetched
+    agenda_result = None
+    if run_agenda:
+        print("\nRunning agenda items extraction...")
+        agenda_result = extract_agenda_items.remote(
+            jurisdiction=jurisdiction,
+            limit=agenda_limit,
+            dry_run=dry_run,
+        )
+        print(f"  agenda: {agenda_result.get('elapsed_seconds', 0):.1f}s, cost: ${agenda_result.get('cost_usd', 0):.4f}")
+
     # Now run vectors (after fetches and chunks complete, so we index all data)
     vector_result = None
     if run_vectors:
@@ -1266,6 +1393,15 @@ def main(
         skipped = chunks_result.get("meetings_skipped", 0)
         total_chunks = chunks_result.get("chunks_extracted", 0)
         print(f"+ Chunks: {total_chunks} chunks from {extracted} meetings, {skipped} skipped (already chunked)")
+
+    if agenda_result:
+        cost = agenda_result.get("cost_usd", 0)
+        total_cost += cost
+        extracted = agenda_result.get("meetings_extracted", 0)
+        skipped = agenda_result.get("meetings_skipped", 0)
+        total_items = agenda_result.get("items_extracted", 0)
+        actionable = agenda_result.get("actionable_items", 0)
+        print(f"+ Agenda: {total_items} items ({actionable} actionable) from {extracted} meetings, {skipped} skipped")
 
     if vector_result:
         cost = vector_result.get("cost_usd", 0)
