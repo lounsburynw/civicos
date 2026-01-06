@@ -102,7 +102,7 @@
       },
       "eval_framework": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "Expand eval framework with F1, coverage, and bias metrics",
         "note": "Current benchmark (scripts/benchmark_api_vs_llm.py) has accuracy/precision/recall. Add: F1 score, topic coverage, freshness, source diversity, NDCG, null rate, meeting type coverage, geographic coverage, temporal bias. Session 461.",
         "test_file": "scripts/benchmark_api_vs_llm.py"
@@ -236,7 +236,7 @@
     "cloud_storage": {
       "turso_backend": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "TursoBackend implements StorageBackend protocol for cloud SQLite",
         "note": "Turso (libSQL) is SQLite-compatible with 9GB free tier. DEPRIORITIZED: Using PostgresBackend instead for cloud."
       },
@@ -614,7 +614,7 @@
       },
       "data_critic": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": ".critics/data.critic.md - ETL data quality and schema validation",
         "note": "Blocked on: stable schema, known edge cases, platform quirks cataloged. Define after pipeline automation validates patterns against real San Rafael data.",
         "blocked_by": [
@@ -858,7 +858,7 @@
       },
       "ab_test_retrieval_quality": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "Compare retrieval quality on sample queries before/after"
       },
       "vector_backend_protocol_completion": {
@@ -1124,7 +1124,7 @@
       },
       "pgvector_integration_tests": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "Integration tests running against pgvector in Supabase",
         "note": "Add @pytest.mark.requires_pgvector tests that validate vector search against production pgvector. Use GitHub Actions secrets for DATABASE_URL. Follow security best practices: separate test schema or dedicated test database, no secrets in code.",
         "depends_on": "corpus_type_registry"
@@ -1163,14 +1163,14 @@
       },
       "manual_input_fallback_schema": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "Schema for manually-curated financial mappings when automation fails",
         "note": "Some mappings (e.g., grant-to-program, CFDA enrichment) require human input. Define data/manual/*.json schema with source attribution and last_updated tracking. Prioritize automation but plan for manual fallback.",
         "pattern": "Manual input should be structured, versioned, and clearly marked as human-curated"
       },
       "marin_county_financial_config": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "Create data/extraction/marin-county.json with financial data sources",
         "note": "County-level budget context. SCO data available. Identify budget/ACFR PDF locations.",
         "depends_on": "extraction_config_financial_section"
@@ -1679,7 +1679,7 @@
       },
       "election_whats_next_integration": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "Include upcoming elections and deadlines in whats_next() results",
         "note": "whats_next() currently returns meetings only. Should also surface: upcoming elections, registration deadlines, early voting start dates, ballot measure summaries. Enables 'Registration deadline in 5 days' alongside meeting notifications.",
         "depends_on": [
@@ -1691,7 +1691,7 @@
       },
       "election_api_endpoints": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "REST endpoints for election data access from frontend",
         "note": "get_voting_record() exists on Civic class but no HTTP exposure. Add endpoints: GET /elections (list upcoming), GET /elections/{id}/contests, GET /voting-record/{official}, GET /ballot?address=... (personalized ballot preview).",
         "depends_on": [
@@ -1703,7 +1703,7 @@
       },
       "election_vector_embeddings": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "Vector embeddings for election RAG queries",
         "note": "ELECTIONS corpus type registered but not populated. Embed: election descriptions, ballot measure text, candidate statements. Enables natural language queries like 'what's on the ballot about housing?' or 'which measures affect property taxes?'.",
         "depends_on": [
@@ -1822,7 +1822,7 @@
     "source_provenance": {
       "transcript_duration_validation": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "Validate transcript duration matches YouTube video duration",
         "note": "Session 480: Found some transcripts have durations exceeding actual video length (e.g., 169 min stored vs 47 min actual for iYeihDimgxE). Causes timestamp URLs to fail when t= exceeds video length. 4/5 tested URLs worked, 1 failed (QLDoO6OvMSA&t=6742s). FIX: Query YouTube API for video duration during ingestion, compare against AssemblyAI duration, flag/reject mismatches. Likely cause: audio download grabbed playlist or concatenated streams.",
         "test_file": "packages/civic-extraction/tests/test_transcribe.py"
@@ -1857,7 +1857,7 @@
       },
       "engagement_tracking_schema": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "civic_engagement table stub for future anti-astroturf measures",
         "note": "Schema only - don't populate until coordination features built. Tracks 311 reports, meeting testimony, etc."
       }
@@ -1902,7 +1902,7 @@
       },
       "data_freshness_alerting": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "GitHub Action that alerts when data falls behind expected freshness thresholds",
         "note": "Daily check: decisions should be within 7 days of latest meeting, vectors should match SQL within 5%. Create GitHub Issue on threshold breach. Builds on existing freshness_warnings infrastructure.",
         "depends_on": "vector_sql_sync_verification"
@@ -2232,18 +2232,18 @@
     "social_features": {
       "user_identity_in_messages": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 3,
         "artifact": "Show user identity in coordination thread messages",
         "note": "Add display names or identifiers to messages in coordination threads."
       },
       "public_profiles": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 3,
         "artifact": "Public user profiles"
       },
       "notification_badges": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 3,
         "artifact": "Notification badges for new activity"
       }
     }
@@ -2311,7 +2311,7 @@
       },
       "feedback_channel": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 3,
         "check": "Way for users to report issues",
         "note": "Add feedback mechanism (GitHub link, email, or in-app form) for pilot users to report bugs"
       },
@@ -2327,7 +2327,7 @@
     "distribution_channels": {
       "chatgpt_gpt": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 4,
         "artifact": "Custom GPT 'Civic San Rafael' in ChatGPT GPT store",
         "note": "Session 481: Create ChatGPT GPT with Actions calling Civic API. Low effort if API is solid (~1 day). Use for clerk demo - more relatable than custom web app. GPT responses link back to web frontend for depth. Test thoroughly before demo to avoid hallucinations.",
         "dependencies": [
@@ -2339,13 +2339,13 @@
       },
       "mcp_server": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 4,
         "artifact": "MCP server for Claude integration",
         "note": "apps/civic-mcp/ exists but needs polish before launch. Power user / developer access. Contributor onramp - developers can query Civic from Claude while building parsers."
       },
       "web_frontend": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 4,
         "artifact": "apps/civic-workspace/ Vue frontend",
         "note": "Primary interface for general public and clerk demo. Needs polish before launch. ChatGPT/MCP drive discovery, web app provides depth."
       }
@@ -2516,13 +2516,13 @@
       },
       "cfr_ingestion": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "description": "Ingest Code of Federal Regulations (agency regulations)",
         "notes": "50 titles, ~180k pages. Source: ecfr.gov bulk XML"
       },
       "case_law_ingestion": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "description": "Ingest federal case law (judicial decisions)",
         "notes": "Sources: CourtListener API, Harvard Caselaw Access Project"
       },
@@ -2542,25 +2542,25 @@
       },
       "codified_law_vectors": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "description": "Embed 212k codified law sections to pgvector",
         "notes": "U.S. Code (50k) + CA Codes (161k) + EOs for semantic what_applies() queries. Batch with other ingested corpora after programs refresh. ~$20 one-time embedding cost."
       },
       "executive_orders_incremental_fetcher": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "description": "Add EO incremental fetcher to civic-extraction",
         "notes": "EOs have higher velocity than codified law. Federal Register API supports date filtering. Add to civic-extraction for scheduled updates like meetings/legislation."
       },
       "federal_programs_2026_refresh": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "description": "Refresh federal grant programs for FY2026",
         "notes": "Current data from Oct 2025, marked DRAFT. Update CDBG, HOME, etc. with FY2026 funding levels and deadlines."
       },
       "state_programs_refresh": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "description": "Refresh California state programs for FY25-26",
         "notes": "California fiscal year started July 1, 2025. Update state grant programs with current funding."
       }
