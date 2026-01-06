@@ -11,10 +11,12 @@ Verifies:
 import pytest
 
 from civic.storage.integrity import (
+    compute_audio_hash,
     compute_content_hash,
     compute_transcript_hash,
     compute_chunk_hash,
     compute_decision_hash,
+    verify_audio_hash,
     verify_content_hash,
 )
 
@@ -282,3 +284,80 @@ class TestVerifyContentHash:
         hash_value = compute_content_hash(original)
         modified = {"key": "different"}
         assert verify_content_hash(modified, hash_value) is False
+
+
+class TestComputeAudioHash:
+    """Tests for audio file hashing (provenance tracking)."""
+
+    def test_audio_hash_consistency(self):
+        """Same audio bytes always produce same hash."""
+        # Simulate audio file bytes (could be any binary content)
+        audio_data = b"FAKE_MP3_HEADER" + b"\x00" * 1000 + b"FAKE_AUDIO_DATA"
+        hash1 = compute_audio_hash(audio_data)
+        hash2 = compute_audio_hash(audio_data)
+        assert hash1 == hash2
+        assert len(hash1) == 64  # SHA-256 produces 64 hex characters
+
+    def test_audio_hash_sensitivity(self):
+        """Single byte change produces different hash."""
+        audio_data1 = b"AUDIO_CONTENT_V1"
+        audio_data2 = b"AUDIO_CONTENT_V2"  # Changed last byte
+        hash1 = compute_audio_hash(audio_data1)
+        hash2 = compute_audio_hash(audio_data2)
+        assert hash1 != hash2
+
+    def test_audio_hash_large_file(self):
+        """Large audio files can be hashed."""
+        # Simulate ~1MB audio file
+        audio_data = b"AUDIO_FRAME" * 100000
+        hash_result = compute_audio_hash(audio_data)
+        assert hash_result is not None
+        assert len(hash_result) == 64
+
+    def test_audio_hash_empty_returns_none(self):
+        """Empty bytes returns None."""
+        assert compute_audio_hash(b"") is None
+
+    def test_audio_hash_none_returns_none(self):
+        """None input returns None."""
+        assert compute_audio_hash(None) is None
+
+
+class TestVerifyAudioHash:
+    """Tests for audio hash verification."""
+
+    def test_verify_matching_audio_hash(self):
+        """Verification succeeds for matching audio hash."""
+        audio_data = b"ORIGINAL_AUDIO_FILE_CONTENT"
+        hash_value = compute_audio_hash(audio_data)
+        assert verify_audio_hash(audio_data, hash_value) is True
+
+    def test_verify_mismatched_audio_hash(self):
+        """Verification fails for tampered audio."""
+        audio_data = b"ORIGINAL_AUDIO_FILE_CONTENT"
+        tampered_data = b"TAMPERED_AUDIO_FILE_CONTENT"
+        hash_value = compute_audio_hash(audio_data)
+        assert verify_audio_hash(tampered_data, hash_value) is False
+
+    def test_verify_audio_case_insensitive(self):
+        """Verification is case-insensitive for hex hashes."""
+        audio_data = b"AUDIO_CONTENT"
+        hash_value = compute_audio_hash(audio_data)
+        uppercase_hash = hash_value.upper()
+        assert verify_audio_hash(audio_data, uppercase_hash) is True
+
+    def test_verify_audio_empty_hash_returns_false(self):
+        """Empty expected hash returns False."""
+        assert verify_audio_hash(b"data", "") is False
+
+    def test_verify_audio_none_hash_returns_false(self):
+        """None expected hash returns False."""
+        assert verify_audio_hash(b"data", None) is False
+
+    def test_verify_audio_empty_data_returns_false(self):
+        """Empty audio data returns False."""
+        assert verify_audio_hash(b"", "somehash") is False
+
+    def test_verify_audio_none_data_returns_false(self):
+        """None audio data returns False."""
+        assert verify_audio_hash(None, "somehash") is False
