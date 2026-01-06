@@ -1790,11 +1790,11 @@
         "note": "Session 469 diagnosis complete. FINDINGS: 1) Meeting 'duplicates' were temporal versioning (97 rows = 46 unique IDs with history, 1 current). Not a bug but design issue - store_meetings() closes ALL meetings then inserts scrape window only. Historical meetings become valid_to != NULL. 2) Chunks stale because civic-extract chunks --cloud is NOT in modal_ingest.py. 3) Decisions stale because batch_extract_decisions.py is manual. FIX PLAN: Add chunks to scheduled_high_velocity_refresh, add decisions to weekly schedule (requires minutes PDFs which lag)."
       },
       "temporal_versioning_review": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
         "artifact": "Fix temporal versioning so historical meetings remain queryable",
         "note": "BLOCKING ISSUE: store_meetings() closes ALL existing records, leaving only ~1 meeting visible to get_meetings(). Chunk/decision extraction can't process historical meetings. Fix: Change to proper upsert - only close records that actually changed, keep unchanged meetings with valid_to IS NULL. Natural key: meeting_id (from source). Current state: 97 meetings exist but only 1 is 'current'. 5,084 existing chunks still work but no new extraction possible until this is fixed.",
-        "depends_on": "decision_extraction_diagnosis"
+        "depends_on": "decision_extraction_diagnosis",
+        "notes": "Fixed in Session 471: proper upsert pattern, restored 45 meetings"
       },
       "automated_chunk_extraction": {
         "status": "ready",
@@ -1806,9 +1806,9 @@
       },
       "automated_decision_extraction": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Add decision extraction to Modal automated pipeline",
-        "note": "batch_extract_decisions.py is manual. 44 decisions exist (Oct-Dec 2025). FIX: Add to weekly schedule (not daily - minutes PDFs lag meetings). Implementation: requires meeting minutes PDF → regex extraction → optional LLM QA → store_decisions(). BLOCKED BY: temporal_versioning_review - can't query historical meetings until that's fixed.",
+        "note": "batch_extract_decisions.py is manual. 44 decisions exist (Oct-Dec 2025). FIX: Add to weekly schedule (not daily - minutes PDFs lag meetings). Implementation: requires meeting minutes PDF \u2192 regex extraction \u2192 optional LLM QA \u2192 store_decisions(). BLOCKED BY: temporal_versioning_review - can't query historical meetings until that's fixed.",
         "depends_on": "temporal_versioning_review"
       },
       "vector_sql_sync_verification": {
