@@ -11,6 +11,23 @@ cat phase.json               # Current development phase
 cat claude-progress.txt      # Where we are
 ```
 
+### Verify PostgreSQL Data (Important!)
+
+Always confirm you're using PostgreSQL with full pilot data:
+
+```bash
+source civic-env/bin/activate && python3 -c "
+from dotenv import load_dotenv; load_dotenv()
+from civic import Civic
+c = Civic('city-san-rafael')
+print(f'Backend: {type(c._storage).__name__}')
+# Quick API test
+print(f'Decisions: {len(c.what_happened(\"test\"))}')
+"
+```
+
+Expected: `Backend: PostgresBackend` and non-zero decisions. If you see `SQLiteBackend`, check `.env` for `DATABASE_URL`.
+
 ## LSP Setup (Claude Code)
 
 LSP enables faster code navigation (50ms vs 45s) and better context awareness.
@@ -264,19 +281,70 @@ Full test suite runs automatically on GitHub Actions:
 - **Use targeted tests during dev** - each pilot.json item has a `test_file` field
 - **Check CI status before merging** - full coverage runs there
 
-## Cloud Infrastructure
+## Storage Backends
 
-Production uses Supabase (free tier) + Cloudflare R2:
+**IMPORTANT:** The project has TWO storage modes. Most pilot data is in PostgreSQL, NOT SQLite.
 
-| Data Type | Backend | Service |
-|-----------|---------|---------|
-| SQL | PostgresBackend | Supabase Postgres |
-| Vectors | PgVectorBackend | Supabase pgvector |
-| Blobs | R2Backend | Cloudflare R2 |
+### Backend Selection
 
-**Local dev:** SQLite + ChromaDB (no cloud dependency)
+| Environment | Trigger | Storage | Vectors |
+|-------------|---------|---------|---------|
+| **Production** | `DATABASE_URL` set in `.env` | PostgresBackend | PgVectorBackend |
+| **Local dev** | `DATABASE_URL` not set | SQLiteBackend | ChromaDB |
 
-**Config:** `DATABASE_URL` in `.env` switches to cloud backends automatically.
+The `.env` file contains `DATABASE_URL` pointing to Supabase PostgreSQL. When set, the Civic API automatically uses PostgreSQL with full pilot data.
+
+### Verifying Your Backend
+
+```python
+from dotenv import load_dotenv
+load_dotenv()  # REQUIRED to load DATABASE_URL
+
+from civic import Civic
+c = Civic('city-san-rafael')
+print(type(c._storage).__name__)  # Should print: PostgresBackend
+```
+
+If you see `SQLiteBackend`, you forgot to load `.env` or `DATABASE_URL` is not set.
+
+### PostgreSQL Data Inventory (Production)
+
+San Rafael pilot data as of Jan 2026:
+
+| Table | Count | Description |
+|-------|-------|-------------|
+| meetings | 98 | Oct 2025 - Jan 2026 |
+| decisions | 44 | With outcomes, topics |
+| transcripts | 19 | Full meeting transcripts |
+| chunks | 5,084 | Agenda packet PDFs |
+| issues | 1,730 | SeeClickFix complaints |
+| budget_items | 58 | $180M FY25-26 |
+| municipal_code | 16,175 | San Rafael municipal code |
+| legislation | 17,719 | CA + federal bills |
+
+### Vector Embeddings (Semantic Search)
+
+| Corpus Type | Embeddings | Enables |
+|-------------|------------|---------|
+| transcripts | 4,296 | `what_was_said()`, `get_public_testimony()` |
+| chunks | 5,084 | PDF/agenda search |
+| municipal_code | 5,857 | Legal code search |
+| issues | 1,459 | `whos_with_me()` semantic matching |
+| decisions | 44 | `what_happened()` semantic search |
+| meetings | 46 | Meeting search |
+
+**Total: 16,786 embeddings for city-san-rafael**
+
+### SQLite Data (Local Dev)
+
+The `data/civic_state.db` file contains a subset of data for offline development. Do NOT rely on SQLite counts when assessing pilot readiness—always check PostgreSQL.
+
+### Cloud Services
+
+| Service | Purpose | Config |
+|---------|---------|--------|
+| Supabase Postgres | SQL + pgvector | `DATABASE_URL` in `.env` |
+| Cloudflare R2 | Blob storage (PDFs, audio) | `BLOB_STORAGE_URL` in `.env` |
 
 **Security:** RLS enabled via `scripts/sql/enable_rls.sql` - only service_role can access.
 
