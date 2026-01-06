@@ -190,8 +190,9 @@ except ImportError as e:
     logger.warning("module_unavailable", extra={"module_name": "conversation_store", "error": str(e)})
 
 # SeeClickFix integration (Session 90 - Operational complaint→policy bridge)
+# Imported from civic-extraction (Intelligence layer) per architecture rules
 try:
-    from ..clients.seeclickfix_client import SeeClickFixClient
+    from civic_extraction.clients.seeclickfix import SeeClickFixClient
     SEECLICKFIX_AVAILABLE = True
     logger.debug("module_loaded", extra={"module_name": "seeclickfix_client"})
 except ImportError as e:
@@ -8960,7 +8961,7 @@ CURRENT CIVIC OPPORTUNITIES IN {city.upper()} (filtered based on user interests)
         }
 
         try:
-            from ..clients.seeclickfix_client import SeeClickFixClient
+            from civic_extraction.clients.seeclickfix import SeeClickFixClient
             from ..storage.state_manager import StateManager
 
             # Initialize client and storage

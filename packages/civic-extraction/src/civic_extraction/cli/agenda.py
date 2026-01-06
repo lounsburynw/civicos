@@ -289,16 +289,20 @@ def extract_agenda_items_from_meeting(
         )
 
     try:
-        # Import AgendaIntegrator
+        # Import AgendaIntegrator from local processing module
+        from civic_extraction.processing.agenda_integration import AgendaIntegrator
+
+        # Import LLM provider from civic_services (CLI entry point can orchestrate between packages)
         try:
-            from civic_services.processing.agenda_integration import AgendaIntegrator
+            from civic_services.core.llm_provider import get_model_for_task
+            provider = get_model_for_task('long_document')
         except ImportError:
-            logger.error("civic_services package not available")
+            logger.error("civic_services package not available for LLM provider")
             return AgendaResult(
                 meeting_id=meeting_id,
                 meeting_date=meeting_date,
                 status="error",
-                error="civic_services not installed",
+                error="civic_services not installed (needed for LLM provider)",
             )
 
         meeting_page_url = meeting.get("agenda_url")
@@ -312,8 +316,8 @@ def extract_agenda_items_from_meeting(
 
         logger.info(f"  Extracting agenda items...")
 
-        # Initialize integrator
-        integrator = AgendaIntegrator()
+        # Initialize integrator with injected provider
+        integrator = AgendaIntegrator(provider=provider)
 
         # The meeting's agenda_url is typically the meeting PAGE, not the PDF.
         # We need to discover the actual PDF URL first.
