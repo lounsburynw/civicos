@@ -693,6 +693,119 @@ def fetch_issues(
 
 
 # =============================================================================
+# Election Fetch (Google Civic API)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+        modal.Secret.from_name("civic-google"),  # Contains GOOGLE_API_KEY
+    ],
+    memory=4096,
+    timeout=600,  # 10 minutes
+    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=10.0),
+)
+def fetch_elections(
+    jurisdiction: str = "city-san-rafael",
+    dry_run: bool = False,
+) -> dict:
+    """Fetch elections from Google Civic API and store to Postgres.
+
+    This fetches all available elections from Google's Civic Information API
+    and stores them for the specified jurisdiction. Elections include
+    national, state, and local races.
+
+    Args:
+        jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
+        dry_run: If True, fetch but don't store
+
+    Setup:
+        1. Create Modal secret with Google API key:
+           modal secret create civic-google GOOGLE_API_KEY="your_key_here"
+        2. Ensure Google Civic Information API is enabled in Google Cloud Console
+    """
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civic.storage.postgres_backend import PostgresBackend
+    from civic_extraction.clients.google_civic import (
+        GoogleCivicClient,
+        google_civic_to_election,
+    )
+
+    database_url = os.environ.get("DATABASE_URL")
+    google_api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GOOGLE_CIVIC_API_KEY")
+
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+    if not google_api_key:
+        raise ValueError("GOOGLE_API_KEY not set. Create Modal secret: modal secret create civic-google GOOGLE_API_KEY='...'")
+
+    logger.info(f"[ELECTIONS] Starting fetch: jurisdiction={jurisdiction}")
+
+    # Create client and validate
+    client = GoogleCivicClient(jurisdiction_id=jurisdiction, api_key=google_api_key)
+    validation = client.validate()
+    if not validation.is_valid:
+        raise RuntimeError(f"Google Civic API validation failed: {validation.errors}")
+
+    # Fetch elections
+    elections_raw = client.get_elections()
+    logger.info(f"Fetched {len(elections_raw)} elections from Google Civic API")
+
+    if not elections_raw:
+        elapsed = time.time() - start_time
+        return {
+            "task": "elections",
+            "jurisdiction": jurisdiction,
+            "elections_fetched": 0,
+            "elections_stored": 0,
+            "dry_run": dry_run,
+            "elapsed_seconds": elapsed,
+            "cost_usd": 4 * elapsed * 0.000463,
+        }
+
+    # Map to storage format
+    elections = [google_civic_to_election(e, jurisdiction) for e in elections_raw]
+
+    # Log elections found
+    for e in elections:
+        logger.info(f"  - {e.get('name')} ({e.get('election_date')}) [{e.get('election_type')}]")
+
+    # Store to database
+    stored_count = 0
+    if not dry_run:
+        backend = PostgresBackend(database_url)
+        stored_count = backend.store_elections(jurisdiction, elections)
+        logger.info(f"Stored {stored_count} elections")
+
+        # Update refresh metadata
+        backend.update_refresh_metadata(
+            jurisdiction, "elections", "google_civic",
+            items_fetched=len(elections),
+            items_stored=stored_count,
+            status="completed",
+        )
+
+    elapsed = time.time() - start_time
+    return {
+        "task": "elections",
+        "jurisdiction": jurisdiction,
+        "elections_fetched": len(elections),
+        "elections_stored": stored_count,
+        "dry_run": dry_run,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 4 * elapsed * 0.000463,
+    }
+
+
+# =============================================================================
 # Chunk Extraction (PDF Processing)
 # =============================================================================
 
@@ -1291,6 +1404,7 @@ def main(
     legislation: bool = False,
     meetings: bool = False,
     issues: bool = False,
+    elections: bool = False,
     chunks: bool = False,
     agenda: bool = False,
     decisions: bool = False,
@@ -1318,6 +1432,7 @@ def main(
         modal run scripts/modal_ingest.py --legislation --legislation-jurisdiction state-CA
         modal run scripts/modal_ingest.py --meetings
         modal run scripts/modal_ingest.py --issues
+        modal run scripts/modal_ingest.py --elections
         modal run scripts/modal_ingest.py --chunks
         modal run scripts/modal_ingest.py --vectors
 
@@ -1376,17 +1491,19 @@ def main(
 
     # Determine what to run
     # Note: decisions is NOT included in --all because it should run weekly, not with daily refresh
+    # Note: elections is included in --all as it's a lightweight API call
     run_municipal = all or municipal
     run_legislation = all or legislation
     run_meetings = all or meetings
     run_issues = all or issues
+    run_elections = all or elections
     run_chunks = all or chunks
     run_agenda = all or agenda
     run_decisions = decisions  # Explicitly not in --all (weekly only)
     run_vectors = all or vectors
 
-    if not (run_municipal or run_legislation or run_meetings or run_issues or run_chunks or run_agenda or run_decisions or run_vectors):
-        print("No tasks specified. Use --all, --municipal, --legislation, --meetings, --issues, --chunks, --agenda, --decisions, or --vectors")
+    if not (run_municipal or run_legislation or run_meetings or run_issues or run_elections or run_chunks or run_agenda or run_decisions or run_vectors):
+        print("No tasks specified. Use --all, --municipal, --legislation, --meetings, --issues, --elections, --chunks, --agenda, --decisions, or --vectors")
         print("Use --stats-only to check current state")
         return
 
@@ -1402,6 +1519,8 @@ def main(
         task_list.append("meetings")
     if run_issues:
         task_list.append("issues")
+    if run_elections:
+        task_list.append("elections")
     if run_chunks:
         task_list.append("chunks")
     if run_agenda:
@@ -1419,6 +1538,8 @@ def main(
         print(f"  Meetings: {jurisdiction}" + (" (incremental)" if incremental else ""))
     if run_issues:
         print(f"  Issues: {jurisdiction}" + (" (incremental)" if incremental else ""))
+    if run_elections:
+        print(f"  Elections: {jurisdiction}")
     if run_chunks:
         print(f"  Chunks: {jurisdiction}" + (f" (limit: {chunks_limit})" if chunks_limit else " (incremental)"))
     if run_agenda:
@@ -1467,6 +1588,14 @@ def main(
             dry_run=dry_run,
         )
         handles.append(("issues", handle))
+
+    if run_elections:
+        print("Spawning elections fetch...")
+        handle = fetch_elections.spawn(
+            jurisdiction=jurisdiction,
+            dry_run=dry_run,
+        )
+        handles.append(("elections", handle))
 
     # Wait for fetch tasks to complete before chunks and vectors
     # (chunks need meetings fetched, vectors need all data ready)
@@ -1541,6 +1670,8 @@ def main(
         elif name == "issues":
             incr = " (incremental)" if result.get("incremental") else ""
             print(f"+ Issues{incr}: {result.get('issues_fetched', 0)} fetched, {result.get('issues_stored', 0)} stored")
+        elif name == "elections":
+            print(f"+ Elections: {result.get('elections_fetched', 0)} fetched, {result.get('elections_stored', 0)} stored")
 
     if chunks_result:
         cost = chunks_result.get("cost_usd", 0)
