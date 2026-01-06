@@ -251,12 +251,8 @@ def bulk_ingest_legislation(
         logger.error("DATABASE_URL not set. Required for cloud storage.")
         return 1
 
-    # Import LegiScan client
-    try:
-        from civic_services.clients.legiscan_client import LegiScanClient
-    except ImportError:
-        logger.error("civic-services package not available.")
-        return 1
+    # Import LegiScan client from local clients module
+    from civic_extraction.clients.legiscan import LegiScanClient
 
     # Fetch master list
     client = LegiScanClient()
@@ -511,11 +507,8 @@ def run_legislative_refresh(
         )
 
     # Import services here to avoid import errors if civic-services not installed
-    try:
-        from civic_services.legislative.legislative_discovery import LegislativeDiscovery
-    except ImportError:
-        logger.error("civic-services package not available. Install it first.")
-        return None
+    # Import from local legislative module
+    from civic_extraction.legislative.legislative_discovery import LegislativeDiscovery
 
     # Check cloud storage requirements
     postgres_backend = None

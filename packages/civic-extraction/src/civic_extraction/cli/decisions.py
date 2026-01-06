@@ -410,17 +410,21 @@ def extract_decisions_from_meeting(
     try:
         # Use provided analyzer or create new one
         if analyzer is None:
+            from civic_extraction.processing.retrospective_analyzer import RetrospectiveAnalyzer
+
+            # Import LLM provider from civic_services (CLI entry point can orchestrate between packages)
             try:
-                from civic_services.processing.retrospective_analyzer import RetrospectiveAnalyzer
-                analyzer = RetrospectiveAnalyzer()
+                from civic_services.core.llm_provider import get_model_for_task
+                provider = get_model_for_task('long_document')
             except ImportError:
-                logger.error("civic_services package not available")
+                logger.error("civic_services package not available for LLM provider")
                 return DecisionResult(
                     meeting_id=meeting_id,
                     meeting_date=meeting_date,
                     status="error",
-                    error="civic_services not installed",
+                    error="civic_services not installed (needed for LLM provider)",
                 )
+            analyzer = RetrospectiveAnalyzer(provider=provider)
 
         logger.info(f"  Extracting decisions from agenda...")
 
@@ -617,12 +621,16 @@ def run_decision_extraction(
         return None
 
     # Create shared analyzer for cost tracking across all meetings
+    from civic_extraction.processing.retrospective_analyzer import RetrospectiveAnalyzer
+
+    # Import LLM provider from civic_services (CLI entry point can orchestrate between packages)
     try:
-        from civic_services.processing.retrospective_analyzer import RetrospectiveAnalyzer
-        analyzer = RetrospectiveAnalyzer()
+        from civic_services.core.llm_provider import get_model_for_task
+        provider = get_model_for_task('long_document')
     except ImportError:
-        logger.error("civic_services package not available")
+        logger.error("civic_services package not available for LLM provider")
         return None
+    analyzer = RetrospectiveAnalyzer(provider=provider)
 
     # Extract decisions
     results = []
