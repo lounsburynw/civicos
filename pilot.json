@@ -1840,10 +1840,11 @@
         "note": "Session 483: Added compute_pdf_hash() to integrity.py, updated chunks.py extract_chunks_from_meeting() to compute pdf_hash from pdf_bytes, and PostgresBackend.store_chunks() to store pdf_hash. 12 new tests added."
       },
       "extraction_versioning": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "extraction_version field on all extracted records",
-        "note": "Track which version of extractor produced each record. Enables re-extraction when extractors improve."
+        "completed": "2026-01-06",
+        "note": "SESSION 484: Added extraction_version field to Meeting dataclass and to_dict(). Pipeline._run_ingest() now injects civic-extraction package version into each meeting. PostgresBackend store methods updated to populate extraction_version column: store_meetings, store_chunks, store_decisions, store_transcripts, store_issues, store_municipal_code. Added 5 tests in TestExtractionVersioning class. Schema columns already existed from migration 015_data_integrity.sql."
       }
     },
     "audit_infrastructure": {
@@ -2326,10 +2327,14 @@
     "distribution_channels": {
       "chatgpt_gpt": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Custom GPT 'Civic San Rafael' in ChatGPT GPT store",
         "note": "Session 481: Create ChatGPT GPT with Actions calling Civic API. Low effort if API is solid (~1 day). Use for clerk demo - more relatable than custom web app. GPT responses link back to web frontend for depth. Test thoroughly before demo to avoid hallucinations.",
-        "dependencies": ["OpenAPI spec for Civic API endpoints", "GPT system prompt", "Example conversations"],
+        "dependencies": [
+          "OpenAPI spec for Civic API endpoints",
+          "GPT system prompt",
+          "Example conversations"
+        ],
         "demo_use": "Let city clerk ask questions about San Rafael directly in ChatGPT"
       },
       "mcp_server": {

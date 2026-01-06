@@ -380,3 +380,140 @@ class TestPostgresBackendIntegration:
         stats = backend.get_stats("city-test")
         assert stats.meeting_count == 2
 
+
+class TestExtractionVersioning:
+    """Tests for extraction_version column population."""
+
+    def test_store_meetings_with_extraction_version(self, backend):
+        """Meetings with extraction_version should persist the value."""
+        meetings = [
+            {
+                "id": "mtg-versioned-001",
+                "title": "Versioned Meeting",
+                "meeting_datetime": "2025-12-01T18:00:00",
+                "meeting_type": "city_council",
+                "source_platform": "legistar",
+                "extraction_version": "0.1.0",
+            }
+        ]
+        backend.store_meetings("city-version-test", meetings)
+
+        # Verify the extraction_version was stored
+        conn = backend._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT extraction_version FROM meetings
+            WHERE id = %s AND jurisdiction_id = %s AND valid_to IS NULL
+        """, ("mtg-versioned-001", "city-version-test"))
+        result = cursor.fetchone()
+        conn.close()
+
+        assert result is not None
+        assert result[0] == "0.1.0"
+
+    def test_store_meetings_without_extraction_version(self, backend):
+        """Meetings without extraction_version should store NULL."""
+        meetings = [
+            {
+                "id": "mtg-no-version-001",
+                "title": "No Version Meeting",
+                "meeting_datetime": "2025-12-01T18:00:00",
+                "meeting_type": "city_council",
+                "source_platform": "legistar",
+            }
+        ]
+        backend.store_meetings("city-version-test", meetings)
+
+        # Verify extraction_version is NULL
+        conn = backend._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT extraction_version FROM meetings
+            WHERE id = %s AND jurisdiction_id = %s AND valid_to IS NULL
+        """, ("mtg-no-version-001", "city-version-test"))
+        result = cursor.fetchone()
+        conn.close()
+
+        assert result is not None
+        assert result[0] is None
+
+    def test_store_chunks_with_extraction_version(self, backend):
+        """Chunks with extraction_version should persist the value."""
+        chunks = [
+            {
+                "id": "chunk-versioned-001",
+                "meeting_id": "mtg-001",
+                "text": "Test chunk text",
+                "source_file": "test.pdf",
+                "extraction_version": "0.2.0",
+            }
+        ]
+        backend.store_chunks("city-version-test", chunks)
+
+        # Verify the extraction_version was stored
+        conn = backend._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT extraction_version FROM chunks
+            WHERE id = %s AND jurisdiction_id = %s AND valid_to IS NULL
+        """, ("chunk-versioned-001", "city-version-test"))
+        result = cursor.fetchone()
+        conn.close()
+
+        assert result is not None
+        assert result[0] == "0.2.0"
+
+    def test_store_decisions_with_extraction_version(self, backend):
+        """Decisions with extraction_version should persist the value."""
+        decisions = [
+            {
+                "id": "dec-versioned-001",
+                "meeting_date": "2025-12-01",
+                "agenda_item": "5A",
+                "title": "Versioned Decision",
+                "outcome": "approved",
+                "extraction_version": "0.3.0",
+            }
+        ]
+        backend.store_decisions("city-version-test", decisions)
+
+        # Verify the extraction_version was stored
+        conn = backend._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT extraction_version FROM decisions
+            WHERE id = %s AND jurisdiction_id = %s AND valid_to IS NULL
+        """, ("dec-versioned-001", "city-version-test"))
+        result = cursor.fetchone()
+        conn.close()
+
+        assert result is not None
+        assert result[0] == "0.3.0"
+
+    def test_store_issues_with_extraction_version(self, backend):
+        """Issues with extraction_version should persist the value."""
+        issues = [
+            {
+                "id": "issue-versioned-001",
+                "provider": "seeclickfix",
+                "external_id": "12345",
+                "title": "Versioned Issue",
+                "status": "open",
+                "extraction_version": "0.4.0",
+            }
+        ]
+        backend.store_issues("city-version-test", issues)
+
+        # Verify the extraction_version was stored
+        conn = backend._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT extraction_version FROM issues
+            WHERE id = %s AND jurisdiction_id = %s AND valid_to IS NULL
+        """, ("issue-versioned-001", "city-version-test"))
+        result = cursor.fetchone()
+        conn.close()
+
+        assert result is not None
+        assert result[0] == "0.4.0"
+

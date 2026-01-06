@@ -1387,8 +1387,9 @@ class PostgresBackend:
                         meeting_type, status, location, virtual_url,
                         agenda_url, minutes_url, video_url, comment_deadline,
                         source_platform, source_url, last_verified,
-                        data_quality_score, valid_from, valid_to, full_data
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s)
+                        data_quality_score, valid_from, valid_to, full_data,
+                        extraction_version
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s, %s)
                 """, (
                     meeting_id,
                     jurisdiction_id,
@@ -1407,7 +1408,8 @@ class PostgresBackend:
                     as_of.isoformat(),
                     meeting_dict.get('data_quality_score', 0.0),
                     as_of.isoformat(),
-                    json.dumps(meeting_dict, cls=DateTimeEncoder)
+                    json.dumps(meeting_dict, cls=DateTimeEncoder),
+                    meeting_dict.get('extraction_version'),
                 ))
                 stored_count += 1
 
@@ -1965,8 +1967,9 @@ class PostgresBackend:
                         staff_recommendation_json, public_input_json,
                         legal_instruments_json, topics, source_documents,
                         extraction_method, financial_impact_cents,
-                        extracted_at, valid_from, valid_to, content_hash
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s)
+                        extracted_at, valid_from, valid_to, content_hash,
+                        extraction_version
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s, %s)
                 """, (
                     decision_id,
                     jurisdiction_id,
@@ -1986,6 +1989,7 @@ class PostgresBackend:
                     as_of.isoformat(),
                     as_of.isoformat(),
                     content_hash,
+                    decision.get('extraction_version'),
                 ))
 
             conn.commit()
@@ -2360,8 +2364,9 @@ class PostgresBackend:
                         id, jurisdiction_id, meeting_id, agenda_item,
                         agenda_title, text, page_start, page_end,
                         chunk_index, total_chunks, source_file, source_type,
-                        extracted_at, valid_from, valid_to, content_hash, pdf_hash
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s, %s)
+                        extracted_at, valid_from, valid_to, content_hash, pdf_hash,
+                        extraction_version
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s, %s, %s)
                 """, (
                     chunk_id,
                     jurisdiction_id,
@@ -2379,6 +2384,7 @@ class PostgresBackend:
                     as_of.isoformat(),
                     content_hash,
                     pdf_hash,
+                    chunk.get('extraction_version'),
                 ))
 
             conn.commit()
@@ -2739,8 +2745,9 @@ class PostgresBackend:
                         id, jurisdiction_id, video_id, transcript,
                         text, duration_seconds, word_count, speakers_count,
                         utterances_count, processing_service, cost_usd,
-                        created_at, valid_from, valid_to, content_hash, audio_hash
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s, %s)
+                        created_at, valid_from, valid_to, content_hash, audio_hash,
+                        extraction_version
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s, %s, %s)
                 """, (
                     transcript_id,
                     jurisdiction_id,
@@ -2757,6 +2764,7 @@ class PostgresBackend:
                     as_of.isoformat(),
                     content_hash,
                     audio_hash,
+                    transcript.get('extraction_version'),
                 ))
                 count += 1
 
@@ -2964,8 +2972,8 @@ class PostgresBackend:
                         id, jurisdiction_id, section_number, section_title,
                         full_text, chapter, chapter_title, title_number,
                         title_name, node_id, ordinance_history, source,
-                        created_at, valid_from, valid_to
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)
+                        created_at, valid_from, valid_to, extraction_version
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s)
                 """, (
                     section_id,
                     jurisdiction_id,
@@ -2981,6 +2989,7 @@ class PostgresBackend:
                     section.get('source', 'municode'),
                     as_of.isoformat(),
                     as_of.isoformat(),
+                    section.get('extraction_version'),
                 ))
                 count += 1
 
@@ -3223,8 +3232,8 @@ class PostgresBackend:
                         address, latitude, longitude,
                         created_at, updated_at, closed_at,
                         reporter_name, images, provider_metadata,
-                        stored_at, valid_from, valid_to
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)
+                        stored_at, valid_from, valid_to, extraction_version
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s)
                 """, (
                     issue_id,
                     jurisdiction_id,
@@ -3245,6 +3254,7 @@ class PostgresBackend:
                     json.dumps(issue.get('provider_metadata', {}), cls=DateTimeEncoder),
                     as_of.isoformat(),
                     as_of.isoformat(),
+                    issue.get('extraction_version'),
                 ))
                 count += 1
 
