@@ -10756,3 +10756,54 @@ Audio in R2 → load_audio_from_cloud() [hash computed here]
 **Tests:** 44/44 integrity tests pass, 39/39 smoke tests pass
 
 **Next P0:** pdf_hash_storage (similar pattern for PDF/chunk provenance)
+
+## Session 483: pdf_hash_storage - PDF Provenance Tracking
+
+**Date:** 2026-01-06
+**Item:** pdf_hash_storage (data_integrity > source_provenance)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+
+Implemented PDF hash storage for chunk provenance, mirroring Session 482's audio_hash pattern. This enables verification that chunks came from specific, unmodified PDF source files.
+
+### Implementation
+
+1. **Added `compute_pdf_hash()` and `verify_pdf_hash()` to `integrity.py:166-200`:**
+   - SHA-256 hash of raw PDF bytes
+   - Same pattern as compute_audio_hash()
+   - Returns None for empty/None input
+
+2. **Added schema migrations in `postgres_backend.py:1199-1259`:**
+   - Added content_hash columns to transcripts, chunks, decisions (SESSION 479)
+   - Added audio_hash to transcripts (SESSION 482)
+   - Added pdf_hash to chunks (SESSION 483)
+   - All migrations use IF NOT EXISTS pattern
+
+3. **Updated `store_chunks()` in `postgres_backend.py:2355-2381`:**
+   - Extracts pdf_hash from chunk dict
+   - Inserts into pdf_hash column
+
+4. **Updated `extract_chunks_from_meeting()` in `chunks.py:851-866`:**
+   - Computes pdf_hash from pdf_bytes before chunk creation
+   - All chunks from same PDF share the same hash
+   - Graceful ImportError fallback
+
+5. **Added 12 tests in `test_integrity.py:368-442`:**
+   - TestComputePdfHash (5 tests): consistency, sensitivity, large file, edge cases
+   - TestVerifyPdfHash (7 tests): matching, mismatched, case-insensitive, edge cases
+
+### Data Flow
+
+```
+PDF URL → download_and_validate_pdf() → pdf_bytes
+        → compute_pdf_hash(pdf_bytes) → pdf_hash
+        → AgendaPacketParser.parse() → agenda_chunks
+        → chunks_data[i]["pdf_hash"] = pdf_hash
+        → store_chunks_to_cloud()
+        → PostgresBackend.store_chunks() [hash stored]
+```
+
+**Tests:** 56/56 integrity tests pass, 39/39 smoke tests pass
+
+**Next P0:** extraction_versioning (track which extractor version produced each record)

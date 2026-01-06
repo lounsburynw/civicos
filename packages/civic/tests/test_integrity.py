@@ -13,11 +13,13 @@ import pytest
 from civic.storage.integrity import (
     compute_audio_hash,
     compute_content_hash,
+    compute_pdf_hash,
     compute_transcript_hash,
     compute_chunk_hash,
     compute_decision_hash,
     verify_audio_hash,
     verify_content_hash,
+    verify_pdf_hash,
 )
 
 
@@ -361,3 +363,80 @@ class TestVerifyAudioHash:
     def test_verify_audio_none_data_returns_false(self):
         """None audio data returns False."""
         assert verify_audio_hash(None, "somehash") is False
+
+
+class TestComputePdfHash:
+    """Tests for PDF file hashing (provenance tracking)."""
+
+    def test_pdf_hash_consistency(self):
+        """Same PDF bytes always produce same hash."""
+        # Simulate PDF file bytes (PDF header + content)
+        pdf_data = b"%PDF-1.4\n" + b"\x00" * 1000 + b"FAKE_PDF_CONTENT"
+        hash1 = compute_pdf_hash(pdf_data)
+        hash2 = compute_pdf_hash(pdf_data)
+        assert hash1 == hash2
+        assert len(hash1) == 64  # SHA-256 produces 64 hex characters
+
+    def test_pdf_hash_sensitivity(self):
+        """Single byte change produces different hash."""
+        pdf_data1 = b"%PDF-1.4\nCONTENT_V1"
+        pdf_data2 = b"%PDF-1.4\nCONTENT_V2"  # Changed last byte
+        hash1 = compute_pdf_hash(pdf_data1)
+        hash2 = compute_pdf_hash(pdf_data2)
+        assert hash1 != hash2
+
+    def test_pdf_hash_large_file(self):
+        """Large PDF files can be hashed."""
+        # Simulate ~1MB PDF file
+        pdf_data = b"%PDF-1.4\n" + (b"PDF_PAGE_DATA" * 100000)
+        hash_result = compute_pdf_hash(pdf_data)
+        assert hash_result is not None
+        assert len(hash_result) == 64
+
+    def test_pdf_hash_empty_returns_none(self):
+        """Empty bytes returns None."""
+        assert compute_pdf_hash(b"") is None
+
+    def test_pdf_hash_none_returns_none(self):
+        """None input returns None."""
+        assert compute_pdf_hash(None) is None
+
+
+class TestVerifyPdfHash:
+    """Tests for PDF hash verification."""
+
+    def test_verify_matching_pdf_hash(self):
+        """Verification succeeds for matching PDF hash."""
+        pdf_data = b"%PDF-1.4\nORIGINAL_PDF_CONTENT"
+        hash_value = compute_pdf_hash(pdf_data)
+        assert verify_pdf_hash(pdf_data, hash_value) is True
+
+    def test_verify_mismatched_pdf_hash(self):
+        """Verification fails for tampered PDF."""
+        pdf_data = b"%PDF-1.4\nORIGINAL_PDF_CONTENT"
+        tampered_data = b"%PDF-1.4\nTAMPERED_PDF_CONTENT"
+        hash_value = compute_pdf_hash(pdf_data)
+        assert verify_pdf_hash(tampered_data, hash_value) is False
+
+    def test_verify_pdf_case_insensitive(self):
+        """Verification is case-insensitive for hex hashes."""
+        pdf_data = b"%PDF-1.4\nPDF_CONTENT"
+        hash_value = compute_pdf_hash(pdf_data)
+        uppercase_hash = hash_value.upper()
+        assert verify_pdf_hash(pdf_data, uppercase_hash) is True
+
+    def test_verify_pdf_empty_hash_returns_false(self):
+        """Empty expected hash returns False."""
+        assert verify_pdf_hash(b"data", "") is False
+
+    def test_verify_pdf_none_hash_returns_false(self):
+        """None expected hash returns False."""
+        assert verify_pdf_hash(b"data", None) is False
+
+    def test_verify_pdf_empty_data_returns_false(self):
+        """Empty PDF data returns False."""
+        assert verify_pdf_hash(b"", "somehash") is False
+
+    def test_verify_pdf_none_data_returns_false(self):
+        """None PDF data returns False."""
+        assert verify_pdf_hash(None, "somehash") is False
