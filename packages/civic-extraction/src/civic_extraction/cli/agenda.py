@@ -301,8 +301,8 @@ def extract_agenda_items_from_meeting(
                 error="civic_services not installed",
             )
 
-        agenda_url = meeting.get("agenda_url")
-        if not agenda_url:
+        meeting_page_url = meeting.get("agenda_url")
+        if not meeting_page_url:
             logger.info(f"  Skipping (no agenda URL): {meeting_id}")
             return AgendaResult(
                 meeting_id=meeting_id,
@@ -315,8 +315,32 @@ def extract_agenda_items_from_meeting(
         # Initialize integrator
         integrator = AgendaIntegrator()
 
-        # Extract agenda items
-        agenda_items = integrator.parse_agenda_content(agenda_url, meeting)
+        # The meeting's agenda_url is typically the meeting PAGE, not the PDF.
+        # We need to discover the actual PDF URL first.
+        # Create event dict with source_url pointing to meeting page
+        event_for_discovery = meeting.copy()
+        event_for_discovery['source_url'] = meeting_page_url
+        event_for_discovery.pop('agenda_url', None)  # Clear so discovery runs
+
+        # Discover the actual PDF URL
+        pdf_url, pdf_available = integrator.discover_agenda_url(event_for_discovery)
+
+        if not pdf_available or not pdf_url:
+            # Fallback: if the meeting_page_url is already a PDF, use it directly
+            if meeting_page_url.lower().endswith('.pdf'):
+                pdf_url = meeting_page_url
+            else:
+                logger.info(f"  No PDF agenda found at {meeting_page_url[:60]}...")
+                return AgendaResult(
+                    meeting_id=meeting_id,
+                    meeting_date=meeting_date,
+                    status="skipped",
+                )
+
+        logger.info(f"  Found PDF: {pdf_url[:80]}...")
+
+        # Extract agenda items from the PDF
+        agenda_items = integrator.parse_agenda_content(pdf_url, meeting)
 
         if not agenda_items:
             logger.info(f"  No agenda items extracted")
