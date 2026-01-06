@@ -32,12 +32,28 @@ ALTER TABLE municipal_code ADD COLUMN IF NOT EXISTS extraction_version TEXT;
 -- SOFT DELETE: Never hard-delete, preserve audit trail
 -- =============================================================================
 
+-- Core content tables
 ALTER TABLE transcripts ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
 ALTER TABLE chunks ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
 ALTER TABLE decisions ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
 ALTER TABLE meetings ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
 ALTER TABLE issues ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
 ALTER TABLE municipal_code ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+
+-- Additional content tables (SESSION 480)
+ALTER TABLE agenda_items ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+ALTER TABLE videos ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+ALTER TABLE legislation ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+ALTER TABLE codified_law ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+ALTER TABLE budget_items ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+ALTER TABLE federal_awards ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+ALTER TABLE state_passthrough_funds ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+ALTER TABLE budget_funding_source_links ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+ALTER TABLE federal_audit_expenditures ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+ALTER TABLE elections ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+ALTER TABLE election_deadlines ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+ALTER TABLE election_contests ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+ALTER TABLE elected_officials ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
 
 -- =============================================================================
 -- ENGAGEMENT TRACKING: Schema stub for future anti-astroturf measures
