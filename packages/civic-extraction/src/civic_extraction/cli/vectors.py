@@ -118,6 +118,17 @@ def add_vectors_parser(subparsers: argparse._SubParsersAction) -> None:
         default=None,
         help="Process at most N documents (for splitting large corpus across jobs)",
     )
+    parser.add_argument(
+        "--verify-sync",
+        action="store_true",
+        help="Verify vector counts match SQL counts (with threshold tolerance)",
+    )
+    parser.add_argument(
+        "--sync-threshold",
+        type=float,
+        default=0.1,
+        help="Maximum allowed mismatch ratio before failing (default: 0.1 = 10%%)",
+    )
 
 
 def run_vectors(args: argparse.Namespace) -> int:
@@ -135,6 +146,9 @@ def run_vectors(args: argparse.Namespace) -> int:
 
     if args.stats:
         return show_stats(args.jurisdiction, args.corpus, args.provider, args.embedding_model)
+
+    if args.verify_sync:
+        return verify_sync(args.jurisdiction, args.corpus, args.sync_threshold, args.provider, args.embedding_model)
 
     if args.dry_run:
         return dry_run(args.jurisdiction, args.corpus, args.provider, args.embedding_model)
@@ -166,6 +180,130 @@ def run_vectors(args: argparse.Namespace) -> int:
         )
 
     return 0
+
+
+def verify_sync(
+    jurisdiction_id: str,
+    corpus_type: str,
+    threshold: float = 0.1,
+    provider_type: str = "fastembed",
+    embedding_model: Optional[str] = None,
+) -> int:
+    """
+    Verify vector counts match SQL counts within threshold.
+
+    Returns 0 if all counts are within threshold, 1 if any mismatch exceeds threshold.
+
+    For temporal tables (meetings, decisions, issues, etc.), SQL counts use
+    valid_to IS NULL to count only current versions, not historical.
+
+    Args:
+        jurisdiction_id: Jurisdiction to verify
+        corpus_type: Corpus type to verify ("all" checks all types)
+        threshold: Maximum allowed mismatch ratio (0.1 = 10%)
+        provider_type: Embedding provider type
+        embedding_model: Optional model name override
+    """
+    try:
+        from civic.storage import get_storage_backend
+        from civic.storage.pgvector_backend import PgVectorBackend
+
+        database_url = os.environ.get("DATABASE_URL")
+        if not database_url:
+            logger.error("DATABASE_URL not set")
+            return 1
+
+        backend = get_storage_backend()
+        pgvector = PgVectorBackend(
+            connection_string=database_url,
+            provider_type=provider_type,
+            embedding_model=embedding_model,
+        )
+
+        # Validate connection
+        validation = pgvector.validate()
+        if not validation.is_valid:
+            logger.error("pgvector validation failed:")
+            for error in validation.errors:
+                logger.error(f"  - {error}")
+            return 1
+
+        logger.info("=" * 60)
+        logger.info(f"Vector-SQL Sync Verification for {jurisdiction_id}")
+        logger.info(f"Threshold: {threshold * 100:.0f}% mismatch allowed")
+        logger.info("=" * 60)
+
+        # Corpus types to check (skip chunks and transcripts - they expand to more vectors)
+        # Also skip municipal_code and legislation for now as they use chunking
+        # Note: For issues, vectors may be fewer than SQL rows because issues with
+        # no text content (empty type, summary, description, address, status) are skipped
+        corpus_types = ["decisions", "meetings", "issues"] if corpus_type == "all" else [corpus_type]
+
+        mismatches = []
+        for ct in corpus_types:
+            logger.info(f"\n{ct.upper()}:")
+
+            # Get vector count
+            stats = pgvector.get_stats(jurisdiction_id, ct, storage_backend=backend)
+            vector_count = stats.document_count
+            sql_count = stats.storage_document_count
+
+            if sql_count is None or sql_count == 0:
+                logger.info(f"  Vector count: {vector_count}")
+                logger.info(f"  SQL count: {sql_count or 0}")
+                logger.info(f"  Status: SKIP (no SQL data)")
+                continue
+
+            # Calculate mismatch ratio
+            # For issues: vectors may be fewer due to empty descriptions being skipped
+            # Use abs difference / sql_count as mismatch ratio
+            diff = abs(vector_count - sql_count)
+            mismatch_ratio = diff / sql_count if sql_count > 0 else 0
+
+            logger.info(f"  Vector count: {vector_count}")
+            logger.info(f"  SQL count: {sql_count}")
+            logger.info(f"  Difference: {diff} ({mismatch_ratio * 100:.1f}%)")
+
+            if mismatch_ratio <= threshold:
+                logger.info(f"  Status: OK (within {threshold * 100:.0f}% threshold)")
+            else:
+                logger.info(f"  Status: MISMATCH (exceeds {threshold * 100:.0f}% threshold)")
+                mismatches.append({
+                    "corpus": ct,
+                    "vector_count": vector_count,
+                    "sql_count": sql_count,
+                    "mismatch_ratio": mismatch_ratio,
+                })
+
+        logger.info("")
+        logger.info("=" * 60)
+
+        if mismatches:
+            logger.error("VERIFICATION FAILED - Mismatches detected:")
+            for m in mismatches:
+                logger.error(
+                    f"  {m['corpus']}: {m['vector_count']} vectors vs {m['sql_count']} SQL rows "
+                    f"({m['mismatch_ratio'] * 100:.1f}% mismatch)"
+                )
+            logger.info("")
+            logger.info("Suggested actions:")
+            logger.info("  1. Run civic-extract vectors --corpus <type> --reindex")
+            logger.info("  2. Check for data integrity issues in storage layer")
+            logger.info("=" * 60)
+            return 1
+        else:
+            logger.info("VERIFICATION PASSED - All counts within threshold")
+            logger.info("=" * 60)
+            return 0
+
+    except ImportError as e:
+        logger.error(f"Required package not available: {e}")
+        return 1
+    except Exception as e:
+        logger.error(f"Error during verification: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
 
 
 def show_stats(

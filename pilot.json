@@ -1750,7 +1750,7 @@
     "source_provenance": {
       "audio_hash_storage": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Store SHA-256 of source audio file with each transcript",
         "note": "Ultimate provenance: transcript can be verified against original audio."
       },
@@ -1812,11 +1812,12 @@
         "depends_on": "temporal_versioning_review"
       },
       "vector_sql_sync_verification": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Add verification step to vector-refresh.yml ensuring vector count matches SQL count",
-        "note": "Session 469 clarification: meetings mismatch (46 vectors vs 97 SQL) is expected - SQL includes historical versions, vectors only current. Issues mismatch (1430 vectors vs 1630 SQL) still needs investigation. Add post-refresh validation that compares vectors to SQL rows with valid_to IS NULL.",
-        "depends_on": "decision_extraction_diagnosis"
+        "note": "Session 476: COMPLETE. Added --verify-sync and --sync-threshold to civic-extract vectors CLI. Workflow uses 15% threshold to allow for issues that lack text content being skipped. Verification step compares pgvector counts to PostgreSQL rows using valid_to IS NULL filter. Issues mismatch (12%) is expected - issues with empty type/summary/description/address/status produce no text and are skipped during indexing.",
+        "depends_on": "decision_extraction_diagnosis",
+        "completed": "2026-01-05"
       },
       "data_freshness_alerting": {
         "status": "not_ready",

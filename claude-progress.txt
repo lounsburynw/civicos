@@ -10545,3 +10545,27 @@ modal run scripts/modal_ingest.py --decisions --dry-run           # Preview
 ```
 
 **Next P0:** vector_sql_sync_verification (verify pgvector indices stay in sync with SQL data)
+
+## Session 476 (2026-01-05)
+
+**Completed:** `vector_sql_sync_verification` (P0)
+
+**Changes:**
+1. Added `--verify-sync` and `--sync-threshold` options to `civic-extract vectors` CLI
+2. Added `verify_sync()` function in `packages/civic-extraction/src/civic_extraction/cli/vectors.py`
+3. Added "Verify vector-SQL sync" step to `.github/workflows/vector-refresh.yml` after indexing
+4. Updated `pilot.json` to mark item complete
+
+**Implementation Details:**
+- Verification compares pgvector counts to PostgreSQL row counts
+- SQL counts use `valid_to IS NULL` filter (temporal versioning - only count current versions)
+- 15% threshold used in workflow to accommodate issues without text content being skipped
+- Checks: decisions, meetings, issues (skips chunks/transcripts/municipal_code which expand during indexing)
+
+**Issues Mismatch Explained:**
+- Session 469 found 1430 vectors vs 1630 SQL issues (12% mismatch)
+- Root cause: Issues with empty type/summary/description/address/status produce no text
+- These are skipped during `_issue_to_text()` -> `index_from_storage()` (line 695-696)
+- This is expected behavior, not data corruption
+
+**Next P0:** `audio_hash_storage` (store SHA-256 of source audio with transcripts)
