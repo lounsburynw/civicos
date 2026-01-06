@@ -10725,3 +10725,34 @@ CA election data will appear ~May 2026 for June primary.
 - Local: Curated data (always available)
 
 **Next P0:** audio_hash_storage (store SHA-256 of source audio with transcripts)
+
+## Session 482 (2026-01-06)
+
+**Completed:** audio_hash_storage (P0)
+
+**Summary:** Implemented SHA-256 audio hash storage for transcript provenance tracking.
+
+**Changes:**
+- `packages/civic/src/civic/storage/integrity.py` (lines 129-163)
+  - Added `compute_audio_hash(audio_data: bytes)` function
+  - Added `verify_audio_hash(audio_data, expected_hash)` function
+- `packages/civic-extraction/src/civic_extraction/cli/transcribe.py`
+  - Updated `load_audio_from_cloud()` to return `(audio_data, audio_hash)` tuple
+  - Updated `transcribe_audio_file()` to pass `audio_hash` in result_data
+- `packages/civic/src/civic/storage/postgres_backend.py` (lines 2668-2693)
+  - Updated `store_transcripts()` to extract and INSERT `audio_hash` column
+- `packages/civic/tests/test_integrity.py`
+  - Added `TestComputeAudioHash` class (5 tests)
+  - Added `TestVerifyAudioHash` class (7 tests)
+
+**Data Flow:**
+```
+Audio in R2 → load_audio_from_cloud() [hash computed here]
+            → transcribe_audio_file() [hash passed through]
+            → store_transcript_to_cloud()
+            → PostgresBackend.store_transcripts() [hash stored]
+```
+
+**Tests:** 44/44 integrity tests pass, 39/39 smoke tests pass
+
+**Next P0:** pdf_hash_storage (similar pattern for PDF/chunk provenance)

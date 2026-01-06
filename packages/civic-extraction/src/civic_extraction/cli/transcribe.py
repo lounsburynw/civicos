@@ -34,7 +34,7 @@ import sys
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional, Tuple
 
 # Configure logging
 logging.basicConfig(
@@ -418,8 +418,9 @@ def transcribe_audio_file(
     try:
         # Load audio from cloud if needed
         temp_audio_path = None
+        audio_hash = None
         if audio_path is None and cloud_mode and jurisdiction_id:
-            audio_data = load_audio_from_cloud(jurisdiction_id, video_id)
+            audio_data, audio_hash = load_audio_from_cloud(jurisdiction_id, video_id)
             if audio_data is None:
                 raise Exception(f"Audio not found in cloud for {video_id}")
 
@@ -490,6 +491,7 @@ def transcribe_audio_file(
             "assemblyai_id": transcript.id,
             "cost_usd": round(cost_usd, 2),
             "processing_time_seconds": round(processing_time, 2),
+            "audio_hash": audio_hash,  # SHA-256 of source audio for provenance
         }
 
         # Store transcript (cloud or local)
@@ -554,35 +556,40 @@ def transcript_exists_in_cloud(video_id: str) -> bool:
     return False
 
 
-def load_audio_from_cloud(jurisdiction_id: str, video_id: str) -> Optional[bytes]:
+def load_audio_from_cloud(
+    jurisdiction_id: str, video_id: str
+) -> Tuple[Optional[bytes], Optional[str]]:
     """
-    Load audio file from R2 cloud storage.
+    Load audio file from R2 cloud storage and compute SHA-256 hash.
 
     Args:
         jurisdiction_id: Jurisdiction ID (e.g., "city-san-rafael")
         video_id: YouTube video ID
 
     Returns:
-        Audio file bytes or None if not found
+        Tuple of (audio_data, audio_hash) or (None, None) if not found.
+        The audio_hash is the SHA-256 of the raw audio file for provenance.
     """
     try:
         from civic.storage import get_blob_storage
+        from civic.storage.integrity import compute_audio_hash
 
         blob = get_blob_storage()
         r2_key = f"audio/{jurisdiction_id}/{video_id}.mp3"
 
         if not blob.exists(r2_key):
             logger.debug(f"Audio not found in cloud: {r2_key}")
-            return None
+            return None, None
 
         audio_data = blob.download(r2_key)
-        logger.info(f"  Loaded audio from cloud: {r2_key}")
-        return audio_data
+        audio_hash = compute_audio_hash(audio_data)
+        logger.info(f"  Loaded audio from cloud: {r2_key} (hash: {audio_hash[:12]}...)")
+        return audio_data, audio_hash
     except ImportError:
         logger.debug("civic.storage not available for cloud audio")
     except Exception as e:
         logger.warning(f"Failed to load audio from cloud: {e}")
-    return None
+    return None, None
 
 
 def store_transcript_to_cloud(

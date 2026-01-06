@@ -2665,13 +2665,16 @@ class PostgresBackend:
                 # Compute content hash for data integrity verification
                 content_hash = compute_transcript_hash(transcript)
 
+                # Extract audio hash for provenance tracking (SHA-256 of source audio)
+                audio_hash = transcript.get('audio_hash')
+
                 cursor.execute("""
                     INSERT INTO transcripts (
                         id, jurisdiction_id, video_id, transcript,
                         text, duration_seconds, word_count, speakers_count,
                         utterances_count, processing_service, cost_usd,
-                        created_at, valid_from, valid_to, content_hash
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s)
+                        created_at, valid_from, valid_to, content_hash, audio_hash
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s, %s)
                 """, (
                     transcript_id,
                     jurisdiction_id,
@@ -2687,6 +2690,7 @@ class PostgresBackend:
                     transcript.get('processed_at', as_of.isoformat()),
                     as_of.isoformat(),
                     content_hash,
+                    audio_hash,
                 ))
                 count += 1
 

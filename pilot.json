@@ -1828,14 +1828,14 @@
         "test_file": "packages/civic-extraction/tests/test_transcribe.py"
       },
       "audio_hash_storage": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Store SHA-256 of source audio file with each transcript",
-        "note": "Ultimate provenance: transcript can be verified against original audio. Session 481 set as P0."
+        "note": "Session 482: Added compute_audio_hash() to integrity.py, updated load_audio_from_cloud() to return (audio_data, audio_hash) tuple, and PostgresBackend.store_transcripts() to store audio_hash. 12 new tests added."
       },
       "pdf_hash_storage": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Store SHA-256 of source PDF with each chunk",
         "note": "Enables verification that chunks came from unmodified PDF."
       },
