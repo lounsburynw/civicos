@@ -10382,3 +10382,39 @@ get_meetings() → 46 meetings
 
 Now that meetings are visible, the next step is to add decision extraction
 to the automated Modal pipeline.
+
+### Session 471 Addendum: Agenda Items Investigation
+
+User asked about automatic refresh for meetings + agenda items. Investigation revealed:
+
+**Agenda Items Status:**
+- AgendaIntegrator EXISTS (LLM-powered extraction using Gemini)
+- CLI command EXISTS (`civic-extract agenda --cloud`)
+- store_agenda_items() EXISTS in PostgresBackend
+- **BUT NEVER RUN ON PRODUCTION**
+
+**Current Data (broken):**
+- 44 items across 38 meetings (1.2 items/meeting)
+- Items are just metadata: "Agenda", "Agenda Packet", meeting titles
+- NOT actual line items (resolutions, public hearings, etc.)
+
+**Expected Data (with proper extraction):**
+- ~460 actionable items from 46 meetings
+- Each with: item_ref, title, description, actionable flag, project_types
+
+**Priority Change:**
+- NEW: `automated_agenda_extraction` → P0 (core functionality)
+- Demoted: `automated_decision_extraction` → P1
+
+**Rationale:** Can't tell users "what's being decided" without agenda items.
+This is more fundamental than decision extraction.
+
+### Updated Pipeline Status
+
+| Stage | Automated | Status |
+|-------|-----------|--------|
+| Meeting scraping | ✅ Daily | Working |
+| Chunk extraction | ✅ Daily | Working (unblocked) |
+| Vector indexing | ✅ Daily | Working |
+| **Agenda items** | ❌ Not yet | **P0 NEXT** |
+| Decision extraction | ❌ Not yet | P1 |
