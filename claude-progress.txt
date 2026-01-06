@@ -10569,3 +10569,9 @@ modal run scripts/modal_ingest.py --decisions --dry-run           # Preview
 - This is expected behavior, not data corruption
 
 **Next P0:** `audio_hash_storage` (store SHA-256 of source audio with transcripts)
+
+**Update (stress test):** Ran comprehensive stress test on data pipelines.
+- All data fresh and synced (meetings, decisions, issues, vectors)
+- Found critical bug: `whats_next()` returns empty (uses StateManager SQLite, not PostgresBackend)
+- Created new P0: `whats_next_postgres_migration`
+- Demoted `audio_hash_storage` to P1
