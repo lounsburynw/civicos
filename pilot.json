@@ -3,7 +3,8 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2026-01-05",
+  "last_updated": "2026-01-06",
+  "session_481_note": "Strategic pivot from Open States to LegiScan for state legislators (Open States acquired by PE-backed SAI360 Dec 2025). Implemented LegiScanClient, updated RepresentativesClient to use LegiScan as primary with Open States fallback.",
   "session_480_note": "Completed soft_delete_support P0: added deleted_at to 19 content tables, updated all queries to filter deleted records, added soft_delete/restore_deleted methods",
   "category_order": [
     "test_infrastructure",
@@ -1643,12 +1644,11 @@
         "example_query": "c.get_voting_record('Jane Smith', topic='housing') -> VotingRecord"
       },
       "open_states_api_key_renewal": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "Renew Open States API key for state legislator data",
-        "note": "Session 477 discovered: Current OPEN_STATES_API_KEY returns 401 Unauthorized. Need to get new key from https://openstates.org/account/profile/. Without this, RepresentativesClient cannot fetch CA state legislators (Assembly, Senate). Congress.gov (federal) and local (manual) still work.",
-        "manual_step": "Get new API key from openstates.org and update .env",
-        "impact": "State legislators missing from get_representatives() - only federal and local officials returned"
+        "status": "ready",
+        "priority": 2,
+        "artifact": "State legislator data source - PIVOTED to LegiScan",
+        "note": "Session 481: Strategic pivot from Open States to LegiScan. Open States acquired by PE-backed SAI360 (Dec 2025) - dependency risk. Implemented LegiScanClient as primary source (30k free queries/month), Open States retained as deprecated fallback. LegiScan returns 152 CA legislators. openstates/people repo serves as offline backup.",
+        "completed": "2026-01-06"
       },
       "google_civic_reps_deprecation": {
         "status": "ready",
@@ -1829,9 +1829,9 @@
       },
       "audio_hash_storage": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Store SHA-256 of source audio file with each transcript",
-        "note": "Ultimate provenance: transcript can be verified against original audio."
+        "note": "Ultimate provenance: transcript can be verified against original audio. Session 481 set as P0."
       },
       "pdf_hash_storage": {
         "status": "not_ready",

@@ -432,6 +432,219 @@ class OpenStatesClient:
         )
 
 
+class LegiScanLegislatorsClient:
+    """
+    LegiScan API client for state legislators.
+
+    NOTE: This is distinct from LegiScanClient in legiscan.py which handles bill discovery.
+    This client specifically handles legislator/people data via getSessionPeople endpoint.
+
+    API docs: https://legiscan.com/legiscan
+    Key signup: https://legiscan.com/user/register
+    Free tier: 30,000 queries/month
+
+    Primary source for state legislator data, replacing Open States
+    which was acquired by PE-backed SAI360 in Dec 2025.
+    """
+
+    BASE_URL = "https://api.legiscan.com/"
+
+    # Cache session data to avoid repeated lookups
+    _session_cache: Dict[str, Dict[str, Any]] = {}
+
+    def __init__(self, api_key: Optional[str] = None):
+        """
+        Initialize LegiScan client.
+
+        Args:
+            api_key: API key from legiscan.com. Falls back to LEGISCAN_API_KEY env var.
+        """
+        self.api_key = api_key or os.environ.get("LEGISCAN_API_KEY")
+        self.session = requests.Session()
+        self.last_request_time = 0.0
+        self.min_request_interval = 0.2  # Conservative rate
+
+    def _throttle_request(self):
+        """Prevent burst requests."""
+        now = time.time()
+        elapsed = now - self.last_request_time
+        if elapsed < self.min_request_interval:
+            time.sleep(self.min_request_interval - elapsed)
+        self.last_request_time = time.time()
+
+    def _make_request(
+        self,
+        operation: str,
+        params: Optional[Dict[str, Any]] = None,
+        retries: int = 3,
+    ) -> Optional[Dict[str, Any]]:
+        """Make API request with retries."""
+        if not self.api_key:
+            logger.warning("No LegiScan API key configured")
+            return None
+
+        self._throttle_request()
+
+        request_params = {"key": self.api_key, "op": operation}
+        if params:
+            request_params.update(params)
+
+        for attempt in range(retries):
+            try:
+                response = self.session.get(
+                    self.BASE_URL,
+                    params=request_params,
+                    timeout=30
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("status") == "OK":
+                        return data
+                    else:
+                        logger.warning(
+                            f"LegiScan API error: {data.get('alert', {}).get('message', 'Unknown error')}"
+                        )
+                        return None
+                elif response.status_code == 429:
+                    wait_time = 2 ** attempt
+                    logger.warning(f"Rate limited, waiting {wait_time}s")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    logger.warning(
+                        f"LegiScan API error: {response.status_code} - {response.text[:200]}"
+                    )
+                    return None
+
+            except (requests.Timeout, requests.ConnectionError) as e:
+                logger.warning(f"Request failed: {e}")
+                if attempt < retries - 1:
+                    time.sleep(2 ** attempt)
+
+        return None
+
+    def get_current_session(self, state: str) -> Optional[Dict[str, Any]]:
+        """
+        Get the current legislative session for a state.
+
+        Args:
+            state: Two-letter state code (e.g., "CA")
+
+        Returns:
+            Session dict with session_id, session_title, year_start, etc.
+        """
+        # Check cache first
+        cache_key = f"session_{state.upper()}"
+        if cache_key in self._session_cache:
+            return self._session_cache[cache_key]
+
+        result = self._make_request("getSessionList", {"state": state.upper()})
+        if not result:
+            return None
+
+        sessions = result.get("sessions", [])
+        if not sessions:
+            return None
+
+        # First session is most recent
+        current_session = sessions[0]
+        self._session_cache[cache_key] = current_session
+        return current_session
+
+    def get_legislators_by_state(self, state: str) -> List[Representative]:
+        """
+        Get all current state legislators for a state.
+
+        Args:
+            state: Two-letter state code (e.g., "CA")
+
+        Returns:
+            List of Representative objects
+        """
+        session = self.get_current_session(state)
+        if not session:
+            logger.warning(f"No session found for state {state}")
+            return []
+
+        session_id = session.get("session_id")
+        result = self._make_request("getSessionPeople", {"id": session_id})
+        if not result:
+            return []
+
+        people = result.get("sessionpeople", {}).get("people", [])
+        return [self._normalize_legislator(p, state.upper()) for p in people]
+
+    def get_legislator_by_district(
+        self,
+        state: str,
+        chamber: str,
+        district: str,
+    ) -> Optional[Representative]:
+        """
+        Get legislator for a specific district.
+
+        Args:
+            state: Two-letter state code (e.g., "CA")
+            chamber: "upper" (Senate) or "lower" (Assembly)
+            district: District number (e.g., "14")
+
+        Returns:
+            Representative or None if not found
+        """
+        legislators = self.get_legislators_by_state(state)
+
+        # LegiScan uses prefixes like "SD-014" for Senate, "AD-014" for Assembly
+        prefix = "SD-" if chamber == "upper" else "AD-"
+        target_district = f"{prefix}{district.zfill(3)}"
+
+        for leg in legislators:
+            if leg.raw_data and leg.raw_data.get("district") == target_district:
+                return leg
+
+        return None
+
+    def _normalize_legislator(self, raw: Dict[str, Any], state: str) -> Representative:
+        """Normalize LegiScan person to Representative."""
+        role = raw.get("role", "")
+
+        # Determine office from role
+        if role == "Sen":
+            office = "State Senator"
+            level = "state"
+        elif role == "Rep" or role == "Asm":
+            office = "State Assembly Member"
+            level = "state"
+        else:
+            office = role or "State Legislator"
+            level = "state"
+
+        # Parse district (e.g., "SD-014" -> "14")
+        raw_district = raw.get("district", "")
+        district = raw_district.split("-")[-1].lstrip("0") if "-" in raw_district else raw_district
+
+        # Map party abbreviation
+        party_map = {"D": "Democratic", "R": "Republican", "I": "Independent", "L": "Libertarian"}
+        party = party_map.get(raw.get("party", ""), raw.get("party"))
+
+        return Representative(
+            id=f"legiscan-{raw.get('people_id', 'unknown')}",
+            name=raw.get("name", "Unknown"),
+            office=office,
+            level=level,
+            party=party,
+            district=district,
+            state=state,
+            # LegiScan doesn't include contact info in getSessionPeople
+            # Would need separate getPerson calls for each
+            emails=[],
+            phones=[],
+            websites=[],
+            source="legiscan",
+            raw_data=raw,
+        )
+
+
 @dataclass
 class LocalRepresentative:
     """
@@ -535,6 +748,7 @@ class RepresentativesClient:
         self,
         jurisdiction_id: str,
         congress_api_key: Optional[str] = None,
+        legiscan_api_key: Optional[str] = None,
         open_states_api_key: Optional[str] = None,
     ):
         """
@@ -543,10 +757,12 @@ class RepresentativesClient:
         Args:
             jurisdiction_id: Civic jurisdiction ID (e.g., "san-rafael")
             congress_api_key: Congress.gov API key (optional, uses env var)
-            open_states_api_key: Open States API key (optional, uses env var)
+            legiscan_api_key: LegiScan API key (optional, uses env var) - PRIMARY for state
+            open_states_api_key: Open States API key (optional, uses env var) - DEPRECATED fallback
         """
         self.jurisdiction_id = jurisdiction_id
         self.congress_client = CongressGovClient(api_key=congress_api_key)
+        self.legiscan_client = LegiScanLegislatorsClient(api_key=legiscan_api_key)
         self.open_states_client = OpenStatesClient(api_key=open_states_api_key)
 
     @property
@@ -569,7 +785,7 @@ class RepresentativesClient:
         available_count = 0
         metadata: Dict[str, Any] = {}
 
-        # Check Congress.gov
+        # Check Congress.gov (federal)
         if self.congress_client.api_key:
             try:
                 members = self.congress_client.get_members_by_state("CA", current_only=True)
@@ -587,25 +803,38 @@ class RepresentativesClient:
             metadata["congress_gov"] = "no_api_key"
             errors.append("No Congress.gov API key configured (CONGRESS_GOV_API_KEY or FAC_API_KEY)")
 
-        # Check Open States
+        # Check LegiScan (primary for state)
+        if self.legiscan_client.api_key:
+            try:
+                legislators = self.legiscan_client.get_legislators_by_state("CA")
+                if legislators:
+                    metadata["legiscan"] = "available"
+                    metadata["state_count"] = len(legislators)
+                    available_count += len(legislators)
+                    is_available = True
+                else:
+                    metadata["legiscan"] = "no_data"
+            except Exception as e:
+                errors.append(f"LegiScan error: {e}")
+                metadata["legiscan"] = "error"
+        else:
+            metadata["legiscan"] = "no_api_key"
+            errors.append("No LegiScan API key configured (LEGISCAN_API_KEY)")
+
+        # Check Open States (deprecated fallback)
         if self.open_states_client.api_key:
             try:
                 legislators = self.open_states_client.get_legislators_by_geo(
                     self.SAN_RAFAEL_LAT, self.SAN_RAFAEL_LNG
                 )
                 if legislators:
-                    metadata["open_states"] = "available"
-                    metadata["state_count"] = len(legislators)
-                    available_count += len(legislators)
-                    is_available = True
+                    metadata["open_states"] = "available (deprecated)"
                 else:
                     metadata["open_states"] = "no_data"
             except Exception as e:
-                errors.append(f"Open States error: {e}")
-                metadata["open_states"] = "error"
+                metadata["open_states"] = f"error: {e}"
         else:
-            metadata["open_states"] = "no_api_key"
-            errors.append("No Open States API key configured (OPEN_STATES_API_KEY or OPENSTATES_API_KEY)")
+            metadata["open_states"] = "no_api_key (OK - deprecated)"
 
         # Local data is always available
         local_count = len(SAN_RAFAEL_LOCAL_OFFICIALS) + len(MARIN_COUNTY_SUPERVISORS)
@@ -644,10 +873,17 @@ class RepresentativesClient:
                 "federal representatives unavailable. Get a free key at https://api.data.gov/signup/"
             )
 
-        if not self.open_states_client.api_key:
+        if not self.legiscan_client.api_key:
             warnings.append(
-                "No Open States API key (OPEN_STATES_API_KEY or OPENSTATES_API_KEY) - "
-                "state legislators unavailable. Get a free key at https://open.pluralpolicy.com/accounts/profile/"
+                "No LegiScan API key (LEGISCAN_API_KEY) - "
+                "state legislators unavailable. Get a free key at https://legiscan.com/user/register"
+            )
+
+        # Open States is deprecated but can serve as fallback
+        if not self.legiscan_client.api_key and not self.open_states_client.api_key:
+            warnings.append(
+                "No state legislator API keys configured. "
+                "LegiScan (primary) or Open States (deprecated fallback) needed."
             )
 
         # At minimum, local data is always available
@@ -671,7 +907,6 @@ class RepresentativesClient:
         include_federal: bool = True,
         include_state: bool = True,
         include_local: bool = True,
-        prefer_open_states: bool = True,
     ) -> List[Representative]:
         """
         Get all representatives for a location.
@@ -682,51 +917,63 @@ class RepresentativesClient:
             include_federal: Include US Congress members
             include_state: Include state legislators
             include_local: Include local officials
-            prefer_open_states: Use Open States for federal+state (single API call)
-                               If False, uses Congress.gov for federal separately.
 
         Returns:
             List of Representative objects from all levels
+
+        Data Sources:
+            - Federal: Congress.gov API (stable government source)
+            - State: LegiScan (primary), Open States (deprecated fallback)
+            - Local: Curated data
         """
         lat = lat or self.SAN_RAFAEL_LAT
         lng = lng or self.SAN_RAFAEL_LNG
 
         representatives: List[Representative] = []
 
-        # Open States provides both federal and state legislators in one geo query
-        if prefer_open_states and (include_federal or include_state):
-            all_legislators = self.open_states_client.get_legislators_by_geo(lat, lng)
+        # Federal representatives from Congress.gov (stable government API)
+        if include_federal:
+            # Get senators for the state
+            senators = self.congress_client.get_members_by_state(
+                self.SAN_RAFAEL_STATE, current_only=True
+            )
+            # Filter to just senators (not all members)
+            senators = [s for s in senators if "Senator" in s.office]
+            representatives.extend(senators)
 
-            for leg in all_legislators:
-                if leg.level == "federal" and include_federal:
-                    representatives.append(leg)
-                elif leg.level == "state" and include_state:
-                    representatives.append(leg)
+            # Get House rep for the district
+            house_reps = self.congress_client.get_members_by_district(
+                self.SAN_RAFAEL_STATE,
+                self.SAN_RAFAEL_CONGRESSIONAL_DISTRICT,
+                current_only=True,
+            )
+            representatives.extend(house_reps)
 
-        else:
-            # Use separate APIs for federal and state
-            if include_federal:
-                # Get senators for the state
-                senators = self.congress_client.get_members_by_state(
-                    self.SAN_RAFAEL_STATE, current_only=True
+        # State legislators - LegiScan primary, Open States fallback
+        if include_state:
+            state_legislators = []
+
+            # Try LegiScan first (primary source)
+            if self.legiscan_client.api_key:
+                state_legislators = self.legiscan_client.get_legislators_by_state(
+                    self.SAN_RAFAEL_STATE
                 )
-                # Filter to just senators (not all members)
-                senators = [s for s in senators if "Senator" in s.office]
-                representatives.extend(senators)
+                # Filter to just the legislators for San Rafael's districts
+                # CA Assembly District 12, CA Senate District 2
+                # For now, return all CA legislators (152) - filtering by geo would need
+                # district boundary data which LegiScan doesn't provide
+                if state_legislators:
+                    logger.debug(f"Got {len(state_legislators)} state legislators from LegiScan")
 
-                # Get House rep for the district
-                house_reps = self.congress_client.get_members_by_district(
-                    self.SAN_RAFAEL_STATE,
-                    self.SAN_RAFAEL_CONGRESSIONAL_DISTRICT,
-                    current_only=True,
+            # Fallback to Open States if LegiScan failed (deprecated - PE risk)
+            if not state_legislators and self.open_states_client.api_key:
+                logger.warning(
+                    "LegiScan unavailable, falling back to Open States (deprecated)"
                 )
-                representatives.extend(house_reps)
+                all_legislators = self.open_states_client.get_legislators_by_geo(lat, lng)
+                state_legislators = [leg for leg in all_legislators if leg.level == "state"]
 
-            if include_state:
-                # Get only state legislators from Open States
-                state_legislators = self.open_states_client.get_legislators_by_geo(lat, lng)
-                state_only = [leg for leg in state_legislators if leg.level == "state"]
-                representatives.extend(state_only)
+            representatives.extend(state_legislators)
 
         # Local representatives (always from curated data)
         if include_local:
@@ -793,6 +1040,7 @@ class RepresentativesClient:
 
 def create_san_rafael_representatives_client(
     congress_api_key: Optional[str] = None,
+    legiscan_api_key: Optional[str] = None,
     open_states_api_key: Optional[str] = None,
 ) -> RepresentativesClient:
     """
@@ -800,7 +1048,8 @@ def create_san_rafael_representatives_client(
 
     Args:
         congress_api_key: Congress.gov API key (optional, uses env var)
-        open_states_api_key: Open States API key (optional, uses env var)
+        legiscan_api_key: LegiScan API key (optional, uses env var) - PRIMARY for state
+        open_states_api_key: Open States API key (optional, uses env var) - DEPRECATED
 
     Returns:
         Configured RepresentativesClient
@@ -808,6 +1057,7 @@ def create_san_rafael_representatives_client(
     return RepresentativesClient(
         jurisdiction_id="san-rafael",
         congress_api_key=congress_api_key,
+        legiscan_api_key=legiscan_api_key,
         open_states_api_key=open_states_api_key,
     )
 

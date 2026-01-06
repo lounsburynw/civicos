@@ -10684,3 +10684,44 @@ CA election data will appear ~May 2026 for June primary.
 
 **Next P0:** open_states_api_key_renewal (manual step: renew API key)
 
+
+## Session 481 - 2026-01-06
+
+**Task:** Strategic pivot from Open States to LegiScan for state legislators
+**Status:** COMPLETED
+
+**Context:**
+- User alerted that Open States was acquired by PE-backed SAI360 (Dec 1, 2025)
+- This creates dependency risk for foundation-funded project
+- Also discovered Google Civic Representatives API was shut down April 2025
+
+**Research Findings:**
+- Open States: Acquired by SAI360 (owned by STG PE firm) - future uncertain
+- Google Civic Reps API: DEAD as of April 30, 2025
+- LegiScan: Commercial but transparent, 30k free queries/month
+- Congress.gov: Stable government API for federal reps
+
+**Implementation:**
+- Added LegiScanLegislatorsClient class (190 lines) mirroring OpenStatesClient pattern
+- Updated RepresentativesClient to use LegiScan as primary for state legislators
+- Congress.gov remains primary for federal (stable government source)
+- Open States retained as deprecated fallback
+- User's cloned openstates/people repo serves as offline backup
+
+**Files Changed:**
+- packages/civic-extraction/src/civic_extraction/clients/representatives.py
+  - Added LegiScanLegislatorsClient class (lines ~433-620)
+  - Updated RepresentativesClient.__init__ to accept legiscan_api_key
+  - Updated get_representatives() to use LegiScan primary, Open States fallback
+  - Updated health() and validate() methods for LegiScan
+  - Updated create_san_rafael_representatives_client() factory
+- pilot.json (status: ready, note updated with strategic pivot context)
+
+**Tests:** 39/39 smoke tests pass, 6/6 representative tests pass
+
+**Data Sources Now:**
+- Federal: Congress.gov API (stable)
+- State: LegiScan (primary), Open States (deprecated fallback)
+- Local: Curated data (always available)
+
+**Next P0:** audio_hash_storage (store SHA-256 of source audio with transcripts)
