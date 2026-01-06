@@ -857,7 +857,8 @@ class Civic:
         """
         Get upcoming meetings matching topics.
 
-        Uses civic-state StateManager to query meetings.
+        Uses PostgresBackend (cloud) or SQLiteBackend (local) via _storage
+        to query meetings. Falls back to StateManager for local dev.
 
         Args:
             topics: Optional list of topics to filter by
@@ -866,62 +867,77 @@ class Civic:
         Returns:
             List of upcoming meetings
         """
-        # Get city state from StateManager
-        state = self._state.get_city_state(self.jurisdiction)
+        from datetime import timedelta, timezone
 
-        if state is None:
-            return []
+        now = datetime.now(timezone.utc)
+        cutoff = now + timedelta(days=days)
 
-        meetings_data = state.get("meetings", [])
+        # Try storage backend first (PostgresBackend or SQLiteBackend)
+        try:
+            meetings_data = self._storage.get_meetings(
+                jurisdiction_id=self.jurisdiction,
+                since=now,
+                until=cutoff,
+            )
+        except Exception as e:
+            # Fall back to StateManager for local dev without storage
+            logger.debug(f"Storage backend failed, falling back to StateManager: {e}")
+            state = self._state.get_city_state(self.jurisdiction)
+            if state is None:
+                return []
+            meetings_data = state.get("meetings", [])
 
         # Convert to Meeting objects
         meetings = []
         for m in meetings_data:
-            # Parse meeting_datetime (from StateManager) or fall back to date
+            # Parse meeting_datetime
             meeting_date = m.get("meeting_datetime") or m.get("date")
             if isinstance(meeting_date, str):
                 try:
                     meeting_date = datetime.fromisoformat(meeting_date.replace('Z', '+00:00'))
                 except ValueError:
-                    meeting_date = datetime.now()
+                    meeting_date = datetime.now(timezone.utc)
             elif meeting_date is None:
-                meeting_date = datetime.now()
+                meeting_date = datetime.now(timezone.utc)
 
-            # Get agenda items: prefer relational (m.agenda_items) over embedded (full_data)
-            # Relational items have project_type; embedded have topic
-            agenda_items = m.get("agenda_items", [])
+            # Make naive datetime UTC-aware for filtering
+            if meeting_date.tzinfo is None:
+                meeting_date = meeting_date.replace(tzinfo=timezone.utc)
+
+            # Skip meetings outside the window (in case backend doesn't filter)
+            if not (now <= meeting_date <= cutoff):
+                continue
+
+            # Get agenda items from storage backend
+            meeting_id = m.get("id", "")
+            agenda_items = []
+            if meeting_id:
+                try:
+                    agenda_items = self._storage.get_agenda_items(meeting_id=meeting_id)
+                except Exception:
+                    pass
+
+            # Fall back to embedded agenda items if relational query fails
             if not agenda_items:
-                # Fall back to full_data if relational items not available
-                full_data = m.get("full_data", {})
-                if isinstance(full_data, str):
-                    import json
-                    try:
-                        full_data = json.loads(full_data)
-                    except (json.JSONDecodeError, TypeError):
-                        full_data = {}
-                agenda_items = full_data.get("agenda_items", [])
+                agenda_items = m.get("agenda_items", [])
+                if not agenda_items:
+                    full_data = m.get("full_data", {})
+                    if isinstance(full_data, str):
+                        import json
+                        try:
+                            full_data = json.loads(full_data)
+                        except (json.JSONDecodeError, TypeError):
+                            full_data = {}
+                    agenda_items = full_data.get("agenda_items", [])
 
             meetings.append(Meeting(
-                id=m.get("id", ""),
+                id=meeting_id,
                 title=m.get("title", ""),
                 date=meeting_date,
                 body=m.get("meeting_type", ""),
                 agenda_items=agenda_items,
                 location=m.get("location"),
             ))
-
-        # Filter by days (only include meetings within the window)
-        from datetime import timedelta, timezone
-        now = datetime.now(timezone.utc)
-        cutoff = now + timedelta(days=days)
-
-        def in_window(meeting_date):
-            # Make naive datetime UTC-aware for comparison
-            if meeting_date.tzinfo is None:
-                meeting_date = meeting_date.replace(tzinfo=timezone.utc)
-            return now <= meeting_date <= cutoff
-
-        meetings = [m for m in meetings if in_window(m.date)]
 
         # Filter by topics if provided
         if topics:
