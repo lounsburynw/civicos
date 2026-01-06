@@ -1806,7 +1806,7 @@
       },
       "automated_decision_extraction": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Add decision extraction to Modal automated pipeline",
         "note": "batch_extract_decisions.py is manual. 44 decisions exist (Oct-Dec 2025). FIX: Add to weekly schedule (not daily - minutes PDFs lag meetings). Implementation: requires meeting minutes PDF \u2192 regex extraction \u2192 optional LLM QA \u2192 store_decisions(). NOW UNBLOCKED: temporal_versioning_review fixed (Session 471).",
         "depends_on": "temporal_versioning_review"
@@ -1846,11 +1846,12 @@
         "completed": "2026-01-05"
       },
       "extraction_services_layer_violation": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Remove civic-extraction → civic-services import dependency",
-        "note": "Session 472 critic finding: civic-extraction/cli/agenda.py imports AgendaIntegrator from civic_services.processing. Architecture rule: 'civic-extraction doesn't import from civic-services'. Intelligence layer should not directly import Coordination layer. FIX OPTIONS: 1) Move AgendaIntegrator to civic-extraction (preferred - it's extraction logic), 2) Create wrapper in civic core that mediates, 3) Refactor to pass integrator as dependency injection. Also affects: scripts/aggregate_agenda_from_chunks.py imports civic_services.core.llm_provider.",
-        "test_cmd": "grep -r 'from civic_services' packages/civic-extraction/"
+        "note": "Session 474: Fixed by moving AgendaIntegrator, RetrospectiveAnalyzer, LegiScanClient, SeeClickFixClient, and LegislativeDiscovery to civic-extraction. Used dependency injection for LLM provider (CLI entry points import from civic_services and pass provider to extraction classes). civic-extraction library code now has ZERO civic_services imports.",
+        "test_cmd": "grep -r 'from civic_services' packages/civic-extraction/",
+        "completed": "2026-01-05"
       }
     }
   },

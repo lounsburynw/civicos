@@ -56,6 +56,8 @@ from civic_extraction.clients.base import (
     DataSource,
     HealthStatus,
 )
+from civic_extraction.clients.legiscan import LegiScanClient, TOPIC_KEYWORDS
+from civic_extraction.clients.seeclickfix import SeeClickFixClient
 
 __all__ = [
     "LegistarClient",
@@ -90,4 +92,7 @@ __all__ = [
     "ExtractionConfig",
     "DataSource",
     "HealthStatus",
+    "LegiScanClient",
+    "TOPIC_KEYWORDS",
+    "SeeClickFixClient",
 ]

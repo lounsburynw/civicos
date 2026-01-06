@@ -216,12 +216,8 @@ def run_seeclickfix_refresh(
         place_url = derive_place_url(jurisdiction_id)
     logger.info(f"Using place_url: {place_url}")
 
-    # Import client here to avoid import errors if civic-services not installed
-    try:
-        from civic_services.clients.seeclickfix_client import SeeClickFixClient
-    except ImportError:
-        logger.error("civic-services package not available. Install it first.")
-        return None
+    # Import SeeClickFix client from local clients module
+    from civic_extraction.clients.seeclickfix import SeeClickFixClient
 
     # Initialize client
     client = SeeClickFixClient()
