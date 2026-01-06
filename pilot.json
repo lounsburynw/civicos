@@ -1838,15 +1838,16 @@
     "architectural_debt": {
       "description": "Pre-existing architectural violations flagged by codebase critics - MUST address before pilot",
       "storage_protocol_agenda_items": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Add agenda items methods to StorageBackend protocol",
-        "note": "Session 472 critic finding: store_agenda_items(), get_agenda_items() exist in PostgresBackend but NOT defined in StorageBackend protocol (packages/civic/src/civic/storage/backend.py). Violates protocol conformance pattern. FIX: Add 'Agenda Items Methods' section to protocol after Elected Officials Methods (~line 1609). Include: store_agenda_items(), get_agenda_items(), get_agenda_item_count(). Follow pattern of Decisions/Chunks/Issues methods.",
-        "test_cmd": "grep -n 'def store_agenda_items' packages/civic/src/civic/storage/backend.py"
+        "note": "Session 473: Added store_agenda_items(), get_agenda_items(), get_agenda_item_count() to StorageBackend protocol (backend.py lines 461-527). Added matching stub methods to SQLiteBackend. PostgresBackend already had implementations. Protocol conformance verified programmatically.",
+        "test_cmd": "grep -n 'def store_agenda_items' packages/civic/src/civic/storage/backend.py",
+        "completed": "2026-01-05"
       },
       "extraction_services_layer_violation": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Remove civic-extraction → civic-services import dependency",
         "note": "Session 472 critic finding: civic-extraction/cli/agenda.py imports AgendaIntegrator from civic_services.processing. Architecture rule: 'civic-extraction doesn't import from civic-services'. Intelligence layer should not directly import Coordination layer. FIX OPTIONS: 1) Move AgendaIntegrator to civic-extraction (preferred - it's extraction logic), 2) Create wrapper in civic core that mediates, 3) Refactor to pass integrator as dependency injection. Also affects: scripts/aggregate_agenda_from_chunks.py imports civic_services.core.llm_provider.",
         "test_cmd": "grep -r 'from civic_services' packages/civic-extraction/"

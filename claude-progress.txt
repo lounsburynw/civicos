@@ -10454,3 +10454,41 @@ This is more fundamental than decision extraction.
 - Similar pattern: add Modal function for decision extraction
 - Depends on: temporal_versioning_review (now FIXED in Session 471)
 - Implementation: meeting minutes PDF → regex extraction → optional LLM QA → store_decisions()
+
+## Session 473: storage_protocol_agenda_items - Protocol Conformance Fix
+
+**Date:** 2026-01-05
+**Item:** storage_protocol_agenda_items (data_integrity > architectural_debt)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+
+Fixed protocol conformance violation flagged by Session 472's protocol critic. The `store_agenda_items()`, `get_agenda_items()`, and `get_agenda_item_count()` methods existed in PostgresBackend but were NOT defined in the StorageBackend protocol, violating the protocol conformance pattern.
+
+### Implementation
+
+1. **Added Agenda Item Methods section to StorageBackend protocol** (`backend.py` lines 461-527):
+   - `store_agenda_items(meeting_id, agenda_items, as_of)` → int
+   - `get_agenda_items(meeting_id, jurisdiction_id, as_of, limit)` → List[Dict]
+   - `get_agenda_item_count(jurisdiction_id)` → int
+   - Full docstrings with Args/Returns
+   - Comment block explaining purpose (whats_next() queries)
+
+2. **Added stub methods to SQLiteBackend** (`sqlite_backend.py` lines 1608-1653):
+   - Following pattern of other Postgres-primary features (Issues, Municipal Code)
+   - Returns 0/[] for stubs
+   - Matching signatures with protocol
+
+3. **Verified conformance programmatically:**
+   - All parameter names match between protocol and implementations
+   - SQLiteBackend passes `isinstance(sqlite, StorageBackend)` check
+
+### Files Changed:
+- packages/civic/src/civic/storage/backend.py (protocol definition)
+- packages/civic/src/civic/storage/sqlite_backend.py (stub implementation)
+- pilot.json (marked ready, set next P0)
+
+### Next Session: extraction_services_layer_violation (P0)
+- Fix: civic-extraction imports from civic-services (violates layer boundaries)
+- Options: 1) Move AgendaIntegrator to civic-extraction, 2) Dependency injection
+- Affects: civic-extraction/cli/agenda.py, scripts/aggregate_agenda_from_chunks.py
