@@ -309,6 +309,7 @@ class Meeting:
     source_platform: str = "unknown"
     source_url: Optional[str] = None
     raw_data: Optional[Dict[str, Any]] = None
+    extraction_version: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -326,6 +327,7 @@ class Meeting:
             "video_url": self.video_url,
             "source_platform": self.source_platform,
             "source_url": self.source_url,
+            "extraction_version": self.extraction_version,
         }
 
 
