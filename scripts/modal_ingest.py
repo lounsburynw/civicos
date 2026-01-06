@@ -8,6 +8,8 @@ in parallel on Modal's serverless compute infrastructure. It orchestrates:
 - Meeting discovery (ProudCity API) - supports incremental fetch
 - Issue fetch (SeeClickFix API) - supports incremental fetch
 - Chunk extraction (PDF parsing) - downloads agenda PDFs and extracts text chunks
+- Agenda items extraction (LLM) - extracts actionable items from agendas
+- Decision extraction (LLM) - extracts high-stakes decisions from meeting minutes
 - Vector indexing (fastembed embeddings)
 
 Architecture:
@@ -18,10 +20,14 @@ Architecture:
         ├── fetch_meetings()        → Postgres (incremental)
         ├── fetch_issues()          → Postgres (incremental)
         ├── extract_chunks()        → Postgres (incremental, after meetings)
+        ├── extract_agenda_items()  → Postgres (LLM-powered)
         └── index_vectors()         → pgvector
 
+    modal run scripts/modal_ingest.py --decisions  # Not in --all (weekly only)
+    └── extract_decisions()         → Postgres (LLM-powered, weekly)
+
     Scheduled refreshes (via modal deploy):
-        scheduled_low_velocity_refresh()  # Weekly: municipal code, legislation
+        scheduled_low_velocity_refresh()  # Weekly: municipal code, legislation, decisions
         scheduled_high_velocity_refresh() # Daily: meetings, issues, chunks, vectors
 
 Setup:
@@ -884,6 +890,121 @@ def extract_agenda_items(
 
 
 # =============================================================================
+# Decision Extraction (LLM-powered)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+        modal.Secret.from_name("civic-openai"),  # For LLM extraction
+    ],
+    memory=8192,  # 8GB for LLM processing
+    timeout=7200,  # 2 hours (many meetings to process)
+    retries=modal.Retries(max_retries=1, backoff_coefficient=2.0, initial_delay=30.0),
+)
+def extract_decisions(
+    jurisdiction: str = "city-san-rafael",
+    limit: int = 0,
+    dry_run: bool = False,
+) -> dict:
+    """Extract high-stakes decisions from meeting minutes using LLM.
+
+    This function:
+    1. Reads meetings from Postgres that have agenda/minutes URLs
+    2. Downloads PDFs and extracts high-stakes decisions using LLM
+    3. Stores decisions to Postgres
+
+    NOTE: Should run weekly (not daily) because meeting minutes PDFs
+    are typically published 1-2 weeks after the meeting.
+
+    Pipeline Integration:
+        This is a Modal orchestration task, not a Pipeline class instance.
+        It bypasses the standard 4-stage pattern (discover→ingest→store→index)
+        because decision extraction is:
+        - LLM-intensive (not suited for streaming callbacks)
+        - Weekly (not part of daily high-velocity refresh)
+        - Already incremental (skips previously extracted meetings)
+
+        Vector indexing happens separately via index_vectors() which includes
+        "decisions" in its corpus_types. In scheduled_low_velocity_refresh,
+        extract_decisions runs BEFORE index_vectors to maintain store→index order.
+
+    Args:
+        jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
+        limit: Maximum meetings to process (0 = no limit)
+        dry_run: If True, show what would be processed without extracting
+    """
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civic_extraction.cli.decisions import run_decision_extraction
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    logger.info(f"[DECISIONS] Starting extraction: jurisdiction={jurisdiction}, limit={limit}")
+
+    # run_decision_extraction handles:
+    # - Reading meetings from Postgres (cloud mode via DATABASE_URL)
+    # - Incremental extraction (skips already-extracted meetings)
+    # - LLM-powered decision extraction via RetrospectiveAnalyzer
+    # - Storing decisions to Postgres
+    results = run_decision_extraction(
+        jurisdiction_id=jurisdiction,
+        # Local dirs not used in cloud mode, but required params
+        input_dir="data/meetings",
+        output_dir="data/decisions",
+        checkpoint_dir="data/checkpoints",
+        dry_run=dry_run,
+        limit=limit,
+        cloud=True,  # Force cloud storage mode
+    )
+
+    # Summarize results
+    if results is None:
+        elapsed = time.time() - start_time
+        return {
+            "task": "decisions",
+            "jurisdiction": jurisdiction,
+            "status": "dry_run" if dry_run else "no_meetings",
+            "decisions_extracted": 0,
+            "meetings_processed": 0,
+            "elapsed_seconds": elapsed,
+            "cost_usd": 8 * elapsed * 0.000463,
+        }
+
+    # Count actual extractions
+    extracted = sum(1 for r in results if r.status == "success")
+    skipped = sum(1 for r in results if r.status == "skipped")
+    failed = sum(1 for r in results if r.status == "error")
+    total_decisions = sum(r.decisions_count for r in results if r.status == "success")
+
+    elapsed = time.time() - start_time
+    logger.info(f"[DECISIONS] Extracted {total_decisions} decisions from {extracted} meetings")
+    logger.info(f"[DECISIONS] Skipped {skipped} (already extracted), {failed} failed")
+
+    return {
+        "task": "decisions",
+        "jurisdiction": jurisdiction,
+        "meetings_processed": len(results),
+        "meetings_extracted": extracted,
+        "meetings_skipped": skipped,
+        "meetings_failed": failed,
+        "decisions_extracted": total_decisions,
+        "dry_run": dry_run,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 8 * elapsed * 0.000463,
+    }
+
+
+# =============================================================================
 # Scheduled Refreshes
 # =============================================================================
 
@@ -892,16 +1013,18 @@ def extract_agenda_items(
     secrets=[
         modal.Secret.from_name("civic-db"),
         modal.Secret.from_name("civic-legiscan"),
+        modal.Secret.from_name("civic-openai"),  # For LLM extraction (agenda, decisions)
     ],
     memory=4096,
     timeout=14400,  # 4 hours
     schedule=modal.Cron("0 3 * * 0"),  # Weekly on Sunday at 3 AM UTC (7 PM Pacific Sat)
 )
 def scheduled_low_velocity_refresh():
-    """Weekly scheduled refresh for low-velocity corpora (municipal code, legislation).
+    """Weekly scheduled refresh for low-velocity corpora (municipal code, legislation, decisions).
 
     Runs Sunday 3 AM UTC = Saturday 7 PM Pacific.
     Full refresh for static reference data that rarely changes.
+    Also runs decision extraction (weekly because minutes PDFs lag behind meetings).
     """
     import logging
     import time
@@ -943,6 +1066,16 @@ def scheduled_low_velocity_refresh():
     except Exception as e:
         logger.exception("Agenda items extraction failed")
         results["agenda_items"] = {"status": "failed", "error": str(e)}
+
+    # Decision extraction (LLM-powered, weekly because minutes PDFs lag behind meetings)
+    try:
+        logger.info("Extracting decisions...")
+        result = extract_decisions.local(jurisdiction="city-san-rafael", dry_run=False)
+        results["decisions"] = result
+        logger.info(f"  Decisions: {result.get('decisions_extracted', 0)} decisions from {result.get('meetings_extracted', 0)} meetings")
+    except Exception as e:
+        logger.exception("Decision extraction failed")
+        results["decisions"] = {"status": "failed", "error": str(e)}
 
     # Vector indexing (after data is refreshed)
     try:
@@ -1160,12 +1293,14 @@ def main(
     issues: bool = False,
     chunks: bool = False,
     agenda: bool = False,
+    decisions: bool = False,
     vectors: bool = False,
     jurisdiction: str = "city-san-rafael",
     legislation_jurisdiction: str = "state-CA",
     legislation_limit: int | None = None,
     chunks_limit: int = 0,
     agenda_limit: int = 0,
+    decisions_limit: int = 0,
     incremental: bool = False,
     reindex: bool = False,
     dry_run: bool = False,
@@ -1193,6 +1328,10 @@ def main(
         # Extract chunks (incremental by default - skips already-chunked meetings)
         modal run scripts/modal_ingest.py --chunks
         modal run scripts/modal_ingest.py --chunks --chunks-limit 5  # Limit to 5 meetings
+
+        # Extract decisions (run weekly, not daily - minutes PDFs lag behind meetings)
+        modal run scripts/modal_ingest.py --decisions
+        modal run scripts/modal_ingest.py --decisions --decisions-limit 5
 
         # Combine components (skip legislation to save API quota)
         modal run scripts/modal_ingest.py --municipal --vectors
@@ -1236,16 +1375,18 @@ def main(
         return
 
     # Determine what to run
+    # Note: decisions is NOT included in --all because it should run weekly, not with daily refresh
     run_municipal = all or municipal
     run_legislation = all or legislation
     run_meetings = all or meetings
     run_issues = all or issues
     run_chunks = all or chunks
     run_agenda = all or agenda
+    run_decisions = decisions  # Explicitly not in --all (weekly only)
     run_vectors = all or vectors
 
-    if not (run_municipal or run_legislation or run_meetings or run_issues or run_chunks or run_agenda or run_vectors):
-        print("No tasks specified. Use --all, --municipal, --legislation, --meetings, --issues, --chunks, --agenda, or --vectors")
+    if not (run_municipal or run_legislation or run_meetings or run_issues or run_chunks or run_agenda or run_decisions or run_vectors):
+        print("No tasks specified. Use --all, --municipal, --legislation, --meetings, --issues, --chunks, --agenda, --decisions, or --vectors")
         print("Use --stats-only to check current state")
         return
 
@@ -1265,6 +1406,8 @@ def main(
         task_list.append("chunks")
     if run_agenda:
         task_list.append("agenda")
+    if run_decisions:
+        task_list.append("decisions")
     if run_vectors:
         task_list.append("vectors")
     print(f"Tasks: {' '.join(task_list)}")
@@ -1280,6 +1423,8 @@ def main(
         print(f"  Chunks: {jurisdiction}" + (f" (limit: {chunks_limit})" if chunks_limit else " (incremental)"))
     if run_agenda:
         print(f"  Agenda: {jurisdiction}" + (f" (limit: {agenda_limit})" if agenda_limit else " (incremental)"))
+    if run_decisions:
+        print(f"  Decisions: {jurisdiction}" + (f" (limit: {decisions_limit})" if decisions_limit else " (incremental)"))
     if run_vectors:
         print(f"  Vectors: {jurisdiction}")
     print(f"Dry run: {dry_run}")
@@ -1354,6 +1499,17 @@ def main(
         )
         print(f"  agenda: {agenda_result.get('elapsed_seconds', 0):.1f}s, cost: ${agenda_result.get('cost_usd', 0):.4f}")
 
+    # Extract decisions after meetings are fetched (weekly only, not in --all)
+    decisions_result = None
+    if run_decisions:
+        print("\nRunning decision extraction...")
+        decisions_result = extract_decisions.remote(
+            jurisdiction=jurisdiction,
+            limit=decisions_limit,
+            dry_run=dry_run,
+        )
+        print(f"  decisions: {decisions_result.get('elapsed_seconds', 0):.1f}s, cost: ${decisions_result.get('cost_usd', 0):.4f}")
+
     # Now run vectors (after fetches and chunks complete, so we index all data)
     vector_result = None
     if run_vectors:
@@ -1402,6 +1558,14 @@ def main(
         total_items = agenda_result.get("items_extracted", 0)
         actionable = agenda_result.get("actionable_items", 0)
         print(f"+ Agenda: {total_items} items ({actionable} actionable) from {extracted} meetings, {skipped} skipped")
+
+    if decisions_result:
+        cost = decisions_result.get("cost_usd", 0)
+        total_cost += cost
+        extracted = decisions_result.get("meetings_extracted", 0)
+        skipped = decisions_result.get("meetings_skipped", 0)
+        total_decisions = decisions_result.get("decisions_extracted", 0)
+        print(f"+ Decisions: {total_decisions} decisions from {extracted} meetings, {skipped} skipped")
 
     if vector_result:
         cost = vector_result.get("cost_usd", 0)
