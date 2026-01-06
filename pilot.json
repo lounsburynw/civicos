@@ -4,7 +4,7 @@
   "target": "Jan 2026",
   "location": "San Rafael, CA",
   "last_updated": "2026-01-05",
-  "session_480_note": "Added transcript_duration_validation to data_integrity.source_provenance",
+  "session_480_note": "Completed soft_delete_support P0: added deleted_at to 19 content tables, updated all queries to filter deleted records, added soft_delete/restore_deleted methods",
   "category_order": [
     "test_infrastructure",
     "data_architecture",
@@ -1644,7 +1644,7 @@
       },
       "open_states_api_key_renewal": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Renew Open States API key for state legislator data",
         "note": "Session 477 discovered: Current OPEN_STATES_API_KEY returns 401 Unauthorized. Need to get new key from https://openstates.org/account/profile/. Without this, RepresentativesClient cannot fetch CA state legislators (Assembly, Senate). Congress.gov (federal) and local (manual) still work.",
         "manual_step": "Get new API key from openstates.org and update .env",
@@ -1848,10 +1848,11 @@
     },
     "audit_infrastructure": {
       "soft_delete_support": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "deleted_at column on all content tables",
-        "note": "Never hard-delete. Preserve audit trail of what was removed, when, why."
+        "completed": "2026-01-05",
+        "note": "SESSION 480: Added deleted_at to 19 content tables (meetings, agenda_items, decisions, chunks, videos, transcripts, issues, municipal_code, legislation, codified_law, budget_items, federal_awards, state_passthrough_funds, budget_funding_source_links, federal_audit_expenditures, elections, election_deadlines, election_contests, elected_officials). All get_* and *_count methods now filter deleted_at IS NULL. Added soft_delete() and restore_deleted() methods to PostgresBackend. Migration 015_data_integrity.sql updated and applied to Supabase."
       },
       "engagement_tracking_schema": {
         "status": "not_ready",

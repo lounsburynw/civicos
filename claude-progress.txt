@@ -10653,3 +10653,34 @@ VIP/Google publishes election data 2-3 weeks before elections. Current data:
 CA election data will appear ~May 2026 for June primary.
 
 **Next P0:** soft_delete_support (deleted_at column on all content tables)
+
+
+## Session 480 (2026-01-05)
+
+**Work Item:** soft_delete_support (P0)
+
+**Completed:**
+- Added deleted_at TIMESTAMP column to 19 content tables:
+  - meetings, agenda_items, decisions, chunks, videos, transcripts
+  - issues, municipal_code, legislation, codified_law
+  - budget_items, federal_awards, state_passthrough_funds
+  - budget_funding_source_links, federal_audit_expenditures
+  - elections, election_deadlines, election_contests, elected_officials
+- Updated all 24+ get_* methods to filter deleted_at IS NULL
+- Updated all 16+ *_count methods to filter deleted_at IS NULL
+- Implemented soft_delete() method for setting deleted_at timestamp
+- Implemented restore_deleted() method for clearing deleted_at
+- Updated migration 015_data_integrity.sql with all table alterations
+- Applied migration to Supabase production database
+- Added 5 tests for soft delete in test_storage_protocols.py
+
+**Files Changed:**
+- packages/civic/src/civic/storage/postgres_backend.py (schema + methods)
+- migrations/015_data_integrity.sql (extended to 19 tables)
+- packages/civic/tests/test_storage_protocols.py (new tests)
+- pilot.json (status: ready)
+
+**Tests:** 39/39 smoke tests pass, 5/5 soft delete tests pass
+
+**Next P0:** open_states_api_key_renewal (manual step: renew API key)
+

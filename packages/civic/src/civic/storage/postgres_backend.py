@@ -8,7 +8,7 @@ Part of the 4-stage pipeline: discover -> ingest -> store -> index.
 
 import json
 import time
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from io import StringIO
 from typing import Any, Dict, List, Optional
 
@@ -205,6 +205,7 @@ class PostgresBackend:
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
                 full_data TEXT,
+                deleted_at TIMESTAMP,
                 PRIMARY KEY (id, valid_from),
                 FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
                 CHECK (valid_to IS NULL OR valid_to > valid_from)
@@ -236,6 +237,7 @@ class PostgresBackend:
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
                 full_data TEXT,
+                deleted_at TIMESTAMP,
                 PRIMARY KEY (id, valid_from),
                 CHECK (valid_to IS NULL OR valid_to > valid_from)
             )
@@ -312,6 +314,7 @@ class PostgresBackend:
                 extracted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
                 PRIMARY KEY (id, jurisdiction_id, valid_from),
                 FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
                 CHECK (valid_to IS NULL OR valid_to > valid_from)
@@ -351,6 +354,7 @@ class PostgresBackend:
                 extracted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
                 PRIMARY KEY (id, jurisdiction_id, valid_from),
                 FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
                 CHECK (valid_to IS NULL OR valid_to > valid_from)
@@ -388,6 +392,7 @@ class PostgresBackend:
                 discovered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
                 PRIMARY KEY (id, jurisdiction_id, valid_from),
                 FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
                 CHECK (valid_to IS NULL OR valid_to > valid_from)
@@ -422,6 +427,7 @@ class PostgresBackend:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
                 PRIMARY KEY (id, jurisdiction_id, valid_from),
                 FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
                 CHECK (valid_to IS NULL OR valid_to > valid_from)
@@ -466,6 +472,7 @@ class PostgresBackend:
                 stored_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
                 PRIMARY KEY (id, jurisdiction_id, valid_from),
                 FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
                 UNIQUE (provider, external_id, valid_from),
@@ -547,6 +554,7 @@ class PostgresBackend:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
                 PRIMARY KEY (id, jurisdiction_id, valid_from),
                 FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
                 CHECK (valid_to IS NULL OR valid_to > valid_from)
@@ -592,6 +600,7 @@ class PostgresBackend:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
                 UNIQUE (bill_id, state, valid_from),
                 CHECK (valid_to IS NULL OR valid_to > valid_from)
             )
@@ -640,6 +649,7 @@ class PostgresBackend:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
                 UNIQUE (identifier, jurisdiction_id, valid_from),
                 CHECK (valid_to IS NULL OR valid_to > valid_from)
             )
@@ -775,6 +785,7 @@ class PostgresBackend:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
                 UNIQUE (item_id, jurisdiction_id, valid_from),
                 FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
                 CHECK (valid_to IS NULL OR valid_to > valid_from),
@@ -829,6 +840,7 @@ class PostgresBackend:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
                 UNIQUE (award_id, jurisdiction_id, valid_from),
                 FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
                 CHECK (valid_to IS NULL OR valid_to > valid_from),
@@ -886,6 +898,7 @@ class PostgresBackend:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
                 UNIQUE (passthrough_id, jurisdiction_id, valid_from),
                 FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
                 CHECK (valid_to IS NULL OR valid_to > valid_from),
@@ -945,6 +958,7 @@ class PostgresBackend:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
                 UNIQUE (link_id, jurisdiction_id, valid_from),
                 FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
                 CHECK (valid_to IS NULL OR valid_to > valid_from),
@@ -1014,6 +1028,7 @@ class PostgresBackend:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
                 UNIQUE (report_id, award_reference, jurisdiction_id, valid_from),
                 FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
                 CHECK (valid_to IS NULL OR valid_to > valid_from),
@@ -1057,6 +1072,7 @@ class PostgresBackend:
                 raw_data JSONB,
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
                 PRIMARY KEY (id, jurisdiction_id, valid_from),
                 FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
                 CHECK (valid_to IS NULL OR valid_to > valid_from)
@@ -1090,6 +1106,7 @@ class PostgresBackend:
                 description TEXT,
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
                 PRIMARY KEY (id, election_id, valid_from),
                 CHECK (valid_to IS NULL OR valid_to > valid_from)
             )
@@ -1115,6 +1132,7 @@ class PostgresBackend:
                 raw_data JSONB,
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
                 PRIMARY KEY (id, election_id, valid_from),
                 CHECK (valid_to IS NULL OR valid_to > valid_from)
             )
@@ -1143,6 +1161,7 @@ class PostgresBackend:
                 candidate_id TEXT,
                 valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
                 PRIMARY KEY (id, jurisdiction_id, valid_from),
                 FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
                 CHECK (valid_to IS NULL OR valid_to > valid_from)
@@ -1379,6 +1398,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
         """
         params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
 
@@ -1436,17 +1456,17 @@ class PostgresBackend:
         # Count current meetings
         cursor.execute("""
             SELECT COUNT(*) FROM meetings
-            WHERE jurisdiction_id = %s AND valid_to IS NULL
+            WHERE jurisdiction_id = %s AND valid_to IS NULL AND deleted_at IS NULL
         """, (jurisdiction_id,))
         meeting_count = cursor.fetchone()[0]
 
         # Count agenda items
         cursor.execute("""
             SELECT COUNT(*) FROM agenda_items
-            WHERE valid_to IS NULL
+            WHERE valid_to IS NULL AND deleted_at IS NULL
               AND meeting_id IN (
                   SELECT id FROM meetings
-                  WHERE jurisdiction_id = %s AND valid_to IS NULL
+                  WHERE jurisdiction_id = %s AND valid_to IS NULL AND deleted_at IS NULL
               )
         """, (jurisdiction_id,))
         agenda_item_count = cursor.fetchone()[0]
@@ -1455,7 +1475,7 @@ class PostgresBackend:
         cursor.execute("""
             SELECT MIN(meeting_datetime), MAX(meeting_datetime), MAX(valid_from)
             FROM meetings
-            WHERE jurisdiction_id = %s AND valid_to IS NULL
+            WHERE jurisdiction_id = %s AND valid_to IS NULL AND deleted_at IS NULL
         """, (jurisdiction_id,))
         result = cursor.fetchone()
         earliest = result[0]
@@ -1947,6 +1967,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
         """
         params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
 
@@ -2005,7 +2026,7 @@ class PostgresBackend:
 
         cursor.execute("""
             SELECT COUNT(*) FROM decisions
-            WHERE jurisdiction_id = %s AND valid_to IS NULL
+            WHERE jurisdiction_id = %s AND valid_to IS NULL AND deleted_at IS NULL
         """, (jurisdiction_id,))
         count = cursor.fetchone()[0]
         conn.close()
@@ -2126,6 +2147,7 @@ class PostgresBackend:
                 WHERE meeting_id = %s
                   AND valid_from <= %s
                   AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
                 ORDER BY item_number
             """
             params = [meeting_id, as_of.isoformat(), as_of.isoformat()]
@@ -2146,6 +2168,7 @@ class PostgresBackend:
                 SELECT * FROM agenda_items
                 WHERE valid_from <= %s
                   AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
                 ORDER BY meeting_id, item_number
             """
             params = [as_of.isoformat(), as_of.isoformat()]
@@ -2190,13 +2213,13 @@ class PostgresBackend:
                 SELECT COUNT(*) FROM agenda_items a
                 JOIN meetings m ON a.meeting_id = m.id
                 WHERE m.jurisdiction_id = %s
-                  AND a.valid_to IS NULL
-                  AND m.valid_to IS NULL
+                  AND a.valid_to IS NULL AND a.deleted_at IS NULL
+                  AND m.valid_to IS NULL AND m.deleted_at IS NULL
             """, (jurisdiction_id,))
         else:
             cursor.execute("""
                 SELECT COUNT(*) FROM agenda_items
-                WHERE valid_to IS NULL
+                WHERE valid_to IS NULL AND deleted_at IS NULL
             """)
 
         count = cursor.fetchone()[0]
@@ -2335,6 +2358,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
         """
         params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
 
@@ -2389,7 +2413,7 @@ class PostgresBackend:
 
         cursor.execute("""
             SELECT COUNT(*) FROM chunks
-            WHERE jurisdiction_id = %s AND valid_to IS NULL
+            WHERE jurisdiction_id = %s AND valid_to IS NULL AND deleted_at IS NULL
         """, (jurisdiction_id,))
         count = cursor.fetchone()[0]
         conn.close()
@@ -2511,6 +2535,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
             ORDER BY discovered_at DESC
         """
         params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
@@ -2552,7 +2577,7 @@ class PostgresBackend:
 
         cursor.execute("""
             SELECT COUNT(*) FROM videos
-            WHERE jurisdiction_id = %s AND valid_to IS NULL
+            WHERE jurisdiction_id = %s AND valid_to IS NULL AND deleted_at IS NULL
         """, (jurisdiction_id,))
         count = cursor.fetchone()[0]
         conn.close()
@@ -2702,6 +2727,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
             ORDER BY created_at DESC
         """
         params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
@@ -2755,6 +2781,7 @@ class PostgresBackend:
             WHERE video_id = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
             ORDER BY created_at DESC
             LIMIT 1
         """, (video_id, as_of.isoformat(), as_of.isoformat()))
@@ -2793,7 +2820,7 @@ class PostgresBackend:
 
         cursor.execute("""
             SELECT COUNT(*) FROM transcripts
-            WHERE jurisdiction_id = %s AND valid_to IS NULL
+            WHERE jurisdiction_id = %s AND valid_to IS NULL AND deleted_at IS NULL
         """, (jurisdiction_id,))
         count = cursor.fetchone()[0]
         conn.close()
@@ -2926,6 +2953,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
         """
         params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
 
@@ -2984,6 +3012,7 @@ class PostgresBackend:
               AND section_number = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
             ORDER BY created_at DESC
             LIMIT 1
         """, (jurisdiction_id, section_number, as_of.isoformat(), as_of.isoformat()))
@@ -3019,7 +3048,7 @@ class PostgresBackend:
 
         cursor.execute("""
             SELECT COUNT(*) FROM municipal_code
-            WHERE jurisdiction_id = %s AND valid_to IS NULL
+            WHERE jurisdiction_id = %s AND valid_to IS NULL AND deleted_at IS NULL
         """, (jurisdiction_id,))
         count = cursor.fetchone()[0]
         conn.close()
@@ -3192,6 +3221,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
         """
         params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
 
@@ -3253,12 +3283,12 @@ class PostgresBackend:
         if provider:
             cursor.execute("""
                 SELECT COUNT(*) FROM issues
-                WHERE jurisdiction_id = %s AND provider = %s AND valid_to IS NULL
+                WHERE jurisdiction_id = %s AND provider = %s AND valid_to IS NULL AND deleted_at IS NULL
             """, (jurisdiction_id, provider))
         else:
             cursor.execute("""
                 SELECT COUNT(*) FROM issues
-                WHERE jurisdiction_id = %s AND valid_to IS NULL
+                WHERE jurisdiction_id = %s AND valid_to IS NULL AND deleted_at IS NULL
             """, (jurisdiction_id,))
         count = cursor.fetchone()[0]
         conn.close()
@@ -3777,6 +3807,7 @@ class PostgresBackend:
             WHERE state = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
         """
         params: List[Any] = [state, as_of.isoformat(), as_of.isoformat()]
 
@@ -3850,6 +3881,7 @@ class PostgresBackend:
               AND bill_id = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
             ORDER BY created_at DESC
             LIMIT 1
         """, (state, bill_id, as_of.isoformat(), as_of.isoformat()))
@@ -3898,12 +3930,12 @@ class PostgresBackend:
         if topic:
             cursor.execute("""
                 SELECT COUNT(*) FROM legislation
-                WHERE state = %s AND topic = %s AND valid_to IS NULL
+                WHERE state = %s AND topic = %s AND valid_to IS NULL AND deleted_at IS NULL
             """, (state, topic))
         else:
             cursor.execute("""
                 SELECT COUNT(*) FROM legislation
-                WHERE state = %s AND valid_to IS NULL
+                WHERE state = %s AND valid_to IS NULL AND deleted_at IS NULL
             """, (state,))
 
         count = cursor.fetchone()[0]
@@ -4157,6 +4189,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
         """
         params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
 
@@ -4281,7 +4314,7 @@ class PostgresBackend:
 
         query = """
             SELECT COUNT(*) FROM codified_law
-            WHERE jurisdiction_id = %s AND valid_to IS NULL
+            WHERE jurisdiction_id = %s AND valid_to IS NULL AND deleted_at IS NULL
         """
         params: List[Any] = [jurisdiction_id]
 
@@ -4885,6 +4918,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
         """
         params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
 
@@ -4970,6 +5004,7 @@ class PostgresBackend:
               AND fiscal_year = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
             GROUP BY {group_by}
             ORDER BY budgeted_cents DESC
         """
@@ -5003,7 +5038,7 @@ class PostgresBackend:
         query = """
             SELECT COUNT(*) FROM budget_items
             WHERE jurisdiction_id = %s
-              AND valid_to IS NULL
+              AND valid_to IS NULL AND deleted_at IS NULL
         """
         params: List[Any] = [jurisdiction_id]
 
@@ -5164,6 +5199,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
         """
         params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
 
@@ -5219,7 +5255,7 @@ class PostgresBackend:
         cursor.execute("""
             SELECT COUNT(*) FROM federal_awards
             WHERE jurisdiction_id = %s
-              AND valid_to IS NULL
+              AND valid_to IS NULL AND deleted_at IS NULL
         """, (jurisdiction_id,))
         count = cursor.fetchone()[0]
         conn.close()
@@ -5397,6 +5433,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
         """
         params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
 
@@ -5480,7 +5517,7 @@ class PostgresBackend:
         cursor.execute("""
             SELECT COUNT(*) FROM federal_audit_expenditures
             WHERE jurisdiction_id = %s
-              AND valid_to IS NULL
+              AND valid_to IS NULL AND deleted_at IS NULL
         """, (jurisdiction_id,))
         count = cursor.fetchone()[0]
         conn.close()
@@ -5648,6 +5685,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
         """
         params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
 
@@ -5710,7 +5748,7 @@ class PostgresBackend:
         cursor.execute("""
             SELECT COUNT(*) FROM state_passthrough_funds
             WHERE jurisdiction_id = %s
-              AND valid_to IS NULL
+              AND valid_to IS NULL AND deleted_at IS NULL
         """, (jurisdiction_id,))
         count = cursor.fetchone()[0]
         conn.close()
@@ -5869,6 +5907,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
         """
         params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
 
@@ -5921,7 +5960,7 @@ class PostgresBackend:
         query = """
             SELECT COUNT(*) FROM budget_funding_source_links
             WHERE jurisdiction_id = %s
-              AND valid_to IS NULL
+              AND valid_to IS NULL AND deleted_at IS NULL
         """
         params: List[Any] = [jurisdiction_id]
 
@@ -6091,6 +6130,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
         """
         params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
 
@@ -6130,7 +6170,7 @@ class PostgresBackend:
         cursor.execute("""
             SELECT COUNT(*) FROM elections
             WHERE jurisdiction_id = %s
-              AND valid_to IS NULL
+              AND valid_to IS NULL AND deleted_at IS NULL
               AND election_date >= %s
         """, (jurisdiction_id, today))
         count = cursor.fetchone()[0]
@@ -6213,6 +6253,7 @@ class PostgresBackend:
             WHERE election_id = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
             ORDER BY deadline_date ASC
         """, (election_id, as_of.isoformat(), as_of.isoformat()))
 
@@ -6310,6 +6351,7 @@ class PostgresBackend:
             WHERE election_id = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
         """
         params: List[Any] = [election_id, as_of.isoformat(), as_of.isoformat()]
 
@@ -6435,6 +6477,7 @@ class PostgresBackend:
             WHERE jurisdiction_id = %s
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
         """
         params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
 
@@ -6470,7 +6513,7 @@ class PostgresBackend:
                    name_variations, candidate_id
             FROM elected_officials
             WHERE jurisdiction_id = %s
-              AND valid_to IS NULL
+              AND valid_to IS NULL AND deleted_at IS NULL
               AND (name = %s OR name ILIKE %s OR name ILIKE %s)
             LIMIT 1
         """, (
@@ -6491,7 +6534,7 @@ class PostgresBackend:
                    name_variations, candidate_id
             FROM elected_officials
             WHERE jurisdiction_id = %s
-              AND valid_to IS NULL
+              AND valid_to IS NULL AND deleted_at IS NULL
               AND name_variations::text ILIKE %s
             LIMIT 1
         """, (jurisdiction_id, f"%{name}%"))
@@ -6502,6 +6545,151 @@ class PostgresBackend:
         if row:
             return dict(row)
         return None
+
+    # =======================================================================
+    # SOFT DELETE (SESSION 480)
+    # Never hard-delete content. Preserve audit trail.
+    # =======================================================================
+
+    # Tables that support soft delete (content tables with deleted_at column)
+    SOFT_DELETE_TABLES = {
+        'meetings', 'agenda_items', 'decisions', 'chunks', 'videos',
+        'transcripts', 'issues', 'municipal_code', 'legislation',
+        'codified_law', 'budget_items', 'federal_awards',
+        'state_passthrough_funds', 'budget_funding_source_links',
+        'federal_audit_expenditures', 'elections', 'election_deadlines',
+        'election_contests', 'elected_officials'
+    }
+
+    def soft_delete(
+        self,
+        table: str,
+        jurisdiction_id: str,
+        record_ids: Optional[List[str]] = None,
+    ) -> int:
+        """
+        Soft delete records by setting deleted_at timestamp.
+
+        Args:
+            table: Table name (must be in SOFT_DELETE_TABLES)
+            jurisdiction_id: Jurisdiction ID for the records
+            record_ids: Optional list of specific record IDs to delete.
+                       If None, deletes ALL current records for jurisdiction.
+
+        Returns:
+            Number of records soft-deleted
+
+        Raises:
+            ValueError: If table doesn't support soft delete
+        """
+        if table not in self.SOFT_DELETE_TABLES:
+            raise ValueError(
+                f"Table '{table}' does not support soft delete. "
+                f"Valid tables: {sorted(self.SOFT_DELETE_TABLES)}"
+            )
+
+        # Normalize jurisdiction
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        now = datetime.now(timezone.utc)
+
+        if record_ids:
+            # Delete specific records
+            placeholders = ','.join(['%s'] * len(record_ids))
+            query = f"""
+                UPDATE {table}
+                SET deleted_at = %s
+                WHERE jurisdiction_id = %s
+                  AND id IN ({placeholders})
+                  AND valid_to IS NULL
+                  AND deleted_at IS NULL
+            """
+            params = [now, jurisdiction_id] + list(record_ids)
+        else:
+            # Delete all current records for jurisdiction
+            query = f"""
+                UPDATE {table}
+                SET deleted_at = %s
+                WHERE jurisdiction_id = %s
+                  AND valid_to IS NULL
+                  AND deleted_at IS NULL
+            """
+            params = [now, jurisdiction_id]
+
+        cursor.execute(query, params)
+        deleted_count = cursor.rowcount
+        conn.commit()
+        conn.close()
+
+        return deleted_count
+
+    def restore_deleted(
+        self,
+        table: str,
+        jurisdiction_id: str,
+        record_ids: Optional[List[str]] = None,
+    ) -> int:
+        """
+        Restore soft-deleted records by clearing deleted_at timestamp.
+
+        Args:
+            table: Table name (must be in SOFT_DELETE_TABLES)
+            jurisdiction_id: Jurisdiction ID for the records
+            record_ids: Optional list of specific record IDs to restore.
+                       If None, restores ALL deleted records for jurisdiction.
+
+        Returns:
+            Number of records restored
+
+        Raises:
+            ValueError: If table doesn't support soft delete
+        """
+        if table not in self.SOFT_DELETE_TABLES:
+            raise ValueError(
+                f"Table '{table}' does not support soft delete. "
+                f"Valid tables: {sorted(self.SOFT_DELETE_TABLES)}"
+            )
+
+        # Normalize jurisdiction
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        if record_ids:
+            # Restore specific records
+            placeholders = ','.join(['%s'] * len(record_ids))
+            query = f"""
+                UPDATE {table}
+                SET deleted_at = NULL
+                WHERE jurisdiction_id = %s
+                  AND id IN ({placeholders})
+                  AND valid_to IS NULL
+                  AND deleted_at IS NOT NULL
+            """
+            params = [jurisdiction_id] + list(record_ids)
+        else:
+            # Restore all deleted records for jurisdiction
+            query = f"""
+                UPDATE {table}
+                SET deleted_at = NULL
+                WHERE jurisdiction_id = %s
+                  AND valid_to IS NULL
+                  AND deleted_at IS NOT NULL
+            """
+            params = [jurisdiction_id]
+
+        cursor.execute(query, params)
+        restored_count = cursor.rowcount
+        conn.commit()
+        conn.close()
+
+        return restored_count
 
 
 # Verify protocol compliance at import time (only if psycopg2 available)

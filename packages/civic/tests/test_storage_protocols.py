@@ -2489,3 +2489,63 @@ class TestElectionStorageIntegration:
         assert all("id" in e for e in elections)
         assert all("name" in e for e in elections)
         assert all("election_type" in e for e in elections)
+
+
+# ==============================================================================
+# SOFT DELETE TESTS (SESSION 480)
+# ==============================================================================
+
+
+class TestSoftDelete:
+    """Tests for soft delete functionality in PostgresBackend."""
+
+    @pytest.fixture
+    def postgres_storage(self):
+        """Get PostgresBackend connected to test database."""
+        from dotenv import load_dotenv
+        load_dotenv()
+        import os
+        db_url = os.getenv("DATABASE_URL")
+        if not db_url:
+            pytest.skip("DATABASE_URL not set - skipping PostgresBackend tests")
+        from civic.storage import PostgresBackend
+        return PostgresBackend(db_url)
+
+    def test_soft_delete_tables_list(self, postgres_storage):
+        """PostgresBackend defines SOFT_DELETE_TABLES constant."""
+        assert hasattr(postgres_storage, 'SOFT_DELETE_TABLES')
+        assert 'meetings' in postgres_storage.SOFT_DELETE_TABLES
+        assert 'decisions' in postgres_storage.SOFT_DELETE_TABLES
+        assert 'issues' in postgres_storage.SOFT_DELETE_TABLES
+        # Should have 19 tables
+        assert len(postgres_storage.SOFT_DELETE_TABLES) == 19
+
+    def test_soft_delete_rejects_invalid_table(self, postgres_storage):
+        """soft_delete raises ValueError for invalid table name."""
+        with pytest.raises(ValueError) as exc_info:
+            postgres_storage.soft_delete("invalid_table", "san-rafael")
+        assert "does not support soft delete" in str(exc_info.value)
+
+    def test_restore_deleted_rejects_invalid_table(self, postgres_storage):
+        """restore_deleted raises ValueError for invalid table name."""
+        with pytest.raises(ValueError) as exc_info:
+            postgres_storage.restore_deleted("city_states", "san-rafael")
+        assert "does not support soft delete" in str(exc_info.value)
+
+    def test_soft_delete_method_signature(self, postgres_storage):
+        """soft_delete method exists with correct signature."""
+        import inspect
+        sig = inspect.signature(postgres_storage.soft_delete)
+        params = list(sig.parameters.keys())
+        assert 'table' in params
+        assert 'jurisdiction_id' in params
+        assert 'record_ids' in params
+
+    def test_restore_deleted_method_signature(self, postgres_storage):
+        """restore_deleted method exists with correct signature."""
+        import inspect
+        sig = inspect.signature(postgres_storage.restore_deleted)
+        params = list(sig.parameters.keys())
+        assert 'table' in params
+        assert 'jurisdiction_id' in params
+        assert 'record_ids' in params
