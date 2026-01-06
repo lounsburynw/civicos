@@ -101,12 +101,70 @@ The key insight: people pay when they have **skin in the game**. A $500k propert
 
 5. **Municipal contracts as anchor.** If San Rafael pilot succeeds, city contracts provide stable base revenue. Citizen subscriptions provide growth.
 
+## Open Source Strategy
+
+### Code: AGPL-3.0
+
+The codebase should be open source under AGPL-3.0 (copyleft):
+- Full transparency builds trust (critical for civic infrastructure)
+- Prevents proprietary forks while allowing community use
+- Anyone can self-host; Civic provides the operated service
+- Moat is operations and data freshness, not code secrecy
+
+### The WordPress Model
+
+WordPress.org is 100% GPL. Automattic (WordPress.com) is worth $7B+ because *hosting it well* is the product. The code is free; the reliable, maintained service is not.
+
+```
+Code (open source)     →  Free, forkable, transparent
+Data curation          →  Ongoing operational cost
+Hosted service         →  The paid product
+```
+
+### Contributor Model: The Scaling Strategy
+
+**The original vision:** Open source community contributes municipal-specific parsers (Legistar, Granicus, custom formats). This scales Civic to many cities without building every parser internally.
+
+**The tension:** "Why contribute free labor if Civic profits?"
+
+**The social contract:**
+
+| Contributor Gives | Contributor Gets |
+|-------------------|------------------|
+| Municipal parser (Oakland, Austin, etc.) | Free premium access for that city |
+| Bug fixes, core improvements | Recognition + platform access |
+| Data quality feedback | Their city works better |
+| Documentation, guides | Community standing |
+
+**Why this works:**
+
+1. **Parsers are infrastructure, not product.** The product is fresh, reliable, *operated* data. A parser extracts data once; operating it forever is the hard part.
+
+2. **Contributors benefit from network effects.** Your Oakland parser connects to state legislation, federal data, cross-city patterns. That's the platform value.
+
+3. **The Wikipedia dynamic.** Editors contribute freely because content is freely available and the organization is mission-aligned. Contributors aren't exploited when the mission is genuine.
+
+4. **Self-interest alignment.** If I want Civic for my city, I can either pay or contribute. Both are fair exchanges.
+
+### Corporate Structure: Public Benefit Corporation
+
+To credibly promise contributors their work won't be strip-mined by PE in 5 years, the corporate structure matters.
+
+**Public Benefit Corporation (PBC):**
+- Legally required to balance profit with public benefit
+- Directors can prioritize mission over shareholder returns
+- Signals long-term alignment to contributors and users
+- Examples: Kickstarter, Patagonia, Allbirds
+
+This isn't just idealism—it's a competitive advantage for recruiting contributors who've seen what happened to Open States.
+
 ## Open Questions
 
 - What's the minimum viable paid feature that proves willingness to pay?
 - Can `prepare()` be good enough that someone would pay $5 to use it before a hearing?
 - Is there a cooperative/membership model that works? (Patreon for civic infra?)
 - How do we handle the "I'd pay but I'm broke" equity concern?
+- What's the right contributor recognition system? (GitHub-style contributions graph? Contributor tiers?)
 
 ## Next Steps
 
