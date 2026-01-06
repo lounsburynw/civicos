@@ -848,6 +848,13 @@ def extract_chunks_from_meeting(
                     chunks_count=0,
                 )
 
+            # Compute PDF hash for provenance tracking
+            try:
+                from civic.storage.integrity import compute_pdf_hash
+                pdf_hash = compute_pdf_hash(pdf_bytes)
+            except ImportError:
+                pdf_hash = None
+
             # Convert to storage format
             chunks_data = []
             for i, chunk in enumerate(agenda_chunks):
@@ -855,6 +862,8 @@ def extract_chunks_from_meeting(
                 # Add required fields for storage
                 chunk_dict["id"] = f"chunk-{meeting_id}-{i}"
                 chunk_dict["meeting_id"] = meeting_id
+                # Add pdf_hash for provenance (all chunks from same PDF share hash)
+                chunk_dict["pdf_hash"] = pdf_hash
                 chunks_data.append(chunk_dict)
 
             # Store chunks (cloud or local)

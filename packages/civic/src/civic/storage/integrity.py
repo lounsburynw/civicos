@@ -163,6 +163,43 @@ def verify_audio_hash(audio_data: bytes, expected_hash: str) -> bool:
     return actual_hash == expected_hash.lower()
 
 
+def compute_pdf_hash(pdf_data: bytes) -> Optional[str]:
+    """
+    Compute SHA-256 hash of PDF file bytes for provenance tracking.
+
+    This enables verification that chunks came from a specific PDF source.
+    Store alongside chunks to prove provenance and detect tampering.
+
+    Args:
+        pdf_data: Raw PDF file bytes
+
+    Returns:
+        SHA-256 hex string, or None if pdf_data is empty/None
+    """
+    if not pdf_data:
+        return None
+
+    return compute_content_hash(pdf_data)
+
+
+def verify_pdf_hash(pdf_data: bytes, expected_hash: str) -> bool:
+    """
+    Verify PDF file against an expected hash.
+
+    Args:
+        pdf_data: Raw PDF file bytes
+        expected_hash: Expected SHA-256 hash (lowercase hex)
+
+    Returns:
+        True if hash matches, False otherwise
+    """
+    if not expected_hash or not pdf_data:
+        return False
+
+    actual_hash = compute_pdf_hash(pdf_data)
+    return actual_hash == expected_hash.lower()
+
+
 def verify_content_hash(
     content: Union[str, bytes, Dict[str, Any], List[Any]],
     expected_hash: str

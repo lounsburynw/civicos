@@ -1834,14 +1834,14 @@
         "note": "Session 482: Added compute_audio_hash() to integrity.py, updated load_audio_from_cloud() to return (audio_data, audio_hash) tuple, and PostgresBackend.store_transcripts() to store audio_hash. 12 new tests added."
       },
       "pdf_hash_storage": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Store SHA-256 of source PDF with each chunk",
-        "note": "Enables verification that chunks came from unmodified PDF."
+        "note": "Session 483: Added compute_pdf_hash() to integrity.py, updated chunks.py extract_chunks_from_meeting() to compute pdf_hash from pdf_bytes, and PostgresBackend.store_chunks() to store pdf_hash. 12 new tests added."
       },
       "extraction_versioning": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "extraction_version field on all extracted records",
         "note": "Track which version of extractor produced each record. Enables re-extraction when extractors improve."
       }
@@ -2321,6 +2321,29 @@
         "artifact": "docs/user_guides/PILOT_USER_IDENTIFICATION.md",
         "completed": "2025-12-15",
         "note": "Identification guide with criteria (SeeClickFix, geographic), process, and outreach templates"
+      }
+    },
+    "distribution_channels": {
+      "chatgpt_gpt": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Custom GPT 'Civic San Rafael' in ChatGPT GPT store",
+        "note": "Session 481: Create ChatGPT GPT with Actions calling Civic API. Low effort if API is solid (~1 day). Use for clerk demo - more relatable than custom web app. GPT responses link back to web frontend for depth. Test thoroughly before demo to avoid hallucinations.",
+        "dependencies": ["OpenAPI spec for Civic API endpoints", "GPT system prompt", "Example conversations"],
+        "demo_use": "Let city clerk ask questions about San Rafael directly in ChatGPT"
+      },
+      "mcp_server": {
+        "status": "ready",
+        "priority": 2,
+        "artifact": "MCP server for Claude integration",
+        "note": "apps/civic-mcp/ exists. Power user / developer access. Contributor onramp - developers can query Civic from Claude while building parsers.",
+        "completed": "2025-12-01"
+      },
+      "web_frontend": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "apps/civic-workspace/ Vue frontend",
+        "note": "Primary interface for general public and clerk demo. ChatGPT/MCP drive discovery, web app provides depth."
       }
     },
     "data_pipeline": {

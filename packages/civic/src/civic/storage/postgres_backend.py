@@ -1196,6 +1196,68 @@ class PostgresBackend:
             END $$;
         """)
 
+        # Migration: Add content_hash columns for data integrity (SESSION 479)
+        # These columns store SHA-256 hashes of content for verification
+        cursor.execute("""
+            DO $$
+            BEGIN
+                -- Add content_hash to transcripts
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'transcripts'
+                    AND column_name = 'content_hash'
+                ) THEN
+                    ALTER TABLE transcripts ADD COLUMN content_hash TEXT;
+                END IF;
+
+                -- Add content_hash to chunks
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'chunks'
+                    AND column_name = 'content_hash'
+                ) THEN
+                    ALTER TABLE chunks ADD COLUMN content_hash TEXT;
+                END IF;
+
+                -- Add content_hash to decisions
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'decisions'
+                    AND column_name = 'content_hash'
+                ) THEN
+                    ALTER TABLE decisions ADD COLUMN content_hash TEXT;
+                END IF;
+            END $$;
+        """)
+
+        # Migration: Add audio_hash to transcripts for provenance (SESSION 482)
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'transcripts'
+                    AND column_name = 'audio_hash'
+                ) THEN
+                    ALTER TABLE transcripts ADD COLUMN audio_hash TEXT;
+                END IF;
+            END $$;
+        """)
+
+        # Migration: Add pdf_hash to chunks for provenance (SESSION 483)
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'chunks'
+                    AND column_name = 'pdf_hash'
+                ) THEN
+                    ALTER TABLE chunks ADD COLUMN pdf_hash TEXT;
+                END IF;
+            END $$;
+        """)
+
         conn.commit()
 
     def store_meetings(
@@ -2290,13 +2352,16 @@ class PostgresBackend:
                 text = chunk.get('text', '')
                 content_hash = compute_chunk_hash(text)
 
+                # Extract pdf_hash for provenance tracking (SHA-256 of source PDF)
+                pdf_hash = chunk.get('pdf_hash')
+
                 cursor.execute("""
                     INSERT INTO chunks (
                         id, jurisdiction_id, meeting_id, agenda_item,
                         agenda_title, text, page_start, page_end,
                         chunk_index, total_chunks, source_file, source_type,
-                        extracted_at, valid_from, valid_to, content_hash
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s)
+                        extracted_at, valid_from, valid_to, content_hash, pdf_hash
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s, %s)
                 """, (
                     chunk_id,
                     jurisdiction_id,
@@ -2313,6 +2378,7 @@ class PostgresBackend:
                     as_of.isoformat(),
                     as_of.isoformat(),
                     content_hash,
+                    pdf_hash,
                 ))
 
             conn.commit()
