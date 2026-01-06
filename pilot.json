@@ -4,6 +4,7 @@
   "target": "Jan 2026",
   "location": "San Rafael, CA",
   "last_updated": "2026-01-05",
+  "session_480_note": "Added transcript_duration_validation to data_integrity.source_provenance",
   "category_order": [
     "test_infrastructure",
     "data_architecture",
@@ -1819,6 +1820,13 @@
       }
     },
     "source_provenance": {
+      "transcript_duration_validation": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Validate transcript duration matches YouTube video duration",
+        "note": "Session 480: Found some transcripts have durations exceeding actual video length (e.g., 169 min stored vs 47 min actual for iYeihDimgxE). Causes timestamp URLs to fail when t= exceeds video length. 4/5 tested URLs worked, 1 failed (QLDoO6OvMSA&t=6742s). FIX: Query YouTube API for video duration during ingestion, compare against AssemblyAI duration, flag/reject mismatches. Likely cause: audio download grabbed playlist or concatenated streams.",
+        "test_file": "packages/civic-extraction/tests/test_transcribe.py"
+      },
       "audio_hash_storage": {
         "status": "not_ready",
         "priority": 1,
