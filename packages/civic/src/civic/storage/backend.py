@@ -458,6 +458,74 @@ class StorageBackend(Protocol):
         """
         ...
 
+    # ========== Agenda Item Methods ==========
+    #
+    # Agenda items are structured entries from meeting agendas, extracted via LLM.
+    # Used for whats_next() queries to show actionable items in upcoming meetings.
+    # Items are keyed by meeting_id (not jurisdiction_id) for natural grouping.
+
+    def store_agenda_items(
+        self,
+        meeting_id: str,
+        agenda_items: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store agenda items with temporal versioning.
+
+        Atomic operation: either all items are stored or none.
+        Closes existing items for this meeting and inserts new versions.
+
+        Args:
+            meeting_id: Meeting ID these agenda items belong to
+            agenda_items: List of agenda item dictionaries with keys:
+                - item_number/item_ref: Item reference (e.g., "7.a", "5.b.1")
+                - title: Item title
+                - description: Full description
+                - actionable: Boolean indicating if public can participate
+                - project_types: List of project type tags
+                - impact_level: Optional impact assessment
+                - financial_impact_cents: Optional financial impact
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of agenda items successfully stored
+        """
+        ...
+
+    def get_agenda_items(
+        self,
+        meeting_id: Optional[str] = None,
+        jurisdiction_id: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve agenda items with optional filtering.
+
+        Args:
+            meeting_id: Filter by specific meeting ID
+            jurisdiction_id: Filter by jurisdiction (requires join with meetings)
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of items to return
+
+        Returns:
+            List of agenda item dictionaries
+        """
+        ...
+
+    def get_agenda_item_count(self, jurisdiction_id: Optional[str] = None) -> int:
+        """
+        Get count of current agenda items.
+
+        Args:
+            jurisdiction_id: Filter by jurisdiction (optional)
+
+        Returns:
+            Number of current (non-expired) agenda items
+        """
+        ...
+
     # ========== Issue Methods (SESSION 385) ==========
     #
     # Issues are 311 complaints from providers like SeeClickFix, PublicStuff, etc.

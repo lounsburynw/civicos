@@ -1605,6 +1605,53 @@ class SQLiteBackend:
         finally:
             conn.close()
 
+    # ========== Agenda Item Methods ==========
+    # Note: Agenda items are primarily stored in Postgres for production.
+    # SQLite implementation is a stub for protocol compliance.
+
+    def store_agenda_items(
+        self,
+        meeting_id: str,
+        agenda_items: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store agenda items (stub for SQLite - agenda items use Postgres in production).
+
+        Args:
+            meeting_id: Meeting ID these agenda items belong to
+            agenda_items: List of agenda item dictionaries
+            as_of: Timestamp for versioning
+
+        Returns:
+            Number of items stored (0 for SQLite stub)
+        """
+        return 0
+
+    def get_agenda_items(
+        self,
+        meeting_id: Optional[str] = None,
+        jurisdiction_id: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve agenda items (stub for SQLite - agenda items use Postgres in production).
+
+        Returns:
+            Empty list (SQLite stub)
+        """
+        return []
+
+    def get_agenda_item_count(self, jurisdiction_id: Optional[str] = None) -> int:
+        """
+        Get agenda item count (stub for SQLite - agenda items use Postgres in production).
+
+        Returns:
+            0 (SQLite stub)
+        """
+        return 0
+
     # ========== Issue Methods (SESSION 385) ==========
     # Note: Issues are primarily stored in Postgres for production.
     # SQLite implementation is a stub for protocol compliance.
