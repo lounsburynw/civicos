@@ -2521,11 +2521,17 @@
         "notes": "CFR parser (civic_extraction.cfr) parses GovInfo bulk XML. Modal script (modal_cfr.py) ingests to codified_law table with jurisdiction_id='federal-CFR'. Integrated into what_applies(). Local govt relevant titles: 24 (HUD), 40 (EPA), 49 (DOT). Run: modal run scripts/modal_cfr.py --titles 24,40,49",
         "completed": "2026-01-06"
       },
-      "case_law_ingestion": {
+      "cfr_data_execution": {
         "status": "not_ready",
         "priority": 0,
+        "description": "Execute CFR Modal ingestion to populate database",
+        "notes": "Infrastructure ready (cfr.py parser, modal_cfr.py script). Need to run: modal run scripts/modal_cfr.py --titles 24,40,49 for pilot subset, then --all-titles for full 180k sections."
+      },
+      "case_law_ingestion": {
+        "status": "not_ready",
+        "priority": 2,
         "description": "Ingest federal case law (judicial decisions)",
-        "notes": "Sources: CourtListener API, Harvard Caselaw Access Project"
+        "notes": "Sources: CourtListener API, Harvard Caselaw Access Project. Deferred until data execution and vector indexing complete."
       },
       "executive_orders_ingestion": {
         "status": "ready",
@@ -2544,8 +2550,14 @@
       "codified_law_vectors": {
         "status": "not_ready",
         "priority": 1,
-        "description": "Embed 212k codified law sections to pgvector",
-        "notes": "U.S. Code (50k) + CA Codes (161k) + EOs for semantic what_applies() queries. Batch with other ingested corpora after programs refresh. ~$20 one-time embedding cost."
+        "description": "Embed codified law sections to pgvector for semantic search",
+        "notes": "U.S. Code (50k) + CA Codes (161k) + CFR (~180k) + EOs (1.5k) for semantic what_applies() queries. ~$25 one-time embedding cost. After CFR data execution."
+      },
+      "vector_indexing_automation": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Auto-trigger vector indexing after data ingestion",
+        "notes": "Add Modal @app.function decorators or post-ingestion hooks to automatically embed new data. Pattern: store_codified_law() -> trigger index_codified_law_vectors(). Prevents manual reindex after each ingestion."
       },
       "executive_orders_incremental_fetcher": {
         "status": "not_ready",
