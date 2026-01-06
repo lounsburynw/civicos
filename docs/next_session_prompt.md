@@ -1,4 +1,4 @@
-# Recommended: automated_decision_extraction
+# Recommended: automated_agenda_extraction
 
 **Priority:** P0
 **Area:** data_integrity > pipeline_completeness
@@ -6,62 +6,148 @@
 
 > This is recommended context from Session 471. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
-## Context
+## Why This Is P0
 
-Session 471 fixed the blocking issue: `store_meetings()` now uses proper upsert pattern, and `get_meetings()` returns all 46 meetings. Decision extraction can now query historical meetings.
+Agenda item extraction is **CORE FUNCTIONALITY**. Without it, the platform can't answer:
+- "What's being decided at next week's City Council?"
+- "Which upcoming meetings have housing items?"
+- "What can I participate in this month?"
 
-## The Task
-
-Add decision extraction to the automated Modal pipeline. Currently:
-- `batch_extract_decisions.py` is a **manual** script
-- 44 decisions exist (Oct-Dec 2025) from manual runs
-- Need to automate this in the weekly Modal schedule
+Currently `whats_next()` returns meetings but not what's ON the agenda.
 
 ## Current State
 
 ```
-Decisions extracted:     44 (from manual runs)
-Minutes PDFs available:  ~20+ meetings have minutes
-Decision extraction:     NOT automated
+BROKEN:
+  agenda_items table: 44 items (just metadata like "Agenda Packet")
+  Average: 1.2 items/meeting (should be ~10-15)
+
+EXPECTED:
+  ~460 actionable items from 46 meetings
+  Each with: item_ref, title, description, actionable, project_types
 ```
 
-## Key Files
+## What Exists (code is written!)
 
-- `scripts/batch_extract_decisions.py` - Manual extraction script
-- `scripts/modal_ingest.py` - Automated pipeline (needs decision extraction added)
-- `packages/civic-extraction/src/civic_extraction/cli/decisions.py` - CLI for extraction
+| Component | Status | Location |
+|-----------|--------|----------|
+| AgendaIntegrator | ✅ Works | `civic-services/processing/agenda_integration.py` |
+| CLI command | ✅ Works | `civic-extract agenda --jurisdiction city-san-rafael --cloud` |
+| store_agenda_items() | ✅ Works | PostgresBackend |
+| Modal function | ❌ Missing | `scripts/modal_ingest.py` |
+| Scheduled run | ❌ Missing | Add to `scheduled_low_velocity_refresh` (weekly) |
 
-## Implementation Approach
+## Implementation Plan
 
-1. **Understand existing extraction**
-   - Read `batch_extract_decisions.py` to understand the flow
-   - Check how minutes PDFs are downloaded and processed
+### Step 1: Test Existing CLI (verify it works)
 
-2. **Add to Modal pipeline**
-   - Add decision extraction to `scheduled_weekly_refresh` (not daily - minutes lag)
-   - Pattern: `get_meetings()` → filter those with minutes_url → extract decisions → `store_decisions()`
+```bash
+# Dry run to see what would be extracted
+civic-extract agenda --jurisdiction city-san-rafael --cloud --dry-run --limit 3
 
-3. **Testing**
-   - Run locally first: `modal run scripts/modal_ingest.py --decisions`
-   - Verify new decisions are stored
+# Extract from 1 meeting to verify
+civic-extract agenda --jurisdiction city-san-rafael --cloud --limit 1
+```
 
-## Notes
+### Step 2: Add Modal Function
 
-- Minutes PDFs lag meetings by days/weeks, so this should be weekly not daily
-- The extraction uses regex + optional LLM QA for quality
-- `store_decisions()` already has proper upsert pattern (fixed in Session 390)
+Add to `scripts/modal_ingest.py`:
+
+```python
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db"), modal.Secret.from_name("civic-llm")],
+    memory=2048,
+    timeout=1800,  # 30 min
+)
+def extract_agenda_items(jurisdiction: str = "city-san-rafael", limit: int = 0, dry_run: bool = False):
+    """Extract actionable agenda items from meeting agendas using LLM."""
+    from civic_extraction.cli.agenda import run_agenda_extraction
+
+    results = run_agenda_extraction(
+        jurisdiction,
+        cloud=True,
+        limit=limit if limit > 0 else 0,
+        dry_run=dry_run,
+    )
+
+    return {
+        "jurisdiction": jurisdiction,
+        "meetings_processed": len(results) if results else 0,
+        "status": "success" if results else "no_results",
+    }
+```
+
+### Step 3: Add to Weekly Schedule
+
+In `scheduled_low_velocity_refresh()`:
+
+```python
+# Agenda item extraction (weekly - agendas posted ~1 week before meetings)
+try:
+    logger.info("Extracting agenda items...")
+    result = extract_agenda_items.local(
+        jurisdiction="city-san-rafael",
+        dry_run=False,
+    )
+    results["agenda_items"] = result
+    logger.info(f"  Agenda items: {result.get('meetings_processed', 0)} meetings processed")
+except Exception as e:
+    logger.exception("Agenda item extraction failed")
+    results["agenda_items"] = {"status": "failed", "error": str(e)}
+```
+
+### Step 4: Backfill Existing Meetings
+
+```bash
+# Run full backfill (~$5-25 in LLM costs)
+modal run scripts/modal_ingest.py --agenda-items
+```
+
+## Cost Estimate
+
+| Operation | Cost |
+|-----------|------|
+| Backfill 46 meetings | $5-25 (one-time) |
+| Weekly new meetings | $1-5/week |
+| Gemini 1.5 Pro | ~$0.10-0.50/meeting |
 
 ## Success Criteria
 
-- [ ] Decision extraction added to Modal `scheduled_weekly_refresh`
-- [ ] Can run `modal run scripts/modal_ingest.py --decisions` successfully
-- [ ] pilot.json updated: `automated_decision_extraction` → ready
+- [ ] `civic-extract agenda --cloud --dry-run` shows meetings to process
+- [ ] `extract_agenda_items` Modal function added
+- [ ] Added to `scheduled_low_velocity_refresh` (weekly)
+- [ ] Backfill run: ~460 agenda items extracted
+- [ ] `whats_next()` returns meetings WITH actionable items
+- [ ] pilot.json updated: `automated_agenda_extraction` → ready
 
-## Scope Boundaries
+## Key Files
 
-**This session:** Add decision extraction to Modal pipeline only.
+- `packages/civic-services/src/civic_services/processing/agenda_integration.py` - AgendaIntegrator
+- `packages/civic-extraction/src/civic_extraction/cli/agenda.py` - CLI command
+- `scripts/modal_ingest.py` - Add Modal function here
+- `packages/civic/src/civic/storage/postgres_backend.py` - store_agenda_items()
 
-**Not in scope:**
-- `automated_chunk_extraction` - already coded, just blocked (can test now)
-- LLM QA improvements
-- New decision types
+## Verification Query
+
+After extraction, verify with:
+
+```python
+from civic import Civic
+c = Civic("san-rafael")
+upcoming = c.whats_next()
+for meeting in upcoming[:2]:
+    print(f"{meeting['title']}")
+    for item in meeting.get('agenda_items', []):
+        print(f"  - {item['item_ref']}: {item['title']}")
+```
+
+## Dependencies
+
+- ✅ `temporal_versioning_review` - Fixed in Session 471
+- ⚠️ Requires `GOOGLE_API_KEY` in Modal secrets for Gemini
+
+## Related Items
+
+- `automated_decision_extraction` (P1) - Extract decisions from minutes (similar pattern)
+- `automated_chunk_extraction` (P1) - Already in pipeline, working
