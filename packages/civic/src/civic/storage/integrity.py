@@ -126,6 +126,43 @@ def compute_decision_hash(decision: Dict[str, Any]) -> Optional[str]:
     return compute_content_hash(content_fields)
 
 
+def compute_audio_hash(audio_data: bytes) -> Optional[str]:
+    """
+    Compute SHA-256 hash of audio file bytes for provenance tracking.
+
+    This enables verification that a transcript came from a specific audio source.
+    Store alongside transcripts to prove provenance and detect tampering.
+
+    Args:
+        audio_data: Raw audio file bytes (e.g., MP3 content)
+
+    Returns:
+        SHA-256 hex string, or None if audio_data is empty/None
+    """
+    if not audio_data:
+        return None
+
+    return compute_content_hash(audio_data)
+
+
+def verify_audio_hash(audio_data: bytes, expected_hash: str) -> bool:
+    """
+    Verify audio file against an expected hash.
+
+    Args:
+        audio_data: Raw audio file bytes
+        expected_hash: Expected SHA-256 hash (lowercase hex)
+
+    Returns:
+        True if hash matches, False otherwise
+    """
+    if not expected_hash or not audio_data:
+        return False
+
+    actual_hash = compute_audio_hash(audio_data)
+    return actual_hash == expected_hash.lower()
+
+
 def verify_content_hash(
     content: Union[str, bytes, Dict[str, Any], List[Any]],
     expected_hash: str
