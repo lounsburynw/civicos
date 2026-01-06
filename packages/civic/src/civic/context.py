@@ -182,6 +182,38 @@ def get_regulatory_context(
     except Exception:
         pass  # Codified law search not available
 
+    # Search CFR (Code of Federal Regulations)
+    try:
+        import os
+        database_url = os.getenv("DATABASE_URL")
+        if database_url:
+            from civic.storage.postgres_backend import PostgresBackend
+            db = PostgresBackend(database_url)
+
+            # Search CFR for relevant regulatory sections
+            cfr_sections = db.search_codified_law(
+                jurisdiction_id="federal-CFR",
+                query=topic,
+                limit=5,
+            )
+
+            for section in cfr_sections:
+                federal.append({
+                    "type": "cfr",
+                    "citation": section.get("citation", ""),
+                    "heading": section.get("heading", ""),
+                    "chapter": section.get("chapter", ""),
+                    "text_preview": section.get("text_preview", "")[:300],
+                    "relevance": round(float(section.get("relevance", 0)), 4),
+                })
+
+            # Remove the "no federal" note if we found CFR
+            if cfr_sections and federal and federal[0].get("note"):
+                federal = [f for f in federal if not f.get("note")]
+
+    except Exception:
+        pass  # CFR search not available
+
     # Search local municipal code (city ordinances)
     try:
         from civic._internal.meetings.embeddings import CivicEmbeddings

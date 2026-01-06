@@ -10863,3 +10863,42 @@ PostgresBackend.store_meetings() → INSERT ... extraction_version = %s
 **Tests:** 39/39 smoke tests pass, 5 extraction versioning tests added (skip locally, run in CI)
 
 **Next P0:** chatgpt_gpt (Custom GPT 'Civic San Rafael' in ChatGPT GPT store)
+
+## Session 485: CFR Ingestion (2026-01-06)
+
+**Item:** cfr_ingestion (P0)
+**Status:** ready
+
+### What was done:
+1. Created CFR parser (`packages/civic-extraction/src/civic_extraction/cfr.py`)
+   - Parses GovInfo bulk XML format
+   - Extracts sections with citation, heading, text, authority
+   - Follows USCodeParser pattern
+
+2. Created Modal ingestion script (`scripts/modal_cfr.py`)
+   - Downloads CFR XML from govinfo.gov/bulkdata/CFR/2024
+   - Processes by title (50 titles available)
+   - Stores to codified_law table with jurisdiction_id='federal-CFR'
+   - Supports --titles, --all-titles, --dry-run, --stats-only
+
+3. Integrated into what_applies()
+   - Added CFR search to context.py
+   - Returns CFR sections with type='cfr' in federal layer
+
+4. Added tests (`packages/civic-extraction/tests/test_cfr.py`)
+   - 7 tests covering parser, dict conversion, filtering, stats
+
+### Data source:
+- GovInfo bulk data: https://www.govinfo.gov/bulkdata/CFR/2024
+- 50 titles, ~180k sections total
+- Local govt relevant: Title 24 (HUD), Title 40 (EPA), Title 49 (DOT)
+
+### To ingest CFR:
+```bash
+modal run scripts/modal_cfr.py --titles 24,40,49  # Pilot subset
+modal run scripts/modal_cfr.py --all-titles       # Full ingestion
+```
+
+**Tests:** 39/39 smoke + 7/7 CFR parser tests pass
+
+**Next P0:** case_law_ingestion (federal case law from CourtListener API)
