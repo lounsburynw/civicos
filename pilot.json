@@ -3,7 +3,7 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2026-01-04",
+  "last_updated": "2026-01-05",
   "category_order": [
     "test_infrastructure",
     "data_architecture",
@@ -1640,6 +1640,76 @@
         ],
         "test_file": "packages/civic/tests/test_voting_record_api.py",
         "example_query": "c.get_voting_record('Jane Smith', topic='housing') -> VotingRecord"
+      },
+      "open_states_api_key_renewal": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Renew Open States API key for state legislator data",
+        "note": "Session 477 discovered: Current OPEN_STATES_API_KEY returns 401 Unauthorized. Need to get new key from https://openstates.org/account/profile/. Without this, RepresentativesClient cannot fetch CA state legislators (Assembly, Senate). Congress.gov (federal) and local (manual) still work.",
+        "manual_step": "Get new API key from openstates.org and update .env",
+        "impact": "State legislators missing from get_representatives() - only federal and local officials returned"
+      },
+      "google_civic_reps_deprecation": {
+        "status": "ready",
+        "priority": 2,
+        "artifact": "Document Google Civic Representatives API shutdown and mitigation",
+        "note": "Session 477: Confirmed Google Civic API Representatives endpoint was shut down April 30, 2025. Elections endpoint still works (4 elections in DB). Mitigation: RepresentativesClient uses Congress.gov + Open States + local data. Google recommends Ballotpedia, BallotReady, Cicero as alternatives.",
+        "completed": "2026-01-06",
+        "reference": "https://groups.google.com/g/google-civicinfo-api/c/9fwFn-dhktA"
+      },
+      "election_postgres_backend": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Port election storage methods to PostgresBackend for cloud deployment",
+        "note": "PostgresBackend has all 9 election methods: store_elections, get_elections, get_election_count, store_election_deadlines, get_election_deadlines, store_election_contests, get_election_contests, store_elected_officials, get_elected_officials, get_official_by_name. Verified with Supabase: 4 elections retrieved, all methods functional.",
+        "completed": "2026-01-05",
+        "test_file": "packages/civic/tests/test_voting_record_api.py"
+      },
+      "election_ingestion_pipeline": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "Modal job to ingest San Rafael election data from Google Civic API",
+        "note": "GoogleCivicClient and storage mappers exist. Need Modal pipeline to: 1) Fetch elections via get_elections(), 2) Fetch voter_info for San Rafael addresses, 3) Store via extract_elections_to_storage(). Currently elections table is empty in production.",
+        "data_sources": [
+          "Google Civic API (elections, voter_info endpoints)"
+        ],
+        "output": "Populated elections, election_deadlines, election_contests tables"
+      },
+      "election_whats_next_integration": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Include upcoming elections and deadlines in whats_next() results",
+        "note": "whats_next() currently returns meetings only. Should also surface: upcoming elections, registration deadlines, early voting start dates, ballot measure summaries. Enables 'Registration deadline in 5 days' alongside meeting notifications.",
+        "depends_on": [
+          "election_ingestion_pipeline"
+        ],
+        "modified_files": [
+          "packages/civic/src/civic/civic.py"
+        ]
+      },
+      "election_api_endpoints": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "REST endpoints for election data access from frontend",
+        "note": "get_voting_record() exists on Civic class but no HTTP exposure. Add endpoints: GET /elections (list upcoming), GET /elections/{id}/contests, GET /voting-record/{official}, GET /ballot?address=... (personalized ballot preview).",
+        "depends_on": [
+          "election_ingestion_pipeline"
+        ],
+        "modified_files": [
+          "packages/civic-services/src/civic_services/servers/civic_api.py"
+        ]
+      },
+      "election_vector_embeddings": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Vector embeddings for election RAG queries",
+        "note": "ELECTIONS corpus type registered but not populated. Embed: election descriptions, ballot measure text, candidate statements. Enables natural language queries like 'what's on the ballot about housing?' or 'which measures affect property taxes?'.",
+        "depends_on": [
+          "election_ingestion_pipeline"
+        ],
+        "modified_files": [
+          "packages/civic/src/civic/embeddings/civic_embeddings.py"
+        ]
       }
     }
   },
@@ -1750,7 +1820,7 @@
     "source_provenance": {
       "audio_hash_storage": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Store SHA-256 of source audio file with each transcript",
         "note": "Ultimate provenance: transcript can be verified against original audio."
       },
