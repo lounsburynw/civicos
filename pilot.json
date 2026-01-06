@@ -1806,7 +1806,7 @@
       },
       "automated_decision_extraction": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Add decision extraction to Modal automated pipeline",
         "note": "batch_extract_decisions.py is manual. 44 decisions exist (Oct-Dec 2025). FIX: Add to weekly schedule (not daily - minutes PDFs lag meetings). Implementation: requires meeting minutes PDF \u2192 regex extraction \u2192 optional LLM QA \u2192 store_decisions(). NOW UNBLOCKED: temporal_versioning_review fixed (Session 471).",
         "depends_on": "temporal_versioning_review"
@@ -1839,7 +1839,7 @@
       "description": "Pre-existing architectural violations flagged by codebase critics - MUST address before pilot",
       "storage_protocol_agenda_items": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Add agenda items methods to StorageBackend protocol",
         "note": "Session 472 critic finding: store_agenda_items(), get_agenda_items() exist in PostgresBackend but NOT defined in StorageBackend protocol (packages/civic/src/civic/storage/backend.py). Violates protocol conformance pattern. FIX: Add 'Agenda Items Methods' section to protocol after Elected Officials Methods (~line 1609). Include: store_agenda_items(), get_agenda_items(), get_agenda_item_count(). Follow pattern of Decisions/Chunks/Issues methods.",
         "test_cmd": "grep -n 'def store_agenda_items' packages/civic/src/civic/storage/backend.py"
