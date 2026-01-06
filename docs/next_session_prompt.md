@@ -1,89 +1,75 @@
-# Recommended: extraction_services_layer_violation
+# Recommended: automated_decision_extraction
 
 **Priority:** P0
-**Area:** data_integrity > architectural_debt
+**Area:** data_integrity > pipeline_completeness
 **Date:** 2026-01-05
 
-> This is recommended context from Session 473. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 474. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 473 fixed `storage_protocol_agenda_items` (protocol conformance). This is the second architectural debt item flagged by the architecture critic in Session 472.
+Session 474 fixed `extraction_services_layer_violation` - moved AgendaIntegrator, RetrospectiveAnalyzer, and API clients to civic-extraction using dependency injection. Architecture critic now passes.
 
-**Architecture rule violated:** `civic-extraction` doesn't import from `civic-services`
+The decision extraction pipeline is manual (`batch_extract_decisions.py`). Only 44 decisions exist (Oct-Dec 2025). This item adds automated decision extraction to Modal's scheduled pipeline.
 
-The extraction package (Intelligence layer) should not directly import from services package (Coordination layer). The Orchestration layer should mediate.
+## Recommended Task
 
-## Violations Found
-
-```bash
-# Run this to see all violations:
-grep -r 'from civic_services' packages/civic-extraction/
-```
-
-| File | Import | What It's Using |
-|------|--------|-----------------|
-| `cli/agenda.py:294` | `AgendaIntegrator` | LLM-based agenda extraction |
-| `cli/legislative.py` | `LegiScanClient`, `LegislativeDiscovery` | API clients |
-| `cli/decisions.py` | `RetrospectiveAnalyzer` | LLM-based decision extraction |
-| `cli/seeclickfix.py` | `SeeClickFixClient` | API client |
-
-Also in scripts:
-- `scripts/aggregate_agenda_from_chunks.py:206` → `get_model_for_task`
-
-## Recommended Approach
-
-**Option 1 (Preferred): Move modules to civic-extraction**
-
-AgendaIntegrator and similar are extraction logic, not coordination logic. They should live in `civic-extraction`:
-
-1. Move `civic-services/processing/agenda_integration.py` → `civic-extraction/integrators/agenda.py`
-2. Move `civic-services/processing/retrospective_analyzer.py` → `civic-extraction/integrators/retrospective.py`
-3. Update imports in CLI commands
-4. Move `get_model_for_task` to civic-extraction or civic core
-
-**Option 2: Dependency Injection**
-
-Pass integrators as parameters rather than importing them. More complex, less preferred.
+Add decision extraction to Modal automated pipeline (`scripts/modal_ingest.py`). Should run weekly (not daily - meeting minutes PDFs lag behind meetings).
 
 ## Key Files
 
-- `packages/civic-extraction/src/civic_extraction/cli/agenda.py:294` - AgendaIntegrator import
-- `packages/civic-services/src/civic_services/processing/agenda_integration.py` - AgendaIntegrator class
-- `packages/civic-services/src/civic_services/processing/retrospective_analyzer.py` - RetrospectiveAnalyzer
-- `.critics/architecture.critic.md:59` - Rule definition
+- `scripts/modal_ingest.py:470-590` - existing extract_chunks() pattern to follow
+- `scripts/batch_extract_decisions.py` - current manual script
+- `packages/civic-extraction/src/civic_extraction/cli/decisions.py` - run_decision_extraction()
+- `packages/civic-extraction/src/civic_extraction/processing/retrospective_analyzer.py` - RetrospectiveAnalyzer (NEW location)
 
-## Suggested Steps
+## Suggested Approach
 
-1. **Explore AgendaIntegrator** to understand its dependencies:
+1. **Review existing chunk extraction** in modal_ingest.py:
    ```bash
-   head -50 packages/civic-services/src/civic_services/processing/agenda_integration.py
+   grep -A 30 'def extract_chunks' scripts/modal_ingest.py
    ```
 
-2. **Create integrators directory** in civic-extraction:
-   ```bash
-   mkdir -p packages/civic-extraction/src/civic_extraction/integrators
+2. **Add extract_decisions() function** to modal_ingest.py:
+   - Import run_decision_extraction from civic_extraction.cli.decisions
+   - Similar pattern to extract_chunks() but for decisions
+   - Add --decisions and --decisions-limit CLI args
+
+3. **Note:** RetrospectiveAnalyzer now requires `provider` parameter:
+   ```python
+   from civic_services.core.llm_provider import get_model_for_task
+   provider = get_model_for_task('long_document')
+   analyzer = RetrospectiveAnalyzer(provider=provider)
    ```
 
-3. **Move AgendaIntegrator** and update imports
+4. **Add to weekly schedule** (not daily) - create separate workflow or conditional logic
 
-4. **Run tests** to verify nothing broke:
+5. **Test locally first:**
    ```bash
-   pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
+   modal run scripts/modal_ingest.py --decisions --dry-run
    ```
 
-5. **Run architecture critic** to verify fix:
-   ```bash
-   /critic architecture
-   ```
+## Current State
+
+- Chunks: Automated via Modal (Session 470)
+- Issues: Automated via Modal
+- Vectors: Automated via Modal
+- **Decisions: MANUAL** ← This is what we're fixing
+
+## Tests to Run
+
+```bash
+# Smoke test first
+pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
+
+# Test decision extraction CLI locally
+python -m civic_extraction.cli decisions extract --help
+```
 
 ## Success Criteria
 
-- [ ] `grep -r 'from civic_services' packages/civic-extraction/` returns no results
-- [ ] Architecture critic passes
-- [ ] Smoke tests pass (39 tests)
-- [ ] pilot.json updated: `extraction_services_layer_violation` → ready
-
-## Complexity Note
-
-This may require moving multiple files and updating multiple imports. Consider scoping to just AgendaIntegrator first if the full fix is too large for one session.
+- [ ] `extract_decisions()` function added to modal_ingest.py
+- [ ] CLI args: --decisions, --decisions-limit
+- [ ] Decisions excluded from daily refresh (weekly only)
+- [ ] `modal run scripts/modal_ingest.py --decisions --dry-run` works
+- [ ] pilot.json updated: automated_decision_extraction → ready
