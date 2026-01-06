@@ -10325,3 +10325,60 @@ Updated P0 scope to cover full pipeline diagnosis.
 1. `automated_chunk_extraction` - Add to Modal pipeline
 2. `automated_decision_extraction` - Add to weekly schedule
 3. `vector_sql_sync_verification` - Investigate issues mismatch (1430 vs 1630)
+
+## Session 471 (2026-01-05)
+
+### Focus: temporal_versioning_review (P0)
+
+**Problem**: `store_meetings()` was closing ALL meeting records when called,
+leaving only meetings in the current scrape window visible. This broke:
+- `get_meetings()` - returned only 1 of 46 meetings
+- `extract_chunks()` - couldn't see historical meetings
+- `extract_decisions()` - same issue
+
+**Root Cause**: Original implementation pattern:
+```python
+# Close ALL previous versions
+UPDATE meetings SET valid_to = NOW() WHERE jurisdiction_id = X
+# Insert only current scrape window
+INSERT new meetings
+```
+
+**Fix**: Changed to proper upsert pattern:
+- Check if meeting exists by ID
+- Compare key fields to detect changes
+- Only close old version if data actually changed
+- Preserve meetings not in current scrape window
+
+**Data Restoration**: Ran SQL to reopen 45 meetings:
+```sql
+WITH latest_versions AS (...)
+UPDATE meetings SET valid_to = NULL WHERE ...
+```
+
+**Changes**:
+- `postgres_backend.py`: Fixed `store_meetings()` upsert logic
+- `sqlite_backend.py`: Same fix for consistency
+- `backend.py`: Updated protocol docstring to clarify semantics
+- Cloud data: 45 meetings reopened (46 total now visible)
+- pilot.json: `temporal_versioning_review` → ready
+
+**Pipeline Critic Warning**: Addressed by updating docstrings to clarify:
+- Return value is count of meetings stored/updated (not count passed in)
+- Meetings lacking 'id' field are skipped
+- Meetings not in input list are preserved
+
+### Verification
+
+```bash
+# Before fix
+get_meetings() → 1 meeting
+
+# After fix
+get_meetings() → 46 meetings
+```
+
+### Next Session: automated_decision_extraction (P0)
+
+Now that meetings are visible, the next step is to add decision extraction
+to the automated Modal pipeline.
