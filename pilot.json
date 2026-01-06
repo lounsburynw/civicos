@@ -1805,15 +1805,15 @@
         "depends_on": "decision_extraction_diagnosis"
       },
       "automated_decision_extraction": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Add decision extraction to Modal automated pipeline",
         "note": "batch_extract_decisions.py is manual. 44 decisions exist (Oct-Dec 2025). FIX: Add to weekly schedule (not daily - minutes PDFs lag meetings). Implementation: requires meeting minutes PDF \u2192 regex extraction \u2192 optional LLM QA \u2192 store_decisions(). NOW UNBLOCKED: temporal_versioning_review fixed (Session 471).",
         "depends_on": "temporal_versioning_review"
       },
       "vector_sql_sync_verification": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Add verification step to vector-refresh.yml ensuring vector count matches SQL count",
         "note": "Session 469 clarification: meetings mismatch (46 vectors vs 97 SQL) is expected - SQL includes historical versions, vectors only current. Issues mismatch (1430 vectors vs 1630 SQL) still needs investigation. Add post-refresh validation that compares vectors to SQL rows with valid_to IS NULL.",
         "depends_on": "decision_extraction_diagnosis"
@@ -1848,7 +1848,7 @@
       "extraction_services_layer_violation": {
         "status": "ready",
         "priority": 2,
-        "artifact": "Remove civic-extraction → civic-services import dependency",
+        "artifact": "Remove civic-extraction \u2192 civic-services import dependency",
         "note": "Session 474: Fixed by moving AgendaIntegrator, RetrospectiveAnalyzer, LegiScanClient, SeeClickFixClient, and LegislativeDiscovery to civic-extraction. Used dependency injection for LLM provider (CLI entry points import from civic_services and pass provider to extraction classes). civic-extraction library code now has ZERO civic_services imports.",
         "test_cmd": "grep -r 'from civic_services' packages/civic-extraction/",
         "completed": "2026-01-05"
