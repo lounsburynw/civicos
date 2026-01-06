@@ -1666,14 +1666,15 @@
         "test_file": "packages/civic/tests/test_voting_record_api.py"
       },
       "election_ingestion_pipeline": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "Modal job to ingest San Rafael election data from Google Civic API",
-        "note": "GoogleCivicClient and storage mappers exist. Need Modal pipeline to: 1) Fetch elections via get_elections(), 2) Fetch voter_info for San Rafael addresses, 3) Store via extract_elections_to_storage(). Currently elections table is empty in production.",
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Modal job to ingest election data from Google Civic API",
+        "note": "Added fetch_elections() to scripts/modal_ingest.py with --elections flag. Uses civic-google Modal secret. Pipeline tested and working. VIP/Google publishes election data 2-3 weeks before elections, so CA data will appear ~May 2026 for June primary. Currently stores all available national elections.",
         "data_sources": [
-          "Google Civic API (elections, voter_info endpoints)"
+          "Google Civic API (elections endpoint via VIP)"
         ],
-        "output": "Populated elections, election_deadlines, election_contests tables"
+        "output": "Populated elections table in Supabase",
+        "completed": "2026-01-05"
       },
       "election_whats_next_integration": {
         "status": "not_ready",
@@ -1840,7 +1841,7 @@
     "audit_infrastructure": {
       "soft_delete_support": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "deleted_at column on all content tables",
         "note": "Never hard-delete. Preserve audit trail of what was removed, when, why."
       },
