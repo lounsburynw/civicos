@@ -2333,17 +2333,16 @@
         "demo_use": "Let city clerk ask questions about San Rafael directly in ChatGPT"
       },
       "mcp_server": {
-        "status": "ready",
+        "status": "not_ready",
         "priority": 2,
         "artifact": "MCP server for Claude integration",
-        "note": "apps/civic-mcp/ exists. Power user / developer access. Contributor onramp - developers can query Civic from Claude while building parsers.",
-        "completed": "2025-12-01"
+        "note": "apps/civic-mcp/ exists but needs polish before launch. Power user / developer access. Contributor onramp - developers can query Civic from Claude while building parsers."
       },
       "web_frontend": {
-        "status": "ready",
+        "status": "not_ready",
         "priority": 1,
         "artifact": "apps/civic-workspace/ Vue frontend",
-        "note": "Primary interface for general public and clerk demo. ChatGPT/MCP drive discovery, web app provides depth."
+        "note": "Primary interface for general public and clerk demo. Needs polish before launch. ChatGPT/MCP drive discovery, web app provides depth."
       }
     },
     "data_pipeline": {
