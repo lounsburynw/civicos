@@ -2549,7 +2549,7 @@
         "completed": "2026-01-02"
       },
       "codified_law_vectors": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "description": "Embed codified law sections to pgvector for semantic search",
         "notes": "Infrastructure complete: chunkers, pgvector backend, Modal script updated. federal-CFR embedding job running (98k chunks). Remaining: federal-US (~219k), state-CA (~193k). Commands: modal run scripts/modal_vectors.py --jurisdiction {jur} --corpus codified_law --reindex --parallel 4"

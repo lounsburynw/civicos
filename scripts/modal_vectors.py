@@ -407,7 +407,7 @@ def delete_vectors(jurisdiction: str, corpus: str) -> int:
     secrets=[modal.Secret.from_name("civic-db")],
     cpu=16,  # 16 CPUs for fast parallel embedding inference
     memory=32768,  # 32GB RAM to match CPU count
-    timeout=3600,
+    timeout=7200,  # 2 hours to handle large batches
 )
 def index_batch(
     corpus: str,
