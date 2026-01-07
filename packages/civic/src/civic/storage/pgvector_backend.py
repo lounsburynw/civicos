@@ -612,6 +612,26 @@ class PgVectorBackend:
                 state_code = jurisdiction_id.upper()
             raw_bills = storage_backend.get_legislation(state=state_code)
             documents = legal_chunker(raw_bills)
+        elif corpus_type == "codified_law":
+            # Expand codified law sections to chunks for semantic search
+            if legal_chunker is None:
+                raise ValueError(
+                    "legal_chunker is required when corpus_type='codified_law'. "
+                    "Use civic._internal.legal.embeddings.chunker.expand_codified_law_to_chunks"
+                )
+            # Codified law uses jurisdiction_id directly (e.g., "federal-US", "state-CA", "federal-CFR")
+            raw_sections = storage_backend.get_codified_law(jurisdiction_id)
+            documents = legal_chunker(raw_sections)
+        elif corpus_type == "executive_orders":
+            # Expand executive orders to chunks for semantic search
+            if legal_chunker is None:
+                raise ValueError(
+                    "legal_chunker is required when corpus_type='executive_orders'. "
+                    "Use civic._internal.legal.embeddings.chunker.expand_executive_orders_to_chunks"
+                )
+            # EOs don't take jurisdiction - they're all federal
+            raw_orders = storage_backend.get_executive_orders()
+            documents = legal_chunker(raw_orders)
         else:
             raise ValueError(f"Unknown corpus_type: {corpus_type}")
 
@@ -691,6 +711,20 @@ class PgVectorBackend:
                     meeting_id = None  # Not meeting-related
                     meeting_title = doc.get("bill_name") or doc.get("bill_number")
                     meeting_datetime = None
+                elif corpus_type == "codified_law":
+                    # doc is already a chunk from expand_codified_law_to_chunks
+                    text = doc.get("text", "")
+                    doc_id = doc.get("id", f"cl-{i}-{idx}")
+                    meeting_id = None  # Not meeting-related
+                    meeting_title = doc.get("citation") or doc.get("heading")
+                    meeting_datetime = None
+                elif corpus_type == "executive_orders":
+                    # doc is already a chunk from expand_executive_orders_to_chunks
+                    text = doc.get("text", "")
+                    doc_id = doc.get("id", f"eo-{i}-{idx}")
+                    meeting_id = None  # Not meeting-related
+                    meeting_title = doc.get("title") or f"EO {doc.get('eo_number')}"
+                    meeting_datetime = doc.get("signing_date")
 
                 if not text.strip():
                     continue
@@ -1006,6 +1040,12 @@ class PgVectorBackend:
                 else:
                     state_code = jurisdiction_id.upper()
                 storage_count = storage_backend.get_legislation_count(state_code)
+            elif corpus_type == "codified_law":
+                # Codified law uses jurisdiction_id directly (e.g., "federal-US", "state-CA", "federal-CFR")
+                storage_count = storage_backend.get_codified_law_count(jurisdiction_id)
+            elif corpus_type == "executive_orders":
+                # Executive orders are all federal, no jurisdiction filter
+                storage_count = storage_backend.get_executive_orders_count()
 
         return VectorStats(
             jurisdiction_id=jurisdiction_id,

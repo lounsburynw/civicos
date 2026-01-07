@@ -2522,10 +2522,11 @@
         "completed": "2026-01-06"
       },
       "cfr_data_execution": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 99,
         "description": "Execute CFR Modal ingestion to populate database",
-        "notes": "Infrastructure ready (cfr.py parser, modal_cfr.py script). Need to run: modal run scripts/modal_cfr.py --titles 24,40,49 for pilot subset, then --all-titles for full 180k sections."
+        "notes": "Ingested 36,608 CFR sections from eCFR API (Title 24 HUD: 4,904, Title 40 EPA: 22,952, Title 49 DOT: 8,752). what_applies() verified working. Updated modal_cfr.py to use eCFR API since GovInfo bulk data was unreliable.",
+        "completed": "2026-01-06"
       },
       "case_law_ingestion": {
         "status": "not_ready",
@@ -2549,9 +2550,9 @@
       },
       "codified_law_vectors": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Embed codified law sections to pgvector for semantic search",
-        "notes": "U.S. Code (50k) + CA Codes (161k) + CFR (~180k) + EOs (1.5k) for semantic what_applies() queries. ~$25 one-time embedding cost. After CFR data execution."
+        "notes": "Infrastructure complete: chunkers, pgvector backend, Modal script updated. federal-CFR embedding job running (98k chunks). Remaining: federal-US (~219k), state-CA (~193k). Commands: modal run scripts/modal_vectors.py --jurisdiction {jur} --corpus codified_law --reindex --parallel 4"
       },
       "vector_indexing_automation": {
         "status": "not_ready",

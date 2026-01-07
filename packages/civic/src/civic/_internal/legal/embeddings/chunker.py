@@ -458,3 +458,247 @@ def expand_legislation_to_chunks(
         f"Expanded {len(bills)} legislation bills into {len(all_chunks)} chunks"
     )
     return all_chunks
+
+
+def expand_codified_law_to_chunks(
+    sections: list[dict],
+    max_chunk_size: int = 1500,
+    overlap: int = 100,
+) -> list[dict]:
+    """
+    Expand codified law sections into semantic chunks for embedding.
+
+    This is the canonical function for chunking codified law before vector indexing.
+    It handles U.S. Code, state codes (e.g., California), and CFR (Code of Federal
+    Regulations) sections.
+
+    Args:
+        sections: List of codified law section dicts from storage backend
+                  (via get_codified_law). Each dict should have:
+                  - id: Database ID
+                  - citation: Full citation (e.g., "42 U.S.C. § 1983")
+                  - title_number: int
+                  - title_name: str
+                  - section_number: str
+                  - heading: str (section heading)
+                  - text: str (the section text to chunk)
+                  - jurisdiction_id: str (e.g., "federal-US", "state-CA", "federal-CFR")
+                  - chapter, subchapter: (optional hierarchy)
+        max_chunk_size: Maximum characters per chunk (default 1500)
+        overlap: Character overlap between chunks for context (default 100)
+
+    Returns:
+        List of chunk dicts ready for indexing, each containing:
+        - id: "cl-{db_id}-{chunk_index}"
+        - text: Chunk text with section header context
+        - citation, title_number, title_name, section_number, jurisdiction_id, etc.
+    """
+    chunker = LegalChunker(
+        max_chunk_size=max_chunk_size,
+        overlap=overlap,
+        preserve_sections=True,
+    )
+
+    all_chunks = []
+
+    for section in sections:
+        db_id = section.get("id")
+        if not db_id:
+            continue
+
+        # Get the full text
+        full_text = section.get("text")
+        if not full_text:
+            continue
+
+        # Build section header for context
+        # Example: "42 U.S.C. § 1983: Civil action for deprivation of rights"
+        header_parts = []
+        if section.get("citation"):
+            header_parts.append(section["citation"])
+        elif section.get("title_number") and section.get("section_number"):
+            header_parts.append(f"{section['title_number']} § {section['section_number']}")
+        if section.get("heading"):
+            header_parts.append(f": {section['heading']}")
+        section_header = "".join(header_parts) if header_parts else f"Section {db_id}"
+
+        # Create source_id for chunk tracking
+        source_id = f"cl-{db_id}"
+
+        # Metadata to preserve across chunks
+        base_metadata = {
+            "db_id": db_id,
+            "citation": section.get("citation"),
+            "title_number": section.get("title_number"),
+            "title_name": section.get("title_name"),
+            "section_number": section.get("section_number"),
+            "heading": section.get("heading"),
+            "jurisdiction_id": section.get("jurisdiction_id"),
+            "chapter": section.get("chapter"),
+            "subchapter": section.get("subchapter"),
+            "identifier": section.get("identifier"),
+        }
+
+        # Chunk the section text
+        chunks = list(chunker.chunk_document(
+            text=full_text,
+            source_id=source_id,
+            metadata=base_metadata,
+        ))
+
+        if not chunks:
+            logger.warning(f"No chunks generated for codified law section {db_id}")
+            continue
+
+        # Convert Chunk objects to indexable dicts
+        for chunk in chunks:
+            if chunk.chunk_index == 0:
+                chunk_text = f"{section_header}\n{chunk.text}"
+            else:
+                chunk_text = f"[{section_header} continued]\n{chunk.text}"
+
+            chunk_dict = {
+                "id": f"{source_id}-{chunk.chunk_index}",
+                "text": chunk_text,
+                "citation": section.get("citation"),
+                "title_number": section.get("title_number"),
+                "title_name": section.get("title_name"),
+                "section_number": section.get("section_number"),
+                "heading": section.get("heading"),
+                "jurisdiction_id": section.get("jurisdiction_id"),
+                "chapter": section.get("chapter"),
+                "subchapter": section.get("subchapter"),
+                "chunk_index": chunk.chunk_index,
+                "total_chunks": len(chunks),
+                "start_char": chunk.start_char,
+                "end_char": chunk.end_char,
+                "section": chunk.section,
+                "metadata": chunk.metadata,
+            }
+            all_chunks.append(chunk_dict)
+
+        logger.debug(
+            f"Chunked codified law section {db_id}: {len(chunks)} chunks "
+            f"from {len(full_text)} chars"
+        )
+
+    logger.info(
+        f"Expanded {len(sections)} codified law sections into {len(all_chunks)} chunks"
+    )
+    return all_chunks
+
+
+def expand_executive_orders_to_chunks(
+    orders: list[dict],
+    max_chunk_size: int = 1500,
+    overlap: int = 100,
+) -> list[dict]:
+    """
+    Expand Executive Orders into semantic chunks for embedding.
+
+    This is the canonical function for chunking Executive Orders before vector indexing.
+
+    Args:
+        orders: List of EO dicts from storage backend (via get_executive_orders).
+                Each dict should have:
+                - id: Database ID
+                - eo_number: int (e.g., 14067)
+                - title: str
+                - signing_date: date
+                - president: str
+                - full_text: str (the order text to chunk)
+                - status: str ("active", "revoked", "superseded")
+        max_chunk_size: Maximum characters per chunk (default 1500)
+        overlap: Character overlap between chunks for context (default 100)
+
+    Returns:
+        List of chunk dicts ready for indexing, each containing:
+        - id: "eo-{db_id}-{chunk_index}"
+        - text: Chunk text with EO header context
+        - eo_number, title, president, signing_date, status, etc.
+    """
+    chunker = LegalChunker(
+        max_chunk_size=max_chunk_size,
+        overlap=overlap,
+        preserve_sections=True,
+    )
+
+    all_chunks = []
+
+    for order in orders:
+        db_id = order.get("id")
+        if not db_id:
+            continue
+
+        # Get the full text
+        full_text = order.get("full_text")
+        if not full_text:
+            continue
+
+        # Build EO header for context
+        # Example: "Executive Order 14067: Ensuring Responsible Development of Digital Assets"
+        eo_number = order.get("eo_number")
+        header_parts = []
+        if eo_number:
+            header_parts.append(f"Executive Order {eo_number}")
+        if order.get("title"):
+            header_parts.append(f": {order['title']}")
+        eo_header = "".join(header_parts) if header_parts else f"Executive Order {db_id}"
+
+        # Create source_id for chunk tracking
+        source_id = f"eo-{db_id}"
+
+        # Metadata to preserve across chunks
+        base_metadata = {
+            "db_id": db_id,
+            "eo_number": eo_number,
+            "title": order.get("title"),
+            "president": order.get("president"),
+            "signing_date": order.get("signing_date"),
+            "status": order.get("status"),
+        }
+
+        # Chunk the order text
+        chunks = list(chunker.chunk_document(
+            text=full_text,
+            source_id=source_id,
+            metadata=base_metadata,
+        ))
+
+        if not chunks:
+            logger.warning(f"No chunks generated for EO {eo_number or db_id}")
+            continue
+
+        # Convert Chunk objects to indexable dicts
+        for chunk in chunks:
+            if chunk.chunk_index == 0:
+                chunk_text = f"{eo_header}\n{chunk.text}"
+            else:
+                chunk_text = f"[{eo_header} continued]\n{chunk.text}"
+
+            chunk_dict = {
+                "id": f"{source_id}-{chunk.chunk_index}",
+                "text": chunk_text,
+                "eo_number": eo_number,
+                "title": order.get("title"),
+                "president": order.get("president"),
+                "signing_date": order.get("signing_date"),
+                "status": order.get("status"),
+                "chunk_index": chunk.chunk_index,
+                "total_chunks": len(chunks),
+                "start_char": chunk.start_char,
+                "end_char": chunk.end_char,
+                "section": chunk.section,
+                "metadata": chunk.metadata,
+            }
+            all_chunks.append(chunk_dict)
+
+        logger.debug(
+            f"Chunked EO {eo_number or db_id}: {len(chunks)} chunks "
+            f"from {len(full_text)} chars"
+        )
+
+    logger.info(
+        f"Expanded {len(orders)} Executive Orders into {len(all_chunks)} chunks"
+    )
+    return all_chunks

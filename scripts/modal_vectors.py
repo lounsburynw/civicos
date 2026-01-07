@@ -49,8 +49,9 @@ civic_image = (
     .run_commands(
         "python -c \"from fastembed import TextEmbedding; TextEmbedding('nomic-ai/nomic-embed-text-v1.5')\""
     )
-    # Add local civic package (civic_extraction not needed for vector indexing)
+    # Add local packages (civic_extraction not needed for vector indexing)
     .add_local_python_source("civic")
+    .add_local_python_source("civic_config")
 )
 
 
@@ -105,6 +106,8 @@ def index_corpus(
     from civic._internal.legal.embeddings.chunker import (
         expand_municipal_code_to_chunks,
         expand_legislation_to_chunks,
+        expand_codified_law_to_chunks,
+        expand_executive_orders_to_chunks,
     )
 
     database_url = os.environ.get("DATABASE_URL")
@@ -131,10 +134,23 @@ def index_corpus(
     logger.info(f"pgvector connection validated ({validation.check_duration_ms:.1f}ms)")
 
     # Determine corpus types to process
-    # Note: legislation uses state-based jurisdiction (e.g., "state-CA") not city-based
+    # Different jurisdiction prefixes have different corpus types:
+    # - "city-*": Local civic data (meetings, decisions, issues, etc.)
+    # - "legislation-*": State legislation (e.g., "legislation-CA")
+    # - "federal-US", "federal-CFR", "state-CA": Codified law
+    # - "federal-EO": Executive Orders
+    #
+    # Note: "state-CA" is for CA codified law (CA Codes), not legislation
+    # Legislation uses "legislation-CA" format
+    codified_law_jurisdictions = {"federal-US", "federal-CFR", "state-CA"}
+
     all_corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues"]
-    if jurisdiction.startswith("state-"):
-        # For state jurisdictions, only legislation is relevant
+    if jurisdiction in codified_law_jurisdictions:
+        all_corpus_types = ["codified_law"]
+    elif jurisdiction == "federal-EO":
+        all_corpus_types = ["executive_orders"]
+    elif jurisdiction.startswith("legislation-"):
+        # legislation-CA -> state code CA
         all_corpus_types = ["legislation"]
     corpus_types = all_corpus_types if corpus == "all" else [corpus]
 
@@ -172,6 +188,10 @@ def index_corpus(
                 legal_chunker_fn = expand_municipal_code_to_chunks
             elif ct == "legislation":
                 legal_chunker_fn = expand_legislation_to_chunks
+            elif ct == "codified_law":
+                legal_chunker_fn = expand_codified_law_to_chunks
+            elif ct == "executive_orders":
+                legal_chunker_fn = expand_executive_orders_to_chunks
             else:
                 legal_chunker_fn = None
             count = pgvector.index_from_storage(
@@ -250,6 +270,8 @@ def get_stats(jurisdiction: str = "city-san-rafael") -> dict:
     from civic._internal.legal.embeddings.chunker import (
         expand_municipal_code_to_chunks,
         expand_legislation_to_chunks,
+        expand_codified_law_to_chunks,
+        expand_executive_orders_to_chunks,
     )
 
     database_url = os.environ.get("DATABASE_URL")
@@ -264,7 +286,13 @@ def get_stats(jurisdiction: str = "city-san-rafael") -> dict:
     )
 
     # Determine corpus types based on jurisdiction type
-    if jurisdiction.startswith("state-"):
+    codified_law_jurisdictions = {"federal-US", "federal-CFR", "state-CA"}
+
+    if jurisdiction in codified_law_jurisdictions:
+        corpus_types = ["codified_law"]
+    elif jurisdiction == "federal-EO":
+        corpus_types = ["executive_orders"]
+    elif jurisdiction.startswith("legislation-"):
         corpus_types = ["legislation"]
     else:
         corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues"]
@@ -295,6 +323,14 @@ def get_stats(jurisdiction: str = "city-san-rafael") -> dict:
                 state_code = jurisdiction.upper()
             raw_bills = backend.get_legislation(state=state_code)
             chunks = expand_legislation_to_chunks(raw_bills)
+            chunk_count = len(chunks)
+        elif ct == "codified_law" and chunk_count > 0:
+            raw_sections = backend.get_codified_law(jurisdiction)
+            chunks = expand_codified_law_to_chunks(raw_sections)
+            chunk_count = len(chunks)
+        elif ct == "executive_orders" and chunk_count > 0:
+            raw_orders = backend.get_executive_orders()
+            chunks = expand_executive_orders_to_chunks(raw_orders)
             chunk_count = len(chunks)
 
         stats[ct] = {
@@ -407,6 +443,8 @@ def index_batch(
     from civic._internal.legal.embeddings.chunker import (
         expand_municipal_code_to_chunks,
         expand_legislation_to_chunks,
+        expand_codified_law_to_chunks,
+        expand_executive_orders_to_chunks,
     )
 
     database_url = os.environ.get("DATABASE_URL")
@@ -427,6 +465,10 @@ def index_batch(
         legal_chunker_fn = expand_municipal_code_to_chunks
     elif corpus == "legislation":
         legal_chunker_fn = expand_legislation_to_chunks
+    elif corpus == "codified_law":
+        legal_chunker_fn = expand_codified_law_to_chunks
+    elif corpus == "executive_orders":
+        legal_chunker_fn = expand_executive_orders_to_chunks
     else:
         legal_chunker_fn = None
 

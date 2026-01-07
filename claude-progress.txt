@@ -10902,3 +10902,103 @@ modal run scripts/modal_cfr.py --all-titles       # Full ingestion
 **Tests:** 39/39 smoke + 7/7 CFR parser tests pass
 
 **Next P0:** case_law_ingestion (federal case law from CourtListener API)
+
+
+---
+## Session 486 (2026-01-06)
+**Item:** cfr_data_execution  
+**Status:** Completed ✓
+
+### Summary
+Executed CFR data ingestion from eCFR API (GovInfo bulk data was unreliable).
+
+### Changes Made
+1. Updated `scripts/modal_cfr.py`:
+   - Added missing dependencies to Modal image (langgraph, beautifulsoup4, requests)
+   - Added civic_config to local sources  
+   - Switched from GovInfo bulk data to eCFR API (https://www.ecfr.gov/api)
+   - Created `parse_ecfr_xml()` function for eCFR XML format (DIV1/DIV5/DIV8 structure)
+   - Updated date to 2026-01-01 for current regulations
+
+2. Executed pilot ingestion:
+   - Title 24 (HUD): 4,904 sections
+   - Title 40 (EPA): 22,952 sections
+   - Title 49 (DOT): 8,752 sections
+   - **Total: 36,608 CFR sections**
+
+3. Verified `what_applies()` integration:
+   - Housing queries return HUD CFR sections (24 CFR)
+   - Environment queries return EPA CFR sections (40 CFR)
+
+### Key Files
+- `scripts/modal_cfr.py` - Updated for eCFR API
+- `pilot.json` - cfr_data_execution -> ready
+
+### Next P0
+`codified_law_vectors` - Embed all codified law (U.S. Code, CA Codes, CFR, EOs) for semantic search
+
+
+---
+## Session 487 (2026-01-07)
+**Item:** codified_law_vectors (pilot_validation > e2e_cloud_data_verification)
+**Status:** Infrastructure Complete, Embeddings In Progress
+
+### Summary
+Built vector embedding infrastructure for codified law (U.S. Code, CA Codes, CFR). 
+Started embedding job for federal-CFR (~98k chunks). Full embedding ~510k chunks across 3 jurisdictions.
+
+### Changes Made
+1. **Created chunkers** (`packages/civic/src/civic/_internal/legal/embeddings/chunker.py`):
+   - `expand_codified_law_to_chunks()` for U.S. Code/CA Codes/CFR
+   - `expand_executive_orders_to_chunks()` for EOs (text not available yet)
+   - Both use LegalChunker with 1500 char max, 100 char overlap
+
+2. **Extended PgVectorBackend** (`packages/civic/src/civic/storage/pgvector_backend.py`):
+   - Added `codified_law` and `executive_orders` corpus types in `index_from_storage()`
+   - Added storage count methods in `get_stats()`
+   - Text representation handling for new types
+
+3. **Updated Modal script** (`scripts/modal_vectors.py`):
+   - Added civic_config dependency
+   - Added codified_law_jurisdictions: federal-US, federal-CFR, state-CA
+   - Import new chunkers for parallel processing
+   - Fixed jurisdiction routing logic
+
+4. **Started embedding job:**
+   - federal-CFR: 98,257 chunks (4 parallel workers on Modal)
+   - Remaining: federal-US (~219k), state-CA (~193k)
+
+### Data Inventory
+| Jurisdiction | Sections | Est. Chunks |
+|--------------|----------|-------------|
+| federal-US   | 50,809   | ~219,000    |
+| state-CA     | 161,219  | ~193,000    |
+| federal-CFR  | 36,608   | ~98,000     |
+| **Total**    | 248,636  | ~510,000    |
+
+### Commands to Complete
+```bash
+# Check federal-CFR status (job running)
+modal run scripts/modal_vectors.py --jurisdiction federal-CFR --stats-only
+
+# Run federal-US embedding
+modal run scripts/modal_vectors.py --jurisdiction federal-US --corpus codified_law --reindex --parallel 4
+
+# Run state-CA embedding
+modal run scripts/modal_vectors.py --jurisdiction state-CA --corpus codified_law --reindex --parallel 4
+```
+
+### Next Steps
+1. Wait for federal-CFR job to complete
+2. Run federal-US and state-CA embedding jobs
+3. Verify semantic search via `pgvector.search(corpus_type="codified_law")`
+4. Update pilot.json status to ready
+
+### Key Files Modified
+- `packages/civic/src/civic/_internal/legal/embeddings/chunker.py`
+- `packages/civic/src/civic/storage/pgvector_backend.py`
+- `scripts/modal_vectors.py`
+- `pilot.json`
+
+### Next P0
+Continue `codified_law_vectors` - Complete remaining embedding jobs
