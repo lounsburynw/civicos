@@ -44,20 +44,27 @@ from typing import List, Optional
 app = modal.App("civic-cfr")
 
 # Build image with dependencies
+# Note: langgraph is required because civic/__init__.py imports the full Civic class
+# which has LangGraph coordination dependencies
 civic_image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("libpq-dev", "gcc", "curl", "unzip")
     .pip_install(
         "psycopg2-binary>=2.9.0",
         "httpx>=0.24.0",
+        "langgraph>=0.2.0",  # Required by civic package imports
+        "beautifulsoup4>=4.12.0",  # Required by civic_extraction
+        "requests>=2.28.0",  # Required by civic_extraction
     )
+    .add_local_python_source("civic_config")  # Required by civic package
     .add_local_python_source("civic")
     .add_local_python_source("civic_extraction")
 )
 
-# GovInfo CFR bulk data configuration
-GOVINFO_BASE_URL = "https://www.govinfo.gov/bulkdata/CFR/2024"
-CFR_YEAR = 2024  # Latest complete year
+# eCFR API configuration (GovInfo bulk data is unreliable)
+# Note: eCFR provides current/up-to-date CFR content via REST API
+ECFR_API_BASE = "https://www.ecfr.gov/api/versioner/v1"
+ECFR_DATE = "2026-01-01"  # Current date for up-to-date content
 
 # Relevant CFR titles for local government (start with these)
 LOCAL_GOVT_TITLES = [
@@ -70,32 +77,142 @@ LOCAL_GOVT_TITLES = [
 ALL_CFR_TITLES = list(range(1, 51))
 
 
-def get_volume_urls(title_number: int) -> List[str]:
-    """Get all volume XML URLs for a CFR title."""
-    # CFR titles are split into multiple volumes
-    # Naming convention: CFR-2024-title{N}-vol{V}.xml
-    # First check how many volumes exist by fetching the title index
+def get_ecfr_title_url(title_number: int) -> str:
+    """Get eCFR API URL for a full title XML."""
+    return f"{ECFR_API_BASE}/full/{ECFR_DATE}/title-{title_number}.xml"
+
+
+def get_title_info() -> List[dict]:
+    """Get metadata about all CFR titles from eCFR API."""
     import httpx
 
-    index_url = f"{GOVINFO_BASE_URL}/title-{title_number}/"
+    url = f"{ECFR_API_BASE}/titles"
     try:
         with httpx.Client(timeout=30.0) as client:
-            resp = client.get(index_url)
+            resp = client.get(url)
             if resp.status_code != 200:
                 return []
-
-            # Parse the directory listing to find volume files
-            content = resp.text
-            volumes = []
-            import re
-            pattern = rf'CFR-{CFR_YEAR}-title{title_number}-vol(\d+)\.xml'
-            matches = re.findall(pattern, content)
-            for vol_num in sorted(set(matches), key=int):
-                url = f"{GOVINFO_BASE_URL}/title-{title_number}/CFR-{CFR_YEAR}-title{title_number}-vol{vol_num}.xml"
-                volumes.append(url)
-            return volumes
+            data = resp.json()
+            return data.get("titles", [])
     except Exception:
         return []
+
+
+def parse_ecfr_xml(xml_content: bytes, title_number: int) -> List[dict]:
+    """
+    Parse eCFR XML format into section dicts.
+
+    eCFR uses: ECFR > DIV1(TITLE) > DIV2(SUBTITLE) > DIV5(PART) > DIV8(SECTION)
+    Each DIV has TYPE and N attributes.
+    """
+    import xml.etree.ElementTree as ET
+    import re
+
+    def get_text(elem) -> str:
+        """Extract all text content from element recursively."""
+        if elem is None:
+            return ""
+        texts = []
+        if elem.text:
+            texts.append(elem.text.strip())
+        for child in elem:
+            # Skip auth/source metadata
+            if child.tag in ("SECAUTH", "SOURCE", "AUTH", "CITA", "FIG"):
+                if child.tail:
+                    texts.append(child.tail.strip())
+                continue
+            child_text = get_text(child)
+            if child_text:
+                texts.append(child_text)
+            if child.tail:
+                texts.append(child.tail.strip())
+        result = " ".join(texts)
+        result = re.sub(r'\s+', ' ', result).strip()
+        return result
+
+    root = ET.fromstring(xml_content)
+    sections = []
+
+    # Get title info from DIV1
+    title_div = root.find(".//DIV1[@TYPE='TITLE']")
+    if title_div is None:
+        return []
+
+    title_head = title_div.find("HEAD")
+    title_name = title_head.text if title_head is not None else f"Title {title_number}"
+    # Clean title name: "Title 24—Housing and Urban Development" -> "Housing and Urban Development"
+    if "—" in title_name:
+        title_name = title_name.split("—", 1)[1].strip()
+
+    # Find all sections (DIV8 with TYPE='SECTION')
+    for section_elem in root.iter():
+        if section_elem.tag != "DIV8":
+            continue
+        if section_elem.get("TYPE") != "SECTION":
+            continue
+
+        # Get section number from N attribute
+        section_number = section_elem.get("N", "")
+        if not section_number:
+            continue
+
+        # Get heading from HEAD element (e.g., "§ 1.1   Purpose.")
+        head_elem = section_elem.find("HEAD")
+        heading_raw = head_elem.text if head_elem is not None else ""
+        # Clean heading: "§ 1.1   Purpose." -> "Purpose."
+        heading = re.sub(r'^§\s*[\d.]+\s*', '', heading_raw).strip()
+
+        # Extract text from P, FP elements
+        text_parts = []
+        for child in section_elem:
+            if child.tag in ("P", "FP", "EXTRACT", "NOTE"):
+                text = get_text(child)
+                if text:
+                    text_parts.append(text)
+        text = " ".join(text_parts)
+
+        # Skip sections with minimal text
+        if len(text) < 20:
+            continue
+
+        # Find parent PART (DIV5)
+        part_number = ""
+        part_name = ""
+        parent = section_elem
+        while parent is not None:
+            if parent.tag == "DIV5" and parent.get("TYPE") == "PART":
+                part_number = parent.get("N", "")
+                part_head = parent.find("HEAD")
+                if part_head is not None:
+                    part_name = part_head.text or ""
+                break
+            # Go up - find parent by iterating
+            parent = None  # Can't traverse up in ElementTree, but we already have N
+
+        # Build citation: "24 CFR 1.1"
+        citation = f"{title_number} CFR {section_number}"
+
+        # Build identifier
+        identifier = f"cfr/t{title_number}/s{section_number}"
+
+        sections.append({
+            "citation": citation,
+            "title_number": title_number,
+            "title_name": title_name,
+            "section_number": section_number,
+            "heading": heading,
+            "text": text,
+            "identifier": identifier,
+            "status": None,
+            "chapter": None,
+            "subchapter": None,
+            "part_number": part_number,
+            "authority": None,
+            "source": None,
+            "subpart": None,
+        })
+
+    return sections
 
 
 @app.function(
@@ -114,7 +231,7 @@ def ingest_cfr(
     list_titles: bool = False,
 ) -> dict:
     """
-    Ingest CFR from GovInfo to PostgreSQL.
+    Ingest CFR from eCFR API to PostgreSQL.
 
     Args:
         titles: List of title numbers to ingest (e.g., [24, 40, 49])
@@ -134,18 +251,15 @@ def ingest_cfr(
     if not database_url:
         return {"error": "DATABASE_URL not set"}
 
-    # List titles mode
+    # List titles mode - fetch from eCFR API
     if list_titles:
-        print("Fetching available CFR titles...")
-        available = []
-        with httpx.Client(timeout=30.0) as client:
-            for title_num in ALL_CFR_TITLES:
-                volumes = get_volume_urls(title_num)
-                if volumes:
-                    available.append({
-                        "title": title_num,
-                        "volumes": len(volumes),
-                    })
+        print("Fetching available CFR titles from eCFR API...")
+        titles_info = get_title_info()
+        available = [
+            {"number": t["number"], "name": t["name"], "reserved": t.get("reserved", False)}
+            for t in titles_info
+            if not t.get("reserved", False)
+        ]
         return {
             "available_titles": len(available),
             "titles": available,
@@ -181,16 +295,13 @@ def ingest_cfr(
 
     # Determine which titles to ingest
     if all_titles:
-        target_titles = ALL_CFR_TITLES
+        target_titles = [t for t in ALL_CFR_TITLES if t != 35]  # Skip reserved Title 35
     elif titles:
         target_titles = titles
     else:
         target_titles = LOCAL_GOVT_TITLES
 
-    print(f"Ingesting CFR titles: {target_titles}")
-
-    # Import parser
-    from civic_extraction.cfr import CFRParser
+    print(f"Ingesting CFR titles from eCFR API: {target_titles}")
 
     # Track results
     results = {
@@ -204,113 +315,64 @@ def ingest_cfr(
     start = time.time()
 
     # Process each title
-    for title_num in target_titles:
-        print(f"\n{'='*50}")
-        print(f"Processing Title {title_num}")
-        print("=" * 50)
+    with httpx.Client(timeout=180.0) as client:  # Longer timeout for large titles
+        for title_num in target_titles:
+            print(f"\n{'='*50}")
+            print(f"Processing Title {title_num}")
+            print("=" * 50)
 
-        title_sections = []
-        title_start = time.time()
+            title_start = time.time()
+            url = get_ecfr_title_url(title_num)
 
-        # Get all volumes for this title
-        volumes = get_volume_urls(title_num)
-        if not volumes:
-            print(f"  No volumes found for Title {title_num}")
-            results["errors"].append(f"Title {title_num}: no volumes found")
-            continue
-
-        print(f"  Found {len(volumes)} volumes")
-
-        # Download and parse each volume
-        with httpx.Client(timeout=120.0) as client:
-            for vol_url in volumes:
-                vol_name = vol_url.split("/")[-1]
-                print(f"  Downloading {vol_name}...")
-
-                try:
-                    resp = client.get(vol_url)
-                    if resp.status_code != 200:
-                        print(f"    Error: HTTP {resp.status_code}")
-                        results["errors"].append(f"{vol_name}: HTTP {resp.status_code}")
-                        continue
-
-                    # Save to temp file and parse
-                    with tempfile.NamedTemporaryFile(
-                        mode="wb", suffix=".xml", delete=False
-                    ) as f:
-                        f.write(resp.content)
-                        temp_path = f.name
-
-                    try:
-                        parser = CFRParser(temp_path)
-                        vol_sections = list(parser.parse_sections())
-                        print(f"    Parsed {len(vol_sections)} sections")
-                        title_sections.extend(vol_sections)
-                    finally:
-                        os.unlink(temp_path)
-
-                except Exception as e:
-                    print(f"    Error: {e}")
-                    results["errors"].append(f"{vol_name}: {str(e)}")
+            print(f"  Downloading from eCFR API...")
+            try:
+                resp = client.get(url)
+                if resp.status_code != 200:
+                    print(f"  Error: HTTP {resp.status_code}")
+                    results["errors"].append(f"Title {title_num}: HTTP {resp.status_code}")
                     continue
 
-        # Convert to dicts for storage
-        sections_for_storage = []
-        for section in title_sections:
-            d = section.to_dict()
-            # CFR uses part_number instead of chapter for organization
-            # Map to codified_law schema
-            sections_for_storage.append({
-                "citation": d["citation"],
-                "title_number": d["title_number"],
-                "title_name": d["title_name"],
-                "section_number": d["section_number"],
-                "heading": d["heading"],
-                "text": d["text"],
-                "identifier": d["identifier"],
-                "status": None,  # CFR sections are current by definition
-                "chapter": d.get("chapter"),
-                "subchapter": d.get("subchapter"),
-                # Store CFR-specific fields in metadata
-                "part_number": d.get("part_number"),
-                "authority": d.get("authority"),
-                "source": d.get("source"),
-                "subpart": d.get("subpart"),
-            })
+                print(f"  Downloaded {len(resp.content) / 1024 / 1024:.1f} MB")
 
-        print(f"  Total: {len(sections_for_storage)} sections from Title {title_num}")
-        results["sections_parsed"] += len(sections_for_storage)
-        results["by_title"][title_num] = {
-            "parsed": len(sections_for_storage),
-            "volumes": len(volumes),
-        }
+                # Parse the XML
+                sections = parse_ecfr_xml(resp.content, title_num)
+                print(f"  Parsed {len(sections)} sections")
 
-        if dry_run:
-            print("  [DRY RUN] Skipping storage")
-            continue
+                results["sections_parsed"] += len(sections)
+                results["by_title"][title_num] = {"parsed": len(sections)}
 
-        # Store to PostgreSQL
-        if sections_for_storage:
-            print(f"  Storing to PostgreSQL...")
-            from civic.storage.postgres_backend import PostgresBackend
-            db = PostgresBackend(database_url)
+                if dry_run:
+                    print("  [DRY RUN] Skipping storage")
+                    results["titles_processed"] += 1
+                    continue
 
-            try:
-                stored = db.store_codified_law(
-                    jurisdiction_id="federal-CFR",
-                    sections=sections_for_storage,
-                    use_copy=True,
-                )
-                print(f"  Stored {stored} sections")
-                results["sections_stored"] += stored
-                results["by_title"][title_num]["stored"] = stored
+                # Store to PostgreSQL
+                if sections:
+                    print(f"  Storing to PostgreSQL...")
+                    from civic.storage.postgres_backend import PostgresBackend
+                    db = PostgresBackend(database_url)
+
+                    try:
+                        stored = db.store_codified_law(
+                            jurisdiction_id="federal-CFR",
+                            sections=sections,
+                            use_copy=True,
+                        )
+                        print(f"  Stored {stored} sections")
+                        results["sections_stored"] += stored
+                        results["by_title"][title_num]["stored"] = stored
+                    except Exception as e:
+                        print(f"  Storage error: {e}")
+                        results["errors"].append(f"Title {title_num} storage: {str(e)}")
+
+                results["titles_processed"] += 1
+                title_time = time.time() - title_start
+                print(f"  Completed in {title_time:.1f}s")
+
             except Exception as e:
-                print(f"  Storage error: {e}")
-                results["errors"].append(f"Title {title_num} storage: {str(e)}")
-
-        results["titles_processed"] += 1
-        title_time = time.time() - title_start
-        print(f"  Completed in {title_time:.1f}s")
+                print(f"  Error: {e}")
+                results["errors"].append(f"Title {title_num}: {str(e)}")
+                continue
 
     total_time = time.time() - start
     results["total_time_s"] = total_time
