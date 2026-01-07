@@ -1,63 +1,80 @@
-# Recommended: cfr_data_execution
+# Recommended: codified_law_vectors
 
 **Priority:** P0
 **Area:** pilot_validation > e2e_cloud_data_verification
-**Date:** 2026-01-06
+**Date:** 2026-01-07
 
-> This is recommended context from Session 485. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 487. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 485 built CFR ingestion infrastructure (parser + Modal script) but didn't execute it. Database currently has 0 CFR sections. Priority reordered: **data execution before new feature development**.
+Session 487 built the vector embedding infrastructure for codified law (U.S. Code, CA Codes, CFR). The chunkers, pgvector backend extensions, and Modal script are complete. A federal-CFR embedding job (~98k chunks, 4 parallel workers) was started and may have completed.
 
-New priority order:
-1. **P0:** cfr_data_execution (run Modal job to populate CFR)
-2. **P1:** codified_law_vectors (embed all legal corpora for semantic search)
-3. **P1:** vector_indexing_automation (auto-embed after ingestion)
-4. **P2:** case_law_ingestion (deferred until data pipeline complete)
+**Remaining work:** Run embedding jobs for federal-US and state-CA, then verify semantic search works.
 
 ## Recommended Task
 
-Execute CFR Modal ingestion to populate the database with federal regulations.
+Complete the codified law vector embeddings and verify semantic search integration.
 
 ## Key Files
 
-- `scripts/modal_cfr.py` - Ready-to-run Modal script
-- `packages/civic-extraction/src/civic_extraction/cfr.py` - CFR parser
-- `packages/civic/src/civic/context.py:185-215` - CFR search (already integrated)
+- `packages/civic/src/civic/_internal/legal/embeddings/chunker.py:463-704` - Chunker functions
+- `packages/civic/src/civic/storage/pgvector_backend.py:615-634` - Corpus type handling
+- `scripts/modal_vectors.py:144-154` - Jurisdiction routing
+- `packages/civic/src/civic/context.py:156-207` - what_applies() integration (keyword search)
 
 ## Steps
 
-1. **Run pilot subset first:**
+1. **Check federal-CFR status (may have completed):**
 ```bash
-modal run scripts/modal_cfr.py --titles 24,40,49
-```
-This ingests HUD (Title 24), EPA (Title 40), DOT (Title 49) - most relevant for local govt.
-
-2. **Verify ingestion:**
-```bash
-modal run scripts/modal_cfr.py --stats-only
+modal run scripts/modal_vectors.py --jurisdiction federal-CFR --stats-only
 ```
 
-3. **Run full ingestion (optional):**
+2. **Run federal-US embedding (~219k chunks, ~30-60 min):**
 ```bash
-modal run scripts/modal_cfr.py --all-titles
+modal run scripts/modal_vectors.py --jurisdiction federal-US --corpus codified_law --reindex --parallel 4
 ```
-All 50 titles, ~180k sections, ~30 min.
 
-4. **Test what_applies():**
+3. **Run state-CA embedding (~193k chunks, ~30-60 min):**
 ```bash
-pytest packages/civic/tests/test_civic.py -v -k "what_applies"
+modal run scripts/modal_vectors.py --jurisdiction state-CA --corpus codified_law --reindex --parallel 4
 ```
+
+4. **Verify semantic search:**
+```bash
+source civic-env/bin/activate && python3 -c "
+from dotenv import load_dotenv; load_dotenv()
+import os
+from civic.storage.pgvector_backend import PgVectorBackend
+
+pgvector = PgVectorBackend(os.environ['DATABASE_URL'], provider_type='fastembed')
+results = pgvector.search('housing discrimination', 'federal-US', 'codified_law', top_k=5)
+for r in results:
+    print(f'{r.score:.3f}: {r.metadata.get(\"citation\", r.id)[:60]}')
+"
+```
+
+5. **Update pilot.json status to ready**
+
+## Data Inventory
+
+| Jurisdiction | Sections | Est. Chunks | Status |
+|--------------|----------|-------------|--------|
+| federal-CFR  | 36,608   | ~98,000     | Check (job started Session 487) |
+| federal-US   | 50,809   | ~219,000    | Pending |
+| state-CA     | 161,219  | ~193,000    | Pending |
 
 ## Success Criteria
 
-- [ ] CFR sections populated in database (verify with --stats-only)
-- [ ] what_applies("housing") returns CFR sections with type='cfr'
-- [ ] pilot.json updated: cfr_data_execution -> ready
+- [ ] federal-CFR: 98k+ vectors in database (check with --stats-only)
+- [ ] federal-US: 219k+ vectors in database
+- [ ] state-CA: 193k+ vectors in database
+- [ ] Semantic search returns relevant results for "housing", "environment", "transportation"
+- [ ] pilot.json: codified_law_vectors -> ready
 
-## Next P1 Items
+## Optional Enhancement
 
-After cfr_data_execution:
-- `codified_law_vectors` - Embed U.S. Code + CA Codes + CFR + EOs to pgvector (~$25)
-- `vector_indexing_automation` - Auto-trigger embeddings after data ingestion
+After embeddings complete, consider adding semantic search to `what_applies()` in addition to existing keyword search:
+- File: `packages/civic/src/civic/context.py`
+- Currently uses `db.search_codified_law()` (PostgreSQL full-text search)
+- Could add `pgvector.search(corpus_type="codified_law")` for semantic results
