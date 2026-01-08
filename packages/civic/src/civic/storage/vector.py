@@ -10,7 +10,7 @@ This ensures persistence and allows re-indexing without re-fetching.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
+from typing import Any, Callable, Dict, List, Optional, Protocol, runtime_checkable
 
 from .backend import StorageBackend
 
@@ -216,8 +216,8 @@ class VectorBackend(Protocol):
         jurisdiction_id: str,
         corpus_type: str = "meetings",
         batch_size: int = 100,
-        transcript_chunker: Optional[callable] = None,
-        legal_chunker: Optional[callable] = None,
+        transcript_chunker: Optional[Callable] = None,
+        legal_chunker: Optional[Callable] = None,
     ) -> int:
         """
         Build vector index from StorageBackend.
