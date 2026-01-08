@@ -126,17 +126,68 @@ docs/archive/               # Historical docs (recoverable)
 docs/archive/checklists/    # Completed phase checklists
 ```
 
-## Critical Docs
+## Documentation
 
-Read only when needed for architectural decisions:
+Read only when needed. Organized by purpose:
 
-- `docs/critical/FINAL_PACKAGE_ARCHITECTURE.md` - **Master architecture** (API, LangGraph, coordination, error handling)
-- `docs/critical/MCP_INTEGRATION_STRATEGY.md` - MCP server design
-- `docs/critical/FOCAL_POINT_DECISION_AWARENESS.md` - Core hypothesis
-- `docs/critical/FOUNDATION_FUNDING_THESIS.md` - Business model
-- `docs/critical/PILOT_ROADMAP.md` - Jan 2026 validation plan
-- `docs/VERIFICATION_TUTORIAL.md` - Hands-on platform verification guide
-- `docs/TESTING_STRATEGY.md` - Test tiers, markers, fixtures, and CI strategy
+### Architecture & Design (docs/critical/)
+| Doc | Purpose |
+|-----|---------|
+| `FINAL_PACKAGE_ARCHITECTURE.md` | **Master architecture** - API, LangGraph, coordination, error handling |
+| `FOCAL_POINT_DECISION_AWARENESS.md` | Core hypothesis - why civic coordination works |
+| `MCP_INTEGRATION_STRATEGY.md` | MCP server design |
+| `VECTOR_RAG_SCHEMA.md` | Vector storage schema, corpus types |
+| `COMMITMENT_TRACKER_ARCHITECTURE.md` | Tracking official commitments |
+| `FINANCIAL_DATA_INTEGRATION.md` | Budget, ACFR, intergovernmental data |
+| `FEDERAL_FUNDING_DATA_SOURCES.md` | FAC, USAspending, federal data |
+| `ELECTION_INTEGRATION.md` | Election data integration |
+
+### Operations & Deployment (docs/critical/)
+| Doc | Purpose |
+|-----|---------|
+| `PILOT_ROADMAP.md` | Jan 2026 validation plan |
+| `DEPLOYMENT_GUIDE.md` | Production deployment |
+| `HOSTING_DECISION.md` | Infrastructure choices |
+| `ROLLBACK_PROCEDURES.md` | Recovery procedures |
+| `UPTIME_MONITORING.md` | Health checks, alerting |
+| `PRE_DEPLOYMENT_BACKUP.md` | Backup before deploy |
+| `DAILY_BACKUP_SCHEDULE.md` | Ongoing backup schedule |
+| `SECRETS_MANAGEMENT.md` | Environment variables, keys |
+| `DATA_INGESTION_OPERATIONS.md` | ETL operations |
+| `VERSIONING_STRATEGY.md` | Release versioning |
+
+### Development Guides (docs/)
+| Doc | Purpose |
+|-----|---------|
+| `TESTING_STRATEGY.md` | Test tiers, markers, fixtures, CI |
+| `VERIFICATION_TUTORIAL.md` | Hands-on platform verification |
+| `DATA_DICTIONARY.md` | Data schemas, field definitions |
+| `EXTRACTOR_PROTOCOL.md` | Platform parser patterns |
+| `BUDGET_EXTRACTION.md` | Budget PDF extraction |
+| `ARCHITECTURE_AUDIT_2026_01.md` | Pre-pilot architecture review |
+| `critical/SQLITE_CHROMADB_JOIN_PATTERNS.md` | Local dev storage patterns |
+
+### Decisions (docs/decisions/)
+Architecture Decision Records (ADRs):
+- `vector_storage.md` - ChromaDB vs pgvector choice
+- `data_integrity_infrastructure.md` - Data validation approach
+
+### Operations Runbooks (docs/operations/)
+- `VECTOR_INDEXING.md` - Re-indexing vectors
+
+### Strategy & Business (docs/)
+- `SUSTAINABILITY_MODEL.md` - Business model, pricing, open source
+- `critical/FOUNDATION_FUNDING_THESIS.md` - Grant funding strategy
+
+### User Guides (docs/user_guides/)
+For end users and city admins:
+- `GETTING_STARTED.md`, `FEATURE_GUIDE.md`, `FAQ.md`
+- `ADMIN_SETUP_GUIDE.md`, `ADMIN_DATA_MANAGEMENT.md`, `ADMIN_TROUBLESHOOTING.md`
+- `CITY_ONBOARDING_GUIDE.md`, `MCP_SETUP_GUIDE.md`
+- `PLATFORM_SPECIFIC_NOTES.md`, `PILOT_USER_IDENTIFICATION.md`
+
+### Archive (docs/archive/)
+Historical docs from completed phases. Recoverable if needed.
 
 ## Session Protocol
 
