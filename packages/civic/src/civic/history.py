@@ -289,6 +289,115 @@ class UnifiedSearchResult:
 
         return cls(**base_kwargs)
 
+    @classmethod
+    def from_vector_result(
+        cls, result: "SearchResult", source_type: str
+    ) -> "UnifiedSearchResult":
+        """
+        Create UnifiedSearchResult from a PgVectorBackend SearchResult.
+
+        The pgvector SearchResult has different field names than ChromaDB:
+        - id vs document_id
+        - content vs text
+        - metadata (same)
+        - score (same)
+
+        Args:
+            result: SearchResult from PgVectorBackend.search()
+            source_type: One of "decision", "pdf", "transcript", "issue",
+                        "municipal_code", "state_legislation", "federal_program"
+
+        Returns:
+            UnifiedSearchResult with appropriate fields populated
+        """
+        metadata = result.metadata or {}
+
+        base_kwargs = {
+            "id": result.id,
+            "text": result.content,
+            "source_type": source_type,
+            "score": result.score,
+        }
+
+        if source_type == "decision":
+            base_kwargs.update({
+                "title": metadata.get("title"),
+                "date": metadata.get("meeting_date"),
+                "outcome": metadata.get("outcome"),
+                "votes": {
+                    "vote_count": metadata.get("vote_count"),
+                    "passed": metadata.get("vote_passed"),
+                    "unanimous": metadata.get("vote_unanimous"),
+                } if metadata.get("vote_count") else None,
+            })
+        elif source_type == "pdf":
+            base_kwargs.update({
+                "agenda_item": metadata.get("agenda_item"),
+                "page_start": metadata.get("page_start"),
+                "page_end": metadata.get("page_end"),
+            })
+        elif source_type == "transcript":
+            base_kwargs.update({
+                "speaker": metadata.get("speaker"),
+                "speaker_role": metadata.get("speaker_role"),
+                "speaker_name": metadata.get("speaker_name"),
+                "video_id": metadata.get("video_id"),
+                "start_timestamp": metadata.get("start_timestamp"),
+                "end_timestamp": metadata.get("end_timestamp"),
+                "start_ms": metadata.get("start_ms"),
+                "end_ms": metadata.get("end_ms"),
+                "is_public_comment": metadata.get("is_public_comment", False),
+            })
+        elif source_type == "issue":
+            base_kwargs.update({
+                "title": metadata.get("title"),
+                "issue_type": metadata.get("issue_type"),
+                "address": metadata.get("address"),
+                "latitude": metadata.get("latitude"),
+                "longitude": metadata.get("longitude"),
+                "status": metadata.get("status"),
+            })
+        elif source_type == "municipal_code":
+            base_kwargs.update({
+                "title": metadata.get("title"),
+                "section_number": metadata.get("section_number"),
+                "chapter": metadata.get("chapter"),
+                "title_number": metadata.get("title_number"),
+            })
+        elif source_type == "state_legislation":
+            base_kwargs.update({
+                "title": metadata.get("bill_name"),
+                "bill_id": metadata.get("bill_id"),
+                "topic": metadata.get("topic"),
+                "status": metadata.get("status"),
+                "enacted": metadata.get("enacted"),
+                "local_deadline": metadata.get("local_deadline"),
+                "local_implementation_required": metadata.get("local_implementation_required", False),
+                "official_url": metadata.get("official_url"),
+            })
+        elif source_type == "federal_program":
+            base_kwargs.update({
+                "title": metadata.get("program_name"),
+                "program_id": metadata.get("program_id"),
+                "topic": metadata.get("topic"),
+                "administering_agency": metadata.get("administering_agency"),
+                "local_compliance_required": metadata.get("local_compliance_required", False),
+                "annual_reporting": metadata.get("annual_reporting", False),
+                "official_url": metadata.get("official_url"),
+            })
+        elif source_type == "county_program":
+            base_kwargs.update({
+                "title": metadata.get("program_name"),
+                "program_id": metadata.get("program_id"),
+                "topic": metadata.get("topic"),
+                "administering_agency": metadata.get("administering_agency"),
+                "local_compliance_required": metadata.get("local_compliance_required", False),
+                "annual_reporting": metadata.get("annual_reporting", False),
+                "official_url": metadata.get("official_url"),
+            })
+
+        return cls(**base_kwargs)
+
 
 @dataclass
 class HybridSearchResult:

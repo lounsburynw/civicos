@@ -868,7 +868,7 @@
       },
       "ab_test_retrieval_quality": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Compare retrieval quality on sample queries before/after"
       },
       "vector_backend_protocol_completion": {
@@ -898,8 +898,8 @@
         ]
       },
       "full_corpus_pgvector_integration": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 99,
         "artifact": "All corpus types queryable via pgvector with unified get_vector_backend() factory",
         "description": "Complete the pgvector integration for ALL corpus types. Session 491 connected what_applies() to pgvector for municipal_code/codified_law. Remaining: issues (whos_with_me), chunks (prepare), decisions (what_happened semantic). Future: elections, case_law, executive_orders vectors.",
         "note": "Session 491: Created roadmap. Pattern exists in history.py:545-558 - use get_vector_backend() factory. Apply to: (1) civic.py:1035 _find_semantic_issue_types for issues, (2) civic.py CivicEmbeddings usages for chunks/decisions. Add corpus types to CorpusType enum and CORPUS_REGISTRY as implemented.",
@@ -2318,7 +2318,7 @@
         "priority": 2,
         "artifact": "prepare() method includes legal citations and precedents from vector search",
         "description": "When user prepares for a meeting, automatically search relevant: municipal code sections, state legislation, past decisions, similar issues. Include in preparation materials with proper citations.",
-        "note": "Session 489: Currently prepare() exists but doesn't leverage vector search. User should get 'Cite Cal. Gov. Code § 66314 for ADU rights' not just agenda context.",
+        "note": "Session 489: Currently prepare() exists but doesn't leverage vector search. User should get 'Cite Cal. Gov. Code \u00a7 66314 for ADU rights' not just agenda context.",
         "depends_on": "pgvector_cross_corpus_search"
       },
       "action_leverage_points": {

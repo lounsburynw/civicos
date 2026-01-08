@@ -982,6 +982,36 @@ class PgVectorBackend:
 
         return results
 
+    def count(
+        self,
+        jurisdiction_id: str,
+        corpus_type: str = "decisions",
+    ) -> int:
+        """
+        Count documents in the vector index.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            corpus_type: Type of documents to count
+
+        Returns:
+            Number of documents indexed
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(f"""
+            SELECT COUNT(*)
+            FROM {self.TABLE_NAME}
+            WHERE jurisdiction_id = %s AND corpus_type = %s
+        """, (jurisdiction_id, corpus_type))
+
+        row = cursor.fetchone()
+        count = row[0] if row else 0
+        conn.close()
+
+        return count
+
     def get_stats(
         self,
         jurisdiction_id: str,
