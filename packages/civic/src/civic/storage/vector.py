@@ -268,6 +268,23 @@ class VectorBackend(Protocol):
         """
         ...
 
+    def count(
+        self,
+        jurisdiction_id: str,
+        corpus_type: str = "decisions",
+    ) -> int:
+        """
+        Count documents in the vector index.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            corpus_type: Type of documents to count
+
+        Returns:
+            Number of documents indexed
+        """
+        ...
+
     def get_stats(
         self,
         jurisdiction_id: str,
