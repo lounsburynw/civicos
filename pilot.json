@@ -624,7 +624,7 @@
       },
       "data_critic": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": ".critics/data.critic.md - ETL data quality and schema validation",
         "note": "Blocked on: stable schema, known edge cases, platform quirks cataloged. Define after pipeline automation validates patterns against real San Rafael data.",
         "blocked_by": [
@@ -867,9 +867,9 @@
         "note": "All 3 collections re-indexed: chunks (724), issues (1340), municipal_code (1949 sections -> 2121 chunks). Added text chunking for long municipal code sections."
       },
       "ab_test_retrieval_quality": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "Compare retrieval quality on sample queries before/after"
+        "status": "ready",
+        "priority": 1,
+        "artifact": "test_ab_retrieval_quality.py - 10 quality validation tests (25 queries across 5 corpus types)"
       },
       "vector_backend_protocol_completion": {
         "status": "ready",
