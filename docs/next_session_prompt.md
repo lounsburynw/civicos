@@ -1,80 +1,70 @@
-# Recommended: codified_law_vectors
+# Recommended: election_whats_next_integration
 
 **Priority:** P0
-**Area:** pilot_validation > e2e_cloud_data_verification
+**Area:** data_readiness > election_data
 **Date:** 2026-01-07
 
-> This is recommended context from Session 487. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 488. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 487 built the vector embedding infrastructure for codified law (U.S. Code, CA Codes, CFR). The chunkers, pgvector backend extensions, and Modal script are complete. A federal-CFR embedding job (~98k chunks, 4 parallel workers) was started and may have completed.
+Session 488 completed `codified_law_vectors` - 490k vector embeddings for U.S. Code, CA Codes, and CFR are now in pgvector. Semantic search verified working across all jurisdictions.
 
-**Remaining work:** Run embedding jobs for federal-US and state-CA, then verify semantic search works.
+Election data infrastructure is 8/11 items ready. The postgres backend and ingestion pipeline are complete. The next step is integrating election data with the `whats_next()` API.
 
 ## Recommended Task
 
-Complete the codified law vector embeddings and verify semantic search integration.
+Integrate election data into the `whats_next()` API so users can see upcoming elections alongside meetings.
 
 ## Key Files
 
-- `packages/civic/src/civic/_internal/legal/embeddings/chunker.py:463-704` - Chunker functions
-- `packages/civic/src/civic/storage/pgvector_backend.py:615-634` - Corpus type handling
-- `scripts/modal_vectors.py:144-154` - Jurisdiction routing
-- `packages/civic/src/civic/context.py:156-207` - what_applies() integration (keyword search)
+- `packages/civic/src/civic/context.py` - Contains `whats_next()` implementation
+- `packages/civic/src/civic/storage/postgres_backend.py` - Election data queries
+- `packages/civic/tests/test_civic.py` - Core API tests
+- `pilot.json` - data_readiness > election_data section
 
 ## Steps
 
-1. **Check federal-CFR status (may have completed):**
-```bash
-modal run scripts/modal_vectors.py --jurisdiction federal-CFR --stats-only
-```
-
-2. **Run federal-US embedding (~219k chunks, ~30-60 min):**
-```bash
-modal run scripts/modal_vectors.py --jurisdiction federal-US --corpus codified_law --reindex --parallel 4
-```
-
-3. **Run state-CA embedding (~193k chunks, ~30-60 min):**
-```bash
-modal run scripts/modal_vectors.py --jurisdiction state-CA --corpus codified_law --reindex --parallel 4
-```
-
-4. **Verify semantic search:**
-```bash
-source civic-env/bin/activate && python3 -c "
+1. **Understand current whats_next() implementation:**
+```python
 from dotenv import load_dotenv; load_dotenv()
-import os
-from civic.storage.pgvector_backend import PgVectorBackend
-
-pgvector = PgVectorBackend(os.environ['DATABASE_URL'], provider_type='fastembed')
-results = pgvector.search('housing discrimination', 'federal-US', 'codified_law', top_k=5)
-for r in results:
-    print(f'{r.score:.3f}: {r.metadata.get(\"citation\", r.id)[:60]}')
-"
+from civic import Civic
+c = Civic('city-san-rafael')
+result = c.whats_next()
+print(result.keys())  # See what's currently returned
 ```
 
-5. **Update pilot.json status to ready**
+2. **Check election data in database:**
+```python
+from civic.storage.postgres_backend import PostgresBackend
+import os
+db = PostgresBackend(os.environ['DATABASE_URL'])
+# Find election-related tables/methods
+```
 
-## Data Inventory
+3. **Design integration approach:**
+   - What election data should appear in `whats_next()`?
+   - Upcoming elections? Candidate filing deadlines? Ballot measures?
+   - Should it be a separate key or merged with meetings?
 
-| Jurisdiction | Sections | Est. Chunks | Status |
-|--------------|----------|-------------|--------|
-| federal-CFR  | 36,608   | ~98,000     | Check (job started Session 487) |
-| federal-US   | 50,809   | ~219,000    | Pending |
-| state-CA     | 161,219  | ~193,000    | Pending |
+4. **Implement integration in context.py**
+
+5. **Add tests for election data in whats_next()**
+
+6. **Update pilot.json status to ready**
+
+## Data Available
+
+Election infrastructure ready items:
+- election_integration
+- roll_call_extraction
+- elected_officials_table
+- voting_record_api
+- election_postgres_backend
+- election_ingestion_pipeline
 
 ## Success Criteria
 
-- [ ] federal-CFR: 98k+ vectors in database (check with --stats-only)
-- [ ] federal-US: 219k+ vectors in database
-- [ ] state-CA: 193k+ vectors in database
-- [ ] Semantic search returns relevant results for "housing", "environment", "transportation"
-- [ ] pilot.json: codified_law_vectors -> ready
-
-## Optional Enhancement
-
-After embeddings complete, consider adding semantic search to `what_applies()` in addition to existing keyword search:
-- File: `packages/civic/src/civic/context.py`
-- Currently uses `db.search_codified_law()` (PostgreSQL full-text search)
-- Could add `pgvector.search(corpus_type="codified_law")` for semantic results
+- [ ] `whats_next()` returns upcoming election information
+- [ ] Tests pass for election data in whats_next()
+- [ ] pilot.json: election_whats_next_integration -> ready
