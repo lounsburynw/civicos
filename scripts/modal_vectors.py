@@ -55,6 +55,11 @@ civic_image = (
 )
 
 
+def extract_state_code(jurisdiction: str) -> str:
+    """Extract state code from jurisdiction (e.g., 'legislation-CA' -> 'CA')."""
+    return jurisdiction.split("-")[-1].upper() if "-" in jurisdiction else jurisdiction.upper()
+
+
 @app.function(
     image=civic_image,
     secrets=[modal.Secret.from_name("civic-db")],
@@ -316,11 +321,9 @@ def get_stats(jurisdiction: str = "city-san-rafael") -> dict:
             raw_transcripts = backend.get_transcripts(jurisdiction)
             chunks = expand_transcripts_to_chunks(raw_transcripts)
             chunk_count = len(chunks)
-        elif ct == "legislation" and chunk_count > 0:
-            if jurisdiction.startswith("state-"):
-                state_code = jurisdiction.split("-", 1)[1].upper()
-            else:
-                state_code = jurisdiction.upper()
+        elif ct == "legislation":
+            # Always fetch legislation - storage_document_count doesn't work for this corpus
+            state_code = extract_state_code(jurisdiction)
             raw_bills = backend.get_legislation(state=state_code)
             chunks = expand_legislation_to_chunks(raw_bills)
             chunk_count = len(chunks)
@@ -406,7 +409,7 @@ def delete_vectors(jurisdiction: str, corpus: str) -> int:
     image=civic_image,
     secrets=[modal.Secret.from_name("civic-db")],
     cpu=16,  # 16 CPUs for fast parallel embedding inference
-    memory=32768,  # 32GB RAM to match CPU count
+    memory=131072,  # 128GB RAM - very liberal to avoid OOM with large legislation chunk expansion
     timeout=7200,  # 2 hours to handle large batches
 )
 def index_batch(

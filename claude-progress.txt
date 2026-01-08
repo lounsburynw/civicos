@@ -11238,3 +11238,39 @@ All 10 tests pass. Key quality metrics:
 ### Next P0
 
 data_critic - ETL data quality and schema validation critic
+
+## Session 495: legislation_pgvector_indexing - Index CA Legislation
+
+**Date:** 2026-01-08
+**Item:** legislation_pgvector_indexing (data_architecture > embedding_infrastructure)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+
+Indexed 47,456 legislation chunks (2,839 CA bills) into pgvector using Modal parallel workers. Fixed OOM issues from previous session by increasing worker memory from 32GB to 128GB.
+
+### Key Changes
+
+1. **Memory Increase:**
+   - Increased `index_batch` function memory from 32GB → 128GB
+   - Legislation corpus expands all 47,456 chunks into memory before slicing
+   - 128GB provides sufficient headroom for embedding generation
+
+2. **Parallel Indexing Success:**
+   - 2 workers × 128GB RAM
+   - batch_size=200 (reduced from 1000)
+   - ~38 minutes total runtime
+   - Worker 0: 21,728 chunks, Worker 1: 21,528 chunks
+
+3. **Final State:**
+   - 47,456 / 47,456 vectors (100% coverage)
+   - legislation-CA corpus fully indexed
+
+### Files Changed
+
+- `scripts/modal_vectors.py` - `index_batch` memory 32GB → 128GB
+- `pilot.json` - `legislation_pgvector_indexing` → ready
+
+### Next P0
+
+eval_framework - Expand benchmark with F1, coverage, and bias metrics

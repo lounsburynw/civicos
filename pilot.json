@@ -103,7 +103,7 @@
       },
       "eval_framework": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Expand eval framework with F1, coverage, and bias metrics",
         "note": "Current benchmark (scripts/benchmark_api_vs_llm.py) has accuracy/precision/recall. Add: F1 score, topic coverage, freshness, source diversity, NDCG, null rate, meeting type coverage, geographic coverage, temporal bias. Session 461.",
         "test_file": "scripts/benchmark_api_vs_llm.py"
@@ -624,7 +624,7 @@
       },
       "data_critic": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": ".critics/data.critic.md - ETL data quality and schema validation",
         "note": "Blocked on: stable schema, known edge cases, platform quirks cataloged. Define after pipeline automation validates patterns against real San Rafael data.",
         "blocked_by": [
@@ -785,6 +785,23 @@
         "priority": 1,
         "artifact": "Create portable 311 abstraction and store issues in Postgres",
         "note": "Create IssueProvider protocol for multi-provider support (SeeClickFix, PublicStuff, CitySourced). Add NormalizedIssue dataclass, store_issues()/get_issues() to StorageBackend, unified civic-extract issues CLI with --provider flag. SeeClickFix first implementation. 1,340 issues ready to migrate."
+      },
+      "auto_vector_indexing_on_ingest": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Automatically trigger vector indexing when new corpus data is stored",
+        "note": "Current gap: discover/ingest/store runs together but indexing is a separate weekly GitHub Actions job. New data can be stale for up to 7 days before vectors are built. Options: (1) Post-store callback in Pipeline class that triggers index_from_storage(), (2) Event-based trigger (Postgres NOTIFY/LISTEN or webhook), (3) Reduce weekly schedule to daily. Consider cost implications - indexing is compute-intensive.",
+        "gap_identified": "Session investigating PAAC extraction found extraction runs but vectors lag by up to 7 days",
+        "options": [
+          "Pipeline post-store callback",
+          "Postgres NOTIFY trigger",
+          "Daily instead of weekly indexing",
+          "On-demand indexing via API endpoint"
+        ],
+        "modified_files": [
+          "packages/civic-extraction/src/civic_extraction/pipeline.py",
+          ".github/workflows/vector-refresh.yml"
+        ]
       }
     },
     "modal_remote_compute": {
@@ -1001,6 +1018,12 @@
         "artifact": "Delete civic/_internal/legal/embeddings/indexer.py, update imports",
         "depends_on": "legislation_full_text_chunking",
         "note": "Session 457: Deleted indexer.py, updated embeddings/__init__.py and legal/__init__.py to remove LegalIndexer exports. Updated test_unified_vector_store.py to remove LegalIndexer tests. VectorStore and LegalSearch remain (still used by MCP, enrichment). 17 vector tests + 39 smoke tests pass."
+      },
+      "legislation_pgvector_indexing": {
+        "status": "ready",
+        "priority": 2,
+        "artifact": "Index legislation records from PostgreSQL into pgvector for semantic search",
+        "note": "Session 494: Indexed 47,456 legislation chunks (2,839 CA bills) via Modal parallel workers (2x 128GB). Updated modal_vectors.py memory to 128GB for legislation corpus."
       }
     },
     "schema_documentation": {
@@ -1777,6 +1800,41 @@
           "executive_orders_ingestion"
         ],
         "corpus_type": "executive_orders"
+      }
+    },
+    "school_district": {
+      "srcs_youtube_integration": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Ingest San Rafael City Schools board meetings via YouTube API",
+        "note": "SRCS streams board meetings to YouTube. Playlist: https://www.youtube.com/playlist?list=PLyH9MVpaxhEJFfW0jWIbd5wGVQYUEZDcH (channel: @srcscommunications5656). YouTube Data API v3 is free (10k quota/day). Extract: meeting dates, titles, video URLs, descriptions. No Simbli API available (confirmed via GetApp). School board is separate jurisdiction (srcs.org) from city.",
+        "youtube_playlist": "PLyH9MVpaxhEJFfW0jWIbd5wGVQYUEZDcH",
+        "youtube_channel": "@srcscommunications5656",
+        "jurisdiction_id": "school-san-rafael",
+        "meeting_types": ["school_board", "special_meeting", "workshop"],
+        "modified_files": [
+          "packages/civic-extraction/src/civic_extraction/clients/youtube_boards.py",
+          "data/extraction/san-rafael-schools.json"
+        ]
+      },
+      "srcs_transcript_pipeline": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Transcribe SRCS board meetings and index for RAG",
+        "note": "After YouTube integration, extend existing transcription pipeline (AssemblyAI) to school board meetings. Enables what_was_said() queries across both city and school governance.",
+        "depends_on": ["srcs_youtube_integration"]
+      },
+      "simbli_browser_automation": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Playwright-based scraper for Simbli/eBoard meeting data",
+        "note": "Simbli blocks automated requests (Incapsula WAF) and has no public API (confirmed via GetApp). Playwright can bypass WAF by running a real browser. Would extract: meeting dates, agenda PDFs, minutes, attachments. Lower priority than YouTube since video content is richer for RAG. Consider: maintenance burden of browser automation, potential ToS issues, whether YouTube API provides sufficient data.",
+        "tradeoffs": {
+          "pros": ["Full meeting metadata", "Agenda/minutes PDFs", "Works for other Simbli districts"],
+          "cons": ["Fragile (HTML changes break it)", "WAF/ToS risks", "Higher maintenance", "Slower than API"]
+        },
+        "alternative": "YouTube API provides video metadata and transcripts, which may be sufficient for pilot",
+        "depends_on": ["srcs_youtube_integration"]
       }
     }
   },
