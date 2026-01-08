@@ -875,6 +875,18 @@
         "note": "Session 411: Transcripts indexed in pgvector but Civic API uses CivicEmbeddings (ChromaDB). Need to unify: CivicEmbeddings should delegate to VectorBackend, selecting PgVectorBackend when DATABASE_URL set, else ChromaDB. This will make what_was_said() work with pgvector transcripts.",
         "test_file": "packages/civic/tests/test_integration_rag_san_rafael.py"
       },
+      "pgvector_cross_corpus_search": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Unified query interface for cross-corpus vector search on pgvector",
+        "description": "UnifiedSearch exists for ChromaDB but not for production pgvector. Need PgUnifiedSearch or backend-agnostic abstraction that handles: ID format variations (mc-UUID-N, scf-ID, ca-bill), jurisdiction patterns (city-X, state-X, federal-X), chunking ratios, cross-corpus joins.",
+        "note": "Session 489: Discovered gap - raw pgvector queries require knowledge of ID formats, jurisdiction patterns, chunking. what_applies() returns poor results because it lacks proper cross-corpus search. This abstraction enables reliable MCP tools and API methods.",
+        "depends_on": "vector_backend_unification",
+        "modified_files": [
+          "packages/civic/src/civic/_internal/search/unified.py",
+          "packages/civic/src/civic/storage/pgvector_backend.py"
+        ]
+      },
       "shared_config_package": {
         "status": "ready",
         "priority": 1,
@@ -1679,7 +1691,7 @@
       },
       "election_whats_next_integration": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Include upcoming elections and deadlines in whats_next() results",
         "note": "whats_next() currently returns meetings only. Should also surface: upcoming elections, registration deadlines, early voting start dates, ballot measure summaries. Enables 'Registration deadline in 5 days' alongside meeting notifications.",
         "depends_on": [
@@ -2246,6 +2258,30 @@
         "priority": 3,
         "artifact": "Notification badges for new activity"
       }
+    },
+    "retrieval_informed_actions": {
+      "prepare_with_citations": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "prepare() method includes legal citations and precedents from vector search",
+        "description": "When user prepares for a meeting, automatically search relevant: municipal code sections, state legislation, past decisions, similar issues. Include in preparation materials with proper citations.",
+        "note": "Session 489: Currently prepare() exists but doesn't leverage vector search. User should get 'Cite Cal. Gov. Code § 66314 for ADU rights' not just agenda context.",
+        "depends_on": "pgvector_cross_corpus_search"
+      },
+      "action_leverage_points": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Surface specific action opportunities based on retrieval context",
+        "description": "After retrieval, suggest concrete actions: 'State law preempts this denial - file appeal citing SB9', 'ESG grant deadline in 30 days - contact councilmember', '8 neighbors reported similar issue - start initiative'.",
+        "note": "Session 489: Retrieval without action guidance is just research. Transform what_applies() results into actionable next steps."
+      },
+      "document_generation": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Generate action documents from retrieval context",
+        "description": "Generate: appeal letters (with legal citations), FOIA/CPRA requests (with specific record references), public comment drafts (with precedent citations), initiative descriptions (with neighbor context).",
+        "note": "Session 489: compose_public_comment exists but lacks retrieval-informed citations. Extend to other document types."
+      }
     }
   },
   "pilot_validation": {
@@ -2342,6 +2378,17 @@
         "priority": 4,
         "artifact": "MCP server for Claude integration",
         "note": "apps/civic-mcp/ exists but needs polish before launch. Power user / developer access. Contributor onramp - developers can query Civic from Claude while building parsers."
+      },
+      "mcp_vector_search_tools": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "MCP tools exposing cross-corpus vector search to LLM clients",
+        "description": "Add MCP tools: search_regulatory_stack (local+state+federal law), search_meeting_history (transcripts+decisions), find_similar_issues (whos_with_me for MCP). Enables RAG pattern: LLM reasons over retrieved context.",
+        "note": "Session 489: Current MCP tools limited to compose_public_comment, query_issues. Missing vector search exposure. With pgvector_cross_corpus_search complete, these tools become simple wrappers. Key for Claude/ChatGPT integration.",
+        "depends_on": "pgvector_cross_corpus_search",
+        "modified_files": [
+          "apps/civic-mcp/civic_server.py"
+        ]
       },
       "web_frontend": {
         "status": "not_ready",
@@ -2550,9 +2597,17 @@
       },
       "codified_law_vectors": {
         "status": "ready",
-        "priority": 0,
+        "priority": 2,
         "description": "Embed codified law sections to pgvector for semantic search",
-        "notes": "Infrastructure complete: chunkers, pgvector backend, Modal script updated. federal-CFR embedding job running (98k chunks). Remaining: federal-US (~219k), state-CA (~193k). Commands: modal run scripts/modal_vectors.py --jurisdiction {jur} --corpus codified_law --reindex --parallel 4"
+        "notes": "COMPLETE: 490,518 vectors across state-CA (261,953), federal-US (154,000), federal-CFR (74,565). Avg 1.95 chunks/doc. Commands: modal run scripts/modal_vectors.py --jurisdiction {jur} --corpus codified_law --reindex --parallel 4",
+        "completed": "2026-01-07"
+      },
+      "municipal_code_vectors": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Complete municipal code vector indexing (currently 23.5% coverage)",
+        "notes": "GAP: Only 3,807/16,175 San Rafael municipal code sections have vector embeddings (5,857 vectors). 12,368 sections missing. Blocks what_applies() quality for local ordinance queries. Command: modal run scripts/modal_vectors.py --jurisdiction city-san-rafael --corpus municipal_code --reindex",
+        "verification": "SELECT COUNT(DISTINCT SUBSTRING(id FROM 'mc-([0-9a-f-]+)-[0-9]+$')) FROM vector_embeddings WHERE corpus_type = 'municipal_code' should equal SELECT COUNT(*) FROM municipal_code WHERE jurisdiction_id = 'city-san-rafael'"
       },
       "vector_indexing_automation": {
         "status": "not_ready",
