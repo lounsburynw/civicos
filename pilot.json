@@ -3,7 +3,8 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2026-01-06",
+  "last_updated": "2026-01-08",
+  "session_491_note": "Architecture audit: Created docs/ARCHITECTURE_AUDIT_2026_01.md identifying pre/post-pilot improvements. Key findings: vector backend fragmentation (bumped to P1), civic.py dataclass sprawl (new P2 item). Added Serena memory 'architecture_audit_2026_01' for future reference.",
   "session_481_note": "Strategic pivot from Open States to LegiScan for state legislators (Open States acquired by PE-backed SAI360 Dec 2025). Implemented LegiScanClient, updated RepresentativesClient to use LegiScan as primary with Open States fallback.",
   "session_480_note": "Completed soft_delete_support P0: added deleted_at to 19 content tables, updated all queries to filter deleted records, added soft_delete/restore_deleted methods",
   "category_order": [
@@ -133,6 +134,15 @@
         "priority": 1,
         "artifact": "Consolidate frontend/ and mcp_servers/ into apps/ directory",
         "note": "Makes multi-app architecture explicit. Structure: apps/civic-workspace/ (Vue), apps/civic-mcp/ (MCP server). Prepares for future CLI, bot, widget apps. 'Apps' is neutral - each consumes Civic API regardless of protocol role."
+      },
+      "civic_types_extraction": {
+        "status": "ready",
+        "priority": 2,
+        "artifact": "Extract 22 dataclasses from civic.py to dedicated types.py module",
+        "note": "Session 491 AUDIT: civic.py is 2,073 lines with 22 inline dataclasses (RegulatoryStack, Decision, Meeting, Community, etc.). Extract to packages/civic/src/civic/types.py for clarity. ~30 min effort. See docs/ARCHITECTURE_AUDIT_2026_01.md.",
+        "audit_reference": "docs/ARCHITECTURE_AUDIT_2026_01.md#2-civicpy-dataclass-extraction",
+        "target_file": "packages/civic/src/civic/types.py",
+        "source_file": "packages/civic/src/civic/civic.py"
       }
     }
   },
@@ -870,10 +880,11 @@
       },
       "vector_backend_unification": {
         "status": "ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "CivicEmbeddings delegates to VectorBackend protocol (pgvector or ChromaDB)",
-        "note": "Session 411: Transcripts indexed in pgvector but Civic API uses CivicEmbeddings (ChromaDB). Need to unify: CivicEmbeddings should delegate to VectorBackend, selecting PgVectorBackend when DATABASE_URL set, else ChromaDB. This will make what_was_said() work with pgvector transcripts.",
-        "test_file": "packages/civic/tests/test_integration_rag_san_rafael.py"
+        "note": "Session 411: Transcripts indexed in pgvector but Civic API uses CivicEmbeddings (ChromaDB). Need to unify: CivicEmbeddings should delegate to VectorBackend, selecting PgVectorBackend when DATABASE_URL set, else ChromaDB. This will make what_was_said() work with pgvector transcripts. Session 491 AUDIT: This blocks 16,786 pgvector embeddings from API access. See docs/ARCHITECTURE_AUDIT_2026_01.md.",
+        "test_file": "packages/civic/tests/test_integration_rag_san_rafael.py",
+        "audit_reference": "docs/ARCHITECTURE_AUDIT_2026_01.md#1-vector-backend-fragmentation"
       },
       "pgvector_cross_corpus_search": {
         "status": "ready",
