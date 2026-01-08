@@ -11102,3 +11102,24 @@ All jurisdictions return relevant results with good scores (0.64-0.77):
 
 ### Next P0
 TBD - Session ended, need to identify next priority item
+
+## Session 491 (2026-01-08)
+
+### Completed: pgvector_cross_corpus_search
+
+**Problem**: `what_applies()` used `CivicEmbeddings` (ChromaDB) which couldn't access the 500k+ vectors in pgvector (municipal code, codified law, CFR). The vectors existed but were unreachable from the API.
+
+**Solution**: Updated `context.py` to use `PgVectorBackend.search()` directly for municipal_code searches when `DATABASE_URL` is set. Followed the pattern already used for codified_law (lines 153-183) and CFR (lines 185-215).
+
+### Changes
+- `packages/civic/src/civic/context.py` - Lines 217-249: Replaced CivicEmbeddings with PgVectorBackend.search() for municipal code
+- `packages/civic/src/civic/context.py` - Lines 259-290: Same change for county code search
+- `pilot.json` - Updated pgvector_cross_corpus_search status to `ready`
+
+### Verification
+- `what_applies("ADU zoning regulations")` now returns Section 14.16.285 (ADU regulations) with score 0.744
+- All 39 smoke tests pass
+- Municipal code search returns relevant results from pgvector
+
+### Next P0
+pgvector_integration_tests - Add @pytest.mark.requires_pgvector tests validating vector search

@@ -214,36 +214,39 @@ def get_regulatory_context(
     except Exception:
         pass  # CFR search not available
 
-    # Search local municipal code (city ordinances)
+    # Search local municipal code (city ordinances) using pgvector
     try:
-        from civic._internal.meetings.embeddings import CivicEmbeddings
+        import os
+        database_url = os.getenv("DATABASE_URL")
+        if database_url:
+            from civic.storage.pgvector_backend import PgVectorBackend
+            pgvector = PgVectorBackend(database_url, provider_type="fastembed")
 
-        embedder = CivicEmbeddings(jurisdiction)
-
-        if embedder.has_municipal_code():
-            # Search municipal code for relevant ordinances
-            results = embedder.search_municipal_code(topic, top_k=5)
+            # Search municipal code vectors
+            results = pgvector.search(
+                query=topic,
+                jurisdiction_id=jurisdiction,
+                corpus_type="municipal_code",
+                top_k=5,
+            )
 
             for result in results:
-                # Only include results with reasonable relevance (score > 0)
+                # Only include results with reasonable relevance
                 if result.score > 0:
                     local.append({
                         "type": "ordinance",
-                        "id": result.document_id,
-                        "section": result.metadata.get("section", ""),
-                        "section_title": result.metadata.get("section_title", ""),
+                        "id": result.id,
+                        "section_number": result.metadata.get("section_number", ""),
+                        "section_name": result.metadata.get("section_name", ""),
                         "chapter": result.metadata.get("chapter", ""),
-                        "chapter_title": result.metadata.get("chapter_title", ""),
-                        "title_number": result.metadata.get("title_number", ""),
-                        "title_name": result.metadata.get("title_name", ""),
-                        "text_preview": result.text[:300] if result.text else "",
+                        "text_preview": result.content[:300] if result.content else "",
                         "relevance_score": round(result.score, 3),
                     })
 
     except ImportError:
-        pass  # Municipal code search not available
+        pass  # PgVectorBackend not available
     except Exception:
-        pass  # Error searching municipal code, continue with county
+        pass  # Municipal code search error, continue with county
 
     # Search county code (applies to cities within the county)
     # Map city jurisdictions to their county
@@ -256,26 +259,29 @@ def get_regulatory_context(
     county_jurisdiction = CITY_TO_COUNTY.get(jurisdiction)
     if county_jurisdiction:
         try:
-            from civic._internal.meetings.embeddings import CivicEmbeddings
+            import os
+            database_url = os.getenv("DATABASE_URL")
+            if database_url:
+                from civic.storage.pgvector_backend import PgVectorBackend
+                pgvector = PgVectorBackend(database_url, provider_type="fastembed")
 
-            county_embedder = CivicEmbeddings(county_jurisdiction)
-
-            if county_embedder.has_municipal_code():
-                # Search county code for relevant ordinances
-                results = county_embedder.search_municipal_code(topic, top_k=5)
+                # Search county code vectors
+                results = pgvector.search(
+                    query=topic,
+                    jurisdiction_id=county_jurisdiction,
+                    corpus_type="municipal_code",
+                    top_k=5,
+                )
 
                 for result in results:
                     if result.score > 0:
                         local.append({
                             "type": "county_ordinance",
-                            "id": result.document_id,
-                            "section": result.metadata.get("section", ""),
-                            "section_title": result.metadata.get("section_title", ""),
+                            "id": result.id,
+                            "section_number": result.metadata.get("section_number", ""),
+                            "section_name": result.metadata.get("section_name", ""),
                             "chapter": result.metadata.get("chapter", ""),
-                            "chapter_title": result.metadata.get("chapter_title", ""),
-                            "title_number": result.metadata.get("title_number", ""),
-                            "title_name": result.metadata.get("title_name", ""),
-                            "text_preview": result.text[:300] if result.text else "",
+                            "text_preview": result.content[:300] if result.content else "",
                             "relevance_score": round(result.score, 3),
                             "jurisdiction": county_jurisdiction,
                         })
