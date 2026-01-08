@@ -888,7 +888,7 @@
       },
       "full_corpus_pgvector_integration": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 1,
         "artifact": "All corpus types queryable via pgvector with unified get_vector_backend() factory",
         "description": "Complete the pgvector integration for ALL corpus types. Session 491 connected what_applies() to pgvector for municipal_code/codified_law. Remaining: issues (whos_with_me), chunks (prepare), decisions (what_happened semantic). Future: elections, case_law, executive_orders vectors.",
         "note": "Session 491: Created roadmap. Pattern exists in history.py:545-558 - use get_vector_backend() factory. Apply to: (1) civic.py:1035 _find_semantic_issue_types for issues, (2) civic.py CivicEmbeddings usages for chunks/decisions. Add corpus types to CorpusType enum and CORPUS_REGISTRY as implemented.",
@@ -1754,6 +1754,16 @@
         "modified_files": [
           "packages/civic/src/civic/embeddings/civic_embeddings.py"
         ]
+      },
+      "executive_orders_vector_embeddings": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Vector embeddings for executive order RAG queries",
+        "note": "Session 491: 1,506 EOs ingested to SQL (executive_orders table) but not vectorized. Embed: EO titles, summaries, full text. Enables queries like 'executive orders about immigration' or 'Trump EOs affecting trade'. Lower priority than elections since EOs are federal-level context.",
+        "depends_on": [
+          "executive_orders_ingestion"
+        ],
+        "corpus_type": "executive_orders"
       }
     }
   },
