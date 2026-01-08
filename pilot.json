@@ -877,10 +877,10 @@
       },
       "pgvector_cross_corpus_search": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Unified query interface for cross-corpus vector search on pgvector",
         "description": "UnifiedSearch exists for ChromaDB but not for production pgvector. Need PgUnifiedSearch or backend-agnostic abstraction that handles: ID format variations (mc-UUID-N, scf-ID, ca-bill), jurisdiction patterns (city-X, state-X, federal-X), chunking ratios, cross-corpus joins.",
-        "note": "Session 489: Discovered gap - raw pgvector queries require knowledge of ID formats, jurisdiction patterns, chunking. what_applies() returns poor results because it lacks proper cross-corpus search. This abstraction enables reliable MCP tools and API methods.",
+        "note": "Session 490: Set P0 after municipal_code_vectors complete. what_applies() uses CivicEmbeddings (ChromaDB) not PgVector. This enables what_applies() to use the 500k+ vectors now in pgvector (municipal code, codified law, CFR).",
         "depends_on": "vector_backend_unification",
         "modified_files": [
           "packages/civic/src/civic/_internal/search/unified.py",
@@ -2603,11 +2603,11 @@
         "completed": "2026-01-07"
       },
       "municipal_code_vectors": {
-        "status": "not_ready",
-        "priority": 0,
-        "description": "Complete municipal code vector indexing (currently 23.5% coverage)",
-        "notes": "GAP: Only 3,807/16,175 San Rafael municipal code sections have vector embeddings (5,857 vectors). 12,368 sections missing. Blocks what_applies() quality for local ordinance queries. Command: modal run scripts/modal_vectors.py --jurisdiction city-san-rafael --corpus municipal_code --reindex",
-        "verification": "SELECT COUNT(DISTINCT SUBSTRING(id FROM 'mc-([0-9a-f-]+)-[0-9]+$')) FROM vector_embeddings WHERE corpus_type = 'municipal_code' should equal SELECT COUNT(*) FROM municipal_code WHERE jurisdiction_id = 'city-san-rafael'"
+        "status": "ready",
+        "priority": 2,
+        "description": "Complete municipal code vector indexing",
+        "notes": "COMPLETE: 5,857 vectors from 3,811 current municipal code sections (avg 1.54 chunks/doc). 16,175 total DB records include historical versions; 3,811 are valid_to IS NULL (current). Vector search via PgVectorBackend.search() works. Note: what_applies() uses CivicEmbeddings (ChromaDB) not PgVector - integration needed.",
+        "completed": "2026-01-08"
       },
       "vector_indexing_automation": {
         "status": "not_ready",

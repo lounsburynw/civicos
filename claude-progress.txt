@@ -1,3 +1,67 @@
+## Session 490: municipal_code_vectors - Complete Vector Indexing
+
+**Date:** 2026-01-08
+**Item:** municipal_code_vectors (pilot_validation > e2e_cloud_data_verification)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+
+Completed municipal code vector indexing for San Rafael. Indexed 5,857 vectors from 3,811 current municipal code sections using 4 parallel Modal workers with COPY bulk inserts.
+
+### Key Findings
+
+1. **Record Count Clarification:**
+   - Total DB records: 16,175 (includes historical versions with valid_to != NULL)
+   - Current records: 3,811 (valid_to IS NULL - the live sections)
+   - Vector count: 5,857 (chunking ratio ~1.54 chunks/doc for large sections)
+
+2. **Parallel Indexing Performance:**
+   - 4 workers, COPY bulk inserts (`use_copy=True`)
+   - ~4 minutes total (vs ~10 minutes for serial)
+   - Each worker processed ~1,465 chunks
+
+3. **Search Quality Verified:**
+   - `PgVectorBackend.search(corpus_type='municipal_code')` returns relevant results
+   - Scores 0.70-0.76 for topical queries
+   - Example: "accessory dwelling unit zoning" → Section 14.16.285 (ADU regulations)
+
+### Integration Gap Discovered
+
+**IMPORTANT:** `what_applies()` does NOT use the municipal_code vectors yet.
+
+- `context.py` uses `CivicEmbeddings.has_municipal_code()` → returns `False`
+- `CivicEmbeddings` is ChromaDB-based, not PgVector
+- Municipal code vectors are in PgVector, unreachable from current API
+
+**Solution:** Tracked by existing items:
+- `vector_backend_unification` (P1) - Make CivicEmbeddings delegate to VectorBackend
+- `pgvector_cross_corpus_search` (P1) - Unified query interface
+
+### Files Changed
+
+- `pilot.json` - Updated municipal_code_vectors status to `ready`, documented integration gap
+
+### Commands Used
+
+```bash
+# Index with parallel workers
+modal run scripts/modal_vectors.py --jurisdiction city-san-rafael --corpus municipal_code --reindex --parallel 4
+
+# Verify search
+python3 -c "
+from civic.storage.pgvector_backend import PgVectorBackend
+import os
+pgvector = PgVectorBackend(os.getenv('DATABASE_URL'), provider_type='fastembed')
+results = pgvector.search('ADU zoning', 'city-san-rafael', 'municipal_code', top_k=3)
+"
+```
+
+### Next P0
+
+`pgvector_cross_corpus_search` - Unified query interface for cross-corpus vector search on pgvector. Enables what_applies() to use the municipal_code vectors.
+
+---
+
 ## Session 470: automated_chunk_extraction - Modal Pipeline Integration
 
 **Date:** 2026-01-04
@@ -11002,3 +11066,39 @@ modal run scripts/modal_vectors.py --jurisdiction state-CA --corpus codified_law
 
 ### Next P0
 Continue `codified_law_vectors` - Complete remaining embedding jobs
+
+---
+
+## Session 488: 2026-01-07 (Complete codified_law_vectors)
+
+### Summary
+Completed P0 `codified_law_vectors` - all codified law vector embeddings done and verified.
+
+### Vector Counts (Final)
+| Jurisdiction | Vectors |
+|--------------|---------|
+| federal-CFR  | 74,565  |
+| federal-US   | 154,000 |
+| state-CA     | 261,953 |
+| **Total**    | **490,518** |
+
+### Key Learnings
+- Modal timeout increased from 3600s to 7200s for large batches
+- `--reindex` flag enables COPY bulk inserts (10x faster than upserts)
+- 4 workers optimal - 8 workers overwhelmed Supabase connection pool
+
+### Semantic Search Verification
+All jurisdictions return relevant results with good scores (0.64-0.77):
+- `what_applies("housing zoning")` returns relevant CA code sections
+- `what_applies("CFR accessibility")` returns relevant federal regulations
+- `what_applies("USC tax")` returns relevant U.S. Code sections
+
+### Files Changed
+- `pilot.json` - Updated codified_law_vectors status to `ready`
+- `scripts/modal_vectors.py` - Increased timeout to 7200s
+
+### Commit
+`c9f792c pilot: Complete codified_law_vectors embedding (490k vectors)`
+
+### Next P0
+TBD - Session ended, need to identify next priority item
