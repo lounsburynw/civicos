@@ -876,15 +876,14 @@
         "test_file": "packages/civic/tests/test_integration_rag_san_rafael.py"
       },
       "pgvector_cross_corpus_search": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Unified query interface for cross-corpus vector search on pgvector",
         "description": "UnifiedSearch exists for ChromaDB but not for production pgvector. Need PgUnifiedSearch or backend-agnostic abstraction that handles: ID format variations (mc-UUID-N, scf-ID, ca-bill), jurisdiction patterns (city-X, state-X, federal-X), chunking ratios, cross-corpus joins.",
-        "note": "Session 490: Set P0 after municipal_code_vectors complete. what_applies() uses CivicEmbeddings (ChromaDB) not PgVector. This enables what_applies() to use the 500k+ vectors now in pgvector (municipal code, codified law, CFR).",
+        "note": "Session 491: Updated context.py to use PgVectorBackend.search() for municipal_code search. what_applies() now returns municipal code results from pgvector (500k+ vectors). Tests pass.",
         "depends_on": "vector_backend_unification",
         "modified_files": [
-          "packages/civic/src/civic/_internal/search/unified.py",
-          "packages/civic/src/civic/storage/pgvector_backend.py"
+          "packages/civic/src/civic/context.py"
         ]
       },
       "shared_config_package": {
@@ -1136,9 +1135,9 @@
       },
       "pgvector_integration_tests": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Integration tests running against pgvector in Supabase",
-        "note": "Add @pytest.mark.requires_pgvector tests that validate vector search against production pgvector. Use GitHub Actions secrets for DATABASE_URL. Follow security best practices: separate test schema or dedicated test database, no secrets in code.",
+        "note": "Session 491: Set P0. After pgvector_cross_corpus_search complete, add tests validating vector search. Add @pytest.mark.requires_pgvector tests that validate vector search against production pgvector. Use GitHub Actions secrets for DATABASE_URL. Follow security best practices: separate test schema or dedicated test database, no secrets in code.",
         "depends_on": "corpus_type_registry"
       }
     },
