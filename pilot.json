@@ -1679,7 +1679,7 @@
       },
       "election_whats_next_integration": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Include upcoming elections and deadlines in whats_next() results",
         "note": "whats_next() currently returns meetings only. Should also surface: upcoming elections, registration deadlines, early voting start dates, ballot measure summaries. Enables 'Registration deadline in 5 days' alongside meeting notifications.",
         "depends_on": [
