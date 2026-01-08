@@ -1,110 +1,96 @@
-# Recommended: pgvector_cross_corpus_search
+# Recommended: pgvector_integration_tests
 
 **Priority:** P0
-**Area:** data_architecture > embedding_infrastructure
+**Area:** data_architecture > vector_sql_linkage
 **Date:** 2026-01-08
 
-> This is recommended context from Session 490. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 491. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 490 completed municipal_code vector indexing (5,857 vectors from 3,811 current sections). However, we discovered a critical integration gap: `what_applies()` uses `CivicEmbeddings` (ChromaDB) which doesn't see the PgVector embeddings. The 500k+ vectors in pgvector (municipal code, codified law, CFR) are unreachable from the API.
-
-## The Problem
-
-```python
-# In context.py lines 217-246:
-from civic._internal.meetings.embeddings import CivicEmbeddings
-embedder = CivicEmbeddings(jurisdiction)
-if embedder.has_municipal_code():  # Returns False - ChromaDB has no vectors
-    results = embedder.search_municipal_code(topic, top_k=5)
-```
-
-But the vectors exist in PgVector and search works:
-```python
-# This WORKS - direct PgVectorBackend search
-from civic.storage.pgvector_backend import PgVectorBackend
-pgvector = PgVectorBackend(os.getenv('DATABASE_URL'), provider_type='fastembed')
-results = pgvector.search('ADU zoning', 'city-san-rafael', 'municipal_code', top_k=3)
-# Returns: Score 0.748, Section 14.16.285 (ADU regulations)
-```
+Session 491 completed `pgvector_cross_corpus_search` - `what_applies()` now uses PgVectorBackend.search() for municipal code, enabling access to the 500k+ vectors in pgvector. The API is now fully connected to production vector storage. Next step is to add integration tests that validate this works in CI.
 
 ## Recommended Task
 
-Create a unified query interface that enables `what_applies()` to search across all corpus types in pgvector. Two approaches:
-
-1. **Modify `context.py`** to use PgVectorBackend directly when DATABASE_URL is set (quick fix)
-2. **Create PgUnifiedSearch** abstraction that mirrors UnifiedSearch API but uses pgvector (proper solution)
+Add `@pytest.mark.requires_pgvector` integration tests that validate vector search against production pgvector. These tests should:
+- Run in CI using GitHub Actions secrets for DATABASE_URL
+- Follow security best practices (no secrets in code)
+- Test the new municipal_code search in `what_applies()`
 
 ## Key Files
 
-- `packages/civic/src/civic/context.py:217-246` - Municipal code search in what_applies()
-- `packages/civic/src/civic/_internal/search/unified.py` - Existing ChromaDB UnifiedSearch
-- `packages/civic/src/civic/storage/pgvector_backend.py:869` - PgVectorBackend.search()
-- `pilot.json:878` - pgvector_cross_corpus_search item
+- `packages/civic/src/civic/context.py:217-249` - Municipal code search using PgVectorBackend
+- `packages/civic/src/civic/storage/pgvector_backend.py:869-983` - PgVectorBackend.search()
+- `packages/civic/tests/conftest.py` - Test fixtures and markers
+- `.github/workflows/tests.yml` - CI configuration for test parallelization
+- `pilot.json:1136` - pgvector_integration_tests item
 
 ## Suggested Approach
 
-1. **Quick win**: Update `context.py` to use PgVectorBackend.search() instead of CivicEmbeddings for municipal code (similar to how codified_law search works at lines 153-183)
-
-2. **Pattern exists**: Lines 153-183 already use `PostgresBackend.search_codified_law()` directly. Apply same pattern for municipal_code:
+1. **Create pytest marker** in `conftest.py`:
 ```python
-# Add after codified_law search block (~line 215)
-try:
-    import os
-    database_url = os.getenv("DATABASE_URL")
-    if database_url:
-        from civic.storage.pgvector_backend import PgVectorBackend
-        pgvector = PgVectorBackend(database_url, provider_type="fastembed")
-        results = pgvector.search(
-            query=topic,
-            jurisdiction_id=jurisdiction,
-            corpus_type="municipal_code",
-            top_k=5,
-        )
-        for r in results:
-            local.append({
-                "type": "ordinance",
-                "id": r.id,
-                "section_number": r.metadata.get("section_number"),
-                "text_preview": r.content[:300] if r.content else "",
-                "relevance_score": round(r.score, 3),
-            })
-except Exception:
-    pass  # Municipal code search not available
+@pytest.mark.requires_pgvector
 ```
 
-3. **Run tests** to verify what_applies() returns municipal code results
-4. **Update pilot.json** status
+2. **Add integration test file** `test_pgvector_integration.py`:
+```python
+@pytest.mark.requires_pgvector
+def test_municipal_code_search():
+    """Validate municipal code search returns results from pgvector."""
+    from civic import Civic
+    c = Civic('city-san-rafael')
+    result = c.what_applies('accessory dwelling unit')
+
+    # Should have municipal code results
+    ordinances = [r for r in result.local if r.get('type') == 'ordinance']
+    assert len(ordinances) > 0
+
+    # ADU query should find Section 14.16.285
+    sections = [r.get('section_number') for r in ordinances]
+    assert any('14.16.285' in s for s in sections if s)
+```
+
+3. **Configure CI** to run pgvector tests with DATABASE_URL secret:
+```yaml
+# In .github/workflows/tests.yml
+- name: Run pgvector integration tests
+  if: github.event_name != 'pull_request'  # Only on main
+  env:
+    DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  run: pytest -m requires_pgvector
+```
+
+4. **Skip locally** when DATABASE_URL not set using `skipif` in conftest
 
 ## Tests to Run
 
 ```bash
-# Test what_applies() returns municipal code
-pytest packages/civic/tests/test_integration_rag_san_rafael.py -v -k "what_applies"
+# Verify current tests still pass
+pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
 
-# Quick manual test
+# Manual verification that pgvector search works
 python3 -c "
 from dotenv import load_dotenv; load_dotenv()
 from civic import Civic
 c = Civic('city-san-rafael')
-result = c.what_applies('accessory dwelling unit')
+result = c.what_applies('ADU zoning')
 print(f'Local results: {len(result.local)}')
 for loc in result.local[:3]:
-    print(f'  {loc}')
+    print(f'  Type: {loc.get(\"type\")}, Section: {loc.get(\"section_number\")}')
 "
 ```
 
 ## Success Criteria
 
-- [ ] `what_applies()` returns municipal_code results from pgvector
-- [ ] Scores are reasonable (0.6-0.8 range for relevant queries)
-- [ ] Test "ADU zoning" returns Section 14.16.285
-- [ ] pilot.json: pgvector_cross_corpus_search -> ready
+- [ ] `@pytest.mark.requires_pgvector` marker defined in conftest.py
+- [ ] Integration test validates municipal_code search returns results
+- [ ] Test skips gracefully when DATABASE_URL not set
+- [ ] CI workflow configured to run pgvector tests with secrets
+- [ ] pilot.json: pgvector_integration_tests -> ready
 
-## Session 490 Insights
+## Session 491 Insights
 
-- Municipal code vectors: 5,857 embeddings from 3,811 current sections (1.54 chunks/doc)
-- 16,175 total DB records include historical versions; temporal filter `valid_to IS NULL` gives current
-- PgVectorBackend.search() works perfectly - just need to wire it into context.py
-- `codified_law` search already uses Postgres directly (lines 153-183) - same pattern needed
+- `what_applies()` now uses PgVectorBackend.search() for municipal_code (context.py:217-249)
+- Pattern mirrors existing codified_law search (context.py:153-183)
+- ADU query returns Section 14.16.285 with score 0.744
+- 39 smoke tests pass with the new integration
