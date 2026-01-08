@@ -886,6 +886,37 @@
           "packages/civic/src/civic/context.py"
         ]
       },
+      "full_corpus_pgvector_integration": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "All corpus types queryable via pgvector with unified get_vector_backend() factory",
+        "description": "Complete the pgvector integration for ALL corpus types. Session 491 connected what_applies() to pgvector for municipal_code/codified_law. Remaining: issues (whos_with_me), chunks (prepare), decisions (what_happened semantic). Future: elections, case_law, executive_orders vectors.",
+        "note": "Session 491: Created roadmap. Pattern exists in history.py:545-558 - use get_vector_backend() factory. Apply to: (1) civic.py:1035 _find_semantic_issue_types for issues, (2) civic.py CivicEmbeddings usages for chunks/decisions. Add corpus types to CorpusType enum and CORPUS_REGISTRY as implemented.",
+        "depends_on": "pgvector_cross_corpus_search",
+        "current_corpus_status": {
+          "pgvector_connected": [
+            "codified_law - what_applies() via PostgresBackend.search_codified_law()",
+            "municipal_code - what_applies() via PgVectorBackend.search() [Session 491]",
+            "transcripts - what_was_said() via get_vector_backend() with fallback"
+          ],
+          "needs_pgvector_wiring": [
+            "issues - whos_with_me() uses CivicEmbeddings (civic.py:1035)",
+            "chunks - prepare() uses CivicEmbeddings",
+            "decisions - what_happened() semantic path uses CivicEmbeddings"
+          ],
+          "future_corpus_types": [
+            "elections - registered in CorpusType enum, needs vector indexing + API method",
+            "case_law - federal judicial decisions (CourtListener, Harvard Caselaw Project)",
+            "executive_orders - ingested to SQL, needs vector indexing + search method"
+          ]
+        },
+        "implementation_pattern": "Use get_vector_backend() factory from civic.storage, apply same pattern as history.py:545-558 (_search_transcripts uses pgvector with ChromaDB fallback)",
+        "files_to_modify": [
+          "packages/civic/src/civic/civic.py - _find_semantic_issue_types(), prepare()",
+          "packages/civic/src/civic/history.py - search_decisions() semantic path",
+          "packages/civic/src/civic/storage/corpus_types.py - Add CASE_LAW to CorpusType enum"
+        ]
+      },
       "shared_config_package": {
         "status": "ready",
         "priority": 1,
