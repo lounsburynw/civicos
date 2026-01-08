@@ -11153,3 +11153,44 @@ pgvector_integration_tests - Add @pytest.mark.requires_pgvector tests validating
 
 ### Next P0
 full_corpus_pgvector_integration - Complete pgvector integration for remaining corpus types (issues, chunks, decisions)
+
+### Session 493 - 2026-01-08
+
+**Task:** full_corpus_pgvector_integration (P0)
+
+**Summary:** Completed pgvector integration for UnifiedSearch class. All corpus searches (decisions, chunks, transcripts, issues, municipal_code) now try pgvector first with ChromaDB fallback.
+
+### Changes
+1. `packages/civic/src/civic/history.py` - Added `from_vector_result()` classmethod to UnifiedSearchResult for pgvector results
+2. `packages/civic/src/civic/_internal/search/unified.py` - Updated UnifiedSearch to use pgvector with ChromaDB fallback:
+   - Added `_vector_backend` initialization via `get_vector_backend()` factory
+   - Added `_search_with_pgvector()` helper method
+   - Updated `search_all()` to try pgvector first for all corpus types
+   - Updated `search_corpus()` to use pgvector for unfiltered queries
+   - Updated `get_available_corpora()` to use pgvector counts first
+   - Added `_get_pgvector_count()` helper method
+3. `packages/civic/src/civic/storage/vector.py` - Added `count()` method to VectorBackend protocol
+4. `packages/civic/src/civic/storage/pgvector_backend.py` - Implemented `count()` method
+
+### Verified Working
+- UnifiedSearch.search_all() returns results from pgvector
+- UnifiedSearch.get_available_corpora() shows correct counts from pgvector
+- All 39 smoke tests pass
+- All 10 pgvector integration tests pass
+- whos_with_me('pothole') finds 758 community followers
+
+### Design Notes
+- _find_semantic_issue_types() was NOT changed - it uses ad-hoc embeddings (not ChromaDB) to compute similarity between query and issue type names. Not a database search.
+- Filters (where, since_ts, status, etc.) still route to ChromaDB since pgvector doesn't support the same filter syntax
+
+### pgvector Corpus Coverage
+San Rafael now has all primary corpus types in pgvector:
+- municipal_code: 5,857 embeddings
+- chunks: 5,084 embeddings
+- transcripts: 4,296 embeddings
+- issues: 1,500 embeddings
+- meetings: 46 embeddings
+- decisions: 44 embeddings
+
+### Next P0
+ab_test_retrieval_quality - Validate pgvector retrieval quality vs ChromaDB baseline

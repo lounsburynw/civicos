@@ -1,94 +1,85 @@
-# Recommended: full_corpus_pgvector_integration
+# Recommended: ab_test_retrieval_quality
 
 **Priority:** P0
 **Area:** data_architecture > embedding_infrastructure
 **Date:** 2026-01-08
 
-> This is recommended context from Session 492. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 493. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 492 completed `pgvector_integration_tests` - we now have CI coverage for pgvector searches with 10 tests in `test_integration_pgvector.py`. The API is connected to production pgvector for municipal_code and codified_law. However, several corpus types still use ChromaDB (`CivicEmbeddings`) instead of pgvector:
-- **issues** - `whos_with_me()` semantic search
-- **chunks** - `prepare()` document retrieval
-- **decisions** - `what_happened()` semantic path
+Session 493 completed `full_corpus_pgvector_integration` - UnifiedSearch now uses pgvector for all corpus types (decisions, chunks, transcripts, issues, municipal_code) with ChromaDB fallback. All 39 smoke tests and 10 pgvector integration tests pass. Now we need to validate that pgvector retrieval quality matches or exceeds the ChromaDB baseline.
 
 ## Recommended Task
 
-Complete pgvector integration for ALL corpus types by replacing `CivicEmbeddings` usages with `get_vector_backend()` factory pattern (already implemented for transcripts in `history.py:545-558`).
+Create an A/B test framework to compare retrieval quality between pgvector and ChromaDB across a set of benchmark queries. This validates the migration doesn't degrade search quality.
 
 ## Key Files
 
-- `packages/civic/src/civic/civic.py:1035` - `_find_semantic_issue_types()` uses CivicEmbeddings for issues
-- `packages/civic/src/civic/civic.py` - `prepare()` uses CivicEmbeddings for chunks
-- `packages/civic/src/civic/history.py:545-558` - **PATTERN**: `_search_transcripts()` uses `get_vector_backend()` with ChromaDB fallback
-- `packages/civic/src/civic/storage/__init__.py` - `get_vector_backend()` factory function
-- `packages/civic/src/civic/storage/corpus_types.py` - CorpusType enum and CORPUS_REGISTRY
+- `packages/civic/src/civic/_internal/search/unified.py` - UnifiedSearch class with pgvector integration
+- `packages/civic/src/civic/_internal/search/unified.py:106-141` - `_search_with_pgvector()` helper method
+- `packages/civic/src/civic/storage/pgvector_backend.py:868-982` - PgVectorBackend.search() method
+- `packages/civic/tests/test_integration_pgvector.py` - Existing pgvector tests as examples
 
-## Current Status (from pilot.json)
+## Current pgvector Corpus Coverage
 
-```
-pgvector_connected:
-  - codified_law via PostgresBackend.search_codified_law()
-  - municipal_code via PgVectorBackend.search() [Session 491]
-  - transcripts via get_vector_backend() with fallback
-
-needs_pgvector_wiring:
-  - issues - whos_with_me() uses CivicEmbeddings (civic.py:1035)
-  - chunks - prepare() uses CivicEmbeddings
-  - decisions - what_happened() semantic path uses CivicEmbeddings
-```
+San Rafael embeddings in pgvector (verified):
+- municipal_code: 5,857 embeddings
+- chunks: 5,084 embeddings
+- transcripts: 4,296 embeddings
+- issues: 1,500 embeddings
+- meetings: 46 embeddings
+- decisions: 44 embeddings
 
 ## Suggested Approach
 
-1. **Study the pattern** in `history.py:545-558` - see how `_search_transcripts()` uses `get_vector_backend()`:
-```python
-backend = get_vector_backend(jurisdiction_id)
-if backend:
-    results = backend.search(query, jurisdiction_id, "transcripts", top_k)
-else:
-    # fallback to ChromaDB
-```
+1. **Create benchmark query set** - Define 10-20 representative queries across corpus types:
+   - Issues: "pothole", "graffiti", "parking violation"
+   - Chunks: "housing development", "budget", "climate"
+   - Transcripts: "public comment", "council discussion"
+   - Municipal code: "ADU", "zoning residential", "building permit"
 
-2. **Update `_find_semantic_issue_types()`** in `civic.py:1035` to use pgvector for issues
+2. **Build comparison framework** - For each query:
+   - Run search via pgvector path (force `_vector_backend`)
+   - Run search via ChromaDB path (set `_vector_backend = None`)
+   - Compare: score distribution, result overlap, top-k agreement
 
-3. **Update `prepare()`** to use pgvector for chunks
+3. **Define quality metrics**:
+   - Precision@K overlap (e.g., how many of top-5 results match?)
+   - Mean score comparison (pgvector vs ChromaDB scores)
+   - Latency comparison
 
-4. **Update `what_happened()`** semantic search to use pgvector for decisions
-
-5. **Verify** with existing integration tests plus new pgvector tests
+4. **Create test file** `test_retrieval_quality.py` with:
+   - Parameterized tests over query set
+   - Assert minimum quality thresholds
+   - Generate comparison report
 
 ## Tests to Run
 
 ```bash
-# Smoke tests
+# Smoke tests (verify nothing broken)
 pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
 
-# pgvector integration tests (need DATABASE_URL)
+# pgvector tests (baseline)
 pytest packages/civic/tests/test_integration_pgvector.py -v --override-ini="addopts="
 
-# Verify whos_with_me still works after changes
-python3 -c "
-from dotenv import load_dotenv; load_dotenv()
-from civic import Civic
-c = Civic('city-san-rafael')
-result = c.whos_with_me('pothole')
-print(f'Community members: {len(result.community)}')
-"
+# New quality tests (once created)
+pytest packages/civic/tests/test_retrieval_quality.py -v --override-ini="addopts="
 ```
 
 ## Success Criteria
 
-- [ ] `_find_semantic_issue_types()` uses `get_vector_backend()` for issues corpus
-- [ ] `prepare()` uses `get_vector_backend()` for chunks corpus
-- [ ] `what_happened()` semantic path uses `get_vector_backend()` for decisions
-- [ ] All 39 smoke tests pass
-- [ ] All 10 pgvector integration tests pass
-- [ ] pilot.json: full_corpus_pgvector_integration -> ready
+- [ ] Benchmark query set defined (10+ queries across corpus types)
+- [ ] Comparison framework implemented
+- [ ] Top-5 overlap >= 60% for matching corpus types
+- [ ] No significant score degradation (pgvector scores within 0.1 of ChromaDB)
+- [ ] Test file created with quality assertions
+- [ ] pilot.json: ab_test_retrieval_quality -> ready
 
-## Session 492 Insights
+## Session 493 Changes Reference
 
-- `conftest.py` now loads dotenv early for DATABASE_URL availability during test collection
-- `@pytest.mark.requires_pgvector` marker auto-skips when DATABASE_URL not set
-- CI workflow has dedicated `pgvector` job that runs on main branch with secrets
-- Pattern is well-established: use `get_vector_backend()` with ChromaDB fallback
+Key changes from full_corpus_pgvector_integration:
+- `UnifiedSearch.__init__` now initializes `_vector_backend` via `get_vector_backend()`
+- `_search_with_pgvector()` helper returns `None` to signal fallback needed
+- `get_available_corpora()` uses `_get_pgvector_count()` before ChromaDB
+- `VectorBackend` protocol has new `count()` method
