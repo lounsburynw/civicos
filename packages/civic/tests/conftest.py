@@ -9,10 +9,16 @@ Usage:
 """
 
 import os
-import tempfile
-from pathlib import Path
 
 import pytest
+
+# Load .env early so DATABASE_URL is available during test collection.
+# In CI, env vars are set directly by GitHub Actions secrets.
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv not installed, rely on env vars
 
 
 # ============================================================================
@@ -180,19 +186,32 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "requires_real_data: Tests requiring gitignored real data files (skip in CI)"
     )
+    config.addinivalue_line(
+        "markers", "requires_pgvector: Tests requiring pgvector database (DATABASE_URL must be set)"
+    )
 
 
 def pytest_collection_modifyitems(config, items):
-    """Auto-skip tests marked with requires_real_data when running in CI."""
+    """Auto-skip tests based on environment.
+
+    - requires_real_data: Skip in CI (gitignored files not available)
+    - requires_pgvector: Skip when DATABASE_URL not set
+    """
     # Check if running in CI environment
     in_ci = os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true"
 
-    if not in_ci:
-        return
+    # Check if DATABASE_URL is available for pgvector tests
+    has_database_url = bool(os.environ.get("DATABASE_URL"))
 
     skip_real_data = pytest.mark.skip(
         reason="Skipped in CI: requires gitignored real data files"
     )
+    skip_pgvector = pytest.mark.skip(
+        reason="DATABASE_URL not set - pgvector tests require database connection"
+    )
+
     for item in items:
-        if "requires_real_data" in item.keywords:
+        if in_ci and "requires_real_data" in item.keywords:
             item.add_marker(skip_real_data)
+        if not has_database_url and "requires_pgvector" in item.keywords:
+            item.add_marker(skip_pgvector)
