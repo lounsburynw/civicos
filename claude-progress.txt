@@ -11123,3 +11123,33 @@ TBD - Session ended, need to identify next priority item
 
 ### Next P0
 pgvector_integration_tests - Add @pytest.mark.requires_pgvector tests validating vector search
+
+## Session 492 (2026-01-08)
+
+### Completed: pgvector_integration_tests
+
+**Problem**: No integration tests existed to validate pgvector vector search. The API was connected to production pgvector (Session 491), but we had no CI coverage to catch regressions.
+
+**Solution**: Added `@pytest.mark.requires_pgvector` marker and `test_integration_pgvector.py` with 10 tests covering:
+- Municipal code search via `what_applies()` 
+- Cross-corpus search (transcripts, decisions)
+- Direct `PgVectorBackend.search()` validation
+- Embedding count verification
+
+### Changes
+1. `packages/civic/tests/conftest.py` - Added `requires_pgvector` marker and auto-skip logic when DATABASE_URL not set
+2. `packages/civic/tests/test_integration_pgvector.py` - New test file with 10 integration tests
+3. `.github/workflows/tests.yml` - Added dedicated `pgvector` CI job that runs on main with DATABASE_URL secret
+
+### Key Design Decisions
+- Tests auto-skip when DATABASE_URL not set (graceful local development)
+- CI job only runs on push/dispatch (not PRs from forks which can't access secrets)
+- Loaded dotenv in conftest.py so DATABASE_URL available during test collection
+
+### Verification
+- All 10 pgvector tests pass with DATABASE_URL set
+- All 10 tests skip gracefully when DATABASE_URL not set  
+- 39 smoke tests still pass
+
+### Next P0
+full_corpus_pgvector_integration - Complete pgvector integration for remaining corpus types (issues, chunks, decisions)

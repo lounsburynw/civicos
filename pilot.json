@@ -888,7 +888,7 @@
       },
       "full_corpus_pgvector_integration": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "All corpus types queryable via pgvector with unified get_vector_backend() factory",
         "description": "Complete the pgvector integration for ALL corpus types. Session 491 connected what_applies() to pgvector for municipal_code/codified_law. Remaining: issues (whos_with_me), chunks (prepare), decisions (what_happened semantic). Future: elections, case_law, executive_orders vectors.",
         "note": "Session 491: Created roadmap. Pattern exists in history.py:545-558 - use get_vector_backend() factory. Apply to: (1) civic.py:1035 _find_semantic_issue_types for issues, (2) civic.py CivicEmbeddings usages for chunks/decisions. Add corpus types to CorpusType enum and CORPUS_REGISTRY as implemented.",
@@ -1165,11 +1165,13 @@
         "completed": "2026-01-04"
       },
       "pgvector_integration_tests": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Integration tests running against pgvector in Supabase",
-        "note": "Session 491: Set P0. After pgvector_cross_corpus_search complete, add tests validating vector search. Add @pytest.mark.requires_pgvector tests that validate vector search against production pgvector. Use GitHub Actions secrets for DATABASE_URL. Follow security best practices: separate test schema or dedicated test database, no secrets in code.",
-        "depends_on": "corpus_type_registry"
+        "note": "Session 492: Added test_integration_pgvector.py with 10 tests covering municipal code search, cross-corpus search, and pgvector backend. Tests auto-skip when DATABASE_URL not set. CI workflow updated with dedicated pgvector job that runs on main branch with secrets.",
+        "test_file": "packages/civic/tests/test_integration_pgvector.py",
+        "depends_on": "corpus_type_registry",
+        "completed": "2026-01-08"
       }
     },
     "financial_data_infrastructure": {

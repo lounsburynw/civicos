@@ -1,96 +1,94 @@
-# Recommended: pgvector_integration_tests
+# Recommended: full_corpus_pgvector_integration
 
 **Priority:** P0
-**Area:** data_architecture > vector_sql_linkage
+**Area:** data_architecture > embedding_infrastructure
 **Date:** 2026-01-08
 
-> This is recommended context from Session 491. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 492. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 491 completed `pgvector_cross_corpus_search` - `what_applies()` now uses PgVectorBackend.search() for municipal code, enabling access to the 500k+ vectors in pgvector. The API is now fully connected to production vector storage. Next step is to add integration tests that validate this works in CI.
+Session 492 completed `pgvector_integration_tests` - we now have CI coverage for pgvector searches with 10 tests in `test_integration_pgvector.py`. The API is connected to production pgvector for municipal_code and codified_law. However, several corpus types still use ChromaDB (`CivicEmbeddings`) instead of pgvector:
+- **issues** - `whos_with_me()` semantic search
+- **chunks** - `prepare()` document retrieval
+- **decisions** - `what_happened()` semantic path
 
 ## Recommended Task
 
-Add `@pytest.mark.requires_pgvector` integration tests that validate vector search against production pgvector. These tests should:
-- Run in CI using GitHub Actions secrets for DATABASE_URL
-- Follow security best practices (no secrets in code)
-- Test the new municipal_code search in `what_applies()`
+Complete pgvector integration for ALL corpus types by replacing `CivicEmbeddings` usages with `get_vector_backend()` factory pattern (already implemented for transcripts in `history.py:545-558`).
 
 ## Key Files
 
-- `packages/civic/src/civic/context.py:217-249` - Municipal code search using PgVectorBackend
-- `packages/civic/src/civic/storage/pgvector_backend.py:869-983` - PgVectorBackend.search()
-- `packages/civic/tests/conftest.py` - Test fixtures and markers
-- `.github/workflows/tests.yml` - CI configuration for test parallelization
-- `pilot.json:1136` - pgvector_integration_tests item
+- `packages/civic/src/civic/civic.py:1035` - `_find_semantic_issue_types()` uses CivicEmbeddings for issues
+- `packages/civic/src/civic/civic.py` - `prepare()` uses CivicEmbeddings for chunks
+- `packages/civic/src/civic/history.py:545-558` - **PATTERN**: `_search_transcripts()` uses `get_vector_backend()` with ChromaDB fallback
+- `packages/civic/src/civic/storage/__init__.py` - `get_vector_backend()` factory function
+- `packages/civic/src/civic/storage/corpus_types.py` - CorpusType enum and CORPUS_REGISTRY
+
+## Current Status (from pilot.json)
+
+```
+pgvector_connected:
+  - codified_law via PostgresBackend.search_codified_law()
+  - municipal_code via PgVectorBackend.search() [Session 491]
+  - transcripts via get_vector_backend() with fallback
+
+needs_pgvector_wiring:
+  - issues - whos_with_me() uses CivicEmbeddings (civic.py:1035)
+  - chunks - prepare() uses CivicEmbeddings
+  - decisions - what_happened() semantic path uses CivicEmbeddings
+```
 
 ## Suggested Approach
 
-1. **Create pytest marker** in `conftest.py`:
+1. **Study the pattern** in `history.py:545-558` - see how `_search_transcripts()` uses `get_vector_backend()`:
 ```python
-@pytest.mark.requires_pgvector
+backend = get_vector_backend(jurisdiction_id)
+if backend:
+    results = backend.search(query, jurisdiction_id, "transcripts", top_k)
+else:
+    # fallback to ChromaDB
 ```
 
-2. **Add integration test file** `test_pgvector_integration.py`:
-```python
-@pytest.mark.requires_pgvector
-def test_municipal_code_search():
-    """Validate municipal code search returns results from pgvector."""
-    from civic import Civic
-    c = Civic('city-san-rafael')
-    result = c.what_applies('accessory dwelling unit')
+2. **Update `_find_semantic_issue_types()`** in `civic.py:1035` to use pgvector for issues
 
-    # Should have municipal code results
-    ordinances = [r for r in result.local if r.get('type') == 'ordinance']
-    assert len(ordinances) > 0
+3. **Update `prepare()`** to use pgvector for chunks
 
-    # ADU query should find Section 14.16.285
-    sections = [r.get('section_number') for r in ordinances]
-    assert any('14.16.285' in s for s in sections if s)
-```
+4. **Update `what_happened()`** semantic search to use pgvector for decisions
 
-3. **Configure CI** to run pgvector tests with DATABASE_URL secret:
-```yaml
-# In .github/workflows/tests.yml
-- name: Run pgvector integration tests
-  if: github.event_name != 'pull_request'  # Only on main
-  env:
-    DATABASE_URL: ${{ secrets.DATABASE_URL }}
-  run: pytest -m requires_pgvector
-```
-
-4. **Skip locally** when DATABASE_URL not set using `skipif` in conftest
+5. **Verify** with existing integration tests plus new pgvector tests
 
 ## Tests to Run
 
 ```bash
-# Verify current tests still pass
+# Smoke tests
 pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
 
-# Manual verification that pgvector search works
+# pgvector integration tests (need DATABASE_URL)
+pytest packages/civic/tests/test_integration_pgvector.py -v --override-ini="addopts="
+
+# Verify whos_with_me still works after changes
 python3 -c "
 from dotenv import load_dotenv; load_dotenv()
 from civic import Civic
 c = Civic('city-san-rafael')
-result = c.what_applies('ADU zoning')
-print(f'Local results: {len(result.local)}')
-for loc in result.local[:3]:
-    print(f'  Type: {loc.get(\"type\")}, Section: {loc.get(\"section_number\")}')
+result = c.whos_with_me('pothole')
+print(f'Community members: {len(result.community)}')
 "
 ```
 
 ## Success Criteria
 
-- [ ] `@pytest.mark.requires_pgvector` marker defined in conftest.py
-- [ ] Integration test validates municipal_code search returns results
-- [ ] Test skips gracefully when DATABASE_URL not set
-- [ ] CI workflow configured to run pgvector tests with secrets
-- [ ] pilot.json: pgvector_integration_tests -> ready
+- [ ] `_find_semantic_issue_types()` uses `get_vector_backend()` for issues corpus
+- [ ] `prepare()` uses `get_vector_backend()` for chunks corpus
+- [ ] `what_happened()` semantic path uses `get_vector_backend()` for decisions
+- [ ] All 39 smoke tests pass
+- [ ] All 10 pgvector integration tests pass
+- [ ] pilot.json: full_corpus_pgvector_integration -> ready
 
-## Session 491 Insights
+## Session 492 Insights
 
-- `what_applies()` now uses PgVectorBackend.search() for municipal_code (context.py:217-249)
-- Pattern mirrors existing codified_law search (context.py:153-183)
-- ADU query returns Section 14.16.285 with score 0.744
-- 39 smoke tests pass with the new integration
+- `conftest.py` now loads dotenv early for DATABASE_URL availability during test collection
+- `@pytest.mark.requires_pgvector` marker auto-skips when DATABASE_URL not set
+- CI workflow has dedicated `pgvector` job that runs on main branch with secrets
+- Pattern is well-established: use `get_vector_backend()` with ChromaDB fallback
