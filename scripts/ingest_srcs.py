@@ -5,9 +5,10 @@ SRCS (San Rafael City Schools) Data Ingestion Script
 Ingests school board meeting data from Simbli portal:
 1. Scrapes meetings from Simbli board page
 2. Downloads agenda PDFs via MID workflow
-3. Extracts text chunks from PDFs
-4. Stores meetings and chunks in PostgreSQL
-5. Indexes chunks in pgvector for semantic search
+3. Uploads PDFs directly to R2 storage during download
+4. Extracts text chunks from PDFs
+5. Stores meetings and chunks in PostgreSQL
+6. Indexes chunks in pgvector for semantic search
 
 Usage:
     # Dry run (show what would be ingested)
@@ -16,8 +17,11 @@ Usage:
     # Ingest meetings only (no PDFs)
     python scripts/ingest_srcs.py --meetings-only
 
-    # Full ingestion (meetings + PDFs + chunks)
+    # Full ingestion (meetings + PDFs + chunks + R2 upload)
     python scripts/ingest_srcs.py
+
+    # Skip R2 upload (local processing only)
+    python scripts/ingest_srcs.py --skip-r2
 
     # Limit number of meetings to process
     python scripts/ingest_srcs.py --limit 5
@@ -28,6 +32,7 @@ Usage:
 Requirements:
     - DATABASE_URL environment variable (PostgreSQL connection string)
     - Playwright browser installed: playwright install chromium
+    - For R2 uploads: BLOB_STORAGE_URL, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
 """
 
 import argparse
@@ -207,13 +212,20 @@ def ingest_meetings(
 def ingest_pdfs(
     meetings: List[Dict[str, Any]],
     dry_run: bool = False,
+    skip_r2: bool = False,
 ) -> int:
     """
-    Download agenda PDFs and extract text chunks.
+    Download agenda PDFs, upload to R2, and extract text chunks.
+
+    PDFs are uploaded directly to R2 during download with the key pattern:
+    school-san-rafael/agendas/{meeting_id}.pdf
+
+    The R2 URL is stored in meetings.agenda_url for consistent access.
 
     Args:
         meetings: List of meeting dictionaries with simbli_mid in raw_data
         dry_run: If True, show what would be processed without storing
+        skip_r2: If True, skip R2 upload (local processing only)
 
     Returns:
         Total number of chunks extracted
@@ -238,12 +250,31 @@ def ingest_pdfs(
         logger.info("DRY RUN: Would download PDFs for:")
         for m in meetings_with_mid:
             mid = m.get("raw_data", {}).get("simbli_mid")
-            logger.info(f"  - {m['id']} (MID: {mid})")
+            r2_key = f"{JURISDICTION_ID}/agendas/{m['id']}.pdf"
+            logger.info(f"  - {m['id']} (MID: {mid}) -> {r2_key}")
         return 0
 
     from civic.storage.postgres_backend import PostgresBackend
 
     backend = PostgresBackend(database_url)
+
+    # Initialize blob storage for R2 uploads
+    blob_storage = None
+    if not skip_r2:
+        from civic.storage.blob import get_blob_storage
+        try:
+            blob_storage = get_blob_storage()
+            validation = blob_storage.validate()
+            if validation.is_valid:
+                logger.info(f"Blob storage ready: {blob_storage.backend_type}")
+            else:
+                logger.warning(f"Blob storage validation failed: {validation.errors}")
+                logger.warning("Continuing without R2 upload")
+                blob_storage = None
+        except Exception as e:
+            logger.warning(f"Could not initialize blob storage: {e}")
+            logger.warning("Continuing without R2 upload")
+            blob_storage = None
 
     with create_srcs_simbli_client(headless=True) as client:
         for meeting in meetings_with_mid:
@@ -258,6 +289,30 @@ def ingest_pdfs(
 
                 if pdf_bytes:
                     logger.info(f"  Downloaded {len(pdf_bytes)} bytes")
+
+                    # Upload to R2 if available
+                    r2_url = None
+                    if blob_storage:
+                        r2_key = f"{JURISDICTION_ID}/agendas/{meeting_id}.pdf"
+                        try:
+                            r2_url = blob_storage.upload(
+                                key=r2_key,
+                                data=pdf_bytes,
+                                content_type="application/pdf",
+                                metadata={
+                                    "meeting_id": meeting_id,
+                                    "meeting_title": meeting_title,
+                                    "source": "simbli",
+                                },
+                            )
+                            logger.info(f"  Uploaded to R2: {r2_key}")
+
+                            # Update meeting with agenda_url
+                            _update_meeting_agenda_url(
+                                backend, JURISDICTION_ID, meeting_id, r2_url
+                            )
+                        except Exception as e:
+                            logger.error(f"  Failed to upload to R2: {e}")
 
                     # Parse PDF to chunks
                     chunks = parse_pdf_to_chunks(
@@ -287,6 +342,36 @@ def ingest_pdfs(
             time.sleep(2)
 
     return total_chunks
+
+
+def _update_meeting_agenda_url(
+    backend, jurisdiction_id: str, meeting_id: str, agenda_url: str
+) -> bool:
+    """
+    Update meeting record with agenda_url using StorageBackend protocol.
+
+    Args:
+        backend: StorageBackend instance (PostgresBackend or SQLiteBackend)
+        jurisdiction_id: Jurisdiction ID (e.g., "school-san-rafael")
+        meeting_id: Meeting ID to update
+        agenda_url: R2 URL for the agenda PDF
+
+    Returns:
+        True if updated successfully, False otherwise
+    """
+    try:
+        updated = backend.update_meeting(
+            jurisdiction_id=jurisdiction_id,
+            meeting_id=meeting_id,
+            updates={"agenda_url": agenda_url},
+        )
+        if updated:
+            logger.debug(f"  Updated agenda_url for {meeting_id}")
+        return updated
+
+    except Exception as e:
+        logger.error(f"  Failed to update agenda_url: {e}")
+        return False
 
 
 def index_vectors(dry_run: bool = False) -> int:
@@ -410,6 +495,11 @@ def main():
         help="Skip vector indexing after chunk extraction",
     )
     parser.add_argument(
+        "--skip-r2",
+        action="store_true",
+        help="Skip R2 upload (local processing only, no agenda_url update)",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         default=0,
@@ -467,6 +557,7 @@ def main():
     print(f"Jurisdiction: {JURISDICTION_ID}")
     print(f"Dry run: {args.dry_run}")
     print(f"Meetings only: {args.meetings_only}")
+    print(f"Skip R2: {args.skip_r2}")
     print(f"Limit: {args.limit or 'None'}")
     print(f"Since: {since or 'Jan 2024'}")
     print("=" * 60 + "\n")
@@ -487,9 +578,9 @@ def main():
         logger.info("Meetings-only mode. Skipping PDF processing.")
         return 0
 
-    # Step 2: Download PDFs and extract chunks
-    logger.info("\nStep 2: Downloading PDFs and extracting chunks...")
-    total_chunks = ingest_pdfs(meetings, dry_run=args.dry_run)
+    # Step 2: Download PDFs, upload to R2, and extract chunks
+    logger.info("\nStep 2: Downloading PDFs, uploading to R2, and extracting chunks...")
+    total_chunks = ingest_pdfs(meetings, dry_run=args.dry_run, skip_r2=args.skip_r2)
 
     if args.skip_vectors:
         logger.info("Skipping vector indexing (--skip-vectors)")

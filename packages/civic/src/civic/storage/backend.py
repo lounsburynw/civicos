@@ -221,6 +221,38 @@ class StorageBackend(Protocol):
         """
         ...
 
+    def update_meeting(
+        self,
+        jurisdiction_id: str,
+        meeting_id: str,
+        updates: Dict[str, Any],
+    ) -> bool:
+        """
+        Update specific fields on a meeting record.
+
+        Used by ingestion pipelines to update URL fields (agenda_url, minutes_url,
+        video_url) after external resources are uploaded to blob storage.
+
+        Only updates the current (valid_to IS NULL) version of the meeting.
+        Does not create a new temporal version - this is a metadata update,
+        not a content change.
+
+        Allowed fields: agenda_url, minutes_url, video_url, source_url,
+                       virtual_url, location, status
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            meeting_id: Meeting ID to update
+            updates: Dict of field names to new values
+
+        Returns:
+            True if meeting was found and updated, False otherwise
+
+        Raises:
+            ValueError: If updates contains disallowed fields
+        """
+        ...
+
     # ========== Operation Tracking Methods ==========
     #
     # Operations are long-running tasks (fetch_meetings, discover_videos, etc.)

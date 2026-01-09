@@ -11710,3 +11710,80 @@ TBD - check pilot.json for next priority item
 
 ### Next P0
 `srcs_data_ingestion` - Create and run extraction pipeline to ingest SRCS school board meetings and agenda PDFs. Infrastructure is complete; data ingestion is the next step.
+
+## Session 492: srcs_r2_pdf_storage - Direct R2 Upload for School Board PDFs
+
+**Date:** 2026-01-09
+**Item:** srcs_r2_pdf_storage (data_readiness > school_district)
+**Priority:** P0
+
+### Summary
+
+Modified `scripts/ingest_srcs.py` to upload SRCS agenda PDFs directly to R2 during the download process, rather than as a separate upload step. This aligns with the user's request to have scrapers/ingestion directly download to R2.
+
+### Implementation
+
+1. **Direct R2 Upload Integration:**
+   - PDFs are uploaded to R2 immediately after download via SimbliClient
+   - Key pattern: `school-san-rafael/agendas/{meeting_id}.pdf`
+   - Uses `get_blob_storage()` factory to auto-detect R2 vs local storage
+   - Gracefully degrades if R2 is unavailable (continues with local processing)
+
+2. **Agenda URL Updates:**
+   - Updates `meetings.agenda_url` with R2 URL after upload
+   - Added `_update_meeting_agenda_url()` helper function
+   - Enables Modal workers to access PDFs for LLM extraction
+
+3. **New CLI Flag:**
+   - `--skip-r2` flag to skip R2 upload (local processing only)
+   - Default behavior now uploads to R2
+
+### Files Changed
+- `scripts/ingest_srcs.py` - Direct R2 upload during PDF download
+- `pilot.json` - Updated srcs_r2_pdf_storage status to ready
+
+### Usage
+
+```bash
+# Full ingestion with R2 upload (default)
+python scripts/ingest_srcs.py
+
+# Skip R2 upload (local processing only)
+python scripts/ingest_srcs.py --skip-r2
+
+# Dry run (shows R2 key paths)
+python scripts/ingest_srcs.py --dry-run
+```
+
+### Verification
+
+```bash
+# Check R2 uploads
+python3 -c "
+from dotenv import load_dotenv; load_dotenv()
+from civic.storage.blob import get_blob_storage
+blob = get_blob_storage()
+keys = blob.list_keys('school-san-rafael/agendas/')
+print(f'PDFs in R2: {len(keys)}')
+for k in keys: print(f'  {k}')
+"
+
+# Check agenda_urls in DB
+python3 -c "
+from dotenv import load_dotenv; load_dotenv()
+import os, psycopg2
+conn = psycopg2.connect(os.getenv('DATABASE_URL'))
+cur = conn.cursor()
+cur.execute('''
+    SELECT COUNT(*) FROM meetings 
+    WHERE jurisdiction_id = 'school-san-rafael' 
+    AND agenda_url LIKE 'r2://%'
+''')
+print(f'Meetings with R2 agenda_url: {cur.fetchone()[0]}')
+"
+```
+
+### Next P0
+`srcs_agenda_item_extraction` - Extract structured agenda items from SRCS PDFs using LLM (same as city meetings)
+
+---
