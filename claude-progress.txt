@@ -11313,3 +11313,12 @@ permanent data loss.
 
 eval_framework - Expand benchmark with F1, coverage, and bias metrics
 
+
+### Priority Re-evaluation
+
+User directed focus on Data Readiness before other categories.
+- Demoted: eval_framework (P0 → P1)
+- Promoted: election_whats_next_integration (P1 → P0)
+
+Rationale: Data completeness is the foundation for pilot. Without comprehensive
+data coverage, other improvements (evals, monitoring, UI) don't matter.
