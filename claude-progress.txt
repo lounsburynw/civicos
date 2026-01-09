@@ -11274,3 +11274,42 @@ Indexed 47,456 legislation chunks (2,839 CA bills) into pgvector using Modal par
 ### Next P0
 
 eval_framework - Expand benchmark with F1, coverage, and bias metrics
+
+## Session: 2026-01-08 - incremental_vector_indexing (P0)
+
+### Summary
+
+Fixed critical vector indexing bug where `--reindex` would delete ALL vectors
+corpus-wide but only re-index documents from filtered storage query, causing
+permanent data loss.
+
+### Changes Made
+
+1. **Default behavior is now incremental-safe**
+   - Uses ON CONFLICT upsert (never deletes existing vectors)
+   - `use_copy=False` is now the default mode
+   
+2. **Added safety check to --reindex**
+   - Checks if existing_vectors > to_index_count
+   - Blocks with clear error message if would cause data loss
+   - Must use `--force` to proceed with destructive operation
+
+3. **Added --force flag**
+   - Allows explicit override of safety check
+   - Required for any `--reindex` where delete > create
+
+4. **Comprehensive tests added**
+   - `packages/civic-extraction/tests/test_vectors_cli.py`
+   - 8 unit tests covering all safety scenarios
+   - All tests pass
+
+### Files Changed
+
+- `packages/civic-extraction/src/civic_extraction/cli/vectors.py` - Safety logic
+- `packages/civic-extraction/tests/test_vectors_cli.py` - New test file
+- `pilot.json` - incremental_vector_indexing → ready
+
+### Next P0
+
+eval_framework - Expand benchmark with F1, coverage, and bias metrics
+
