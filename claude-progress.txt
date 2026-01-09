@@ -17,10 +17,10 @@ Created `scripts/ingest_srcs.py` to ingest San Rafael City Schools (SRCS) board 
    - Stores meetings and chunks in PostgreSQL
    - Indexes chunks in pgvector for semantic search
 
-2. **Initial Data Ingested:**
-   - 2 meetings (2025-12-16, 2025-11-18)
-   - 27 text chunks from agenda PDFs
-   - 27 vectors indexed in pgvector
+2. **Full Backfill Completed:**
+   - 45 meetings (Jan 2024 - Dec 2025)
+   - 788 text chunks from agenda PDFs
+   - 788 vectors indexed in pgvector
 
 3. **Fixed `simbli_meeting_to_storage()` mapper:**
    - Changed `source` -> `source_platform` to match database schema
@@ -44,7 +44,7 @@ python scripts/ingest_srcs.py --verify
 - `pilot.json` - Updated srcs_data_ingestion status to ready
 
 ### Next P0
-`manual_input_fallback_schema` - Define schema for manually-curated financial mappings (data/manual/*.json)
+`srcs_r2_pdf_storage` - Upload SRCS agenda PDFs to R2 for LLM extraction pipeline
 
 ---
 

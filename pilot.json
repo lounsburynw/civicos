@@ -1968,16 +1968,17 @@
         "reference_scripts": ["scripts/ingest_srcs.py", "scripts/modal_ingest.py"]
       },
       "srcs_full_backfill": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Run scripts/ingest_srcs.py for all historical SRCS meetings (2024-present)",
-        "note": "Initial ingestion only tested with 2 meetings. Need full backfill: python scripts/ingest_srcs.py --since 2024-01-01. Expect 20-50 meetings from Simbli portal. This populates meetings table and raw chunks.",
+        "note": "Completed: 45 meetings from Jan 2024 to Dec 2025, 788 PDF chunks extracted and indexed. Raw chunks in PostgreSQL, vectors in pgvector. Next: R2 storage and LLM extraction for structured agenda items.",
         "depends_on": ["srcs_data_ingestion"],
-        "jurisdiction_id": "school-san-rafael"
+        "jurisdiction_id": "school-san-rafael",
+        "completed": "2026-01-09"
       },
       "srcs_r2_pdf_storage": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Upload SRCS agenda PDFs to R2 for consistent storage with city meetings",
         "note": "City meeting PDFs are stored in R2 (BLOB_STORAGE_URL). SRCS should follow same pattern: (1) Download PDF via SimbliClient, (2) Upload to R2 with path school-san-rafael/agendas/{meeting_id}.pdf, (3) Store R2 URL in meetings.agenda_url. Enables Modal workers to access PDFs for LLM extraction.",
         "depends_on": ["srcs_full_backfill"],
