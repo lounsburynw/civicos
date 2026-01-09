@@ -1977,16 +1977,17 @@
         "completed": "2026-01-09"
       },
       "srcs_r2_pdf_storage": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Upload SRCS agenda PDFs to R2 for consistent storage with city meetings",
-        "note": "City meeting PDFs are stored in R2 (BLOB_STORAGE_URL). SRCS should follow same pattern: (1) Download PDF via SimbliClient, (2) Upload to R2 with path school-san-rafael/agendas/{meeting_id}.pdf, (3) Store R2 URL in meetings.agenda_url. Enables Modal workers to access PDFs for LLM extraction.",
+        "note": "Modified ingest_srcs.py to upload PDFs directly to R2 during download (not as separate step). Pattern: school-san-rafael/agendas/{meeting_id}.pdf. Updates meetings.agenda_url with R2 URL. Usage: python scripts/ingest_srcs.py (R2 upload default) or --skip-r2 for local only.",
         "depends_on": ["srcs_full_backfill"],
-        "jurisdiction_id": "school-san-rafael"
+        "jurisdiction_id": "school-san-rafael",
+        "completed": "2026-01-09"
       },
       "srcs_agenda_item_extraction": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Extract structured agenda items from SRCS PDFs using LLM (same as city)",
         "note": "Use civic_extraction.cli.agenda module with Gemini LLM to extract structured items: item_number, title, type (consent/action/info), description, is_actionable. Same 2-pass LLM approach as city meetings. Run via: modal run scripts/modal_ingest.py --agenda --jurisdiction school-san-rafael. Stores to agenda_items table.",
         "depends_on": ["srcs_r2_pdf_storage"],

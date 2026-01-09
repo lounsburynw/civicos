@@ -996,6 +996,76 @@ class SQLiteBackend:
         finally:
             conn.close()
 
+    def update_meeting(
+        self,
+        jurisdiction_id: str,
+        meeting_id: str,
+        updates: Dict[str, Any],
+    ) -> bool:
+        """
+        Update specific fields on a meeting record.
+
+        Used by ingestion pipelines to update URL fields after external
+        resources are uploaded to blob storage.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            meeting_id: Meeting ID to update
+            updates: Dict of field names to new values
+
+        Returns:
+            True if meeting was found and updated, False otherwise
+
+        Raises:
+            ValueError: If updates contains disallowed fields
+        """
+        # Whitelist of allowed fields to prevent SQL injection and
+        # ensure only metadata fields are updated (not content fields
+        # that would require temporal versioning)
+        allowed_fields = {
+            "agenda_url", "minutes_url", "video_url", "source_url",
+            "virtual_url", "location", "status"
+        }
+
+        invalid_fields = set(updates.keys()) - allowed_fields
+        if invalid_fields:
+            raise ValueError(
+                f"Cannot update fields: {invalid_fields}. "
+                f"Allowed fields: {allowed_fields}"
+            )
+
+        if not updates:
+            return False
+
+        conn = sqlite3.connect(self._db_path)
+        cursor = conn.cursor()
+
+        try:
+            # Build dynamic SET clause with parameterized values
+            set_clauses = [f"{field} = ?" for field in updates.keys()]
+            values = list(updates.values())
+
+            query = f"""
+                UPDATE meetings
+                SET {', '.join(set_clauses)}
+                WHERE jurisdiction_id = ?
+                  AND id = ?
+                  AND valid_to IS NULL
+            """
+            values.extend([jurisdiction_id, meeting_id])
+
+            cursor.execute(query, values)
+            updated = cursor.rowcount > 0
+            conn.commit()
+            return updated
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+
     # ========== Decision Methods (SESSION 366) ==========
 
     def store_decisions(

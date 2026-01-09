@@ -45,6 +45,31 @@ Civic follows a strict four-layer architecture:
 - `packages/civic-services/` - Application layer (servers, APIs)
 - `apps/civic-workspace/` - Vue frontend
 - `apps/civic-mcp/` - MCP server integration
+- `scripts/` - ETL/integration scripts (can import from any package)
+
+## Scripts Directory (`scripts/`)
+
+Scripts are integration code for ETL, migration, and batch operations. They have different rules:
+
+**ALLOWED:**
+- Import from any package (`civic`, `civic-extraction`, `civic-services`)
+- Direct database operations for one-off migrations
+- Combining multiple pipeline stages in a single script
+
+**NOT ALLOWED:**
+- Accessing private/internal methods (prefixed with `_`)
+- Bypassing protocol interfaces (e.g., `backend._get_connection()`)
+- Duplicating protocol logic instead of using protocol methods
+
+Scripts should use **public protocol methods** for portability across backends:
+```python
+# GOOD: Uses StorageBackend protocol
+backend.update_meeting(jurisdiction_id, meeting_id, {"agenda_url": url})
+
+# BAD: Bypasses protocol, ties to specific backend
+conn = backend._get_connection()
+cursor.execute("UPDATE meetings SET agenda_url = ...")
+```
 
 ## Check
 
