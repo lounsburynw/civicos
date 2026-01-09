@@ -17,6 +17,7 @@ from civic.civic import (
     DecisionWithContext,
     TranscriptLink,
     Meeting,
+    UpcomingElection,
     Community,
     Initiative,
     Voice,
@@ -86,6 +87,37 @@ class TestQueryMethods:
         c = Civic("san-rafael-ca")
         result = c.whats_next(topics=["transportation"])
         assert isinstance(result, list)
+
+    def test_whats_next_with_elections(self):
+        """whats_next(include_elections=True) includes elections."""
+        c = Civic("san-rafael-ca")
+        # Get results with elections
+        result = c.whats_next(include_elections=True, days=365)
+        assert isinstance(result, list)
+        # Results can contain both Meeting and UpcomingElection objects
+        for item in result:
+            assert isinstance(item, (Meeting, UpcomingElection))
+
+    def test_whats_next_election_structure(self):
+        """UpcomingElection objects have required fields."""
+        c = Civic("san-rafael-ca")
+        result = c.whats_next(include_elections=True, days=365)
+        elections = [x for x in result if isinstance(x, UpcomingElection)]
+        for election in elections:
+            assert hasattr(election, 'id')
+            assert hasattr(election, 'name')
+            assert hasattr(election, 'election_date')
+            assert hasattr(election, 'election_type')
+            assert hasattr(election, 'deadlines')
+            assert isinstance(election.deadlines, list)
+
+    def test_whats_next_backward_compatible(self):
+        """whats_next() without include_elections returns only meetings."""
+        c = Civic("san-rafael-ca")
+        result = c.whats_next()
+        # All results should be Meeting objects (backward compatible)
+        for item in result:
+            assert isinstance(item, Meeting)
 
     def test_whos_with_me_returns_community(self):
         """whos_with_me() returns Community."""

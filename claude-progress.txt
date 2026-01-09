@@ -11322,3 +11322,49 @@ User directed focus on Data Readiness before other categories.
 
 Rationale: Data completeness is the foundation for pilot. Without comprehensive
 data coverage, other improvements (evals, monitoring, UI) don't matter.
+
+
+---
+
+## Session: 2026-01-08 17:14
+
+### Task: election_whats_next_integration (P0)
+
+**Status:** Completed
+
+### Summary
+
+Extended whats_next() to include upcoming elections via the new include_elections=True parameter.
+
+### Changes
+
+1. **packages/civic/src/civic/civic.py**
+   - Added UpcomingElection dataclass (lines 217-226)
+   - Added include_elections parameter to whats_next() signature
+   - Added election query logic that fetches from storage.get_elections()
+   - Includes deadline fetch support (deadlines table ready but empty)
+   - Returns combined list of Meeting and UpcomingElection sorted by date
+
+2. **packages/civic/src/civic/__init__.py**
+   - Exported UpcomingElection type
+
+3. **packages/civic/tests/test_civic.py**
+   - Added test_whats_next_with_elections
+   - Added test_whats_next_election_structure
+   - Added test_whats_next_backward_compatible
+
+### Tests
+
+- 3 new tests pass
+- All 42 smoke tests pass (no regressions)
+
+### Data Status
+
+- 12 elections in Supabase
+- 1 election within 365-day window (Michigan Special Primary, 2026-02-03)
+- Deadlines table ready but empty (pending population)
+
+### Next P0
+
+election_api_endpoints - REST endpoints for election data access from frontend
+
