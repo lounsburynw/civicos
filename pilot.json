@@ -103,7 +103,7 @@
       },
       "eval_framework": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Expand eval framework with F1, coverage, and bias metrics",
         "note": "Current benchmark (scripts/benchmark_api_vs_llm.py) has accuracy/precision/recall. Add: F1 score, topic coverage, freshness, source diversity, NDCG, null rate, meeting type coverage, geographic coverage, temporal bias. Session 461. Demoted to P1 - Data Readiness takes priority.",
         "test_file": "scripts/benchmark_api_vs_llm.py"
@@ -825,6 +825,15 @@
           "--reindex --force proceeds even with count mismatch"
         ],
         "completed": "2026-01-08"
+      },
+      "election_discovery_cron": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Monthly cron job to fetch elections from Google Civic API",
+        "note": "Run modal_ingest.py --elections monthly. VIP publishes election data 2-3 weeks before elections. Monthly cadence sufficient for catching new elections.",
+        "depends_on": [
+          "election_ingestion_pipeline"
+        ]
       }
     },
     "modal_remote_compute": {
@@ -1831,6 +1840,42 @@
           "executive_orders_ingestion"
         ],
         "corpus_type": "executive_orders"
+      },
+      "marin_registrar_scraper": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "Scraper for Marin County Registrar local election data",
+        "note": "P0: Implement local election data ingestion. First investigate if Marin County has any APIs or data feeds before resorting to Playwright scraping. Check for: XML feeds, JSON endpoints, RSS, iCal, or partner data providers.",
+        "data_sources": [
+          "https://www.marincounty.gov/departments/elections"
+        ],
+        "local_coverage": [
+          "city_council",
+          "mayor",
+          "local_measures",
+          "school_board"
+        ],
+        "depends_on": [
+          "election_ingestion_pipeline"
+        ]
+      },
+      "democracy_works_api": {
+        "status": "blocked",
+        "priority": 1,
+        "artifact": "Evaluate Democracy Works Elections API for local election data",
+        "note": "WAITING: Pricing request sent. Covers federal->school board for jurisdictions >5k population. Proper REST API (vs scraping). Won 2024 Best Data API award. If affordable, replaces need for Marin registrar scraper.",
+        "evaluation_criteria": [
+          "Pricing fits foundation budget (<$50/month)",
+          "Covers San Rafael city council, local measures",
+          "API includes ballot measure text/descriptions",
+          "Data freshness (how close to election)"
+        ],
+        "data_url": "https://data.democracy.works/api-info",
+        "docs_url": "https://developers.democracy.works/api/v2",
+        "contact": "Request pricing at data.democracy.works",
+        "blocked_by": [
+          "pricing_response_pending"
+        ]
       }
     },
     "school_district": {

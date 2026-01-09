@@ -1,60 +1,83 @@
-# Recommended: election_whats_next_integration
+# Recommended: marin_registrar_scraper
 
 **Priority:** P0
 **Area:** data_readiness > election_data
 **Date:** 2026-01-08
 
-> Data Readiness is top priority for pilot. Election data integration enables whats_next() to surface upcoming elections alongside meetings.
+> Local election data is a gap. Google Civic API has limited coverage for city-level races (mayor, city council, local ballot measures). This task fills that gap.
 
 ## Context
 
-The `whats_next()` method currently returns only meetings. For pilot readiness, it should also surface:
-- Upcoming elections
-- Registration deadlines
-- Early voting start dates
-- Ballot measure summaries
+Previous session completed `election_vector_embeddings` - elections are now indexed and searchable via pgvector. However, we only have 4 national special elections in the database. **Local San Rafael elections are missing.**
 
-This enables notifications like "Registration deadline in 5 days" alongside meeting notifications.
+Data source status:
+- **Google Civic API**: Limited local coverage, good for federal/state
+- **Democracy Works API**: Comprehensive (school board to federal), but **pricing pending** - awaiting email response
+- **Marin County Registrar**: Authoritative local source, no known API
 
-## Dependencies
-
-This item depends on `election_ingestion_pipeline` which is already **ready** (completed 2026-01-05). Elections table is populated in Supabase.
+**Strategy**: First investigate if Marin County has any APIs or data feeds. Only resort to Playwright scraping if no structured data is available.
 
 ## Key Files
 
-- `packages/civic/src/civic/civic.py` - whats_next() method to modify
-- Election data already in Supabase `elections` table
+- `packages/civic-extraction/src/civic_extraction/clients/` - Client implementations
+- `packages/civic-extraction/src/civic_extraction/clients/google_civic.py` - Pattern to follow
+- `packages/civic/src/civic/storage/postgres_backend.py:6102-6448` - Election storage methods
+- `docs/critical/ELECTION_INTEGRATION.md` - Architecture reference
 
 ## Suggested Approach
 
-1. **Explore current whats_next() implementation**
-   - How does it query meetings?
-   - What's the return structure?
+1. **Investigate Marin County data sources** (before writing code)
+   - Check https://www.marincounty.gov/departments/elections for:
+     - XML/JSON feeds
+     - RSS feeds for election updates
+     - iCal calendar exports
+     - Open data portal links
+   - Search for Marin County open data portals
+   - Check if they use a vendor (e.g., Scytl, ES&S) that has an API
 
-2. **Check election data schema**
-   - What fields are in the elections table?
-   - How to identify "upcoming" elections?
+2. **Check alternative data providers**
+   - Ballotpedia API (they have local measure data)
+   - Vote.org or similar civic tech APIs
+   - CA Secretary of State feeds
 
-3. **Extend whats_next() to include elections**
-   - Query elections with date > now
-   - Include registration deadlines, early voting dates
-   - Merge with meeting results
+3. **If API found**: Implement client following `google_civic.py` pattern
 
-4. **Add tests**
-   - Verify elections appear in whats_next() results
-   - Test deadline proximity logic
+4. **If scraping required**: Use Playwright (site returns 403 to requests)
+   - Target: https://www.marincounty.gov/departments/elections
+   - Extract: upcoming elections, local measures, city races, deadlines
 
-## Related Items (same cluster)
+## Data We Need
 
-After this P0, consider these related P1 items:
-- `election_api_endpoints` - REST endpoints for election data
-- `election_vector_embeddings` - Vector embeddings for election RAG
+| Data Type | Priority | Source |
+|-----------|----------|--------|
+| San Rafael city council races | High | Marin Registrar |
+| Local ballot measures (Measure A, B, etc.) | High | Marin Registrar |
+| School board elections | Medium | Marin Registrar |
+| Voter registration deadlines | Medium | Already have via Google |
 
-## Session Context
+## Tests to Run
 
-Previous session completed:
-- `incremental_vector_indexing` - Fixed critical vector deletion bug
-- Added --force flag and safety checks to vectors CLI
-- 8 unit tests added
+```bash
+# Existing election tests
+pytest packages/civic/tests/test_election_api.py -v
 
-Priority re-evaluation: User directed focus on Data Readiness before other categories (eval_framework demoted to P1).
+# After implementation
+pytest packages/civic-extraction/tests/ -k marin -v
+```
+
+## Success Criteria
+
+- [ ] Identify best data source for Marin local elections
+- [ ] Implement client (API or scraper)
+- [ ] Ingest San Rafael local election data
+- [ ] Local elections appear in `whats_next(include_elections=True)`
+- [ ] Update pilot.json status to "ready"
+
+## Blocked Item
+
+**`democracy_works_api`** (P1, blocked): Waiting on pricing response. If affordable (<$50/mo), may replace need for Marin scraper entirely since it covers "jurisdictions >5k population" including school board races.
+
+## Related Items
+
+- `election_discovery_cron` (P1) - Automation for election ingestion
+- `election_vector_embeddings` (ready) - Already complete
