@@ -26,7 +26,7 @@ Usage:
     c.report_outcome("item_789", "passed")
 """
 
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Any, Dict, Union
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -212,6 +212,18 @@ class Meeting:
     body: str
     agenda_items: List[dict] = field(default_factory=list)
     location: Optional[str] = None
+
+
+@dataclass
+class UpcomingElection:
+    """An upcoming election from whats_next()."""
+    id: str
+    name: str
+    election_date: datetime
+    election_type: str
+    deadlines: List[dict] = field(default_factory=list)
+    source: Optional[str] = None
+    source_url: Optional[str] = None
 
 
 @dataclass
@@ -853,19 +865,25 @@ class Civic:
             for r in results
         ]
 
-    def whats_next(self, topics: List[str] = None, days: int = 30) -> List[Meeting]:
+    def whats_next(
+        self,
+        topics: List[str] = None,
+        days: int = 30,
+        include_elections: bool = False,
+    ) -> Union[List[Meeting], List[Union[Meeting, UpcomingElection]]]:
         """
-        Get upcoming meetings matching topics.
+        Get upcoming meetings and optionally elections.
 
         Uses PostgresBackend (cloud) or SQLiteBackend (local) via _storage
-        to query meetings. Falls back to StateManager for local dev.
+        to query meetings and elections. Falls back to StateManager for local dev.
 
         Args:
             topics: Optional list of topics to filter by
             days: Number of days to look ahead (default 30)
+            include_elections: If True, also include upcoming elections
 
         Returns:
-            List of upcoming meetings
+            List of upcoming meetings, or mixed list including elections
         """
         from datetime import timedelta, timezone
 
@@ -884,11 +902,12 @@ class Civic:
             logger.debug(f"Storage backend failed, falling back to StateManager: {e}")
             state = self._state.get_city_state(self.jurisdiction)
             if state is None:
-                return []
-            meetings_data = state.get("meetings", [])
+                meetings_data = []
+            else:
+                meetings_data = state.get("meetings", [])
 
         # Convert to Meeting objects
-        meetings = []
+        meetings: List[Meeting] = []
         for m in meetings_data:
             # Parse meeting_datetime
             meeting_date = m.get("meeting_datetime") or m.get("date")
@@ -950,10 +969,74 @@ class Civic:
                 return False
             meetings = [m for m in meetings if has_matching_topic(m)]
 
-        # Sort by date
+        # Sort meetings by date
         meetings.sort(key=lambda x: x.date)
 
-        return meetings
+        # If not including elections, return meetings only
+        if not include_elections:
+            return meetings
+
+        # Fetch upcoming elections
+        elections: List[UpcomingElection] = []
+        try:
+            elections_data = self._storage.get_elections(
+                jurisdiction_id=self.jurisdiction,
+                include_past=False,
+            )
+            for e in elections_data:
+                # Parse election_date
+                election_date = e.get("election_date")
+                if isinstance(election_date, str):
+                    try:
+                        # election_date is typically just a date string (YYYY-MM-DD)
+                        from datetime import date as date_type
+                        parsed_date = date_type.fromisoformat(election_date)
+                        # Convert to datetime at midnight UTC for consistent comparison
+                        election_date = datetime(
+                            parsed_date.year, parsed_date.month, parsed_date.day,
+                            tzinfo=timezone.utc
+                        )
+                    except ValueError:
+                        continue  # Skip malformed dates
+                elif election_date is None:
+                    continue
+
+                # Skip elections outside the window
+                if not (now <= election_date <= cutoff):
+                    continue
+
+                # Fetch deadlines for this election
+                deadlines = []
+                try:
+                    deadline_data = self._storage.get_election_deadlines(
+                        election_id=e.get("id")
+                    )
+                    for d in deadline_data:
+                        deadlines.append({
+                            "deadline_type": d.get("deadline_type"),
+                            "deadline_date": d.get("deadline_date"),
+                            "description": d.get("description"),
+                        })
+                except Exception:
+                    pass  # Deadlines are optional
+
+                elections.append(UpcomingElection(
+                    id=e.get("id", ""),
+                    name=e.get("name", ""),
+                    election_date=election_date,
+                    election_type=e.get("election_type", ""),
+                    deadlines=deadlines,
+                    source=e.get("source"),
+                    source_url=e.get("source_url"),
+                ))
+        except Exception as e:
+            logger.debug(f"Failed to fetch elections: {e}")
+
+        # Combine meetings and elections, sorted by date
+        combined: List[Union[Meeting, UpcomingElection]] = list(meetings) + list(elections)
+        combined.sort(key=lambda x: x.date if isinstance(x, Meeting) else x.election_date)
+
+        return combined
 
     def whos_with_me(
         self,
