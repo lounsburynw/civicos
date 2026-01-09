@@ -72,6 +72,13 @@ from civic_extraction.clients.san_rafael_clerk import (
     san_rafael_candidate_to_storage,
     san_rafael_measure_to_storage,
 )
+from civic_extraction.clients.simbli import (
+    SimbliClient,
+    SimbliMeeting,
+    create_srcs_simbli_client,
+    simbli_meeting_to_storage,
+    extract_simbli_meetings_to_storage,
+)
 
 __all__ = [
     "LegistarClient",
@@ -117,4 +124,9 @@ __all__ = [
     "create_san_rafael_clerk_client",
     "san_rafael_candidate_to_storage",
     "san_rafael_measure_to_storage",
+    "SimbliClient",
+    "SimbliMeeting",
+    "create_srcs_simbli_client",
+    "simbli_meeting_to_storage",
+    "extract_simbli_meetings_to_storage",
 ]

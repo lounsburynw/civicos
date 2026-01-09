@@ -1,83 +1,76 @@
-# Recommended: marin_registrar_scraper
+# Recommended: simbli_pdf_download
 
 **Priority:** P0
-**Area:** data_readiness > election_data
+**Area:** data_readiness > school_district
 **Date:** 2026-01-08
 
-> Local election data is a gap. Google Civic API has limited coverage for city-level races (mayor, city council, local ballot measures). This task fills that gap.
+> This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Previous session completed `election_vector_embeddings` - elections are now indexed and searchable via pgvector. However, we only have 4 national special elections in the database. **Local San Rafael elections are missing.**
+SimbliClient now extracts meetings with MIDs from the SRCS board portal. The MID discovery feature was implemented this session - MIDs are extracted from onclick attributes (ViewMeeting pattern) without needing to click. Integration test verified 4/4 meetings have MIDs discovered.
 
-Data source status:
-- **Google Civic API**: Limited local coverage, good for federal/state
-- **Democracy Works API**: Comprehensive (school board to federal), but **pricing pending** - awaiting email response
-- **Marin County Registrar**: Authoritative local source, no known API
+Now we need to use these MIDs to implement the actual PDF download workflow.
 
-**Strategy**: First investigate if Marin County has any APIs or data feeds. Only resort to Playwright scraping if no structured data is available.
+## Recommended Task
+
+Implement the 2-step PDF download workflow for Simbli agendas using the captured MIDs.
 
 ## Key Files
 
-- `packages/civic-extraction/src/civic_extraction/clients/` - Client implementations
-- `packages/civic-extraction/src/civic_extraction/clients/google_civic.py` - Pattern to follow
-- `packages/civic/src/civic/storage/postgres_backend.py:6102-6448` - Election storage methods
-- `docs/critical/ELECTION_INTEGRATION.md` - Architecture reference
+- `packages/civic-extraction/src/civic_extraction/clients/simbli.py` - SimbliClient implementation
+- `packages/civic-extraction/tests/test_clients.py` - Simbli tests
+
+## PDF Download Workflow (Tested in Previous Session)
+
+1. Navigate to `PrintAgenda.aspx?S=36030430&MID={mid}`
+2. Click Print button
+3. POST to `/api/PrintAgenda/PrintAgenda` returns JSON: `{"FileUrl": "..."}`
+4. GET FileUrl downloads the PDF (843KB test PDF worked)
+
+Example MIDs discovered this session:
+- 45989 (2025-12-16 meeting)
+- 45982 (2025-11-18 meeting)
+- 45465 (2025-10-28 meeting)
+- 45464 (2025-10-14 meeting)
 
 ## Suggested Approach
 
-1. **Investigate Marin County data sources** (before writing code)
-   - Check https://www.marincounty.gov/departments/elections for:
-     - XML/JSON feeds
-     - RSS feeds for election updates
-     - iCal calendar exports
-     - Open data portal links
-   - Search for Marin County open data portals
-   - Check if they use a vendor (e.g., Scytl, ES&S) that has an API
+1. **Add `download_agenda_pdf(meeting: SimbliMeeting) -> Optional[bytes]` method**
+   - Check that `meeting.simbli_mid` is set
+   - Navigate to PrintAgenda.aspx with MID
+   - Click Print button to trigger PDF generation
+   - POST to API endpoint and parse FileUrl from JSON response
+   - GET FileUrl to download PDF bytes
+   - Return PDF bytes or None if failed
 
-2. **Check alternative data providers**
-   - Ballotpedia API (they have local measure data)
-   - Vote.org or similar civic tech APIs
-   - CA Secretary of State feeds
+2. **Handle the JavaScript-driven workflow**
+   - PrintAgenda page has a Print button that triggers the API call
+   - Need to either click the button or directly POST to the API
+   - API returns: `{"FileUrl": "/SB_Meetings/..."}`
 
-3. **If API found**: Implement client following `google_civic.py` pattern
-
-4. **If scraping required**: Use Playwright (site returns 403 to requests)
-   - Target: https://www.marincounty.gov/departments/elections
-   - Extract: upcoming elections, local measures, city races, deadlines
-
-## Data We Need
-
-| Data Type | Priority | Source |
-|-----------|----------|--------|
-| San Rafael city council races | High | Marin Registrar |
-| Local ballot measures (Measure A, B, etc.) | High | Marin Registrar |
-| School board elections | Medium | Marin Registrar |
-| Voter registration deadlines | Medium | Already have via Google |
+3. **Add tests**
+   - Unit test for PDF download method (mock browser)
+   - Integration test that downloads a real PDF
 
 ## Tests to Run
 
 ```bash
-# Existing election tests
-pytest packages/civic/tests/test_election_api.py -v
+# Unit tests (don't hit real site)
+pytest packages/civic-extraction/tests/test_clients.py -k "Simbli and not Integration" -v
 
-# After implementation
-pytest packages/civic-extraction/tests/ -k marin -v
+# Integration test (hits real site)
+pytest packages/civic-extraction/tests/test_clients.py -k "SimbliClientIntegration" -v
 ```
 
 ## Success Criteria
 
-- [ ] Identify best data source for Marin local elections
-- [ ] Implement client (API or scraper)
-- [ ] Ingest San Rafael local election data
-- [ ] Local elections appear in `whats_next(include_elections=True)`
+- [ ] `download_agenda_pdf(meeting)` method implemented
+- [ ] Method uses simbli_mid to construct PrintAgenda URL
+- [ ] PDF bytes returned successfully
+- [ ] Integration test downloads real PDF
 - [ ] Update pilot.json status to "ready"
 
-## Blocked Item
+## Next Item After This
 
-**`democracy_works_api`** (P1, blocked): Waiting on pricing response. If affordable (<$50/mo), may replace need for Marin scraper entirely since it covers "jurisdictions >5k population" including school board races.
-
-## Related Items
-
-- `election_discovery_cron` (P1) - Automation for election ingestion
-- `election_vector_embeddings` (ready) - Already complete
+Continue with school_district data pipeline - either processing downloaded PDFs or moving to other data readiness items.
