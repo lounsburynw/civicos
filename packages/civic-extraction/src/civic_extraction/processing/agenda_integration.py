@@ -848,52 +848,85 @@ Be conservative - only return URLs that clearly contain agenda content."""
             return []
 
         try:
-            # Validate and fetch agenda content with size limits
-            if not self._is_safe_url(agenda_url):
-                print(f"⚠️ Unsafe agenda URL: {agenda_url}")
-                return []
+            content_bytes = None
 
-            # Special handling for CivicClerk API URLs
-            # These return JSON with a blobUri field pointing to the actual PDF
-            if 'api.civicclerk.com' in agenda_url and 'GetMeetingFile' in agenda_url:
-                agenda_url = self._resolve_civicclerk_blob_url(agenda_url)
-                if not agenda_url:
-                    print(f"⚠️ Could not resolve CivicClerk blob URL")
+            # Special handling for R2 blob storage URLs
+            # Format: r2://{account_id}/{bucket}/{key}
+            if agenda_url.startswith('r2://'):
+                try:
+                    from civic.storage.blob import get_blob_storage
+
+                    # Parse R2 URL to get key: r2://account_id/bucket/key
+                    parts = agenda_url.replace('r2://', '').split('/', 2)
+                    if len(parts) >= 3:
+                        key = parts[2]  # Everything after bucket
+                        blob_storage = get_blob_storage()
+                        content_bytes = blob_storage.download(key)
+                        print(f"✓ Downloaded {len(content_bytes)} bytes from R2")
+                    else:
+                        print(f"⚠️ Invalid R2 URL format: {agenda_url}")
+                        return []
+                except KeyError as e:
+                    print(f"⚠️ R2 object not found: {e}")
+                    return []
+                except Exception as e:
+                    print(f"⚠️ Failed to download from R2: {type(e).__name__}: {e}")
                     return []
 
-            # Try normal request first
-            try:
-                response = self.session.get(agenda_url, timeout=20, stream=True)
-                response.raise_for_status()
-            except requests.exceptions.SSLError as ssl_err:
-                # Handle Granicus S3 redirect SSL certificate mismatch
-                # (AgendaViewer redirects to granicus_production_attachments.s3.amazonaws.com)
-                if 'granicus' in agenda_url.lower() or 's3.amazonaws.com' in str(ssl_err):
-                    print(f"⚠️ SSL error on Granicus redirect, retrying with verify=False...")
-                    response = self.session.get(agenda_url, timeout=20, stream=True, verify=False)
+            # For non-R2 URLs, use HTTP request
+            if content_bytes is None:
+                # Validate and fetch agenda content with size limits
+                if not self._is_safe_url(agenda_url):
+                    print(f"⚠️ Unsafe agenda URL: {agenda_url}")
+                    return []
+
+                # Special handling for CivicClerk API URLs
+                # These return JSON with a blobUri field pointing to the actual PDF
+                if 'api.civicclerk.com' in agenda_url and 'GetMeetingFile' in agenda_url:
+                    agenda_url = self._resolve_civicclerk_blob_url(agenda_url)
+                    if not agenda_url:
+                        print(f"⚠️ Could not resolve CivicClerk blob URL")
+                        return []
+
+                # Try normal request first
+                try:
+                    response = self.session.get(agenda_url, timeout=20, stream=True)
                     response.raise_for_status()
-                else:
-                    raise
+                except requests.exceptions.SSLError as ssl_err:
+                    # Handle Granicus S3 redirect SSL certificate mismatch
+                    # (AgendaViewer redirects to granicus_production_attachments.s3.amazonaws.com)
+                    if 'granicus' in agenda_url.lower() or 's3.amazonaws.com' in str(ssl_err):
+                        print(f"⚠️ SSL error on Granicus redirect, retrying with verify=False...")
+                        response = self.session.get(agenda_url, timeout=20, stream=True, verify=False)
+                        response.raise_for_status()
+                    else:
+                        raise
 
-            # Check content size
-            content_length = response.headers.get('content-length')
-            if content_length and int(content_length) > 50_000_000:  # 50MB limit for large agenda packets
-                print(f"⚠️ Agenda content too large: {content_length} bytes")
-                return []
-
-            # Read with size limit
-            content_bytes = b''
-            size = 0
-            for chunk in response.iter_content(chunk_size=8192):
-                size += len(chunk)
-                if size > 50_000_000:  # 50MB limit for large packets with attachments
-                    print(f"⚠️ Agenda content exceeded size limit")
+                # Check content size
+                content_length = response.headers.get('content-length')
+                if content_length and int(content_length) > 50_000_000:  # 50MB limit for large agenda packets
+                    print(f"⚠️ Agenda content too large: {content_length} bytes")
                     return []
-                content_bytes += chunk
+
+                # Read with size limit
+                content_bytes = b''
+                size = 0
+                for chunk in response.iter_content(chunk_size=8192):
+                    size += len(chunk)
+                    if size > 50_000_000:  # 50MB limit for large packets with attachments
+                        print(f"⚠️ Agenda content exceeded size limit")
+                        return []
+                    content_bytes += chunk
 
             # Determine content type and extract text safely
-            content_type = response.headers.get('content-type', '').lower()
-            if 'pdf' in content_type:
+            # For R2 URLs, assume PDF (since we store PDFs there)
+            # For HTTP, check content-type header
+            is_pdf = agenda_url.startswith('r2://') or agenda_url.lower().endswith('.pdf')
+            if not is_pdf and 'response' in dir():
+                content_type = response.headers.get('content-type', '').lower()
+                is_pdf = 'pdf' in content_type
+
+            if is_pdf:
                 text_content = self._extract_pdf_text(content_bytes)
             else:
                 try:
@@ -998,7 +1031,9 @@ Include consent calendar items related to:
 
 Skip only purely procedural items (meeting minutes approval, internal appointments)."""
 
-            response_text = self._call_llm(prompt, max_tokens=2000)
+            # Use higher token limit for agendas with many items (Gemini 1.5 Pro max: 8192)
+            # 6000 tokens handles ~50+ agenda items with room for JSON overhead
+            response_text = self._call_llm(prompt, max_tokens=6000)
             result = self._safe_json_parse(response_text)
             if not result:
                 return []

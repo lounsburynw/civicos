@@ -11787,3 +11787,64 @@ print(f'Meetings with R2 agenda_url: {cur.fetchone()[0]}')
 `srcs_agenda_item_extraction` - Extract structured agenda items from SRCS PDFs using LLM (same as city meetings)
 
 ---
+
+## Session 493: srcs_agenda_item_extraction - SRCS LLM Agenda Extraction
+
+**Date:** 2026-01-09
+**Item:** srcs_agenda_item_extraction (data_readiness > school_district)
+**Priority:** P0
+
+### Summary
+
+Extracted structured agenda items from SRCS PDFs using Gemini LLM. Required three fixes:
+1. Added R2 URL handling to `parse_agenda_content()` 
+2. Backfilled R2 agenda URLs for 43 meetings missing them
+3. Increased `max_tokens` from 2000 to 6000 for large agendas
+
+### Implementation
+
+1. **R2 URL Support in AgendaIntegrator:**
+   - Modified `packages/civic-extraction/src/civic_extraction/processing/agenda_integration.py`
+   - Added R2 blob download before HTTP fallback
+   - PDF detection for R2 URLs (assume PDF since we store PDFs)
+
+2. **R2 Backfill Script:**
+   - Added `--backfill-r2` mode to `scripts/ingest_srcs.py`
+   - Downloads PDFs via Simbli MID workflow
+   - Uploads to R2, updates `meetings.agenda_url`
+   - Backfilled 43 meetings (40 successful)
+
+3. **Fixed Token Truncation Issue:**
+   - Root cause: `max_tokens=2000` too low for agendas with 10+ items
+   - LLM responses were truncated mid-JSON, causing parse failures
+   - Increased to 6000 (Gemini 1.5 Pro max: 8192)
+   - SRCS extraction went from 0 items to 598 items
+
+### Results
+
+- **598 agenda items** extracted from 33 meetings
+- Items have project types: `governance`, `education`
+- Actionability classification: `actionable` vs `informational`
+
+### Verification
+
+```bash
+# Check SRCS agenda items
+python3 -c "
+from dotenv import load_dotenv; load_dotenv()
+import os, psycopg2
+conn = psycopg2.connect(os.getenv('DATABASE_URL'))
+cur = conn.cursor()
+cur.execute('''
+    SELECT COUNT(*) FROM agenda_items ai
+    JOIN meetings m ON ai.meeting_id = m.id
+    WHERE m.jurisdiction_id = 'school-san-rafael'
+''')
+print(f'SRCS agenda_items: {cur.fetchone()[0]}')
+"
+```
+
+### Next P0
+`srcs_vector_indexing` - Index SRCS agenda items in pgvector for semantic search
+
+---
