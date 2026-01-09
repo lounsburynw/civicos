@@ -240,8 +240,126 @@ Extraction configs are stored in `data/extraction/{jurisdiction}.json`:
 }
 ```
 
+## StorageBackend Usage
+
+Ingestion scripts must use the `StorageBackend` protocol for all data persistence. This ensures portability across SQLite (local dev) and PostgreSQL (production).
+
+### Protocol Methods
+
+The `StorageBackend` protocol (`packages/civic/src/civic/storage/backend.py`) provides methods for each data type:
+
+| Data Type | Store Method | Get Method | Count Method |
+|-----------|--------------|------------|--------------|
+| Meetings | `store_meetings()` | `get_meetings()` | via `get_stats()` |
+| Decisions | `store_decisions()` | `get_decisions()` | `get_decision_count()` |
+| Chunks | `store_chunks()` | `get_chunks()` | `get_chunk_count()` |
+| Issues | `store_issues()` | `get_issues()` | `get_issue_count()` |
+| Transcripts | `store_transcripts()` | `get_transcripts()` | `get_transcript_count()` |
+| Videos | `store_videos()` | `get_videos()` | `get_video_count()` |
+| Municipal Code | `store_municipal_code()` | `get_municipal_code()` | `get_municipal_code_count()` |
+| Legislation | `store_legislation()` | `get_legislation()` | `get_legislation_count()` |
+| Budget Items | `store_budget_items()` | `get_budget_items()` | `get_budget_items_count()` |
+| Agenda Items | `store_agenda_items()` | `get_agenda_items()` | `get_agenda_item_count()` |
+
+### Updating Meeting Metadata
+
+When ingestion pipelines upload resources to blob storage (R2), they need to update URL fields on existing meetings. Use `update_meeting()` for this:
+
+```python
+# After uploading PDF to R2, update the meeting's agenda_url
+backend.update_meeting(
+    jurisdiction_id="school-san-rafael",
+    meeting_id="srcs-meeting-12345",
+    updates={"agenda_url": "https://blob.civic.dev/school-san-rafael/agendas/12345.pdf"}
+)
+```
+
+**Allowed fields:** `agenda_url`, `minutes_url`, `video_url`, `source_url`, `virtual_url`, `location`, `status`
+
+This method:
+- Only updates the current (non-expired) version
+- Does not create a new temporal version (metadata update, not content change)
+- Raises `ValueError` for disallowed fields
+
+### Protocol Compliance Rules
+
+Scripts in `scripts/` must follow these rules for StorageBackend usage:
+
+**ALLOWED:**
+- Import from any package (`civic`, `civic-extraction`, `civic-services`)
+- Use public protocol methods (`store_meetings`, `update_meeting`, etc.)
+- Combine multiple pipeline stages in a single script
+
+**NOT ALLOWED:**
+- Accessing private/internal methods (prefixed with `_`)
+- Bypassing protocol interfaces (e.g., `backend._get_connection()`)
+- Duplicating protocol logic instead of using protocol methods
+- Direct SQL updates that bypass the protocol
+
+```python
+# GOOD: Uses StorageBackend protocol
+backend.update_meeting(jurisdiction_id, meeting_id, {"agenda_url": url})
+
+# BAD: Bypasses protocol, ties to specific backend
+conn = backend._get_connection()
+cursor.execute("UPDATE meetings SET agenda_url = ...")
+```
+
+### Blob Storage Pattern
+
+For pipelines that upload files to R2 blob storage:
+
+1. **Download** the resource (PDF, audio, etc.)
+2. **Upload** to R2 with appropriate key structure
+3. **Update** the meeting record via `update_meeting()`
+
+```python
+# Example: SRCS agenda PDF upload pattern
+pdf_content = fetch_agenda_pdf(meeting)
+r2_key = f"{jurisdiction_id}/agendas/{meeting_id}.pdf"
+upload_to_r2(r2_key, pdf_content)
+
+backend.update_meeting(
+    jurisdiction_id=jurisdiction_id,
+    meeting_id=meeting_id,
+    updates={"agenda_url": f"{R2_PUBLIC_URL}/{r2_key}"}
+)
+```
+
+This pattern:
+- Keeps PDFs accessible to Modal workers for LLM extraction
+- Updates meeting records portably across backends
+- Enables graceful degradation if R2 is unavailable
+
+### Operation Tracking
+
+Long-running ingestion operations should use the operation tracking methods for admin dashboard visibility:
+
+```python
+import uuid
+
+# Start operation
+op_id = str(uuid.uuid4())
+backend.create_operation(op_id, jurisdiction_id, "ingest_meetings")
+backend.update_operation_status(op_id, "running", current_step="Fetching page 1")
+
+# Track progress
+backend.update_operation_status(
+    op_id, "running",
+    current_step=f"Processing meeting {i}",
+    progress_percent=i / total * 100,
+    items_processed=i,
+    items_total=total
+)
+
+# Complete
+backend.complete_operation(op_id, {"meetings_stored": count})
+```
+
 ## Related Documentation
 
 - `docs/critical/FINAL_PACKAGE_ARCHITECTURE.md` - System architecture
 - `docs/TESTING_STRATEGY.md` - Testing approach
 - `packages/civic-extraction/src/civic_extraction/meeting_schema.py` - Schema validation
+- `.critics/pipeline.critic.md` - Pipeline protocol compliance checks
+- `.critics/architecture.critic.md` - Architecture layer validation
