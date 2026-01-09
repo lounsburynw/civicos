@@ -2,6 +2,8 @@
 
 Start a secondary Claude Code session that works on items **not conflicting** with the current P0 work.
 
+**IMPORTANT:** This command uses **git worktrees** to enable true parallel development. Each parallel session runs in a separate directory with its own checked-out branch.
+
 ## Usage
 
 ```
@@ -11,7 +13,7 @@ Start a secondary Claude Code session that works on items **not conflicting** wi
 **Roles:**
 - `secondary` (default) - Work on P1+ items in a different track than P0
 - `research` - Investigation only, no code changes
-- `tooling` - Work on dev workflow improvements (like this command!)
+- `tooling` - Work on dev workflow improvements
 
 ## Step 1: Environment Check
 
@@ -120,7 +122,7 @@ for cat, items in cl.items():
 candidates.sort(key=lambda x: x['priority'])
 
 if candidates:
-    # Show top 3 candidates
+    # Show top 5 candidates
     print('\nTop candidates (different track than P0):')
     for i, c in enumerate(candidates[:5]):
         priority_label = f'P{c["priority"]}'
@@ -144,23 +146,74 @@ else:
 EOF
 ```
 
-## Step 3: Create Feature Branch
+## Step 3: Create Git Worktree
 
-Once you've selected an item, create a dedicated branch:
+**Why worktrees?** Git worktrees allow multiple branches to be checked out simultaneously in separate directories. This prevents the branch-switching conflicts that occur when two sessions share one working directory.
+
+Once you've selected an item, create a worktree:
 
 ```bash
-# Replace ITEM_NAME with your chosen item (use kebab-case)
+# Set your chosen item and track (use kebab-case for item name)
 ITEM_NAME="your-item-name"
 TRACK="track-name"
+BRANCH_NAME="feature/${TRACK}/${ITEM_NAME}"
+WORKTREE_DIR="../civic-${TRACK}"
 
-# Create and switch to feature branch
-git checkout -b feature/${TRACK}/${ITEM_NAME}
-
-echo "Created branch: feature/${TRACK}/${ITEM_NAME}"
-echo "This keeps your work isolated from the P0 session on main."
+# Check if worktree already exists
+if [ -d "$WORKTREE_DIR" ]; then
+    echo "Worktree already exists at $WORKTREE_DIR"
+    echo "To reuse: cd $WORKTREE_DIR && git checkout $BRANCH_NAME"
+    echo "To remove: git worktree remove $WORKTREE_DIR"
+else
+    # Create branch and worktree
+    git branch "$BRANCH_NAME" 2>/dev/null || echo "Branch already exists"
+    git worktree add "$WORKTREE_DIR" "$BRANCH_NAME"
+    echo ""
+    echo "=========================================="
+    echo "WORKTREE CREATED SUCCESSFULLY"
+    echo "=========================================="
+    echo "Location: $WORKTREE_DIR"
+    echo "Branch: $BRANCH_NAME"
+    echo ""
+    echo "To start working:"
+    echo "  1. Open new terminal"
+    echo "  2. cd $WORKTREE_DIR"
+    echo "  3. claude  (start new Claude Code session)"
+    echo "=========================================="
+fi
 ```
 
-## Step 4: Session Protocol
+**Directory structure after setup:**
+```
+~/projects/
+├── civic/                  # Main repo (P0 session on main)
+├── civic-infra/            # Worktree for infra track
+├── civic-ops/              # Worktree for ops track
+├── civic-frontend/         # Worktree for frontend track
+└── civic-validation/       # Worktree for validation track
+```
+
+## Step 4: Start Claude Code in Worktree
+
+**CRITICAL:** You must start a new Claude Code session in the worktree directory:
+
+```bash
+# In a NEW terminal window:
+cd ../civic-${TRACK}
+source civic-env/bin/activate  # Activate venv (symlinked from main)
+claude
+```
+
+The worktree shares:
+- Git history and branches
+- The `.env` file (via relative path)
+
+The worktree has its own:
+- Working directory (no file conflicts)
+- Checked-out branch
+- Uncommitted changes
+
+## Step 5: Session Protocol
 
 **For Secondary Sessions:**
 1. Document your role at session start: "This is a **secondary session** working on [item] in the [track] track."
@@ -169,20 +222,21 @@ echo "This keeps your work isolated from the P0 session on main."
 4. When done, create a PR or note for merge
 
 **For Research Sessions:**
-1. No git branch needed (no code changes)
+1. No worktree needed (no code changes)
 2. Document findings in scratch notes or memory
 3. Can inform P0 session's approach
 
 **For Tooling Sessions:**
 1. Work on `.claude/`, `scripts/dev*.sh`, workflow files
-2. Usually safe to work in parallel (different file set)
+2. Create worktree if making code changes
 
-## Step 5: Pre-Merge Review
+## Step 6: Pre-Merge Review
 
 When your secondary work is complete, run a comprehensive review before merging:
 
 ```bash
-# Ensure your branch is up to date
+# In your worktree directory
+# Ensure your branch is up to date with main
 git fetch origin main
 git rebase origin/main
 
@@ -203,14 +257,32 @@ git rebase origin/main
 | `type-design-analyzer` | If you added new types/dataclasses |
 | `code-simplifier` | Optional - for complex implementations |
 
-After reviews pass, the P0 session can merge your branch or you can create a PR.
+## Step 7: Merge and Cleanup
+
+After reviews pass:
+
+```bash
+# Option A: Merge via PR (recommended)
+gh pr create --base main --head "$BRANCH_NAME" --title "feat: [item description]"
+
+# Option B: Fast-forward merge (if linear history)
+cd ../civic  # Main repo
+git merge --ff-only "$BRANCH_NAME"
+```
+
+**Cleanup worktree after merge:**
+```bash
+# From main repo directory
+git worktree remove ../civic-${TRACK}
+git branch -d "$BRANCH_NAME"  # Delete merged branch
+```
 
 ## Conflict Resolution
 
 If you accidentally touch files being modified by P0 session:
 1. **Stop immediately** - don't commit conflicting changes
 2. Coordinate with P0 session (or wait for it to complete)
-3. Rebase after P0 merges
+3. Rebase after P0 merges: `git rebase origin/main`
 
 ## Quick Reference
 
@@ -220,17 +292,34 @@ If you accidentally touch files being modified by P0 session:
 | P0 on frontend | Work on data, ops, or infra |
 | No P0 set | Run `/start` instead to claim P0 |
 | Same-track work needed | Wait for P0 to complete, or coordinate |
+| Worktree already exists | `cd ../civic-{track}` and continue |
+
+## Managing Worktrees
+
+```bash
+# List all worktrees
+git worktree list
+
+# Remove a worktree (after merging)
+git worktree remove ../civic-${TRACK}
+
+# Prune stale worktree references
+git worktree prune
+```
 
 ## Session End
 
-1. Commit to your feature branch
-2. Update pilot.json status (if item complete)
-3. Leave merge to P0 session or create PR
-4. Append to `claude-progress.txt`:
+1. Commit all changes to your feature branch
+2. Push branch: `git push -u origin $BRANCH_NAME`
+3. Update pilot.json status (if item complete)
+4. Create PR or coordinate merge with P0 session
+5. Append to `claude-progress.txt` (in main repo):
    ```
    ## Session N (Parallel): [item_name]
    **Track:** [track]
+   **Worktree:** ../civic-[track]
    **Branch:** feature/[track]/[item-name]
    **Status:** [complete/in-progress]
    [Brief summary]
    ```
+6. Clean up worktree if work is complete
