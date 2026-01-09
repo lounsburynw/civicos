@@ -17,6 +17,12 @@ from civic_extraction.clients.marin_registrar import (
     create_san_rafael_registrar_client,
     marin_election_to_storage,
 )
+from civic_extraction.clients.san_rafael_clerk import (
+    SanRafaelClerkClient,
+    create_san_rafael_clerk_client,
+    san_rafael_candidate_to_storage,
+    san_rafael_measure_to_storage,
+)
 
 
 class TestMeetingDataclass:
@@ -2062,6 +2068,181 @@ class TestMarinRegistrarClientIntegration:
         elections = client.get_elections()
         if len(elections) > 0:
             assert all(e.get("status") == "scheduled" for e in elections)
+
+
+class TestSanRafaelClerkClient:
+    """Test SanRafaelClerkClient for city election data."""
+
+    def test_client_initialization(self):
+        """Test client creates with correct defaults."""
+        client = SanRafaelClerkClient()
+        assert client.jurisdiction_id == "city-san-rafael"
+        assert client.platform_name == "san_rafael_clerk"
+        assert client.source_id == "san_rafael_clerk-city-san-rafael"
+        assert client.headless is True
+        assert client.request_delay == 2.0
+
+    def test_client_custom_settings(self):
+        """Test client with custom settings."""
+        client = SanRafaelClerkClient(headless=False, request_delay=1.0)
+        assert client.headless is False
+        assert client.request_delay == 1.0
+
+    def test_create_factory(self):
+        """Test convenience factory creates correct client."""
+        client = create_san_rafael_clerk_client()
+        assert client.jurisdiction_id == "city-san-rafael"
+        assert client.platform_name == "san_rafael_clerk"
+
+    def test_district_schedule(self):
+        """Test district election schedule constants."""
+        assert SanRafaelClerkClient.DISTRICT_SCHEDULE[2024] == ["D1", "D4", "Mayor"]
+        assert SanRafaelClerkClient.DISTRICT_SCHEDULE[2026] == ["D2", "D3"]
+        assert SanRafaelClerkClient.DISTRICT_SCHEDULE[2028] == ["D1", "D4", "Mayor"]
+
+    def test_get_upcoming_races_2026(self):
+        """Test upcoming races for 2026 midterm."""
+        client = SanRafaelClerkClient()
+        races = client.get_upcoming_races(2026)
+        assert len(races) == 2
+        offices = [r["office"] for r in races]
+        assert "Council District 2" in offices
+        assert "Council District 3" in offices
+        assert all(r["election_year"] == 2026 for r in races)
+
+    def test_get_upcoming_races_2028(self):
+        """Test upcoming races for 2028 presidential year."""
+        client = SanRafaelClerkClient()
+        races = client.get_upcoming_races(2028)
+        assert len(races) == 3
+        offices = [r["office"] for r in races]
+        assert "Council District 1" in offices
+        assert "Council District 4" in offices
+        assert "Mayor" in offices
+
+    def test_parse_candidates(self):
+        """Test _parse_candidates extracts candidates correctly."""
+        client = SanRafaelClerkClient()
+        text = """
+        Mayoral Candidates
+
+        Kate Colin
+        Statement of Qualifications
+        Campaign Finance Documents
+
+        Mahmoud Shirazi
+        Statement of Qualifications
+        Campaign Finance Documents
+
+        Councilmember District 4 Candidates
+
+        Rachel Kertz
+        Statement of Qualifications
+        """
+        candidates = client._parse_candidates(text)
+        assert len(candidates) >= 2
+        names = [c["name"] for c in candidates]
+        assert "Kate Colin" in names or "Mahmoud Shirazi" in names
+
+    def test_parse_measures(self):
+        """Test _parse_measures extracts measures correctly."""
+        client = SanRafaelClerkClient()
+        text = """
+        Measure P
+
+        "Shall the measure, to levy an annual special parcel tax..."
+
+        San Rafael voters approved Measure P.
+        """
+        measures = client._parse_measures(text)
+        assert len(measures) >= 1
+        assert measures[0]["letter"] == "P"
+        assert measures[0]["passed"] is True
+
+    def test_parse_measures_deduplicates(self):
+        """Test _parse_measures deduplicates measures."""
+        client = SanRafaelClerkClient()
+        text = """
+        Measure P information
+        More about Measure P
+        Measure P passed
+        """
+        measures = client._parse_measures(text)
+        assert len(measures) == 1
+        assert measures[0]["letter"] == "P"
+
+    def test_san_rafael_candidate_to_storage(self):
+        """Test candidate storage mapping."""
+        candidate = {
+            "name": "Kate Colin",
+            "office": "Mayor",
+            "source": "san_rafael_clerk",
+        }
+        result = san_rafael_candidate_to_storage(candidate, "2024-11-05")
+        assert "kate-colin" in result["id"]
+        assert result["name"] == "Kate Colin"
+        assert result["office"] == "Mayor"
+        assert result["source"] == "san_rafael_clerk"
+
+    def test_san_rafael_measure_to_storage(self):
+        """Test measure storage mapping."""
+        measure = {
+            "letter": "P",
+            "title": "Library and Community Center Tax",
+            "passed": True,
+            "source": "san_rafael_clerk",
+        }
+        result = san_rafael_measure_to_storage(measure, "2024-11-05")
+        assert "measure-p" in result["id"]
+        assert result["letter"] == "P"
+        assert result["passed"] is True
+        assert result["source"] == "san_rafael_clerk"
+
+
+class TestSanRafaelClerkClientIntegration:
+    """Integration tests that scrape the real San Rafael City Clerk website."""
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_health_check(self):
+        """Test health check against real website."""
+        client = SanRafaelClerkClient()
+        health = client.health()
+        assert health.source_id == "san_rafael_clerk-city-san-rafael"
+        assert health.check_duration_ms > 0
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_validate(self):
+        """Test validation checks."""
+        client = SanRafaelClerkClient()
+        result = client.validate()
+        assert result.config_valid is True
+        assert result.check_duration_ms > 0
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_get_past_elections(self):
+        """Test fetching past elections."""
+        client = SanRafaelClerkClient()
+        elections = client.get_past_elections()
+        if len(elections) > 0:
+            assert all("election_date" in e for e in elections)
+            assert all("url" in e for e in elections)
+            assert all("source" in e for e in elections)
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_get_election_details(self):
+        """Test fetching election details."""
+        client = SanRafaelClerkClient()
+        elections = client.get_past_elections()
+        if len(elections) > 0:
+            details = client.get_election_details(elections[0]["url"])
+            if details:
+                assert "candidates" in details
+                assert "measures" in details
+                assert "url" in details
 
 
 if __name__ == "__main__":

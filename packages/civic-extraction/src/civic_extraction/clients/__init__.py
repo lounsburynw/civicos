@@ -10,6 +10,7 @@ Each client wraps a specific municipal platform API:
 - fac: Federal Audit Clearinghouse (Single Audit / SEFA data)
 - google_civic: Google Civic Information API (elections, voter info)
 - marin_registrar: Marin County Registrar of Voters (local elections)
+- san_rafael_clerk: San Rafael City Clerk (city candidates, local measures)
 - representatives: Unified representative lookup (Congress.gov, Open States, local)
 """
 
@@ -65,6 +66,12 @@ from civic_extraction.clients.marin_registrar import (
     marin_election_to_storage,
     extract_marin_elections_to_storage,
 )
+from civic_extraction.clients.san_rafael_clerk import (
+    SanRafaelClerkClient,
+    create_san_rafael_clerk_client,
+    san_rafael_candidate_to_storage,
+    san_rafael_measure_to_storage,
+)
 
 __all__ = [
     "LegistarClient",
@@ -106,4 +113,8 @@ __all__ = [
     "create_san_rafael_registrar_client",
     "marin_election_to_storage",
     "extract_marin_elections_to_storage",
+    "SanRafaelClerkClient",
+    "create_san_rafael_clerk_client",
+    "san_rafael_candidate_to_storage",
+    "san_rafael_measure_to_storage",
 ]
