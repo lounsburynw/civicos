@@ -1273,7 +1273,7 @@
       },
       "manual_input_fallback_schema": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 2,
         "artifact": "Schema for manually-curated financial mappings when automation fails",
         "note": "Some mappings (e.g., grant-to-program, CFDA enrichment) require human input. Define data/manual/*.json schema with source attribution and last_updated tracking. Prioritize automation but plan for manual fallback.",
         "pattern": "Manual input should be structured, versioned, and clearly marked as human-curated"
@@ -1966,6 +1966,47 @@
         "jurisdiction_id": "school-san-rafael",
         "completed": "2026-01-09",
         "reference_scripts": ["scripts/ingest_srcs.py", "scripts/modal_ingest.py"]
+      },
+      "srcs_full_backfill": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "Run scripts/ingest_srcs.py for all historical SRCS meetings (2024-present)",
+        "note": "Initial ingestion only tested with 2 meetings. Need full backfill: python scripts/ingest_srcs.py --since 2024-01-01. Expect 20-50 meetings from Simbli portal. This populates meetings table and raw chunks.",
+        "depends_on": ["srcs_data_ingestion"],
+        "jurisdiction_id": "school-san-rafael"
+      },
+      "srcs_r2_pdf_storage": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Upload SRCS agenda PDFs to R2 for consistent storage with city meetings",
+        "note": "City meeting PDFs are stored in R2 (BLOB_STORAGE_URL). SRCS should follow same pattern: (1) Download PDF via SimbliClient, (2) Upload to R2 with path school-san-rafael/agendas/{meeting_id}.pdf, (3) Store R2 URL in meetings.agenda_url. Enables Modal workers to access PDFs for LLM extraction.",
+        "depends_on": ["srcs_full_backfill"],
+        "jurisdiction_id": "school-san-rafael"
+      },
+      "srcs_agenda_item_extraction": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Extract structured agenda items from SRCS PDFs using LLM (same as city)",
+        "note": "Use civic_extraction.cli.agenda module with Gemini LLM to extract structured items: item_number, title, type (consent/action/info), description, is_actionable. Same 2-pass LLM approach as city meetings. Run via: modal run scripts/modal_ingest.py --agenda --jurisdiction school-san-rafael. Stores to agenda_items table.",
+        "depends_on": ["srcs_r2_pdf_storage"],
+        "jurisdiction_id": "school-san-rafael",
+        "reference_module": "packages/civic-extraction/src/civic_extraction/cli/agenda.py"
+      },
+      "srcs_decision_extraction": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Extract decisions/votes from SRCS meeting minutes using LLM",
+        "note": "After agenda items, extract decisions from minutes PDFs (if available). Same pattern as city: civic_extraction.cli.decisions with Gemini. Populates decisions table. Lower priority - minutes often lag behind meetings.",
+        "depends_on": ["srcs_agenda_item_extraction"],
+        "jurisdiction_id": "school-san-rafael"
+      },
+      "srcs_vector_indexing": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Index SRCS agenda items and decisions in pgvector",
+        "note": "After LLM extraction, index agenda_items and decisions for school-san-rafael. Run: modal run scripts/modal_ingest.py --vectors --jurisdiction school-san-rafael. Enables what_happened(), whats_next() queries for school board.",
+        "depends_on": ["srcs_agenda_item_extraction"],
+        "jurisdiction_id": "school-san-rafael"
       }
     }
   },
