@@ -895,6 +895,40 @@ class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
             # GET /api/onboarding/cards - Generate Values Explorer cards (PUBLIC)
             # Privacy-first: No authentication required, no user tracking
             self.serve_onboarding_cards()
+        elif base_path == '/api/elections':
+            # GET /api/elections?jurisdiction={id} - List upcoming elections
+            parsed_url = urlparse(self.path)
+            query_params = parse_qs(parsed_url.query)
+            jurisdiction_id = query_params.get('jurisdiction', ['city-san-rafael'])[0]
+            include_past = query_params.get('include_past', ['false'])[0].lower() == 'true'
+            self.serve_elections(jurisdiction_id, include_past)
+        elif base_path.startswith('/api/elections/'):
+            # GET /api/elections/{id}/contests - Get contests for election
+            path_parts = base_path.split('/')
+            if len(path_parts) >= 5 and path_parts[4] == 'contests':
+                election_id = path_parts[3]
+                self.serve_election_contests(election_id)
+            elif len(path_parts) == 4:
+                # GET /api/elections/{id} - Single election details
+                election_id = path_parts[3]
+                self.serve_single_election(election_id)
+            else:
+                self.send_error(404)
+        elif base_path.startswith('/api/voting-record/'):
+            # GET /api/voting-record/{official}?jurisdiction={id}&topic={topic}
+            path_parts = base_path.split('/')
+            if len(path_parts) >= 4:
+                official_name = path_parts[3]
+                # URL decode the official name
+                from urllib.parse import unquote
+                official_name = unquote(official_name)
+                parsed_url = urlparse(self.path)
+                query_params = parse_qs(parsed_url.query)
+                jurisdiction_id = query_params.get('jurisdiction', ['city-san-rafael'])[0]
+                topic = query_params.get('topic', [None])[0]
+                self.serve_voting_record(official_name, jurisdiction_id, topic)
+            else:
+                self.send_error(404)
         elif base_path in ['/api/status', '/health']:
             self.serve_status()
         else:
@@ -5673,6 +5707,291 @@ Key Topics (choose up to 3 from):
 
         except Exception as e:
             print(f"[civic_api] ERROR serving federal programs: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            self.send_error(500, f"Server error: {str(e)}")
+
+    def serve_elections(self, jurisdiction_id: str, include_past: bool = False):
+        """
+        Serve upcoming elections for a jurisdiction.
+
+        GET /api/elections?jurisdiction={id}&include_past=false
+
+        Response format:
+        {
+            "elections": [
+                {
+                    "id": "uuid",
+                    "name": "California Primary",
+                    "election_date": "2026-06-02",
+                    "election_type": "primary",
+                    "deadlines": [
+                        {"type": "voter_registration", "date": "2026-05-18", "description": "..."}
+                    ],
+                    "source": "google_civic",
+                    "source_url": "..."
+                }
+            ],
+            "metadata": {
+                "jurisdiction": "city-san-rafael",
+                "count": 2,
+                "include_past": false
+            }
+        }
+        """
+        try:
+            from civic import Civic
+            from pathlib import Path
+
+            state_db_path = get_user_path('civic_state.db')
+            civic = Civic(jurisdiction_id, db_path=str(state_db_path))
+
+            # Get elections from storage backend
+            elections_data = civic._storage.get_elections(
+                jurisdiction_id=jurisdiction_id,
+                include_past=include_past
+            )
+
+            # Get deadlines for each election
+            elections = []
+            for election in elections_data:
+                deadlines = civic._storage.get_election_deadlines(election['id'])
+                elections.append({
+                    'id': election['id'],
+                    'name': election['name'],
+                    'election_date': election['election_date'].isoformat() if hasattr(election['election_date'], 'isoformat') else election['election_date'],
+                    'election_type': election.get('election_type', 'unknown'),
+                    'deadlines': [
+                        {
+                            'type': d.get('deadline_type'),
+                            'date': d['deadline_date'].isoformat() if hasattr(d['deadline_date'], 'isoformat') else d['deadline_date'],
+                            'description': d.get('description')
+                        }
+                        for d in deadlines
+                    ],
+                    'source': election.get('source'),
+                    'source_url': election.get('source_url')
+                })
+
+            self.send_json({
+                'elections': elections,
+                'metadata': {
+                    'jurisdiction': jurisdiction_id,
+                    'count': len(elections),
+                    'include_past': include_past
+                }
+            })
+
+        except Exception as e:
+            logger.error("serve_elections_error", extra={"error": str(e), "jurisdiction": jurisdiction_id})
+            import traceback
+            traceback.print_exc()
+            self.send_error(500, f"Server error: {str(e)}")
+
+    def serve_single_election(self, election_id: str):
+        """
+        Serve details for a single election.
+
+        GET /api/elections/{id}
+        """
+        try:
+            from civic import Civic
+            from pathlib import Path
+
+            # Use default jurisdiction, we'll query by election_id directly
+            state_db_path = get_user_path('civic_state.db')
+            civic = Civic('city-san-rafael', db_path=str(state_db_path))
+
+            # Query directly via storage backend connection
+            conn = civic._storage._get_connection()
+            is_postgres = civic._storage.backend_type == 'postgres'
+
+            if is_postgres:
+                import psycopg2.extras
+                cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                cursor.execute("""
+                    SELECT id, jurisdiction_id, name, election_date, election_type, source, source_url
+                    FROM elections
+                    WHERE id = %s AND valid_to IS NULL
+                """, (election_id,))
+                election = cursor.fetchone()
+            else:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT id, jurisdiction_id, name, election_date, election_type, source, source_url
+                    FROM elections
+                    WHERE id = ? AND valid_to IS NULL
+                """, (election_id,))
+                row = cursor.fetchone()
+                if row:
+                    election = {
+                        'id': row[0],
+                        'jurisdiction_id': row[1],
+                        'name': row[2],
+                        'election_date': row[3],
+                        'election_type': row[4],
+                        'source': row[5],
+                        'source_url': row[6]
+                    }
+                else:
+                    election = None
+
+            if not election:
+                self.send_json({'error': f'Election not found: {election_id}'}, 404)
+                return
+
+            # Get deadlines
+            deadlines = civic._storage.get_election_deadlines(election_id)
+
+            # Get contests
+            contests = civic._storage.get_election_contests(election_id)
+
+            response = {
+                'id': election['id'],
+                'jurisdiction_id': election['jurisdiction_id'],
+                'name': election['name'],
+                'election_date': election['election_date'].isoformat() if hasattr(election['election_date'], 'isoformat') else election['election_date'],
+                'election_type': election.get('election_type', 'unknown'),
+                'source': election.get('source'),
+                'source_url': election.get('source_url'),
+                'deadlines': [
+                    {
+                        'type': d.get('deadline_type'),
+                        'date': d['deadline_date'].isoformat() if hasattr(d['deadline_date'], 'isoformat') else d['deadline_date'],
+                        'description': d.get('description')
+                    }
+                    for d in deadlines
+                ],
+                'contests': [
+                    {
+                        'id': c['id'],
+                        'name': c['name'],
+                        'type': c.get('type'),
+                        'level': c.get('level'),
+                        'district': c.get('district')
+                    }
+                    for c in contests
+                ]
+            }
+
+            self.send_json(response)
+
+        except Exception as e:
+            logger.error("serve_single_election_error", extra={"error": str(e), "election_id": election_id})
+            import traceback
+            traceback.print_exc()
+            self.send_error(500, f"Server error: {str(e)}")
+
+    def serve_election_contests(self, election_id: str):
+        """
+        Serve contests for an election.
+
+        GET /api/elections/{id}/contests
+        """
+        try:
+            from civic import Civic
+            from pathlib import Path
+
+            state_db_path = get_user_path('civic_state.db')
+            civic = Civic('city-san-rafael', db_path=str(state_db_path))
+
+            contests = civic._storage.get_election_contests(election_id)
+
+            self.send_json({
+                'contests': [
+                    {
+                        'id': c['id'],
+                        'election_id': c['election_id'],
+                        'name': c['name'],
+                        'type': c.get('type'),
+                        'level': c.get('level'),
+                        'district': c.get('district'),
+                        'candidates': c.get('candidates', [])
+                    }
+                    for c in contests
+                ],
+                'metadata': {
+                    'election_id': election_id,
+                    'count': len(contests)
+                }
+            })
+
+        except Exception as e:
+            logger.error("serve_election_contests_error", extra={"error": str(e), "election_id": election_id})
+            import traceback
+            traceback.print_exc()
+            self.send_error(500, f"Server error: {str(e)}")
+
+    def serve_voting_record(self, official_name: str, jurisdiction_id: str, topic: Optional[str] = None):
+        """
+        Serve voting record for an elected official.
+
+        GET /api/voting-record/{official}?jurisdiction={id}&topic={topic}
+
+        Response format:
+        {
+            "official_name": "Kate Colin",
+            "jurisdiction": "city-san-rafael",
+            "votes": {
+                "total": 42,
+                "yes": 38,
+                "no": 2,
+                "abstain": 2
+            },
+            "decisions": [
+                {
+                    "id": "...",
+                    "title": "...",
+                    "date": "2025-11-15",
+                    "vote": "yes",
+                    "topic": "housing"
+                }
+            ]
+        }
+        """
+        try:
+            from civic import Civic
+            from pathlib import Path
+
+            state_db_path = get_user_path('civic_state.db')
+            civic = Civic(jurisdiction_id, db_path=str(state_db_path))
+
+            # Use the Civic.get_voting_record method
+            voting_record = civic.get_voting_record(
+                official_name=official_name,
+                topic=topic
+            )
+
+            # Convert to response format
+            decisions = []
+            for decision in voting_record.decisions:
+                decisions.append({
+                    'id': decision.get('decision_id'),
+                    'title': decision.get('title'),
+                    'date': decision.get('date').isoformat() if hasattr(decision.get('date'), 'isoformat') else decision.get('date'),
+                    'vote': decision.get('vote'),
+                    'topic': decision.get('topic')
+                })
+
+            self.send_json({
+                'official_name': voting_record.official_name,
+                'jurisdiction': jurisdiction_id,
+                'votes': {
+                    'total': voting_record.total_votes,
+                    'yes': voting_record.yes_votes,
+                    'no': voting_record.no_votes,
+                    'abstain': voting_record.abstain_votes
+                },
+                'decisions': decisions,
+                'topic_filter': topic
+            })
+
+        except Exception as e:
+            logger.error("serve_voting_record_error", extra={
+                "error": str(e),
+                "official": official_name,
+                "jurisdiction": jurisdiction_id
+            })
             import traceback
             traceback.print_exc()
             self.send_error(500, f"Server error: {str(e)}")

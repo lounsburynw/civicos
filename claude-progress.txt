@@ -11426,3 +11426,35 @@ After completing election_vector_embeddings, added items for local election cove
 ### Commits
 - c3d8e38 feat: Add election vector embeddings for semantic search
 - 5f77b87 pilot: Add local election data items, set marin_registrar_scraper P0
+
+
+## Session 2026-01-08 - Election API Endpoints
+
+### Task
+election_api_endpoints (P0) - REST endpoints for election data access from frontend
+
+### Changes
+
+1. **packages/civic-services/src/civic_services/servers/civic_api_integrated.py**
+   - Added GET /api/elections?jurisdiction={id}&include_past=false - List upcoming elections
+   - Added GET /api/elections/{id} - Single election with deadlines and contests
+   - Added GET /api/elections/{id}/contests - Contests for an election
+   - Added GET /api/voting-record/{official}?jurisdiction={id}&topic={topic} - Official voting record
+
+2. **packages/civic/tests/test_election_api.py** (new file)
+   - 11 unit tests for election and voting record endpoints
+   - Tests mock storage and real database integration
+
+### Tests
+
+- 11 new tests pass in test_election_api.py
+- 42 smoke tests pass (no regressions)
+
+### Data Status
+
+- Endpoints use existing PostgresBackend methods (get_elections, get_election_deadlines, get_election_contests)
+- VotingRecord from Civic.get_voting_record() serialized for HTTP response
+
+### Next P0
+
+marin_registrar_scraper - Marin County Registrar data scraper for authoritative local election data
