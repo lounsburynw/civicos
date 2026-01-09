@@ -103,7 +103,7 @@
       },
       "eval_framework": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Expand eval framework with F1, coverage, and bias metrics",
         "note": "P0: Current benchmark (scripts/benchmark_api_vs_llm.py) has accuracy/precision/recall. Add: F1 score, topic coverage, freshness, source diversity, NDCG, null rate, meeting type coverage, geographic coverage, temporal bias. Critical for pilot quality assessment.",
         "test_file": "scripts/benchmark_api_vs_llm.py"
@@ -1929,27 +1929,31 @@
         ]
       },
       "simbli_browser_automation": {
-        "status": "not_ready",
-        "priority": 3,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Playwright-based scraper for Simbli/eBoard meeting data",
-        "note": "Simbli blocks automated requests (Incapsula WAF) and has no public API (confirmed via GetApp). Playwright can bypass WAF by running a real browser. Would extract: meeting dates, agenda PDFs, minutes, attachments. Lower priority than YouTube since video content is richer for RAG. Consider: maintenance burden of browser automation, potential ToS issues, whether YouTube API provides sufficient data.",
-        "tradeoffs": {
-          "pros": [
-            "Full meeting metadata",
-            "Agenda/minutes PDFs",
-            "Works for other Simbli districts"
-          ],
-          "cons": [
-            "Fragile (HTML changes break it)",
-            "WAF/ToS risks",
-            "Higher maintenance",
-            "Slower than API"
-          ]
-        },
-        "alternative": "YouTube API provides video metadata and transcripts, which may be sufficient for pilot",
-        "depends_on": [
-          "srcs_youtube_integration"
-        ]
+        "note": "SimbliClient implemented with Playwright. Bypasses Incapsula WAF. Extracts meeting metadata (dates, types, titles) from SRCS board portal at simbli.eboardsolutions.com (district ID 36030430). 24 tests pass. Correct URL discovered: https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030430",
+        "completed": "2026-01-08",
+        "test_file": "packages/civic-extraction/tests/test_clients.py::TestSimbliClient",
+        "source_file": "packages/civic-extraction/src/civic_extraction/clients/simbli.py"
+      },
+      "simbli_mid_discovery": {
+        "status": "ready",
+        "priority": 2,
+        "artifact": "Capture Simbli meeting IDs (MIDs) during meeting parsing",
+        "note": "Implemented - extracts MIDs from onclick attributes (ViewMeeting pattern) without clicking. Integration test verified 4/4 meetings with MIDs discovered. simbli_mid field added to SimbliMeeting dataclass, stored in raw_data when mapped to storage.",
+        "completed": "2026-01-08",
+        "source_file": "packages/civic-extraction/src/civic_extraction/clients/simbli.py",
+        "test_file": "packages/civic-extraction/tests/test_clients.py::TestSimbliClientIntegration::test_get_meetings_discovers_mids",
+        "depends_on": ["simbli_browser_automation"]
+      },
+      "simbli_pdf_download": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "Two-step PDF download workflow for Simbli agendas",
+        "note": "Simbli PDFs are generated dynamically. Workflow: (1) Navigate to PrintAgenda.aspx?S={district}&MID={mid}, (2) Click Print button, (3) POST to /api/PrintAgenda/PrintAgenda returns JSON with FileUrl, (4) GET FileUrl downloads PDF. Tested successfully - 843KB PDF downloaded. Add download_agenda_pdf(meeting) method to SimbliClient.",
+        "source_file": "packages/civic-extraction/src/civic_extraction/clients/simbli.py",
+        "depends_on": ["simbli_mid_discovery"]
       }
     }
   },

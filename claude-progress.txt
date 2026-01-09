@@ -11530,3 +11530,72 @@ After initial commit, expanded local election coverage with city-specific data:
 - MarinRegistrarClient → County-wide election dates
 - SanRafaelClerkClient → City candidates, local measures, school board
 
+
+## Session - 2026-01-08: Simbli Browser Automation
+
+### Completed
+- Implemented SimbliClient with Playwright for SRCS school board meetings
+- Discovered correct URL: https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030430
+  (Original handoff URL srcs.simbli.com was wrong - domain doesn't exist)
+- Client extracts 19+ meetings from 2024-2025 with dates, types, titles
+- 24 tests pass (21 unit + 3 integration)
+- Investigated PDF download workflow:
+  - Simbli stores agendas as HTML, not static PDFs
+  - PDFs generated via 2-step process: Print button → API returns FileUrl → download PDF
+  - Successfully downloaded 843KB test PDF
+  - Requires Simbli MID (hidden in JavaScript, not in table HTML)
+
+### New Items Added to pilot.json
+1. **simbli_mid_discovery (P0)**: Capture Simbli MIDs when parsing meetings
+2. **simbli_pdf_download (P1)**: Implement 2-step PDF download workflow
+
+### Files Changed
+- packages/civic-extraction/src/civic_extraction/clients/simbli.py (new)
+- packages/civic-extraction/src/civic_extraction/clients/__init__.py (exports)
+- packages/civic-extraction/tests/test_clients.py (24 new tests)
+- pilot.json (marked simbli_browser_automation ready, added 2 new items)
+
+### Key Discovery
+PDF workflow: PrintAgenda.aspx?MID={id} → Click Print → POST /api/PrintAgenda/PrintAgenda → JSON {FileUrl} → GET FileUrl → PDF bytes
+
+
+---
+
+## Session: 2026-01-08 - simbli_mid_discovery (P0)
+
+### Completed
+Implemented Simbli MID discovery feature for school board meeting extraction.
+
+### Changes Made
+1. **Added `simbli_mid` field to SimbliMeeting dataclass** (simbli.py:47)
+   - Optional field to store Simbli internal meeting ID
+   
+2. **Implemented `_discover_meeting_mids()` method** (simbli.py:753-844)
+   - Extracts MIDs directly from onclick attributes (ViewMeeting pattern)
+   - No clicking required - more efficient than original plan
+   - Matches MIDs to meetings by parsing date from table rows
+   
+3. **Updated `get_meetings()` to call MID discovery** (simbli.py:444-448)
+   - Logs how many MIDs were discovered out of total meetings
+   
+4. **Updated storage mapper to include MID** (simbli.py:958-977)
+   - simbli_mid is stored in raw_data when mapped to storage
+
+5. **Added unit tests** (test_clients.py:2455-2480, 2535-2567)
+   - test_simbli_meeting_with_mid
+   - test_simbli_meeting_mid_defaults_to_none
+   - test_simbli_meeting_to_storage_with_mid
+   - test_simbli_meeting_to_storage_no_mid
+
+6. **Added integration test** (test_clients.py:2648-2672)
+   - test_get_meetings_discovers_mids - verified 4/4 meetings with MIDs
+
+### Test Results
+- 25 unit tests pass (4 new)
+- Integration test: 4/4 meetings have MIDs discovered (45989, 45982, 45465, 45464)
+
+### Key Finding
+MIDs are embedded in onclick attributes: `ViewMeeting("36030430","45989",...)` - the second parameter is the MID. This is more efficient than the originally planned click-and-extract approach.
+
+### Next P0
+`simbli_pdf_download` - Use captured MIDs to implement PDF download workflow

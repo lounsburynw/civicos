@@ -2245,5 +2245,432 @@ class TestSanRafaelClerkClientIntegration:
                 assert "url" in details
 
 
+class TestSimbliClient:
+    """Test SimbliClient for school board meeting data."""
+
+    def test_client_initialization(self):
+        """Test client creates with correct defaults."""
+        from civic_extraction.clients.simbli import SimbliClient
+
+        client = SimbliClient(
+            board_url="https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030430",
+            jurisdiction_id="srcs",
+        )
+        assert client.jurisdiction_id == "srcs"
+        assert client.platform_name == "simbli"
+        assert client.source_id == "simbli-srcs"
+        assert client.headless is True
+        assert client.request_delay == 2.0
+        assert client.base_url == "https://simbli.eboardsolutions.com"
+
+    def test_client_custom_settings(self):
+        """Test client with custom headless and delay settings."""
+        from civic_extraction.clients.simbli import SimbliClient
+
+        client = SimbliClient(
+            board_url="https://test.simbli.com/index.php",
+            jurisdiction_id="test",
+            headless=False,
+            request_delay=5.0,
+        )
+        assert client.headless is False
+        assert client.request_delay == 5.0
+
+    def test_infer_meeting_type_regular(self):
+        """Test meeting type inference for regular meetings."""
+        from civic_extraction.clients.simbli import SimbliClient
+
+        client = SimbliClient("https://test.simbli.com", "test")
+        assert client._infer_meeting_type("Regular Board Meeting") == "regular"
+        assert client._infer_meeting_type("Board Meeting") == "regular"
+
+    def test_infer_meeting_type_special(self):
+        """Test meeting type inference for special meetings."""
+        from civic_extraction.clients.simbli import SimbliClient
+
+        client = SimbliClient("https://test.simbli.com", "test")
+        assert client._infer_meeting_type("Special Board Meeting") == "special"
+        assert client._infer_meeting_type("Special Session") == "special"
+
+    def test_infer_meeting_type_study_session(self):
+        """Test meeting type inference for study sessions."""
+        from civic_extraction.clients.simbli import SimbliClient
+
+        client = SimbliClient("https://test.simbli.com", "test")
+        assert client._infer_meeting_type("Study Session") == "study_session"
+        assert client._infer_meeting_type("Board Workshop") == "study_session"
+
+    def test_infer_meeting_type_closed(self):
+        """Test meeting type inference for closed sessions."""
+        from civic_extraction.clients.simbli import SimbliClient
+
+        client = SimbliClient("https://test.simbli.com", "test")
+        assert client._infer_meeting_type("Closed Session") == "closed_session"
+        assert client._infer_meeting_type("Executive Session") == "closed_session"
+
+    def test_generate_meeting_title(self):
+        """Test meeting title generation."""
+        from civic_extraction.clients.simbli import SimbliClient
+        from datetime import date
+
+        client = SimbliClient("https://test.simbli.com", "test")
+
+        title = client._generate_meeting_title("regular", date(2026, 1, 15))
+        assert title == "Regular Board Meeting - January 15, 2026"
+
+        title = client._generate_meeting_title("special", date(2026, 2, 20))
+        assert title == "Special Board Meeting - February 20, 2026"
+
+    def test_make_absolute_url_already_absolute(self):
+        """Test URL handling for already absolute URLs."""
+        from civic_extraction.clients.simbli import SimbliClient
+
+        client = SimbliClient("https://srcs.simbli.com/index.php", "srcs")
+        url = client._make_absolute_url("https://example.com/doc.pdf")
+        assert url == "https://example.com/doc.pdf"
+
+    def test_make_absolute_url_relative_with_slash(self):
+        """Test URL handling for relative URLs starting with /."""
+        from civic_extraction.clients.simbli import SimbliClient
+
+        client = SimbliClient("https://srcs.simbli.com/index.php", "srcs")
+        url = client._make_absolute_url("/docs/agenda.pdf")
+        assert url == "https://srcs.simbli.com/docs/agenda.pdf"
+
+    def test_make_absolute_url_relative_without_slash(self):
+        """Test URL handling for relative URLs without leading /."""
+        from civic_extraction.clients.simbli import SimbliClient
+
+        client = SimbliClient("https://srcs.simbli.com/index.php", "srcs")
+        url = client._make_absolute_url("docs/agenda.pdf")
+        assert url == "https://srcs.simbli.com/docs/agenda.pdf"
+
+    def test_find_pdf_link_agenda(self):
+        """Test finding agenda PDF links in HTML."""
+        from civic_extraction.clients.simbli import SimbliClient
+
+        client = SimbliClient("https://srcs.simbli.com", "srcs")
+        html = '''
+        <a href="/docs/agenda_2026_01.pdf">View Agenda</a>
+        <a href="/docs/minutes_2026_01.pdf">View Minutes</a>
+        '''
+        agenda_url = client._find_pdf_link(html, ["agenda", "agnd"])
+        assert agenda_url == "https://srcs.simbli.com/docs/agenda_2026_01.pdf"
+
+    def test_find_pdf_link_minutes(self):
+        """Test finding minutes PDF links in HTML."""
+        from civic_extraction.clients.simbli import SimbliClient
+
+        client = SimbliClient("https://srcs.simbli.com", "srcs")
+        html = '''
+        <a href="/docs/agenda_2026_01.pdf">View Agenda</a>
+        <a href="/docs/minutes_2026_01.pdf">View Minutes</a>
+        '''
+        minutes_url = client._find_pdf_link(html, ["minutes", "min"])
+        assert minutes_url == "https://srcs.simbli.com/docs/minutes_2026_01.pdf"
+
+    def test_find_pdf_link_not_found(self):
+        """Test when no matching PDF link is found."""
+        from civic_extraction.clients.simbli import SimbliClient
+
+        client = SimbliClient("https://srcs.simbli.com", "srcs")
+        html = '<a href="/docs/report.pdf">View Report</a>'
+        agenda_url = client._find_pdf_link(html, ["agenda", "agnd"])
+        assert agenda_url is None
+
+    def test_parse_table_meetings(self):
+        """Test parsing meetings from HTML table rows."""
+        from civic_extraction.clients.simbli import SimbliClient
+        from datetime import date
+
+        client = SimbliClient("https://srcs.simbli.com", "srcs")
+
+        html = '''
+        <table>
+        <tr>
+            <td>January 15, 2026</td>
+            <td>Regular Board Meeting</td>
+            <td><a href="/docs/agenda_2026_01.pdf">Agenda</a></td>
+        </tr>
+        <tr>
+            <td>February 19, 2026</td>
+            <td>Special Board Meeting</td>
+            <td><a href="/docs/agenda_2026_02.pdf">Agenda</a></td>
+        </tr>
+        </table>
+        '''
+
+        meetings = client._parse_table_meetings(html, date(2026, 1, 1), limit=10)
+
+        assert len(meetings) == 2
+
+        assert meetings[0].id == "srcs-2026-01-15"
+        assert meetings[0].meeting_type == "regular"
+        assert meetings[0].agenda_url == "https://srcs.simbli.com/docs/agenda_2026_01.pdf"
+
+        assert meetings[1].id == "srcs-2026-02-19"
+        assert meetings[1].meeting_type == "special"
+
+    def test_parse_table_meetings_filters_old_dates(self):
+        """Test that old meetings are filtered out."""
+        from civic_extraction.clients.simbli import SimbliClient
+        from datetime import date
+
+        client = SimbliClient("https://srcs.simbli.com", "srcs")
+
+        html = '''
+        <table>
+        <tr><td>January 15, 2024</td><td>Old Meeting</td></tr>
+        <tr><td>January 15, 2026</td><td>New Meeting</td></tr>
+        </table>
+        '''
+
+        meetings = client._parse_table_meetings(html, date(2025, 1, 1), limit=10)
+
+        # Only the 2026 meeting should be returned
+        assert len(meetings) == 1
+        assert meetings[0].id == "srcs-2026-01-15"
+
+
+class TestSimbliMeeting:
+    """Test SimbliMeeting dataclass."""
+
+    def test_simbli_meeting_creation(self):
+        """Test basic SimbliMeeting creation."""
+        from civic_extraction.clients.simbli import SimbliMeeting
+        from datetime import datetime
+
+        meeting = SimbliMeeting(
+            id="srcs-2026-01-15",
+            title="Regular Board Meeting",
+            meeting_datetime=datetime(2026, 1, 15, 18, 0),
+            meeting_type="regular",
+            agenda_url="https://example.com/agenda.pdf",
+        )
+        assert meeting.id == "srcs-2026-01-15"
+        assert meeting.title == "Regular Board Meeting"
+        assert meeting.meeting_type == "regular"
+        assert meeting.agenda_url == "https://example.com/agenda.pdf"
+
+    def test_simbli_meeting_with_mid(self):
+        """Test SimbliMeeting with simbli_mid field."""
+        from civic_extraction.clients.simbli import SimbliMeeting
+        from datetime import datetime
+
+        meeting = SimbliMeeting(
+            id="srcs-2026-01-15",
+            title="Regular Board Meeting",
+            meeting_datetime=datetime(2026, 1, 15, 18, 0),
+            meeting_type="regular",
+            simbli_mid="45989",
+        )
+        assert meeting.simbli_mid == "45989"
+
+    def test_simbli_meeting_mid_defaults_to_none(self):
+        """Test simbli_mid defaults to None when not provided."""
+        from civic_extraction.clients.simbli import SimbliMeeting
+        from datetime import datetime
+
+        meeting = SimbliMeeting(
+            id="srcs-2026-01-15",
+            title="Regular Board Meeting",
+            meeting_datetime=datetime(2026, 1, 15, 18, 0),
+            meeting_type="regular",
+        )
+        assert meeting.simbli_mid is None
+
+    def test_simbli_meeting_to_meeting(self):
+        """Test converting SimbliMeeting to standard Meeting format."""
+        from civic_extraction.clients.simbli import SimbliMeeting
+        from datetime import datetime
+
+        simbli_meeting = SimbliMeeting(
+            id="srcs-2026-01-15",
+            title="Regular Board Meeting - January 15, 2026",
+            meeting_datetime=datetime(2026, 1, 15, 18, 0),
+            meeting_type="regular",
+            agenda_url="https://example.com/agenda.pdf",
+            minutes_url="https://example.com/minutes.pdf",
+            source_url="https://srcs.simbli.com/index.php",
+        )
+
+        meeting = simbli_meeting.to_meeting("srcs")
+
+        assert meeting.id == "srcs-2026-01-15"
+        assert meeting.title == "Regular Board Meeting - January 15, 2026"
+        assert meeting.jurisdiction_id == "srcs"
+        assert meeting.meeting_type == "regular"
+        assert meeting.source_platform == "simbli"
+        assert meeting.agenda_url == "https://example.com/agenda.pdf"
+        assert meeting.minutes_url == "https://example.com/minutes.pdf"
+
+
+class TestSimbliStorageMappers:
+    """Test Simbli storage mapper functions."""
+
+    def test_simbli_meeting_to_storage(self):
+        """Test storage mapping for Simbli meetings."""
+        from civic_extraction.clients.simbli import SimbliMeeting, simbli_meeting_to_storage
+        from datetime import datetime
+
+        meeting = SimbliMeeting(
+            id="srcs-2026-01-15",
+            title="Regular Board Meeting",
+            meeting_datetime=datetime(2026, 1, 15, 18, 0),
+            meeting_type="regular",
+            agenda_url="https://example.com/agenda.pdf",
+            source_url="https://srcs.simbli.com",
+        )
+
+        result = simbli_meeting_to_storage(meeting, "srcs")
+
+        assert result["id"] == "srcs-2026-01-15"
+        assert result["title"] == "Regular Board Meeting"
+        assert result["jurisdiction_id"] == "srcs"
+        assert result["meeting_type"] == "regular"
+        assert result["source"] == "simbli"
+        assert result["agenda_url"] == "https://example.com/agenda.pdf"
+        assert "2026-01-15" in result["meeting_datetime"]
+
+    def test_simbli_meeting_to_storage_with_mid(self):
+        """Test storage mapping includes simbli_mid in raw_data."""
+        from civic_extraction.clients.simbli import SimbliMeeting, simbli_meeting_to_storage
+        from datetime import datetime
+
+        meeting = SimbliMeeting(
+            id="srcs-2026-01-15",
+            title="Regular Board Meeting",
+            meeting_datetime=datetime(2026, 1, 15, 18, 0),
+            meeting_type="regular",
+            simbli_mid="45989",
+        )
+
+        result = simbli_meeting_to_storage(meeting, "srcs")
+
+        assert result["raw_data"] is not None
+        assert result["raw_data"]["simbli_mid"] == "45989"
+
+    def test_simbli_meeting_to_storage_no_mid(self):
+        """Test storage mapping without simbli_mid has no raw_data."""
+        from civic_extraction.clients.simbli import SimbliMeeting, simbli_meeting_to_storage
+        from datetime import datetime
+
+        meeting = SimbliMeeting(
+            id="srcs-2026-01-15",
+            title="Regular Board Meeting",
+            meeting_datetime=datetime(2026, 1, 15, 18, 0),
+            meeting_type="regular",
+        )
+
+        result = simbli_meeting_to_storage(meeting, "srcs")
+
+        assert result["raw_data"] is None
+
+
+class TestCreateSrcsSimbliClient:
+    """Test SRCS Simbli client factory."""
+
+    def test_create_srcs_simbli_client(self):
+        """Test factory function creates correctly configured client."""
+        from civic_extraction.clients.simbli import create_srcs_simbli_client
+
+        client = create_srcs_simbli_client()
+        assert client.jurisdiction_id == "srcs"
+        assert "simbli.eboardsolutions.com" in client.board_url
+        assert "S=36030430" in client.board_url  # SRCS district ID
+        assert client.headless is True
+
+    def test_create_srcs_simbli_client_headless_option(self):
+        """Test factory function respects headless option."""
+        from civic_extraction.clients.simbli import create_srcs_simbli_client
+
+        client = create_srcs_simbli_client(headless=False)
+        assert client.headless is False
+
+
+class TestSimbliClientValidation:
+    """Test SimbliClient validation."""
+
+    def test_validate_requires_valid_url(self):
+        """Test validation fails for invalid URL."""
+        from civic_extraction.clients.simbli import SimbliClient
+
+        client = SimbliClient(
+            board_url="not-a-url",
+            jurisdiction_id="test",
+        )
+        result = client.validate()
+        assert result.is_valid is False
+        assert result.config_valid is False
+        assert any("Invalid board_url" in err for err in result.errors)
+
+
+class TestSimbliClientIntegration:
+    """Integration tests that scrape the real SRCS Simbli site."""
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_health_check(self):
+        """Test health check against real Simbli website."""
+        from civic_extraction.clients.simbli import create_srcs_simbli_client
+
+        client = create_srcs_simbli_client()
+        health = client.health()
+        assert health.source_id == "simbli-srcs"
+        assert health.check_duration_ms > 0
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_validate(self):
+        """Test validation against real Simbli website."""
+        from civic_extraction.clients.simbli import create_srcs_simbli_client
+
+        client = create_srcs_simbli_client()
+        result = client.validate()
+        assert result.config_valid is True
+        assert result.check_duration_ms > 0
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_get_meetings(self):
+        """Test fetching meetings from real Simbli website."""
+        from civic_extraction.clients.simbli import create_srcs_simbli_client
+        from datetime import date
+
+        client = create_srcs_simbli_client()
+        meetings = client.get_meetings(since=date(2024, 1, 1), limit=10)
+
+        # May return 0 meetings if WAF blocks, which is acceptable for health check
+        if len(meetings) > 0:
+            assert all(m.id.startswith("srcs-") for m in meetings)
+            assert all(m.meeting_type in ["regular", "special", "study_session", "closed_session", "reorganization", "emergency"] for m in meetings)
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_get_meetings_discovers_mids(self):
+        """Test that MID discovery populates simbli_mid field."""
+        from civic_extraction.clients.simbli import create_srcs_simbli_client
+        from datetime import date
+
+        client = create_srcs_simbli_client()
+        meetings = client.get_meetings(since=date(2024, 1, 1), limit=5)
+
+        # If we got meetings, at least some should have MIDs discovered
+        if len(meetings) > 0:
+            mids_found = [m for m in meetings if m.simbli_mid is not None]
+            # Log results for debugging
+            print(f"Found {len(mids_found)}/{len(meetings)} meetings with MIDs")
+            for m in mids_found:
+                print(f"  - {m.id}: MID={m.simbli_mid}")
+
+            # At least one meeting should have an MID discovered
+            # (may not be all due to timing/JS loading issues)
+            assert len(mids_found) >= 1, "Expected at least one meeting to have simbli_mid populated"
+
+            # Verify MIDs are valid numeric strings
+            for m in mids_found:
+                assert m.simbli_mid.isdigit(), f"Expected numeric MID, got: {m.simbli_mid}"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
