@@ -203,11 +203,13 @@ Historical docs from completed phases. Recoverable if needed.
 | Command | Purpose | Subagents |
 |---------|---------|-----------|
 | `/start` | Begin session, find next item | No |
+| `/start-parallel` | Begin secondary session (different track than P0) | No |
 | `/launch` | Start dev servers (API, WebSocket, Frontend) | No |
 | `/load_context` | Load context for work area | Yes (Explore) |
 | `/analyze-item [name]` | Deep analysis of item | Yes (3 parallel) |
 | `/test [mode]` | Run tests (smoke/targeted/full/profile) | No |
 | `/critic [type]` | Run codebase critics on staged changes | No |
+| `/review [scope]` | Run pr-review-toolkit agents (code quality) | Yes (agents) |
 | `/commit` | Run critics on staged changes, then commit | No |
 | `/nextsesh` | Prepare handoff notes (requires P0 set) | No |
 
@@ -249,6 +251,32 @@ Before running `/nextsesh`:
 2. Update `pilot.json` to set that item's `priority: 0`
 3. `/nextsesh` will fail if no P0 is set
 
+### Parallel Sessions
+
+Multiple Claude Code sessions can work simultaneously using track-based partitioning.
+
+**Tracks** (categories that touch similar files):
+
+| Track | Categories |
+|-------|------------|
+| **data** | data_architecture, data_readiness, data_standards, data_integrity, ingestion_visibility |
+| **ops** | deployment_artifacts, monitoring_observability, admin_operations, rollback_procedures |
+| **infra** | test_infrastructure, pipeline_automation |
+| **frontend** | frontend_refinement, user_documentation, city_onboarding |
+| **validation** | pilot_validation |
+
+**Workflow:**
+1. **Primary session** runs `/start` and claims P0 (works on `main` or feature branch)
+2. **Secondary session** runs `/start-parallel` to find P1+ work in a different track
+3. Secondary session creates feature branch: `git checkout -b feature/{track}/{item-name}`
+4. Sessions work independently, avoiding file conflicts
+5. Secondary merges via PR after P0 session completes
+
+**Session roles:**
+- `secondary` - P1+ work in different track (default)
+- `research` - Investigation only, no code changes
+- `tooling` - Dev workflow improvements (.claude/, scripts/)
+
 ## Codebase Critics
 
 LLM-based code review prompts in `.critics/` catch architectural issues before commit.
@@ -269,6 +297,22 @@ LLM-based code review prompts in `.critics/` catch architectural issues before c
 Critics output JSON with `pass`, `issues`, `severity`. Critical failures should block commit.
 
 See `.critics/README.md` for full documentation.
+
+### pr-review-toolkit Integration
+
+The `pr-review-toolkit` Claude Code plugin provides general code quality agents that complement Civic-specific critics:
+
+| Agent | Purpose |
+|-------|---------|
+| `code-reviewer` | CLAUDE.md adherence, bugs, code quality |
+| `pr-test-analyzer` | Test coverage quality |
+| `silent-failure-hunter` | Silent failures, error handling |
+| `type-design-analyzer` | Type invariants, encapsulation |
+
+**Pre-PR workflow:**
+1. `/critic` - Civic patterns (pipeline, protocol, architecture)
+2. `/review` - General quality (bugs, tests, error handling)
+3. `/commit` - Commit if all pass
 
 ## Launching the App
 
