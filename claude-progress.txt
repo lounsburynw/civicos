@@ -11408,3 +11408,21 @@ Elections are now searchable by:
 ### Next P0
 
 No P0 set yet - need to select next priority item.
+
+### Additional Items Added
+
+After completing election_vector_embeddings, added items for local election coverage:
+
+1. **marin_registrar_scraper** (P0) - Local election data from Marin County Registrar
+   - Strategy: Investigate APIs first, Playwright scraping as fallback
+   - Covers: city council, mayor, local ballot measures, school board
+
+2. **democracy_works_api** (P1, blocked) - Awaiting pricing response
+   - Comprehensive coverage: federal to school board for >5k population jurisdictions
+   - May replace need for scraper if affordable (<$50/mo)
+
+3. **election_discovery_cron** (P1) - Monthly automation for Google Civic ingestion
+
+### Commits
+- c3d8e38 feat: Add election vector embeddings for semantic search
+- 5f77b87 pilot: Add local election data items, set marin_registrar_scraper P0
