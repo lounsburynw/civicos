@@ -1,85 +1,60 @@
-# Recommended: ab_test_retrieval_quality
+# Recommended: election_whats_next_integration
 
 **Priority:** P0
-**Area:** data_architecture > embedding_infrastructure
+**Area:** data_readiness > election_data
 **Date:** 2026-01-08
 
-> This is recommended context from Session 493. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> Data Readiness is top priority for pilot. Election data integration enables whats_next() to surface upcoming elections alongside meetings.
 
 ## Context
 
-Session 493 completed `full_corpus_pgvector_integration` - UnifiedSearch now uses pgvector for all corpus types (decisions, chunks, transcripts, issues, municipal_code) with ChromaDB fallback. All 39 smoke tests and 10 pgvector integration tests pass. Now we need to validate that pgvector retrieval quality matches or exceeds the ChromaDB baseline.
+The `whats_next()` method currently returns only meetings. For pilot readiness, it should also surface:
+- Upcoming elections
+- Registration deadlines
+- Early voting start dates
+- Ballot measure summaries
 
-## Recommended Task
+This enables notifications like "Registration deadline in 5 days" alongside meeting notifications.
 
-Create an A/B test framework to compare retrieval quality between pgvector and ChromaDB across a set of benchmark queries. This validates the migration doesn't degrade search quality.
+## Dependencies
+
+This item depends on `election_ingestion_pipeline` which is already **ready** (completed 2026-01-05). Elections table is populated in Supabase.
 
 ## Key Files
 
-- `packages/civic/src/civic/_internal/search/unified.py` - UnifiedSearch class with pgvector integration
-- `packages/civic/src/civic/_internal/search/unified.py:106-141` - `_search_with_pgvector()` helper method
-- `packages/civic/src/civic/storage/pgvector_backend.py:868-982` - PgVectorBackend.search() method
-- `packages/civic/tests/test_integration_pgvector.py` - Existing pgvector tests as examples
-
-## Current pgvector Corpus Coverage
-
-San Rafael embeddings in pgvector (verified):
-- municipal_code: 5,857 embeddings
-- chunks: 5,084 embeddings
-- transcripts: 4,296 embeddings
-- issues: 1,500 embeddings
-- meetings: 46 embeddings
-- decisions: 44 embeddings
+- `packages/civic/src/civic/civic.py` - whats_next() method to modify
+- Election data already in Supabase `elections` table
 
 ## Suggested Approach
 
-1. **Create benchmark query set** - Define 10-20 representative queries across corpus types:
-   - Issues: "pothole", "graffiti", "parking violation"
-   - Chunks: "housing development", "budget", "climate"
-   - Transcripts: "public comment", "council discussion"
-   - Municipal code: "ADU", "zoning residential", "building permit"
+1. **Explore current whats_next() implementation**
+   - How does it query meetings?
+   - What's the return structure?
 
-2. **Build comparison framework** - For each query:
-   - Run search via pgvector path (force `_vector_backend`)
-   - Run search via ChromaDB path (set `_vector_backend = None`)
-   - Compare: score distribution, result overlap, top-k agreement
+2. **Check election data schema**
+   - What fields are in the elections table?
+   - How to identify "upcoming" elections?
 
-3. **Define quality metrics**:
-   - Precision@K overlap (e.g., how many of top-5 results match?)
-   - Mean score comparison (pgvector vs ChromaDB scores)
-   - Latency comparison
+3. **Extend whats_next() to include elections**
+   - Query elections with date > now
+   - Include registration deadlines, early voting dates
+   - Merge with meeting results
 
-4. **Create test file** `test_retrieval_quality.py` with:
-   - Parameterized tests over query set
-   - Assert minimum quality thresholds
-   - Generate comparison report
+4. **Add tests**
+   - Verify elections appear in whats_next() results
+   - Test deadline proximity logic
 
-## Tests to Run
+## Related Items (same cluster)
 
-```bash
-# Smoke tests (verify nothing broken)
-pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
+After this P0, consider these related P1 items:
+- `election_api_endpoints` - REST endpoints for election data
+- `election_vector_embeddings` - Vector embeddings for election RAG
 
-# pgvector tests (baseline)
-pytest packages/civic/tests/test_integration_pgvector.py -v --override-ini="addopts="
+## Session Context
 
-# New quality tests (once created)
-pytest packages/civic/tests/test_retrieval_quality.py -v --override-ini="addopts="
-```
+Previous session completed:
+- `incremental_vector_indexing` - Fixed critical vector deletion bug
+- Added --force flag and safety checks to vectors CLI
+- 8 unit tests added
 
-## Success Criteria
-
-- [ ] Benchmark query set defined (10+ queries across corpus types)
-- [ ] Comparison framework implemented
-- [ ] Top-5 overlap >= 60% for matching corpus types
-- [ ] No significant score degradation (pgvector scores within 0.1 of ChromaDB)
-- [ ] Test file created with quality assertions
-- [ ] pilot.json: ab_test_retrieval_quality -> ready
-
-## Session 493 Changes Reference
-
-Key changes from full_corpus_pgvector_integration:
-- `UnifiedSearch.__init__` now initializes `_vector_backend` via `get_vector_backend()`
-- `_search_with_pgvector()` helper returns `None` to signal fallback needed
-- `get_available_corpora()` uses `_get_pgvector_count()` before ChromaDB
-- `VectorBackend` protocol has new `count()` method
+Priority re-evaluation: User directed focus on Data Readiness before other categories (eval_framework demoted to P1).
