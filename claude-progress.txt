@@ -11458,3 +11458,53 @@ election_api_endpoints (P0) - REST endpoints for election data access from front
 ### Next P0
 
 marin_registrar_scraper - Marin County Registrar data scraper for authoritative local election data
+
+## Session 491: marin_registrar_scraper - Local Election Data
+
+**Date:** 2026-01-08
+**Item:** marin_registrar_scraper (data_readiness > election_integration)
+**Priority:** P0 (IMMEDIATE) → Complete
+
+### Summary
+
+Implemented MarinRegistrarClient to acquire local election data from Marin County Elections website. Ingested 4 scheduled elections for San Rafael pilot.
+
+### Data Investigation Results
+
+No structured data sources exist for San Rafael local elections:
+
+| Source | Coverage | Verdict |
+|--------|----------|---------|
+| Marin County Open Data | No election datasets | Not viable |
+| Ballotpedia | Excludes cities <100k pop (San Rafael is 61k) | Not viable |
+| Democracy Works | Sources from Ballotpedia | Not viable |
+| CA Secretary of State | PDFs only via CEDA | Historical, no API |
+| Marin County Elections | Cloudflare-protected website | Scraping required |
+
+### Implementation
+
+1. **MarinRegistrarClient** (`packages/civic-extraction/src/civic_extraction/clients/marin_registrar.py`)
+   - Playwright-based scraper with stealth settings (bypasses Cloudflare)
+   - Parses election schedule page with expandable panels
+   - Distinguishes "scheduled" vs "possible" elections
+   - Follows existing client patterns (health(), validate(), get_elections())
+
+2. **Elections Ingested:**
+   - June 2, 2026 - Statewide Direct Primary Election
+   - November 3, 2026 - General Election
+   - March 7, 2028 - Presidential Primary Election
+   - November 7, 2028 - Presidential General Election
+
+3. **Tests Added:** 9 unit tests in `TestMarinRegistrarClient` class
+
+### Files Changed
+
+- `packages/civic-extraction/src/civic_extraction/clients/marin_registrar.py` (new)
+- `packages/civic-extraction/src/civic_extraction/clients/__init__.py` (exports)
+- `packages/civic-extraction/tests/test_clients.py` (tests)
+- `pilot.json` (status: ready, set eval_framework as new P0)
+
+### Next Session
+
+**P0:** `eval_framework` - Expand eval framework with F1, coverage, and bias metrics
+
