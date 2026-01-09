@@ -12,6 +12,11 @@ from civic_extraction.clients.base import BaseExtractor, Extractor
 from civic_extraction.clients.usaspending import USAspendingClient
 from civic_extraction.clients.cagrants import CaliforniaGrantsClient
 from civic_extraction.clients.google_civic import GoogleCivicClient, create_san_rafael_civic_client
+from civic_extraction.clients.marin_registrar import (
+    MarinRegistrarClient,
+    create_san_rafael_registrar_client,
+    marin_election_to_storage,
+)
 
 
 class TestMeetingDataclass:
@@ -1903,6 +1908,160 @@ class TestElectedOfficialsExtraction:
             include_state=True,
             include_local=True,
         )
+
+
+class TestMarinRegistrarClient:
+    """Test MarinRegistrarClient for Marin County election data."""
+
+    def test_client_initialization(self):
+        """Test client creates with correct defaults."""
+        client = MarinRegistrarClient("san-rafael")
+        assert client.jurisdiction_id == "san-rafael"
+        assert client.platform_name == "marin_registrar"
+        assert client.source_id == "marin_registrar-san-rafael"
+        assert client.headless is True
+        assert client.request_delay == 2.0
+
+    def test_client_custom_settings(self):
+        """Test client with custom settings."""
+        client = MarinRegistrarClient(
+            "san-rafael",
+            headless=False,
+            request_delay=1.0
+        )
+        assert client.headless is False
+        assert client.request_delay == 1.0
+
+    def test_create_san_rafael_factory(self):
+        """Test convenience factory creates correct client."""
+        client = create_san_rafael_registrar_client()
+        assert client.jurisdiction_id == "san-rafael"
+        assert client.platform_name == "marin_registrar"
+
+    def test_parse_election_schedule_june_primary(self):
+        """Test _parse_election_schedule parses June primary correctly."""
+        client = MarinRegistrarClient("san-rafael")
+        text = """
+        June 2, 2026 - Statewide Direct Primary Election
+        Go to the June 2, 2026 Statewide Direct Primary Election page for details
+        """
+        elections = client._parse_election_schedule(text)
+        assert len(elections) >= 1
+        june_election = [e for e in elections if "2026-06-02" in e["election_date"]]
+        assert len(june_election) == 1
+        assert june_election[0]["election_type"] == "primary"
+        assert "marin-2026-06-02" in june_election[0]["id"]
+
+    def test_parse_election_schedule_november_general(self):
+        """Test _parse_election_schedule parses November general correctly."""
+        client = MarinRegistrarClient("san-rafael")
+        text = """
+        November 3, 2026 - General Election
+        The Guide for Candidates will be available approximately mid-June 2026.
+        """
+        elections = client._parse_election_schedule(text)
+        assert len(elections) >= 1
+        nov_election = [e for e in elections if "2026-11-03" in e["election_date"]]
+        assert len(nov_election) == 1
+        assert nov_election[0]["election_type"] == "general"
+
+    def test_parse_election_schedule_special(self):
+        """Test _parse_election_schedule parses special elections correctly."""
+        client = MarinRegistrarClient("san-rafael")
+        text = """
+        April 14, 2026 - Special Election
+        (no election is scheduled at this time)
+        """
+        elections = client._parse_election_schedule(text)
+        assert len(elections) >= 1
+        april_election = [e for e in elections if "2026-04-14" in e["election_date"]]
+        assert len(april_election) == 1
+        assert april_election[0]["election_type"] == "special"
+        assert april_election[0]["status"] == "possible"
+
+    def test_parse_election_schedule_skips_past(self):
+        """Test _parse_election_schedule skips past elections."""
+        client = MarinRegistrarClient("san-rafael")
+        text = """
+        January 1, 2020 - Old Election
+        November 3, 2026 - General Election
+        """
+        elections = client._parse_election_schedule(text)
+        # Should not include the 2020 election
+        assert all("2020" not in e["election_date"] for e in elections)
+
+    def test_parse_election_schedule_deduplicates(self):
+        """Test _parse_election_schedule deduplicates elections."""
+        client = MarinRegistrarClient("san-rafael")
+        text = """
+        November 3, 2026 - General Election
+        November 3, 2026 - General Election page for details
+        """
+        elections = client._parse_election_schedule(text)
+        nov_elections = [e for e in elections if "2026-11-03" in e["election_date"]]
+        assert len(nov_elections) == 1
+
+    def test_marin_election_to_storage(self):
+        """Test marin_election_to_storage maps fields correctly."""
+        election = {
+            "id": "marin-2026-06-02",
+            "name": "Statewide Direct Primary Election",
+            "election_date": "2026-06-02",
+            "election_type": "primary",
+            "status": "scheduled",
+            "source_url": "https://www.marincounty.gov/departments/elections/election-schedule",
+        }
+        result = marin_election_to_storage(election, "san-rafael")
+        assert result["id"] == "marin-2026-06-02"
+        assert result["name"] == "Statewide Direct Primary Election"
+        assert result["election_date"] == "2026-06-02"
+        assert result["election_type"] == "primary"
+        assert result["source"] == "marin_registrar"
+        assert "raw_data" in result
+
+
+class TestMarinRegistrarClientIntegration:
+    """Integration tests that scrape the real Marin County website."""
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_health_check(self):
+        """Test health check against real website."""
+        client = MarinRegistrarClient("san-rafael")
+        health = client.health()
+        # May be available or blocked by Cloudflare
+        assert health.source_id == "marin_registrar-san-rafael"
+        assert health.check_duration_ms > 0
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_validate(self):
+        """Test validation checks."""
+        client = MarinRegistrarClient("san-rafael")
+        result = client.validate()
+        assert result.config_valid is True  # Playwright should be installed
+        assert result.check_duration_ms > 0
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_get_election_schedule(self):
+        """Test fetching election schedule from real website."""
+        client = MarinRegistrarClient("san-rafael")
+        elections = client.get_election_schedule()
+        # Should find at least some elections (may be blocked by Cloudflare)
+        if len(elections) > 0:
+            assert all("election_date" in e for e in elections)
+            assert all("election_type" in e for e in elections)
+            assert all("source" in e for e in elections)
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_get_elections_filters_to_scheduled(self):
+        """Test get_elections only returns scheduled elections."""
+        client = MarinRegistrarClient("san-rafael")
+        elections = client.get_elections()
+        if len(elections) > 0:
+            assert all(e.get("status") == "scheduled" for e in elections)
 
 
 if __name__ == "__main__":

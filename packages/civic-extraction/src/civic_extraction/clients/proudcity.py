@@ -640,6 +640,7 @@ class ProudCityClient(BaseExtractor):
         Examples:
         - city-council-october-6-2025 -> 2025-10-06
         - planning-commission-november-4-2025-special-meeting -> 2025-11-04
+        - "January 10, 2026" (title with comma) -> 2026-01-10
         """
         text = f"{slug} {title}"
 
@@ -650,8 +651,8 @@ class ProudCityClient(BaseExtractor):
         }
 
         for month_name, month_num in months.items():
-            # Pattern: october-6-2025 or october 6 2025
-            pattern = rf'{month_name}[-\s]+(\d{{1,2}})[-\s]+(\d{{4}})'
+            # Pattern: october-6-2025 or october 6 2025 or october 6, 2025
+            pattern = rf'{month_name}[-\s,]+(\d{{1,2}})[-\s,]+(\d{{4}})'
             match = re.search(pattern, text.lower())
             if match:
                 day = int(match.group(1))
