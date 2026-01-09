@@ -102,11 +102,13 @@
         "completed": "2026-01-03"
       },
       "eval_framework": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": "Expand eval framework with F1, coverage, and bias metrics",
         "note": "P0: Current benchmark (scripts/benchmark_api_vs_llm.py) has accuracy/precision/recall. Add: F1 score, topic coverage, freshness, source diversity, NDCG, null rate, meeting type coverage, geographic coverage, temporal bias. Critical for pilot quality assessment.",
-        "test_file": "scripts/benchmark_api_vs_llm.py"
+        "test_file": "scripts/benchmark_api_vs_llm.py",
+        "completed": "2026-01-09",
+        "completed_note": "Added F1 score (harmonic mean of precision/recall), coverage metrics (query/topic/category/data/result), and bias detection (topic/method/temporal/geographic). Parallel session in civic-infra worktree."
       }
     },
     "code_packaging": {
