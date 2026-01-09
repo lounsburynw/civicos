@@ -194,17 +194,24 @@ Before ending:
 
 1. Update checklist status if item complete
 2. Append summary to `claude-progress.txt`
-3. Commit: `git commit -m "Session N: brief_description Description of changes"`
+3. Run pre-commit checks:
+   ```bash
+   /critic              # Civic-specific patterns
+   /review              # General code quality (pr-review-toolkit)
+   ```
+4. Commit: `/commit` or `git commit -m "Session N: brief_description"`
 
 ## Available Commands
 
 | Command | Purpose | Uses Subagents |
 |---------|---------|----------------|
 | `/start` | Begin session, find next item | No |
+| `/start-parallel` | Begin secondary session (different track) | No |
 | `/load_context` | Load context for current work area | Yes (Explore) |
 | `/analyze-item` | Deep analysis of specific item | Yes (3 parallel) |
 | `/test [mode]` | Run tests (smoke/targeted/full/profile) | No |
-| `/critic [type]` | Run codebase critics on staged changes | No |
+| `/critic [type]` | Run Civic-specific critics | No |
+| `/review [scope]` | Run pr-review-toolkit agents | Yes (agents) |
 | `/commit` | Commit changes | No |
 | `/nextsesh` | Prepare handoff notes | No |
 
