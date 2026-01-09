@@ -11508,3 +11508,25 @@ No structured data sources exist for San Rafael local elections:
 
 **P0:** `eval_framework` - Expand eval framework with F1, coverage, and bias metrics
 
+
+### Follow-up: Added SanRafaelClerkClient
+
+After initial commit, expanded local election coverage with city-specific data:
+
+1. **SanRafaelClerkClient** (`san_rafael_clerk.py`)
+   - Scrapes San Rafael City Clerk election pages
+   - Parses candidates, local measures, election results
+   - Knows district election schedule (2020 transition to district-based)
+   - 2026: Districts 2 & 3 up for election
+   - 2028: Districts 1 & 4 + Mayor
+
+2. **Data extracted from Nov 2024 election:**
+   - 10 candidates (Mayor, Council D1/D4, City Attorney, Clerk, School Board)
+   - Measure P (Library/Community Center parcel tax - passed)
+
+3. **Tests added:** 11 unit tests in `TestSanRafaelClerkClient`
+
+**Complete local election data pipeline:**
+- MarinRegistrarClient → County-wide election dates
+- SanRafaelClerkClient → City candidates, local measures, school board
+

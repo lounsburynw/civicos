@@ -1845,12 +1845,13 @@
         "status": "ready",
         "priority": 2,
         "artifact": "Scraper for Marin County Registrar local election data",
-        "note": "MarinRegistrarClient implemented using Playwright with stealth settings to bypass Cloudflare. Data investigation found no APIs (Ballotpedia excludes <100k pop, Democracy Works sources from Ballotpedia). 4 scheduled elections ingested (June 2026 Primary, Nov 2026 General, 2028 elections).",
+        "note": "MarinRegistrarClient for county-wide election dates. SanRafaelClerkClient added for city-specific candidates, measures, and school board races. Covers 2026 races: Districts 2 & 3.",
         "implementation": "packages/civic-extraction/src/civic_extraction/clients/marin_registrar.py",
         "test_file": "packages/civic-extraction/tests/test_clients.py::TestMarinRegistrarClient",
         "completed": "2026-01-08",
         "data_sources": [
-          "https://www.marincounty.gov/departments/elections"
+          "https://www.marincounty.gov/departments/elections",
+          "https://www.cityofsanrafael.org/elections/"
         ],
         "local_coverage": [
           "city_council",
@@ -1860,6 +1861,24 @@
         ],
         "depends_on": [
           "election_ingestion_pipeline"
+        ]
+      },
+      "san_rafael_clerk_client": {
+        "status": "ready",
+        "priority": 2,
+        "artifact": "San Rafael City Clerk election data client",
+        "note": "SanRafaelClerkClient scrapes city-specific election data: candidates, local measures, district elections. Knows 2026 schedule (Districts 2 & 3), 2028 schedule (Districts 1 & 4 + Mayor). Parsed 10 candidates and Measure P from 2024 election.",
+        "implementation": "packages/civic-extraction/src/civic_extraction/clients/san_rafael_clerk.py",
+        "test_file": "packages/civic-extraction/tests/test_clients.py::TestSanRafaelClerkClient",
+        "completed": "2026-01-08",
+        "data_sources": [
+          "https://www.cityofsanrafael.org/elections/"
+        ],
+        "local_coverage": [
+          "city_council_candidates",
+          "local_measures",
+          "school_board",
+          "district_map"
         ]
       },
       "democracy_works_api": {
