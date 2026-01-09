@@ -34,6 +34,17 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
+def _serialize_metadata(metadata: Dict[str, Any]) -> str:
+    """Serialize metadata dict to JSON, handling datetime objects."""
+    def default_serializer(obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+    return json.dumps(metadata, default=default_serializer)
+
+
 # Optional imports - only required if PgVectorBackend is used
 try:
     import psycopg2
@@ -521,6 +532,53 @@ class PgVectorBackend:
 
         return "\n".join(parts) if parts else ""
 
+    def _election_to_text(self, election: Dict[str, Any]) -> str:
+        """
+        Convert an election dict to text for embedding.
+
+        Combines election name, type, date, and contest details for
+        semantic search queries like "what's on the ballot about housing?"
+        """
+        parts = []
+
+        if election.get("name"):
+            parts.append(f"Election: {election['name']}")
+
+        if election.get("election_type"):
+            parts.append(f"Type: {election['election_type']}")
+
+        if election.get("election_date"):
+            parts.append(f"Date: {election['election_date']}")
+
+        # Include contest/ballot measure info from raw_data if available
+        raw_data = election.get("raw_data")
+        if raw_data:
+            if isinstance(raw_data, str):
+                import json
+                try:
+                    raw_data = json.loads(raw_data)
+                except json.JSONDecodeError:
+                    raw_data = None
+
+            if isinstance(raw_data, dict):
+                # Contest titles
+                contests = raw_data.get("contests", [])
+                if contests:
+                    contest_titles = [c.get("title") for c in contests if c.get("title")]
+                    if contest_titles:
+                        parts.append(f"Contests: {', '.join(contest_titles)}")
+
+                # Ballot measure descriptions (key for semantic search)
+                measures = raw_data.get("ballot_measures", [])
+                if measures:
+                    for measure in measures[:5]:  # Limit to first 5
+                        title = measure.get("title", "")
+                        desc = measure.get("description", "")
+                        if title or desc:
+                            parts.append(f"Ballot Measure: {title} - {desc}"[:500])
+
+        return "\n".join(parts) if parts else str(election)
+
     def index_from_storage(
         self,
         storage_backend: StorageBackend,
@@ -605,11 +663,8 @@ class PgVectorBackend:
                     "Use civic._internal.legal.embeddings.chunker.expand_legislation_to_chunks"
                 )
             # Legislation uses state code, not jurisdiction_id
-            # Convention: pass "state-CA" as jurisdiction_id -> extracts "CA"
-            if jurisdiction_id.startswith("state-"):
-                state_code = jurisdiction_id.split("-", 1)[1].upper()
-            else:
-                state_code = jurisdiction_id.upper()
+            # Convention: pass "legislation-CA" or "state-CA" -> extracts "CA"
+            state_code = jurisdiction_id.split("-")[-1].upper() if "-" in jurisdiction_id else jurisdiction_id.upper()
             raw_bills = storage_backend.get_legislation(state=state_code)
             documents = legal_chunker(raw_bills)
         elif corpus_type == "codified_law":
@@ -632,6 +687,12 @@ class PgVectorBackend:
             # EOs don't take jurisdiction - they're all federal
             raw_orders = storage_backend.get_executive_orders()
             documents = legal_chunker(raw_orders)
+        elif corpus_type == "elections":
+            # Elections don't need chunking - they're atomic documents
+            # Include past elections for historical context
+            documents = storage_backend.get_elections(
+                jurisdiction_id, include_past=True
+            )
         else:
             raise ValueError(f"Unknown corpus_type: {corpus_type}")
 
@@ -725,6 +786,12 @@ class PgVectorBackend:
                     meeting_id = None  # Not meeting-related
                     meeting_title = doc.get("title") or f"EO {doc.get('eo_number')}"
                     meeting_datetime = doc.get("signing_date")
+                elif corpus_type == "elections":
+                    text = self._election_to_text(doc)
+                    doc_id = doc.get("id", f"election-{i}-{idx}")
+                    meeting_id = None  # Not meeting-related
+                    meeting_title = doc.get("name")  # Election name
+                    meeting_datetime = None  # election_date is just a date
 
                 if not text.strip():
                     continue
@@ -784,7 +851,7 @@ class PgVectorBackend:
                     data["meeting_id"],
                     data["meeting_title"],
                     meeting_dt,
-                    json.dumps(data["metadata"]),
+                    _serialize_metadata(data["metadata"]),
                     now,  # created_at
                     now,  # updated_at
                 ))
@@ -1064,11 +1131,8 @@ class PgVectorBackend:
             elif corpus_type == "issues":
                 storage_count = storage_backend.get_issue_count(jurisdiction_id)
             elif corpus_type == "legislation":
-                # Legislation uses state code format (e.g., "state-CA" -> "CA")
-                if jurisdiction_id.startswith("state-"):
-                    state_code = jurisdiction_id.split("-", 1)[1].upper()
-                else:
-                    state_code = jurisdiction_id.upper()
+                # Legislation uses state code format (e.g., "legislation-CA" or "state-CA" -> "CA")
+                state_code = jurisdiction_id.split("-")[-1].upper() if "-" in jurisdiction_id else jurisdiction_id.upper()
                 storage_count = storage_backend.get_legislation_count(state_code)
             elif corpus_type == "codified_law":
                 # Codified law uses jurisdiction_id directly (e.g., "federal-US", "state-CA", "federal-CFR")
