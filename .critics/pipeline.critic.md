@@ -42,6 +42,12 @@ When reviewing changes to Pipeline or storage:
    - `on_checkpoint` called after ingest with resume state
    - `on_error` called for stage failures
 
+5. **Protocol compliance?**
+   - Uses public StorageBackend methods, not private implementation
+   - No direct `_get_connection()` calls - use protocol methods
+   - Updates go through `backend.update_meeting()`, not raw SQL
+   - This ensures portability across SQLite/Postgres backends
+
 ## Output
 
 Respond with JSON:
@@ -72,4 +78,19 @@ def run(self):
     self.storage.store_meetings(self.jurisdiction_id, meetings)
     stored = self.storage.get_meetings(self.jurisdiction_id)
     self.index.add_meetings(stored)
+```
+
+### FAIL - Protocol Bypass
+```python
+# BAD: Accessing private method, not portable across backends
+def update_agenda_url(backend, meeting_id, url):
+    conn = backend._get_connection()  # Private method!
+    cursor.execute("UPDATE meetings SET agenda_url = ?", ...)
+```
+
+### PASS - Protocol Compliance
+```python
+# GOOD: Uses public StorageBackend method
+def update_agenda_url(backend, jurisdiction_id, meeting_id, url):
+    backend.update_meeting(jurisdiction_id, meeting_id, {"agenda_url": url})
 ```
