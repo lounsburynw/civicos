@@ -1986,13 +1986,14 @@
         "completed": "2026-01-09"
       },
       "srcs_agenda_item_extraction": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Extract structured agenda items from SRCS PDFs using LLM (same as city)",
-        "note": "Use civic_extraction.cli.agenda module with Gemini LLM to extract structured items: item_number, title, type (consent/action/info), description, is_actionable. Same 2-pass LLM approach as city meetings. Run via: modal run scripts/modal_ingest.py --agenda --jurisdiction school-san-rafael. Stores to agenda_items table.",
+        "note": "Session 493: Completed. 598 agenda items extracted from 33 meetings using Gemini LLM. Added R2 URL handling to parse_agenda_content(), backfilled R2 URLs for 43 meetings, increased max_tokens to 6000 for large agendas. Run via: civic-extract agenda --jurisdiction school-san-rafael --cloud",
         "depends_on": ["srcs_r2_pdf_storage"],
         "jurisdiction_id": "school-san-rafael",
-        "reference_module": "packages/civic-extraction/src/civic_extraction/cli/agenda.py"
+        "reference_module": "packages/civic-extraction/src/civic_extraction/cli/agenda.py",
+        "completed": "2026-01-09"
       },
       "srcs_decision_extraction": {
         "status": "not_ready",
@@ -2004,7 +2005,7 @@
       },
       "srcs_vector_indexing": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Index SRCS agenda items and decisions in pgvector",
         "note": "After LLM extraction, index agenda_items and decisions for school-san-rafael. Run: modal run scripts/modal_ingest.py --vectors --jurisdiction school-san-rafael. Enables what_happened(), whats_next() queries for school board.",
         "depends_on": ["srcs_agenda_item_extraction"],
