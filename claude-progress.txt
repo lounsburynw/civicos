@@ -11368,3 +11368,43 @@ Extended whats_next() to include upcoming elections via the new include_election
 
 election_api_endpoints - REST endpoints for election data access from frontend
 
+
+## Session 2026-01-08: Election Vector Embeddings (P0)
+
+### Item: election_vector_embeddings
+
+Implemented vector embeddings support for the ELECTIONS corpus type, enabling semantic search for election data.
+
+### Changes Made
+
+1. **packages/civic/src/civic/storage/pgvector_backend.py**
+   - Added `_election_to_text()` method (lines 524-569) for converting election data to searchable text
+   - Added `_serialize_metadata()` helper (lines 38-45) for JSON serialization with datetime support
+   - Added elections case to `index_from_storage()` (line 679-684)
+   - Added elections case to text extraction loop (lines 778-783)
+   - Updated metadata serialization to use `_serialize_metadata()` (line 854)
+
+2. **scripts/modal_vectors.py**
+   - Added "elections" to corpus types list in `index_corpus()` (line 152)
+   - Added "elections" to corpus types list in `get_stats()` (line 303)
+
+3. **packages/civic/tests/test_election_api.py**
+   - Added `TestElectionVectorEmbeddings` class with 5 unit tests for `_election_to_text()`
+   - Added `TestElectionVectorIndexing` class with 3 integration tests for vector indexing
+
+### Tests
+
+- 19 election API tests pass (16 unit + 3 integration)
+- 42 smoke tests pass (no regressions)
+- 4 elections indexed in city-san-rafael for validation
+
+### Semantic Search Verified
+
+Elections are now searchable by:
+- Election name and type ("primary election California")
+- Geographic terms ("special election Arkansas")
+- Future: ballot measure topics when raw_data includes ballot_measures
+
+### Next P0
+
+No P0 set yet - need to select next priority item.

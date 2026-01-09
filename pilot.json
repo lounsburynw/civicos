@@ -103,7 +103,7 @@
       },
       "eval_framework": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Expand eval framework with F1, coverage, and bias metrics",
         "note": "Current benchmark (scripts/benchmark_api_vs_llm.py) has accuracy/precision/recall. Add: F1 score, topic coverage, freshness, source diversity, NDCG, null rate, meeting type coverage, geographic coverage, temporal bias. Session 461. Demoted to P1 - Data Readiness takes priority.",
         "test_file": "scripts/benchmark_api_vs_llm.py"
@@ -1780,7 +1780,7 @@
       },
       "election_whats_next_integration": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Include upcoming elections and deadlines in whats_next() results",
         "note": "Added include_elections=True parameter to whats_next(). Returns UpcomingElection objects alongside meetings. Includes deadline fetch support (ready when deadlines are populated). 3 new tests added.",
         "depends_on": [
@@ -1794,28 +1794,33 @@
         "completed": "2026-01-08"
       },
       "election_api_endpoints": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "REST endpoints for election data access from frontend",
-        "note": "get_voting_record() exists on Civic class but no HTTP exposure. Add endpoints: GET /elections (list upcoming), GET /elections/{id}/contests, GET /voting-record/{official}, GET /ballot?address=... (personalized ballot preview). Promoted to P0 - continues election data work.",
+        "note": "Added GET /api/elections, GET /api/elections/{id}, GET /api/elections/{id}/contests, GET /api/voting-record/{official}. Endpoints return election data with deadlines and contests, and voting records for officials. GET /ballot stretch goal deferred.",
         "depends_on": [
           "election_ingestion_pipeline"
         ],
         "modified_files": [
-          "packages/civic-services/src/civic_services/servers/civic_api.py"
-        ]
+          "packages/civic-services/src/civic_services/servers/civic_api_integrated.py"
+        ],
+        "test_file": "packages/civic/tests/test_election_api.py",
+        "completed": "2026-01-08"
       },
       "election_vector_embeddings": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": "Vector embeddings for election RAG queries",
-        "note": "ELECTIONS corpus type registered but not populated. Embed: election descriptions, ballot measure text, candidate statements. Enables natural language queries like 'what's on the ballot about housing?' or 'which measures affect property taxes?'.",
+        "note": "Implemented _election_to_text() extractor and index_from_storage() support. Elections corpus type now fully functional with semantic search. Added _serialize_metadata helper for datetime serialization. 4 elections indexed in city-san-rafael.",
         "depends_on": [
           "election_ingestion_pipeline"
         ],
         "modified_files": [
-          "packages/civic/src/civic/embeddings/civic_embeddings.py"
-        ]
+          "packages/civic/src/civic/storage/pgvector_backend.py",
+          "scripts/modal_vectors.py",
+          "packages/civic/tests/test_election_api.py"
+        ],
+        "completed": "2026-01-08"
       },
       "executive_orders_vector_embeddings": {
         "status": "not_ready",
@@ -1837,7 +1842,11 @@
         "youtube_playlist": "PLyH9MVpaxhEJFfW0jWIbd5wGVQYUEZDcH",
         "youtube_channel": "@srcscommunications5656",
         "jurisdiction_id": "school-san-rafael",
-        "meeting_types": ["school_board", "special_meeting", "workshop"],
+        "meeting_types": [
+          "school_board",
+          "special_meeting",
+          "workshop"
+        ],
         "modified_files": [
           "packages/civic-extraction/src/civic_extraction/clients/youtube_boards.py",
           "data/extraction/san-rafael-schools.json"
@@ -1848,7 +1857,9 @@
         "priority": 3,
         "artifact": "Transcribe SRCS board meetings and index for RAG",
         "note": "After YouTube integration, extend existing transcription pipeline (AssemblyAI) to school board meetings. Enables what_was_said() queries across both city and school governance.",
-        "depends_on": ["srcs_youtube_integration"]
+        "depends_on": [
+          "srcs_youtube_integration"
+        ]
       },
       "simbli_browser_automation": {
         "status": "not_ready",
@@ -1856,11 +1867,22 @@
         "artifact": "Playwright-based scraper for Simbli/eBoard meeting data",
         "note": "Simbli blocks automated requests (Incapsula WAF) and has no public API (confirmed via GetApp). Playwright can bypass WAF by running a real browser. Would extract: meeting dates, agenda PDFs, minutes, attachments. Lower priority than YouTube since video content is richer for RAG. Consider: maintenance burden of browser automation, potential ToS issues, whether YouTube API provides sufficient data.",
         "tradeoffs": {
-          "pros": ["Full meeting metadata", "Agenda/minutes PDFs", "Works for other Simbli districts"],
-          "cons": ["Fragile (HTML changes break it)", "WAF/ToS risks", "Higher maintenance", "Slower than API"]
+          "pros": [
+            "Full meeting metadata",
+            "Agenda/minutes PDFs",
+            "Works for other Simbli districts"
+          ],
+          "cons": [
+            "Fragile (HTML changes break it)",
+            "WAF/ToS risks",
+            "Higher maintenance",
+            "Slower than API"
+          ]
         },
         "alternative": "YouTube API provides video metadata and transcripts, which may be sufficient for pilot",
-        "depends_on": ["srcs_youtube_integration"]
+        "depends_on": [
+          "srcs_youtube_integration"
+        ]
       }
     }
   },
