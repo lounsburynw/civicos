@@ -1,14 +1,211 @@
 #!/usr/bin/env python3
 """
 Benchmark: Civic API vs Baseline LLM
+====================================
 
-Compares Civic API query results against what a baseline LLM would produce.
-Evaluates on: Accuracy, Specificity, Actionability, Grounding.
+PURPOSE
+-------
+This benchmark measures how well the Civic API answers questions compared to
+what a generic LLM (like ChatGPT) would say. It answers: "Is our system actually
+better than just asking an AI?"
+
+Run this benchmark:
+- Before pilot launches (to ensure quality)
+- After major data ingestion (to catch regressions)
+- When adding new data sources (to verify they improve results)
+
+
+QUICK START
+-----------
+# Basic run (uses local SQLite - limited data)
+python scripts/benchmark_api_vs_llm.py
+
+# With production data (recommended)
+source .env && python scripts/benchmark_api_vs_llm.py
+
+# Output as JSON (for automated tracking)
+python scripts/benchmark_api_vs_llm.py --json > benchmark_results.json
+
+
+WHAT THE METRICS MEAN
+---------------------
+When you run the benchmark, you'll see output like this:
+
+    ## what_happened('housing')
+       Civic count: 12
+       Accurate:   ✓ (0.92)
+       Precision:  0.83  |  Recall: 0.80  |  F1: 0.81
+
+Here's what each metric tells you:
+
+  PRECISION (0.83 = 83%)
+    "Of the results we returned, how many were actually relevant?"
+    - High precision (>0.8): Results are relevant, not noisy
+    - Low precision (<0.5): Returning too much irrelevant junk
+
+  RECALL (0.80 = 80%)
+    "Of all relevant items in the database, how many did we find?"
+    - High recall (>0.8): Finding most relevant items
+    - Low recall (<0.5): Missing important results
+
+  F1 SCORE (0.81)
+    "Overall balance of precision and recall"
+    - This is the single number to track over time
+    - F1 > 0.7 is good, F1 > 0.85 is excellent
+    - If F1 drops after a change, investigate why
+
+  ACCURACY (0.92)
+    "Are the results structurally valid?" (dates make sense, titles exist, etc.)
+    - Should always be >0.9; if not, there's a data quality issue
+
+
+COVERAGE METRICS
+----------------
+These tell you how thorough the benchmark itself is:
+
+  Query Coverage:    100% (4/4 API methods)
+    → Are we testing all API methods? (what_applies, what_happened, etc.)
+
+  Category Coverage: 75% (3/4 categories)
+    → Are we testing diverse topics? (housing, transportation, utilities, governance)
+
+  Result Coverage:   62% (5/8 returned results)
+    → How many queries actually returned data?
+    → Low result coverage with production DB = data gaps
+    → Low result coverage with local SQLite = expected (limited data)
+
+
+BIAS ANALYSIS
+-------------
+Flags potential problems:
+
+  Topic Bias: "housing" queries work well, but "pothole" queries fail
+    → Might indicate uneven data coverage
+
+  Method Bias: what_happened() works, but whos_with_me() always fails
+    → Might indicate a broken API method or missing data type
+
+  Temporal Bias: Large precision-recall gap
+    → Might be finding recent items but missing historical ones
+
+
+GROUND TRUTH: WHAT IT IS AND ITS LIMITATIONS
+--------------------------------------------
+"Ground truth" = the correct answers we compare against.
+
+CURRENT APPROACH (simplistic):
+  We count database records matching keywords:
+    - "How many decisions mention 'housing'?" → 15
+    - API returns 12 → Recall = 12/15 = 0.80
+
+  This is LIMITED because:
+    - Keyword matching misses semantic relevance
+      (a decision about "affordable apartments" won't match "housing")
+    - It's self-referential (using our own DB as truth)
+    - Only works for pre-defined topics
+
+WHAT PROPER GROUND TRUTH WOULD BE:
+  A human-curated test set where someone manually labeled:
+    - "These 20 decisions ARE relevant to housing"
+    - "These 5 decisions are NOT relevant despite mentioning housing"
+
+  We don't have this yet. The current approach is a reasonable approximation
+  for tracking trends over time, but not a rigorous evaluation.
+
+
+HOW TO ADD A NEW TEST QUERY
+---------------------------
+Want to test a new topic like "parking"? Here's how:
+
+1. Add ground truth counting (in get_ground_truth_counts function):
+
+    for topic in ["housing", "bike", "traffic", "pothole", "parking"]:  # Add here
+        cur.execute(...)
+        counts[f"decisions_{topic}"] = cur.fetchone()[0]
+
+2. Add the query to run_all():
+
+    # In run_all() method, add:
+    self.results.append(self.run_what_happened("parking"))
+
+3. (Optional) Add an LLM baseline response:
+
+    # In LLM_BASELINES dict, add:
+    "what_happened:parking": \"\"\"
+    I don't have access to local parking decisions.
+    Check your city's transportation department website.
+    \"\"\",
+
+4. Run the benchmark to see results:
+
+    python scripts/benchmark_api_vs_llm.py
+
+
+HOW TO TRACK QUALITY OVER TIME
+------------------------------
+1. Run benchmark and save JSON output:
+   python scripts/benchmark_api_vs_llm.py --json > benchmarks/2026-01-09.json
+
+2. Key metrics to track:
+   - avg_f1: Overall quality score (higher is better)
+   - result_coverage: Are queries returning data?
+   - gaps_detected: Count of detected issues
+
+3. After major changes, compare:
+   - Did avg_f1 go up or down?
+   - Did we introduce new gaps?
+
+
+INTERPRETING EXIT CODES
+-----------------------
+  Exit 0: All good, no gaps detected
+  Exit 1: Gaps detected (queries returning no results, low-relevance results, etc.)
+
+In CI, you might want to allow exit 1 but track the gaps.
+
+
+EXAMPLE OUTPUT WALKTHROUGH
+--------------------------
+Here's what a healthy benchmark looks like:
+
+    ======================================================================
+    CIVIC API BENCHMARK vs LLM BASELINE
+    Jurisdiction: city-san-rafael
+    Database: Supabase PostgreSQL (production)     ← Good: using real data
+    ======================================================================
+
+    ## what_applies('housing')
+       Civic count: 13                              ← Found 13 relevant laws
+       Accurate:   ✓ (1.0)                          ← All results valid
+       Precision:  0.85  |  Recall: -  |  F1: 0.85  ← 85% relevant
+       Grounded:   ✓                                ← Has real citations
+       Specific:   ✓                                ← Names specific bills
+       Actionable: ✗                                ← No local rules (gap!)
+
+    SUMMARY
+    Accurate:       8/8 (100%)
+    Precision:      avg 0.82  |  Recall: avg 0.75  |  F1: avg 0.78  ← Track this!
+    Grounded:       7/8 (87.5%)
+    Actionable:     5/8 (62.5%)                     ← Room for improvement
+
+    COVERAGE METRICS
+    Result Coverage:   75% (6/8 returned results)   ← Most queries working
+
+    GAPS DETECTED
+      ⚠ what_applies('housing'): No local rules    ← Action item!
+
+
+WHEN TO WORRY
+-------------
+- F1 drops below 0.6 → Quality problem
+- Result coverage drops significantly → Data pipeline issue
+- Many "NO RESULTS" in bias analysis → Missing data for those topics
+- Exit code 1 with new gaps after a change → Regression
+
 
 Usage:
     python scripts/benchmark_api_vs_llm.py [--jurisdiction JURISDICTION]
-    python scripts/benchmark_api_vs_llm.py --run-all
-    python scripts/benchmark_api_vs_llm.py --json  # Output as JSON
+    python scripts/benchmark_api_vs_llm.py --json  # Output as JSON for tracking
 """
 
 import argparse
