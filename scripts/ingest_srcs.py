@@ -422,6 +422,148 @@ def index_vectors(dry_run: bool = False) -> int:
         return 0
 
 
+def backfill_r2_agenda_urls(
+    dry_run: bool = False,
+    limit: int = 0,
+) -> int:
+    """
+    Backfill R2 agenda URLs for meetings that have simbli_mid but no agenda_url.
+
+    This is for meetings that were ingested before R2 upload was integrated.
+    Downloads PDFs via Simbli MID workflow and uploads to R2.
+
+    Args:
+        dry_run: If True, show what would be processed without storing
+        limit: Maximum meetings to process (0 = no limit)
+
+    Returns:
+        Number of meetings updated with R2 URLs
+    """
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        logger.error("DATABASE_URL not set. Cannot backfill.")
+        return 0
+
+    from civic.storage import get_storage_backend
+
+    # Use StorageBackend protocol to get all meetings
+    backend = get_storage_backend()
+    all_meetings = backend.get_meetings(JURISDICTION_ID)
+
+    # Filter in Python: meetings with simbli_mid but no agenda_url
+    meetings_to_backfill = []
+    for meeting in all_meetings:
+        # Skip if already has agenda_url
+        if meeting.get("agenda_url"):
+            continue
+
+        # Check for simbli_mid in full_data.raw_data
+        full_data = meeting.get("full_data") or {}
+        if isinstance(full_data, str):
+            import json
+            full_data = json.loads(full_data)
+        raw_data = full_data.get("raw_data", {})
+        simbli_mid = raw_data.get("simbli_mid")
+
+        if simbli_mid:
+            meetings_to_backfill.append({
+                "id": meeting["id"],
+                "title": meeting.get("title", "Unknown"),
+                "simbli_mid": simbli_mid,
+            })
+
+    # Sort by meeting date descending (most recent first)
+    meetings_to_backfill.sort(
+        key=lambda m: m.get("meeting_datetime", ""),
+        reverse=True
+    )
+
+    if not meetings_to_backfill:
+        logger.info("No meetings need R2 backfill")
+        return 0
+
+    if limit > 0:
+        meetings_to_backfill = meetings_to_backfill[:limit]
+
+    logger.info(f"Found {len(meetings_to_backfill)} meetings to backfill")
+
+    if dry_run:
+        logger.info("DRY RUN: Would backfill R2 URLs for:")
+        for m in meetings_to_backfill:
+            r2_key = f"{JURISDICTION_ID}/agendas/{m['id']}.pdf"
+            logger.info(f"  - {m['id']} (MID: {m['simbli_mid']}) -> {r2_key}")
+        return 0
+
+    from civic_extraction.clients.simbli import create_srcs_simbli_client
+    from civic.storage.blob import get_blob_storage
+
+    # backend already created above via get_storage_backend()
+
+    # Initialize blob storage for R2 uploads
+    try:
+        blob_storage = get_blob_storage()
+        validation = blob_storage.validate()
+        if not validation.is_valid:
+            logger.error(f"Blob storage validation failed: {validation.errors}")
+            return 0
+        logger.info(f"Blob storage ready: {blob_storage.backend_type}")
+    except Exception as e:
+        logger.error(f"Could not initialize blob storage: {e}")
+        return 0
+
+    updated_count = 0
+
+    with create_srcs_simbli_client(headless=True) as client:
+        for i, meeting in enumerate(meetings_to_backfill, 1):
+            meeting_id = meeting["id"]
+            simbli_mid = meeting["simbli_mid"]
+            title = meeting["title"]
+
+            logger.info(f"[{i}/{len(meetings_to_backfill)}] {meeting_id}: {title[:40]}...")
+
+            try:
+                pdf_bytes = client.download_agenda_pdf_via_mid(simbli_mid)
+
+                if pdf_bytes:
+                    logger.info(f"  Downloaded {len(pdf_bytes)} bytes")
+
+                    # Upload to R2
+                    r2_key = f"{JURISDICTION_ID}/agendas/{meeting_id}.pdf"
+                    try:
+                        r2_url = blob_storage.upload(
+                            key=r2_key,
+                            data=pdf_bytes,
+                            content_type="application/pdf",
+                            metadata={
+                                "meeting_id": meeting_id,
+                                "meeting_title": title,
+                                "source": "simbli",
+                            },
+                        )
+                        logger.info(f"  Uploaded to R2: {r2_key}")
+
+                        # Update meeting with agenda_url
+                        if _update_meeting_agenda_url(backend, JURISDICTION_ID, meeting_id, r2_url):
+                            updated_count += 1
+                            logger.info(f"  Updated agenda_url")
+                        else:
+                            logger.warning(f"  Failed to update agenda_url")
+
+                    except Exception as e:
+                        logger.error(f"  Failed to upload to R2: {e}")
+                else:
+                    logger.warning(f"  Failed to download PDF")
+
+            except Exception as e:
+                logger.error(f"  Error processing {meeting_id}: {e}")
+
+            # Rate limiting
+            time.sleep(2)
+
+    logger.info(f"Backfill complete: {updated_count}/{len(meetings_to_backfill)} meetings updated")
+    return updated_count
+
+
 def verify_ingestion() -> Dict[str, Any]:
     """
     Verify ingestion by querying database.
@@ -516,6 +658,11 @@ def main():
         help="Just verify existing ingestion (no new data)",
     )
     parser.add_argument(
+        "--backfill-r2",
+        action="store_true",
+        help="Backfill R2 agenda URLs for meetings with simbli_mid but no agenda_url",
+    )
+    parser.add_argument(
         "-v", "--verbose",
         action="store_true",
         help="Enable verbose logging",
@@ -540,6 +687,17 @@ def main():
             print(f"Chunks (source=simbli):    {results.get('chunks', 0)}")
             print(f"Vectors (corpus=chunks):   {results.get('vectors', 0)}")
         print("=" * 50)
+        return 0
+
+    # Backfill R2 agenda URLs mode
+    if args.backfill_r2:
+        logger.info("Backfilling R2 agenda URLs for meetings with simbli_mid but no agenda_url...")
+        updated = backfill_r2_agenda_urls(
+            dry_run=args.dry_run,
+            limit=args.limit,
+        )
+        if not args.dry_run:
+            print(f"\nBackfill complete: {updated} meetings updated with R2 URLs")
         return 0
 
     # Parse since date
