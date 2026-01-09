@@ -105,7 +105,7 @@
         "status": "not_ready",
         "priority": 0,
         "artifact": "Expand eval framework with F1, coverage, and bias metrics",
-        "note": "Current benchmark (scripts/benchmark_api_vs_llm.py) has accuracy/precision/recall. Add: F1 score, topic coverage, freshness, source diversity, NDCG, null rate, meeting type coverage, geographic coverage, temporal bias. Session 461.",
+        "note": "Current benchmark (scripts/benchmark_api_vs_llm.py) has accuracy/precision/recall. Add: F1 score, topic coverage, freshness, source diversity, NDCG, null rate, meeting type coverage, geographic coverage, temporal bias. Session 461. Promoted to P0 after incremental_vector_indexing completed.",
         "test_file": "scripts/benchmark_api_vs_llm.py"
       }
     },
@@ -802,6 +802,29 @@
           "packages/civic-extraction/src/civic_extraction/pipeline.py",
           ".github/workflows/vector-refresh.yml"
         ]
+      },
+      "incremental_vector_indexing": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Make vector indexing incremental-safe by default, prevent accidental data loss",
+        "note": "FIXED: Default behavior now uses ON CONFLICT upsert (never deletes). --reindex has safety check requiring --force when delete_count > index_count.",
+        "incident": "Session ran --reindex with 30-day window, deleted 46 meeting vectors, only re-indexed 12. Lost 34 vectors.",
+        "solution": {
+          "default_behavior": "Incremental upsert (ON CONFLICT DO UPDATE) - never deletes existing vectors",
+          "reindex_behavior": "Warn if delete > create, require --force flag to proceed",
+          "new_flag": "--force for explicit destructive operations"
+        },
+        "modified_files": [
+          "packages/civic-extraction/src/civic_extraction/cli/vectors.py"
+        ],
+        "test_file": "packages/civic-extraction/tests/test_vectors_cli.py",
+        "test_cases": [
+          "Incremental index adds new vectors without deleting existing",
+          "--reindex with matching counts proceeds normally",
+          "--reindex with delete > create warns and exits without --force",
+          "--reindex --force proceeds even with count mismatch"
+        ],
+        "completed": "2026-01-08"
       }
     },
     "modal_remote_compute": {
