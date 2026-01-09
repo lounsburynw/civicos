@@ -81,7 +81,12 @@ def add_vectors_parser(subparsers: argparse._SubParsersAction) -> None:
     parser.add_argument(
         "--reindex",
         action="store_true",
-        help="Force reindex even if vectors already exist",
+        help="Delete existing vectors and rebuild from scratch (requires --force if would delete more than index)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force destructive operations even when delete count exceeds index count",
     )
     parser.add_argument(
         "--batch-size",
@@ -158,6 +163,7 @@ def run_vectors(args: argparse.Namespace) -> int:
         jurisdiction_id=args.jurisdiction,
         corpus_type=args.corpus,
         reindex=args.reindex,
+        force=args.force,
         batch_size=args.batch_size,
         provider_type=args.provider,
         embedding_model=args.embedding_model,
@@ -449,6 +455,7 @@ def run_vector_indexing(
     jurisdiction_id: str,
     corpus_type: str = "chunks",
     reindex: bool = False,
+    force: bool = False,
     batch_size: int = 100,
     provider_type: str = "fastembed",
     embedding_model: Optional[str] = None,
@@ -458,10 +465,17 @@ def run_vector_indexing(
     """
     Run vector indexing for a jurisdiction.
 
+    Default behavior is incremental: uses ON CONFLICT upsert to add/update vectors
+    without deleting existing ones. This is safe even if the storage query is filtered.
+
+    With --reindex, deletes existing vectors before rebuilding. This is destructive
+    and requires --force if delete_count > index_count (to prevent accidental data loss).
+
     Args:
         jurisdiction_id: Jurisdiction ID (e.g., "city-san-rafael")
         corpus_type: Type of documents ("chunks", "decisions", "meetings", "all")
-        reindex: If True, delete existing index and rebuild
+        reindex: If True, delete existing index and rebuild (requires force if destructive)
+        force: If True, allow destructive reindex even when delete > create
         batch_size: Number of documents to embed at once
         provider_type: Embedding provider ('fastembed', 'local', 'openai')
         embedding_model: Override embedding model name
@@ -510,15 +524,38 @@ def run_vector_indexing(
             logger.info("")
             logger.info(f"Indexing {ct} for {jurisdiction_id}...")
 
-            # Delete existing if reindex requested
+            # Get current state before any changes
+            stats = pgvector.get_stats(jurisdiction_id, ct, backend)
+            existing_vectors = stats.document_count
+
+            # Handle --reindex with safety check
             if reindex:
+                # Get count of documents that WILL be indexed (from storage query)
+                # This may be less than existing vectors if storage query is filtered
+                to_index_count = stats.storage_document_count or 0
+
+                # Safety check: warn if we would delete more than we're creating
+                if existing_vectors > to_index_count:
+                    if not force:
+                        logger.error(f"  SAFETY: Would delete {existing_vectors} vectors but only index {to_index_count}")
+                        logger.error(f"  This would lose {existing_vectors - to_index_count} vectors permanently.")
+                        logger.error(f"  Use --force to proceed anyway, or remove --reindex to use incremental mode.")
+                        results.append(VectorIndexResult(
+                            jurisdiction_id=jurisdiction_id,
+                            corpus_type=ct,
+                            documents_indexed=0,
+                            status="error",
+                            error=f"Safety check failed: would delete {existing_vectors} but only index {to_index_count}",
+                        ))
+                        continue
+                    else:
+                        logger.warning(f"  WARNING: Deleting {existing_vectors} vectors, will index {to_index_count} (--force)")
+
                 deleted = pgvector.delete_index(jurisdiction_id, ct)
                 if deleted > 0:
                     logger.info(f"  Deleted {deleted} existing vectors")
 
-            # Check current state
-            stats = pgvector.get_stats(jurisdiction_id, ct, backend)
-
+            # For incremental mode (no --reindex), skip if already fully indexed
             if not reindex and stats.storage_document_count:
                 if stats.document_count >= stats.storage_document_count:
                     logger.info(f"  {ct} already fully indexed ({stats.document_count} vectors)")
@@ -530,7 +567,7 @@ def run_vector_indexing(
                     ))
                     continue
 
-            # Index from storage
+            # Index from storage (incremental upsert by default via ON CONFLICT)
             try:
                 # Pass chunkers when needed (storage layer is domain-agnostic)
                 transcript_chunker = expand_transcripts_to_chunks if ct == "transcripts" else None
@@ -540,6 +577,10 @@ def run_vector_indexing(
                     legal_chunker_fn = expand_legislation_to_chunks
                 else:
                     legal_chunker_fn = None
+
+                # use_copy=False (default) enables ON CONFLICT upsert for safe incremental indexing
+                # use_copy=True is only safe after delete_index() (used internally when reindexing)
+                use_copy_mode = reindex  # Only use COPY when we've just deleted all vectors
                 indexed_count = pgvector.index_from_storage(
                     storage_backend=backend,
                     jurisdiction_id=jurisdiction_id,
@@ -550,6 +591,7 @@ def run_vector_indexing(
                     limit=limit,
                     transcript_chunker=transcript_chunker,
                     legal_chunker=legal_chunker_fn,
+                    use_copy=use_copy_mode,
                 )
 
                 logger.info(f"  ✓ Indexed {indexed_count} {ct}")
