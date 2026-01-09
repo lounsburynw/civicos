@@ -103,9 +103,9 @@
       },
       "eval_framework": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Expand eval framework with F1, coverage, and bias metrics",
-        "note": "Current benchmark (scripts/benchmark_api_vs_llm.py) has accuracy/precision/recall. Add: F1 score, topic coverage, freshness, source diversity, NDCG, null rate, meeting type coverage, geographic coverage, temporal bias. Session 461. Demoted to P1 - Data Readiness takes priority.",
+        "note": "P0: Current benchmark (scripts/benchmark_api_vs_llm.py) has accuracy/precision/recall. Add: F1 score, topic coverage, freshness, source diversity, NDCG, null rate, meeting type coverage, geographic coverage, temporal bias. Critical for pilot quality assessment.",
         "test_file": "scripts/benchmark_api_vs_llm.py"
       }
     },
@@ -1842,10 +1842,13 @@
         "corpus_type": "executive_orders"
       },
       "marin_registrar_scraper": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Scraper for Marin County Registrar local election data",
-        "note": "P0: Implement local election data ingestion. First investigate if Marin County has any APIs or data feeds before resorting to Playwright scraping. Check for: XML feeds, JSON endpoints, RSS, iCal, or partner data providers.",
+        "note": "MarinRegistrarClient implemented using Playwright with stealth settings to bypass Cloudflare. Data investigation found no APIs (Ballotpedia excludes <100k pop, Democracy Works sources from Ballotpedia). 4 scheduled elections ingested (June 2026 Primary, Nov 2026 General, 2028 elections).",
+        "implementation": "packages/civic-extraction/src/civic_extraction/clients/marin_registrar.py",
+        "test_file": "packages/civic-extraction/tests/test_clients.py::TestMarinRegistrarClient",
+        "completed": "2026-01-08",
         "data_sources": [
           "https://www.marincounty.gov/departments/elections"
         ],

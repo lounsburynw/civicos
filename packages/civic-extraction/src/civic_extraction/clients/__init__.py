@@ -9,6 +9,7 @@ Each client wraps a specific municipal platform API:
 - cagrants: California Grants Portal (grants.ca.gov via data.ca.gov)
 - fac: Federal Audit Clearinghouse (Single Audit / SEFA data)
 - google_civic: Google Civic Information API (elections, voter info)
+- marin_registrar: Marin County Registrar of Voters (local elections)
 - representatives: Unified representative lookup (Congress.gov, Open States, local)
 """
 
@@ -58,6 +59,12 @@ from civic_extraction.clients.base import (
 )
 from civic_extraction.clients.legiscan import LegiScanClient, TOPIC_KEYWORDS
 from civic_extraction.clients.seeclickfix import SeeClickFixClient
+from civic_extraction.clients.marin_registrar import (
+    MarinRegistrarClient,
+    create_san_rafael_registrar_client,
+    marin_election_to_storage,
+    extract_marin_elections_to_storage,
+)
 
 __all__ = [
     "LegistarClient",
@@ -95,4 +102,8 @@ __all__ = [
     "LegiScanClient",
     "TOPIC_KEYWORDS",
     "SeeClickFixClient",
+    "MarinRegistrarClient",
+    "create_san_rafael_registrar_client",
+    "marin_election_to_storage",
+    "extract_marin_elections_to_storage",
 ]
