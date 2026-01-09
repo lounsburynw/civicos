@@ -3,7 +3,7 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2026-01-08",
+  "last_updated": "2026-01-09",
   "session_491_note": "Architecture audit: Created docs/ARCHITECTURE_AUDIT_2026_01.md identifying pre/post-pilot improvements. Key findings: vector backend fragmentation (bumped to P1), civic.py dataclass sprawl (new P2 item). Added Serena memory 'architecture_audit_2026_01' for future reference.",
   "session_481_note": "Strategic pivot from Open States to LegiScan for state legislators (Open States acquired by PE-backed SAI360 Dec 2025). Implemented LegiScanClient, updated RepresentativesClient to use LegiScan as primary with Open States fallback.",
   "session_480_note": "Completed soft_delete_support P0: added deleted_at to 19 content tables, updated all queries to filter deleted records, added soft_delete/restore_deleted methods",
@@ -1273,7 +1273,7 @@
       },
       "manual_input_fallback_schema": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Schema for manually-curated financial mappings when automation fails",
         "note": "Some mappings (e.g., grant-to-program, CFDA enrichment) require human input. Define data/manual/*.json schema with source attribution and last_updated tracking. Prioritize automation but plan for manual fallback.",
         "pattern": "Manual input should be structured, versioned, and clearly marked as human-curated"
@@ -1948,12 +1948,24 @@
         "depends_on": ["simbli_browser_automation"]
       },
       "simbli_pdf_download": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Two-step PDF download workflow for Simbli agendas",
-        "note": "Simbli PDFs are generated dynamically. Workflow: (1) Navigate to PrintAgenda.aspx?S={district}&MID={mid}, (2) Click Print button, (3) POST to /api/PrintAgenda/PrintAgenda returns JSON with FileUrl, (4) GET FileUrl downloads PDF. Tested successfully - 843KB PDF downloaded. Add download_agenda_pdf(meeting) method to SimbliClient.",
+        "note": "Implemented download_agenda_pdf_via_mid(mid) method. Workflow: (1) Navigate to PrintAgenda.aspx?S={district}&MID={mid}, (2) Click Print button, (3) Capture /api/PrintAgenda/PrintAgenda response with FileUrl, (4) Download PDF from FileUrl. Tested successfully - 843KB PDF downloaded (7 pages). 6 unit tests + 1 integration test added.",
         "source_file": "packages/civic-extraction/src/civic_extraction/clients/simbli.py",
+        "test_file": "packages/civic-extraction/tests/test_clients.py::TestSimbliClientIntegration::test_download_agenda_pdf_via_mid",
+        "completed": "2026-01-09",
         "depends_on": ["simbli_mid_discovery"]
+      },
+      "srcs_data_ingestion": {
+        "status": "ready",
+        "priority": 2,
+        "artifact": "scripts/ingest_srcs.py ingests school board meetings and agenda PDFs from Simbli",
+        "note": "Created ingest_srcs.py: (1) Scrapes meetings via SimbliClient, (2) Downloads agenda PDFs via MID workflow, (3) Parses PDFs with PyMuPDF and chunks text, (4) Stores meetings in PostgreSQL, (5) Indexes chunks in pgvector. Initial run: 2 meetings, 27 chunks indexed.",
+        "depends_on": ["simbli_pdf_download"],
+        "jurisdiction_id": "school-san-rafael",
+        "completed": "2026-01-09",
+        "reference_scripts": ["scripts/ingest_srcs.py", "scripts/modal_ingest.py"]
       }
     }
   },

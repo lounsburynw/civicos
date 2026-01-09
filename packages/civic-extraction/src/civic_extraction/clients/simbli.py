@@ -847,16 +847,153 @@ class SimbliClient:
         """
         Download agenda PDF for a meeting.
 
+        Tries direct URL first, then falls back to MID-based download
+        if simbli_mid is available.
+
         Args:
-            meeting: SimbliMeeting with agenda_url
+            meeting: SimbliMeeting with agenda_url or simbli_mid
 
         Returns:
             PDF bytes or None if unavailable
         """
-        if not meeting.agenda_url:
+        # Try direct URL first
+        if meeting.agenda_url:
+            pdf = self._download_pdf(meeting.agenda_url)
+            if pdf:
+                return pdf
+
+        # Fall back to MID-based download
+        if meeting.simbli_mid:
+            return self.download_agenda_pdf_via_mid(meeting.simbli_mid)
+
+        return None
+
+    def download_agenda_pdf_via_mid(self, mid: str) -> Optional[bytes]:
+        """
+        Download agenda PDF using the Simbli MID-based workflow.
+
+        Simbli uses a 2-step process to generate PDFs:
+        1. Navigate to PrintAgenda.aspx with the MID (establishes session)
+        2. Click Print button which triggers API call to PrintAgenda/PrintAgenda
+        3. Parse the FileUrl from the JSON response
+        4. Download the PDF from FileUrl
+
+        Args:
+            mid: Simbli meeting ID (e.g., "45989")
+
+        Returns:
+            PDF bytes or None if download fails
+        """
+        if not mid:
             return None
 
-        return self._download_pdf(meeting.agenda_url)
+        try:
+            self._init_browser()
+
+            if self._page is None:
+                logger.error("Browser not initialized for PDF download")
+                return None
+
+            # Extract district ID from board_url (S parameter)
+            district_id = "36030430"  # Default for SRCS
+            if "S=" in self.board_url:
+                match = re.search(r"S=(\d+)", self.board_url)
+                if match:
+                    district_id = match.group(1)
+
+            # Step 1: Navigate to PrintAgenda page to establish session
+            print_url = f"{self.base_url}/SB_Meetings/PrintAgenda.aspx?S={district_id}&MID={mid}"
+            logger.info(f"Navigating to PrintAgenda: {print_url}")
+
+            if not self._navigate(print_url, wait_until="networkidle", timeout=30000):
+                logger.error(f"Failed to navigate to PrintAgenda for MID {mid}")
+                return None
+
+            # Step 2: Click Print button and capture the API response
+            print_button = self._page.query_selector("button:has-text('Print')")
+            if not print_button:
+                print_button = self._page.query_selector("input[value*='Print']")
+
+            if print_button:
+                # Click Print button and wait for API response using expect_response
+                logger.info("Clicking Print button...")
+
+                try:
+                    # Wait for the PrintAgenda API response
+                    with self._page.expect_response(
+                        lambda r: "PrintAgenda/PrintAgenda?" in r.url and "GetFile" not in r.url,
+                        timeout=15000
+                    ) as response_info:
+                        print_button.click()
+
+                    response = response_info.value
+                    logger.info(f"Got PrintAgenda response: {response.status} {response.url[:80]}")
+
+                    # Parse the JSON response to get FileUrl
+                    try:
+                        import json
+                        data = response.json()
+                        if data.get("IsPass") and data.get("FileUrl"):
+                            file_url = data["FileUrl"]
+                            logger.info(f"Got FileUrl: {file_url}")
+                            return self._download_pdf_from_url(file_url)
+                        else:
+                            logger.warning(f"PrintAgenda API returned: IsPass={data.get('IsPass')}")
+                    except Exception as e:
+                        logger.error(f"Error parsing PrintAgenda response: {e}")
+
+                except Exception as e:
+                    logger.error(f"Error waiting for PrintAgenda response: {e}")
+            else:
+                logger.warning("No Print button found on PrintAgenda page")
+
+            return None
+
+        except Exception as e:
+            logger.error(
+                "PDF download via MID failed",
+                extra={"mid": mid, "error": str(e)},
+            )
+            return None
+
+    def _download_pdf_from_url(self, file_url: str) -> Optional[bytes]:
+        """
+        Download PDF from a FileUrl.
+
+        Args:
+            file_url: URL path to the PDF (may be relative)
+
+        Returns:
+            PDF bytes or None if download fails
+        """
+        if self._page is None:
+            return None
+
+        try:
+            # Make URL absolute if needed
+            if file_url.startswith("/"):
+                full_url = f"{self.base_url}{file_url}"
+            else:
+                full_url = file_url
+
+            logger.info(f"Downloading PDF from: {full_url}")
+
+            time.sleep(self.request_delay)
+
+            # Download using Playwright's request context
+            response = self._page.request.get(full_url)
+
+            if response.ok:
+                pdf_bytes = response.body()
+                logger.info(f"Downloaded PDF: {len(pdf_bytes)} bytes")
+                return pdf_bytes
+            else:
+                logger.error(f"PDF download failed with status {response.status}")
+                return None
+
+        except Exception as e:
+            logger.error(f"PDF download from URL failed: {e}")
+            return None
 
     def get_minutes_pdf(self, meeting: SimbliMeeting) -> Optional[bytes]:
         """
@@ -967,7 +1104,7 @@ def simbli_meeting_to_storage(
         "location": meeting.location,
         "agenda_url": meeting.agenda_url,
         "minutes_url": meeting.minutes_url,
-        "source": "simbli",
+        "source_platform": "simbli",
         "source_url": meeting.source_url,
         "raw_data": raw_data if raw_data else None,
     }

@@ -2528,7 +2528,7 @@ class TestSimbliStorageMappers:
         assert result["title"] == "Regular Board Meeting"
         assert result["jurisdiction_id"] == "srcs"
         assert result["meeting_type"] == "regular"
-        assert result["source"] == "simbli"
+        assert result["source_platform"] == "simbli"
         assert result["agenda_url"] == "https://example.com/agenda.pdf"
         assert "2026-01-15" in result["meeting_datetime"]
 
@@ -2605,6 +2605,148 @@ class TestSimbliClientValidation:
         assert any("Invalid board_url" in err for err in result.errors)
 
 
+class TestSimbliPdfDownload:
+    """Test Simbli PDF download functionality (unit tests)."""
+
+    def test_get_agenda_pdf_with_direct_url_only(self):
+        """Test get_agenda_pdf when only agenda_url is available."""
+        from civic_extraction.clients.simbli import SimbliClient, SimbliMeeting
+        from datetime import datetime
+        from unittest.mock import MagicMock, patch
+
+        client = SimbliClient(
+            board_url="https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030430",
+            jurisdiction_id="srcs",
+        )
+
+        meeting = SimbliMeeting(
+            id="srcs-2026-01-15",
+            title="Regular Board Meeting",
+            meeting_datetime=datetime(2026, 1, 15, 18, 0),
+            meeting_type="regular",
+            agenda_url="https://example.com/agenda.pdf",
+        )
+
+        # Mock _download_pdf to return fake PDF bytes
+        with patch.object(client, "_download_pdf", return_value=b"%PDF-1.4 test content") as mock_download:
+            result = client.get_agenda_pdf(meeting)
+            assert result == b"%PDF-1.4 test content"
+            mock_download.assert_called_once_with("https://example.com/agenda.pdf")
+
+    def test_get_agenda_pdf_falls_back_to_mid(self):
+        """Test get_agenda_pdf falls back to MID-based download when URL fails."""
+        from civic_extraction.clients.simbli import SimbliClient, SimbliMeeting
+        from datetime import datetime
+        from unittest.mock import MagicMock, patch
+
+        client = SimbliClient(
+            board_url="https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030430",
+            jurisdiction_id="srcs",
+        )
+
+        meeting = SimbliMeeting(
+            id="srcs-2026-01-15",
+            title="Regular Board Meeting",
+            meeting_datetime=datetime(2026, 1, 15, 18, 0),
+            meeting_type="regular",
+            agenda_url="https://example.com/agenda.pdf",
+            simbli_mid="45989",
+        )
+
+        # Mock _download_pdf to return None (fail) and download_agenda_pdf_via_mid to succeed
+        with patch.object(client, "_download_pdf", return_value=None), \
+             patch.object(client, "download_agenda_pdf_via_mid", return_value=b"%PDF-1.4 mid content") as mock_mid:
+            result = client.get_agenda_pdf(meeting)
+            assert result == b"%PDF-1.4 mid content"
+            mock_mid.assert_called_once_with("45989")
+
+    def test_get_agenda_pdf_with_mid_only(self):
+        """Test get_agenda_pdf when only simbli_mid is available."""
+        from civic_extraction.clients.simbli import SimbliClient, SimbliMeeting
+        from datetime import datetime
+        from unittest.mock import MagicMock, patch
+
+        client = SimbliClient(
+            board_url="https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030430",
+            jurisdiction_id="srcs",
+        )
+
+        meeting = SimbliMeeting(
+            id="srcs-2026-01-15",
+            title="Regular Board Meeting",
+            meeting_datetime=datetime(2026, 1, 15, 18, 0),
+            meeting_type="regular",
+            simbli_mid="45989",
+        )
+
+        with patch.object(client, "download_agenda_pdf_via_mid", return_value=b"%PDF-1.4 mid content") as mock_mid:
+            result = client.get_agenda_pdf(meeting)
+            assert result == b"%PDF-1.4 mid content"
+            mock_mid.assert_called_once_with("45989")
+
+    def test_get_agenda_pdf_returns_none_when_no_url_or_mid(self):
+        """Test get_agenda_pdf returns None when neither URL nor MID is available."""
+        from civic_extraction.clients.simbli import SimbliClient, SimbliMeeting
+        from datetime import datetime
+
+        client = SimbliClient(
+            board_url="https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030430",
+            jurisdiction_id="srcs",
+        )
+
+        meeting = SimbliMeeting(
+            id="srcs-2026-01-15",
+            title="Regular Board Meeting",
+            meeting_datetime=datetime(2026, 1, 15, 18, 0),
+            meeting_type="regular",
+        )
+
+        result = client.get_agenda_pdf(meeting)
+        assert result is None
+
+    def test_download_agenda_pdf_via_mid_returns_none_for_empty_mid(self):
+        """Test download_agenda_pdf_via_mid returns None for empty MID."""
+        from civic_extraction.clients.simbli import SimbliClient
+
+        client = SimbliClient(
+            board_url="https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030430",
+            jurisdiction_id="srcs",
+        )
+
+        result = client.download_agenda_pdf_via_mid("")
+        assert result is None
+
+        result = client.download_agenda_pdf_via_mid(None)
+        assert result is None
+
+    def test_download_pdf_from_url_makes_absolute(self):
+        """Test _download_pdf_from_url handles relative URLs."""
+        from civic_extraction.clients.simbli import SimbliClient
+        from unittest.mock import MagicMock, PropertyMock
+
+        client = SimbliClient(
+            board_url="https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030430",
+            jurisdiction_id="srcs",
+        )
+
+        # Mock the browser page with a successful response
+        mock_page = MagicMock()
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.body.return_value = b"%PDF-1.4 test"
+        mock_page.request.get.return_value = mock_response
+
+        client._page = mock_page
+
+        result = client._download_pdf_from_url("/SB_Meetings/test.pdf")
+
+        # Should have made the URL absolute
+        mock_page.request.get.assert_called_once()
+        call_args = mock_page.request.get.call_args[0][0]
+        assert call_args == "https://simbli.eboardsolutions.com/SB_Meetings/test.pdf"
+        assert result == b"%PDF-1.4 test"
+
+
 class TestSimbliClientIntegration:
     """Integration tests that scrape the real SRCS Simbli site."""
 
@@ -2670,6 +2812,40 @@ class TestSimbliClientIntegration:
             # Verify MIDs are valid numeric strings
             for m in mids_found:
                 assert m.simbli_mid.isdigit(), f"Expected numeric MID, got: {m.simbli_mid}"
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_download_agenda_pdf_via_mid(self):
+        """Test downloading an agenda PDF using the MID workflow."""
+        from civic_extraction.clients.simbli import create_srcs_simbli_client
+        from datetime import date
+
+        client = create_srcs_simbli_client()
+
+        # First get meetings to find one with an MID
+        meetings = client.get_meetings(since=date(2024, 1, 1), limit=5)
+        meetings_with_mid = [m for m in meetings if m.simbli_mid is not None]
+
+        if len(meetings_with_mid) == 0:
+            pytest.skip("No meetings with MIDs found - cannot test PDF download")
+
+        # Try to download the agenda PDF for the first meeting with MID
+        meeting = meetings_with_mid[0]
+        print(f"Attempting to download agenda for {meeting.id} (MID={meeting.simbli_mid})")
+
+        with client:  # Use context manager for browser lifecycle
+            pdf_bytes = client.download_agenda_pdf_via_mid(meeting.simbli_mid)
+
+        if pdf_bytes is None:
+            # PDF download may fail if the agenda isn't available yet
+            # This is acceptable for newer meetings
+            print(f"PDF download returned None for MID {meeting.simbli_mid}")
+            pytest.skip("PDF not available for this meeting")
+
+        # Verify we got valid PDF bytes
+        assert len(pdf_bytes) > 1000, f"PDF seems too small: {len(pdf_bytes)} bytes"
+        assert pdf_bytes[:4] == b"%PDF", f"Content doesn't look like a PDF: {pdf_bytes[:20]}"
+        print(f"Successfully downloaded {len(pdf_bytes)} bytes of PDF for {meeting.id}")
 
 
 if __name__ == "__main__":

@@ -1,3 +1,53 @@
+## Session 491: srcs_data_ingestion - SRCS School Board Data Pipeline
+
+**Date:** 2026-01-09
+**Item:** srcs_data_ingestion (data_readiness > school_district)
+**Priority:** P0
+
+### Summary
+
+Created `scripts/ingest_srcs.py` to ingest San Rafael City Schools (SRCS) board meeting data from Simbli portal. Full pipeline: scrape meetings -> download PDFs -> extract chunks -> store in PostgreSQL -> index in pgvector.
+
+### Implementation
+
+1. **Ingestion Script:** `scripts/ingest_srcs.py`
+   - Uses `SimbliClient` to scrape meetings with MID discovery
+   - Downloads agenda PDFs via MID-based workflow (bypasses Incapsula WAF)
+   - Parses PDFs with PyMuPDF, splits into overlapping chunks
+   - Stores meetings and chunks in PostgreSQL
+   - Indexes chunks in pgvector for semantic search
+
+2. **Initial Data Ingested:**
+   - 2 meetings (2025-12-16, 2025-11-18)
+   - 27 text chunks from agenda PDFs
+   - 27 vectors indexed in pgvector
+
+3. **Fixed `simbli_meeting_to_storage()` mapper:**
+   - Changed `source` -> `source_platform` to match database schema
+
+### Usage
+
+```bash
+# Dry run
+python scripts/ingest_srcs.py --dry-run
+
+# Full ingestion
+python scripts/ingest_srcs.py
+
+# Verify
+python scripts/ingest_srcs.py --verify
+```
+
+### Files Changed
+- `scripts/ingest_srcs.py` (new) - SRCS data ingestion script
+- `packages/civic-extraction/src/civic_extraction/clients/simbli.py` - Fixed mapper key
+- `pilot.json` - Updated srcs_data_ingestion status to ready
+
+### Next P0
+`manual_input_fallback_schema` - Define schema for manually-curated financial mappings (data/manual/*.json)
+
+---
+
 ## Session 490: municipal_code_vectors - Complete Vector Indexing
 
 **Date:** 2026-01-08
@@ -11599,3 +11649,64 @@ MIDs are embedded in onclick attributes: `ViewMeeting("36030430","45989",...)` -
 
 ### Next P0
 `simbli_pdf_download` - Use captured MIDs to implement PDF download workflow
+## Session: 2026-01-09 - simbli_pdf_download (P0)
+
+### Completed
+Implemented PDF download workflow for Simbli school board agendas using captured MIDs.
+
+### Implementation
+
+1. **Updated `get_agenda_pdf()` method** (simbli.py:846-869)
+   - Tries direct URL first, falls back to MID-based download
+   - Enables PDF download even when no direct agenda URL is available
+
+2. **Implemented `download_agenda_pdf_via_mid(mid)` method** (simbli.py:871-957)
+   - Navigates to PrintAgenda.aspx?S={district}&MID={mid}
+   - Clicks Print button and captures API response using `expect_response`
+   - Parses FileUrl from JSON response: `{"IsPass": true, "FileUrl": "..."}`
+   - Downloads PDF from FileUrl using `page.request.get()`
+
+3. **Added `_download_pdf_from_url()` helper** (simbli.py:959-1000)
+   - Handles relative/absolute URLs
+   - Downloads PDF using Playwright's request context
+
+### Tests Added
+
+**Unit Tests** (test_clients.py:2608-2747 - TestSimbliPdfDownload class):
+- test_get_agenda_pdf_with_direct_url_only
+- test_get_agenda_pdf_falls_back_to_mid
+- test_get_agenda_pdf_with_mid_only
+- test_get_agenda_pdf_returns_none_when_no_url_or_mid
+- test_download_agenda_pdf_via_mid_returns_none_for_empty_mid
+- test_download_pdf_from_url_makes_absolute
+
+**Integration Test** (test_clients.py:2816-2848):
+- test_download_agenda_pdf_via_mid - downloads real 843KB PDF (7 pages)
+
+### Test Results
+- 31 Simbli unit tests pass (6 new)
+- 5 Simbli integration tests pass (1 new)
+- Downloaded PDF verified: 843,004 bytes, PDF v1.4, 7 pages
+
+### Key Technical Details
+
+The Simbli PDF download workflow involves:
+1. Navigate to PrintAgenda.aspx establishes session context
+2. Print button click triggers POST to app2.eboardsolutions.com/api/PrintAgenda/PrintAgenda
+3. API returns JSON: `{"IsPass": true, "FileUrl": "https://app2.eboardsolutions.com/api/PrintAgenda/GetFile/..."}`
+4. FileUrl contains time-limited token (fid parameter)
+5. GET FileUrl returns the actual PDF bytes
+
+Using `page.expect_response()` instead of event listeners proved more reliable for capturing the API response.
+
+### Files Changed
+- packages/civic-extraction/src/civic_extraction/clients/simbli.py
+- packages/civic-extraction/tests/test_clients.py
+- pilot.json (status: ready, completed: 2026-01-09)
+
+### Next P0
+TBD - check pilot.json for next priority item
+
+
+### Next P0
+`srcs_data_ingestion` - Create and run extraction pipeline to ingest SRCS school board meetings and agenda PDFs. Infrastructure is complete; data ingestion is the next step.
