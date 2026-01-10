@@ -2173,17 +2173,18 @@
       },
       "fix_corrupted_city_council_transcripts": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Re-download and re-transcribe 9 corrupted city council meeting transcripts",
         "note": "Session 496 validation found 9/19 city-san-rafael transcripts with corrupted audio (playlist/concatenation bug). Invalid video IDs: IdgRa0uEywo, 1u4NX88tsCI, nSCoylgGf9M, k5ZUhxHn5pE, iYeihDimgxE, dnzo2fEXiO0, ZP7fkN8cBK4, SFsaaL51urs, QLDoO6OvMSA. Steps: 1) soft-delete invalid transcripts, 2) re-download audio (single video, not playlist), 3) re-transcribe with AssemblyAI (~$20 cost), 4) validate new transcripts.",
         "depends_on": "transcript_duration_validation",
         "estimated_cost": "$20"
       },
       "automated_transcript_ingestion": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Add transcript ingestion to Modal automated pipeline before vector indexing",
-        "note": "Session 496: Pipeline gap identified. Current flow: meeting ingestion → audio download → (manual transcription) → vector indexing. Transcription should be automated and run BEFORE vector refresh since transcript text is indexed. Add to Modal cron schedule after audio download. Applies to all jurisdictions (city-san-rafael, school-san-rafael). Include duration validation in pipeline."
+        "completed": "2026-01-10",
+        "note": "Session 499: Added extract_transcripts() Modal function that: (1) downloads audio from YouTube via yt-dlp to R2, (2) transcribes with AssemblyAI + speaker diarization, (3) validates duration against YouTube API, (4) stores to Postgres. Integrated into scheduled_high_velocity_refresh() between fetch_meetings and extract_chunks. Added --transcripts CLI flag. Requires civic-assemblyai and civic-google Modal secrets."
       },
       "audio_hash_storage": {
         "status": "ready",
