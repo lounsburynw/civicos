@@ -2130,6 +2130,14 @@
         "test_file": "packages/civic-extraction/tests/test_transcribe.py",
         "completed": "2026-01-09"
       },
+      "fix_corrupted_city_council_transcripts": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Re-download and re-transcribe 9 corrupted city council meeting transcripts",
+        "note": "Session 496 validation found 9/19 city-san-rafael transcripts with corrupted audio (playlist/concatenation bug). Invalid video IDs: IdgRa0uEywo, 1u4NX88tsCI, nSCoylgGf9M, k5ZUhxHn5pE, iYeihDimgxE, dnzo2fEXiO0, ZP7fkN8cBK4, SFsaaL51urs, QLDoO6OvMSA. Steps: 1) soft-delete invalid transcripts, 2) re-download audio (single video, not playlist), 3) re-transcribe with AssemblyAI (~$20 cost), 4) validate new transcripts.",
+        "depends_on": "transcript_duration_validation",
+        "estimated_cost": "$20"
+      },
       "audio_hash_storage": {
         "status": "ready",
         "priority": 1,
