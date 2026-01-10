@@ -12002,3 +12002,16 @@ Note: Session 495's YouTubeBoardsClient now provides accurate video durations th
 ### Next P0
 `data_freshness_alerting` - GitHub Action that alerts when data falls behind expected freshness thresholds
 
+
+### End-of-session notes
+
+**Pipeline gap identified:** Transcript ingestion is manual but should be automated in the pipeline:
+1. Meeting ingestion → 2. Audio download → 3. **Transcript ingestion (missing automation)** → 4. Vector indexing
+
+**Also noted:**
+- School board: 46 meetings but video_url not populated (YouTubeBoardsClient videos not linked)
+- PAAC: 3 meetings exist, no transcripts
+- Added `fix_corrupted_city_council_transcripts` (P1) to pilot.json
+
+**Next session should consider:** Adding `automated_transcript_ingestion` to pilot.json (integrate into Modal cron before vector refresh)
+
