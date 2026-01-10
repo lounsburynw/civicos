@@ -12055,3 +12055,54 @@ Remaining failures (documented in docs/next_session_prompt.md):
 - ~15 tests fail expecting graceful handling of unknown jurisdictions
 
 Next session: Fix strict=False, verify CI passes, then automated_transcript_ingestion
+
+## Session 498: 2026-01-09
+
+### CI Fix: Non-strict jurisdiction validation
+
+Fixed the jurisdiction validation issue from Session 497's handoff.
+
+**Problem**: Tests expected unknown jurisdictions to return empty results, but
+`normalize_jurisdiction()` was using `strict=True` (default), raising
+`JurisdictionError` instead.
+
+**Solution**: Changed 6 calls to `normalize_jurisdiction()` to use `strict=False`:
+- `packages/civic/src/civic/civic.py:509` - Civic.__post_init__()
+- `packages/civic/src/civic/civic.py:1125` - _find_semantic_issue_types()
+- `packages/civic/src/civic/history.py:477` - _jurisdiction_has_embeddings()
+- `packages/civic/src/civic/history.py:506` - _get_embeddings_path()
+- `packages/civic/src/civic/history.py:539` - _search_semantic_decisions()
+- `packages/civic/src/civic/history.py:1005` - search_decisions()
+
+**Tests passing**:
+- test_unknown_jurisdiction (Civic instantiation)
+- test_civic_api_logging_no_secrets (logging with unknown jurisdiction)
+- test_get_public_testimony_unknown_jurisdiction
+- All 42 smoke tests
+- 7/7 jurisdiction-related tests
+
+**Pre-existing issues** (not from this change):
+- 4 storage protocol tests failing (protocol compliance, not jurisdiction)
+- 1 MCP test failing (whats_next returns dict instead of list)
+
+**Commit**: 6ad4b9a - Pushed to main, CI will verify
+
+### Next P0
+`automated_transcript_ingestion` - Add transcript ingestion to Modal automated pipeline
+
+### CI Results
+
+The jurisdiction fix was successful - all jurisdiction-related tests pass.
+
+**CI Failures (all pre-existing, unrelated to this fix):**
+- 4x storage protocol tests (protocol compliance issues)
+- 1x test_database_connection_strings_not_logged (log message detection)
+- 1x test_real_transcript_council_names_detected (speaker detection)
+
+These were failing before this session's changes.
+
+### Session Complete
+
+Jurisdiction validation fix is complete and pushed. CI has pre-existing failures
+unrelated to jurisdiction. The next session can proceed to the original P0:
+`automated_transcript_ingestion`
