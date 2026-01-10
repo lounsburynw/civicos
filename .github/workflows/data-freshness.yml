@@ -1,0 +1,335 @@
+# Data Freshness Alerting for Civic Platform
+#
+# Daily check for data pipeline health:
+#   - Decisions should be within 7 days of latest meeting
+#   - Vector counts should match SQL within 5% threshold
+#
+# Creates GitHub Issue on threshold breach.
+#
+# Triggers:
+#   - Daily at 8:00 AM UTC (12:00 AM Pacific)
+#   - Manual trigger via workflow_dispatch
+
+name: Data Freshness
+
+on:
+  schedule:
+    # Daily at 8:00 AM UTC (12:00 AM Pacific)
+    - cron: '0 8 * * *'
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+env:
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  JURISDICTION: city-san-rafael
+
+# Permissions needed for creating issues on failure
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  check-freshness:
+    name: Check Data Freshness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    outputs:
+      freshness_ok: ${{ steps.freshness.outputs.freshness_ok }}
+      freshness_report: ${{ steps.freshness.outputs.freshness_report }}
+      sync_ok: ${{ steps.sync.outputs.sync_ok }}
+      sync_report: ${{ steps.sync.outputs.sync_report }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install psycopg2-binary
+          pip install -e packages/civic[embeddings]
+          pip install -e packages/civic-extraction
+
+      - name: Check decision freshness
+        id: freshness
+        run: |
+          python3 << 'EOF'
+          import os
+          import psycopg2
+          from datetime import datetime, timezone
+
+          database_url = os.environ.get("DATABASE_URL")
+          if not database_url:
+              print("ERROR: DATABASE_URL not set")
+              exit(1)
+
+          jurisdiction = os.environ.get("JURISDICTION", "city-san-rafael")
+
+          conn = psycopg2.connect(database_url)
+          cur = conn.cursor()
+
+          # Get latest meeting date
+          cur.execute("""
+              SELECT MAX(meeting_datetime)::date
+              FROM meetings
+              WHERE jurisdiction_id = %s
+                AND valid_to IS NULL
+                AND deleted_at IS NULL
+          """, (jurisdiction,))
+          latest_meeting = cur.fetchone()[0]
+
+          # Get latest decision's meeting date (cast to date for comparison)
+          cur.execute("""
+              SELECT MAX(meeting_date::date)
+              FROM decisions
+              WHERE jurisdiction_id = %s
+                AND valid_to IS NULL
+                AND deleted_at IS NULL
+          """, (jurisdiction,))
+          latest_decision_meeting = cur.fetchone()[0]
+
+          conn.close()
+
+          # Calculate gap
+          if latest_meeting and latest_decision_meeting:
+              gap_days = (latest_meeting - latest_decision_meeting).days
+          else:
+              gap_days = 999  # Force alert if no data
+
+          # Thresholds
+          FRESHNESS_THRESHOLD_DAYS = 7
+
+          print("=" * 60)
+          print("Decision Freshness Check")
+          print("=" * 60)
+          print(f"Jurisdiction: {jurisdiction}")
+          print(f"Latest meeting: {latest_meeting}")
+          print(f"Latest decision's meeting date: {latest_decision_meeting}")
+          print(f"Gap: {gap_days} days")
+          print(f"Threshold: {FRESHNESS_THRESHOLD_DAYS} days")
+
+          # Generate report
+          report_lines = [
+              f"**Jurisdiction:** {jurisdiction}",
+              f"**Latest meeting:** {latest_meeting}",
+              f"**Latest decision extracted from:** {latest_decision_meeting}",
+              f"**Gap:** {gap_days} days (threshold: {FRESHNESS_THRESHOLD_DAYS})",
+          ]
+
+          if gap_days <= FRESHNESS_THRESHOLD_DAYS:
+              print("Status: OK")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write("freshness_ok=true\n")
+                  f.write(f"freshness_report={' | '.join(report_lines)}\n")
+          else:
+              print(f"Status: STALE (exceeds {FRESHNESS_THRESHOLD_DAYS} day threshold)")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write("freshness_ok=false\n")
+                  f.write(f"freshness_report={' | '.join(report_lines)}\n")
+          EOF
+
+      - name: Check vector-SQL sync
+        id: sync
+        run: |
+          python3 << 'EOF'
+          import os
+          import psycopg2
+
+          database_url = os.environ.get("DATABASE_URL")
+          jurisdiction = os.environ.get("JURISDICTION", "city-san-rafael")
+
+          conn = psycopg2.connect(database_url)
+          cur = conn.cursor()
+
+          # Thresholds per corpus type
+          # Note: meetings uses higher threshold due to temporal versioning complexity
+          # Issues allow more variance because some have no text content
+          THRESHOLDS = {
+              "decisions": 0.05,   # 5% - critical, should be exact
+              "meetings": 0.20,    # 20% - temporal versioning can cause variance
+              "issues": 0.35,      # 35% - many issues have no text content
+          }
+
+          print("=" * 60)
+          print("Vector-SQL Sync Check")
+          print("=" * 60)
+
+          mismatches = []
+          report_lines = []
+
+          for corpus_type, threshold in THRESHOLDS.items():
+              # Get SQL count (deleted_at IS NULL for all types)
+              # Note: We don't use valid_to filter because vector indexing
+              # indexes all non-deleted records, not just "current" temporal versions
+              if corpus_type == "decisions":
+                  cur.execute("""
+                      SELECT COUNT(*)
+                      FROM decisions
+                      WHERE jurisdiction_id = %s
+                        AND deleted_at IS NULL
+                  """, (jurisdiction,))
+              elif corpus_type == "meetings":
+                  cur.execute("""
+                      SELECT COUNT(*)
+                      FROM meetings
+                      WHERE jurisdiction_id = %s
+                        AND deleted_at IS NULL
+                  """, (jurisdiction,))
+              elif corpus_type == "issues":
+                  cur.execute("""
+                      SELECT COUNT(*)
+                      FROM issues
+                      WHERE jurisdiction_id = %s
+                  """, (jurisdiction,))
+
+              sql_count = cur.fetchone()[0]
+
+              # Get vector count
+              cur.execute("""
+                  SELECT COUNT(*)
+                  FROM vector_embeddings
+                  WHERE jurisdiction_id = %s
+                    AND corpus_type = %s
+              """, (jurisdiction, corpus_type))
+              vector_count = cur.fetchone()[0]
+
+              # Calculate mismatch ratio
+              if sql_count > 0:
+                  diff = abs(vector_count - sql_count)
+                  mismatch_ratio = diff / sql_count
+              else:
+                  diff = vector_count
+                  mismatch_ratio = 1.0 if vector_count > 0 else 0.0
+
+              # Determine status
+              # If vector_count is less than 50% of sql_count, it's likely not indexed yet
+              # rather than drift - we still alert but with a different message
+              if sql_count > 0 and vector_count < sql_count * 0.5:
+                  status = "NOT_INDEXED"
+              elif mismatch_ratio <= threshold:
+                  status = "OK"
+              else:
+                  status = "MISMATCH"
+
+              print(f"\n{corpus_type.upper()}:")
+              print(f"  SQL count: {sql_count}")
+              print(f"  Vector count: {vector_count}")
+              print(f"  Difference: {diff} ({mismatch_ratio * 100:.1f}%)")
+              print(f"  Threshold: {threshold * 100:.0f}%")
+              print(f"  Status: {status}")
+
+              report_lines.append(f"{corpus_type}: SQL={sql_count} Vector={vector_count} ({status})")
+
+              if status in ("MISMATCH", "NOT_INDEXED"):
+                  mismatches.append({
+                      "corpus": corpus_type,
+                      "sql_count": sql_count,
+                      "vector_count": vector_count,
+                      "mismatch_pct": mismatch_ratio * 100,
+                      "threshold_pct": threshold * 100,
+                      "status": status,
+                  })
+
+          conn.close()
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              if mismatches:
+                  f.write("sync_ok=false\n")
+              else:
+                  f.write("sync_ok=true\n")
+              f.write(f"sync_report={' | '.join(report_lines)}\n")
+          EOF
+
+  # Create issue on failure
+  notify-failure:
+    name: Create Alert Issue
+    runs-on: ubuntu-latest
+    needs: check-freshness
+    if: needs.check-freshness.outputs.freshness_ok == 'false' || needs.check-freshness.outputs.sync_ok == 'false'
+
+    steps:
+      - name: Create or Update Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const freshnessOk = '${{ needs.check-freshness.outputs.freshness_ok }}' === 'true';
+            const syncOk = '${{ needs.check-freshness.outputs.sync_ok }}' === 'true';
+            const freshnessReport = '${{ needs.check-freshness.outputs.freshness_report }}';
+            const syncReport = '${{ needs.check-freshness.outputs.sync_report }}';
+
+            const today = new Date().toISOString().split('T')[0];
+
+            let alertType = [];
+            if (!freshnessOk) alertType.push('decisions stale');
+            if (!syncOk) alertType.push('vector sync mismatch');
+
+            const title = `Data freshness alert - ${today}`;
+            const body = `## Data Freshness Alert
+
+            **Time:** ${new Date().toISOString()}
+            **Alerts:** ${alertType.join(', ')}
+
+            ### Decision Freshness
+            ${freshnessOk ? '✅ OK' : '⚠️ STALE'}
+            ${freshnessReport.split(' | ').join('\n')}
+
+            ### Vector-SQL Sync
+            ${syncOk ? '✅ OK' : '⚠️ MISMATCH'}
+            ${syncReport.split(' | ').join('\n')}
+
+            ### Actions Required
+
+            ${!freshnessOk ? `
+            **Decision Extraction Needed:**
+            Decisions are more than 7 days behind the latest meeting. Run decision extraction:
+            \`\`\`bash
+            modal run scripts/modal_ingest.py --decisions --jurisdiction city-san-rafael
+            \`\`\`
+            ` : ''}
+
+            ${!syncOk ? `
+            **Vector Reindex Needed:**
+            Vector counts don't match SQL. Run vector refresh:
+            \`\`\`bash
+            modal run scripts/modal_ingest.py --vectors --jurisdiction city-san-rafael
+            \`\`\`
+            ` : ''}
+
+            **Workflow Run:** [View logs](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
+            `;
+
+            // Check for existing open issue
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'data-freshness-alert',
+              state: 'open'
+            });
+
+            if (issues.data.length === 0) {
+              // Create new issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['data-freshness-alert', 'automated']
+              });
+              console.log('Created new data freshness alert issue');
+            } else {
+              // Add comment to existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                body: `## Daily Check - ${today}\n\n${body}`
+              });
+              console.log('Added comment to existing issue');
+            }
