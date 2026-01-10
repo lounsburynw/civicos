@@ -12106,3 +12106,47 @@ These were failing before this session's changes.
 Jurisdiction validation fix is complete and pushed. CI has pre-existing failures
 unrelated to jurisdiction. The next session can proceed to the original P0:
 `automated_transcript_ingestion`
+
+## Session 499 (2026-01-10)
+
+### Item: automated_transcript_ingestion
+
+**Status:** Completed
+
+**What was done:**
+1. Added `extract_transcripts()` Modal function to `scripts/modal_ingest.py`
+   - Downloads audio from YouTube via yt-dlp to R2 blob storage
+   - Transcribes with AssemblyAI including speaker diarization
+   - Validates transcript duration against YouTube API (10% tolerance)
+   - Stores transcripts to Postgres
+   - Supports batch mode for parallel transcription
+
+2. Integrated into scheduled pipeline:
+   - Added to `scheduled_high_velocity_refresh()` between fetch_meetings and extract_chunks
+   - Added required secrets: civic-assemblyai, civic-google
+   - Extended timeout to 3 hours for transcription workloads
+   - Added "transcripts" to vector indexing corpus list
+
+3. Updated CLI interface:
+   - Added `--transcripts` flag to main entrypoint
+   - Added `--transcripts-limit` parameter
+   - Updated docstrings and usage examples
+
+4. Updated Modal image:
+   - Added ffmpeg system dependency
+   - Added assemblyai, yt-dlp, google-api-python-client packages
+
+**Files changed:**
+- `scripts/modal_ingest.py` - Added extract_transcripts function and pipeline integration
+- `pilot.json` - Updated status to ready, set next P0
+
+### Next P0
+`fix_corrupted_city_council_transcripts` - Re-download and re-transcribe 9 corrupted transcripts
+
+### Notes
+- The automated pipeline now runs: meetings → issues → transcripts → chunks → vectors
+- Duration validation catches corrupted audio (playlist concatenation bugs)
+- Requires Modal secrets: civic-assemblyai (ASSEMBLYAI_API_KEY), civic-google (GOOGLE_API_KEY)
+- Estimated cost per 2-hour meeting: $2.40 (AssemblyAI) + Modal compute
+
+### Session Complete

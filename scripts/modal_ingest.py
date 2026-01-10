@@ -7,6 +7,7 @@ in parallel on Modal's serverless compute infrastructure. It orchestrates:
 - Legislation text fetch (LegiScan API)
 - Meeting discovery (ProudCity API) - supports incremental fetch
 - Issue fetch (SeeClickFix API) - supports incremental fetch
+- Transcript extraction (AssemblyAI) - downloads audio and transcribes with speaker diarization
 - Chunk extraction (PDF parsing) - downloads agenda PDFs and extracts text chunks
 - Agenda items extraction (LLM) - extracts actionable items from agendas
 - Decision extraction (LLM) - extracts high-stakes decisions from meeting minutes
@@ -19,6 +20,7 @@ Architecture:
         ├── fetch_legislation()     → Postgres
         ├── fetch_meetings()        → Postgres (incremental)
         ├── fetch_issues()          → Postgres (incremental)
+        ├── extract_transcripts()   → R2 (audio) + Postgres (transcripts), after meetings
         ├── extract_chunks()        → Postgres (incremental, after meetings)
         ├── extract_agenda_items()  → Postgres (LLM-powered)
         └── index_vectors()         → pgvector
@@ -28,7 +30,7 @@ Architecture:
 
     Scheduled refreshes (via modal deploy):
         scheduled_low_velocity_refresh()  # Weekly: municipal code, legislation, decisions
-        scheduled_high_velocity_refresh() # Daily: meetings, issues, chunks, vectors
+        scheduled_high_velocity_refresh() # Daily: meetings, issues, transcripts, chunks, vectors
 
 Setup:
     1. Install Modal CLI: pip install modal
@@ -36,11 +38,13 @@ Setup:
     3. Create secrets:
        modal secret create civic-db DATABASE_URL="postgresql://..."
        modal secret create civic-legiscan LEGISCAN_API_KEY="..."
+       modal secret create civic-assemblyai ASSEMBLYAI_API_KEY="..."
+       modal secret create civic-google GOOGLE_API_KEY="..."  # For YouTube duration validation
     4. Run: modal run scripts/modal_ingest.py --all
     5. Deploy for scheduled runs: modal deploy scripts/modal_ingest.py
 
 Usage:
-    # Run all ingestion (municipal, legislation, vectors)
+    # Run all ingestion (municipal, legislation, transcripts, chunks, vectors)
     modal run scripts/modal_ingest.py --all
 
     # Run specific components
@@ -48,6 +52,7 @@ Usage:
     modal run scripts/modal_ingest.py --legislation
     modal run scripts/modal_ingest.py --meetings
     modal run scripts/modal_ingest.py --issues
+    modal run scripts/modal_ingest.py --transcripts
     modal run scripts/modal_ingest.py --vectors
 
     # Incremental mode (only fetch since last refresh)
@@ -90,8 +95,8 @@ app = modal.App("civic-ingest")
 # Build unified image with all dependencies
 civic_image = (
     modal.Image.debian_slim(python_version="3.11")
-    # System dependencies for psycopg2
-    .apt_install("libpq-dev", "gcc")
+    # System dependencies for psycopg2 and audio processing
+    .apt_install("libpq-dev", "gcc", "ffmpeg")
     # Python dependencies for all tasks
     .pip_install(
         "psycopg2-binary>=2.9.0",
@@ -102,6 +107,9 @@ civic_image = (
         "numpy<2",  # fastembed compatibility
         "langgraph>=0.2.0",
         "pymupdf>=1.24.0",  # For PDF parsing (chunk extraction)
+        "assemblyai>=0.35.0",  # For transcription
+        "yt-dlp>=2024.1.0",  # For audio download
+        "google-api-python-client>=2.0.0",  # For YouTube duration validation
     )
     # Add local civic packages
     .add_local_python_source("civic", "civic_config", "civic_extraction", "civic_services")
@@ -1118,6 +1126,165 @@ def extract_decisions(
 
 
 # =============================================================================
+# Transcript Extraction (Audio Download + Transcription)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+        modal.Secret.from_name("civic-assemblyai"),  # ASSEMBLYAI_API_KEY
+        modal.Secret.from_name("civic-google"),  # GOOGLE_API_KEY for YouTube duration validation
+    ],
+    memory=8192,  # 8GB for concurrent audio processing
+    timeout=7200,  # 2 hours (multi-meeting transcription batch)
+    retries=modal.Retries(max_retries=1, backoff_coefficient=2.0, initial_delay=60.0),
+)
+def extract_transcripts(
+    jurisdiction: str = "city-san-rafael",
+    limit: int = 0,
+    dry_run: bool = False,
+    batch: bool = True,
+) -> dict:
+    """Extract transcripts from meeting audio using AssemblyAI.
+
+    This function:
+    1. Reads meetings with youtube_url from Postgres
+    2. Downloads audio files to R2 (if not already present)
+    3. Transcribes with AssemblyAI + speaker diarization
+    4. Validates transcript duration vs YouTube source
+    5. Stores transcripts to Postgres
+
+    Pipeline Integration:
+        Runs in scheduled_high_velocity_refresh AFTER fetch_meetings (which
+        discovers videos) and BEFORE index_vectors (which indexes transcripts).
+        This ensures transcript data is available for vector embedding.
+
+    Args:
+        jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
+        limit: Maximum meetings to process (0 = no limit)
+        dry_run: If True, show what would be processed without extracting
+        batch: If True, use AssemblyAI batch mode for parallel transcription
+
+    Cost: ~$0.02/minute audio (~$2.40 per 2-hour meeting)
+    """
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    assemblyai_key = os.environ.get("ASSEMBLYAI_API_KEY")
+    if not assemblyai_key and not dry_run:
+        raise ValueError("ASSEMBLYAI_API_KEY not set. Create Modal secret: modal secret create civic-assemblyai ASSEMBLYAI_API_KEY='...'")
+
+    logger.info(f"[TRANSCRIPTS] Starting extraction: jurisdiction={jurisdiction}, limit={limit}, batch={batch}")
+
+    # Step 1: Download audio files (if not already in R2)
+    logger.info("[TRANSCRIPTS] Step 1: Downloading audio files...")
+    try:
+        from civic_extraction.cli.audio import run_audio_download
+
+        audio_results = run_audio_download(
+            jurisdiction_id=jurisdiction,
+            input_dir="data",
+            output_dir="data/youtube_audio",
+            cookies_path="",  # No cookies in cloud
+            checkpoint_dir="data/checkpoints",
+            dry_run=dry_run,
+            limit=limit,
+            quality="128",
+            cloud=True,  # Store in R2
+        )
+
+        if audio_results is None and not dry_run:
+            logger.warning("[TRANSCRIPTS] No videos found for audio download")
+            audio_downloaded = 0
+            audio_skipped = 0
+        else:
+            audio_downloaded = sum(1 for r in (audio_results or []) if r.status == "success")
+            audio_skipped = sum(1 for r in (audio_results or []) if r.status == "skipped")
+            logger.info(f"[TRANSCRIPTS] Audio: {audio_downloaded} downloaded, {audio_skipped} already in R2")
+    except Exception as e:
+        logger.exception("[TRANSCRIPTS] Audio download failed")
+        audio_downloaded = 0
+        audio_skipped = 0
+
+    # Step 2: Transcribe audio files
+    logger.info("[TRANSCRIPTS] Step 2: Transcribing audio files...")
+    try:
+        from civic_extraction.cli.transcribe import run_transcription
+
+        transcribe_results = run_transcription(
+            jurisdiction_id=jurisdiction,
+            input_dir="data/youtube_audio",
+            output_dir="data/testimony",
+            checkpoint_dir="data/checkpoints",
+            dry_run=dry_run,
+            limit=limit,
+            min_speakers=5,
+            max_speakers=10,
+            cloud=True,  # Read audio from R2, store transcripts in Postgres
+            batch=batch,  # Use batch mode for parallel processing
+        )
+
+        if transcribe_results is None and not dry_run:
+            logger.warning("[TRANSCRIPTS] No audio files to transcribe")
+            transcripts_extracted = 0
+            transcripts_skipped = 0
+            transcripts_failed = 0
+            duration_issues = 0
+            total_cost = 0.0
+        else:
+            transcripts_extracted = sum(1 for r in (transcribe_results or []) if r.status == "success")
+            transcripts_skipped = sum(1 for r in (transcribe_results or []) if r.status == "skipped")
+            transcripts_failed = sum(1 for r in (transcribe_results or []) if r.status == "error")
+            # Count duration validation issues
+            duration_issues = sum(
+                1 for r in (transcribe_results or [])
+                if r.status == "success" and r.duration_valid is False
+            )
+            total_cost = sum(r.cost_usd or 0.0 for r in (transcribe_results or []) if r.status == "success")
+
+            logger.info(f"[TRANSCRIPTS] Transcribed: {transcripts_extracted}, skipped: {transcripts_skipped}, failed: {transcripts_failed}")
+            if duration_issues > 0:
+                logger.warning(f"[TRANSCRIPTS] Duration validation issues: {duration_issues}")
+
+    except Exception as e:
+        logger.exception("[TRANSCRIPTS] Transcription failed")
+        transcripts_extracted = 0
+        transcripts_skipped = 0
+        transcripts_failed = 0
+        duration_issues = 0
+        total_cost = 0.0
+
+    elapsed = time.time() - start_time
+    logger.info(f"[TRANSCRIPTS] Complete in {elapsed:.1f}s. Cost: ${total_cost:.2f}")
+
+    return {
+        "task": "transcripts",
+        "jurisdiction": jurisdiction,
+        "audio_downloaded": audio_downloaded,
+        "audio_skipped": audio_skipped,
+        "transcripts_extracted": transcripts_extracted,
+        "transcripts_skipped": transcripts_skipped,
+        "transcripts_failed": transcripts_failed,
+        "duration_validation_issues": duration_issues,
+        "dry_run": dry_run,
+        "batch_mode": batch,
+        "elapsed_seconds": elapsed,
+        "transcription_cost_usd": total_cost,
+        "cost_usd": 8 * elapsed * 0.000463 + total_cost,  # Modal compute + AssemblyAI
+    }
+
+
+# =============================================================================
 # Scheduled Refreshes
 # =============================================================================
 
@@ -1212,13 +1379,17 @@ def scheduled_low_velocity_refresh():
 
 @app.function(
     image=civic_image,
-    secrets=[modal.Secret.from_name("civic-db")],
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+        modal.Secret.from_name("civic-assemblyai"),  # For transcript extraction
+        modal.Secret.from_name("civic-google"),  # For YouTube duration validation
+    ],
     memory=4096,
-    timeout=3600,  # 1 hour
+    timeout=10800,  # 3 hours (transcription can take time)
     schedule=modal.Cron("0 14 * * *"),  # Daily at 2 PM UTC (6 AM Pacific)
 )
 def scheduled_high_velocity_refresh():
-    """Daily scheduled refresh for high-velocity corpora (meetings, issues, chunks).
+    """Daily scheduled refresh for high-velocity corpora (meetings, issues, transcripts, chunks).
 
     Runs daily at 2 PM UTC = 6 AM Pacific.
     Incremental fetch for data that changes frequently.
@@ -1226,8 +1397,9 @@ def scheduled_high_velocity_refresh():
     Pipeline:
         1. fetch_meetings() - Scrape new meetings from ProudCity
         2. fetch_issues() - Fetch new issues from SeeClickFix
-        3. extract_chunks() - Download PDFs and extract text chunks (incremental)
-        4. index_vectors() - Index meetings, issues, and chunks to pgvector
+        3. extract_transcripts() - Download audio + transcribe with AssemblyAI
+        4. extract_chunks() - Download PDFs and extract text chunks (incremental)
+        5. index_vectors() - Index meetings, issues, transcripts, and chunks to pgvector
     """
     import logging
     import time
@@ -1268,6 +1440,27 @@ def scheduled_high_velocity_refresh():
         logger.exception("Issues fetch failed")
         results["issues"] = {"status": "failed", "error": str(e)}
 
+    # Transcript extraction (audio download + transcription)
+    # Runs BEFORE chunk extraction since transcript text needs to be indexed
+    try:
+        logger.info("Extracting transcripts (audio + transcription)...")
+        result = extract_transcripts.local(
+            jurisdiction="city-san-rafael",
+            dry_run=False,
+            batch=True,  # Use batch mode for parallel transcription
+        )
+        results["transcripts"] = result
+        logger.info(
+            f"  Transcripts: {result.get('transcripts_extracted', 0)} transcribed, "
+            f"{result.get('transcripts_skipped', 0)} skipped, "
+            f"cost: ${result.get('transcription_cost_usd', 0):.2f}"
+        )
+        if result.get("duration_validation_issues", 0) > 0:
+            logger.warning(f"  Duration validation issues: {result.get('duration_validation_issues')}")
+    except Exception as e:
+        logger.exception("Transcript extraction failed")
+        results["transcripts"] = {"status": "failed", "error": str(e)}
+
     # Chunk extraction (incremental - skips already-chunked meetings)
     try:
         logger.info("Extracting chunks from new meetings...")
@@ -1281,10 +1474,10 @@ def scheduled_high_velocity_refresh():
         logger.exception("Chunk extraction failed")
         results["chunks"] = {"status": "failed", "error": str(e)}
 
-    # Quick vector indexing for meetings, issues, and chunks
+    # Vector indexing for meetings, issues, transcripts, and chunks
     try:
-        logger.info("Indexing vectors (meetings, issues, chunks)...")
-        for corpus_type in ["meetings", "issues", "chunks"]:
+        logger.info("Indexing vectors (meetings, issues, transcripts, chunks)...")
+        for corpus_type in ["meetings", "issues", "transcripts", "chunks"]:
             result = index_vectors.local(
                 jurisdiction="city-san-rafael",
                 corpus=corpus_type,
@@ -1405,6 +1598,7 @@ def main(
     meetings: bool = False,
     issues: bool = False,
     elections: bool = False,
+    transcripts: bool = False,
     chunks: bool = False,
     agenda: bool = False,
     decisions: bool = False,
@@ -1412,6 +1606,7 @@ def main(
     jurisdiction: str = "city-san-rafael",
     legislation_jurisdiction: str = "state-CA",
     legislation_limit: int | None = None,
+    transcripts_limit: int = 0,
     chunks_limit: int = 0,
     agenda_limit: int = 0,
     decisions_limit: int = 0,
@@ -1433,12 +1628,17 @@ def main(
         modal run scripts/modal_ingest.py --meetings
         modal run scripts/modal_ingest.py --issues
         modal run scripts/modal_ingest.py --elections
+        modal run scripts/modal_ingest.py --transcripts
         modal run scripts/modal_ingest.py --chunks
         modal run scripts/modal_ingest.py --vectors
 
         # Incremental mode (only fetch since last refresh)
         modal run scripts/modal_ingest.py --meetings --incremental
         modal run scripts/modal_ingest.py --issues --incremental
+
+        # Extract transcripts (audio download + transcription with AssemblyAI)
+        modal run scripts/modal_ingest.py --transcripts
+        modal run scripts/modal_ingest.py --transcripts --transcripts-limit 5  # Limit to 5 meetings
 
         # Extract chunks (incremental by default - skips already-chunked meetings)
         modal run scripts/modal_ingest.py --chunks
@@ -1492,18 +1692,20 @@ def main(
     # Determine what to run
     # Note: decisions is NOT included in --all because it should run weekly, not with daily refresh
     # Note: elections is included in --all as it's a lightweight API call
+    # Note: transcripts is included in --all as part of daily pipeline
     run_municipal = all or municipal
     run_legislation = all or legislation
     run_meetings = all or meetings
     run_issues = all or issues
     run_elections = all or elections
+    run_transcripts = all or transcripts
     run_chunks = all or chunks
     run_agenda = all or agenda
     run_decisions = decisions  # Explicitly not in --all (weekly only)
     run_vectors = all or vectors
 
-    if not (run_municipal or run_legislation or run_meetings or run_issues or run_elections or run_chunks or run_agenda or run_decisions or run_vectors):
-        print("No tasks specified. Use --all, --municipal, --legislation, --meetings, --issues, --elections, --chunks, --agenda, --decisions, or --vectors")
+    if not (run_municipal or run_legislation or run_meetings or run_issues or run_elections or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors):
+        print("No tasks specified. Use --all, --municipal, --legislation, --meetings, --issues, --elections, --transcripts, --chunks, --agenda, --decisions, or --vectors")
         print("Use --stats-only to check current state")
         return
 
@@ -1521,6 +1723,8 @@ def main(
         task_list.append("issues")
     if run_elections:
         task_list.append("elections")
+    if run_transcripts:
+        task_list.append("transcripts")
     if run_chunks:
         task_list.append("chunks")
     if run_agenda:
@@ -1540,6 +1744,8 @@ def main(
         print(f"  Issues: {jurisdiction}" + (" (incremental)" if incremental else ""))
     if run_elections:
         print(f"  Elections: {jurisdiction}")
+    if run_transcripts:
+        print(f"  Transcripts: {jurisdiction}" + (f" (limit: {transcripts_limit})" if transcripts_limit else " (incremental)"))
     if run_chunks:
         print(f"  Chunks: {jurisdiction}" + (f" (limit: {chunks_limit})" if chunks_limit else " (incremental)"))
     if run_agenda:
@@ -1605,6 +1811,20 @@ def main(
         result = handle.get()
         fetch_results[name] = result
         print(f"  {name}: {result.get('elapsed_seconds', 0):.1f}s, cost: ${result.get('cost_usd', 0):.4f}")
+
+    # Extract transcripts after meetings are fetched (audio download + transcription)
+    transcripts_result = None
+    if run_transcripts:
+        print("\nRunning transcript extraction (audio + transcription)...")
+        transcripts_result = extract_transcripts.remote(
+            jurisdiction=jurisdiction,
+            limit=transcripts_limit,
+            dry_run=dry_run,
+            batch=True,  # Use batch mode for parallel transcription
+        )
+        print(f"  transcripts: {transcripts_result.get('elapsed_seconds', 0):.1f}s, cost: ${transcripts_result.get('cost_usd', 0):.4f}")
+        if transcripts_result.get("duration_validation_issues", 0) > 0:
+            print(f"  ⚠️ Duration validation issues: {transcripts_result.get('duration_validation_issues')}")
 
     # Extract chunks after meetings are fetched
     chunks_result = None
@@ -1672,6 +1892,19 @@ def main(
             print(f"+ Issues{incr}: {result.get('issues_fetched', 0)} fetched, {result.get('issues_stored', 0)} stored")
         elif name == "elections":
             print(f"+ Elections: {result.get('elections_fetched', 0)} fetched, {result.get('elections_stored', 0)} stored")
+
+    if transcripts_result:
+        cost = transcripts_result.get("cost_usd", 0)
+        total_cost += cost
+        extracted = transcripts_result.get("transcripts_extracted", 0)
+        skipped = transcripts_result.get("transcripts_skipped", 0)
+        audio_downloaded = transcripts_result.get("audio_downloaded", 0)
+        duration_issues = transcripts_result.get("duration_validation_issues", 0)
+        transcription_cost = transcripts_result.get("transcription_cost_usd", 0)
+        print(f"+ Transcripts: {extracted} transcribed, {skipped} skipped, {audio_downloaded} audio downloaded")
+        print(f"    AssemblyAI cost: ${transcription_cost:.2f}")
+        if duration_issues > 0:
+            print(f"    ⚠️ Duration validation issues: {duration_issues}")
 
     if chunks_result:
         cost = chunks_result.get("cost_usd", 0)
