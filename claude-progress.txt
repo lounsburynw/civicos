@@ -12150,3 +12150,54 @@ unrelated to jurisdiction. The next session can proceed to the original P0:
 - Estimated cost per 2-hour meeting: $2.40 (AssemblyAI) + Modal compute
 
 ### Session Complete
+
+
+---
+
+## Session 494 (Parallel): election_discovery_cron - Monthly Election Discovery Cron
+
+**Date:** 2026-01-10
+**Item:** election_discovery_cron (pipeline_automation > cloud_integration)
+**Priority:** P1
+**Track:** INFRA (parallel session, different from P0 DATA track)
+**Branch:** feature/infra/election-discovery-cron
+
+### Summary
+
+Added monthly scheduled function to fetch elections from Google Civic API. VIP (Voter Information Project) publishes election data 2-3 weeks before elections, so monthly cadence is sufficient.
+
+### Implementation
+
+1. **scheduled_election_refresh()** in `scripts/modal_ingest.py`:
+   - Runs 1st of each month at 3 AM UTC (7 PM Pacific previous day)
+   - Uses Modal Cron schedule: `"0 3 1 * *"`
+   - Fetches elections for city-san-rafael jurisdiction
+   - Calls existing `fetch_elections.local()` function
+
+2. **Documentation Updates:**
+   - Added to docstring scheduled functions list
+   - Updated civic-google secret comment
+
+### Usage
+
+```bash
+# Manual run
+modal run scripts/modal_ingest.py --elections
+
+# Deploy all scheduled functions
+modal deploy scripts/modal_ingest.py
+```
+
+### Files Changed
+- `scripts/modal_ingest.py` - Added scheduled_election_refresh() function
+- `pilot.json` - Updated election_discovery_cron status to ready
+
+### Commits
+- 1355070 feat: Add monthly election discovery cron job
+
+### Status
+- [x] Implementation complete
+- [x] pilot.json updated
+- [x] Pushed to origin
+- [x] PR #7 created
+
