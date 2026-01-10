@@ -1,3 +1,63 @@
+## Session 492 (Parallel): llm_as_judge - LLM-as-Judge Relevance Scoring
+
+**Date:** 2026-01-10
+**Item:** llm_as_judge (test_infrastructure > test_categorization)
+**Priority:** P2
+**Track:** INFRA (parallel session, different from P0 DATA track)
+**Branch:** feature/infra/eval-framework
+
+### Summary
+
+Implemented LLM-as-judge semantic relevance scoring for the eval framework. This replaces simplistic keyword matching with LLM-based evaluation to more accurately measure precision/recall.
+
+### Implementation
+
+1. **LLMRelevanceJudge class** in `scripts/benchmark_api_vs_llm.py`:
+   - Uses LLM to score result relevance (0.0-1.0) instead of keyword matching
+   - Default model: `gemini-2.0-flash-exp` ($0.075/1M tokens)
+   - File-based caching to minimize costs (~$0.001-0.01 per benchmark run)
+   - Integrated with existing model_registry and llm_provider infrastructure
+
+2. **CLI Integration:**
+   - `--llm-judge` flag enables LLM-based precision scoring
+   - `--llm-judge-model MODEL` to select different models
+   - `--clear-cache` to clear cached judgments
+
+3. **Metrics Added:**
+   - `llm_precision` - LLM-judged precision score
+   - `keyword_precision` - Original keyword-based precision (for comparison)
+   - `llm_relevance_scores` - Per-result relevance scores
+   - LLM judge stats section in report (cost, tokens, cache hit rate)
+
+### Usage
+
+```bash
+# Basic run (keyword-based, unchanged)
+python scripts/benchmark_api_vs_llm.py
+
+# With LLM-as-judge (recommended for accurate evaluation)
+python scripts/benchmark_api_vs_llm.py --llm-judge
+
+# With specific model
+python scripts/benchmark_api_vs_llm.py --llm-judge --llm-judge-model gpt-4o-mini
+
+# Clear cache for fresh evaluations
+python scripts/benchmark_api_vs_llm.py --clear-cache
+```
+
+### Files Changed
+- `scripts/benchmark_api_vs_llm.py` - Added LLMRelevanceJudge class and CLI flags
+- `pilot.json` - Updated llm_as_judge status to ready
+
+### Cost Estimation
+- ~100-200 tokens per judgment
+- 80 judgments per full benchmark (8 queries × 10 results max)
+- gemini-2.0-flash-exp: ~$0.001 per run
+- gpt-4o-mini: ~$0.01 per run
+- Caching reduces repeated runs to near-zero cost
+
+---
+
 ## Session 491: srcs_data_ingestion - SRCS School Board Data Pipeline
 
 **Date:** 2026-01-09
@@ -11787,3 +11847,27 @@ print(f'Meetings with R2 agenda_url: {cur.fetchone()[0]}')
 `srcs_agenda_item_extraction` - Extract structured agenda items from SRCS PDFs using LLM (same as city meetings)
 
 ---
+
+## Session (Parallel): eval-framework
+**Date:** 2026-01-09
+**Track:** infra
+**Branch:** feature/infra/eval-framework
+**Worktree:** /Users/nicolaslounsbury/projects/civic-infra
+
+### Completed
+- Expanded eval framework (scripts/benchmark_api_vs_llm.py) with F1, coverage, and bias metrics
+- Added comprehensive documentation explaining metrics, ground truth, and how to use the benchmark
+- Created /nextsesh-parallel command for parallel session workflow
+- Added llm_as_judge and hallucination_detection items to pilot.json (P2, future work)
+
+### Commits
+- f1a1841 feat: Expand eval framework with F1, coverage, and bias metrics
+- 807ce51 docs: Add comprehensive benchmark documentation
+- 9907daf chore: Add llm_as_judge and hallucination_detection to pilot.json
+- db83dc8 feat: Add /nextsesh-parallel command for parallel sessions
+
+### Status
+- [x] Pushed to origin
+- [ ] PR created / Ready for merge
+- [x] pilot.json updated (eval_framework marked ready)
+
