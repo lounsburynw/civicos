@@ -2138,6 +2138,12 @@
         "depends_on": "transcript_duration_validation",
         "estimated_cost": "$20"
       },
+      "automated_transcript_ingestion": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Add transcript ingestion to Modal automated pipeline before vector indexing",
+        "note": "Session 496: Pipeline gap identified. Current flow: meeting ingestion → audio download → (manual transcription) → vector indexing. Transcription should be automated and run BEFORE vector refresh since transcript text is indexed. Add to Modal cron schedule after audio download. Applies to all jurisdictions (city-san-rafael, school-san-rafael). Include duration validation in pipeline."
+      },
       "audio_hash_storage": {
         "status": "ready",
         "priority": 1,
