@@ -109,6 +109,22 @@
         "test_file": "scripts/benchmark_api_vs_llm.py",
         "completed": "2026-01-09",
         "completed_note": "Added F1 score (harmonic mean of precision/recall), coverage metrics (query/topic/category/data/result), and bias detection (topic/method/temporal/geographic). Parallel session in civic-infra worktree."
+      },
+      "llm_as_judge": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Add LLM-as-judge relevance scoring to eval framework",
+        "note": "Current ground truth uses keyword matching (simplistic). LLM-as-judge would ask: 'Is this result relevant to the query?' for more accurate precision/recall. Requires: prompt design, cost estimation (per-query LLM call), caching strategy. Add to benchmark_api_vs_llm.py.",
+        "test_file": "scripts/benchmark_api_vs_llm.py",
+        "blocked_by": ["eval_framework"]
+      },
+      "hallucination_detection": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Add hallucination detection comparing LLM vs Civic API responses",
+        "note": "Test that compares raw LLM responses against our grounded retrieval. Extract claims from LLM output, verify against database. Metrics: verified_claims, unverified_claims (hallucination risk), grounding_rate. Demonstrates RAG value proposition vs baseline LLM.",
+        "test_file": "scripts/benchmark_api_vs_llm.py",
+        "blocked_by": ["eval_framework"]
       }
     },
     "code_packaging": {
