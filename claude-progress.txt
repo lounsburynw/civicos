@@ -12015,3 +12015,28 @@ Note: Session 495's YouTubeBoardsClient now provides accurate video durations th
 
 **Next session should consider:** Adding `automated_transcript_ingestion` to pilot.json (integrate into Modal cron before vector refresh)
 
+
+## Session 497 (2026-01-09)
+
+### Completed: data_freshness_alerting (P0)
+
+Created GitHub Action for daily data freshness monitoring:
+- `.github/workflows/data-freshness.yml` - runs daily at 8am UTC
+- Checks decision freshness: alerts if decisions >7 days behind meetings
+- Checks vector-SQL sync: alerts if counts mismatch by threshold
+- Creates/updates GitHub Issue on threshold breach
+
+Thresholds:
+- Decisions: 5% sync tolerance
+- Meetings: 20% (temporal versioning variance)
+- Issues: 35% (many have no text content)
+
+Also pushed 190 commits to GitHub (backlog from previous sessions).
+
+### Current State
+- Decisions are 30 days stale (latest meeting: 2026-01-14, latest decision from: 2025-12-15)
+- First freshness alert will correctly fire on next scheduled run
+- Need to run transcript ingestion to fix stale data
+
+### Next P0
+`automated_transcript_ingestion` - Add transcript ingestion to Modal automated pipeline before vector indexing
