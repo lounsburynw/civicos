@@ -50,14 +50,20 @@ class CivicServer:
     the unified Civic MCP server.
     """
 
-    def __init__(self, db_path: str = "data/civic_state.db"):
+    def __init__(
+        self,
+        db_path: str = "data/civic_state.db",
+        jurisdiction_id: str = "city-san-rafael"
+    ):
         """
         Initialize the Civic server.
 
         Args:
             db_path: Path to SQLite database
+            jurisdiction_id: Jurisdiction ID for Civic instance
         """
         self.db_path = db_path
+        self.jurisdiction_id = jurisdiction_id
         self._civic = None
         self._mcp = self._create_server() if MCP_AVAILABLE else None
 
@@ -65,7 +71,7 @@ class CivicServer:
         """Lazy-load Civic instance."""
         if self._civic is None:
             from civic.civic import Civic
-            self._civic = Civic("default", db_path=self.db_path)
+            self._civic = Civic(self.jurisdiction_id, db_path=self.db_path)
         return self._civic
 
     def _create_server(self):
