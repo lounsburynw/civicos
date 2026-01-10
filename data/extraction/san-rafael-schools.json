@@ -1,0 +1,15 @@
+{
+  "source_id": "youtube-school-san-rafael",
+  "source_type": "youtube_boards",
+  "jurisdiction_id": "school-san-rafael",
+  "base_url": "https://www.youtube.com/playlist?list=PLyH9MVpaxhEJFfW0jWIbd5wGVQYUEZDcH",
+  "auto_discover": false,
+  "archives": {},
+  "metadata": {
+    "created": "2026-01-09",
+    "youtube_playlist": "PLyH9MVpaxhEJFfW0jWIbd5wGVQYUEZDcH",
+    "youtube_channel": "@srcscommunications5656",
+    "meeting_types": ["school_board", "special_meeting", "workshop"],
+    "notes": "San Rafael City Schools board meetings uploaded to YouTube. Simbli portal available for agendas (srcs.boardspace.us)."
+  }
+}

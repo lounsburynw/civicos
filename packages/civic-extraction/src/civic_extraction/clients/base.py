@@ -222,7 +222,14 @@ class ExtractionConfig:
 
         # Map jurisdiction_id to config file name
         # e.g., "city-san-rafael" -> "san-rafael.json"
-        config_name = jurisdiction_id.replace("city-", "")
+        # e.g., "school-san-rafael" -> "san-rafael-schools.json"
+        if jurisdiction_id.startswith("school-"):
+            # School districts use "name-schools.json" format
+            base_name = jurisdiction_id.replace("school-", "")
+            config_name = f"{base_name}-schools"
+        else:
+            # Cities use "name.json" format
+            config_name = jurisdiction_id.replace("city-", "")
         config_dir = os.path.join(
             os.path.dirname(__file__),
             "..", "..", "..", "..", "..",  # Up to project root

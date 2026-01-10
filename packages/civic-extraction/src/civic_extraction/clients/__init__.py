@@ -79,6 +79,13 @@ from civic_extraction.clients.simbli import (
     simbli_meeting_to_storage,
     extract_simbli_meetings_to_storage,
 )
+from civic_extraction.clients.youtube_boards import (
+    YouTubeBoardsClient,
+    YouTubeBoardsSource,
+    YouTubeVideo,
+    create_srcs_youtube_client,
+    create_srcs_youtube_source,
+)
 
 __all__ = [
     "LegistarClient",
@@ -129,4 +136,9 @@ __all__ = [
     "create_srcs_simbli_client",
     "simbli_meeting_to_storage",
     "extract_simbli_meetings_to_storage",
+    "YouTubeBoardsClient",
+    "YouTubeBoardsSource",
+    "YouTubeVideo",
+    "create_srcs_youtube_client",
+    "create_srcs_youtube_source",
 ]

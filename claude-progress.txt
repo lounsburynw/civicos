@@ -11904,3 +11904,67 @@ for row in cur.fetchall():
 `srcs_youtube_integration` - Ingest SRCS board meetings from YouTube
 
 ---
+
+## Session 495 (2026-01-09)
+
+### Task: srcs_youtube_integration
+
+**Completed:** Ingest SRCS board meetings via YouTube Data API v3
+
+### Changes
+
+1. **Created YouTubeBoardsClient** (`packages/civic-extraction/src/civic_extraction/clients/youtube_boards.py`):
+   - Implements DataSource protocol (health, validate methods)
+   - Fetches playlist items and video metadata from YouTube API
+   - Parses ISO 8601 durations to seconds
+   - Extracts meeting dates from video titles (e.g., "Board Meeting - Dec. 16, 2025")
+   - Converts YouTube videos to normalized Meeting dataclass
+   - Stores video_id and duration_seconds in raw_data for transcript pipeline
+
+2. **Created youtube-boards CLI** (`packages/civic-extraction/src/civic_extraction/cli/youtube_boards.py`):
+   - `civic-extract youtube-boards --jurisdiction school-san-rafael`
+   - `--validate` mode for API connectivity check
+   - `--dry-run` mode to preview extraction
+   - `--cloud` mode for database storage
+   - Saves checkpoint with raw_data (video_id, duration)
+
+3. **Created san-rafael-schools.json config** (`data/extraction/san-rafael-schools.json`):
+   - source_type: youtube_boards
+   - youtube_playlist: PLyH9MVpaxhEJFfW0jWIbd5wGVQYUEZDcH
+   - meeting_types: school_board, special_meeting, workshop
+
+4. **Updated ExtractionConfig.from_jurisdiction()** (`packages/civic-extraction/src/civic_extraction/clients/base.py`):
+   - Added handling for `school-` prefix jurisdictions
+   - Maps `school-san-rafael` -> `san-rafael-schools.json`
+
+5. **Added google-api-python-client dependency** (`packages/civic-extraction/pyproject.toml`)
+
+### Results
+
+- **69 videos** in SRCS Board Meetings playlist
+- **20 meetings** extracted from last 365 days
+- Each meeting has video_id and duration_seconds (e.g., 165 min for typical board meeting)
+- Checkpoint saved to `data/checkpoints/youtube_boards_school_san_rafael.json`
+
+### API Key Setup
+
+YouTube Data API v3 must be enabled for your API key:
+1. Google Cloud Console > APIs & Services > Library > YouTube Data API v3
+2. Enable the API
+3. Go to Credentials > [Your API Key] > API restrictions
+4. Add YouTube Data API v3 to allowed APIs (or unrestrict key)
+
+Uses `GOOGLE_API_KEY` or `YOUTUBE_API_KEY` environment variable.
+
+### Test Command
+
+```bash
+civic-extract youtube-boards --jurisdiction school-san-rafael --validate
+```
+
+### Next P0
+`transcript_duration_validation` - Validate transcript duration matches YouTube video duration
+
+Note: Session 495's YouTubeBoardsClient now provides accurate video durations that can be compared against AssemblyAI transcript durations to detect the playlist/concatenation bug identified in Session 480.
+
+---
