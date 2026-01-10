@@ -532,6 +532,35 @@ class PgVectorBackend:
 
         return "\n".join(parts) if parts else ""
 
+    def _agenda_item_to_text(self, item: Dict[str, Any]) -> str:
+        """
+        Convert an agenda item to text for embedding.
+
+        Combines title, description, summary, and why_it_matters for
+        semantic search queries like "what happened about budget?"
+        """
+        parts = []
+
+        if item.get("title"):
+            parts.append(f"Title: {item['title']}")
+
+        if item.get("description"):
+            parts.append(f"Description: {item['description']}")
+
+        if item.get("summary"):
+            parts.append(f"Summary: {item['summary']}")
+
+        if item.get("why_it_matters"):
+            parts.append(f"Why It Matters: {item['why_it_matters']}")
+
+        if item.get("project_type"):
+            parts.append(f"Type: {item['project_type']}")
+
+        if item.get("actionability"):
+            parts.append(f"Actionability: {item['actionability']}")
+
+        return "\n".join(parts) if parts else ""
+
     def _election_to_text(self, election: Dict[str, Any]) -> str:
         """
         Convert an election dict to text for embedding.
@@ -602,7 +631,8 @@ class PgVectorBackend:
             storage_backend: Source of documents to index
             jurisdiction_id: Target jurisdiction (for legislation, use "state-CA" format)
             corpus_type: Type of documents ("decisions", "chunks", "meetings",
-                        "transcripts", "municipal_code", "issues", "legislation")
+                        "transcripts", "municipal_code", "issues", "legislation",
+                        "agenda_items", "elections")
             batch_size: Number of documents to process at once
             allow_dimension_change: If True, recreate table if embedding dimension differs
             offset: Skip first N documents (for splitting across jobs)
@@ -693,6 +723,9 @@ class PgVectorBackend:
             documents = storage_backend.get_elections(
                 jurisdiction_id, include_past=True
             )
+        elif corpus_type == "agenda_items":
+            # Agenda items don't need chunking - they're individual items
+            documents = storage_backend.get_agenda_items(jurisdiction_id=jurisdiction_id)
         else:
             raise ValueError(f"Unknown corpus_type: {corpus_type}")
 
@@ -792,6 +825,12 @@ class PgVectorBackend:
                     meeting_id = None  # Not meeting-related
                     meeting_title = doc.get("name")  # Election name
                     meeting_datetime = None  # election_date is just a date
+                elif corpus_type == "agenda_items":
+                    text = self._agenda_item_to_text(doc)
+                    doc_id = doc.get("id", f"agenda-{i}-{idx}")
+                    meeting_id = doc.get("meeting_id")
+                    meeting_title = doc.get("title")
+                    meeting_datetime = None  # meeting_datetime not directly on item
 
                 if not text.strip():
                     continue
@@ -1140,6 +1179,8 @@ class PgVectorBackend:
             elif corpus_type == "executive_orders":
                 # Executive orders are all federal, no jurisdiction filter
                 storage_count = storage_backend.get_executive_orders_count()
+            elif corpus_type == "agenda_items":
+                storage_count = storage_backend.get_agenda_item_count(jurisdiction_id)
 
         return VectorStats(
             jurisdiction_id=jurisdiction_id,

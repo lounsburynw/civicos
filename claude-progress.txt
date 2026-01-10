@@ -11848,3 +11848,59 @@ print(f'SRCS agenda_items: {cur.fetchone()[0]}')
 `srcs_vector_indexing` - Index SRCS agenda items in pgvector for semantic search
 
 ---
+
+## Session 494 (2026-01-09)
+
+### Task: srcs_vector_indexing
+
+**Completed:** Index SRCS agenda items in pgvector for semantic search
+
+### Changes
+
+1. **Added `agenda_items` corpus to PgVectorBackend** (`packages/civic/src/civic/storage/pgvector_backend.py`):
+   - Added `_agenda_item_to_text()` method to convert agenda items to searchable text
+   - Added `agenda_items` case to `index_from_storage()` - reads from `get_agenda_items()`
+   - Added `agenda_items` case to `get_stats()` - uses `get_agenda_item_count()`
+   - Updated docstring to document new corpus type
+
+2. **Updated modal_ingest.py** (`scripts/modal_ingest.py`):
+   - Added `agenda_items` to default corpus types for city/school jurisdictions
+
+3. **Added school-san-rafael jurisdiction** (`packages/civic-config/src/civic_config/jurisdiction.py`):
+   - Added `school_san_rafael` entry to JurisdictionRegistry
+   - Configured with BoardDocs agent type and SRCS website
+
+4. **Added school-san-rafael aliases** (`packages/civic/src/civic/_internal/jurisdiction.py`):
+   - Added aliases: "srcs", "san-rafael-schools", "san-rafael-city-schools"
+   - Added display name: "San Rafael City Schools"
+
+### Results
+
+- **573 agenda items** indexed in pgvector (25 items were expired/deleted)
+- Semantic search working for queries like "budget", "curriculum", "teacher hiring"
+- `Civic('school-san-rafael')` now works
+
+### Verification
+
+```bash
+# Check SRCS vector counts
+python3 -c "
+from dotenv import load_dotenv; load_dotenv()
+import os, psycopg2
+conn = psycopg2.connect(os.getenv('DATABASE_URL'))
+cur = conn.cursor()
+cur.execute('''
+    SELECT corpus_type, COUNT(*) FROM vector_embeddings
+    WHERE jurisdiction_id = 'school-san-rafael'
+    GROUP BY corpus_type
+''')
+for row in cur.fetchall():
+    print(f'{row[0]}: {row[1]}')
+"
+# Expected: agenda_items: 573, chunks: 788
+```
+
+### Next P0
+`srcs_youtube_integration` - Ingest SRCS board meetings from YouTube
+
+---
