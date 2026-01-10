@@ -286,6 +286,56 @@ on:
   workflow_dispatch:      # Manual trigger
 ```
 
+## Evaluation Framework (Quality Benchmarks)
+
+Separate from unit tests, the evaluation framework measures API quality metrics.
+
+### Benchmark Script
+
+```bash
+# Location
+scripts/benchmark_api_vs_llm.py
+
+# Basic run (keyword-based precision)
+python scripts/benchmark_api_vs_llm.py
+
+# With LLM-as-judge (recommended for accurate evaluation)
+python scripts/benchmark_api_vs_llm.py --llm-judge
+
+# Output as JSON for tracking
+python scripts/benchmark_api_vs_llm.py --llm-judge --json > results.json
+```
+
+### What It Measures
+
+| Metric | Description |
+|--------|-------------|
+| **Accuracy** | Results have valid structure and reasonable dates |
+| **Precision** | Relevance of returned results to query |
+| **Recall** | Completeness (retrieved vs total relevant) |
+| **F1 Score** | Harmonic mean of precision and recall |
+| **Coverage** | Query, topic, category, and data coverage |
+| **Bias** | Topic, method, temporal, and geographic bias |
+
+### LLM-as-Judge Mode
+
+The `--llm-judge` flag enables semantic relevance scoring via LLM (instead of keyword matching):
+
+```bash
+python scripts/benchmark_api_vs_llm.py --llm-judge
+```
+
+- **Cost:** ~$0.001-0.01 per run (gemini-2.0-flash-exp default)
+- **Caching:** Results cached to minimize repeated costs
+- **Clear cache:** `--clear-cache` flag
+
+### When to Use
+
+- **Unit tests (pytest):** Verify code correctness, run on every commit
+- **Evaluation framework:** Measure retrieval quality, run periodically or after major changes
+
+See the script's docstring for detailed documentation on metrics, ground truth, and adding new queries.
+
 ## Troubleshooting
 
 ### "Collection does not exist" errors
