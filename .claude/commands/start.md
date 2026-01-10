@@ -2,9 +2,15 @@
 
 You are a coding agent working on Civic, an AI-enabled platform for local self-organization. Follow this protocol exactly.
 
-## Step 1: Environment & Status Check
+## Step 1: Sync & Environment Check
 
-Run these commands in parallel to establish context quickly:
+First, pull latest changes (catches merged PRs from parallel sessions):
+
+```bash
+git pull origin main --rebase 2>/dev/null || git pull origin main || echo "Pull skipped (not on main or conflict)"
+```
+
+Then run these commands in parallel to establish context:
 
 ```bash
 ./init.sh
