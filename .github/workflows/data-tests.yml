@@ -49,6 +49,8 @@ jobs:
           python -m pip install --upgrade pip
           # Install CPU-only PyTorch first (saves ~2GB by skipping CUDA)
           pip install torch --index-url https://download.pytorch.org/whl/cpu
+          # Install local package dependencies first
+          pip install -e packages/civic-config
           pip install -e packages/civic[all]
           pip install -e packages/civic-extraction
           pip install -e packages/civic-services/
