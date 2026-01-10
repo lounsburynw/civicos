@@ -125,3 +125,26 @@ pytest path/to/test.py -v
 ```bash
 cat docs/next_session_prompt.md
 ```
+
+6. **Check for open PRs from parallel sessions:**
+```bash
+echo "=== OPEN PRs CHECK ==="
+PR_COUNT=$(gh pr list --state open --json number --jq 'length' 2>/dev/null || echo "0")
+if [ "$PR_COUNT" -gt "0" ]; then
+    echo "WARNING: $PR_COUNT open PR(s) from parallel sessions:"
+    gh pr list --state open --json number,title,headRefName --jq '.[] | "  PR #\(.number): \(.title) (\(.headRefName))"'
+    echo ""
+    echo "Consider:"
+    echo "  - Merging if tests pass: gh pr merge <number> --merge"
+    echo "  - Adding PR info to next_session_prompt.md for awareness"
+else
+    echo "No open PRs from parallel sessions."
+fi
+echo "=== END PR CHECK ==="
+```
+
+If PRs are waiting, add a note to `docs/next_session_prompt.md`:
+```markdown
+## Open PRs
+- PR #42: [title] - [status/notes]
+```

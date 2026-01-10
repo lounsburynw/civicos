@@ -1,14 +1,211 @@
 #!/usr/bin/env python3
 """
 Benchmark: Civic API vs Baseline LLM
+====================================
 
-Compares Civic API query results against what a baseline LLM would produce.
-Evaluates on: Accuracy, Specificity, Actionability, Grounding.
+PURPOSE
+-------
+This benchmark measures how well the Civic API answers questions compared to
+what a generic LLM (like ChatGPT) would say. It answers: "Is our system actually
+better than just asking an AI?"
+
+Run this benchmark:
+- Before pilot launches (to ensure quality)
+- After major data ingestion (to catch regressions)
+- When adding new data sources (to verify they improve results)
+
+
+QUICK START
+-----------
+# Basic run (uses local SQLite - limited data)
+python scripts/benchmark_api_vs_llm.py
+
+# With production data (recommended)
+source .env && python scripts/benchmark_api_vs_llm.py
+
+# Output as JSON (for automated tracking)
+python scripts/benchmark_api_vs_llm.py --json > benchmark_results.json
+
+
+WHAT THE METRICS MEAN
+---------------------
+When you run the benchmark, you'll see output like this:
+
+    ## what_happened('housing')
+       Civic count: 12
+       Accurate:   ✓ (0.92)
+       Precision:  0.83  |  Recall: 0.80  |  F1: 0.81
+
+Here's what each metric tells you:
+
+  PRECISION (0.83 = 83%)
+    "Of the results we returned, how many were actually relevant?"
+    - High precision (>0.8): Results are relevant, not noisy
+    - Low precision (<0.5): Returning too much irrelevant junk
+
+  RECALL (0.80 = 80%)
+    "Of all relevant items in the database, how many did we find?"
+    - High recall (>0.8): Finding most relevant items
+    - Low recall (<0.5): Missing important results
+
+  F1 SCORE (0.81)
+    "Overall balance of precision and recall"
+    - This is the single number to track over time
+    - F1 > 0.7 is good, F1 > 0.85 is excellent
+    - If F1 drops after a change, investigate why
+
+  ACCURACY (0.92)
+    "Are the results structurally valid?" (dates make sense, titles exist, etc.)
+    - Should always be >0.9; if not, there's a data quality issue
+
+
+COVERAGE METRICS
+----------------
+These tell you how thorough the benchmark itself is:
+
+  Query Coverage:    100% (4/4 API methods)
+    → Are we testing all API methods? (what_applies, what_happened, etc.)
+
+  Category Coverage: 75% (3/4 categories)
+    → Are we testing diverse topics? (housing, transportation, utilities, governance)
+
+  Result Coverage:   62% (5/8 returned results)
+    → How many queries actually returned data?
+    → Low result coverage with production DB = data gaps
+    → Low result coverage with local SQLite = expected (limited data)
+
+
+BIAS ANALYSIS
+-------------
+Flags potential problems:
+
+  Topic Bias: "housing" queries work well, but "pothole" queries fail
+    → Might indicate uneven data coverage
+
+  Method Bias: what_happened() works, but whos_with_me() always fails
+    → Might indicate a broken API method or missing data type
+
+  Temporal Bias: Large precision-recall gap
+    → Might be finding recent items but missing historical ones
+
+
+GROUND TRUTH: WHAT IT IS AND ITS LIMITATIONS
+--------------------------------------------
+"Ground truth" = the correct answers we compare against.
+
+CURRENT APPROACH (simplistic):
+  We count database records matching keywords:
+    - "How many decisions mention 'housing'?" → 15
+    - API returns 12 → Recall = 12/15 = 0.80
+
+  This is LIMITED because:
+    - Keyword matching misses semantic relevance
+      (a decision about "affordable apartments" won't match "housing")
+    - It's self-referential (using our own DB as truth)
+    - Only works for pre-defined topics
+
+WHAT PROPER GROUND TRUTH WOULD BE:
+  A human-curated test set where someone manually labeled:
+    - "These 20 decisions ARE relevant to housing"
+    - "These 5 decisions are NOT relevant despite mentioning housing"
+
+  We don't have this yet. The current approach is a reasonable approximation
+  for tracking trends over time, but not a rigorous evaluation.
+
+
+HOW TO ADD A NEW TEST QUERY
+---------------------------
+Want to test a new topic like "parking"? Here's how:
+
+1. Add ground truth counting (in get_ground_truth_counts function):
+
+    for topic in ["housing", "bike", "traffic", "pothole", "parking"]:  # Add here
+        cur.execute(...)
+        counts[f"decisions_{topic}"] = cur.fetchone()[0]
+
+2. Add the query to run_all():
+
+    # In run_all() method, add:
+    self.results.append(self.run_what_happened("parking"))
+
+3. (Optional) Add an LLM baseline response:
+
+    # In LLM_BASELINES dict, add:
+    "what_happened:parking": \"\"\"
+    I don't have access to local parking decisions.
+    Check your city's transportation department website.
+    \"\"\",
+
+4. Run the benchmark to see results:
+
+    python scripts/benchmark_api_vs_llm.py
+
+
+HOW TO TRACK QUALITY OVER TIME
+------------------------------
+1. Run benchmark and save JSON output:
+   python scripts/benchmark_api_vs_llm.py --json > benchmarks/2026-01-09.json
+
+2. Key metrics to track:
+   - avg_f1: Overall quality score (higher is better)
+   - result_coverage: Are queries returning data?
+   - gaps_detected: Count of detected issues
+
+3. After major changes, compare:
+   - Did avg_f1 go up or down?
+   - Did we introduce new gaps?
+
+
+INTERPRETING EXIT CODES
+-----------------------
+  Exit 0: All good, no gaps detected
+  Exit 1: Gaps detected (queries returning no results, low-relevance results, etc.)
+
+In CI, you might want to allow exit 1 but track the gaps.
+
+
+EXAMPLE OUTPUT WALKTHROUGH
+--------------------------
+Here's what a healthy benchmark looks like:
+
+    ======================================================================
+    CIVIC API BENCHMARK vs LLM BASELINE
+    Jurisdiction: city-san-rafael
+    Database: Supabase PostgreSQL (production)     ← Good: using real data
+    ======================================================================
+
+    ## what_applies('housing')
+       Civic count: 13                              ← Found 13 relevant laws
+       Accurate:   ✓ (1.0)                          ← All results valid
+       Precision:  0.85  |  Recall: -  |  F1: 0.85  ← 85% relevant
+       Grounded:   ✓                                ← Has real citations
+       Specific:   ✓                                ← Names specific bills
+       Actionable: ✗                                ← No local rules (gap!)
+
+    SUMMARY
+    Accurate:       8/8 (100%)
+    Precision:      avg 0.82  |  Recall: avg 0.75  |  F1: avg 0.78  ← Track this!
+    Grounded:       7/8 (87.5%)
+    Actionable:     5/8 (62.5%)                     ← Room for improvement
+
+    COVERAGE METRICS
+    Result Coverage:   75% (6/8 returned results)   ← Most queries working
+
+    GAPS DETECTED
+      ⚠ what_applies('housing'): No local rules    ← Action item!
+
+
+WHEN TO WORRY
+-------------
+- F1 drops below 0.6 → Quality problem
+- Result coverage drops significantly → Data pipeline issue
+- Many "NO RESULTS" in bias analysis → Missing data for those topics
+- Exit code 1 with new gaps after a change → Regression
+
 
 Usage:
     python scripts/benchmark_api_vs_llm.py [--jurisdiction JURISDICTION]
-    python scripts/benchmark_api_vs_llm.py --run-all
-    python scripts/benchmark_api_vs_llm.py --json  # Output as JSON
+    python scripts/benchmark_api_vs_llm.py --json  # Output as JSON for tracking
 """
 
 import argparse
@@ -71,6 +268,13 @@ IRRELEVANT_USC_CHAPTERS = {
 }
 
 
+def calculate_f1(precision: float, recall: float) -> float:
+    """Calculate F1 score (harmonic mean of precision and recall)."""
+    if precision + recall == 0:
+        return 0.0
+    return 2 * (precision * recall) / (precision + recall)
+
+
 @dataclass
 class BenchmarkReport:
     """Full benchmark report."""
@@ -79,6 +283,8 @@ class BenchmarkReport:
     queries: list
     summary: dict
     gaps_detected: list
+    coverage: dict = field(default_factory=dict)
+    bias_analysis: dict = field(default_factory=dict)
 
 
 def get_ground_truth_counts(jurisdiction: str) -> dict:
@@ -264,6 +470,10 @@ Community organizing often starts with talking to neighbors.
         relevant_results = accurate_federal + accurate_state + local_count  # local assumed relevant
         precision_score = relevant_results / total_results if total_results > 0 else 1.0
 
+        # Note: what_applies doesn't have recall (no ground truth for legislation)
+        # F1 is undefined without recall, so we set it to precision (single-metric case)
+        f1_score = precision_score  # No recall available for legislation queries
+
         return QueryResult(
             method="what_applies",
             query=topic,
@@ -282,6 +492,7 @@ Community organizing often starts with talking to neighbors.
                 "accurate": accuracy_score >= 0.7,  # 70% threshold
                 "accuracy_score": round(accuracy_score, 2),
                 "precision": round(precision_score, 2),
+                "f1": round(f1_score, 2),  # Same as precision when no recall
                 "grounded": federal_count > 0 or state_count > 0,
                 "specific": len(sample) > 0,
                 "actionable": local_count > 0,  # Local rules are most actionable
@@ -327,6 +538,9 @@ Community organizing often starts with talking to neighbors.
         baseline_key = f"what_happened:{query}"
         llm_baseline = self.LLM_BASELINES.get(baseline_key, "No baseline defined")
 
+        # F1 score: harmonic mean of precision and recall
+        f1_score = calculate_f1(precision_score, recall_score)
+
         return QueryResult(
             method="what_happened",
             query=query,
@@ -344,6 +558,7 @@ Community organizing often starts with talking to neighbors.
                 "accuracy_score": round(accuracy_score, 2),
                 "precision": round(precision_score, 2),
                 "recall": round(recall_score, 2),
+                "f1": round(f1_score, 2),
                 "grounded": len(result) > 0,
                 "specific": len(sample) > 0,
                 "actionable": any(d.outcome for d in result) if result else False,
@@ -386,6 +601,9 @@ Community organizing often starts with talking to neighbors.
         else:
             precision_score = 1.0  # No filter = all results valid
 
+        # No recall for whats_next (no ground truth for future meetings)
+        f1_score = precision_score  # Same as precision when no recall available
+
         return QueryResult(
             method="whats_next",
             query=topic_str,
@@ -400,6 +618,7 @@ Community organizing often starts with talking to neighbors.
                 "accurate": accuracy_score >= 0.7,
                 "accuracy_score": round(accuracy_score, 2),
                 "precision": round(precision_score, 2),
+                "f1": round(f1_score, 2),  # Same as precision when no recall
                 "grounded": True,  # Real-time data
                 "specific": len(sample) > 0,
                 "actionable": len(result) > 0,  # User can attend
@@ -437,6 +656,9 @@ Community organizing often starts with talking to neighbors.
         # Cap at 1.0 (can retrieve more than exact matches via semantic search)
         recall_score = min(recall_score, 1.0)
 
+        # F1 score: harmonic mean of precision and recall
+        f1_score = calculate_f1(precision_score, recall_score)
+
         return QueryResult(
             method="whos_with_me",
             query=topic,
@@ -454,11 +676,157 @@ Community organizing often starts with talking to neighbors.
                 "accuracy_score": accuracy_score,
                 "precision": round(precision_score, 2),
                 "recall": round(recall_score, 2),
+                "f1": round(f1_score, 2),
                 "grounded": result.follower_count > 0,
                 "specific": True,  # Quantified community size
                 "actionable": result.follower_count > 0,  # Can connect users
             }
         )
+
+    def detect_bias(self) -> dict:
+        """Detect potential biases in benchmark results."""
+        if not self.results:
+            return {"error": "No results to analyze"}
+
+        # TOPIC BIAS: Are some topics consistently under-served?
+        topic_performance = {}
+        for r in self.results:
+            topic = r.query
+            if topic not in topic_performance:
+                topic_performance[topic] = []
+            # Aggregate key metrics for this topic
+            topic_performance[topic].append({
+                "has_results": r.civic_count > 0,
+                "accuracy": r.evaluation.get("accuracy_score", 1.0),
+                "precision": r.evaluation.get("precision", 1.0),
+                "f1": r.evaluation.get("f1", 0.0),
+            })
+
+        # Identify under-performing topics (low F1 or no results)
+        underperforming_topics = []
+        for topic, metrics_list in topic_performance.items():
+            avg_f1 = sum(m["f1"] for m in metrics_list) / len(metrics_list)
+            has_any_results = any(m["has_results"] for m in metrics_list)
+            if avg_f1 < 0.5 or not has_any_results:
+                underperforming_topics.append({
+                    "topic": topic,
+                    "avg_f1": round(avg_f1, 2),
+                    "has_results": has_any_results,
+                })
+
+        # TEMPORAL BIAS: Check if what_happened has recency bias
+        temporal_bias = None
+        what_happened_results = [r for r in self.results if r.method == "what_happened"]
+        if what_happened_results:
+            for r in what_happened_results:
+                # Note: would need actual date analysis from decisions for full temporal analysis
+                # For now, flag if recall is very different from precision
+                recall = r.evaluation.get("recall", 1.0)
+                precision = r.evaluation.get("precision", 1.0)
+                if recall > 0 and precision > 0:
+                    # Large gap suggests temporal bias (retrieving recent but missing old, or vice versa)
+                    gap = abs(recall - precision)
+                    if gap > 0.3:
+                        temporal_bias = {
+                            "detected": True,
+                            "precision": precision,
+                            "recall": recall,
+                            "gap": round(gap, 2),
+                            "interpretation": "Large precision-recall gap may indicate temporal bias",
+                        }
+
+        # METHOD BIAS: Are some API methods consistently worse?
+        method_performance = {}
+        for r in self.results:
+            method = r.method
+            if method not in method_performance:
+                method_performance[method] = {"f1_scores": [], "has_results": []}
+            method_performance[method]["f1_scores"].append(r.evaluation.get("f1", 0.0))
+            method_performance[method]["has_results"].append(r.civic_count > 0)
+
+        method_bias = []
+        for method, perf in method_performance.items():
+            avg_f1 = sum(perf["f1_scores"]) / len(perf["f1_scores"])
+            result_rate = sum(perf["has_results"]) / len(perf["has_results"])
+            if avg_f1 < 0.5 or result_rate < 0.5:
+                method_bias.append({
+                    "method": method,
+                    "avg_f1": round(avg_f1, 2),
+                    "result_rate": round(result_rate, 2),
+                })
+
+        # GEOGRAPHIC BIAS: Would need multi-jurisdiction data to detect
+        # For now, note that we're only testing one jurisdiction
+        geographic_note = f"Testing single jurisdiction ({self.jurisdiction}) - geographic bias cannot be assessed"
+
+        return {
+            "topic_bias": {
+                "underperforming_topics": underperforming_topics,
+                "count": len(underperforming_topics),
+            },
+            "temporal_bias": temporal_bias or {"detected": False},
+            "method_bias": {
+                "underperforming_methods": method_bias,
+                "count": len(method_bias),
+            },
+            "geographic_note": geographic_note,
+            "overall_bias_detected": len(underperforming_topics) > 0 or len(method_bias) > 0 or (temporal_bias and temporal_bias.get("detected")),
+        }
+
+    def calculate_coverage(self) -> dict:
+        """Calculate coverage metrics for the eval framework."""
+        # QUERY COVERAGE: How many API methods are tested
+        all_api_methods = ["what_applies", "what_happened", "whats_next", "whos_with_me"]
+        tested_methods = set(r.method for r in self.results)
+        query_coverage = len(tested_methods) / len(all_api_methods)
+
+        # TOPIC COVERAGE: Diversity of topics tested
+        all_topics = [r.query for r in self.results]
+        unique_topics = set(all_topics)
+        topic_diversity = len(unique_topics) / len(all_topics) if all_topics else 0
+
+        # Define topic categories for coverage analysis
+        topic_categories = {
+            "housing": ["housing", "accessory dwelling unit", "adu", "zoning"],
+            "transportation": ["traffic", "bike lane", "parking", "transit"],
+            "utilities": ["pothole", "water", "sewer", "infrastructure"],
+            "governance": ["meeting", "election", "budget", "council"],
+        }
+
+        # Calculate category coverage
+        tested_categories = set()
+        for topic in unique_topics:
+            topic_lower = topic.lower()
+            for category, keywords in topic_categories.items():
+                if any(kw in topic_lower for kw in keywords):
+                    tested_categories.add(category)
+        category_coverage = len(tested_categories) / len(topic_categories)
+
+        # DATA COVERAGE: What percentage of database tables are exercised
+        data_sources_tested = {
+            "legislation": any(r.method == "what_applies" for r in self.results),
+            "decisions": any(r.method == "what_happened" for r in self.results),
+            "meetings": any(r.method == "whats_next" for r in self.results),
+            "issues": any(r.method == "whos_with_me" for r in self.results),
+        }
+        data_coverage = sum(data_sources_tested.values()) / len(data_sources_tested)
+
+        # RESULT COVERAGE: How many queries returned non-empty results
+        non_empty = sum(1 for r in self.results if r.civic_count > 0)
+        result_coverage = non_empty / len(self.results) if self.results else 0
+
+        return {
+            "query_coverage": round(query_coverage, 2),
+            "topic_diversity": round(topic_diversity, 2),
+            "category_coverage": round(category_coverage, 2),
+            "data_coverage": round(data_coverage, 2),
+            "result_coverage": round(result_coverage, 2),
+            "tested_methods": list(tested_methods),
+            "tested_categories": list(tested_categories),
+            "untested_categories": [c for c in topic_categories if c not in tested_categories],
+            "total_queries": len(self.results),
+            "queries_with_results": non_empty,
+        }
 
     def run_all(self) -> BenchmarkReport:
         """Run all benchmark queries."""
@@ -487,13 +855,15 @@ Community organizing often starts with talking to neighbors.
         specific_count = sum(1 for r in self.results if r.evaluation.get("specific"))
         actionable_count = sum(1 for r in self.results if r.evaluation.get("actionable"))
 
-        # Average accuracy, precision, recall scores across all queries
+        # Average accuracy, precision, recall, f1 scores across all queries
         accuracy_scores = [r.evaluation.get("accuracy_score", 1.0) for r in self.results]
         precision_scores = [r.evaluation.get("precision", 1.0) for r in self.results]
         recall_scores = [r.evaluation.get("recall", 1.0) for r in self.results if "recall" in r.evaluation]
+        f1_scores = [r.evaluation.get("f1", 0.0) for r in self.results if "f1" in r.evaluation]
         avg_accuracy = sum(accuracy_scores) / len(accuracy_scores) if accuracy_scores else 0
         avg_precision = sum(precision_scores) / len(precision_scores) if precision_scores else 0
         avg_recall = sum(recall_scores) / len(recall_scores) if recall_scores else 0
+        avg_f1 = sum(f1_scores) / len(f1_scores) if f1_scores else 0
 
         summary = {
             "total_queries": len(self.results),
@@ -505,11 +875,18 @@ Community organizing often starts with talking to neighbors.
             "avg_accuracy_score": round(avg_accuracy, 2),
             "avg_precision": round(avg_precision, 2),
             "avg_recall": round(avg_recall, 2),
+            "avg_f1": round(avg_f1, 2),
             "grounded_pct": round(100 * grounded_count / len(self.results), 1),
             "specific_pct": round(100 * specific_count / len(self.results), 1),
             "actionable_pct": round(100 * actionable_count / len(self.results), 1),
             "gaps_detected": len(self.gaps),
         }
+
+        # Calculate coverage metrics
+        coverage = self.calculate_coverage()
+
+        # Detect biases
+        bias_analysis = self.detect_bias()
 
         return BenchmarkReport(
             jurisdiction=self.jurisdiction,
@@ -517,6 +894,8 @@ Community organizing often starts with talking to neighbors.
             queries=[asdict(r) for r in self.results],
             summary=summary,
             gaps_detected=self.gaps,
+            coverage=coverage,
+            bias_analysis=bias_analysis,
         )
 
 
@@ -549,8 +928,9 @@ def print_report(report: BenchmarkReport, as_json: bool = False):
         acc_score = q['evaluation'].get('accuracy_score', 'N/A')
         prec_score = q['evaluation'].get('precision', 'N/A')
         rec_score = q['evaluation'].get('recall', '-')
+        f1_score = q['evaluation'].get('f1', '-')
         print(f"   Accurate:   {'✓' if q['evaluation'].get('accurate') else '✗'} ({acc_score})")
-        print(f"   Precision:  {prec_score}  |  Recall: {rec_score}")
+        print(f"   Precision:  {prec_score}  |  Recall: {rec_score}  |  F1: {f1_score}")
         print(f"   Grounded:   {'✓' if q['evaluation'].get('grounded') else '✗'}")
         print(f"   Specific:   {'✓' if q['evaluation'].get('specific') else '✗'}")
         print(f"   Actionable: {'✓' if q['evaluation'].get('actionable') else '✗'}")
@@ -561,10 +941,54 @@ def print_report(report: BenchmarkReport, as_json: bool = False):
     s = report.summary
     print(f"Total queries:  {s['total_queries']}")
     print(f"Accurate:       {s['accurate']}/{s['total_queries']} ({s['accurate_pct']}%) [avg: {s['avg_accuracy_score']}]")
-    print(f"Precision:      avg {s['avg_precision']}  |  Recall: avg {s['avg_recall']}")
+    print(f"Precision:      avg {s['avg_precision']}  |  Recall: avg {s['avg_recall']}  |  F1: avg {s.get('avg_f1', '-')}")
     print(f"Grounded:       {s['grounded']}/{s['total_queries']} ({s['grounded_pct']}%)")
     print(f"Specific:       {s['specific']}/{s['total_queries']} ({s['specific_pct']}%)")
     print(f"Actionable:     {s['actionable']}/{s['total_queries']} ({s['actionable_pct']}%)")
+
+    # Coverage metrics
+    if report.coverage:
+        print("\n" + "=" * 70)
+        print("COVERAGE METRICS")
+        print("=" * 70)
+        c = report.coverage
+        print(f"Query Coverage:    {c.get('query_coverage', 0):.0%} ({len(c.get('tested_methods', []))}/4 API methods)")
+        print(f"Topic Diversity:   {c.get('topic_diversity', 0):.0%} (unique topics / total queries)")
+        print(f"Category Coverage: {c.get('category_coverage', 0):.0%} ({len(c.get('tested_categories', []))}/4 categories)")
+        print(f"Data Coverage:     {c.get('data_coverage', 0):.0%} (data sources exercised)")
+        print(f"Result Coverage:   {c.get('result_coverage', 0):.0%} ({c.get('queries_with_results', 0)}/{c.get('total_queries', 0)} returned results)")
+        if c.get('untested_categories'):
+            print(f"Untested:          {', '.join(c.get('untested_categories', []))}")
+
+    # Bias analysis
+    if report.bias_analysis:
+        print("\n" + "=" * 70)
+        print("BIAS ANALYSIS")
+        print("=" * 70)
+        b = report.bias_analysis
+        overall = "DETECTED" if b.get("overall_bias_detected") else "None detected"
+        print(f"Overall Bias:      {overall}")
+
+        topic_bias = b.get("topic_bias", {})
+        if topic_bias.get("count", 0) > 0:
+            print(f"\nTopic Bias ({topic_bias['count']} issues):")
+            for t in topic_bias.get("underperforming_topics", []):
+                results_status = "has results" if t["has_results"] else "NO RESULTS"
+                print(f"  - '{t['topic']}': F1={t['avg_f1']} ({results_status})")
+
+        method_bias = b.get("method_bias", {})
+        if method_bias.get("count", 0) > 0:
+            print(f"\nMethod Bias ({method_bias['count']} issues):")
+            for m in method_bias.get("underperforming_methods", []):
+                print(f"  - {m['method']}: F1={m['avg_f1']}, result_rate={m['result_rate']:.0%}")
+
+        temporal_bias = b.get("temporal_bias", {})
+        if temporal_bias.get("detected"):
+            print(f"\nTemporal Bias: {temporal_bias.get('interpretation', 'Detected')}")
+            print(f"  Precision: {temporal_bias.get('precision')}, Recall: {temporal_bias.get('recall')}, Gap: {temporal_bias.get('gap')}")
+
+        if b.get("geographic_note"):
+            print(f"\nGeographic: {b['geographic_note']}")
 
     if report.gaps_detected:
         print("\n" + "=" * 70)
