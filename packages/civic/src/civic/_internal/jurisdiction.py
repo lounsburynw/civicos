@@ -43,6 +43,11 @@ _JURISDICTION_ALIASES = {
     "san-rafael-ca": "city-san-rafael",
     "sanrafael": "city-san-rafael",
 
+    # San Rafael City Schools (pilot school district)
+    "srcs": "school-san-rafael",
+    "san-rafael-schools": "school-san-rafael",
+    "san-rafael-city-schools": "school-san-rafael",
+
     # Berkeley
     "berkeley": "city-berkeley",
     "berkeley-ca": "city-berkeley",
@@ -74,6 +79,7 @@ _JURISDICTION_ALIASES = {
 # - Adding " County" suffix for "county-" prefix
 _DISPLAY_NAMES = {
     "city-san-rafael": "San Rafael",
+    "school-san-rafael": "San Rafael City Schools",
     "city-berkeley": "Berkeley",
     "city-el-cerrito": "El Cerrito",
     "city-los-altos": "Los Altos",
