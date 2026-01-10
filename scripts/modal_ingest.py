@@ -31,6 +31,7 @@ Architecture:
     Scheduled refreshes (via modal deploy):
         scheduled_low_velocity_refresh()  # Weekly: municipal code, legislation, decisions
         scheduled_high_velocity_refresh() # Daily: meetings, issues, transcripts, chunks, vectors
+        scheduled_election_refresh()      # Monthly: elections from Google Civic API
 
 Setup:
     1. Install Modal CLI: pip install modal
@@ -39,7 +40,7 @@ Setup:
        modal secret create civic-db DATABASE_URL="postgresql://..."
        modal secret create civic-legiscan LEGISCAN_API_KEY="..."
        modal secret create civic-assemblyai ASSEMBLYAI_API_KEY="..."
-       modal secret create civic-google GOOGLE_API_KEY="..."  # For YouTube duration validation
+       modal secret create civic-google GOOGLE_API_KEY="..."  # For YouTube, elections, geocoding
     4. Run: modal run scripts/modal_ingest.py --all
     5. Deploy for scheduled runs: modal deploy scripts/modal_ingest.py
 
@@ -1494,6 +1495,61 @@ def scheduled_high_velocity_refresh():
 
     return {
         "schedule": "high_velocity_daily",
+        "results": results,
+        "elapsed_seconds": elapsed,
+    }
+
+
+# =============================================================================
+# Monthly Election Refresh (Google Civic API)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+        modal.Secret.from_name("civic-google"),  # Contains GOOGLE_API_KEY
+    ],
+    memory=4096,
+    timeout=600,  # 10 minutes
+    schedule=modal.Cron("0 3 1 * *"),  # Monthly on 1st at 3 AM UTC (7 PM Pacific prev day)
+)
+def scheduled_election_refresh():
+    """Monthly scheduled refresh for election data from Google Civic API.
+
+    Runs 1st of month at 3 AM UTC = 7 PM Pacific previous day.
+    Monthly cadence is sufficient because VIP (Voter Information Project)
+    publishes election data 2-3 weeks before elections.
+
+    The Google Civic Information API provides data on upcoming elections
+    including national, state, and local races.
+    """
+    import logging
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+
+    logger.info("Starting scheduled election refresh")
+    start_time = time.time()
+
+    results = {}
+
+    # Fetch elections for San Rafael
+    try:
+        logger.info("Fetching elections for city-san-rafael...")
+        result = fetch_elections.local(jurisdiction="city-san-rafael", dry_run=False)
+        results["elections"] = result
+        logger.info(f"  Elections: {result.get('elections_fetched', 0)} fetched, {result.get('elections_stored', 0)} stored")
+    except Exception as e:
+        logger.exception("Election fetch failed")
+        results["elections"] = {"status": "failed", "error": str(e)}
+
+    elapsed = time.time() - start_time
+    logger.info(f"Election refresh complete in {elapsed:.1f}s")
+
+    return {
+        "schedule": "election_monthly",
         "results": results,
         "elapsed_seconds": elapsed,
     }
