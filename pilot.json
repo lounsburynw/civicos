@@ -2140,7 +2140,7 @@
       },
       "automated_transcript_ingestion": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Add transcript ingestion to Modal automated pipeline before vector indexing",
         "note": "Session 496: Pipeline gap identified. Current flow: meeting ingestion → audio download → (manual transcription) → vector indexing. Transcription should be automated and run BEFORE vector refresh since transcript text is indexed. Add to Modal cron schedule after audio download. Applies to all jurisdictions (city-san-rafael, school-san-rafael). Include duration validation in pipeline."
       },
@@ -2218,11 +2218,12 @@
         "completed": "2026-01-05"
       },
       "data_freshness_alerting": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "GitHub Action that alerts when data falls behind expected freshness thresholds",
-        "note": "Daily check: decisions should be within 7 days of latest meeting, vectors should match SQL within 5%. Create GitHub Issue on threshold breach. Builds on existing freshness_warnings infrastructure.",
-        "depends_on": "vector_sql_sync_verification"
+        "note": "Daily at 8am UTC. Checks decision freshness (7-day threshold) and vector-SQL sync. Creates GitHub Issue on breach. Workflow: .github/workflows/data-freshness.yml",
+        "depends_on": "vector_sql_sync_verification",
+        "completed": "2026-01-09"
       },
       "automated_agenda_extraction": {
         "status": "ready",
