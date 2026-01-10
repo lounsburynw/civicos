@@ -11871,3 +11871,65 @@ print(f'Meetings with R2 agenda_url: {cur.fetchone()[0]}')
 - [ ] PR created / Ready for merge
 - [x] pilot.json updated (eval_framework marked ready)
 
+
+---
+
+## Session 493 (Parallel): hallucination_detection - Hallucination Detection for Eval Framework
+
+**Date:** 2026-01-10
+**Item:** hallucination_detection (test_infrastructure > test_categorization)
+**Priority:** P2
+**Track:** INFRA (parallel session, different from P0 DATA track)
+**Branch:** feature/infra/eval-framework
+
+### Summary
+
+Added hallucination detection to the eval framework. This feature analyzes LLM baseline responses to demonstrate the value of RAG (Retrieval Augmented Generation) by showing how often baseline LLMs make unverifiable claims compared to our grounded Civic API responses.
+
+### Implementation
+
+1. **HallucinationDetector class** in `scripts/benchmark_api_vs_llm.py`:
+   - Extracts factual claims from LLM responses using LLM
+   - Classifies claims as verifiable (specific facts) or unverifiable (generic advice)
+   - Verifies verifiable claims against the Civic database
+   - Calculates hallucination metrics
+
+2. **CLI Integration:**
+   - `--hallucination-check` flag enables hallucination detection
+   - Integrates with existing `--clear-cache` flag
+   - Results displayed in new "HALLUCINATION ANALYSIS" section
+
+3. **Metrics Added:**
+   - `verified_claims` - Claims supported by database evidence
+   - `unverified_claims` - Claims that can't be verified (potential hallucinations)
+   - `unverifiable_claims` - Generic advice (not hallucinations)
+   - `grounding_rate` - verified / verifiable (higher = better)
+   - `hallucination_risk` - unverified / verifiable (lower = better)
+
+### Usage
+
+```bash
+# With hallucination detection
+python scripts/benchmark_api_vs_llm.py --hallucination-check
+
+# Full analysis (both LLM judge and hallucination detection)
+python scripts/benchmark_api_vs_llm.py --llm-judge --hallucination-check
+
+# Clear all caches
+python scripts/benchmark_api_vs_llm.py --clear-cache
+```
+
+### Files Changed
+- `scripts/benchmark_api_vs_llm.py` - Added HallucinationDetector class, Claim dataclass, HallucinationReport dataclass
+- `docs/TESTING_STRATEGY.md` - Added hallucination detection documentation
+- `pilot.json` - Updated hallucination_detection status to ready
+
+### Commits
+- 0b25211 feat: Add hallucination detection to eval framework
+
+### Status
+- [x] Implementation complete
+- [x] Documentation added
+- [x] pilot.json updated
+- [x] Pushed to origin
+- [ ] PR created (will be part of eval framework PR)
