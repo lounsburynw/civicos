@@ -1,87 +1,77 @@
-# Recommended: automated_transcript_ingestion
+# URGENT: Fix CI Failures
 
 **Priority:** P0
-**Area:** data_integrity > source_provenance
-**Date:** 2026-01-09
-
-> This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+**Date:** 2026-01-10
 
 ## Context
 
-Session 497 completed `data_freshness_alerting` - a daily GitHub Action that monitors data pipeline health. During testing, we discovered:
-- **Decisions are 30 days stale** (latest meeting: 2026-01-14, latest decision from: 2025-12-15)
-- Root cause: Transcript ingestion is manual while other pipeline steps are automated
+Session 497 completed `data_freshness_alerting` but uncovered CI failures that were masked by dependency issues. After fixing civic-config and psycopg2-binary dependencies, actual test failures are now visible.
 
-The pipeline gap:
+## Current CI Status
+
+Smoke tests pass, but Full Suite has failures:
+
+### Failing Tests
+
+1. **Jurisdiction validation is too strict** - Tests expect unknown jurisdictions to be handled gracefully, not raise errors:
+   - `test_e2e_verification.py::test_unknown_jurisdiction` - expects `Civic("fake-city")` to NOT raise
+   - `test_e2e_verification.py::test_civic_api_logging_no_secrets` - uses `test-jurisdiction`
+   - `test_integration_rag_san_rafael.py::test_get_public_testimony_unknown_jurisdiction` - expects empty list, not error
+
+2. **Missing dependencies in Full Suite**:
+   - `psycopg2-binary` and `boto3` needed (partially fixed, need to verify)
+
+3. **Storage protocol tests** - Various failures in `test_storage_protocols.py`
+
+## Root Cause
+
+`civic.py:508` calls `normalize_jurisdiction()` which defaults to `strict=True`:
+```python
+self.jurisdiction = normalize_jurisdiction(self.jurisdiction)
 ```
-meeting ingestion → audio download → [MANUAL: transcription] → vector indexing
-                                            ↑
-                                    This step is not automated
-```
 
-## Recommended Task
+The tests expect **non-strict** behavior where unknown jurisdictions return empty results instead of raising `JurisdictionError`.
 
-Add transcript ingestion to the Modal automated pipeline. This should run BEFORE vector indexing since transcript text is indexed for semantic search.
+## Fix Options
+
+1. **Change Civic to use strict=False** - Allow unknown jurisdictions, return empty results
+2. **Update tests** - Make them expect errors for unknown jurisdictions
+3. **Add strict parameter to Civic** - Let caller decide
+
+Option 1 aligns with test expectations in comments:
+> "Civic can be instantiated with unknown jurisdiction"
+> "Query methods return empty/placeholder results, not errors"
 
 ## Key Files
 
-- `scripts/modal_ingest.py:1121-1220` - Scheduled refresh functions (low/high velocity)
-- `scripts/modal_ingest.py:1218-1303` - `scheduled_high_velocity_refresh()` - daily at 6 AM Pacific
-- `packages/civic-extraction/src/civic_extraction/transcribe.py` - AssemblyAI transcription
-- `packages/civic-extraction/src/civic_extraction/cli/transcribe.py` - CLI entry point
+- `packages/civic/src/civic/civic.py:508` - normalize_jurisdiction call
+- `packages/civic/src/civic/_internal/jurisdiction.py:107` - strict parameter
+- `packages/civic/tests/test_e2e_verification.py:2222` - test_unknown_jurisdiction
+- `.github/workflows/tests.yml:75` - Full Suite dependencies (added psycopg2-binary, boto3)
 
-## Current Scheduled Functions
+## Suggested Fix
 
 ```python
-# Daily (High Velocity) - 6 AM Pacific
-scheduled_high_velocity_refresh()  # meetings, issues, chunks, vectors
-
-# Weekly (Low Velocity) - 7 PM Pacific Saturday
-scheduled_low_velocity_refresh()   # municipal_code, legislation, decisions
+# In civic.py line 508, change:
+self.jurisdiction = normalize_jurisdiction(self.jurisdiction)
+# To:
+self.jurisdiction = normalize_jurisdiction(self.jurisdiction, strict=False)
 ```
 
-Transcription should be added to daily refresh, after audio download but before vector indexing.
+## Commits Made This Session
 
-## Suggested Approach
+1. `f6ce8ee` - Add data freshness alerting GitHub Action
+2. `e645313` - Fix CI: Add civic-config dependency to all workflows
+3. `dca5989` - Fix CI: Add civic-config to pgvector integration job
+4. `a8afea4` - Fix CI: Add psycopg2-binary and fix MCP jurisdiction
 
-1. **Understand current transcription flow:**
-   ```bash
-   # Check existing CLI
-   civic-extract transcribe --help
-   ```
+## Uncommitted Changes
 
-2. **Add transcription step to `scheduled_high_velocity_refresh()`:**
-   - After meetings are ingested (which includes video_url)
-   - Before vector indexing
-   - Include duration validation from Session 496
+- `.github/workflows/tests.yml` - Added `psycopg2-binary boto3` to Full Suite (staged, not pushed)
 
-3. **Handle both jurisdictions:**
-   - city-san-rafael (City Council, commissions)
-   - school-san-rafael (School Board)
+## Next Steps
 
-4. **Cost awareness:**
-   - AssemblyAI charges per audio minute
-   - Only transcribe new meetings (check if transcript exists)
-
-## Tests to Run
-
-```bash
-# Transcription tests
-pytest packages/civic-extraction/tests/test_transcribe.py -v
-
-# Duration validation tests (from Session 496)
-pytest packages/civic-extraction/tests/test_transcribe.py::test_duration_validation -v
-```
-
-## Success Criteria
-
-- [ ] Transcription step added to Modal scheduled pipeline
-- [ ] Runs after audio download, before vector indexing
-- [ ] Includes duration validation to catch corrupted transcripts
-- [ ] Handles both city-san-rafael and school-san-rafael
-- [ ] Update pilot.json: `automated_transcript_ingestion` status -> ready
-
-## Related Items
-
-- `fix_corrupted_city_council_transcripts` (P1) - 9 transcripts need re-download/re-transcribe
-- `transcript_duration_validation` (ready) - Validation logic already implemented
+1. Push the staged tests.yml change
+2. Fix jurisdiction strict=False in civic.py
+3. Run CI and verify all tests pass
+4. Then proceed to `automated_transcript_ingestion` (original P0)
