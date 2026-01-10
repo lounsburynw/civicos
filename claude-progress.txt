@@ -12040,3 +12040,18 @@ Also pushed 190 commits to GitHub (backlog from previous sessions).
 
 ### Next P0
 `automated_transcript_ingestion` - Add transcript ingestion to Modal automated pipeline before vector indexing
+
+### CI Fix Progress (Session 497 continued)
+
+Fixed:
+- civic-config dependency in all workflows
+- psycopg2-binary in pgvector and Full Suite jobs
+- boto3 in Full Suite
+- MCP jurisdiction (was "default", now configurable)
+
+Remaining failures (documented in docs/next_session_prompt.md):
+- Jurisdiction validation too strict in civic.py:508
+- Fix: Change to `normalize_jurisdiction(self.jurisdiction, strict=False)`
+- ~15 tests fail expecting graceful handling of unknown jurisdictions
+
+Next session: Fix strict=False, verify CI passes, then automated_transcript_ingestion
