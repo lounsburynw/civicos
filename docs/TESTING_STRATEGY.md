@@ -286,6 +286,89 @@ on:
   workflow_dispatch:      # Manual trigger
 ```
 
+## Evaluation Framework (Quality Benchmarks)
+
+Separate from unit tests, the evaluation framework measures API quality metrics.
+
+### Benchmark Script
+
+```bash
+# Location
+scripts/benchmark_api_vs_llm.py
+
+# Basic run (keyword-based precision)
+python scripts/benchmark_api_vs_llm.py
+
+# With LLM-as-judge (recommended for accurate evaluation)
+python scripts/benchmark_api_vs_llm.py --llm-judge
+
+# Output as JSON for tracking
+python scripts/benchmark_api_vs_llm.py --llm-judge --json > results.json
+```
+
+### What It Measures
+
+| Metric | Description |
+|--------|-------------|
+| **Accuracy** | Results have valid structure and reasonable dates |
+| **Precision** | Relevance of returned results to query |
+| **Recall** | Completeness (retrieved vs total relevant) |
+| **F1 Score** | Harmonic mean of precision and recall |
+| **Coverage** | Query, topic, category, and data coverage |
+| **Bias** | Topic, method, temporal, and geographic bias |
+
+### LLM-as-Judge Mode
+
+The `--llm-judge` flag enables semantic relevance scoring via LLM (instead of keyword matching):
+
+```bash
+python scripts/benchmark_api_vs_llm.py --llm-judge
+```
+
+- **Cost:** ~$0.001-0.01 per run (gemini-2.0-flash-exp default)
+- **Caching:** Results cached to minimize repeated costs
+- **Clear cache:** `--clear-cache` flag
+
+### Hallucination Detection
+
+The `--hallucination-check` flag analyzes LLM baseline responses for hallucinations, demonstrating the value of RAG (Retrieval Augmented Generation):
+
+```bash
+python scripts/benchmark_api_vs_llm.py --hallucination-check
+
+# Full analysis (both features)
+python scripts/benchmark_api_vs_llm.py --llm-judge --hallucination-check
+```
+
+**How it works:**
+1. Extract factual claims from each LLM baseline response
+2. Classify claims as verifiable (specific facts) or unverifiable (generic advice)
+3. For verifiable claims, check against the Civic database
+4. Calculate hallucination metrics
+
+**Metrics:**
+| Metric | Description |
+|--------|-------------|
+| **Verified Claims** | Statements supported by database evidence |
+| **Unverified Claims** | Specific claims that can't be verified (potential hallucinations) |
+| **Unverifiable Claims** | Generic advice like "check the city website" |
+| **Grounding Rate** | verified / (verified + unverified) - higher is better |
+| **Hallucination Risk** | unverified / (verified + unverified) - lower is better |
+
+**Interpretation:**
+- Grounding rate >70%: LLM baseline is mostly accurate
+- Hallucination risk >50%: LLM baseline makes many unverifiable claims
+- This demonstrates WHY grounded retrieval (Civic API) is valuable vs raw LLM responses
+
+**Cost:** ~$0.0001-0.001 per run, cached for repeated runs
+
+### When to Use
+
+- **Unit tests (pytest):** Verify code correctness, run on every commit
+- **Evaluation framework:** Measure retrieval quality, run periodically or after major changes
+
+See the script's docstring for detailed documentation on metrics, ground truth, and adding new queries.
+
 ## Troubleshooting
 
 ### "Collection does not exist" errors
