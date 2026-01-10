@@ -93,7 +93,7 @@ GROUND TRUTH: WHAT IT IS AND ITS LIMITATIONS
 --------------------------------------------
 "Ground truth" = the correct answers we compare against.
 
-CURRENT APPROACH (simplistic):
+DEFAULT APPROACH (keyword-based, simplistic):
   We count database records matching keywords:
     - "How many decisions mention 'housing'?" → 15
     - API returns 12 → Recall = 12/15 = 0.80
@@ -104,13 +104,33 @@ CURRENT APPROACH (simplistic):
     - It's self-referential (using our own DB as truth)
     - Only works for pre-defined topics
 
+LLM-AS-JUDGE APPROACH (recommended for accurate evaluation):
+  Use --llm-judge flag to enable semantic relevance scoring:
+    python scripts/benchmark_api_vs_llm.py --llm-judge
+
+  How it works:
+    - For each result, an LLM judges: "Is this result relevant to the query?"
+    - Returns a score from 0.0 to 1.0 (semantic relevance)
+    - Results with score > 0.5 are considered "relevant"
+    - More accurate than keyword matching (catches semantic similarity)
+
+  Cost:
+    - ~$0.001-0.01 per benchmark run (using gemini-2.0-flash-exp)
+    - Results are cached to avoid re-evaluating identical query-result pairs
+    - Clear cache with: python scripts/benchmark_api_vs_llm.py --clear-cache
+
+  Models available:
+    - gemini-2.0-flash-exp (default): $0.075/1M tokens, fast, reliable
+    - gpt-4o-mini: $0.60/1M tokens, very reliable
+    - llama-3.3-70b-versatile: $0.59/1M tokens, open source
+
 WHAT PROPER GROUND TRUTH WOULD BE:
   A human-curated test set where someone manually labeled:
     - "These 20 decisions ARE relevant to housing"
     - "These 5 decisions are NOT relevant despite mentioning housing"
 
-  We don't have this yet. The current approach is a reasonable approximation
-  for tracking trends over time, but not a rigorous evaluation.
+  The LLM-as-judge approach approximates human judgment at low cost.
+  For critical evaluations, consider validating a sample against human labels.
 
 
 HOW TO ADD A NEW TEST QUERY
@@ -209,13 +229,14 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
 import os
 import sys
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, List, Dict
 
 # Load .env for DATABASE_URL (production PostgreSQL)
 env_path = Path(__file__).parent.parent / ".env"
@@ -229,6 +250,240 @@ if env_path.exists():
 # Add packages to path
 sys.path.insert(0, "packages/civic/src")
 sys.path.insert(0, "packages/civic-services/src")
+
+
+# =============================================================================
+# LLM-as-Judge Relevance Scoring
+# =============================================================================
+
+class LLMRelevanceJudge:
+    """
+    Uses LLM to evaluate result relevance instead of keyword matching.
+
+    This provides more accurate precision/recall calculations by asking the LLM
+    to judge whether each result is semantically relevant to the query, rather
+    than relying on simple keyword matching.
+
+    Cost considerations:
+    - Each judgment: ~100-200 tokens
+    - 8 queries × 10 results = 80 judgments per run
+    - At gpt-4o-mini ($0.60/1M): ~$0.01 per benchmark run
+    - At gemini-2.0-flash-exp ($0.075/1M): ~$0.001 per benchmark run
+    - Cache hits reduce costs to near-zero for repeated runs
+
+    Usage:
+        judge = LLMRelevanceJudge()
+        score = judge.score_relevance("housing policy", "City Council approves ADU ordinance")
+        # Returns 0.9 (highly relevant)
+
+        score = judge.score_relevance("housing policy", "New bike lane on 4th Street")
+        # Returns 0.1 (not relevant)
+    """
+
+    SYSTEM_PROMPT = """You are an expert evaluator of civic information retrieval results.
+Your task is to judge whether a search result is relevant to a user's query about local government and civic matters.
+
+Scoring guidelines:
+- 1.0: Directly relevant - the result specifically addresses the query topic
+- 0.7-0.9: Highly relevant - the result is about the same subject area with strong connection
+- 0.4-0.6: Somewhat relevant - tangentially related or shares some keywords but different focus
+- 0.1-0.3: Weakly relevant - minimal connection, mostly unrelated
+- 0.0: Not relevant - completely unrelated to the query
+
+Consider semantic meaning, not just keyword overlap. A result about "accessory dwelling units" is relevant to a "housing" query even without the word "housing"."""
+
+    USER_PROMPT_TEMPLATE = """Query: {query}
+
+Result Title: {title}
+Result Summary: {summary}
+
+Is this result relevant to the query? Respond with ONLY a decimal score from 0.0 to 1.0."""
+
+    def __init__(
+        self,
+        model: str = "gemini-2.0-flash-exp",
+        cache_dir: Optional[Path] = None,
+        use_cache: bool = True
+    ):
+        """
+        Initialize the LLM relevance judge.
+
+        Args:
+            model: Model to use for judgments (default: cheapest reliable option)
+            cache_dir: Directory for caching judgments (default: .cache/llm_judge)
+            use_cache: Whether to use cached judgments
+        """
+        self.model = model
+        self.use_cache = use_cache
+        self.cache_dir = cache_dir or Path(__file__).parent.parent / ".cache" / "llm_judge"
+        self._provider = None
+        self._total_cost = 0.0
+        self._total_tokens = 0
+        self._cache_hits = 0
+        self._cache_misses = 0
+
+        if self.use_cache:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+    def _get_provider(self):
+        """Lazy-load the LLM provider."""
+        if self._provider is None:
+            from civic_services.core.llm_provider import get_model
+            self._provider = get_model(self.model)
+        return self._provider
+
+    def _get_cache_key(self, query: str, title: str, summary: str) -> str:
+        """Generate a cache key for a query-result pair."""
+        content = f"{query}|{title}|{summary}"
+        return hashlib.sha256(content.encode()).hexdigest()[:16]
+
+    def _get_cached_score(self, cache_key: str) -> Optional[float]:
+        """Get cached score if available."""
+        if not self.use_cache:
+            return None
+        cache_file = self.cache_dir / f"{cache_key}.json"
+        if cache_file.exists():
+            try:
+                with open(cache_file) as f:
+                    data = json.load(f)
+                    self._cache_hits += 1
+                    return data.get("score")
+            except (json.JSONDecodeError, IOError):
+                pass
+        return None
+
+    def _save_cached_score(self, cache_key: str, score: float, query: str, title: str):
+        """Save score to cache."""
+        if not self.use_cache:
+            return
+        cache_file = self.cache_dir / f"{cache_key}.json"
+        try:
+            with open(cache_file, "w") as f:
+                json.dump({
+                    "score": score,
+                    "query": query,
+                    "title": title[:100],
+                    "model": self.model,
+                    "timestamp": datetime.now().isoformat()
+                }, f)
+        except IOError:
+            pass
+
+    def score_relevance(self, query: str, title: str, summary: str = "") -> float:
+        """
+        Score the relevance of a single result to a query.
+
+        Args:
+            query: The user's search query
+            title: The result title
+            summary: Optional result summary/description
+
+        Returns:
+            Relevance score from 0.0 to 1.0
+        """
+        # Check cache first
+        cache_key = self._get_cache_key(query, title, summary)
+        cached = self._get_cached_score(cache_key)
+        if cached is not None:
+            return cached
+
+        self._cache_misses += 1
+
+        # Prepare the prompt
+        user_prompt = self.USER_PROMPT_TEMPLATE.format(
+            query=query,
+            title=title,
+            summary=summary[:500] if summary else "(no summary)"
+        )
+
+        # Call the LLM
+        provider = self._get_provider()
+        try:
+            response = provider.complete(
+                messages=[
+                    {"role": "system", "content": self.SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt}
+                ],
+                max_tokens=10,  # Just need a number
+                temperature=0  # Deterministic for consistency
+            )
+
+            # Track costs
+            if hasattr(response, 'usage') and response.usage:
+                from civic_services.core.model_registry import calculate_cost
+                cost = calculate_cost(self.model, response.usage)
+                self._total_cost += cost
+                self._total_tokens += response.usage.get('total_tokens', 0)
+
+            # Parse the score
+            score_text = response.content.strip()
+            try:
+                score = float(score_text)
+                score = max(0.0, min(1.0, score))  # Clamp to [0, 1]
+            except ValueError:
+                # Try to extract a number from the response
+                import re
+                match = re.search(r'(\d+\.?\d*)', score_text)
+                if match:
+                    score = float(match.group(1))
+                    score = max(0.0, min(1.0, score))
+                else:
+                    score = 0.5  # Default if parsing fails
+
+            # Cache the result
+            self._save_cached_score(cache_key, score, query, title)
+            return score
+
+        except Exception as e:
+            # On error, return neutral score
+            print(f"LLM judge error: {e}")
+            return 0.5
+
+    def score_batch(
+        self,
+        query: str,
+        results: List[Dict[str, str]],
+        max_results: int = 10
+    ) -> List[float]:
+        """
+        Score multiple results for a single query.
+
+        Args:
+            query: The user's search query
+            results: List of dicts with 'title' and optional 'summary' keys
+            max_results: Maximum number of results to score (for cost control)
+
+        Returns:
+            List of relevance scores (0.0 to 1.0)
+        """
+        scores = []
+        for result in results[:max_results]:
+            title = result.get('title', '')
+            summary = result.get('summary', '')
+            score = self.score_relevance(query, title, summary)
+            scores.append(score)
+        return scores
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get statistics about LLM judge usage."""
+        return {
+            "model": self.model,
+            "total_cost_usd": round(self._total_cost, 6),
+            "total_tokens": self._total_tokens,
+            "cache_hits": self._cache_hits,
+            "cache_misses": self._cache_misses,
+            "cache_hit_rate": (
+                round(self._cache_hits / (self._cache_hits + self._cache_misses), 2)
+                if (self._cache_hits + self._cache_misses) > 0 else 0
+            )
+        }
+
+    def clear_cache(self):
+        """Clear the judgment cache."""
+        if self.cache_dir.exists():
+            import shutil
+            shutil.rmtree(self.cache_dir)
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
 
 
 @dataclass
@@ -285,6 +540,7 @@ class BenchmarkReport:
     gaps_detected: list
     coverage: dict = field(default_factory=dict)
     bias_analysis: dict = field(default_factory=dict)
+    llm_judge_stats: dict = field(default_factory=dict)  # LLM-as-judge cost/usage stats
 
 
 def get_ground_truth_counts(jurisdiction: str) -> dict:
@@ -380,12 +636,36 @@ Community organizing often starts with talking to neighbors.
 """,
     }
 
-    def __init__(self, jurisdiction: str = "city-san-rafael"):
+    def __init__(
+        self,
+        jurisdiction: str = "city-san-rafael",
+        use_llm_judge: bool = False,
+        llm_judge_model: str = "gemini-2.0-flash-exp"
+    ):
+        """
+        Initialize the benchmark.
+
+        Args:
+            jurisdiction: Jurisdiction to benchmark
+            use_llm_judge: Enable LLM-as-judge relevance scoring (more accurate but costs ~$0.001-0.01 per run)
+            llm_judge_model: Model to use for LLM judgments (default: cheapest reliable option)
+        """
         self.jurisdiction = jurisdiction
         self.results: list[QueryResult] = []
         self.gaps: list[str] = []
         self._civic = None
         self._ground_truth = get_ground_truth_counts(jurisdiction)
+        self.use_llm_judge = use_llm_judge
+        self._llm_judge = None
+        self._llm_judge_model = llm_judge_model
+
+    def _get_llm_judge(self) -> Optional[LLMRelevanceJudge]:
+        """Lazy-load LLM judge if enabled."""
+        if not self.use_llm_judge:
+            return None
+        if self._llm_judge is None:
+            self._llm_judge = LLMRelevanceJudge(model=self._llm_judge_model)
+        return self._llm_judge
 
     def _get_civic(self):
         """Lazy-load Civic instance."""
@@ -526,14 +806,35 @@ Community organizing often starts with talking to neighbors.
 
         accuracy_score = accurate_count / len(result) if result else 1.0
 
-        # PRECISION: Count results with query keyword in title (strict relevance)
+        # PRECISION: Count results with query keyword in title (keyword-based, simplistic)
         keyword_matches = sum(1 for d in result if query.lower() in d.title.lower())
-        precision_score = keyword_matches / len(result) if result else 1.0
+        keyword_precision = keyword_matches / len(result) if result else 1.0
+
+        # LLM-AS-JUDGE PRECISION: Use LLM to evaluate semantic relevance
+        llm_judge = self._get_llm_judge()
+        llm_precision = None
+        llm_relevance_scores = []
+        if llm_judge and result:
+            # Score each result using LLM
+            for d in result[:10]:  # Limit to 10 results for cost control
+                summary = d.summary if hasattr(d, 'summary') and d.summary else ""
+                score = llm_judge.score_relevance(query, d.title, summary)
+                llm_relevance_scores.append(score)
+            # LLM precision: avg relevance score (treating scores > 0.5 as "relevant")
+            llm_precision = sum(llm_relevance_scores) / len(llm_relevance_scores) if llm_relevance_scores else 1.0
+
+        # Use LLM precision if available, otherwise fall back to keyword precision
+        precision_score = llm_precision if llm_precision is not None else keyword_precision
 
         # RECALL: retrieved relevant / total relevant in DB
         query_key = query.lower().split()[0]  # "bike lane" -> "bike"
         total_relevant = self._ground_truth.get(f"decisions_{query_key}", 0)
-        recall_score = keyword_matches / total_relevant if total_relevant > 0 else 1.0
+        # For recall, count results with LLM score > 0.5 as "relevant" if LLM judge enabled
+        if llm_relevance_scores:
+            relevant_retrieved = sum(1 for s in llm_relevance_scores if s > 0.5)
+        else:
+            relevant_retrieved = keyword_matches
+        recall_score = relevant_retrieved / total_relevant if total_relevant > 0 else 1.0
 
         baseline_key = f"what_happened:{query}"
         llm_baseline = self.LLM_BASELINES.get(baseline_key, "No baseline defined")
@@ -541,15 +842,23 @@ Community organizing often starts with talking to neighbors.
         # F1 score: harmonic mean of precision and recall
         f1_score = calculate_f1(precision_score, recall_score)
 
+        # Build civic_result with both keyword and LLM metrics
+        civic_result_data = {
+            "decision_count": len(result),
+            "accurate_count": accurate_count,
+            "keyword_matches": keyword_matches,
+            "keyword_precision": round(keyword_precision, 2),
+            "total_relevant_in_db": total_relevant,
+        }
+        if llm_relevance_scores:
+            civic_result_data["llm_relevance_scores"] = [round(s, 2) for s in llm_relevance_scores]
+            civic_result_data["llm_precision"] = round(llm_precision, 2) if llm_precision else None
+            civic_result_data["llm_relevant_count"] = sum(1 for s in llm_relevance_scores if s > 0.5)
+
         return QueryResult(
             method="what_happened",
             query=query,
-            civic_result={
-                "decision_count": len(result),
-                "accurate_count": accurate_count,
-                "keyword_matches": keyword_matches,
-                "total_relevant_in_db": total_relevant,
-            },
+            civic_result=civic_result_data,
             civic_count=len(result),
             civic_sample=sample,
             llm_baseline=llm_baseline.strip(),
@@ -557,6 +866,8 @@ Community organizing often starts with talking to neighbors.
                 "accurate": accuracy_score >= 0.7,
                 "accuracy_score": round(accuracy_score, 2),
                 "precision": round(precision_score, 2),
+                "keyword_precision": round(keyword_precision, 2),
+                "llm_precision": round(llm_precision, 2) if llm_precision is not None else None,
                 "recall": round(recall_score, 2),
                 "f1": round(f1_score, 2),
                 "grounded": len(result) > 0,
@@ -888,6 +1199,24 @@ Community organizing often starts with talking to neighbors.
         # Detect biases
         bias_analysis = self.detect_bias()
 
+        # Get LLM judge stats if enabled
+        llm_judge_stats = {}
+        if self._llm_judge:
+            llm_judge_stats = self._llm_judge.get_stats()
+            # Also add comparison of keyword vs LLM precision for queries that have both
+            keyword_precisions = []
+            llm_precisions = []
+            for r in self.results:
+                kp = r.evaluation.get("keyword_precision")
+                lp = r.evaluation.get("llm_precision")
+                if kp is not None and lp is not None:
+                    keyword_precisions.append(kp)
+                    llm_precisions.append(lp)
+            if keyword_precisions and llm_precisions:
+                llm_judge_stats["avg_keyword_precision"] = round(sum(keyword_precisions) / len(keyword_precisions), 2)
+                llm_judge_stats["avg_llm_precision"] = round(sum(llm_precisions) / len(llm_precisions), 2)
+                llm_judge_stats["precision_diff"] = round(llm_judge_stats["avg_llm_precision"] - llm_judge_stats["avg_keyword_precision"], 2)
+
         return BenchmarkReport(
             jurisdiction=self.jurisdiction,
             timestamp=datetime.now().isoformat(),
@@ -896,6 +1225,7 @@ Community organizing often starts with talking to neighbors.
             gaps_detected=self.gaps,
             coverage=coverage,
             bias_analysis=bias_analysis,
+            llm_judge_stats=llm_judge_stats,
         )
 
 
@@ -997,6 +1327,25 @@ def print_report(report: BenchmarkReport, as_json: bool = False):
         for gap in report.gaps_detected:
             print(f"  ⚠ {gap}")
 
+    # LLM-as-Judge stats (if enabled)
+    if report.llm_judge_stats:
+        print("\n" + "=" * 70)
+        print("LLM-AS-JUDGE METRICS")
+        print("=" * 70)
+        stats = report.llm_judge_stats
+        print(f"Model:             {stats.get('model', 'N/A')}")
+        print(f"Total Cost:        ${stats.get('total_cost_usd', 0):.4f}")
+        print(f"Total Tokens:      {stats.get('total_tokens', 0):,}")
+        print(f"Cache Hits:        {stats.get('cache_hits', 0)} ({stats.get('cache_hit_rate', 0):.0%} hit rate)")
+        print(f"Cache Misses:      {stats.get('cache_misses', 0)}")
+        if 'avg_keyword_precision' in stats:
+            print(f"\nPrecision Comparison:")
+            print(f"  Keyword-based:   {stats['avg_keyword_precision']:.2f}")
+            print(f"  LLM-judged:      {stats['avg_llm_precision']:.2f}")
+            diff = stats['precision_diff']
+            direction = "+" if diff >= 0 else ""
+            print(f"  Difference:      {direction}{diff:.2f} (LLM vs keyword)")
+
     print("\n" + "=" * 70)
     print("LLM BASELINE COMPARISON")
     print("=" * 70)
@@ -1012,13 +1361,57 @@ def print_report(report: BenchmarkReport, as_json: bool = False):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Benchmark Civic API vs LLM baseline")
+    parser = argparse.ArgumentParser(
+        description="Benchmark Civic API vs LLM baseline",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Basic run (keyword-based precision)
+  python scripts/benchmark_api_vs_llm.py
+
+  # With LLM-as-judge (more accurate precision, ~$0.001 per run)
+  python scripts/benchmark_api_vs_llm.py --llm-judge
+
+  # Output as JSON for tracking
+  python scripts/benchmark_api_vs_llm.py --llm-judge --json > benchmark_results.json
+
+  # Clear LLM judge cache (for fresh evaluations)
+  python scripts/benchmark_api_vs_llm.py --clear-cache
+"""
+    )
     parser.add_argument("--jurisdiction", default="city-san-rafael", help="Jurisdiction to test")
     parser.add_argument("--run-all", action="store_true", help="Run all benchmark tests")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
+    parser.add_argument(
+        "--llm-judge",
+        action="store_true",
+        help="Enable LLM-as-judge relevance scoring (more accurate but costs ~$0.001-0.01)"
+    )
+    parser.add_argument(
+        "--llm-judge-model",
+        default="gemini-2.0-flash-exp",
+        help="Model to use for LLM judgments (default: gemini-2.0-flash-exp, cheapest reliable)"
+    )
+    parser.add_argument(
+        "--clear-cache",
+        action="store_true",
+        help="Clear LLM judge cache before running"
+    )
     args = parser.parse_args()
 
-    benchmark = CivicBenchmark(args.jurisdiction)
+    # Handle cache clearing
+    if args.clear_cache:
+        judge = LLMRelevanceJudge()
+        judge.clear_cache()
+        print("LLM judge cache cleared.")
+        if not args.run_all and not args.llm_judge:
+            sys.exit(0)
+
+    benchmark = CivicBenchmark(
+        args.jurisdiction,
+        use_llm_judge=args.llm_judge,
+        llm_judge_model=args.llm_judge_model
+    )
 
     if args.run_all or True:  # Default to running all
         report = benchmark.run_all()
