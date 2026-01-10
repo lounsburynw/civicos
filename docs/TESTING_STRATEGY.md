@@ -329,6 +329,39 @@ python scripts/benchmark_api_vs_llm.py --llm-judge
 - **Caching:** Results cached to minimize repeated costs
 - **Clear cache:** `--clear-cache` flag
 
+### Hallucination Detection
+
+The `--hallucination-check` flag analyzes LLM baseline responses for hallucinations, demonstrating the value of RAG (Retrieval Augmented Generation):
+
+```bash
+python scripts/benchmark_api_vs_llm.py --hallucination-check
+
+# Full analysis (both features)
+python scripts/benchmark_api_vs_llm.py --llm-judge --hallucination-check
+```
+
+**How it works:**
+1. Extract factual claims from each LLM baseline response
+2. Classify claims as verifiable (specific facts) or unverifiable (generic advice)
+3. For verifiable claims, check against the Civic database
+4. Calculate hallucination metrics
+
+**Metrics:**
+| Metric | Description |
+|--------|-------------|
+| **Verified Claims** | Statements supported by database evidence |
+| **Unverified Claims** | Specific claims that can't be verified (potential hallucinations) |
+| **Unverifiable Claims** | Generic advice like "check the city website" |
+| **Grounding Rate** | verified / (verified + unverified) - higher is better |
+| **Hallucination Risk** | unverified / (verified + unverified) - lower is better |
+
+**Interpretation:**
+- Grounding rate >70%: LLM baseline is mostly accurate
+- Hallucination risk >50%: LLM baseline makes many unverifiable claims
+- This demonstrates WHY grounded retrieval (Civic API) is valuable vs raw LLM responses
+
+**Cost:** ~$0.0001-0.001 per run, cached for repeated runs
+
 ### When to Use
 
 - **Unit tests (pytest):** Verify code correctness, run on every commit

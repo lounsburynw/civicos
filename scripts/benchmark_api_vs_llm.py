@@ -133,6 +133,38 @@ WHAT PROPER GROUND TRUTH WOULD BE:
   For critical evaluations, consider validating a sample against human labels.
 
 
+HALLUCINATION DETECTION
+-----------------------
+Use --hallucination-check to analyze LLM baseline responses for hallucinations:
+  python scripts/benchmark_api_vs_llm.py --hallucination-check
+
+This feature demonstrates the value of RAG (Retrieval Augmented Generation) by
+showing how often baseline LLM responses contain unverifiable claims compared
+to our grounded Civic API responses.
+
+How it works:
+  1. Extract factual claims from each LLM baseline response
+  2. Classify claims as verifiable (specific facts) or unverifiable (generic advice)
+  3. For verifiable claims, check against the Civic database
+  4. Calculate hallucination metrics
+
+Metrics:
+  - Verified Claims: Statements supported by database evidence
+  - Unverified Claims: Specific claims that can't be verified (potential hallucinations)
+  - Unverifiable Claims: Generic advice ("check the city website") - not hallucinations
+  - Grounding Rate: verified / (verified + unverified) - higher is better
+  - Hallucination Risk: unverified / (verified + unverified) - lower is better
+
+Interpretation:
+  High grounding rate (>70%) = LLM baseline is mostly accurate
+  High hallucination risk (>50%) = LLM baseline makes many unverifiable claims
+  This shows WHY grounded retrieval (Civic API) is valuable vs raw LLM responses
+
+Cost:
+  - ~$0.0001-0.001 per benchmark run (using gemini-2.0-flash-exp)
+  - Results are cached to avoid re-analyzing identical responses
+
+
 HOW TO ADD A NEW TEST QUERY
 ---------------------------
 Want to test a new topic like "parking"? Here's how:
@@ -487,6 +519,402 @@ Is this result relevant to the query? Respond with ONLY a decimal score from 0.0
 
 
 @dataclass
+class Claim:
+    """A factual claim extracted from an LLM response."""
+    text: str
+    claim_type: str  # date, name, location, number, policy, event
+    verifiable: bool
+    verified: Optional[bool] = None
+    evidence: Optional[str] = None
+    confidence: float = 0.0
+
+
+@dataclass
+class HallucinationReport:
+    """Report on hallucination analysis of an LLM response."""
+    query: str
+    response: str
+    claims: List[Claim]
+    verified_count: int
+    unverified_count: int
+    unverifiable_count: int
+    grounding_rate: float  # verified / verifiable (higher = better)
+    hallucination_risk: float  # unverified / verifiable (lower = better)
+
+
+class HallucinationDetector:
+    """
+    Detects hallucinations in LLM responses by comparing against Civic API data.
+
+    This class demonstrates the value of RAG (Retrieval Augmented Generation) by
+    showing how often baseline LLM responses contain unverifiable claims compared
+    to our grounded API responses.
+
+    Process:
+    1. Extract factual claims from an LLM response
+    2. Classify each claim as verifiable or not
+    3. For verifiable claims, check against database
+    4. Calculate hallucination metrics
+
+    Usage:
+        detector = HallucinationDetector(jurisdiction="city-san-rafael")
+        report = detector.analyze("housing policy", llm_response_text)
+        print(f"Grounding rate: {report.grounding_rate:.0%}")
+        print(f"Hallucination risk: {report.hallucination_risk:.0%}")
+
+    Cost considerations:
+    - Claim extraction: ~300-500 tokens per response
+    - Claim verification: ~100-200 tokens per claim
+    - At gemini-2.0-flash-exp ($0.075/1M): ~$0.0001-0.001 per response
+    - Cache hits eliminate repeated analysis costs
+    """
+
+    CLAIM_EXTRACTION_PROMPT = """Extract factual claims from this response about local government.
+
+For each claim, identify:
+1. The exact claim text
+2. The type: date, name, location, number, policy, event, or other
+3. Whether it's verifiable (specific enough to check against records)
+
+Response to analyze:
+{response}
+
+Output JSON array of claims:
+[
+  {{"text": "The city approved SB-9 in January 2024", "type": "event", "verifiable": true}},
+  {{"text": "Contact your local planning department", "type": "other", "verifiable": false}}
+]
+
+Only output valid JSON, no other text."""
+
+    CLAIM_VERIFICATION_PROMPT = """Determine if this claim can be verified by the provided evidence.
+
+Claim: {claim}
+Claim type: {claim_type}
+
+Evidence from database:
+{evidence}
+
+Is this claim supported by the evidence? Respond with JSON:
+{{"verified": true/false, "confidence": 0.0-1.0, "reason": "brief explanation"}}
+
+Only output valid JSON, no other text."""
+
+    def __init__(
+        self,
+        jurisdiction: str = "city-san-rafael",
+        model: str = "gemini-2.0-flash-exp",
+        cache_dir: Optional[Path] = None,
+        use_cache: bool = True
+    ):
+        """
+        Initialize the hallucination detector.
+
+        Args:
+            jurisdiction: Jurisdiction to verify claims against
+            model: LLM model for claim extraction and verification
+            cache_dir: Directory for caching analysis results
+            use_cache: Whether to use cached results
+        """
+        self.jurisdiction = jurisdiction
+        self.model = model
+        self.use_cache = use_cache
+        self.cache_dir = cache_dir or Path(__file__).parent.parent / ".cache" / "hallucination"
+        self._provider = None
+        self._civic = None
+        self._total_cost = 0.0
+        self._total_tokens = 0
+        self._cache_hits = 0
+        self._cache_misses = 0
+
+        if self.use_cache:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+    def _get_provider(self):
+        """Lazy-load the LLM provider."""
+        if self._provider is None:
+            from civic_services.core.llm_provider import get_model
+            self._provider = get_model(self.model)
+        return self._provider
+
+    def _get_civic(self):
+        """Lazy-load Civic instance."""
+        if self._civic is None:
+            from civic import Civic
+            self._civic = Civic(self.jurisdiction)
+        return self._civic
+
+    def _get_cache_key(self, content: str) -> str:
+        """Generate a cache key for content."""
+        return hashlib.sha256(content.encode()).hexdigest()[:16]
+
+    def _get_cached(self, cache_key: str) -> Optional[dict]:
+        """Get cached result if available."""
+        if not self.use_cache:
+            return None
+        cache_file = self.cache_dir / f"{cache_key}.json"
+        if cache_file.exists():
+            try:
+                with open(cache_file) as f:
+                    self._cache_hits += 1
+                    return json.load(f)
+            except (json.JSONDecodeError, IOError):
+                pass
+        return None
+
+    def _save_cached(self, cache_key: str, data: dict):
+        """Save result to cache."""
+        if not self.use_cache:
+            return
+        cache_file = self.cache_dir / f"{cache_key}.json"
+        try:
+            with open(cache_file, "w") as f:
+                json.dump(data, f)
+        except IOError:
+            pass
+
+    def _call_llm(self, prompt: str, max_tokens: int = 1000) -> str:
+        """Call LLM and track costs."""
+        provider = self._get_provider()
+        try:
+            response = provider.complete(
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=max_tokens,
+                temperature=0
+            )
+
+            # Track costs
+            if hasattr(response, 'usage') and response.usage:
+                from civic_services.core.model_registry import calculate_cost
+                cost = calculate_cost(self.model, response.usage)
+                self._total_cost += cost
+                self._total_tokens += response.usage.get('total_tokens', 0)
+
+            return response.content.strip()
+        except Exception as e:
+            print(f"LLM call error: {e}")
+            return ""
+
+    def extract_claims(self, response: str) -> List[Claim]:
+        """
+        Extract factual claims from an LLM response.
+
+        Args:
+            response: The LLM response text to analyze
+
+        Returns:
+            List of Claim objects
+        """
+        # Check cache
+        cache_key = self._get_cache_key(f"extract:{response}")
+        cached = self._get_cached(cache_key)
+        if cached and "claims" in cached:
+            return [Claim(**c) for c in cached["claims"]]
+
+        self._cache_misses += 1
+
+        prompt = self.CLAIM_EXTRACTION_PROMPT.format(response=response)
+        result = self._call_llm(prompt)
+
+        claims = []
+        try:
+            # Parse JSON response
+            # Handle potential markdown code blocks
+            if "```json" in result:
+                result = result.split("```json")[1].split("```")[0]
+            elif "```" in result:
+                result = result.split("```")[1].split("```")[0]
+
+            claim_data = json.loads(result)
+            for c in claim_data:
+                claims.append(Claim(
+                    text=c.get("text", ""),
+                    claim_type=c.get("type", "other"),
+                    verifiable=c.get("verifiable", False)
+                ))
+        except json.JSONDecodeError:
+            # If parsing fails, treat the whole response as one unverifiable claim
+            claims.append(Claim(
+                text=response[:200],
+                claim_type="other",
+                verifiable=False
+            ))
+
+        # Cache results
+        self._save_cached(cache_key, {"claims": [asdict(c) for c in claims]})
+        return claims
+
+    def _gather_evidence(self, claim: Claim, query: str) -> str:
+        """Gather evidence from database to verify a claim."""
+        c = self._get_civic()
+        evidence_parts = []
+
+        # Search based on claim type
+        if claim.claim_type in ["event", "date", "policy"]:
+            # Check decisions
+            try:
+                decisions = c.what_happened(query)
+                if decisions:
+                    evidence_parts.append("Recent decisions:")
+                    for d in decisions[:5]:
+                        evidence_parts.append(f"- {d.date.strftime('%Y-%m-%d')}: {d.title}")
+            except Exception:
+                pass
+
+            # Check legislation
+            try:
+                legislation = c.what_applies(query)
+                if legislation.state:
+                    evidence_parts.append("\nState legislation:")
+                    for s in legislation.state[:3]:
+                        if isinstance(s, dict) and 'bill' in s:
+                            evidence_parts.append(f"- {s.get('bill')}: {s.get('title', '')[:50]}")
+            except Exception:
+                pass
+
+        elif claim.claim_type in ["name", "location"]:
+            # Check meetings for officials/locations
+            try:
+                meetings = c.whats_next(days=365)
+                if meetings:
+                    evidence_parts.append("Recent/upcoming meetings:")
+                    for m in meetings[:5]:
+                        evidence_parts.append(f"- {m.date.strftime('%Y-%m-%d')}: {m.title}")
+            except Exception:
+                pass
+
+        elif claim.claim_type == "number":
+            # For numerical claims, check issues/community data
+            try:
+                result = c.whos_with_me(query)
+                evidence_parts.append(f"Community engagement: {result.follower_count} related issues")
+            except Exception:
+                pass
+
+        return "\n".join(evidence_parts) if evidence_parts else "(no relevant evidence found)"
+
+    def verify_claim(self, claim: Claim, query: str) -> Claim:
+        """
+        Verify a claim against database evidence.
+
+        Args:
+            claim: The claim to verify
+            query: The original query context
+
+        Returns:
+            Updated Claim with verification results
+        """
+        if not claim.verifiable:
+            return claim
+
+        # Gather evidence
+        evidence = self._gather_evidence(claim, query)
+        claim.evidence = evidence
+
+        # Check cache for verification
+        cache_key = self._get_cache_key(f"verify:{claim.text}:{evidence[:200]}")
+        cached = self._get_cached(cache_key)
+        if cached:
+            claim.verified = cached.get("verified")
+            claim.confidence = cached.get("confidence", 0.0)
+            return claim
+
+        self._cache_misses += 1
+
+        # Ask LLM to verify
+        prompt = self.CLAIM_VERIFICATION_PROMPT.format(
+            claim=claim.text,
+            claim_type=claim.claim_type,
+            evidence=evidence
+        )
+        result = self._call_llm(prompt, max_tokens=200)
+
+        try:
+            # Parse JSON response
+            if "```json" in result:
+                result = result.split("```json")[1].split("```")[0]
+            elif "```" in result:
+                result = result.split("```")[1].split("```")[0]
+
+            verification = json.loads(result)
+            claim.verified = verification.get("verified", False)
+            claim.confidence = verification.get("confidence", 0.0)
+        except json.JSONDecodeError:
+            # If parsing fails, mark as unverified with low confidence
+            claim.verified = False
+            claim.confidence = 0.0
+
+        # Cache verification
+        self._save_cached(cache_key, {
+            "verified": claim.verified,
+            "confidence": claim.confidence
+        })
+
+        return claim
+
+    def analyze(self, query: str, response: str) -> HallucinationReport:
+        """
+        Analyze an LLM response for hallucinations.
+
+        Args:
+            query: The original query that generated the response
+            response: The LLM response to analyze
+
+        Returns:
+            HallucinationReport with detailed analysis
+        """
+        # Extract claims
+        claims = self.extract_claims(response)
+
+        # Verify each verifiable claim
+        for claim in claims:
+            if claim.verifiable:
+                self.verify_claim(claim, query)
+
+        # Calculate metrics
+        verifiable_claims = [c for c in claims if c.verifiable]
+        verified_count = sum(1 for c in verifiable_claims if c.verified)
+        unverified_count = sum(1 for c in verifiable_claims if c.verified is False)
+        unverifiable_count = len(claims) - len(verifiable_claims)
+
+        total_verifiable = len(verifiable_claims)
+        grounding_rate = verified_count / total_verifiable if total_verifiable > 0 else 1.0
+        hallucination_risk = unverified_count / total_verifiable if total_verifiable > 0 else 0.0
+
+        return HallucinationReport(
+            query=query,
+            response=response[:500],  # Truncate for storage
+            claims=claims,
+            verified_count=verified_count,
+            unverified_count=unverified_count,
+            unverifiable_count=unverifiable_count,
+            grounding_rate=round(grounding_rate, 2),
+            hallucination_risk=round(hallucination_risk, 2)
+        )
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get statistics about detector usage."""
+        return {
+            "model": self.model,
+            "total_cost_usd": round(self._total_cost, 6),
+            "total_tokens": self._total_tokens,
+            "cache_hits": self._cache_hits,
+            "cache_misses": self._cache_misses,
+            "cache_hit_rate": (
+                round(self._cache_hits / (self._cache_hits + self._cache_misses), 2)
+                if (self._cache_hits + self._cache_misses) > 0 else 0
+            )
+        }
+
+    def clear_cache(self):
+        """Clear the analysis cache."""
+        if self.cache_dir.exists():
+            import shutil
+            shutil.rmtree(self.cache_dir)
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+
+@dataclass
 class QueryResult:
     """Result from a single query."""
     method: str
@@ -496,6 +924,7 @@ class QueryResult:
     civic_sample: list
     llm_baseline: str
     evaluation: dict = field(default_factory=dict)
+    hallucination_report: Optional[Dict] = None  # Added for hallucination analysis
 
 
 # Ground truth for accuracy validation
@@ -541,6 +970,7 @@ class BenchmarkReport:
     coverage: dict = field(default_factory=dict)
     bias_analysis: dict = field(default_factory=dict)
     llm_judge_stats: dict = field(default_factory=dict)  # LLM-as-judge cost/usage stats
+    hallucination_analysis: dict = field(default_factory=dict)  # Hallucination detection results
 
 
 def get_ground_truth_counts(jurisdiction: str) -> dict:
@@ -640,7 +1070,8 @@ Community organizing often starts with talking to neighbors.
         self,
         jurisdiction: str = "city-san-rafael",
         use_llm_judge: bool = False,
-        llm_judge_model: str = "gemini-2.0-flash-exp"
+        llm_judge_model: str = "gemini-2.0-flash-exp",
+        check_hallucinations: bool = False
     ):
         """
         Initialize the benchmark.
@@ -649,6 +1080,7 @@ Community organizing often starts with talking to neighbors.
             jurisdiction: Jurisdiction to benchmark
             use_llm_judge: Enable LLM-as-judge relevance scoring (more accurate but costs ~$0.001-0.01 per run)
             llm_judge_model: Model to use for LLM judgments (default: cheapest reliable option)
+            check_hallucinations: Enable hallucination detection on LLM baseline responses
         """
         self.jurisdiction = jurisdiction
         self.results: list[QueryResult] = []
@@ -658,6 +1090,8 @@ Community organizing often starts with talking to neighbors.
         self.use_llm_judge = use_llm_judge
         self._llm_judge = None
         self._llm_judge_model = llm_judge_model
+        self.check_hallucinations = check_hallucinations
+        self._hallucination_detector = None
 
     def _get_llm_judge(self) -> Optional[LLMRelevanceJudge]:
         """Lazy-load LLM judge if enabled."""
@@ -666,6 +1100,17 @@ Community organizing often starts with talking to neighbors.
         if self._llm_judge is None:
             self._llm_judge = LLMRelevanceJudge(model=self._llm_judge_model)
         return self._llm_judge
+
+    def _get_hallucination_detector(self) -> Optional[HallucinationDetector]:
+        """Lazy-load hallucination detector if enabled."""
+        if not self.check_hallucinations:
+            return None
+        if self._hallucination_detector is None:
+            self._hallucination_detector = HallucinationDetector(
+                jurisdiction=self.jurisdiction,
+                model=self._llm_judge_model
+            )
+        return self._hallucination_detector
 
     def _get_civic(self):
         """Lazy-load Civic instance."""
@@ -1217,6 +1662,53 @@ Community organizing often starts with talking to neighbors.
                 llm_judge_stats["avg_llm_precision"] = round(sum(llm_precisions) / len(llm_precisions), 2)
                 llm_judge_stats["precision_diff"] = round(llm_judge_stats["avg_llm_precision"] - llm_judge_stats["avg_keyword_precision"], 2)
 
+        # Run hallucination analysis if enabled
+        hallucination_analysis = {}
+        detector = self._get_hallucination_detector()
+        if detector:
+            hallucination_reports = []
+            for r in self.results:
+                if r.llm_baseline and r.llm_baseline != "No baseline defined":
+                    query_key = f"{r.method}:{r.query}"
+                    report = detector.analyze(query_key, r.llm_baseline)
+                    hallucination_reports.append(report)
+                    # Attach to result for per-query visibility
+                    r.hallucination_report = {
+                        "verified_count": report.verified_count,
+                        "unverified_count": report.unverified_count,
+                        "unverifiable_count": report.unverifiable_count,
+                        "grounding_rate": report.grounding_rate,
+                        "hallucination_risk": report.hallucination_risk,
+                        "total_claims": len(report.claims),
+                    }
+
+            # Aggregate hallucination stats
+            if hallucination_reports:
+                total_verified = sum(r.verified_count for r in hallucination_reports)
+                total_unverified = sum(r.unverified_count for r in hallucination_reports)
+                total_unverifiable = sum(r.unverifiable_count for r in hallucination_reports)
+                total_claims = sum(len(r.claims) for r in hallucination_reports)
+
+                avg_grounding_rate = (
+                    sum(r.grounding_rate for r in hallucination_reports) / len(hallucination_reports)
+                    if hallucination_reports else 0
+                )
+                avg_hallucination_risk = (
+                    sum(r.hallucination_risk for r in hallucination_reports) / len(hallucination_reports)
+                    if hallucination_reports else 0
+                )
+
+                hallucination_analysis = {
+                    "total_claims": total_claims,
+                    "verified_claims": total_verified,
+                    "unverified_claims": total_unverified,
+                    "unverifiable_claims": total_unverifiable,
+                    "avg_grounding_rate": round(avg_grounding_rate, 2),
+                    "avg_hallucination_risk": round(avg_hallucination_risk, 2),
+                    "responses_analyzed": len(hallucination_reports),
+                    "detector_stats": detector.get_stats(),
+                }
+
         return BenchmarkReport(
             jurisdiction=self.jurisdiction,
             timestamp=datetime.now().isoformat(),
@@ -1226,6 +1718,7 @@ Community organizing often starts with talking to neighbors.
             coverage=coverage,
             bias_analysis=bias_analysis,
             llm_judge_stats=llm_judge_stats,
+            hallucination_analysis=hallucination_analysis,
         )
 
 
@@ -1346,6 +1839,48 @@ def print_report(report: BenchmarkReport, as_json: bool = False):
             direction = "+" if diff >= 0 else ""
             print(f"  Difference:      {direction}{diff:.2f} (LLM vs keyword)")
 
+    # Hallucination analysis (if enabled)
+    if report.hallucination_analysis:
+        print("\n" + "=" * 70)
+        print("HALLUCINATION ANALYSIS")
+        print("=" * 70)
+        h = report.hallucination_analysis
+        print(f"Responses Analyzed: {h.get('responses_analyzed', 0)}")
+        print(f"Total Claims:       {h.get('total_claims', 0)}")
+        print(f"  Verified:         {h.get('verified_claims', 0)} (supported by database)")
+        print(f"  Unverified:       {h.get('unverified_claims', 0)} (potential hallucinations)")
+        print(f"  Unverifiable:     {h.get('unverifiable_claims', 0)} (generic/advisory)")
+        print(f"\nGrounding Rate:     {h.get('avg_grounding_rate', 0):.0%} (higher = better)")
+        print(f"Hallucination Risk: {h.get('avg_hallucination_risk', 0):.0%} (lower = better)")
+
+        if h.get('detector_stats'):
+            ds = h['detector_stats']
+            print(f"\nDetector Stats:")
+            print(f"  Model:           {ds.get('model', 'N/A')}")
+            print(f"  Total Cost:      ${ds.get('total_cost_usd', 0):.4f}")
+            print(f"  Cache Hit Rate:  {ds.get('cache_hit_rate', 0):.0%}")
+
+        # Interpretation
+        grounding = h.get('avg_grounding_rate', 0)
+        risk = h.get('avg_hallucination_risk', 0)
+        print(f"\nInterpretation:")
+        if grounding >= 0.7:
+            print("  ✓ LLM baseline has high grounding (many claims verifiable)")
+        elif grounding >= 0.4:
+            print("  ~ LLM baseline has moderate grounding")
+        else:
+            print("  ✗ LLM baseline has low grounding (most claims unverifiable)")
+
+        if risk <= 0.2:
+            print("  ✓ Low hallucination risk")
+        elif risk <= 0.5:
+            print("  ~ Moderate hallucination risk")
+        else:
+            print("  ✗ High hallucination risk - baseline LLM makes many unverifiable claims")
+
+        print("\n  This demonstrates why RAG/grounded retrieval is valuable:")
+        print("  Civic API provides verifiable, database-backed answers.")
+
     print("\n" + "=" * 70)
     print("LLM BASELINE COMPARISON")
     print("=" * 70)
@@ -1372,10 +1907,16 @@ Examples:
   # With LLM-as-judge (more accurate precision, ~$0.001 per run)
   python scripts/benchmark_api_vs_llm.py --llm-judge
 
+  # With hallucination detection (shows RAG value)
+  python scripts/benchmark_api_vs_llm.py --hallucination-check
+
+  # Full analysis (LLM judge + hallucination detection)
+  python scripts/benchmark_api_vs_llm.py --llm-judge --hallucination-check
+
   # Output as JSON for tracking
   python scripts/benchmark_api_vs_llm.py --llm-judge --json > benchmark_results.json
 
-  # Clear LLM judge cache (for fresh evaluations)
+  # Clear all caches (for fresh evaluations)
   python scripts/benchmark_api_vs_llm.py --clear-cache
 """
     )
@@ -1388,6 +1929,11 @@ Examples:
         help="Enable LLM-as-judge relevance scoring (more accurate but costs ~$0.001-0.01)"
     )
     parser.add_argument(
+        "--hallucination-check",
+        action="store_true",
+        help="Enable hallucination detection on LLM baseline responses (demonstrates RAG value)"
+    )
+    parser.add_argument(
         "--llm-judge-model",
         default="gemini-2.0-flash-exp",
         help="Model to use for LLM judgments (default: gemini-2.0-flash-exp, cheapest reliable)"
@@ -1395,7 +1941,7 @@ Examples:
     parser.add_argument(
         "--clear-cache",
         action="store_true",
-        help="Clear LLM judge cache before running"
+        help="Clear all LLM evaluation caches before running"
     )
     args = parser.parse_args()
 
@@ -1403,14 +1949,17 @@ Examples:
     if args.clear_cache:
         judge = LLMRelevanceJudge()
         judge.clear_cache()
-        print("LLM judge cache cleared.")
-        if not args.run_all and not args.llm_judge:
+        detector = HallucinationDetector()
+        detector.clear_cache()
+        print("All evaluation caches cleared (LLM judge + hallucination detector).")
+        if not args.run_all and not args.llm_judge and not args.hallucination_check:
             sys.exit(0)
 
     benchmark = CivicBenchmark(
         args.jurisdiction,
         use_llm_judge=args.llm_judge,
-        llm_judge_model=args.llm_judge_model
+        llm_judge_model=args.llm_judge_model,
+        check_hallucinations=args.hallucination_check
     )
 
     if args.run_all or True:  # Default to running all

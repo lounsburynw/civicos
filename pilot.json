@@ -119,12 +119,11 @@
         "completed_date": "2026-01-10"
       },
       "hallucination_detection": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "Add hallucination detection comparing LLM vs Civic API responses",
         "note": "Test that compares raw LLM responses against our grounded retrieval. Extract claims from LLM output, verify against database. Metrics: verified_claims, unverified_claims (hallucination risk), grounding_rate. Demonstrates RAG value proposition vs baseline LLM.",
-        "test_file": "scripts/benchmark_api_vs_llm.py",
-        "blocked_by": ["eval_framework"]
+        "test_file": "scripts/benchmark_api_vs_llm.py"
       }
     },
     "code_packaging": {
@@ -1963,7 +1962,9 @@
         "completed": "2026-01-08",
         "source_file": "packages/civic-extraction/src/civic_extraction/clients/simbli.py",
         "test_file": "packages/civic-extraction/tests/test_clients.py::TestSimbliClientIntegration::test_get_meetings_discovers_mids",
-        "depends_on": ["simbli_browser_automation"]
+        "depends_on": [
+          "simbli_browser_automation"
+        ]
       },
       "simbli_pdf_download": {
         "status": "ready",
@@ -1973,24 +1974,33 @@
         "source_file": "packages/civic-extraction/src/civic_extraction/clients/simbli.py",
         "test_file": "packages/civic-extraction/tests/test_clients.py::TestSimbliClientIntegration::test_download_agenda_pdf_via_mid",
         "completed": "2026-01-09",
-        "depends_on": ["simbli_mid_discovery"]
+        "depends_on": [
+          "simbli_mid_discovery"
+        ]
       },
       "srcs_data_ingestion": {
         "status": "ready",
         "priority": 2,
         "artifact": "scripts/ingest_srcs.py ingests school board meetings and agenda PDFs from Simbli",
         "note": "Created ingest_srcs.py: (1) Scrapes meetings via SimbliClient, (2) Downloads agenda PDFs via MID workflow, (3) Parses PDFs with PyMuPDF and chunks text, (4) Stores meetings in PostgreSQL, (5) Indexes chunks in pgvector. Initial run: 2 meetings, 27 chunks indexed.",
-        "depends_on": ["simbli_pdf_download"],
+        "depends_on": [
+          "simbli_pdf_download"
+        ],
         "jurisdiction_id": "school-san-rafael",
         "completed": "2026-01-09",
-        "reference_scripts": ["scripts/ingest_srcs.py", "scripts/modal_ingest.py"]
+        "reference_scripts": [
+          "scripts/ingest_srcs.py",
+          "scripts/modal_ingest.py"
+        ]
       },
       "srcs_full_backfill": {
         "status": "ready",
         "priority": 2,
         "artifact": "Run scripts/ingest_srcs.py for all historical SRCS meetings (2024-present)",
         "note": "Completed: 45 meetings from Jan 2024 to Dec 2025, 788 PDF chunks extracted and indexed. Raw chunks in PostgreSQL, vectors in pgvector. Next: R2 storage and LLM extraction for structured agenda items.",
-        "depends_on": ["srcs_data_ingestion"],
+        "depends_on": [
+          "srcs_data_ingestion"
+        ],
         "jurisdiction_id": "school-san-rafael",
         "completed": "2026-01-09"
       },
@@ -1999,7 +2009,9 @@
         "priority": 2,
         "artifact": "Upload SRCS agenda PDFs to R2 for consistent storage with city meetings",
         "note": "Modified ingest_srcs.py to upload PDFs directly to R2 during download (not as separate step). Pattern: school-san-rafael/agendas/{meeting_id}.pdf. Updates meetings.agenda_url with R2 URL. Usage: python scripts/ingest_srcs.py (R2 upload default) or --skip-r2 for local only.",
-        "depends_on": ["srcs_full_backfill"],
+        "depends_on": [
+          "srcs_full_backfill"
+        ],
         "jurisdiction_id": "school-san-rafael",
         "completed": "2026-01-09"
       },
@@ -2008,7 +2020,9 @@
         "priority": 0,
         "artifact": "Extract structured agenda items from SRCS PDFs using LLM (same as city)",
         "note": "Use civic_extraction.cli.agenda module with Gemini LLM to extract structured items: item_number, title, type (consent/action/info), description, is_actionable. Same 2-pass LLM approach as city meetings. Run via: modal run scripts/modal_ingest.py --agenda --jurisdiction school-san-rafael. Stores to agenda_items table.",
-        "depends_on": ["srcs_r2_pdf_storage"],
+        "depends_on": [
+          "srcs_r2_pdf_storage"
+        ],
         "jurisdiction_id": "school-san-rafael",
         "reference_module": "packages/civic-extraction/src/civic_extraction/cli/agenda.py"
       },
@@ -2017,7 +2031,9 @@
         "priority": 2,
         "artifact": "Extract decisions/votes from SRCS meeting minutes using LLM",
         "note": "After agenda items, extract decisions from minutes PDFs (if available). Same pattern as city: civic_extraction.cli.decisions with Gemini. Populates decisions table. Lower priority - minutes often lag behind meetings.",
-        "depends_on": ["srcs_agenda_item_extraction"],
+        "depends_on": [
+          "srcs_agenda_item_extraction"
+        ],
         "jurisdiction_id": "school-san-rafael"
       },
       "srcs_vector_indexing": {
@@ -2025,7 +2041,9 @@
         "priority": 1,
         "artifact": "Index SRCS agenda items and decisions in pgvector",
         "note": "After LLM extraction, index agenda_items and decisions for school-san-rafael. Run: modal run scripts/modal_ingest.py --vectors --jurisdiction school-san-rafael. Enables what_happened(), whats_next() queries for school board.",
-        "depends_on": ["srcs_agenda_item_extraction"],
+        "depends_on": [
+          "srcs_agenda_item_extraction"
+        ],
         "jurisdiction_id": "school-san-rafael"
       }
     }
