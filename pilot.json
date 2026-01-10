@@ -2123,11 +2123,12 @@
     },
     "source_provenance": {
       "transcript_duration_validation": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 99,
         "artifact": "Validate transcript duration matches YouTube video duration",
-        "note": "Session 480: Found some transcripts have durations exceeding actual video length (e.g., 169 min stored vs 47 min actual for iYeihDimgxE). Causes timestamp URLs to fail when t= exceeds video length. 4/5 tested URLs worked, 1 failed (QLDoO6OvMSA&t=6742s). FIX: Query YouTube API for video duration during ingestion, compare against AssemblyAI duration, flag/reject mismatches. Likely cause: audio download grabbed playlist or concatenated streams. Session 495 added YouTubeBoardsClient which fetches video durations - use this for validation.",
-        "test_file": "packages/civic-extraction/tests/test_transcribe.py"
+        "note": "Session 496: Implemented duration validation. Added validate_transcript_duration() and get_youtube_video_duration() functions that compare AssemblyAI duration against YouTube API duration. Allows 10% tolerance for encoding overhead. Added youtube_duration_seconds, duration_valid, duration_validation_error columns to transcripts table. New CLI command 'civic-extract validate-transcripts' validates existing transcripts. Ran validation on city-san-rafael: 10 valid, 9 invalid (corrupted audio from playlist concatenation). 11 unit/integration tests added.",
+        "test_file": "packages/civic-extraction/tests/test_transcribe.py",
+        "completed": "2026-01-09"
       },
       "audio_hash_storage": {
         "status": "ready",
@@ -2204,7 +2205,7 @@
       },
       "data_freshness_alerting": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "GitHub Action that alerts when data falls behind expected freshness thresholds",
         "note": "Daily check: decisions should be within 7 days of latest meeting, vectors should match SQL within 5%. Create GitHub Issue on threshold breach. Builds on existing freshness_warnings infrastructure.",
         "depends_on": "vector_sql_sync_verification"

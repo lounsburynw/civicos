@@ -60,6 +60,15 @@ class TranscribeResult:
     duration_minutes: Optional[float] = None
     cost_usd: Optional[float] = None
     error: Optional[str] = None
+    # Duration validation fields (SESSION 496)
+    youtube_duration_seconds: Optional[int] = None
+    duration_valid: Optional[bool] = None
+    duration_validation_error: Optional[str] = None
+
+
+# Duration validation constants (SESSION 496)
+DURATION_TOLERANCE_PERCENT = 0.10  # Allow 10% variance for encoding overhead/padding
+MIN_DURATION_FOR_VALIDATION = 60  # Don't validate very short clips (<1 min)
 
 
 @dataclass
@@ -353,6 +362,127 @@ def transcript_exists(video_id: str, output_dir: str) -> bool:
     return output_path.exists()
 
 
+def get_youtube_video_duration(video_id: str) -> Optional[int]:
+    """
+    Fetch video duration from YouTube Data API.
+
+    SESSION 496: Added for transcript duration validation.
+    Uses YouTubeBoardsClient's duration parsing logic for consistency.
+
+    Args:
+        video_id: YouTube video ID (e.g., "QLDoO6OvMSA")
+
+    Returns:
+        Video duration in seconds, or None if unavailable
+    """
+    import re as re_module
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("YOUTUBE_API_KEY")
+    if not api_key:
+        logger.debug("No YouTube API key available for duration validation")
+        return None
+
+    try:
+        from googleapiclient.discovery import build
+        from googleapiclient.errors import HttpError
+
+        service = build("youtube", "v3", developerKey=api_key)
+        request = service.videos().list(part="contentDetails", id=video_id)
+        response = request.execute()
+
+        items = response.get("items", [])
+        if not items:
+            logger.warning(f"Video {video_id} not found on YouTube")
+            return None
+
+        duration_str = items[0]["contentDetails"]["duration"]
+
+        # Parse ISO 8601 duration (PT1H30M45S -> seconds)
+        match = re_module.match(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", duration_str)
+        if not match:
+            logger.warning(f"Could not parse duration format: {duration_str}")
+            return None
+
+        hours = int(match.group(1) or 0)
+        minutes = int(match.group(2) or 0)
+        seconds = int(match.group(3) or 0)
+
+        total_seconds = hours * 3600 + minutes * 60 + seconds
+        logger.debug(f"YouTube duration for {video_id}: {total_seconds}s ({duration_str})")
+        return total_seconds
+
+    except ImportError:
+        logger.debug("google-api-python-client not available for duration validation")
+        return None
+    except HttpError as e:
+        logger.warning(f"YouTube API error fetching duration for {video_id}: {e}")
+        return None
+    except Exception as e:
+        logger.warning(f"Error fetching YouTube duration for {video_id}: {e}")
+        return None
+
+
+def validate_transcript_duration(
+    video_id: str,
+    assemblyai_duration_seconds: float,
+    youtube_duration_seconds: Optional[int] = None,
+) -> Tuple[bool, Optional[str], Optional[int]]:
+    """
+    Validate transcript duration against YouTube video duration.
+
+    SESSION 496: Detects corrupted audio downloads (playlist/concatenation bugs).
+
+    Args:
+        video_id: YouTube video ID
+        assemblyai_duration_seconds: Duration reported by AssemblyAI
+        youtube_duration_seconds: Pre-fetched YouTube duration (optional, will fetch if None)
+
+    Returns:
+        Tuple of (is_valid, error_message, youtube_duration_seconds)
+        - is_valid: True if duration is within tolerance, False if mismatch
+        - error_message: Description of mismatch if invalid, None if valid
+        - youtube_duration_seconds: The YouTube duration used for comparison
+    """
+    # Skip validation for very short clips
+    if assemblyai_duration_seconds < MIN_DURATION_FOR_VALIDATION:
+        logger.debug(f"Skipping duration validation for {video_id} (too short: {assemblyai_duration_seconds}s)")
+        return True, None, youtube_duration_seconds
+
+    # Fetch YouTube duration if not provided
+    if youtube_duration_seconds is None:
+        youtube_duration_seconds = get_youtube_video_duration(video_id)
+
+    # Can't validate without YouTube duration
+    if youtube_duration_seconds is None:
+        logger.debug(f"Cannot validate duration for {video_id} (no YouTube duration available)")
+        return True, None, None
+
+    # Calculate tolerance
+    max_allowed = youtube_duration_seconds * (1 + DURATION_TOLERANCE_PERCENT)
+
+    # Check for duration exceeding YouTube video
+    if assemblyai_duration_seconds > max_allowed:
+        excess_seconds = assemblyai_duration_seconds - youtube_duration_seconds
+        excess_percent = (excess_seconds / youtube_duration_seconds) * 100
+        error_msg = (
+            f"Transcript duration ({assemblyai_duration_seconds:.0f}s) exceeds "
+            f"YouTube video ({youtube_duration_seconds}s) by {excess_seconds:.0f}s "
+            f"({excess_percent:.1f}%). Likely corrupted audio download."
+        )
+        logger.warning(f"⚠️ Duration mismatch for {video_id}: {error_msg}")
+        return False, error_msg, youtube_duration_seconds
+
+    # Duration is within tolerance
+    logger.debug(
+        f"Duration validated for {video_id}: "
+        f"transcript={assemblyai_duration_seconds:.0f}s, youtube={youtube_duration_seconds}s"
+    )
+    return True, None, youtube_duration_seconds
+
+
 def transcribe_audio_file(
     audio_source,
     output_dir: str,
@@ -464,6 +594,13 @@ def transcribe_audio_file(
         audio_duration_minutes = audio_duration_seconds / 60
         cost_usd = audio_duration_minutes * COST_PER_MINUTE
 
+        # SESSION 496: Validate transcript duration against YouTube video duration
+        duration_valid, validation_error, youtube_duration = validate_transcript_duration(
+            video_id, audio_duration_seconds
+        )
+        if validation_error:
+            logger.warning(f"  ⚠️ Duration validation failed: {validation_error}")
+
         # Count unique speakers and build utterances
         speakers = set()
         utterances = []
@@ -492,6 +629,10 @@ def transcribe_audio_file(
             "cost_usd": round(cost_usd, 2),
             "processing_time_seconds": round(processing_time, 2),
             "audio_hash": audio_hash,  # SHA-256 of source audio for provenance
+            # SESSION 496: Duration validation fields
+            "youtube_duration_seconds": youtube_duration,
+            "duration_valid": duration_valid,
+            "duration_validation_error": validation_error,
         }
 
         # Store transcript (cloud or local)
@@ -523,6 +664,10 @@ def transcribe_audio_file(
             utterances_count=len(utterances),
             duration_minutes=audio_duration_minutes,
             cost_usd=cost_usd,
+            # SESSION 496: Duration validation fields
+            youtube_duration_seconds=youtube_duration,
+            duration_valid=duration_valid,
+            duration_validation_error=validation_error,
         )
 
     except Exception as e:
@@ -1159,3 +1304,154 @@ def run_scheduled(
     while True:
         schedule.run_pending()
         time_module.sleep(60)  # Check every minute
+
+
+def validate_existing_transcripts(
+    jurisdiction_id: str,
+    update_db: bool = False,
+    limit: int = 0,
+) -> Dict[str, List[str]]:
+    """
+    Validate existing transcripts against YouTube video durations.
+
+    SESSION 496: Added for retroactive validation of existing transcripts.
+    Detects corrupted audio downloads where transcript duration exceeds video.
+
+    Args:
+        jurisdiction_id: Jurisdiction to validate
+        update_db: If True, update database with validation results
+        limit: Maximum transcripts to validate (0 = all)
+
+    Returns:
+        Dict with 'valid', 'invalid', and 'skipped' lists of video IDs
+    """
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    try:
+        from civic.storage import get_storage_backend
+    except ImportError:
+        logger.error("civic.storage not available for validation")
+        return {"valid": [], "invalid": [], "skipped": []}
+
+    backend = get_storage_backend()
+    if backend.backend_type != "postgres":
+        logger.error("Validation requires PostgreSQL backend")
+        return {"valid": [], "invalid": [], "skipped": []}
+
+    # Get existing transcripts
+    transcripts = backend.get_transcripts(jurisdiction_id, limit=limit or None)
+    if not transcripts:
+        logger.info(f"No transcripts found for {jurisdiction_id}")
+        return {"valid": [], "invalid": [], "skipped": []}
+
+    results = {"valid": [], "invalid": [], "skipped": []}
+
+    logger.info(f"Validating {len(transcripts)} transcripts for {jurisdiction_id}...")
+    logger.info("=" * 60)
+
+    for i, transcript in enumerate(transcripts, 1):
+        video_id = transcript.get("video_id")
+        duration_seconds = transcript.get("duration_seconds")
+
+        # Skip if already validated
+        if transcript.get("duration_valid") is not None:
+            logger.debug(f"  [{i}] {video_id}: Already validated, skipping")
+            results["skipped"].append(video_id)
+            continue
+
+        if not video_id or not duration_seconds:
+            logger.debug(f"  [{i}] {video_id}: Missing data, skipping")
+            results["skipped"].append(video_id)
+            continue
+
+        # Validate
+        is_valid, error_msg, youtube_duration = validate_transcript_duration(
+            video_id, duration_seconds
+        )
+
+        if youtube_duration is None:
+            logger.info(f"  [{i}] {video_id}: Could not fetch YouTube duration, skipping")
+            results["skipped"].append(video_id)
+            continue
+
+        if is_valid:
+            logger.info(
+                f"  [{i}] {video_id}: ✓ Valid "
+                f"(transcript={duration_seconds}s, youtube={youtube_duration}s)"
+            )
+            results["valid"].append(video_id)
+        else:
+            logger.warning(
+                f"  [{i}] {video_id}: ✗ INVALID - {error_msg}"
+            )
+            results["invalid"].append(video_id)
+
+        # Update database if requested (using StorageBackend protocol)
+        if update_db:
+            try:
+                backend.update_transcript_validation(
+                    jurisdiction_id=jurisdiction_id,
+                    video_id=video_id,
+                    youtube_duration_seconds=youtube_duration,
+                    duration_valid=is_valid,
+                    duration_validation_error=error_msg,
+                )
+            except Exception as e:
+                logger.error(f"Failed to update database for {video_id}: {e}")
+
+    # Summary
+    logger.info("=" * 60)
+    logger.info(f"Validation Summary for {jurisdiction_id}:")
+    logger.info(f"  Valid: {len(results['valid'])}")
+    logger.info(f"  Invalid: {len(results['invalid'])}")
+    logger.info(f"  Skipped: {len(results['skipped'])}")
+
+    if results["invalid"]:
+        logger.warning("Invalid transcripts (corrupted audio):")
+        for vid in results["invalid"]:
+            logger.warning(f"  - {vid}")
+
+    return results
+
+
+def add_validate_transcripts_parser(subparsers: argparse._SubParsersAction) -> None:
+    """Add the validate-transcripts subcommand to the parser."""
+    parser = subparsers.add_parser(
+        "validate-transcripts",
+        help="Validate existing transcript durations against YouTube",
+        description="Check existing transcripts for duration mismatches (corrupted audio)",
+    )
+    parser.add_argument(
+        "--jurisdiction",
+        required=True,
+        help="Jurisdiction ID (e.g., city-san-rafael)",
+    )
+    parser.add_argument(
+        "--update",
+        action="store_true",
+        help="Update database with validation results",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="Limit number of transcripts to validate (0 = all)",
+    )
+
+
+def run_validate_transcripts(args: argparse.Namespace) -> int:
+    """Run the validate-transcripts command."""
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+
+    results = validate_existing_transcripts(
+        args.jurisdiction,
+        update_db=args.update,
+        limit=args.limit,
+    )
+
+    if results["invalid"]:
+        return 1  # Exit with error if any invalid transcripts found
+    return 0

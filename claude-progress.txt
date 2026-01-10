@@ -11968,3 +11968,37 @@ civic-extract youtube-boards --jurisdiction school-san-rafael --validate
 Note: Session 495's YouTubeBoardsClient now provides accurate video durations that can be compared against AssemblyAI transcript durations to detect the playlist/concatenation bug identified in Session 480.
 
 ---
+
+---
+
+## Session 496: Transcript Duration Validation (2026-01-09)
+
+### P0 Item: transcript_duration_validation
+
+**Problem:** Session 480 identified transcripts with durations exceeding actual YouTube video length (e.g., 169 min stored vs 47 min actual for iYeihDimgxE). This causes timestamp URLs to fail when t= exceeds video length. Root cause: audio download grabbing playlist or concatenated streams instead of single video.
+
+**Solution implemented:**
+1. Added `validate_transcript_duration()` function comparing AssemblyAI duration against YouTube API duration
+2. Added `get_youtube_video_duration()` to fetch video duration from YouTube Data API
+3. New database columns: `youtube_duration_seconds`, `duration_valid`, `duration_validation_error` 
+4. Validation integrated into `transcribe_audio_file()` - runs automatically during transcription
+5. New CLI command: `civic-extract validate-transcripts --jurisdiction <id> [--update]`
+
+**Key files modified:**
+- `packages/civic-extraction/src/civic_extraction/cli/transcribe.py` - Added validation functions and CLI command
+- `packages/civic/src/civic/storage/postgres_backend.py` - Added migration for new columns, updated store_transcripts()
+- `packages/civic-extraction/src/civic_extraction/cli/__init__.py` - Registered new CLI command
+
+**Validation results for city-san-rafael:**
+- Valid: 10 transcripts
+- Invalid: 9 transcripts (corrupted audio from playlist concatenation)
+- Tolerance: 10% to allow for encoding overhead
+
+**Tests added:**
+- `packages/civic-extraction/tests/test_transcribe.py` - 11 tests for duration validation
+- Unit tests for validation logic, tolerance boundaries
+- Integration tests with known mismatched transcripts (QLDoO6OvMSA, iYeihDimgxE)
+
+### Next P0
+`data_freshness_alerting` - GitHub Action that alerts when data falls behind expected freshness thresholds
+
