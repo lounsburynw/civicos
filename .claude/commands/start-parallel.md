@@ -230,20 +230,61 @@ The worktree has its own:
 1. Work on `.claude/`, `scripts/dev*.sh`, workflow files
 2. Create worktree if making code changes
 
-## Step 6: Pre-Merge Review
+## Step 6: PR Strategy
 
-When your secondary work is complete, run a comprehensive review before merging:
+**Key principle:** One PR per feature branch, containing all related work.
+
+### When to Create the PR
+
+| Scenario | Action |
+|----------|--------|
+| Multiple related items in same category | Complete all, then create PR |
+| Single isolated item | Create PR when item is done |
+| Long-running work (2+ sessions) | Create draft PR early for CI visibility |
+
+### PR Auto-Updates
+
+PRs automatically include new commits pushed to the source branch:
+```bash
+# First item done - create PR
+gh pr create --draft --base main --head "$BRANCH_NAME" --title "feat: Eval framework improvements"
+
+# Continue working on related items
+# ... more commits ...
+git push  # PR automatically updates
+
+# All items done - mark ready for review
+gh pr ready
+```
+
+### Batching Related Items
+
+Before creating a PR, check if there are related items you should complete first:
+```bash
+# Check items in same category that are now unblocked
+python3 -c "
+import json
+with open('pilot.json') as f:
+    p = json.load(f)
+# Look for items in same subcategory with status='not_ready'
+"
+```
+
+**Example:** If you completed `llm_as_judge`, check if `hallucination_detection` (same category, was blocked) should also go in this PR.
+
+## Step 7: Pre-Merge Review
+
+When all related items are complete, run a comprehensive review:
 
 ```bash
-# In your worktree directory
 # Ensure your branch is up to date with main
 git fetch origin main
 git rebase origin/main
 
-# Run Civic-specific critics (pipeline, protocol, architecture)
+# Run Civic-specific critics
 /critic
 
-# Run pr-review-toolkit agents for general code quality
+# Run pr-review-toolkit agents
 /review
 ```
 
@@ -255,22 +296,31 @@ git rebase origin/main
 | `pr-test-analyzer` | If you added/modified tests |
 | `silent-failure-hunter` | If you touched error handling |
 | `type-design-analyzer` | If you added new types/dataclasses |
-| `code-simplifier` | Optional - for complex implementations |
 
-## Step 7: Merge and Cleanup
+## Step 8: Create/Finalize PR
 
-After reviews pass:
-
+**If PR already exists (draft):** Mark ready for review
 ```bash
-# Option A: Merge via PR (recommended)
-gh pr create --base main --head "$BRANCH_NAME" --title "feat: [item description]"
-
-# Option B: Fast-forward merge (if linear history)
-cd ../civic  # Main repo
-git merge --ff-only "$BRANCH_NAME"
+gh pr ready
 ```
 
-**Cleanup worktree after merge:**
+**If no PR yet:** Create one with all completed items listed
+```bash
+gh pr create --base main --head "$BRANCH_NAME" \
+  --title "feat: [track] [description]" \
+  --body "## Summary
+- [x] item_1: Description
+- [x] item_2: Description
+
+## Test plan
+- [x] /critic passed
+- [x] /review passed
+
+🤖 Generated with Claude Code"
+```
+
+## Step 9: Cleanup (After PR Merges)
+
 ```bash
 # From main repo directory
 git worktree remove ../civic-${TRACK}
