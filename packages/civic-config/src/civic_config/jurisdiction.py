@@ -65,6 +65,17 @@ _REGISTRY: Dict[str, JurisdictionConfig] = {
         meeting_calendar_url="https://www.cityofsanrafael.org/departments/public-meetings/",
     ),
 
+    # ---------- San Rafael City Schools (pilot school district) ----------
+    "school_san_rafael": JurisdictionConfig(
+        jurisdiction_id="school-san-rafael",
+        agent_type="srcs_cms",  # BoardDocs-based extraction
+        meeting_urls=["https://go.boarddocs.com/ca/srcs/Board.nsf/Public"],
+        contact_email="board@srcs.org",
+        timezone="America/Los_Angeles",
+        website="https://www.srcs.org",
+        meeting_calendar_url="https://go.boarddocs.com/ca/srcs/Board.nsf/Public",
+    ),
+
     # ---------- Berkeley ----------
     "berkeley": JurisdictionConfig(
         jurisdiction_id="city-berkeley",

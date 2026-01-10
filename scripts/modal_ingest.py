@@ -383,7 +383,7 @@ def index_vectors(
     if jurisdiction.startswith("state-"):
         all_corpus_types = ["legislation"]
     else:
-        all_corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues"]
+        all_corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues", "agenda_items"]
 
     corpus_types = all_corpus_types if corpus == "all" else [corpus]
     results = {}
