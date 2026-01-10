@@ -106,7 +106,12 @@ from civic_extraction.cli.municipal_code import add_municipal_code_parser, run_m
 from civic_extraction.cli.research import add_research_parser, run_research
 from civic_extraction.cli.seeclickfix import add_seeclickfix_parser, run_seeclickfix
 from civic_extraction.cli.snapshot_cli import add_snapshot_parser, run_snapshot
-from civic_extraction.cli.transcribe import add_transcribe_parser, run_transcribe
+from civic_extraction.cli.transcribe import (
+    add_transcribe_parser,
+    run_transcribe,
+    add_validate_transcripts_parser,
+    run_validate_transcripts,
+)
 from civic_extraction.cli.uscode import add_uscode_parser, run_uscode
 from civic_extraction.cli.vectors import add_vectors_parser, run_vectors
 from civic_extraction.cli.youtube import add_youtube_parser, run_youtube
@@ -144,6 +149,7 @@ def main() -> int:
     add_seeclickfix_parser(subparsers)
     add_snapshot_parser(subparsers)
     add_transcribe_parser(subparsers)
+    add_validate_transcripts_parser(subparsers)
     add_uscode_parser(subparsers)
     add_vectors_parser(subparsers)
     add_youtube_parser(subparsers)
@@ -186,6 +192,8 @@ def main() -> int:
         return run_snapshot(args)
     elif args.command == "transcribe":
         return run_transcribe(args)
+    elif args.command == "validate-transcripts":
+        return run_validate_transcripts(args)
     elif args.command == "uscode":
         return run_uscode(args)
     elif args.command == "vectors":

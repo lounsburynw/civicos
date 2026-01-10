@@ -1258,6 +1258,45 @@ class PostgresBackend:
             END $$;
         """)
 
+        # Migration: Add duration validation columns to transcripts (SESSION 496)
+        # Stores YouTube video duration and validation status to detect corrupted audio
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'transcripts'
+                    AND column_name = 'youtube_duration_seconds'
+                ) THEN
+                    ALTER TABLE transcripts ADD COLUMN youtube_duration_seconds INTEGER;
+                END IF;
+            END $$;
+        """)
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'transcripts'
+                    AND column_name = 'duration_valid'
+                ) THEN
+                    ALTER TABLE transcripts ADD COLUMN duration_valid BOOLEAN;
+                END IF;
+            END $$;
+        """)
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'transcripts'
+                    AND column_name = 'duration_validation_error'
+                ) THEN
+                    ALTER TABLE transcripts ADD COLUMN duration_validation_error TEXT;
+                END IF;
+            END $$;
+        """)
+
         conn.commit()
 
     def store_meetings(
@@ -2816,8 +2855,9 @@ class PostgresBackend:
                         text, duration_seconds, word_count, speakers_count,
                         utterances_count, processing_service, cost_usd,
                         created_at, valid_from, valid_to, content_hash, audio_hash,
-                        extraction_version
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s, %s, %s)
+                        extraction_version, youtube_duration_seconds, duration_valid,
+                        duration_validation_error
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s, %s, %s, %s, %s, %s)
                 """, (
                     transcript_id,
                     jurisdiction_id,
@@ -2835,6 +2875,10 @@ class PostgresBackend:
                     content_hash,
                     audio_hash,
                     transcript.get('extraction_version'),
+                    # SESSION 496: Duration validation fields
+                    transcript.get('youtube_duration_seconds'),
+                    transcript.get('duration_valid'),
+                    transcript.get('duration_validation_error'),
                 ))
                 count += 1
 
@@ -2951,6 +2995,62 @@ class PostgresBackend:
                     transcript[key] = transcript[key].isoformat()
 
         return transcript
+
+    def update_transcript_validation(
+        self,
+        jurisdiction_id: str,
+        video_id: str,
+        youtube_duration_seconds: Optional[int],
+        duration_valid: bool,
+        duration_validation_error: Optional[str],
+    ) -> bool:
+        """
+        Update duration validation fields on a transcript record.
+
+        SESSION 496: Added for retroactive validation of existing transcripts.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            video_id: YouTube video ID
+            youtube_duration_seconds: Duration from YouTube API
+            duration_valid: Whether transcript passes validation
+            duration_validation_error: Error message if validation failed
+
+        Returns:
+            True if transcript was found and updated, False otherwise
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute(
+                """
+                UPDATE transcripts
+                SET youtube_duration_seconds = %s,
+                    duration_valid = %s,
+                    duration_validation_error = %s
+                WHERE video_id = %s
+                  AND jurisdiction_id = %s
+                  AND deleted_at IS NULL
+                  AND valid_to IS NULL
+                """,
+                (
+                    youtube_duration_seconds,
+                    duration_valid,
+                    duration_validation_error,
+                    video_id,
+                    jurisdiction_id,
+                ),
+            )
+            updated = cursor.rowcount > 0
+            conn.commit()
+            return updated
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
     def get_transcript_count(self, jurisdiction_id: str) -> int:
         """
