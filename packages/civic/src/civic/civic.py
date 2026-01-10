@@ -504,8 +504,9 @@ class Civic:
         import os
 
         # Normalize jurisdiction ID to canonical format (e.g., "san-rafael" -> "city-san-rafael")
+        # Use strict=False to allow unknown jurisdictions (returns empty results instead of raising)
         from civic._internal.jurisdiction import normalize_jurisdiction
-        self.jurisdiction = normalize_jurisdiction(self.jurisdiction)
+        self.jurisdiction = normalize_jurisdiction(self.jurisdiction, strict=False)
 
         # Check for DATABASE_URL environment variable for cloud storage
         database_url = os.getenv("DATABASE_URL")
@@ -1120,7 +1121,8 @@ class Civic:
             return []
 
         # Check if embeddings are available for this jurisdiction
-        jurisdiction = normalize_jurisdiction(self.jurisdiction)
+        # Use strict=False since self.jurisdiction may be unknown (already normalized non-strictly)
+        jurisdiction = normalize_jurisdiction(self.jurisdiction, strict=False)
         persist_dir = get_vectors_dir(jurisdiction)
         if not os.path.exists(persist_dir):
             return []
