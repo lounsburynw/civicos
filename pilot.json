@@ -1902,10 +1902,10 @@
     },
     "school_district": {
       "srcs_youtube_integration": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 99,
         "artifact": "Ingest San Rafael City Schools board meetings via YouTube API",
-        "note": "SRCS streams board meetings to YouTube. Playlist: https://www.youtube.com/playlist?list=PLyH9MVpaxhEJFfW0jWIbd5wGVQYUEZDcH (channel: @srcscommunications5656). YouTube Data API v3 is free (10k quota/day). Extract: meeting dates, titles, video URLs, descriptions. No Simbli API available (confirmed via GetApp). School board is separate jurisdiction (srcs.org) from city.",
+        "note": "YouTubeBoardsClient implemented with DataSource protocol. CLI: civic-extract youtube-boards --jurisdiction school-san-rafael. Uses GOOGLE_API_KEY with YouTube Data API v3 enabled. Extracted 20 meetings from last year with video IDs and durations.",
         "youtube_playlist": "PLyH9MVpaxhEJFfW0jWIbd5wGVQYUEZDcH",
         "youtube_channel": "@srcscommunications5656",
         "jurisdiction_id": "school-san-rafael",
@@ -1916,8 +1916,11 @@
         ],
         "modified_files": [
           "packages/civic-extraction/src/civic_extraction/clients/youtube_boards.py",
+          "packages/civic-extraction/src/civic_extraction/cli/youtube_boards.py",
           "data/extraction/san-rafael-schools.json"
-        ]
+        ],
+        "completed": "2026-01-09",
+        "test_command": "civic-extract youtube-boards --jurisdiction school-san-rafael --validate"
       },
       "srcs_transcript_pipeline": {
         "status": "not_ready",
@@ -2121,9 +2124,9 @@
     "source_provenance": {
       "transcript_duration_validation": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Validate transcript duration matches YouTube video duration",
-        "note": "Session 480: Found some transcripts have durations exceeding actual video length (e.g., 169 min stored vs 47 min actual for iYeihDimgxE). Causes timestamp URLs to fail when t= exceeds video length. 4/5 tested URLs worked, 1 failed (QLDoO6OvMSA&t=6742s). FIX: Query YouTube API for video duration during ingestion, compare against AssemblyAI duration, flag/reject mismatches. Likely cause: audio download grabbed playlist or concatenated streams.",
+        "note": "Session 480: Found some transcripts have durations exceeding actual video length (e.g., 169 min stored vs 47 min actual for iYeihDimgxE). Causes timestamp URLs to fail when t= exceeds video length. 4/5 tested URLs worked, 1 failed (QLDoO6OvMSA&t=6742s). FIX: Query YouTube API for video duration during ingestion, compare against AssemblyAI duration, flag/reject mismatches. Likely cause: audio download grabbed playlist or concatenated streams. Session 495 added YouTubeBoardsClient which fetches video durations - use this for validation.",
         "test_file": "packages/civic-extraction/tests/test_transcribe.py"
       },
       "audio_hash_storage": {

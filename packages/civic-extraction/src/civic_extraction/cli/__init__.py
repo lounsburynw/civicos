@@ -15,6 +15,11 @@ Usage:
     civic-extract youtube --jurisdiction city-san-rafael --schedule
     civic-extract youtube --jurisdiction city-san-rafael --dry-run
 
+    civic-extract youtube-boards --jurisdiction school-san-rafael
+    civic-extract youtube-boards --jurisdiction school-san-rafael --dry-run
+    civic-extract youtube-boards --jurisdiction school-san-rafael --cloud
+    civic-extract youtube-boards --jurisdiction school-san-rafael --validate
+
     civic-extract audio --jurisdiction city-san-rafael
     civic-extract audio --jurisdiction city-san-rafael --schedule
     civic-extract audio --jurisdiction city-san-rafael --dry-run
@@ -105,6 +110,7 @@ from civic_extraction.cli.transcribe import add_transcribe_parser, run_transcrib
 from civic_extraction.cli.uscode import add_uscode_parser, run_uscode
 from civic_extraction.cli.vectors import add_vectors_parser, run_vectors
 from civic_extraction.cli.youtube import add_youtube_parser, run_youtube
+from civic_extraction.cli.youtube_boards import add_youtube_boards_parser, run_youtube_boards
 
 
 def main() -> int:
@@ -141,6 +147,7 @@ def main() -> int:
     add_uscode_parser(subparsers)
     add_vectors_parser(subparsers)
     add_youtube_parser(subparsers)
+    add_youtube_boards_parser(subparsers)
 
     args = parser.parse_args()
 
@@ -185,6 +192,8 @@ def main() -> int:
         return run_vectors(args)
     elif args.command == "youtube":
         return run_youtube(args)
+    elif args.command == "youtube-boards":
+        return run_youtube_boards(args)
 
     return 1
 
