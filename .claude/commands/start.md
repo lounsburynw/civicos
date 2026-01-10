@@ -40,6 +40,22 @@ fi
 
 If a handoff exists and contains a P0 item, that takes precedence over Step 2's checklist scan. Read and understand the handoff before proceeding.
 
+## Step 1.6: Check for Open PRs from Parallel Sessions
+
+Check if parallel sessions have open PRs waiting for review/merge:
+
+```bash
+echo "=== OPEN PRs FROM PARALLEL SESSIONS ==="
+gh pr list --state open --json number,title,headRefName,author,createdAt,mergeable --jq '.[] | "PR #\(.number): \(.title)\n  Branch: \(.headRefName)\n  Created: \(.createdAt)\n  Mergeable: \(.mergeable)\n"' 2>/dev/null || echo "Unable to fetch PRs (gh not authenticated or no PRs)"
+echo "=== END PR CHECK ==="
+```
+
+If open PRs exist:
+- **Same track as your work**: Consider reviewing/merging first to avoid conflicts
+- **Different track**: Can ignore for now, but note them for later
+- **Ready to merge** (tests passing): Can merge with `gh pr merge <number> --merge`
+- **Needs review**: Run `/review` on the PR branch if time permits
+
 ## Step 2: Identify Recommended Work Item
 
 **Priority Levels (recommendations, not mandates):**
