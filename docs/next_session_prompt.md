@@ -1,108 +1,87 @@
-# Recommended: srcs_vector_indexing
+# Recommended: automated_transcript_ingestion
 
 **Priority:** P0
-**Area:** data_readiness > school_district
+**Area:** data_integrity > source_provenance
 **Date:** 2026-01-09
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 493 completed SRCS agenda item extraction:
-- **598 agenda items** extracted from 33 school board meetings using Gemini LLM
-- Added R2 URL support to `parse_agenda_content()` for blob storage PDFs
-- Fixed token truncation issue (max_tokens 2000 -> 6000)
-- Backfilled R2 agenda URLs for 43 meetings
+Session 497 completed `data_freshness_alerting` - a daily GitHub Action that monitors data pipeline health. During testing, we discovered:
+- **Decisions are 30 days stale** (latest meeting: 2026-01-14, latest decision from: 2025-12-15)
+- Root cause: Transcript ingestion is manual while other pipeline steps are automated
 
-**The agenda items are in PostgreSQL but NOT YET INDEXED in pgvector for semantic search.**
+The pipeline gap:
+```
+meeting ingestion → audio download → [MANUAL: transcription] → vector indexing
+                                            ↑
+                                    This step is not automated
+```
 
 ## Recommended Task
 
-Index SRCS agenda items in pgvector to enable semantic search queries:
-- `what_happened("school funding")` - Search historical decisions
-- `whats_next()` - Find upcoming agenda items
-- Enables school board data in the Civic API
+Add transcript ingestion to the Modal automated pipeline. This should run BEFORE vector indexing since transcript text is indexed for semantic search.
 
 ## Key Files
 
-- `scripts/modal_ingest.py:920-1002` - Vector indexing logic
-- `packages/civic/src/civic/storage/pgvector_backend.py` - PgVectorBackend.index_from_storage()
-- `data/checkpoints/agenda_school-san-rafael.json` - Extraction checkpoint (598 items)
+- `scripts/modal_ingest.py:1121-1220` - Scheduled refresh functions (low/high velocity)
+- `scripts/modal_ingest.py:1218-1303` - `scheduled_high_velocity_refresh()` - daily at 6 AM Pacific
+- `packages/civic-extraction/src/civic_extraction/transcribe.py` - AssemblyAI transcription
+- `packages/civic-extraction/src/civic_extraction/cli/transcribe.py` - CLI entry point
 
-## Current State Verification
+## Current Scheduled Functions
 
-```bash
-# Check SRCS agenda items (should be 598)
-python3 -c "
-from dotenv import load_dotenv; load_dotenv()
-import os, psycopg2
-conn = psycopg2.connect(os.getenv('DATABASE_URL'))
-cur = conn.cursor()
-cur.execute('''
-    SELECT COUNT(*) FROM agenda_items ai
-    JOIN meetings m ON ai.meeting_id = m.id
-    WHERE m.jurisdiction_id = 'school-san-rafael'
-''')
-print(f'SRCS agenda_items: {cur.fetchone()[0]}')
-"
+```python
+# Daily (High Velocity) - 6 AM Pacific
+scheduled_high_velocity_refresh()  # meetings, issues, chunks, vectors
 
-# Check current SRCS vector count (should be 0 for agenda_items corpus)
-python3 -c "
-from dotenv import load_dotenv; load_dotenv()
-import os, psycopg2
-conn = psycopg2.connect(os.getenv('DATABASE_URL'))
-cur = conn.cursor()
-cur.execute('''
-    SELECT COUNT(*) FROM vectors
-    WHERE jurisdiction_id = 'school-san-rafael'
-    AND corpus_type = 'agenda_items'
-''')
-print(f'SRCS agenda_items vectors: {cur.fetchone()[0]}')
-"
+# Weekly (Low Velocity) - 7 PM Pacific Saturday
+scheduled_low_velocity_refresh()   # municipal_code, legislation, decisions
 ```
+
+Transcription should be added to daily refresh, after audio download but before vector indexing.
 
 ## Suggested Approach
 
-1. **Run vector indexing for school-san-rafael:**
+1. **Understand current transcription flow:**
    ```bash
-   modal run scripts/modal_ingest.py --vectors --jurisdiction school-san-rafael
+   # Check existing CLI
+   civic-extract transcribe --help
    ```
 
-2. **Verify vectors indexed:**
-   ```bash
-   # Should show ~598 agenda_items vectors
-   python3 -c "
-   from dotenv import load_dotenv; load_dotenv()
-   import os, psycopg2
-   conn = psycopg2.connect(os.getenv('DATABASE_URL'))
-   cur = conn.cursor()
-   cur.execute('''
-       SELECT corpus_type, COUNT(*) FROM vectors
-       WHERE jurisdiction_id = 'school-san-rafael'
-       GROUP BY corpus_type
-   ''')
-   for row in cur.fetchall():
-       print(f'{row[0]}: {row[1]}')
-   "
-   ```
+2. **Add transcription step to `scheduled_high_velocity_refresh()`:**
+   - After meetings are ingested (which includes video_url)
+   - Before vector indexing
+   - Include duration validation from Session 496
 
-3. **Test semantic search:**
-   ```python
-   from civic import Civic
-   c = Civic('school-san-rafael')
-   results = c.what_happened("budget")  # Should return school budget items
-   ```
+3. **Handle both jurisdictions:**
+   - city-san-rafael (City Council, commissions)
+   - school-san-rafael (School Board)
+
+4. **Cost awareness:**
+   - AssemblyAI charges per audio minute
+   - Only transcribe new meetings (check if transcript exists)
+
+## Tests to Run
+
+```bash
+# Transcription tests
+pytest packages/civic-extraction/tests/test_transcribe.py -v
+
+# Duration validation tests (from Session 496)
+pytest packages/civic-extraction/tests/test_transcribe.py::test_duration_validation -v
+```
 
 ## Success Criteria
 
-- [ ] agenda_items vectors indexed in pgvector (~598 vectors)
-- [ ] `Civic('school-san-rafael').what_happened("budget")` returns results
-- [ ] Update pilot.json: `srcs_vector_indexing` status -> ready
-- [ ] Set next P0 (suggest: `srcs_decision_extraction` or another data item)
+- [ ] Transcription step added to Modal scheduled pipeline
+- [ ] Runs after audio download, before vector indexing
+- [ ] Includes duration validation to catch corrupted transcripts
+- [ ] Handles both city-san-rafael and school-san-rafael
+- [ ] Update pilot.json: `automated_transcript_ingestion` status -> ready
 
-## Alternative: CLI Command
+## Related Items
 
-If Modal is not set up, use the CLI directly:
-```bash
-civic-extract vectors --jurisdiction school-san-rafael --corpus agenda_items --cloud
-```
+- `fix_corrupted_city_council_transcripts` (P1) - 9 transcripts need re-download/re-transcribe
+- `transcript_duration_validation` (ready) - Validation logic already implemented
