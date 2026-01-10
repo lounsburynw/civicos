@@ -1,3 +1,71 @@
+## Session 500: fix_corrupted_city_council_transcripts - Data Integrity Fix
+
+**Date:** 2026-01-10
+**Item:** fix_corrupted_city_council_transcripts (data_integrity > source_provenance)
+**Priority:** P0
+
+### Summary
+
+Fixed 9 corrupted city council meeting transcripts that had been downloaded from YouTube playlists instead of individual videos. The playlist downloads caused audio concatenation bugs, resulting in incorrect transcriptions.
+
+### Work Completed
+
+1. **Soft-deleted 9 corrupted transcripts from PostgreSQL** - Used `backend.soft_delete('transcripts', 'city-san-rafael', record_ids)` to mark invalid transcripts as deleted
+
+2. **Deleted corrupted audio from R2** - Removed 9 concatenated audio files from blob storage using `R2Backend.delete()`
+
+3. **Re-downloaded audio as individual videos** - Used `civic-extract audio --jurisdiction city-san-rafael --cloud` to download 9 fresh audio files (downloaded: 9, skipped: 10 existing valid)
+
+4. **Re-transcribed with AssemblyAI** - Ran `civic-extract transcribe --jurisdiction city-san-rafael --cloud` in two passes:
+   - First pass: 7 transcripts ($11.90)
+   - Second pass: 2 transcripts that had local testimony files blocking them ($1.89)
+   - Total cost: $13.79 (under $20 estimate)
+
+5. **Validated all transcripts** - Confirmed all 19 city-san-rafael transcripts now have `duration_valid=True`
+
+### Corrupted Video IDs Fixed
+
+- IdgRa0uEywo (Planning Commission Nov 4) - 27.5 min
+- 1u4NX88tsCI (Tax Oversight Oct 27) - 67.0 min
+- nSCoylgGf9M (Bicycle/Pedestrian Dec 3) - 169.3 min
+- k5ZUhxHn5pE (Closed Session Dec 15) - 2.6 min
+- iYeihDimgxE (Tax Oversight Dec 11) - 47.7 min
+- dnzo2fEXiO0 (City Council Special Nov 12) - 209.1 min
+- ZP7fkN8cBK4 (ADA Access Dec 3) - 46.6 min
+- SFsaaL51urs (Sea Level Rise Dec 9) - 66.6 min
+- QLDoO6OvMSA (Fire Commission Nov 12) - 53.1 min
+
+### Key Commands Used
+
+```bash
+# Audio download
+civic-extract audio --jurisdiction city-san-rafael --cloud
+
+# Transcription
+civic-extract transcribe --jurisdiction city-san-rafael --cloud
+
+# Validation
+python3 -c "
+from dotenv import load_dotenv; load_dotenv()
+from civic.storage import get_storage_backend
+b = get_storage_backend()
+t = b.get_transcripts('city-san-rafael')
+valid = sum(1 for x in t if x.get('duration_valid') is True)
+print(f'Valid: {valid}/{len(t)}')
+"
+```
+
+### Pilot Progress
+
+- Before: 306/346 items ready (88%)
+- After: 307/346 items ready (88%)
+
+### Next P0
+
+Set `vector_indexing_automation` as next P0 - auto-trigger vector indexing after data ingestion in Modal pipeline.
+
+---
+
 ## Session 491: srcs_data_ingestion - SRCS School Board Data Pipeline
 
 **Date:** 2026-01-09

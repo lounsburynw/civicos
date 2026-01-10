@@ -3,7 +3,7 @@
   "phase": "pilot",
   "target": "Jan 2026",
   "location": "San Rafael, CA",
-  "last_updated": "2026-01-09",
+  "last_updated": "2026-01-10",
   "session_491_note": "Architecture audit: Created docs/ARCHITECTURE_AUDIT_2026_01.md identifying pre/post-pilot improvements. Key findings: vector backend fragmentation (bumped to P1), civic.py dataclass sprawl (new P2 item). Added Serena memory 'architecture_audit_2026_01' for future reference.",
   "session_481_note": "Strategic pivot from Open States to LegiScan for state legislators (Open States acquired by PE-backed SAI360 Dec 2025). Implemented LegiScanClient, updated RepresentativesClient to use LegiScan as primary with Open States fallback.",
   "session_480_note": "Completed soft_delete_support P0: added deleted_at to 19 content tables, updated all queries to filter deleted records, added soft_delete/restore_deleted methods",
@@ -2196,12 +2196,13 @@
         "completed": "2026-01-09"
       },
       "fix_corrupted_city_council_transcripts": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Re-download and re-transcribe 9 corrupted city council meeting transcripts",
-        "note": "Session 496 validation found 9/19 city-san-rafael transcripts with corrupted audio (playlist/concatenation bug). Invalid video IDs: IdgRa0uEywo, 1u4NX88tsCI, nSCoylgGf9M, k5ZUhxHn5pE, iYeihDimgxE, dnzo2fEXiO0, ZP7fkN8cBK4, SFsaaL51urs, QLDoO6OvMSA. Steps: 1) soft-delete invalid transcripts, 2) re-download audio (single video, not playlist), 3) re-transcribe with AssemblyAI (~$20 cost), 4) validate new transcripts.",
+        "completed": "2026-01-10",
+        "note": "Session 500: Fixed 9 corrupted transcripts. Steps completed: (1) soft-deleted 9 invalid transcripts from Postgres, (2) deleted corrupted audio from R2, (3) re-downloaded audio as individual videos (not playlists), (4) re-transcribed with AssemblyAI ($13.79 total), (5) verified all 19 transcripts now have duration_valid=True. Corrupted IDs fixed: IdgRa0uEywo, 1u4NX88tsCI, nSCoylgGf9M, k5ZUhxHn5pE, iYeihDimgxE, dnzo2fEXiO0, ZP7fkN8cBK4, SFsaaL51urs, QLDoO6OvMSA.",
         "depends_on": "transcript_duration_validation",
-        "estimated_cost": "$20"
+        "actual_cost": "$13.79"
       },
       "automated_transcript_ingestion": {
         "status": "ready",
@@ -2983,7 +2984,7 @@
       },
       "vector_indexing_automation": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Auto-trigger vector indexing after data ingestion",
         "notes": "Add Modal @app.function decorators or post-ingestion hooks to automatically embed new data. Pattern: store_codified_law() -> trigger index_codified_law_vectors(). Prevents manual reindex after each ingestion."
       },
