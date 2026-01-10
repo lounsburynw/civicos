@@ -473,8 +473,8 @@ def _jurisdiction_has_embeddings(jurisdiction: str) -> bool:
     Returns:
         True if vector index exists for this jurisdiction
     """
-    # Normalize jurisdiction ID to canonical format
-    jurisdiction = normalize_jurisdiction(jurisdiction)
+    # Normalize jurisdiction ID to canonical format (non-strict allows unknown jurisdictions)
+    jurisdiction = normalize_jurisdiction(jurisdiction, strict=False)
 
     # Check pgvector first (production backend)
     try:
@@ -502,8 +502,8 @@ def _get_embeddings_path(jurisdiction: str) -> Optional[str]:
     Returns:
         Path to vector index, or None if not available
     """
-    # Normalize jurisdiction ID to canonical format
-    jurisdiction = normalize_jurisdiction(jurisdiction)
+    # Normalize jurisdiction ID to canonical format (non-strict allows unknown jurisdictions)
+    jurisdiction = normalize_jurisdiction(jurisdiction, strict=False)
 
     # Check for path: data/pilot/vectors/{jurisdiction}/
     path = f"data/pilot/vectors/{jurisdiction}"
@@ -535,7 +535,8 @@ def _search_semantic_decisions(
     Returns:
         List of Decision objects from semantic search
     """
-    jurisdiction = normalize_jurisdiction(jurisdiction)
+    # Non-strict allows unknown jurisdictions (returns empty results)
+    jurisdiction = normalize_jurisdiction(jurisdiction, strict=False)
 
     # Try pgvector first (production backend)
     try:
@@ -1000,7 +1001,8 @@ def search_decisions(
     Returns:
         List of matching decisions
     """
-    jurisdiction = normalize_jurisdiction(jurisdiction)
+    # Non-strict allows unknown jurisdictions (returns empty results)
+    jurisdiction = normalize_jurisdiction(jurisdiction, strict=False)
 
     # Use explicit vector backend if provided
     if vector_backend is not None:
