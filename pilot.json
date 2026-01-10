@@ -144,6 +144,29 @@
         "target_file": "packages/civic/src/civic/types.py",
         "source_file": "packages/civic/src/civic/civic.py"
       }
+    },
+    "ci_fixes": {
+      "storage_protocol_isinstance": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Fix StorageBackend/VectorBackend protocol isinstance checks",
+        "note": "4 tests failing: isinstance(mock, StorageBackend) returns False. Protocol classes may need @runtime_checkable or test mocks need adjustment. Tests: test_protocol_is_runtime_checkable, test_embedding_properties_required, test_index_from_storage_pattern.",
+        "test_file": "packages/civic/tests/test_storage_protocols.py"
+      },
+      "database_url_log_detection": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Fix false positive in database connection string log detection",
+        "note": "Test detects 'DATABASE_URL' in error messages like logger.error('DATABASE_URL not set'). These are not actual connection strings - they're missing-config warnings. Fix: update test regex to exclude 'not set' patterns, or refactor log messages.",
+        "test_file": "packages/civic/tests/test_e2e_verification.py::TestSecurityNoSecretsInLogs::test_database_connection_strings_not_logged"
+      },
+      "speaker_name_detection": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Fix speaker name detection in transcript chunking",
+        "note": "Test expects council member names to be detected from transcripts but finds none. May be test data issue (missing transcript) or detection logic issue. Investigate transcript availability in CI environment.",
+        "test_file": "packages/civic/tests/test_transcript_chunking.py::TestSpeakerMetadataWithRealData::test_real_transcript_council_names_detected"
+      }
     }
   },
   "deployment_artifacts": {
