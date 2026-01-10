@@ -116,7 +116,9 @@
         "artifact": "Add LLM-as-judge relevance scoring to eval framework",
         "note": "Current ground truth uses keyword matching (simplistic). LLM-as-judge would ask: 'Is this result relevant to the query?' for more accurate precision/recall. Requires: prompt design, cost estimation (per-query LLM call), caching strategy. Add to benchmark_api_vs_llm.py.",
         "test_file": "scripts/benchmark_api_vs_llm.py",
-        "blocked_by": ["eval_framework"]
+        "blocked_by": [
+          "eval_framework"
+        ]
       },
       "hallucination_detection": {
         "status": "not_ready",
@@ -124,7 +126,9 @@
         "artifact": "Add hallucination detection comparing LLM vs Civic API responses",
         "note": "Test that compares raw LLM responses against our grounded retrieval. Extract claims from LLM output, verify against database. Metrics: verified_claims, unverified_claims (hallucination risk), grounding_rate. Demonstrates RAG value proposition vs baseline LLM.",
         "test_file": "scripts/benchmark_api_vs_llm.py",
-        "blocked_by": ["eval_framework"]
+        "blocked_by": [
+          "eval_framework"
+        ]
       }
     },
     "code_packaging": {
@@ -868,7 +872,7 @@
         "completed": "2026-01-08"
       },
       "election_discovery_cron": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": "Monthly cron job to fetch elections from Google Civic API",
         "note": "Run modal_ingest.py --elections monthly. VIP publishes election data 2-3 weeks before elections. Monthly cadence sufficient for catching new elections.",
@@ -1989,7 +1993,9 @@
         "completed": "2026-01-08",
         "source_file": "packages/civic-extraction/src/civic_extraction/clients/simbli.py",
         "test_file": "packages/civic-extraction/tests/test_clients.py::TestSimbliClientIntegration::test_get_meetings_discovers_mids",
-        "depends_on": ["simbli_browser_automation"]
+        "depends_on": [
+          "simbli_browser_automation"
+        ]
       },
       "simbli_pdf_download": {
         "status": "ready",
@@ -1999,24 +2005,33 @@
         "source_file": "packages/civic-extraction/src/civic_extraction/clients/simbli.py",
         "test_file": "packages/civic-extraction/tests/test_clients.py::TestSimbliClientIntegration::test_download_agenda_pdf_via_mid",
         "completed": "2026-01-09",
-        "depends_on": ["simbli_mid_discovery"]
+        "depends_on": [
+          "simbli_mid_discovery"
+        ]
       },
       "srcs_data_ingestion": {
         "status": "ready",
         "priority": 2,
         "artifact": "scripts/ingest_srcs.py ingests school board meetings and agenda PDFs from Simbli",
         "note": "Created ingest_srcs.py: (1) Scrapes meetings via SimbliClient, (2) Downloads agenda PDFs via MID workflow, (3) Parses PDFs with PyMuPDF and chunks text, (4) Stores meetings in PostgreSQL, (5) Indexes chunks in pgvector. Initial run: 2 meetings, 27 chunks indexed.",
-        "depends_on": ["simbli_pdf_download"],
+        "depends_on": [
+          "simbli_pdf_download"
+        ],
         "jurisdiction_id": "school-san-rafael",
         "completed": "2026-01-09",
-        "reference_scripts": ["scripts/ingest_srcs.py", "scripts/modal_ingest.py"]
+        "reference_scripts": [
+          "scripts/ingest_srcs.py",
+          "scripts/modal_ingest.py"
+        ]
       },
       "srcs_full_backfill": {
         "status": "ready",
         "priority": 2,
         "artifact": "Run scripts/ingest_srcs.py for all historical SRCS meetings (2024-present)",
         "note": "Completed: 45 meetings from Jan 2024 to Dec 2025, 788 PDF chunks extracted and indexed. Raw chunks in PostgreSQL, vectors in pgvector. Next: R2 storage and LLM extraction for structured agenda items.",
-        "depends_on": ["srcs_data_ingestion"],
+        "depends_on": [
+          "srcs_data_ingestion"
+        ],
         "jurisdiction_id": "school-san-rafael",
         "completed": "2026-01-09"
       },
@@ -2025,7 +2040,9 @@
         "priority": 2,
         "artifact": "Upload SRCS agenda PDFs to R2 for consistent storage with city meetings",
         "note": "Modified ingest_srcs.py to upload PDFs directly to R2 during download (not as separate step). Pattern: school-san-rafael/agendas/{meeting_id}.pdf. Updates meetings.agenda_url with R2 URL. Usage: python scripts/ingest_srcs.py (R2 upload default) or --skip-r2 for local only.",
-        "depends_on": ["srcs_full_backfill"],
+        "depends_on": [
+          "srcs_full_backfill"
+        ],
         "jurisdiction_id": "school-san-rafael",
         "completed": "2026-01-09"
       },
@@ -2034,7 +2051,9 @@
         "priority": 1,
         "artifact": "Extract structured agenda items from SRCS PDFs using LLM (same as city)",
         "note": "Session 493: Completed. 598 agenda items extracted from 33 meetings using Gemini LLM. Added R2 URL handling to parse_agenda_content(), backfilled R2 URLs for 43 meetings, increased max_tokens to 6000 for large agendas. Run via: civic-extract agenda --jurisdiction school-san-rafael --cloud",
-        "depends_on": ["srcs_r2_pdf_storage"],
+        "depends_on": [
+          "srcs_r2_pdf_storage"
+        ],
         "jurisdiction_id": "school-san-rafael",
         "reference_module": "packages/civic-extraction/src/civic_extraction/cli/agenda.py",
         "completed": "2026-01-09"
@@ -2044,7 +2063,9 @@
         "priority": 2,
         "artifact": "Extract decisions/votes from SRCS meeting minutes using LLM",
         "note": "After agenda items, extract decisions from minutes PDFs (if available). Same pattern as city: civic_extraction.cli.decisions with Gemini. Populates decisions table. Lower priority - minutes often lag behind meetings.",
-        "depends_on": ["srcs_agenda_item_extraction"],
+        "depends_on": [
+          "srcs_agenda_item_extraction"
+        ],
         "jurisdiction_id": "school-san-rafael"
       },
       "srcs_vector_indexing": {
@@ -2052,7 +2073,9 @@
         "priority": 99,
         "artifact": "Index SRCS agenda items and decisions in pgvector",
         "note": "Session 494: 573 agenda items indexed in pgvector with semantic search enabled. Added agenda_items corpus support to PgVectorBackend.index_from_storage(). Also added school-san-rafael jurisdiction to JurisdictionRegistry.",
-        "depends_on": ["srcs_agenda_item_extraction"],
+        "depends_on": [
+          "srcs_agenda_item_extraction"
+        ],
         "jurisdiction_id": "school-san-rafael",
         "completed": "2026-01-09"
       },
@@ -2062,21 +2085,62 @@
         "artifact": "Extend transcript coverage to PAAC and other advisory committees",
         "note": "Session 499 audit: city-san-rafael has 115 meetings across 13 body types but only 19 city_council transcripts. Video discovery gap: videos table is empty, meetings.video_url not populated. Current transcripts were created by directly transcribing from YouTube playlist, bypassing discovery. Need to: (1) discover which bodies have YouTube recordings (check San Rafael YouTube channel @cityofsanrafael), (2) populate videos table or meetings.video_url, (3) run automated transcript pipeline. Priority bodies: PAAC (3 meetings), Planning Commission (13), Fire Commission (11).",
         "meeting_type_inventory": {
-          "city_council": {"meetings": 30, "transcripts": 19},
-          "council_subcommittees": {"meetings": 16, "transcripts": 0},
-          "zoning_administrator": {"meetings": 14, "transcripts": 0},
-          "planning_commission": {"meetings": 13, "transcripts": 0},
-          "fire_commission": {"meetings": 11, "transcripts": 0},
-          "board_of_library_trustees": {"meetings": 7, "transcripts": 0},
-          "tax_oversight": {"meetings": 6, "transcripts": 0},
-          "park_and_recreation_commission": {"meetings": 6, "transcripts": 0},
-          "bicycle_pedestrian_advisory_committee": {"meetings": 4, "transcripts": 0},
-          "paac": {"meetings": 3, "transcripts": 0},
-          "ada_access_advisory_committee": {"meetings": 3, "transcripts": 0},
-          "pickleweed_advisory_committee": {"meetings": 1, "transcripts": 0},
-          "public_art_review_board": {"meetings": 1, "transcripts": 0}
+          "city_council": {
+            "meetings": 30,
+            "transcripts": 19
+          },
+          "council_subcommittees": {
+            "meetings": 16,
+            "transcripts": 0
+          },
+          "zoning_administrator": {
+            "meetings": 14,
+            "transcripts": 0
+          },
+          "planning_commission": {
+            "meetings": 13,
+            "transcripts": 0
+          },
+          "fire_commission": {
+            "meetings": 11,
+            "transcripts": 0
+          },
+          "board_of_library_trustees": {
+            "meetings": 7,
+            "transcripts": 0
+          },
+          "tax_oversight": {
+            "meetings": 6,
+            "transcripts": 0
+          },
+          "park_and_recreation_commission": {
+            "meetings": 6,
+            "transcripts": 0
+          },
+          "bicycle_pedestrian_advisory_committee": {
+            "meetings": 4,
+            "transcripts": 0
+          },
+          "paac": {
+            "meetings": 3,
+            "transcripts": 0
+          },
+          "ada_access_advisory_committee": {
+            "meetings": 3,
+            "transcripts": 0
+          },
+          "pickleweed_advisory_committee": {
+            "meetings": 1,
+            "transcripts": 0
+          },
+          "public_art_review_board": {
+            "meetings": 1,
+            "transcripts": 0
+          }
         },
-        "depends_on": ["automated_transcript_ingestion"],
+        "depends_on": [
+          "automated_transcript_ingestion"
+        ],
         "youtube_channel": "@cityofsanrafael",
         "jurisdiction_id": "city-san-rafael"
       }
