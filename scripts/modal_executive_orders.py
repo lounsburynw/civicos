@@ -2,7 +2,8 @@
 Modal function for Executive Orders ingestion from Federal Register API.
 
 Fetches Executive Orders from the Federal Register API and stores them
-in the dedicated executive_orders table.
+in the dedicated executive_orders table. Supports incremental fetching
+to only retrieve new EOs since the last refresh.
 
 Setup:
     Ensure Modal secrets exist:
@@ -12,8 +13,11 @@ Usage:
     # Dry run (fetch and parse only)
     modal run scripts/modal_executive_orders.py --dry-run
 
-    # Ingest all EOs
+    # Ingest all EOs (full fetch)
     modal run scripts/modal_executive_orders.py
+
+    # Incremental fetch (only new EOs since last run)
+    modal run scripts/modal_executive_orders.py --incremental
 
     # Stats only
     modal run scripts/modal_executive_orders.py --stats-only
@@ -22,6 +26,11 @@ Usage:
     modal run scripts/modal_executive_orders.py --fetch-text
 
 Data source: https://www.federalregister.gov/developers/documentation/api/v1
+
+Incremental Mode:
+    Uses refresh_metadata table to track last fetch time. On subsequent
+    runs with --incremental, only fetches EOs published since last refresh.
+    Falls back to full fetch if no previous refresh metadata exists.
 """
 
 import modal
@@ -61,6 +70,7 @@ def ingest_executive_orders(
     stats_only: bool = False,
     fetch_text: bool = False,
     page_limit: int = 0,  # 0 = all pages
+    incremental: bool = False,
 ) -> dict:
     """
     Ingest Executive Orders from Federal Register API to PostgreSQL.
@@ -70,6 +80,7 @@ def ingest_executive_orders(
         stats_only: Show database stats only
         fetch_text: Fetch full text for each EO (slower)
         page_limit: Max pages to fetch (0 = all)
+        incremental: If True, only fetch EOs published since last refresh
 
     Returns:
         Dict with ingestion results
@@ -78,23 +89,38 @@ def ingest_executive_orders(
     import httpx
     from html import unescape
     import re
+    from datetime import datetime, timedelta
 
     # Get database connection
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
         return {"error": "DATABASE_URL not set"}
 
+    from civic.storage.postgres_backend import PostgresBackend
+    backend = PostgresBackend(database_url)
+
     # Stats only mode
     if stats_only:
-        from civic.storage.postgres_backend import PostgresBackend
-        db = PostgresBackend(database_url)
-        count = db.get_executive_orders_count()
+        count = backend.get_executive_orders_count()
         return {
             "executive_orders_in_db": count,
         }
 
+    # Determine date filter for incremental mode
+    since_date = None
+    if incremental:
+        metadata = backend.get_refresh_metadata("federal", "executive_orders", "federal_register")
+        if metadata and metadata.get("last_fetch_at"):
+            last_fetch = datetime.fromisoformat(metadata["last_fetch_at"])
+            # Look back 1 day for safety (in case of timezone issues)
+            since_date = (last_fetch - timedelta(days=1)).strftime("%Y-%m-%d")
+            print(f"Incremental mode: fetching EOs published since {since_date}")
+        else:
+            print("Incremental mode: no previous fetch found, doing full fetch")
+
     # Fetch EOs from Federal Register API
-    print("Fetching Executive Orders from Federal Register API...")
+    mode_str = f" (incremental since {since_date})" if since_date else ""
+    print(f"Fetching Executive Orders from Federal Register API{mode_str}...")
     start = time.time()
 
     # Fields to request
@@ -112,6 +138,11 @@ def ingest_executive_orders(
     ]
     fields_param = "&".join(f"fields[]={f}" for f in fields)
 
+    # Build date filter if incremental
+    date_filter = ""
+    if since_date:
+        date_filter = f"&conditions[publication_date][gte]={since_date}"
+
     all_orders = []
     page = 1
     total_pages = None
@@ -121,6 +152,7 @@ def ingest_executive_orders(
             url = (
                 f"{FEDERAL_REGISTER_API}/documents.json?"
                 f"conditions[presidential_document_type]=executive_order"
+                f"{date_filter}"
                 f"&per_page={PER_PAGE}&page={page}&{fields_param}"
             )
 
@@ -222,11 +254,9 @@ def ingest_executive_orders(
 
     # Store to PostgreSQL using new dedicated method
     print("Storing to PostgreSQL...")
-    from civic.storage.postgres_backend import PostgresBackend
-    db = PostgresBackend(database_url)
 
     store_start = time.time()
-    stored = db.store_executive_orders(
+    stored = backend.store_executive_orders(
         orders=orders_for_storage,
         use_copy=True,
     )
@@ -234,13 +264,23 @@ def ingest_executive_orders(
 
     print(f"Stored {stored} orders in {store_time:.1f}s")
 
+    # Update refresh metadata for incremental tracking
+    backend.update_refresh_metadata(
+        "federal", "executive_orders", "federal_register",
+        items_fetched=len(all_orders),
+        items_stored=stored,
+        status="completed",
+    )
+
     # Get final count
-    total = db.get_executive_orders_count()
+    total = backend.get_executive_orders_count()
 
     return {
         "executive_orders_fetched": len(all_orders),
         "orders_stored": stored,
         "total_in_db": total,
+        "incremental": incremental,
+        "since_date": since_date,
         "fetch_time_s": fetch_time,
         "store_time_s": store_time,
     }
@@ -252,6 +292,7 @@ def main(
     stats_only: bool = False,
     fetch_text: bool = False,
     page_limit: int = 0,
+    incremental: bool = False,
 ):
     """CLI entrypoint for Modal."""
     print("=" * 50)
@@ -263,6 +304,7 @@ def main(
         stats_only=stats_only,
         fetch_text=fetch_text,
         page_limit=page_limit,
+        incremental=incremental,
     )
 
     print("\n" + "=" * 50)
