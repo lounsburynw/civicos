@@ -1,3 +1,72 @@
+## Session 505: federal_programs_postgres_migration - Data Architecture
+
+**Date:** 2026-01-10
+**Item:** federal_programs_postgres_migration (data_architecture > data_source_unification)
+**Priority:** P0
+
+### Summary
+
+Migrated federal programs data from static JSON files to PostgreSQL with proper schema design. Created two tables: `federal_programs` for national program definitions and `federal_program_allocations` for jurisdiction-specific allocations per fiscal year.
+
+### Work Completed
+
+1. **Schema Design:**
+   - `federal_programs` table: program_id, program_name, administering_agency, topic, cfda_number, eligible_activities (JSONB), compliance_requirements (JSONB), citizen_participation (JSONB), keywords (JSONB), key_contacts (JSONB), verification_status, temporal versioning
+   - `federal_program_allocations` table: program_id, jurisdiction_id, fiscal_year, allocation_amount_cents, allocation_status, local_allocation_model, administering_entity, application_process (JSONB), compliance_requirements (JSONB), key_contacts (JSONB), metadata (JSONB), temporal versioning
+
+2. **CRUD Methods Added to PostgresBackend:**
+   - `store_federal_programs()`, `get_federal_programs()`, `get_federal_programs_count()`
+   - `store_federal_program_allocations()`, `get_federal_program_allocations()`, `get_federal_program_allocations_count()`
+
+3. **Protocol Updates:**
+   - Added method stubs to `StorageBackend` protocol in `backend.py`
+   - Added stub implementations to `SQLiteBackend` (returns empty - federal programs stored in PostgreSQL)
+   - Updated mock classes in `test_storage_protocols.py`
+
+4. **Ingestion Script:**
+   - Created `scripts/ingest_federal_programs.py` to load JSON files into PostgreSQL
+   - Loads from `data/funding/federal/*.json` (national definitions)
+   - Loads from `data/jurisdiction_overrides/*.json` (jurisdiction allocations)
+
+5. **Data Migrated:**
+   - 10 federal programs (CDBG, HOME, Section 8, LIHTC, transportation grants, etc.)
+   - 9 allocations across 7 jurisdictions (San Rafael has 3: CDBG, HOME, Section 8)
+
+### Key Files Changed
+
+- `packages/civic/src/civic/storage/postgres_backend.py` - Table schema and CRUD methods (+560 lines)
+- `packages/civic/src/civic/storage/sqlite_backend.py` - Stub methods (+65 lines)
+- `packages/civic/src/civic/storage/backend.py` - Protocol definitions (+120 lines)
+- `packages/civic/tests/test_storage_protocols.py` - Mock methods (+92 lines)
+- `scripts/ingest_federal_programs.py` - Ingestion script (new, 210 lines)
+- `pilot.json` - Updated status to ready
+
+### Usage
+
+```bash
+# Dry run
+python scripts/ingest_federal_programs.py --dry-run
+
+# Full ingestion
+python scripts/ingest_federal_programs.py
+
+# Verify
+python3 -c "
+from dotenv import load_dotenv; load_dotenv()
+import os
+from civic.storage.postgres_backend import PostgresBackend
+backend = PostgresBackend(os.environ['DATABASE_URL'])
+print(f'Programs: {backend.get_federal_programs_count()}')
+print(f'Allocations (San Rafael): {backend.get_federal_program_allocations_count(\"city-san-rafael\")}')
+"
+```
+
+### Next P0
+
+`federal_programs_vector_embeddings` - Create vector embeddings for federal programs to enable semantic search
+
+---
+
 ## Session 500: fix_corrupted_city_council_transcripts - Data Integrity Fix
 
 **Date:** 2026-01-10
@@ -12509,3 +12578,40 @@ IntergovernmentalRevenueSummary, FederalProgram (new)
 
 ### Next P0: TBD (will set before /nextsesh)
 
+
+## Session 505: fix_ci_false_positives - CI Reliability Fix
+
+**Date:** 2026-01-10
+**Item:** fix_ci_false_positives (test_infrastructure > ci_reliability)
+**Priority:** P0
+
+### Summary
+
+Fixed 2 categories of CI test failures that were false positives, not actual bugs.
+
+### Work Completed
+
+1. **Fixed security test false positive** - `test_database_connection_strings_not_logged`
+   - Issue: Regex `logger\.\w+\([^)]*database_url` was matching benign messages like `logger.error("DATABASE_URL not set")`
+   - Fix: Added `safe_patterns` filter to exclude messages that mention the env var name but don't log actual values
+   - Safe patterns: "not set", "not configured", "environment variable not set", "Required for", "Available (", "Set DATABASE_URL"
+
+2. **Fixed Protocol runtime_checkable tests** - `TestVectorBackendProtocol`, `TestStorageBackendProtocol`, `TestProtocolIntegration`
+   - Issue: Mock classes used `@dataclass` decorator, but Python's `isinstance()` on `@runtime_checkable` Protocol requires all method names to exist
+   - Fix: Converted `@dataclass` mocks to regular classes with `__init__` and `@property` decorators
+   - Added 14 missing methods to mocks: agenda items (3), elections (9), update_meeting, VectorBackend.count()
+
+### Tests Fixed
+
+- `test_database_connection_strings_not_logged`: 25 violations → 0 violations
+- `TestVectorBackendProtocol`: 2 failures → 4 passes
+- `TestStorageBackendProtocol`: 1 failure → 1 pass
+- `TestProtocolIntegration`: 1 failure → 1 pass
+
+### Files Modified
+
+- `packages/civic/tests/test_e2e_verification.py` (+15 lines)
+- `packages/civic/tests/test_storage_protocols.py` (+260 lines)
+- `pilot.json` (status: ready, next P0: federal_programs_postgres_migration)
+
+### Next P0: federal_programs_postgres_migration

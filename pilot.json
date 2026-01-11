@@ -1260,8 +1260,8 @@
         "completed": "2025-12-27"
       },
       "federal_programs_postgres_migration": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "description": "Migrate federal programs data from static JSON to PostgreSQL",
         "notes": "Currently stored in data/funding/federal/*.json and data/jurisdiction_overrides/*.json. Need proper table schema with temporal versioning (FY tracking), jurisdiction linkage, and program metadata.",
         "depends_on": [
@@ -1271,7 +1271,7 @@
       },
       "federal_programs_vector_embeddings": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Add federal programs to pgvector corpus for semantic search",
         "notes": "Enable queries like 'what federal housing money is available?' to find CDBG, HOME, Section 8 info. Include both national program descriptions and jurisdiction-specific allocations.",
         "depends_on": [

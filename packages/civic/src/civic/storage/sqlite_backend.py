@@ -3384,6 +3384,68 @@ class SQLiteBackend:
         finally:
             conn.close()
 
+    # =======================================================================
+    # FEDERAL PROGRAMS METHODS (SESSION 505)
+    # Federal program catalog and jurisdiction-specific allocations
+    # Note: SQLiteBackend uses simpler implementation than PostgresBackend
+    # since federal programs data is primarily stored in PostgreSQL.
+    # =======================================================================
+
+    def store_federal_programs(
+        self,
+        programs: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """Store federal program definitions (stub for SQLite - use PostgreSQL for full functionality)."""
+        # SQLite implementation is minimal - federal programs are stored in PostgreSQL
+        return 0
+
+    def get_federal_programs(
+        self,
+        program_id: Optional[str] = None,
+        topic: Optional[str] = None,
+        agency: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve federal programs (stub for SQLite - use PostgreSQL for full functionality)."""
+        return []
+
+    def get_federal_programs_count(
+        self,
+        topic: Optional[str] = None,
+    ) -> int:
+        """Get count of federal programs (stub for SQLite)."""
+        return 0
+
+    def store_federal_program_allocations(
+        self,
+        jurisdiction_id: str,
+        allocations: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """Store federal program allocations (stub for SQLite - use PostgreSQL for full functionality)."""
+        return 0
+
+    def get_federal_program_allocations(
+        self,
+        jurisdiction_id: str,
+        program_id: Optional[str] = None,
+        fiscal_year: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve federal program allocations (stub for SQLite - use PostgreSQL for full functionality)."""
+        return []
+
+    def get_federal_program_allocations_count(
+        self,
+        jurisdiction_id: str,
+        fiscal_year: Optional[str] = None,
+    ) -> int:
+        """Get count of federal program allocations (stub for SQLite)."""
+        return 0
+
 
 # Verify protocol compliance at import time
 # StorageBackend is @runtime_checkable, so isinstance() works
