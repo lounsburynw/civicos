@@ -9,7 +9,7 @@ Provides the same endpoints with:
 - Native async/await support
 - Cleaner route definitions with decorators
 
-Run with: uvicorn civic_services.servers.civic_api_fastapi:app --port 8001
+Run with: uvicorn civic_services.servers.api:app --port 8001
 """
 
 import time
@@ -30,17 +30,17 @@ try:
         set_correlation_id, clear_correlation_id
     )
     configure_logging()
-    logger = get_logger('civic_api_fastapi')
+    logger = get_logger('civic_api')
 except ImportError:
-    logger = logging.getLogger('civic_api_fastapi')
+    logger = logging.getLogger('civic_api')
     logging.basicConfig(level=logging.INFO)
 
 # Core imports
 from ..core.config import config
 from ..core.rate_limiter import rate_limiter
 
-# Import routers (will be created incrementally)
-from .routers_fastapi import (
+# Import routers
+from .routers import (
     core_router,
     events_router,
     issues_router,
@@ -167,7 +167,7 @@ async def check_rate_limit(
 
 
 # Re-export auth dependencies for backwards compatibility
-from .routers_fastapi.dependencies import (
+from .routers.dependencies import (
     verify_auth,
     optional_auth,
     get_user_id,
@@ -235,7 +235,7 @@ if __name__ == "__main__":
     port = config.get_api_port()
 
     uvicorn.run(
-        "civic_services.servers.civic_api_fastapi:app",
+        "civic_services.servers.api:app",
         host="0.0.0.0",
         port=port,
         reload=config.env == "development",

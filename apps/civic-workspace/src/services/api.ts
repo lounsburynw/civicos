@@ -57,7 +57,7 @@ class CivicAPI {
    * Get all jurisdictions with event counts
    * GET /api/jurisdictions
    *
-   * Backend: routers_fastapi/:623-770
+   * Backend: routers/:623-770
    */
   async getJurisdictions(): Promise<Jurisdiction[]> {
     const response = await fetch(`${this.baseURL}/api/jurisdictions`, {
@@ -74,7 +74,7 @@ class CivicAPI {
    * Get all events with optional filters
    * GET /api/events?jurisdiction_id=...&project_type=...&start_date=...
    *
-   * Backend: routers_fastapi/ (existing endpoint)
+   * Backend: routers/ (existing endpoint)
    */
   async getEvents(filters?: {
     jurisdiction_id?: string;
@@ -104,7 +104,7 @@ class CivicAPI {
    * Search events with advanced filtering (Session 28 - Chat UX Refinements)
    * GET /api/events/search?jurisdiction=...&topic=...&q=...&date_range=...
    *
-   * Backend: routers_fastapi/:798-868
+   * Backend: routers/:798-868
    */
   async searchEvents(params: {
     jurisdiction?: string;
@@ -135,7 +135,7 @@ class CivicAPI {
    * Search user's issues with filtering (Session 63 - Robust Fix)
    * GET /api/issues/search?user_id=...&ownership=...&status=...&category=...&jurisdiction=...&q=...
    *
-   * Backend: routers_fastapi/:1084-1250
+   * Backend: routers/:1084-1250
    */
   async searchIssues(params: {
     user_id: string;
@@ -170,7 +170,7 @@ class CivicAPI {
    * Get single event by ID
    * GET /api/events/{id}
    *
-   * Backend: routers_fastapi/ (existing endpoint)
+   * Backend: routers/ (existing endpoint)
    */
   async getEvent(id: string): Promise<CivicEvent> {
     const response = await fetch(`${this.baseURL}/api/events/${id}`, {
@@ -186,7 +186,7 @@ class CivicAPI {
    * Get discussion stats for multiple events (Session 33 - Event Discovery)
    * GET /api/events/discussion-stats?event_ids=event1,event2,event3
    *
-   * Backend: routers_fastapi/:2075-2138
+   * Backend: routers/:2075-2138
    */
   async getEventDiscussionStats(eventIds: string[]): Promise<{
     stats: Array<{
@@ -213,7 +213,7 @@ class CivicAPI {
    * Generate AI-powered comment draft for civic event (Session 39 - Auto-inference)
    * POST /api/events/{event_id}/draft-comment
    *
-   * Backend: routers_fastapi/:2012-2250
+   * Backend: routers/:2012-2250
    *
    * All fields are optional - AI will infer from event/agenda context
    * Session 41: Added archetypes for personalized comment framing (Privacy Tier 1)
@@ -263,7 +263,7 @@ class CivicAPI {
    * Returns most recent draft or null if none exists.
    * Enables Google Docs-style draft loading without API generation cost.
    *
-   * Backend: routers_fastapi/:handle_get_draft
+   * Backend: routers/:handle_get_draft
    */
   async getDraft(eventId: string, userId: string): Promise<{
     draft_id: string | null;
@@ -294,7 +294,7 @@ class CivicAPI {
    *
    * Updates draft content from user edits (debounced autosave).
    *
-   * Backend: routers_fastapi/:handle_update_draft
+   * Backend: routers/:handle_update_draft
    */
   async updateDraft(draftId: string, data: { content: string }): Promise<{ success: boolean; updated_at: string }> {
     const response = await fetch(
@@ -319,7 +319,7 @@ class CivicAPI {
    *
    * Marks draft as submitted after user emails to clerk.
    *
-   * Backend: routers_fastapi/:handle_mark_draft_submitted
+   * Backend: routers/:handle_mark_draft_submitted
    */
   async markDraftSubmitted(draftId: string): Promise<{ success: boolean }> {
     const response = await fetch(
@@ -344,7 +344,7 @@ class CivicAPI {
    * Returns all drafts for this user+event (multi-draft system).
    * Each draft is keyed by agenda item selection.
    *
-   * Backend: routers_fastapi/:handle_get_all_drafts
+   * Backend: routers/:handle_get_all_drafts
    */
   async getAllDrafts(eventId: string, userId: string): Promise<{
     drafts: Array<{
@@ -378,7 +378,7 @@ class CivicAPI {
    * Regenerates comment for one specific item (bypasses cache).
    * Used when user wants to improve one section without affecting others.
    *
-   * Backend: routers_fastapi/:handle_regenerate_item_comment
+   * Backend: routers/:handle_regenerate_item_comment
    */
   async regenerateItemComment(
     eventId: string,
@@ -433,7 +433,7 @@ class CivicAPI {
    * Get operational issues (SeeClickFix complaints) for a jurisdiction
    * GET /api/operational-issues/{jurisdiction_id}
    *
-   * Backend: routers_fastapi/ (Session 90 - SeeClickFix Integration)
+   * Backend: routers/ (Session 90 - SeeClickFix Integration)
    */
   async getOperationalIssues(
     jurisdictionId: string,
@@ -464,7 +464,7 @@ class CivicAPI {
    * Get all complaints for a user
    * GET /api/issues?user_id={user}
    *
-   * Backend: routers_fastapi/:772-849
+   * Backend: routers/:772-849
    */
   async getComplaints(user_id: string | null): Promise<Issue[]> {
     const url = user_id
@@ -495,7 +495,7 @@ class CivicAPI {
    * File a new complaint with automatic event matching
    * POST /api/issues
    *
-   * Backend: routers_fastapi/:901-1035
+   * Backend: routers/:901-1035
    */
   async fileComplaint(request: FileIssueRequest): Promise<FileIssueResponse> {
     const response = await fetch(`${this.baseURL}/api/issues`, {
@@ -516,7 +516,7 @@ class CivicAPI {
    * Send a message to the conversational AI
    * POST /api/conversation
    *
-   * Backend: routers_fastapi/ (existing endpoint)
+   * Backend: routers/ (existing endpoint)
    */
   async sendMessage(request: ConversationRequest): Promise<ConversationResponse> {
     const response = await fetch(`${this.baseURL}/api/conversation`, {
@@ -536,7 +536,7 @@ class CivicAPI {
    * Set user location via geocoding
    * POST /api/user/location
    *
-   * Backend: routers_fastapi/:1790-1903
+   * Backend: routers/:1790-1903
    */
   async setUserLocation(userId: string, address: string): Promise<SetLocationResponse> {
     const response = await fetch(`${this.baseURL}/api/user/location`, {
@@ -557,7 +557,7 @@ class CivicAPI {
    * Get user location
    * GET /api/user/location?user_id={user_id}
    *
-   * Backend: routers_fastapi/:1905-1936
+   * Backend: routers/:1905-1936
    */
   async getUserLocation(userId: string): Promise<SetLocationResponse> {
     const response = await fetch(`${this.baseURL}/api/user/location?user_id=${encodeURIComponent(userId)}`, {
@@ -575,7 +575,7 @@ class CivicAPI {
    * Get user profile with demographics and preferences (Session 39)
    * GET /api/user/profile
    *
-   * Backend: routers_fastapi/:3247-3289
+   * Backend: routers/:3247-3289
    */
   async getUserProfile(): Promise<{
     user_id: string;
@@ -607,7 +607,7 @@ class CivicAPI {
    * Get state bills by topic
    * GET /api/legislation/state/{topic}
    *
-   * Backend: src/civic_services/servers/routers_fastapi/legislative.py
+   * Backend: src/civic_services/servers/routers/legislative.py
    */
   async getStateBills(topic: string): Promise<{ bills: StateBill[]; metadata: any }> {
     const response = await fetch(`${this.baseURL}/api/legislation/state/${encodeURIComponent(topic)}`, {
@@ -625,7 +625,7 @@ class CivicAPI {
    * Get federal programs by topic
    * GET /api/legislation/federal/{topic}
    *
-   * Backend: src/civic_services/servers/routers_fastapi/legislative.py
+   * Backend: src/civic_services/servers/routers/legislative.py
    */
   async getFederalPrograms(topic: string): Promise<{ programs: FederalProgram[]; metadata: any }> {
     const response = await fetch(`${this.baseURL}/api/legislation/federal/${encodeURIComponent(topic)}`, {
@@ -643,7 +643,7 @@ class CivicAPI {
    * Get timeline for a complaint
    * GET /api/issues/{id}/timeline
    *
-   * Backend: routers_fastapi/:1084-1126
+   * Backend: routers/:1084-1126
    */
   async getComplaintTimeline(issueId: string): Promise<IssueTimelineEntry[]> {
     const response = await fetch(`${this.baseURL}/api/issues/${issueId}/timeline`, {
@@ -662,7 +662,7 @@ class CivicAPI {
    * Get issue status history (filed + status changes only)
    * GET /api/issues/{id}/status-history
    *
-   * Backend: routers_fastapi/:1584-1629
+   * Backend: routers/:1584-1629
    */
   async getIssueStatusHistory(issueId: string): Promise<IssueTimelineEntry[]> {
     const response = await fetch(`${this.baseURL}/api/issues/${issueId}/status-history`, {
@@ -681,7 +681,7 @@ class CivicAPI {
    * Update issue status
    * PUT /api/issues/{id}/status
    *
-   * Backend: routers_fastapi/:1639-1738
+   * Backend: routers/:1639-1738
    */
   async updateComplaintStatus(
     issueId: string,
@@ -711,7 +711,7 @@ class CivicAPI {
    * Manually link complaint to events (Phase 2 - Task 1)
    * POST /api/issues/{id}/link-events
    *
-   * Backend: routers_fastapi/:1218-1308
+   * Backend: routers/:1218-1308
    */
   async linkComplaintToEvents(
     issueId: string,
@@ -735,7 +735,7 @@ class CivicAPI {
    * Get follow information for a focal point (Phase 2 - Task 2)
    * GET /api/follows/{focal_type}/{focal_id}?user_id={user_id}
    *
-   * Backend: routers_fastapi/:1400-1439
+   * Backend: routers/:1400-1439
    */
   async getFollowInfo(
     focalType: 'issue' | 'event',
@@ -758,7 +758,7 @@ class CivicAPI {
    * Create a follow (Phase 2 - Task 2)
    * POST /api/follows
    *
-   * Backend: routers_fastapi/:1441-1517
+   * Backend: routers/:1441-1517
    */
   async createFollow(
     userId: string,
@@ -789,7 +789,7 @@ class CivicAPI {
    * Delete a follow / unfollow (Phase 2 - Task 2)
    * DELETE /api/follows/{focal_type}/{focal_id}?user_id={user_id}
    *
-   * Backend: routers_fastapi/:1519-1559
+   * Backend: routers/:1519-1559
    */
   async deleteFollow(
     userId: string,
@@ -816,7 +816,7 @@ class CivicAPI {
    * Get all follows for a user (Phase 2 - Task 2)
    * GET /api/follows?user_id={user_id}
    *
-   * Backend: routers_fastapi/:1937-2013
+   * Backend: routers/:1937-2013
    */
   async getUserFollows(userId: string): Promise<UserFollowsResponse> {
     const response = await fetch(
@@ -919,7 +919,7 @@ class CivicAPI {
    * Get a single complaint by ID
    * GET /api/issues/{id}
    *
-   * Backend: routers_fastapi/:1259-1326
+   * Backend: routers/:1259-1326
    */
   async getIssue(issueId: string): Promise<Issue> {
     const response = await fetch(`${this.baseURL}/api/issues/${issueId}`, {
@@ -938,7 +938,7 @@ class CivicAPI {
    * Get all coordination threads
    * GET /api/threads?jurisdiction={jurisdiction_id}
    *
-   * Backend: routers_fastapi/:1811-1858
+   * Backend: routers/:1811-1858
    */
   async getThreads(options?: { jurisdictionId?: string; limit?: number }): Promise<{
     threads: Array<{
@@ -978,7 +978,7 @@ class CivicAPI {
    * Get thread info by ID
    * GET /api/threads/{thread_id}
    *
-   * Backend: routers_fastapi/:1860-1902
+   * Backend: routers/:1860-1902
    */
   async getThreadInfo(threadId: string): Promise<{
     thread_id: string;
@@ -1011,7 +1011,7 @@ class CivicAPI {
    * Get Google Maps API key for frontend
    * GET /api/config/google-maps-key (public endpoint)
    *
-   * Backend: routers_fastapi/:2141-2165
+   * Backend: routers/:2141-2165
    */
   async getGoogleMapsApiKey(): Promise<string> {
     const response = await fetch(`${this.baseURL}/api/config/google-maps-key`, {
@@ -1033,7 +1033,7 @@ class CivicAPI {
    * Create or update user profile
    * POST /api/user/profile
    *
-   * Backend: routers_fastapi/ (PersonalizationService Phase 2)
+   * Backend: routers/ (PersonalizationService Phase 2)
    */
   async createOrUpdateProfile(data: any): Promise<any> {
     const response = await fetch(`${this.baseURL}/api/user/profile`, {
@@ -1053,7 +1053,7 @@ class CivicAPI {
    * Delete user account
    * DELETE /api/user
    *
-   * Backend: routers_fastapi/ (PersonalizationService Phase 2 - GDPR)
+   * Backend: routers/ (PersonalizationService Phase 2 - GDPR)
    */
   async deleteUserAccount(): Promise<void> {
     const response = await fetch(`${this.baseURL}/api/user`, {
@@ -1070,7 +1070,7 @@ class CivicAPI {
    * Export user data (GDPR)
    * GET /api/user/export
    *
-   * Backend: routers_fastapi/ (PersonalizationService Phase 2 - GDPR)
+   * Backend: routers/ (PersonalizationService Phase 2 - GDPR)
    */
   async exportUserData(): Promise<any> {
     const response = await fetch(`${this.baseURL}/api/user/export`, {
@@ -1092,7 +1092,7 @@ class CivicAPI {
    * Get personalized onboarding card deck
    * GET /api/onboarding/cards
    *
-   * Backend: routers_fastapi/ (Phase 2.5 - Swipe Onboarding)
+   * Backend: routers/ (Phase 2.5 - Swipe Onboarding)
    */
   async getOnboardingCards(): Promise<{ cards: any[] }> {
     const response = await fetch(`${this.baseURL}/api/onboarding/cards`, {
@@ -1110,7 +1110,7 @@ class CivicAPI {
    * Record swipe action during onboarding
    * POST /api/onboarding/swipe
    *
-   * Backend: routers_fastapi/ (Phase 2.5 - Swipe Onboarding)
+   * Backend: routers/ (Phase 2.5 - Swipe Onboarding)
    */
   async recordOnboardingSwipe(data: {
     card_id: string;
@@ -1133,7 +1133,7 @@ class CivicAPI {
    * Mark onboarding as complete
    * POST /api/onboarding/complete
    *
-   * Backend: routers_fastapi/ (Phase 2.5 - Swipe Onboarding)
+   * Backend: routers/ (Phase 2.5 - Swipe Onboarding)
    */
   async completeOnboarding(): Promise<void> {
     const response = await fetch(`${this.baseURL}/api/onboarding/complete`, {
@@ -1154,7 +1154,7 @@ class CivicAPI {
    * Get admin status (pipeline health, database stats, ChromaDB stats)
    * GET /api/admin/status?jurisdiction={jurisdiction}&include_sources={bool}&refresh_sources={bool}
    *
-   * Backend: src/civic_services/servers/routers_fastapi/admin.py
+   * Backend: src/civic_services/servers/routers/admin.py
    */
   async getAdminStatus(
     jurisdiction: string = 'san-rafael',

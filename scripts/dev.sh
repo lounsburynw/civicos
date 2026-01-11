@@ -31,7 +31,7 @@ start_api() {
     echo "Starting FastAPI server on http://localhost:8001..."
     echo "  - OpenAPI docs at http://localhost:8001/docs"
     echo "  - ReDoc at http://localhost:8001/redoc"
-    uvicorn civic_services.servers.civic_api_fastapi:app --host 0.0.0.0 --port 8001 --reload
+    uvicorn civic_services.servers.api:app --host 0.0.0.0 --port 8001 --reload
 }
 
 start_websocket() {
@@ -50,7 +50,7 @@ start_all() {
     echo ""
 
     # Start FastAPI server in background (Session 511: Migration complete)
-    uvicorn civic_services.servers.civic_api_fastapi:app --host 0.0.0.0 --port 8001 &
+    uvicorn civic_services.servers.api:app --host 0.0.0.0 --port 8001 &
     API_PID=$!
     echo "API server started (PID: $API_PID)"
 
