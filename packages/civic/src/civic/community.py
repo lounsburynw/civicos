@@ -50,9 +50,6 @@ def find_community(
             if addr:
                 addresses.add(addr)
 
-    # TODO: Query voices/comments on related items
-    # TODO: Query active initiatives
-
     return Community(
         topic=topic,
         jurisdiction=jurisdiction,

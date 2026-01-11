@@ -305,7 +305,7 @@ class CivicClerkClient:
             'agenda_item_number': None,
             'engagement': None,
             'agenda_page': portal_url,
-            'timezone': 'America/Los_Angeles',  # TODO: Make configurable
+            'timezone': 'America/Los_Angeles',  # Pacific - San Rafael pilot
             'participation_mechanisms': [
                 {
                     'type': 'attend',

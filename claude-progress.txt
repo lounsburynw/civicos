@@ -12878,3 +12878,33 @@ Extended the existing JurisdictionConfig system to fully replace hardcoded San R
 ### Next P0
 TBD - Need to set next P0 before session end.
 
+
+## Session 510: TODO Debt Cleanup
+**Date:** 2026-01-11
+**Item:** todo_debt_cleanup (P0)
+
+### Summary
+Audited and cleaned up stale TODO comments across the codebase.
+
+### Changes
+- **california.py**: Removed 6 TODOs from scaffold code (not used in pilot - legislation pre-loaded in PostgreSQL). Added docstring noting scaffold status.
+- **community.py**: Removed 2 TODOs (already marked "Phase 2" in return values)
+- **issue_fallback.py**: Removed 1 TODO (already marked "Phase 2")
+- **civic_api_integrated.py**: Removed 2 TODOs (already marked "Phase 3")
+- **issue_storage.py**: Removed 1 TODO (already explained in comment)
+- **groq_responses_provider.py**: Removed 1 TODO (external dependency limitation)
+- **civicclerk_client.py**: Removed 1 TODO (Pacific TZ correct for San Rafael pilot)
+
+### Kept (Valid TODOs)
+- semantic.py:101 - federal_program_refs (real future feature)
+- cli.py:865 - index_target (real feature)
+- civic_chat_router.py:1030 - token tracking (real improvement)
+
+### Also Completed
+- **langgraph_workflow_cleanup**: Decided to DEFER integration of unused workflows (suggestion, preparation, pattern, strategy) until user demand. These are valuable coordination features, not dead code.
+
+### Test Results
+- 42/42 smoke tests passing
+
+### Next P0
+TBD - Need to set before session end.
