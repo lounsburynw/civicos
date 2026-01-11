@@ -320,8 +320,8 @@
         }
       ],
       "federal_programs_vector_embeddings": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 99,
         "description": "Add federal programs to pgvector corpus for semantic search",
         "notes": "Enable queries like 'what federal housing money is available?' to find CDBG, HOME, Section 8 info. Include both national program descriptions and jurisdiction-specific allocations.",
         "depends_on": [
@@ -361,7 +361,7 @@
       },
       "federal_programs_expand_catalog": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Expand federal program catalog with ESG, HOPWA, HTF, CoC, transportation, and EPA programs",
         "notes": "Current catalog has 10 programs (CDBG, HOME, Section 8, LIHTC, FTA, TAP, EPA EJ, DOE EECBG, Title I). Add: ESG (homelessness), HOPWA (HIV/AIDS housing), HTF (extremely low-income), CoC (continuum of care), CMAQ, STBG, CWSRF, DWSRF. Source from SAM.gov. See docs/FEDERAL_PROGRAMS_PARSER_STRATEGY.md.",
         "depends_on": [

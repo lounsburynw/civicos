@@ -7119,6 +7119,38 @@ class PostgresBackend:
 
         return count
 
+    def get_programs(
+        self,
+        program_id: Optional[str] = None,
+        topic: Optional[str] = None,
+        agency: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Alias for get_federal_programs().
+        
+        Used by corpus_types.py CORPUS_REGISTRY for consistent naming convention.
+        """
+        return self.get_federal_programs(
+            program_id=program_id,
+            topic=topic,
+            agency=agency,
+            as_of=as_of,
+            limit=limit,
+        )
+
+    def get_program_count(
+        self,
+        topic: Optional[str] = None,
+    ) -> int:
+        """
+        Alias for get_federal_programs_count().
+        
+        Used by corpus_types.py CORPUS_REGISTRY for consistent naming convention.
+        """
+        return self.get_federal_programs_count(topic=topic)
+
     # =======================================================================
     # FEDERAL PROGRAM ALLOCATIONS METHODS (SESSION 505)
     # Jurisdiction-specific allocations per fiscal year

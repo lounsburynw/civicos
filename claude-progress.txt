@@ -12984,3 +12984,31 @@ Consolidated pilot.json from 364 individual items to a more compact structure:
 
 ### Next P0
 Set `federal_programs_vector_embeddings` as next P0 (data_architecture > data_source_unification)
+
+## Session 513: federal_programs_vector_embeddings (2026-01-11)
+
+### P0 Item: federal_programs_vector_embeddings
+- Status: READY ✓
+
+### Changes Made
+1. **PostgresBackend**: Added `get_programs()` and `get_program_count()` alias methods
+   - Wraps existing `get_federal_programs()` and `get_federal_programs_count()`
+   - Enables consistent naming with corpus_types.py CORPUS_REGISTRY
+
+2. **PgVectorBackend**: Added federal programs support to vector indexing
+   - `_program_to_text()`: Converts program dicts to embedding text
+   - `index_from_storage()`: Added `corpus_type="programs"` handler
+   - Programs are indexed with: program_name, agency, description, eligible_activities, topic, cfda_number, keywords
+
+3. **Verified functionality**:
+   - 10 federal programs indexed in pgvector for `federal-US` jurisdiction
+   - Semantic search works correctly (housing→CDBG/HOME, transportation→FTA/TAP, etc.)
+   - 42/42 smoke tests passing
+
+### Files Changed
+- `packages/civic/src/civic/storage/postgres_backend.py` - get_programs alias methods
+- `packages/civic/src/civic/storage/pgvector_backend.py` - _program_to_text, programs handler
+- `pilot.json` - Marked item ready, set next P0
+
+### Next P0
+Set `federal_programs_expand_catalog` as next P0 (data_architecture > data_source_unification)
