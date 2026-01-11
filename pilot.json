@@ -663,15 +663,16 @@
         "completed": "2025-12-21"
       },
       "data_critic": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": ".critics/data.critic.md - ETL data quality and schema validation",
-        "note": "Blocked on: stable schema, known edge cases, platform quirks cataloged. Define after pipeline automation validates patterns against real San Rafael data.",
+        "note": "ETL data quality critic covering required fields, monetary precision (cents as integers), datetime formats (ISO 8601), temporal ordering, enum values, JSON validity, uniqueness constraints, and location consistency.",
         "blocked_by": [
           "meeting_discovery_cron",
           "youtube_discovery_cron",
-          "transcript_processing_cron"
-        ]
+          "transcription_cron"
+        ],
+        "completed": "2026-01-10"
       }
     }
   },
