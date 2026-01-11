@@ -873,6 +873,177 @@ class TestStorageBackendProtocol:
         assert not isinstance(incomplete, StorageBackend)
 
 
+class TestStorageSubProtocols:
+    """Tests for domain-specific sub-protocols."""
+
+    def test_sub_protocols_are_importable(self):
+        """All sub-protocols can be imported."""
+        from civic.storage.protocols import (
+            ContentStorage,
+            LegislationStorage,
+            FinancialStorage,
+            CommunityStorage,
+            ElectionStorage,
+            OperationsStorage,
+        )
+        # Verify they are protocols
+        assert hasattr(ContentStorage, "__protocol_attrs__") or hasattr(
+            ContentStorage, "_is_protocol"
+        )
+
+    def test_storage_backend_inherits_from_sub_protocols(self):
+        """StorageBackend inherits from all domain sub-protocols."""
+        from civic.storage.protocols import (
+            ContentStorage,
+            LegislationStorage,
+            FinancialStorage,
+            CommunityStorage,
+            ElectionStorage,
+            OperationsStorage,
+        )
+
+        # Check MRO includes all sub-protocols
+        mro_names = [cls.__name__ for cls in StorageBackend.__mro__]
+        assert "ContentStorage" in mro_names
+        assert "LegislationStorage" in mro_names
+        assert "FinancialStorage" in mro_names
+        assert "CommunityStorage" in mro_names
+        assert "ElectionStorage" in mro_names
+        assert "OperationsStorage" in mro_names
+
+    def test_postgres_backend_satisfies_sub_protocols(self):
+        """PostgresBackend satisfies all sub-protocols at runtime."""
+        from civic.storage.protocols import (
+            ContentStorage,
+            LegislationStorage,
+            FinancialStorage,
+            CommunityStorage,
+            ElectionStorage,
+            OperationsStorage,
+        )
+        from civic.storage.postgres_backend import PostgresBackend
+
+        # Note: We're checking the class, not an instance (no DB connection needed)
+        # With @runtime_checkable, isinstance works if methods exist
+        # For class-level check, verify method presence
+        assert hasattr(PostgresBackend, "store_meetings")  # ContentStorage
+        assert hasattr(PostgresBackend, "store_legislation")  # LegislationStorage
+        assert hasattr(PostgresBackend, "store_budget_items")  # FinancialStorage
+        assert hasattr(PostgresBackend, "store_issues")  # CommunityStorage
+        assert hasattr(PostgresBackend, "store_elections")  # ElectionStorage
+        assert hasattr(PostgresBackend, "create_operation")  # OperationsStorage
+
+    def test_sqlite_backend_satisfies_sub_protocols(self):
+        """SQLiteBackend satisfies all sub-protocols."""
+        from civic.storage.sqlite_backend import SQLiteBackend
+
+        # Verify key methods from each sub-protocol
+        assert hasattr(SQLiteBackend, "store_meetings")  # ContentStorage
+        assert hasattr(SQLiteBackend, "store_legislation")  # LegislationStorage
+        assert hasattr(SQLiteBackend, "store_budget_items")  # FinancialStorage
+        assert hasattr(SQLiteBackend, "store_issues")  # CommunityStorage
+        assert hasattr(SQLiteBackend, "store_elections")  # ElectionStorage
+        assert hasattr(SQLiteBackend, "create_operation")  # OperationsStorage
+
+    def test_sub_protocols_are_runtime_checkable(self):
+        """Each sub-protocol can be used with isinstance."""
+        from civic.storage.protocols import (
+            ContentStorage,
+            LegislationStorage,
+            FinancialStorage,
+            CommunityStorage,
+            ElectionStorage,
+            OperationsStorage,
+        )
+
+        # Minimal mock that only implements ContentStorage methods
+        class ContentOnlyBackend:
+            def store_meetings(self, jurisdiction_id, meetings, as_of=None):
+                return 0
+
+            def get_meetings(
+                self, jurisdiction_id, as_of=None, since=None, until=None, limit=None
+            ):
+                return []
+
+            def update_meeting(self, jurisdiction_id, meeting_id, updates):
+                return True
+
+            def delete_meetings(self, jurisdiction_id, meeting_ids=None):
+                return 0
+
+            def store_decisions(self, jurisdiction_id, decisions, as_of=None):
+                return 0
+
+            def get_decisions(
+                self, jurisdiction_id, as_of=None, since=None, until=None, limit=None
+            ):
+                return []
+
+            def get_decision_count(self, jurisdiction_id):
+                return 0
+
+            def store_chunks(
+                self, jurisdiction_id, chunks, as_of=None, meeting_id=None
+            ):
+                return 0
+
+            def get_chunks(
+                self,
+                jurisdiction_id,
+                as_of=None,
+                meeting_id=None,
+                agenda_item=None,
+                source_type=None,
+                limit=None,
+            ):
+                return []
+
+            def get_chunk_count(self, jurisdiction_id):
+                return 0
+
+            def store_agenda_items(self, meeting_id, agenda_items, as_of=None):
+                return 0
+
+            def get_agenda_items(
+                self, meeting_id=None, jurisdiction_id=None, as_of=None, limit=None
+            ):
+                return []
+
+            def get_agenda_item_count(self, jurisdiction_id=None):
+                return 0
+
+            def store_transcripts(self, jurisdiction_id, transcripts, as_of=None):
+                return 0
+
+            def get_transcripts(self, jurisdiction_id, as_of=None, limit=None):
+                return []
+
+            def get_transcript(self, video_id, as_of=None):
+                return None
+
+            def get_transcript_count(self, jurisdiction_id):
+                return 0
+
+            def store_videos(self, jurisdiction_id, videos, as_of=None):
+                return 0
+
+            def get_videos(self, jurisdiction_id, as_of=None, limit=None):
+                return []
+
+            def get_video_count(self, jurisdiction_id):
+                return 0
+
+        content_only = ContentOnlyBackend()
+        assert isinstance(content_only, ContentStorage)
+        # Should fail for other protocols (missing methods)
+        assert not isinstance(content_only, LegislationStorage)
+        assert not isinstance(content_only, FinancialStorage)
+        assert not isinstance(content_only, CommunityStorage)
+        assert not isinstance(content_only, ElectionStorage)
+        assert not isinstance(content_only, OperationsStorage)
+
+
 class TestVectorBackendProtocol:
     """Tests for VectorBackend protocol."""
 
