@@ -341,7 +341,7 @@
       },
       "hud_exchange_parser": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Create Playwright client for HUD Exchange allocation data",
         "notes": "Scrape hudexchange.info/grantees/allocations-awards/ for authoritative CDBG/HOME/ESG/HOPWA allocation amounts per jurisdiction per fiscal year. Requires Playwright due to JavaScript rendering. See docs/FEDERAL_PROGRAMS_PARSER_STRATEGY.md.",
         "depends_on": [
@@ -360,14 +360,11 @@
         "artifact": "packages/civic-extraction/src/civic_extraction/clients/sam_assistance.py"
       },
       "federal_programs_expand_catalog": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Expand federal program catalog with ESG, HOPWA, HTF, CoC, transportation, and EPA programs",
-        "notes": "Current catalog has 10 programs (CDBG, HOME, Section 8, LIHTC, FTA, TAP, EPA EJ, DOE EECBG, Title I). Add: ESG (homelessness), HOPWA (HIV/AIDS housing), HTF (extremely low-income), CoC (continuum of care), CMAQ, STBG, CWSRF, DWSRF. Source from SAM.gov. See docs/FEDERAL_PROGRAMS_PARSER_STRATEGY.md.",
-        "depends_on": [
-          "sam_assistance_client"
-        ],
-        "artifact": "20+ federal programs in federal_programs table with authoritative source data"
+        "notes": "Session 513: Added 12 new programs. Housing: ESG, HOPWA, HTF, CoC. Transportation: CMAQ, STBG, Section 5310, RAISE. Environment: CWSRF, DWSRF, Brownfields, Clean School Bus. Total: 22 programs in PostgreSQL + pgvector. Semantic search verified working.",
+        "artifact": "22 federal programs in federal_programs table, 22 embeddings in pgvector"
       },
       "san_rafael_allocations_ingest": {
         "status": "not_ready",

@@ -68,6 +68,136 @@
         "safe routes to school",
         "transportation equity"
       ]
+    },
+    "congestion_mitigation_air_quality_improvement_program": {
+      "program_name": "Congestion Mitigation and Air Quality Improvement Program (CMAQ)",
+      "administering_agency": "U.S. Department of Transportation (DOT), Federal Highway Administration (FHWA)",
+      "cfda_number": "20.205",
+      "description": "Provides federal funding for transportation projects that reduce traffic congestion and improve air quality in areas that do not meet National Ambient Air Quality Standards (nonattainment areas) or that previously had poor air quality (maintenance areas). CMAQ supports a broad range of projects including transit improvements, traffic flow enhancements, alternative fuel infrastructure, and active transportation facilities.",
+      "eligible_activities": [
+        "Public transit capital and operating improvements in nonattainment and maintenance areas",
+        "Traffic flow improvements including signal coordination, intersection improvements, and intelligent transportation systems",
+        "Alternative fuel vehicle and infrastructure programs including electric vehicle charging stations",
+        "Bicycle and pedestrian facilities that reduce motor vehicle emissions",
+        "Travel demand management programs and employer-based commute strategies",
+        "Freight and port-related emission reduction projects",
+        "Diesel engine retrofits and fleet replacement programs"
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Metropolitan Planning Organization (MPO) public meetings and hearings",
+        "Transportation Improvement Program (TIP) public comment periods",
+        "Air quality conformity analysis public review processes",
+        "Regional transportation plan development meetings"
+      ],
+      "leverage_point": "Participate in MPO meetings and TIP public comment periods to advocate for CMAQ-eligible projects in your community. Engage with regional air quality planning processes to influence priorities for congestion reduction and emission mitigation projects.",
+      "official_url": "https://www.fhwa.dot.gov/bipartisan-infrastructure-law/cmaq.cfm",
+      "keywords": [
+        "congestion mitigation",
+        "air quality",
+        "transit improvements",
+        "alternative fuels",
+        "emission reduction"
+      ]
+    },
+    "surface_transportation_block_grant_program": {
+      "program_name": "Surface Transportation Block Grant Program (STBG)",
+      "administering_agency": "U.S. Department of Transportation (DOT), Federal Highway Administration (FHWA)",
+      "cfda_number": "20.205",
+      "description": "The most flexible federal highway program, providing funding for a wide range of surface transportation capital projects including highways, bridges, transit capital, pedestrian and bicycle infrastructure, and transportation planning. STBG replaced the former Surface Transportation Program (STP) under the FAST Act and provides states and localities with considerable discretion in project selection.",
+      "eligible_activities": [
+        "Highway construction, reconstruction, rehabilitation, and restoration projects",
+        "Bridge projects including replacement, rehabilitation, and systematic preventive maintenance",
+        "Public transit capital improvements",
+        "Bicycle and pedestrian facilities",
+        "Highway and transit safety infrastructure improvements",
+        "Transportation planning and research activities",
+        "Environmental mitigation related to transportation projects",
+        "Intelligent transportation systems and advanced technology projects"
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Transportation Improvement Program (TIP) public meetings and comment periods",
+        "MPO long-range transportation plan development hearings",
+        "State Transportation Improvement Program (STIP) public review processes",
+        "Project-specific environmental review public comment opportunities"
+      ],
+      "leverage_point": "Participate in TIP and long-range transportation plan public meetings at your MPO. Advocate for local priority projects during funding allocation decisions. Engage with state DOT and local governments on STBG-funded projects in your community.",
+      "official_url": "https://www.fhwa.dot.gov/bipartisan-infrastructure-law/stbg.cfm",
+      "keywords": [
+        "highway funding",
+        "bridge projects",
+        "flexible funding",
+        "surface transportation",
+        "infrastructure investment"
+      ]
+    },
+    "enhanced_mobility_seniors_disabilities": {
+      "program_name": "Enhanced Mobility of Seniors and Individuals with Disabilities (Section 5310)",
+      "administering_agency": "U.S. Department of Transportation (DOT), Federal Transit Administration (FTA)",
+      "cfda_number": "20.513",
+      "description": "Provides formula funding to improve mobility for seniors and individuals with disabilities by supporting public transportation services and alternatives beyond traditional public transit. The program supports capital and operating expenses for transportation services planned, designed, and carried out to meet the special needs of seniors and individuals with disabilities.",
+      "eligible_activities": [
+        "Capital purchases including accessible vehicles, wheelchair lifts, and mobility aids",
+        "Operating assistance for specialized transportation services",
+        "Mobility management and coordination programs",
+        "Volunteer driver programs and travel training",
+        "Paratransit service beyond ADA requirements",
+        "Projects that exceed ADA accessibility requirements",
+        "Contracted service with private providers"
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Coordinated public transit-human services transportation plan development meetings",
+        "State and local transportation planning process public hearings",
+        "Transit agency advisory committee meetings",
+        "Public input on project selection and funding priorities"
+      ],
+      "leverage_point": "Participate in coordinated human services transportation planning meetings. Join transit agency advisory committees focused on paratransit and specialized services. Advocate for expanded mobility options during public hearings on Section 5310 project selection.",
+      "official_url": "https://www.transit.dot.gov/funding/grants/enhanced-mobility-seniors-individuals-disabilities-section-5310",
+      "keywords": [
+        "senior mobility",
+        "disability transportation",
+        "paratransit",
+        "accessible transportation",
+        "mobility management"
+      ]
+    },
+    "raise_discretionary_grants": {
+      "program_name": "Rebuilding American Infrastructure with Sustainability and Equity (RAISE) Grants",
+      "administering_agency": "U.S. Department of Transportation (DOT), Office of the Secretary",
+      "cfda_number": "20.933",
+      "description": "Competitive discretionary grant program (formerly known as TIGER and BUILD grants) supporting surface transportation infrastructure projects that have significant local or regional impact. RAISE emphasizes projects that improve safety, accessibility, economic strength, state of good repair, partnership and innovation, and climate change/sustainability. The program specifically targets underserved communities and areas of persistent poverty.",
+      "eligible_activities": [
+        "Highway, bridge, and road projects including complete streets",
+        "Public transit projects including bus rapid transit and rail",
+        "Passenger rail and freight rail projects",
+        "Port infrastructure improvements",
+        "Intermodal facility development",
+        "Bicycle and pedestrian infrastructure",
+        "Planning and project development activities",
+        "Resilience improvements and climate adaptation infrastructure"
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Pre-application community engagement and planning processes",
+        "Project development public meetings and environmental review",
+        "Local government grant application decision-making meetings",
+        "Post-award project implementation community input sessions"
+      ],
+      "leverage_point": "Engage early in local discussions about potential RAISE grant applications. Provide community input and letters of support for projects addressing local transportation needs. Participate in project development meetings and environmental review processes for awarded projects.",
+      "official_url": "https://www.transportation.gov/RAISEgrants",
+      "keywords": [
+        "discretionary grants",
+        "infrastructure investment",
+        "equity",
+        "sustainability",
+        "multimodal transportation"
+      ]
     }
   }
 }
