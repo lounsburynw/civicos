@@ -498,6 +498,41 @@ class PgVectorBackend:
 
         return "\n".join(parts) if parts else ""
 
+    def _program_to_text(self, program: Dict[str, Any]) -> str:
+        """
+        Convert a federal program dict to text for embedding.
+        """
+        parts = []
+
+        if program.get("program_name"):
+            parts.append(f"Program: {program['program_name']}")
+
+        if program.get("administering_agency"):
+            parts.append(f"Agency: {program['administering_agency']}")
+
+        if program.get("description"):
+            parts.append(f"Description: {program['description']}")
+
+        if program.get("eligible_activities"):
+            activities = program["eligible_activities"]
+            if isinstance(activities, list):
+                parts.append(f"Eligible Activities: {', '.join(str(a) for a in activities)}")
+            elif isinstance(activities, str):
+                parts.append(f"Eligible Activities: {activities}")
+
+        if program.get("topic"):
+            parts.append(f"Topic: {program['topic']}")
+
+        if program.get("cfda_number"):
+            parts.append(f"CFDA Number: {program['cfda_number']}")
+
+        if program.get("keywords"):
+            keywords = program["keywords"]
+            if isinstance(keywords, list):
+                parts.append(f"Keywords: {', '.join(str(k) for k in keywords)}")
+
+        return "\n".join(parts) if parts else ""
+
     def _legislation_to_text(self, bill: Dict[str, Any]) -> str:
         """
         Convert a legislation bill to text for embedding.
@@ -726,6 +761,10 @@ class PgVectorBackend:
         elif corpus_type == "agenda_items":
             # Agenda items don't need chunking - they're individual items
             documents = storage_backend.get_agenda_items(jurisdiction_id=jurisdiction_id)
+        elif corpus_type == "programs":
+            # Federal programs don't need chunking - they're atomic definitions
+            # Programs are global (not jurisdiction-specific), so ignore jurisdiction_id
+            documents = storage_backend.get_programs()
         else:
             raise ValueError(f"Unknown corpus_type: {corpus_type}")
 
@@ -831,6 +870,12 @@ class PgVectorBackend:
                     meeting_id = doc.get("meeting_id")
                     meeting_title = doc.get("title")
                     meeting_datetime = None  # meeting_datetime not directly on item
+                elif corpus_type == "programs":
+                    text = self._program_to_text(doc)
+                    doc_id = doc.get("program_id") or doc.get("id", f"program-{i}-{idx}")
+                    meeting_id = None  # Not meeting-related
+                    meeting_title = doc.get("program_name")
+                    meeting_datetime = None
 
                 if not text.strip():
                     continue
