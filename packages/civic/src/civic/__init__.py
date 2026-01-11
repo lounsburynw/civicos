@@ -25,11 +25,13 @@ __version__ = "0.1.0"
 # Main class
 from civic.civic import Civic
 
-# Result types (for type hints)
-from civic.civic import (
+# Result types (for type hints) - imported from types.py
+from civic.types import (
     RegulatoryStack,
     Decision,
     TranscriptExcerpt,
+    TranscriptLink,
+    DecisionWithContext,
     Meeting,
     UpcomingElection,
     Community,
@@ -40,8 +42,14 @@ from civic.civic import (
     Suggestion,
     CoordinationPlan,
     Outcome,
+    BudgetItem,
+    BudgetSummary,
     FundingFlow,
     FundingFlowImpact,
+    FederalExpenditure,
+    IntergovernmentalRevenue,
+    IntergovernmentalRevenueSummary,
+    FederalProgram,
 )
 
 # Cross-corpus search result type
@@ -89,10 +97,12 @@ __all__ = [
     "__version__",
     # Main class
     "Civic",
-    # Result types
+    # Result types (from types.py)
     "RegulatoryStack",
     "Decision",
     "TranscriptExcerpt",
+    "TranscriptLink",
+    "DecisionWithContext",
     "Meeting",
     "UpcomingElection",
     "Community",
@@ -103,8 +113,14 @@ __all__ = [
     "Suggestion",
     "CoordinationPlan",
     "Outcome",
+    "BudgetItem",
+    "BudgetSummary",
     "FundingFlow",
     "FundingFlowImpact",
+    "FederalExpenditure",
+    "IntergovernmentalRevenue",
+    "IntergovernmentalRevenueSummary",
+    "FederalProgram",
     # Cross-corpus search result types
     "UnifiedSearchResult",
     "HybridSearchResult",

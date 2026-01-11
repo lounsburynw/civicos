@@ -12476,5 +12476,36 @@ PR #8 (feature/validation/eo-incremental-fetcher) has merge conflicts - implemen
 - Congress.gov CRS reports on FY2026 THUD appropriations
 - Marin Housing Authority website
 
+### Next P0: turso_backend (deployment_artifacts > cloud_storage)
+
+
+---
+
+## Session 504: civic_type_extraction (2026-01-10)
+
+**Task:** Extract dataclasses from civic.py to types.py + add FederalProgram
+
+**Changes Made:**
+- Created `packages/civic/src/civic/types.py` (432 lines)
+  - Extracted 22 dataclasses from civic.py
+  - Added new FederalProgram dataclass
+- Updated `packages/civic/src/civic/civic.py` (2,073 → 1,770 lines)
+  - Now imports from types.py and re-exports for backward compatibility
+  - Removed duplicate HybridSearchResult (uses history.py version)
+- Updated `packages/civic/src/civic/__init__.py`
+  - Imports directly from types.py
+  - Added all new types to __all__
+
+**Types extracted:**
+RegulatoryStack, Decision, TranscriptExcerpt, TranscriptLink, DecisionWithContext,
+Meeting, UpcomingElection, Community, Initiative, Voice, Subscription, Preparation,
+Suggestion, CoordinationPlan, Outcome, BudgetItem, BudgetSummary, FundingFlow,
+FundingFlowImpact, FederalExpenditure, IntergovernmentalRevenue,
+IntergovernmentalRevenueSummary, FederalProgram (new)
+
+**Tests:** 42 passed (test_civic.py smoke tests)
+
+**Status:** pilot.json updated to ready
+
 ### Next P0: TBD (will set before /nextsesh)
 
