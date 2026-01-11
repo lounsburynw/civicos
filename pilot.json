@@ -184,6 +184,14 @@
         "note": "Test expects council member names to be detected from transcripts but finds none. May be test data issue (missing transcript) or detection logic issue. Investigate transcript availability in CI environment.",
         "test_file": "packages/civic/tests/test_transcript_chunking.py::TestSpeakerMetadataWithRealData::test_real_transcript_council_names_detected"
       }
+    },
+    "ci_reliability": {
+      "fix_ci_false_positives": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Fix 2/8 CI failures: security test false positive (DATABASE_URL regex) and protocol runtime_checkable tests (dataclass vs property issue)",
+        "test": "pytest packages/civic/tests/test_e2e_verification.py::TestSecurityNoSecretsInLogs::test_database_connection_strings_not_logged packages/civic/tests/test_storage_protocols.py -v"
+      }
     }
   },
   "deployment_artifacts": {
@@ -286,7 +294,7 @@
     "cloud_storage": {
       "turso_backend": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "TursoBackend implements StorageBackend protocol for cloud SQLite",
         "note": "Turso (libSQL) is SQLite-compatible with 9GB free tier. DEPRIORITIZED: Using PostgresBackend instead for cloud."
       },
