@@ -187,10 +187,12 @@
     },
     "ci_reliability": {
       "fix_ci_false_positives": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Fix 2/8 CI failures: security test false positive (DATABASE_URL regex) and protocol runtime_checkable tests (dataclass vs property issue)",
-        "test": "pytest packages/civic/tests/test_e2e_verification.py::TestSecurityNoSecretsInLogs::test_database_connection_strings_not_logged packages/civic/tests/test_storage_protocols.py -v"
+        "test": "pytest packages/civic/tests/test_e2e_verification.py::TestSecurityNoSecretsInLogs::test_database_connection_strings_not_logged packages/civic/tests/test_storage_protocols.py -v",
+        "completed": "2026-01-10",
+        "note": "Session 505: Added safe_patterns filter to exclude benign 'DATABASE_URL not set' messages. Converted @dataclass mocks to regular classes and added missing Protocol methods (agenda_items, elections, update_meeting, count) for runtime_checkable compatibility."
       }
     }
   },
@@ -1258,7 +1260,7 @@
       },
       "federal_programs_postgres_migration": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Migrate federal programs data from static JSON to PostgreSQL",
         "notes": "Currently stored in data/funding/federal/*.json and data/jurisdiction_overrides/*.json. Need proper table schema with temporal versioning (FY tracking), jurisdiction linkage, and program metadata.",
         "depends_on": [
