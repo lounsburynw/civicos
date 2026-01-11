@@ -1250,10 +1250,12 @@
       },
       "federal_programs_postgres_migration": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Migrate federal programs data from static JSON to PostgreSQL",
         "notes": "Currently stored in data/funding/federal/*.json and data/jurisdiction_overrides/*.json. Need proper table schema with temporal versioning (FY tracking), jurisdiction linkage, and program metadata.",
-        "depends_on": [],
+        "depends_on": [
+          "civic_type_extraction"
+        ],
         "artifact": "packages/civic/src/civic/storage/postgres_backend.py federal_programs table"
       },
       "federal_programs_vector_embeddings": {
@@ -1265,6 +1267,23 @@
           "federal_programs_postgres_migration"
         ],
         "artifact": "Vector embeddings for federal_programs corpus type"
+      },
+      "civic_type_extraction": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Extract 22 dataclasses from civic.py to types.py, add FederalProgram dataclass",
+        "notes": "Audit recommended: 'Low effort (~30 min), high clarity improvement.' Also define FederalProgram with full schema (program_id, description, eligible_activities, citizen_participation, allocations, contacts, urls) to support postgres migration.",
+        "artifact": "packages/civic/src/civic/types.py"
+      },
+      "entity_type_definitions": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Define dataclasses for remaining untyped entities: ExecutiveOrder, Legislation, ElectedOfficial, MunicipalCodeSection",
+        "notes": "Follow-on to civic_type_extraction. These entities are currently raw dicts from storage. Proper types improve IDE support, validation, and API consistency. Do incrementally as each area is touched.",
+        "depends_on": [
+          "civic_type_extraction"
+        ],
+        "artifact": "packages/civic/src/civic/types.py additions"
       }
     },
     "vector_sql_linkage": {
