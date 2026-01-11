@@ -12,6 +12,7 @@ Each client wraps a specific municipal platform API:
 - marin_registrar: Marin County Registrar of Voters (local elections)
 - san_rafael_clerk: San Rafael City Clerk (city candidates, local measures)
 - representatives: Unified representative lookup (Congress.gov, Open States, local)
+- hud_exchange: HUD Exchange / HUD CPD allocation data (CDBG, HOME, ESG, etc.)
 """
 
 from civic_extraction.clients.legistar import LegistarClient
@@ -86,6 +87,13 @@ from civic_extraction.clients.youtube_boards import (
     create_srcs_youtube_client,
     create_srcs_youtube_source,
 )
+from civic_extraction.clients.hud_exchange import (
+    HUDExchangeClient,
+    HUDAllocation,
+    create_hud_exchange_client,
+    hud_allocation_to_storage,
+    extract_allocations_to_storage,
+)
 
 __all__ = [
     "LegistarClient",
@@ -141,4 +149,9 @@ __all__ = [
     "YouTubeVideo",
     "create_srcs_youtube_client",
     "create_srcs_youtube_source",
+    "HUDExchangeClient",
+    "HUDAllocation",
+    "create_hud_exchange_client",
+    "hud_allocation_to_storage",
+    "extract_allocations_to_storage",
 ]

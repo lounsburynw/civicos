@@ -13048,3 +13048,43 @@ Expanded federal program catalog from 10 to 22 programs.
 
 ### Next P0
 Set `hud_exchange_parser` as next P0 (data_architecture > data_source_unification)
+
+## Session 514 - 2026-01-11
+
+### Completed: `hud_exchange_parser` (P0)
+
+Created HUDExchangeClient for federal housing program allocation data (CDBG, HOME, ESG, HOPWA, HTF, RHP).
+
+#### Implementation Approach
+Chose to download official HUD Excel spreadsheets from hud.gov rather than scraping HUD Exchange website:
+- More reliable than JavaScript scraping (no Playwright needed for core functionality)
+- Official authoritative data source
+- Supports FY2020-2025 allocation data
+- Caches downloaded files for 7 days
+
+#### Key Files
+- `packages/civic-extraction/src/civic_extraction/clients/hud_exchange.py` - Main client
+- `packages/civic-extraction/src/civic_extraction/clients/__init__.py` - Added exports
+
+#### Client Features
+- `health()` - Check HUD server availability
+- `validate()` - Verify openpyxl installed and server reachable
+- `get_allocations(grantee_name, program, fiscal_year)` - Get allocations for specific grantee
+- `search_allocations(state, program, fiscal_year)` - Bulk search by state/program
+- `hud_allocation_to_storage()` - Map to federal_program_allocations schema
+
+#### Key Finding: San Rafael HUD Funding
+San Rafael does not appear as a direct HUD entitlement grantee. It receives HUD formula funds through **Marin County** as an urban county consortium:
+- Marin County FY2025 CDBG: $1,512,738
+- Marin County FY2025 HOME: $694,560
+
+This is documented in the pilot.json notes for future reference.
+
+#### Verification
+- 42/42 smoke tests passing
+- All HUD client tests passing
+- Successfully retrieved 185 CA CDBG grantees
+- Correctly identified Marin County allocations
+
+### Next P0
+Set `sam_assistance_client` as next P0 - Create SAM.gov Assistance Listings API client to replace Perplexity-sourced program definitions with authoritative federal data.
