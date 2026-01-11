@@ -12444,3 +12444,37 @@ Refresh federal grant programs for FY2026. Current data from Oct 2025, marked DR
 ### Open PR
 
 PR #8 (feature/validation/eo-incremental-fetcher) has merge conflicts - implements executive_orders_incremental_fetcher. May need conflict resolution.
+
+## Session 503 - 2026-01-10
+
+### Completed: federal_programs_2026_refresh (P0)
+
+**Task:** Refresh federal grant programs for FY2026
+
+**Key Findings:**
+1. San Rafael participates in Marin County's joint Urban County CDBG/HOME program - NOT a direct HUD entitlement recipient
+2. Old data incorrectly showed San Rafael with $715,574 direct CDBG allocation
+3. FY2026 federal appropriations UNCERTAIN - operating under Continuing Resolution through Jan 30, 2026
+4. President's budget proposed eliminating both CDBG and HOME programs
+5. House proposed level CDBG funding ($3.3B) but eliminating HOME
+6. Senate proposed $3.1B CDBG (6% cut) and $1.25B HOME (level)
+
+**Changes Made:**
+- Updated `data/jurisdiction_overrides/city-san-rafael.json` with:
+  - Correct allocation model (joint_county through Marin County)
+  - Marin County FY2025-26 allocations: CDBG $1.5M, HOME $700K
+  - FY2026 appropriations status with sources
+  - Added HOME Investment Partnerships Program details
+  - Added Section 8 Housing Choice Vouchers (Marin Housing Authority)
+  - Added local San Rafael AHTF contribution ($500K)
+  - Data quality section with verification sources
+- Updated `pilot.json` status to "ready"
+
+**Sources Verified:**
+- Marin County 2025-26 NOFA
+- Marin County 2025-2029 Consolidated Plan
+- Congress.gov CRS reports on FY2026 THUD appropriations
+- Marin Housing Authority website
+
+### Next P0: TBD (will set before /nextsesh)
+

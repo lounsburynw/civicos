@@ -3050,15 +3050,15 @@
       },
       "executive_orders_incremental_fetcher": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Add EO incremental fetcher to civic-extraction",
         "notes": "EOs have higher velocity than codified law. Federal Register API supports date filtering. Add to civic-extraction for scheduled updates like meetings/legislation."
       },
       "federal_programs_2026_refresh": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "description": "Refresh federal grant programs for FY2026",
-        "notes": "Current data from Oct 2025, marked DRAFT. Update CDBG, HOME, etc. with FY2026 funding levels and deadlines."
+        "notes": "Updated 2026-01-10. San Rafael participates in Marin County joint CDBG/HOME program. FY2025-26 Marin County allocations: CDBG $1.5M, HOME $700K. FY2026 federal appropriations UNCERTAIN - operating under CR through Jan 30, 2026. Added Section 8 HCV info and local AHTF contribution."
       },
       "state_programs_refresh": {
         "status": "not_ready",
