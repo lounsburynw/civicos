@@ -974,6 +974,7 @@ class TestSpeakerMetadataIntegration:
             assert len(speakers_info) >= 1
 
 
+@pytest.mark.requires_real_data
 class TestSpeakerMetadataWithRealData:
     """Tests using real testimony files."""
 
