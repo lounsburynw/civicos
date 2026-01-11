@@ -218,9 +218,10 @@ class MinutesExtractor:
         ),
     }
 
-    def __init__(self):
+    def __init__(self, jurisdiction_id: Optional[str] = None):
         if fitz is None:
             raise ImportError("PyMuPDF (fitz) is required for PDF extraction")
+        self.jurisdiction_id = jurisdiction_id
 
     def extract(self, pdf_path: str | Path) -> MeetingMinutes:
         """
@@ -303,7 +304,14 @@ class MinutesExtractor:
         )
         if match:
             return match.group(1).strip()
-        return "San Rafael City Hall"
+        # Use jurisdiction registry for default hall name
+        if self.jurisdiction_id:
+            try:
+                from civic_config.jurisdiction import JurisdictionRegistry
+                return JurisdictionRegistry.get_hall_name(self.jurisdiction_id)
+            except ImportError:
+                pass
+        return "City Hall"
 
     def _extract_attendance(self, text: str) -> tuple[list[str], list[str], list[str]]:
         """Extract present, absent, and also present members."""

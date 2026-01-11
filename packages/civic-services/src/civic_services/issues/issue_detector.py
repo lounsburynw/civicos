@@ -122,22 +122,15 @@ Respond ONLY with valid JSON."""
             return None
 
     def _resolve_jurisdiction(self, location_mention: Optional[str], user_context: Optional[Dict[str, Any]]) -> Optional[str]:
-        """Resolve location mention to jurisdiction_id"""
-        # Simple jurisdiction mapping (expand as needed)
-        location_map = {
-            'berkeley': 'city-berkeley',
-            'oakland': 'city-oakland',
-            'san rafael': 'city-san-rafael',
-            'santa rosa': 'city-santa-rosa',
-            'hayward': 'city-hayward',
-            'el cerrito': 'city-el-cerrito',
-        }
-
+        """Resolve location mention to jurisdiction_id using the jurisdiction registry."""
         if location_mention:
-            location_lower = location_mention.lower()
-            for key, jurisdiction_id in location_map.items():
-                if key in location_lower:
+            try:
+                from civic_config.jurisdiction import JurisdictionRegistry
+                jurisdiction_id = JurisdictionRegistry.get_location_display_name(location_mention)
+                if jurisdiction_id:
                     return jurisdiction_id
+            except ImportError:
+                pass
 
         # Fallback to user context
         if user_context and user_context.get('jurisdiction_id'):

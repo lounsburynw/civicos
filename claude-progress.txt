@@ -12824,3 +12824,57 @@ open http://localhost:8001/docs
 ### Next P0: jurisdiction_config_system
 
 Replace 28 hardcoded San Rafael references with configurable jurisdiction system.
+
+## Session 509: jurisdiction_config_system - Architecture Audit
+
+**Date:** 2026-01-11
+**Item:** jurisdiction_config_system (data_architecture > architecture_audit)
+**Priority:** P0 (completed)
+
+### Summary
+
+Extended the existing JurisdictionConfig system to fully replace hardcoded San Rafael references throughout the codebase. The infrastructure already existed in `civic-config` - this task was about completing adoption.
+
+### Work Completed
+
+1. **Extended JurisdictionConfig dataclass** (`packages/civic-config/src/civic_config/jurisdiction.py`):
+   - Added `display_name: str` - Human-readable name (e.g., "San Rafael")
+   - Added `hall_name: str` - Meeting location (e.g., "San Rafael City Hall")
+   - Added `domains: Tuple[str, ...]` - Associated domains for URL detection
+   - Added `wiki_files: Tuple[str, ...]` - Wiki documentation paths
+
+2. **Added JurisdictionRegistry methods**:
+   - `get_by_domain(domain)` - Lookup config by domain name
+   - `get_hall_name(jurisdiction_id)` - Get meeting hall name
+   - `get_display_name(jurisdiction_id)` - Get human-readable name
+   - `get_wiki_files(jurisdiction_id)` - Get wiki file paths
+   - `get_jurisdiction_id_by_domain(domain)` - Get jurisdiction_id from domain
+   - `get_location_display_name(location_mention)` - Resolve city name to jurisdiction_id
+
+3. **Updated jurisdiction configs** with extended fields:
+   - San Rafael (pilot city) - full config
+   - Berkeley - full config
+   - Santa Rosa, Hayward, Oakland - display_name, hall_name, domains
+   - El Cerrito - display_name, hall_name, domains
+   - **Added Marin County** (wasn't in registry, now added)
+
+4. **Fixed hardcoded references**:
+   - `minutes.py:_extract_location()` - Now uses JurisdictionRegistry.get_hall_name()
+   - `civic_digest.py:_detect_jurisdiction()` - Now uses domain-based lookup
+   - `civic_digest.py:_load_wiki_files()` - Now uses JurisdictionRegistry.get_wiki_files()
+   - `issue_detector.py:_resolve_jurisdiction()` - Now uses get_location_display_name()
+
+### Test Results
+- 42/42 smoke tests passing
+- New JurisdictionRegistry methods verified working
+
+### Files Modified
+- `packages/civic-config/src/civic_config/jurisdiction.py` (extended config + new methods)
+- `packages/civic/src/civic/_internal/meetings/minutes.py` (fixed hardcoded location)
+- `packages/civic-services/src/civic_services/processing/civic_digest.py` (fixed maps)
+- `packages/civic-services/src/civic_services/issues/issue_detector.py` (fixed location_map)
+- `pilot.json` (marked ready)
+
+### Next P0
+TBD - Need to set next P0 before session end.
+

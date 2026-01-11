@@ -34,6 +34,11 @@ class JurisdictionConfig:
     meeting_calendar_url: str = ""
     cost_efficiency_target: Optional[float] = None
     granicus_config: Optional[GranicusConfig] = None
+    # Extended fields for jurisdiction config consolidation
+    display_name: str = ""  # Human-readable name (e.g., "San Rafael")
+    hall_name: str = ""  # Meeting location (e.g., "San Rafael City Hall")
+    domains: Tuple[str, ...] = ()  # Associated domains for URL detection
+    wiki_files: Tuple[str, ...] = ()  # Wiki documentation paths
 
     # Timezone display abbreviation (derived from timezone)
     @property
@@ -63,6 +68,13 @@ _REGISTRY: Dict[str, JurisdictionConfig] = {
         timezone="America/Los_Angeles",
         website="https://www.cityofsanrafael.org",
         meeting_calendar_url="https://www.cityofsanrafael.org/departments/public-meetings/",
+        display_name="San Rafael",
+        hall_name="San Rafael City Hall",
+        domains=("cityofsanrafael.org", "sanrafael.org"),
+        wiki_files=(
+            "wiki/jurisdictions/california/cities/san-rafael.md",
+            "wiki/engagement-strategies/municipal/public-comment-best-practices.md",
+        ),
     ),
 
     # ---------- San Rafael City Schools (pilot school district) ----------
@@ -85,6 +97,30 @@ _REGISTRY: Dict[str, JurisdictionConfig] = {
         timezone="America/Los_Angeles",
         website="https://berkeleyca.gov",
         meeting_calendar_url="https://berkeleyca.gov/community-recreation/events",
+        display_name="Berkeley",
+        hall_name="Berkeley City Hall",
+        domains=("berkeleyca.gov", "cityofberkeley.info"),
+        wiki_files=(
+            "wiki/jurisdictions/california/cities/berkeley.md",
+            "wiki/engagement-strategies/municipal/public-comment-best-practices.md",
+        ),
+    ),
+
+    # ---------- Marin County ----------
+    "marin_county": JurisdictionConfig(
+        jurisdiction_id="marin-county",
+        agent_type="standard",
+        meeting_urls=["https://www.marincounty.org/depts/bs/board-of-supervisors/meetings-agendas-and-minutes"],
+        contact_email="boardclerk@marincounty.org",
+        timezone="America/Los_Angeles",
+        website="https://www.marincounty.org",
+        display_name="Marin County",
+        hall_name="Marin County Civic Center",
+        domains=("marincounty.org", "marincounty.gov"),
+        wiki_files=(
+            "wiki/jurisdictions/california/counties/marin-county.md",
+            "wiki/engagement-strategies/municipal/public-comment-best-practices.md",
+        ),
     ),
 
     # ---------- Legistar Platform Cities ----------
@@ -94,6 +130,9 @@ _REGISTRY: Dict[str, JurisdictionConfig] = {
         meeting_urls=["https://santa-rosa.legistar.com/Calendar.aspx"],
         contact_email="citycouncil@srcity.org",
         timezone="America/Los_Angeles",
+        display_name="Santa Rosa",
+        hall_name="Santa Rosa City Hall",
+        domains=("srcity.org", "santa-rosa.legistar.com"),
     ),
     "hayward": JurisdictionConfig(
         jurisdiction_id="city-hayward",
@@ -102,6 +141,9 @@ _REGISTRY: Dict[str, JurisdictionConfig] = {
         contact_email="clerk@hayward-ca.gov",
         timezone="America/Los_Angeles",
         cost_efficiency_target=0.05,
+        display_name="Hayward",
+        hall_name="Hayward City Hall",
+        domains=("hayward-ca.gov", "hayward.legistar.com"),
     ),
     "oakland": JurisdictionConfig(
         jurisdiction_id="city-oakland",
@@ -110,6 +152,9 @@ _REGISTRY: Dict[str, JurisdictionConfig] = {
         contact_email="cityclerk@oaklandca.gov",
         timezone="America/Los_Angeles",
         cost_efficiency_target=0.05,
+        display_name="Oakland",
+        hall_name="Oakland City Hall",
+        domains=("oaklandca.gov", "oakland.legistar.com"),
     ),
     "sonoma_county": JurisdictionConfig(
         jurisdiction_id="sonoma-county",
@@ -156,6 +201,9 @@ _REGISTRY: Dict[str, JurisdictionConfig] = {
         website="https://www.elcerrito.gov",
         meeting_calendar_url="https://elcerritoca.portal.civicclerk.com",
         cost_efficiency_target=0.05,
+        display_name="El Cerrito",
+        hall_name="El Cerrito City Hall",
+        domains=("elcerrito.gov", "elcerritoca.portal.civicclerk.com"),
     ),
     "los_altos": JurisdictionConfig(
         jurisdiction_id="city-los-altos",
@@ -417,6 +465,110 @@ class JurisdictionRegistry:
             True if registered, False otherwise
         """
         return jurisdiction_id in _JURISDICTION_ID_TO_KEY
+
+    @classmethod
+    def get_by_domain(cls, domain: str) -> Optional[JurisdictionConfig]:
+        """
+        Get jurisdiction config by domain name.
+
+        Args:
+            domain: Domain to look up (e.g., "cityofsanrafael.org")
+
+        Returns:
+            JurisdictionConfig or None if not found
+        """
+        domain_lower = domain.lower()
+        for config in _REGISTRY.values():
+            if any(d.lower() in domain_lower or domain_lower in d.lower()
+                   for d in config.domains):
+                return config
+        return None
+
+    @classmethod
+    def get_hall_name(cls, jurisdiction_id: str, default: str = "City Hall") -> str:
+        """
+        Get meeting hall name for a jurisdiction.
+
+        Args:
+            jurisdiction_id: The jurisdiction ID (e.g., "city-san-rafael")
+            default: Default hall name if not configured
+
+        Returns:
+            Hall name string (e.g., "San Rafael City Hall")
+        """
+        config = cls.get_by_id(jurisdiction_id)
+        if config and config.hall_name:
+            return config.hall_name
+        return default
+
+    @classmethod
+    def get_display_name(cls, jurisdiction_id: str, default: str = "") -> str:
+        """
+        Get human-readable display name for a jurisdiction.
+
+        Args:
+            jurisdiction_id: The jurisdiction ID (e.g., "city-san-rafael")
+            default: Default display name if not configured
+
+        Returns:
+            Display name string (e.g., "San Rafael")
+        """
+        config = cls.get_by_id(jurisdiction_id)
+        if config and config.display_name:
+            return config.display_name
+        return default
+
+    @classmethod
+    def get_wiki_files(cls, jurisdiction_id: str) -> Tuple[str, ...]:
+        """
+        Get wiki documentation file paths for a jurisdiction.
+
+        Args:
+            jurisdiction_id: The jurisdiction ID (e.g., "city-san-rafael")
+
+        Returns:
+            Tuple of wiki file paths (may be empty)
+        """
+        config = cls.get_by_id(jurisdiction_id)
+        if config:
+            return config.wiki_files
+        return ()
+
+    @classmethod
+    def get_jurisdiction_id_by_domain(cls, domain: str) -> Optional[str]:
+        """
+        Get jurisdiction ID by domain name.
+
+        Args:
+            domain: Domain to look up (e.g., "cityofsanrafael.org")
+
+        Returns:
+            Jurisdiction ID or None if not found
+        """
+        config = cls.get_by_domain(domain)
+        if config:
+            return config.jurisdiction_id
+        return None
+
+    @classmethod
+    def get_location_display_name(cls, location_mention: str) -> Optional[str]:
+        """
+        Resolve a location mention to a jurisdiction ID.
+
+        Args:
+            location_mention: City/location name (e.g., "san rafael", "Berkeley")
+
+        Returns:
+            Jurisdiction ID or None if not found
+        """
+        location_lower = location_mention.lower().strip()
+        for config in _REGISTRY.values():
+            if config.display_name and config.display_name.lower() == location_lower:
+                return config.jurisdiction_id
+            # Also check partial matches for multi-word names
+            if config.display_name and location_lower in config.display_name.lower():
+                return config.jurisdiction_id
+        return None
 
 
 # ============================================================================
