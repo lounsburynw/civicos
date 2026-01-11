@@ -4,11 +4,17 @@ Integrated Civic API with Authentication and Schema Compliance
 Bridges civic_digest.py → data/events/*.json → Conversational Interface
 
 Addresses Priority 1 + TECHNICAL_DEBT issues #1 (Auth) and #5 (Integration Testing)
+
+Session 507: Beginning decomposition into domain-specific routers.
+Post-pilot: FastAPI migration will complete the decomposition.
 """
 
 import json
 import os
 from http.server import HTTPServer, BaseHTTPRequestHandler
+
+# Domain-specific handler mixins (Session 507)
+from .routers import CoreMixin
 from datetime import datetime, timedelta
 from pathlib import Path
 import sys
@@ -516,8 +522,12 @@ audit_logger = get_logger('civic_audit') if 'get_logger' in dir() else logging.g
 # Only used when ConversationStore is unavailable (backwards compatibility)
 CONVERSATIONS: Dict[str, List[Dict]] = {}
 
-class AuthenticatedCivicAPIHandler(BaseHTTPRequestHandler):
-    """Authenticated HTTP handler for civic data API with schema integration"""
+class AuthenticatedCivicAPIHandler(CoreMixin, BaseHTTPRequestHandler):
+    """Authenticated HTTP handler for civic data API with schema integration.
+
+    Session 507: Inherits from domain-specific mixins for decomposition.
+    CoreMixin provides: serve_status, serve_jurisdictions, serve_google_maps_key
+    """
 
     # Session 68: Provider usage tracking for cost monitoring
     provider_stats = defaultdict(lambda: {"count": 0, "total_tokens": 0})
