@@ -4,6 +4,8 @@
   "target": "Jan 2026",
   "location": "San Rafael, CA",
   "last_updated": "2026-01-10",
+  "session_current_note": "Architecture audit follow-up: Addressing all 6 issues from ARCHITECTURE_AUDIT_2026_01_FOLLOWUP.md to bring grade from B+ to A/A+. Added architecture_audit category with 6 items. Bumped federal_programs_vector_embeddings to P1. New P0: storage_backend_decomposition.",
+  "session_506_note": "Added federal programs parser strategy: HUDExchangeClient (Playwright) for authoritative allocations, SAMAssistanceClient (REST API) to replace Perplexity for program definitions. See docs/FEDERAL_PROGRAMS_PARSER_STRATEGY.md. Added 4 new items: hud_exchange_parser, sam_assistance_client, federal_programs_expand_catalog, san_rafael_allocations_ingest.",
   "session_491_note": "Architecture audit: Created docs/ARCHITECTURE_AUDIT_2026_01.md identifying pre/post-pilot improvements. Key findings: vector backend fragmentation (bumped to P1), civic.py dataclass sprawl (new P2 item). Added Serena memory 'architecture_audit_2026_01' for future reference.",
   "session_481_note": "Strategic pivot from Open States to LegiScan for state legislators (Open States acquired by PE-backed SAI360 Dec 2025). Implemented LegiScanClient, updated RepresentativesClient to use LegiScan as primary with Open States fallback.",
   "session_480_note": "Completed soft_delete_support P0: added deleted_at to 19 content tables, updated all queries to filter deleted records, added soft_delete/restore_deleted methods",
@@ -1271,7 +1273,7 @@
       },
       "federal_programs_vector_embeddings": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Add federal programs to pgvector corpus for semantic search",
         "notes": "Enable queries like 'what federal housing money is available?' to find CDBG, HOME, Section 8 info. Include both national program descriptions and jurisdiction-specific allocations.",
         "depends_on": [
@@ -1295,6 +1297,47 @@
           "civic_type_extraction"
         ],
         "artifact": "packages/civic/src/civic/types.py additions"
+      },
+      "hud_exchange_parser": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Create Playwright client for HUD Exchange allocation data",
+        "notes": "Scrape hudexchange.info/grantees/allocations-awards/ for authoritative CDBG/HOME/ESG/HOPWA allocation amounts per jurisdiction per fiscal year. Requires Playwright due to JavaScript rendering. See docs/FEDERAL_PROGRAMS_PARSER_STRATEGY.md.",
+        "depends_on": [
+          "federal_programs_postgres_migration"
+        ],
+        "artifact": "packages/civic-extraction/src/civic_extraction/clients/hud_exchange.py"
+      },
+      "sam_assistance_client": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Create SAM.gov Assistance Listings API client",
+        "notes": "Replace Perplexity-sourced program definitions with authoritative SAM.gov data. REST API via open.gsa.gov/api/. Free API key from api.data.gov. Provides program eligibility, compliance requirements, ALN (CFDA) numbers. See docs/FEDERAL_PROGRAMS_PARSER_STRATEGY.md.",
+        "depends_on": [
+          "federal_programs_postgres_migration"
+        ],
+        "artifact": "packages/civic-extraction/src/civic_extraction/clients/sam_assistance.py"
+      },
+      "federal_programs_expand_catalog": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Expand federal program catalog with ESG, HOPWA, HTF, CoC, transportation, and EPA programs",
+        "notes": "Current catalog has 10 programs (CDBG, HOME, Section 8, LIHTC, FTA, TAP, EPA EJ, DOE EECBG, Title I). Add: ESG (homelessness), HOPWA (HIV/AIDS housing), HTF (extremely low-income), CoC (continuum of care), CMAQ, STBG, CWSRF, DWSRF. Source from SAM.gov. See docs/FEDERAL_PROGRAMS_PARSER_STRATEGY.md.",
+        "depends_on": [
+          "sam_assistance_client"
+        ],
+        "artifact": "20+ federal programs in federal_programs table with authoritative source data"
+      },
+      "san_rafael_allocations_ingest": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Ingest San Rafael historical federal program allocations from HUD Exchange",
+        "notes": "Use HUDExchangeClient to retrieve San Rafael CDBG/HOME/ESG allocations for FY2020-FY2025. Store in federal_program_allocations table. Enables 'what federal money is available?' queries with real amounts.",
+        "depends_on": [
+          "hud_exchange_parser",
+          "federal_programs_vector_embeddings"
+        ],
+        "artifact": "San Rafael allocations in federal_program_allocations table with vector embeddings"
       }
     },
     "vector_sql_linkage": {
@@ -1373,6 +1416,62 @@
         "artifact": "Create data/extraction/marin-county.json with financial data sources",
         "note": "County-level budget context. SCO data available. Identify budget/ACFR PDF locations.",
         "depends_on": "extraction_config_financial_section"
+      }
+    },
+    "architecture_audit": {
+      "storage_backend_decomposition": {
+        "status": "ready",
+        "description": "Decompose 82-method StorageBackend protocol into domain-specific sub-protocols",
+        "notes": "Decomposed into 6 sub-protocols: ContentStorage, LegislationStorage, FinancialStorage, CommunityStorage, ElectionStorage, OperationsStorage. Session 506.",
+        "artifact": "6 sub-protocols in packages/civic/src/civic/storage/, composed into StorageBackend",
+        "test_file": "packages/civic/tests/test_storage_protocols.py",
+        "estimated_effort": "4-6 hours with Claude Code"
+      },
+      "civic_api_decomposition": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Split 10,456-line civic_api_integrated.py into domain-specific routers",
+        "notes": "Extract into meetings_router.py, legislation_router.py, community_router.py, admin_router.py, financial_router.py. See docs/ARCHITECTURE_AUDIT_2026_01_FOLLOWUP.md issue #8 (NEW).",
+        "artifact": "5 FastAPI routers in packages/civic-services/src/civic_services/servers/routers/",
+        "depends_on": [
+          "storage_backend_decomposition"
+        ],
+        "estimated_effort": "2-3 hours with Claude Code"
+      },
+      "jurisdiction_config_system": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Replace 28 hardcoded San Rafael references with jurisdiction config system",
+        "notes": "Create JurisdictionConfig dataclass with city name, timezone, location formats. Update minutes.py, civic_api.py, and other files to use config. See docs/ARCHITECTURE_AUDIT_2026_01_FOLLOWUP.md issue #6.",
+        "artifact": "packages/civic/src/civic/jurisdiction_config.py with per-jurisdiction configs",
+        "depends_on": [
+          "storage_backend_decomposition"
+        ],
+        "estimated_effort": "1-2 hours with Claude Code"
+      },
+      "langgraph_workflow_cleanup": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Audit and clean up 4 unused LangGraph workflows",
+        "notes": "Only run_coordination used from Civic facade. suggestion, preparation, pattern, strategy workflows only used in tests. Either integrate into API or remove. See docs/ARCHITECTURE_AUDIT_2026_01_FOLLOWUP.md issue #4.",
+        "artifact": "Either integrated workflows or removed speculative code",
+        "estimated_effort": "20-30 minutes with Claude Code"
+      },
+      "todo_debt_cleanup": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Clean up 20 stale TODO comments across codebase",
+        "notes": "Convert to GitHub issues, implement, or delete with explanation. Focus on california.py (6 TODOs), civic_api.py, civicclerk_client.py. See docs/ARCHITECTURE_AUDIT_2026_01_FOLLOWUP.md issue #5.",
+        "artifact": "0 stale TODOs, actionable items tracked in GitHub issues",
+        "estimated_effort": "20-30 minutes with Claude Code"
+      },
+      "pilot_json_consolidation": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Consolidate 351 pilot.json items into logical groups",
+        "notes": "Group related items (e.g., parallelization/pytest_xdist_setup + parallel_safe_fixtures + loadscope_distribution \u2192 single 'parallel_test_infrastructure'). Reduce cognitive overhead. See docs/ARCHITECTURE_AUDIT_2026_01_FOLLOWUP.md issue #7.",
+        "artifact": "Consolidated pilot.json with ~50-100 grouped items",
+        "estimated_effort": "20-30 minutes with Claude Code"
       }
     }
   },

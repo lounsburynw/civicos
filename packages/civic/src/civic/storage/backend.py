@@ -3,11 +3,30 @@ StorageBackend protocol for primary data persistence.
 
 Defines the interface for CRUD operations on civic data (SQLite, Postgres).
 Part of the 4-stage pipeline: discover -> ingest -> store -> index.
+
+This module contains the composite StorageBackend protocol that inherits from
+domain-specific sub-protocols in civic.storage.protocols/:
+- ContentStorage: Meetings, decisions, chunks, agenda items, transcripts, videos
+- LegislationStorage: Bills, municipal code, codified law, executive orders
+- FinancialStorage: Budget items, federal awards, state pass-through, funding links
+- CommunityStorage: 311 issues and public feedback
+- ElectionStorage: Elections, contests, deadlines, officials
+- OperationsStorage: ETL operations and cost tracking
+
+The sub-protocols allow narrower type constraints for domain-specific functions
+while the composite StorageBackend maintains backward compatibility.
 """
 
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
+
+from civic.storage.protocols.content import ContentStorage
+from civic.storage.protocols.legislation import LegislationStorage
+from civic.storage.protocols.financial import FinancialStorage
+from civic.storage.protocols.community import CommunityStorage
+from civic.storage.protocols.elections import ElectionStorage
+from civic.storage.protocols.operations import OperationsStorage
 
 
 @dataclass
@@ -83,12 +102,27 @@ class StorageValidationResult:
 
 
 @runtime_checkable
-class StorageBackend(Protocol):
+class StorageBackend(
+    ContentStorage,
+    LegislationStorage,
+    FinancialStorage,
+    CommunityStorage,
+    ElectionStorage,
+    OperationsStorage,
+    Protocol,
+):
     """
-    Protocol for primary data storage (SQLite, Postgres).
+    Composite protocol for primary data storage (SQLite, Postgres).
 
-    Handles CRUD operations for meetings and agenda items with
-    temporal versioning support. Part of the 4-stage pipeline.
+    Inherits from domain-specific sub-protocols for organized method grouping:
+    - ContentStorage: Meetings, decisions, chunks, agenda items, transcripts, videos
+    - LegislationStorage: Bills, municipal code, codified law, executive orders
+    - FinancialStorage: Budget items, federal awards, state pass-through, funding links
+    - CommunityStorage: 311 issues and public feedback
+    - ElectionStorage: Elections, contests, deadlines, officials
+    - OperationsStorage: ETL operations and cost tracking
+
+    Plus system methods: validate(), get_stats(), backend_type
 
     Implementations:
     - SQLiteBackend: Wraps StateManager for local development
