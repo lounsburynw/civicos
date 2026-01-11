@@ -1249,7 +1249,7 @@
       },
       "federal_programs_postgres_migration": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Migrate federal programs data from static JSON to PostgreSQL",
         "notes": "Currently stored in data/funding/federal/*.json and data/jurisdiction_overrides/*.json. Need proper table schema with temporal versioning (FY tracking), jurisdiction linkage, and program metadata.",
         "depends_on": [],
@@ -3068,7 +3068,7 @@
       },
       "executive_orders_incremental_fetcher": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Add EO incremental fetcher to civic-extraction",
         "notes": "EOs have higher velocity than codified law. Federal Register API supports date filtering. Add to civic-extraction for scheduled updates like meetings/legislation."
       },
