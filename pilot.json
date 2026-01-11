@@ -1480,11 +1480,19 @@
       },
       "pilot_json_consolidation": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Consolidate 351 pilot.json items into logical groups",
         "notes": "Group related items (e.g., parallelization/pytest_xdist_setup + parallel_safe_fixtures + loadscope_distribution \u2192 single 'parallel_test_infrastructure'). Reduce cognitive overhead. See docs/ARCHITECTURE_AUDIT_2026_01_FOLLOWUP.md issue #7.",
         "artifact": "Consolidated pilot.json with ~50-100 grouped items",
         "estimated_effort": "20-30 minutes with Claude Code"
+      },
+      "fastapi_migration_complete": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Complete FastAPI migration and remove civic_api_integrated.py monolith",
+        "notes": "FastAPI server exists (civic_api_fastapi.py + routers_fastapi/, 4k lines). Old monolith is 10k+ lines. Need to: 1) Verify feature parity with frontend, 2) Test frontend with USE_FASTAPI=true, 3) Make FastAPI default, 4) Remove civic_api_integrated.py.",
+        "artifact": "civic_api_integrated.py removed, FastAPI is default, frontend works",
+        "estimated_effort": "1-2 hours with Claude Code"
       }
     }
   },
