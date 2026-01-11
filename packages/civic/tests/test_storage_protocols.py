@@ -212,13 +212,10 @@ class TestStorageBackendProtocol:
     def test_protocol_is_runtime_checkable(self):
         """StorageBackend can be checked at runtime."""
         # Create a mock implementation
-        @dataclass
         class MockStorageBackend:
-            _backend_type: str = "mock"
-
             @property
             def backend_type(self) -> str:
-                return self._backend_type
+                return "mock"
 
             def validate(self) -> StorageValidationResult:
                 return StorageValidationResult(
@@ -700,6 +697,116 @@ class TestStorageBackendProtocol:
             ) -> bool:
                 return True
 
+            # Agenda items methods
+            def store_agenda_items(
+                self,
+                jurisdiction_id: str,
+                items: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(items)
+
+            def get_agenda_items(
+                self,
+                jurisdiction_id: str,
+                meeting_id: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_agenda_item_count(
+                self, jurisdiction_id: Optional[str] = None
+            ) -> int:
+                return 0
+
+            # Election methods
+            def store_elections(
+                self,
+                jurisdiction_id: str,
+                elections: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(elections)
+
+            def get_elections(
+                self,
+                jurisdiction_id: str,
+                election_type: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_election_count(self, jurisdiction_id: str) -> int:
+                return 0
+
+            def store_election_deadlines(
+                self,
+                jurisdiction_id: str,
+                deadlines: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(deadlines)
+
+            def get_election_deadlines(
+                self,
+                jurisdiction_id: str,
+                election_id: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def store_election_contests(
+                self,
+                jurisdiction_id: str,
+                contests: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(contests)
+
+            def get_election_contests(
+                self,
+                jurisdiction_id: str,
+                election_id: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def store_elected_officials(
+                self,
+                jurisdiction_id: str,
+                officials: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(officials)
+
+            def get_elected_officials(
+                self,
+                jurisdiction_id: str,
+                office: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_official_by_name(
+                self,
+                jurisdiction_id: str,
+                name: str,
+                as_of: Optional[datetime] = None,
+            ) -> Optional[Dict[str, Any]]:
+                return None
+
+            # Meeting update method
+            def update_meeting(
+                self,
+                jurisdiction_id: str,
+                meeting_id: str,
+                updates: Dict[str, Any],
+            ) -> bool:
+                return True
+
         mock = MockStorageBackend()
         assert isinstance(mock, StorageBackend)
 
@@ -723,23 +830,18 @@ class TestVectorBackendProtocol:
     def test_protocol_is_runtime_checkable(self):
         """VectorBackend can be checked at runtime."""
 
-        @dataclass
         class MockVectorBackend:
-            _backend_type: str = "mock"
-            _embedding_model: str = "test-model"
-            _embedding_dimension: int = 768
-
             @property
             def backend_type(self) -> str:
-                return self._backend_type
+                return "mock"
 
             @property
             def embedding_model(self) -> str:
-                return self._embedding_model
+                return "test-model"
 
             @property
             def embedding_dimension(self) -> int:
-                return self._embedding_dimension
+                return 768
 
             def validate(self) -> VectorValidationResult:
                 return VectorValidationResult(
@@ -764,6 +866,13 @@ class TestVectorBackendProtocol:
                 min_score: Optional[float] = None,
             ) -> List[SearchResult]:
                 return []
+
+            def count(
+                self,
+                jurisdiction_id: str,
+                corpus_type: str = "decisions",
+            ) -> int:
+                return 0
 
             def get_stats(
                 self,
@@ -790,7 +899,6 @@ class TestVectorBackendProtocol:
     def test_embedding_properties_required(self):
         """VectorBackend requires embedding_model and embedding_dimension properties."""
 
-        @dataclass
         class CompleteVectorBackend:
             """Backend with all required properties including embeddings."""
 
@@ -829,6 +937,13 @@ class TestVectorBackendProtocol:
                 min_score: Optional[float] = None,
             ) -> List[SearchResult]:
                 return []
+
+            def count(
+                self,
+                jurisdiction_id: str,
+                corpus_type: str = "decisions",
+            ) -> int:
+                return 0
 
             def get_stats(
                 self,
@@ -937,17 +1052,13 @@ class TestProtocolIntegration:
         """VectorBackend.index_from_storage reads from StorageBackend."""
         # This tests the key design principle: index reads from storage, not memory
 
-        @dataclass
         class InMemoryStorage:
-            _data: Dict[str, List[Dict]] = None
-            _backend_type: str = "memory"
-
-            def __post_init__(self):
-                self._data = {}
+            def __init__(self):
+                self._data: Dict[str, List[Dict]] = {}
 
             @property
             def backend_type(self) -> str:
-                return self._backend_type
+                return "memory"
 
             def validate(self) -> StorageValidationResult:
                 return StorageValidationResult(
@@ -1433,27 +1544,131 @@ class TestProtocolIntegration:
             ) -> bool:
                 return True
 
-        @dataclass
-        class InMemoryVector:
-            _index: Dict[str, List[Dict]] = None
-            _backend_type: str = "memory"
-            _embedding_model: str = "test-model"
-            _embedding_dimension: int = 768
+            # Agenda items methods
+            def store_agenda_items(
+                self,
+                jurisdiction_id: str,
+                items: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(items)
 
-            def __post_init__(self):
-                self._index = {}
+            def get_agenda_items(
+                self,
+                jurisdiction_id: str,
+                meeting_id: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_agenda_item_count(
+                self, jurisdiction_id: Optional[str] = None
+            ) -> int:
+                return 0
+
+            # Election methods
+            def store_elections(
+                self,
+                jurisdiction_id: str,
+                elections: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(elections)
+
+            def get_elections(
+                self,
+                jurisdiction_id: str,
+                election_type: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_election_count(self, jurisdiction_id: str) -> int:
+                return 0
+
+            def store_election_deadlines(
+                self,
+                jurisdiction_id: str,
+                deadlines: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(deadlines)
+
+            def get_election_deadlines(
+                self,
+                jurisdiction_id: str,
+                election_id: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def store_election_contests(
+                self,
+                jurisdiction_id: str,
+                contests: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(contests)
+
+            def get_election_contests(
+                self,
+                jurisdiction_id: str,
+                election_id: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def store_elected_officials(
+                self,
+                jurisdiction_id: str,
+                officials: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(officials)
+
+            def get_elected_officials(
+                self,
+                jurisdiction_id: str,
+                office: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_official_by_name(
+                self,
+                jurisdiction_id: str,
+                name: str,
+                as_of: Optional[datetime] = None,
+            ) -> Optional[Dict[str, Any]]:
+                return None
+
+            # Meeting update method
+            def update_meeting(
+                self,
+                jurisdiction_id: str,
+                meeting_id: str,
+                updates: Dict[str, Any],
+            ) -> bool:
+                return True
+
+        class InMemoryVector:
+            def __init__(self):
+                self._index: Dict[str, List[Dict]] = {}
 
             @property
             def backend_type(self) -> str:
-                return self._backend_type
+                return "memory"
 
             @property
             def embedding_model(self) -> str:
-                return self._embedding_model
+                return "test-model"
 
             @property
             def embedding_dimension(self) -> int:
-                return self._embedding_dimension
+                return 768
 
             def validate(self) -> VectorValidationResult:
                 return VectorValidationResult(
@@ -1482,6 +1697,14 @@ class TestProtocolIntegration:
                 min_score: Optional[float] = None,
             ) -> List[SearchResult]:
                 return []
+
+            def count(
+                self,
+                jurisdiction_id: str,
+                corpus_type: str = "decisions",
+            ) -> int:
+                key = f"{jurisdiction_id}:{corpus_type}"
+                return len(self._index.get(key, []))
 
             def get_stats(
                 self,
@@ -1886,13 +2109,10 @@ class TestBlobStorageProtocol:
         """BlobStorage can be checked at runtime."""
         from civic.storage import BlobStats, BlobStorage, BlobValidationResult
 
-        @dataclass
         class MockBlobStorage:
-            _backend_type: str = "mock"
-
             @property
             def backend_type(self) -> str:
-                return self._backend_type
+                return "mock"
 
             def validate(self) -> BlobValidationResult:
                 return BlobValidationResult(
