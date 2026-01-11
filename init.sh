@@ -70,6 +70,12 @@ if os.path.exists(checklist):
                 sub_done, sub_pending = count_items(val)
                 done += sub_done
                 pending += sub_pending
+        elif isinstance(obj, list):
+            # Handle consolidated completed items format
+            for item in obj:
+                sub_done, sub_pending = count_items(item)
+                done += sub_done
+                pending += sub_pending
         return done, pending
 
     done, pending = count_items(cl)

@@ -12944,3 +12944,43 @@ Completed the FastAPI migration by:
 
 ### Next P0
 Need to identify next priority item from pilot.json
+
+## Session 512 - 2026-01-11
+
+### Task: pilot_json_consolidation (P0)
+
+Consolidated pilot.json from 364 individual items to a more compact structure:
+- **Before**: 183KB, 364 items tracked individually
+- **After**: 57KB (69% reduction), completed items grouped in `_completed_items` arrays
+- Ready items: 324 (89%)
+- Not ready items: 38 (still tracked individually for active work)
+
+### Changes Made
+1. **pilot.json restructured**:
+   - Completed items grouped by subcategory into `_completed_items` arrays
+   - Not-ready items preserved individually with full metadata
+   - Preserves all counting and priority detection
+
+2. **init.sh updated**:
+   - Added list handling to `count_items()` function
+   - Now correctly counts items in `_completed_items` arrays
+
+### Technical Approach
+- Each subcategory now has:
+  - `_completed_items`: array of `{name, status: 'ready'}` for completed work
+  - Individual items for `not_ready` work (preserves priority, description, etc.)
+- `/start` command works unchanged (skips non-dict items)
+- `init.sh` counts both formats correctly
+
+### Files Changed
+- `pilot.json` - Restructured (183KB → 57KB)
+- `init.sh` - Updated count_items() to handle lists
+- `pilot_original.json` - Backup of original (can be deleted)
+
+### Test Results
+- 42/42 smoke tests passing
+- `init.sh` reports: 324/362 items ready (89%)
+- `/start` correctly identifies P0 item
+
+### Next P0
+Set `federal_programs_vector_embeddings` as next P0 (data_architecture > data_source_unification)
