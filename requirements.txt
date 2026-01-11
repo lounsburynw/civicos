@@ -16,6 +16,11 @@ fastembed>=0.3.0
 # Note: For local dev with sentence-transformers, install separately:
 # pip install sentence-transformers
 
+# API Server (FastAPI + Uvicorn)
+fastapi>=0.109.0      # Modern async API framework
+uvicorn[standard]>=0.27.0  # ASGI server with auto-reload
+python-multipart>=0.0.6    # Form/file upload support
+
 # WebSocket Server
 eventlet>=0.33.0
 python-socketio>=5.8.0

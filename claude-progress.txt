@@ -12733,3 +12733,94 @@ Migrate API from BaseHTTPRequestHandler to FastAPI with proper routers. Benefits
 - Native async/await support
 - Cleaner route definitions with decorators
 - Industry-standard Python API framework
+
+## Session 508 - FastAPI Migration (2026-01-10)
+
+### Task: fastapi_migration (P0)
+
+Migrated the Civic API from BaseHTTPRequestHandler to FastAPI.
+
+### Changes
+
+1. **Added Dependencies**
+   - `requirements.txt`: Added fastapi>=0.109.0, uvicorn[standard]>=0.27.0, python-multipart>=0.0.6
+
+2. **Created FastAPI Application**
+   - `packages/civic-services/src/civic_services/servers/civic_api_fastapi.py` - Main FastAPI app with:
+     - CORS middleware configuration
+     - Request logging middleware
+     - Rate limiting checks
+     - Health check endpoint
+
+3. **Created Domain Routers** (`packages/civic-services/src/civic_services/servers/routers_fastapi/`)
+   - `core.py` - /api/status, /api/jurisdictions, /help, /api/onboarding/cards, /api/config/google-maps-key
+   - `events.py` - /api/events, /api/events/search, /api/events/{id}, /api/events/{id}/discussion-stats
+   - `issues.py` - /api/issues, /api/issues/search, /api/issues/{id}, /api/issues/{id}/timeline, etc.
+   - `admin.py` - /api/admin/cache-stats, /api/admin/operations, /api/admin/vector-stats, etc.
+   - `user.py` - /api/user/profile, /api/user/location, /api/user/export, DELETE /api/user
+   - `follows.py` - /api/follows/{focal_type}/{focal_id}, POST /api/follows
+   - `threads.py` - /api/threads, /api/threads/{id}/messages
+   - `legislative.py` - /api/legislation/state/{topic}, /api/elections/{jurisdiction_id}
+   - `conversations.py` - POST /api/conversation, POST /api/chat/route
+   - `drafts.py` - /api/events/{id}/drafts, POST /api/drafts/{id}/submit
+   - `dependencies.py` - Shared auth dependencies (verify_auth, get_api_keys)
+
+4. **Updated scripts/dev.sh**
+   - Added `api-fastapi` command to launch with uvicorn
+   - Added `USE_FASTAPI=true` environment variable option
+   - OpenAPI docs available at /docs, ReDoc at /redoc
+
+### Architecture
+
+The FastAPI implementation provides:
+- **65 routes** across 10 domain routers
+- **Automatic OpenAPI documentation** at /docs
+- **Pydantic models** for request/response validation
+- **Native async/await** support
+- **Bearer token authentication** via FastAPI dependencies
+- **Rate limiting** preserved from original implementation
+- **CORS** via middleware
+
+### Usage
+
+```bash
+# Launch FastAPI server directly
+./scripts/dev.sh api-fastapi
+
+# Or set USE_FASTAPI=true for the api command
+USE_FASTAPI=true ./scripts/dev.sh api
+
+# Access OpenAPI docs
+open http://localhost:8001/docs
+```
+
+### Tests
+
+- 42/42 smoke tests passing
+- FastAPI app loads successfully with all routers
+
+### Files Modified
+
+- `requirements.txt`
+- `scripts/dev.sh`
+- `pilot.json`
+
+### Files Created
+
+- `packages/civic-services/src/civic_services/servers/civic_api_fastapi.py`
+- `packages/civic-services/src/civic_services/servers/routers_fastapi/__init__.py`
+- `packages/civic-services/src/civic_services/servers/routers_fastapi/dependencies.py`
+- `packages/civic-services/src/civic_services/servers/routers_fastapi/core.py`
+- `packages/civic-services/src/civic_services/servers/routers_fastapi/events.py`
+- `packages/civic-services/src/civic_services/servers/routers_fastapi/issues.py`
+- `packages/civic-services/src/civic_services/servers/routers_fastapi/admin.py`
+- `packages/civic-services/src/civic_services/servers/routers_fastapi/user.py`
+- `packages/civic-services/src/civic_services/servers/routers_fastapi/follows.py`
+- `packages/civic-services/src/civic_services/servers/routers_fastapi/threads.py`
+- `packages/civic-services/src/civic_services/servers/routers_fastapi/legislative.py`
+- `packages/civic-services/src/civic_services/servers/routers_fastapi/conversations.py`
+- `packages/civic-services/src/civic_services/servers/routers_fastapi/drafts.py`
+
+### Next P0: jurisdiction_config_system
+
+Replace 28 hardcoded San Rafael references with configurable jurisdiction system.

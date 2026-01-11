@@ -1441,8 +1441,8 @@
         "estimated_effort": "2-3 hours with Claude Code"
       },
       "fastapi_migration": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 99,
         "description": "Migrate API from BaseHTTPRequestHandler to FastAPI with proper routers",
         "notes": "Convert mixin-based decomposition to FastAPI routers. Enables: automatic OpenAPI docs, Pydantic validation, async endpoints, cleaner route definitions. Uses existing routers/ structure.",
         "artifact": "FastAPI app with domain routers, uvicorn server",
@@ -1453,7 +1453,7 @@
       },
       "jurisdiction_config_system": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Replace 28 hardcoded San Rafael references with jurisdiction config system",
         "notes": "Create JurisdictionConfig dataclass with city name, timezone, location formats. Update minutes.py, civic_api.py, and other files to use config. See docs/ARCHITECTURE_AUDIT_2026_01_FOLLOWUP.md issue #6.",
         "artifact": "packages/civic/src/civic/jurisdiction_config.py with per-jurisdiction configs",
