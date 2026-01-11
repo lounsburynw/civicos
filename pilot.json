@@ -1511,7 +1511,26 @@
           "name": "legislative_cron",
           "status": "ready"
         }
-      ]
+      ],
+      "federal_programs_scheduled_refresh": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Automated periodic refresh of federal programs from SAM.gov",
+        "artifact": "Modal function or cron job that fetches updated program data from SAM.gov Assistance Listings API",
+        "note": "Currently federal programs are manually ingested via scripts/ingest_federal_programs.py. Data was last refreshed Oct 2025. Federal program details (eligible activities, compliance requirements) can change annually. Recommend quarterly refresh minimum.",
+        "depends_on": [
+          "sam_assistance_client"
+        ],
+        "options": [
+          "Modal scheduled function (preferred - already have Modal infra)",
+          "GitHub Actions cron workflow",
+          "Manual quarterly reminder"
+        ],
+        "modified_files": [
+          "scripts/modal/federal_programs_refresh.py",
+          ".github/workflows/federal-programs-refresh.yml"
+        ]
+      }
     },
     "incremental_processing": {
       "_completed_items": [
@@ -1607,6 +1626,37 @@
         "modified_files": [
           "packages/civic-extraction/src/civic_extraction/pipeline.py",
           ".github/workflows/vector-refresh.yml"
+        ]
+      },
+      "federal_programs_vector_workflow": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Add federal programs corpus to vector-refresh GitHub Actions workflow",
+        "artifact": "Update .github/workflows/vector-refresh.yml to include corpus_type='programs'",
+        "note": "Session 513 added pgvector support for federal programs but it's not in the CI workflow. Currently only indexes: chunks, meetings, transcripts, municipal_code, issues, decisions. Federal programs vectors were indexed manually once but won't auto-refresh.",
+        "gap_identified": "Session 513 - federal_programs_vector_embeddings completed but not in CI",
+        "modified_files": [
+          ".github/workflows/vector-refresh.yml"
+        ]
+      },
+      "conditional_vector_reindex_after_ingest": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Trigger vector re-indexing automatically after federal programs data refresh",
+        "artifact": "Post-ingest hook that calls pgvector.index_from_storage() for programs corpus when data changes",
+        "note": "Builds on auto_vector_indexing_on_ingest but specific to federal programs. When SAM.gov refresh completes, should automatically re-embed changed programs. Consider: only re-index programs with changed content (hash comparison) to minimize embedding API costs.",
+        "depends_on": [
+          "federal_programs_scheduled_refresh",
+          "auto_vector_indexing_on_ingest"
+        ],
+        "options": [
+          "Hash-based change detection before re-indexing",
+          "Full re-index (simpler, ~10 programs so cheap)",
+          "Event-driven via Postgres trigger"
+        ],
+        "modified_files": [
+          "scripts/ingest_federal_programs.py",
+          "packages/civic/src/civic/storage/pgvector_backend.py"
         ]
       }
     },
