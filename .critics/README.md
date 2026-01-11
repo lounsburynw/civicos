@@ -14,6 +14,7 @@ Critics are specialized prompts that review code changes against Civic's pattern
 | `protocol.critic.md` | Protocol conformance | Missing methods, signature mismatches |
 | `architecture.critic.md` | Layer boundaries | Cross-layer imports, package violations |
 | `session.critic.md` | Session hygiene | Missing P0, multiple P0s, incomplete handoff |
+| `data.critic.md` | ETL data quality | Schema violations, type mismatches, missing fields |
 
 ## Usage
 
