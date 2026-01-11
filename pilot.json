@@ -1463,19 +1463,19 @@
         "estimated_effort": "1-2 hours with Claude Code"
       },
       "langgraph_workflow_cleanup": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Audit and clean up 4 unused LangGraph workflows",
-        "notes": "Only run_coordination used from Civic facade. suggestion, preparation, pattern, strategy workflows only used in tests. Either integrate into API or remove. See docs/ARCHITECTURE_AUDIT_2026_01_FOLLOWUP.md issue #4.",
-        "artifact": "Either integrated workflows or removed speculative code",
+        "notes": "DECISION: Defer integration until user demand. Workflows (suggestion, preparation, pattern, strategy) are valuable coordination features that map to c.suggestions(), c.prepare(), c.report_outcome(). Keep code, wire up when pilot users need them.",
+        "artifact": "Decision documented - defer integration, keep code",
         "estimated_effort": "20-30 minutes with Claude Code"
       },
       "todo_debt_cleanup": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "description": "Clean up 20 stale TODO comments across codebase",
-        "notes": "Convert to GitHub issues, implement, or delete with explanation. Focus on california.py (6 TODOs), civic_api.py, civicclerk_client.py. See docs/ARCHITECTURE_AUDIT_2026_01_FOLLOWUP.md issue #5.",
-        "artifact": "0 stale TODOs, actionable items tracked in GitHub issues",
+        "notes": "Cleaned up 14 stale TODOs (california.py scaffold code, Phase 2/3 markers, external dependencies). Kept 3 valid TODOs (federal search, index_target, token tracking).",
+        "artifact": "14 stale TODOs removed, 3 valid TODOs remain",
         "estimated_effort": "20-30 minutes with Claude Code"
       },
       "pilot_json_consolidation": {

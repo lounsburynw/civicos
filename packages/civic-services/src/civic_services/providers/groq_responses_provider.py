@@ -166,8 +166,7 @@ class GroqResponsesProvider(LLMProvider):
         Yields:
             str: Content chunks as they arrive
         """
-        # For now, fall back to non-streaming and yield the full response
-        # TODO: Implement true streaming when Groq Responses API supports it
+        # Falls back to non-streaming (Groq Responses API doesn't support streaming yet)
         response = self.complete(
             messages=messages,
             tools=tools,

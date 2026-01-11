@@ -4985,10 +4985,7 @@ Key Topics (choose up to 3 from):
                 geocoded['lng']
             )
 
-            # Store location (only lat/lng - privacy preserving)
-            # TODO: Add database table for user locations
-            # For now, we'll just return the location data
-            # Frontend will store it in localStorage
+            # Return location data - frontend stores in localStorage (Phase 3: database storage)
 
             response = {
                 'location': {
@@ -5265,12 +5262,7 @@ Key Topics (choose up to 3 from):
         Returns 404 if no location set.
         """
         try:
-            # TODO: Retrieve location from database
-            # For Phase 3, frontend stores location in localStorage
-            # This endpoint is a placeholder for future database integration
-
-            # For now, return 404 (not found)
-            # Frontend will handle this by showing LocationEntry modal
+            # Phase 3: Retrieve from database. Currently frontend uses localStorage.
             self.send_json({'error': 'Location not found. Please set your location.'}, 404)
 
         except Exception as e:

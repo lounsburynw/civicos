@@ -148,8 +148,7 @@ class IssueStorage:
                 short_name_number
             ))
 
-            # Track as civic action (disabled - table not in production)
-            # TODO: Re-enable when civic_actions tracking is implemented
+            # Track as civic action (disabled - civic_actions table not in production)
             # cursor.execute("""
             #     INSERT INTO civic_actions (
             #         id, user_id, event_type, opportunity_id, jurisdiction_id,

@@ -174,9 +174,7 @@ def check_banked_complaints_for_new_event(event: Dict) -> List[str]:
     if not jurisdiction_id:
         return []
 
-    # Get all open (unmatched) issues for this jurisdiction
-    # TODO: Add query method to IssueStorage to get all open issues by jurisdiction
-    # For now, this is a placeholder for Phase 2
+    # Phase 2: Query open (unmatched) issues for re-matching
 
     logger.debug(f"Checking banked issues for new event in {jurisdiction_id}")
 

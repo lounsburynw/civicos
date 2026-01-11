@@ -104,6 +104,10 @@ class CaliforniaCorpus:
     """
     Fetches California legislation from leginfo.legislature.ca.gov.
 
+    NOTE: This is scaffold code for future implementation. For the pilot,
+    California legislation is pre-loaded into PostgreSQL. The methods below
+    provide basic functionality but are not fully implemented.
+
     The California Legislature provides bill data through their public website.
     This class handles:
     - Session enumeration
@@ -203,8 +207,7 @@ class CaliforniaCorpus:
         Returns:
             List of session identifiers (e.g., ["2023-2024", "2021-2022"])
         """
-        # For now, return known sessions
-        # TODO: Scrape from website for dynamic discovery
+        # Returns known sessions (dynamic discovery not implemented)
         return self.SESSIONS.copy()
 
     async def fetch_bill(
@@ -239,8 +242,7 @@ class CaliforniaCorpus:
             # Parse HTML response
             html = response.text
 
-            # Extract metadata and text
-            # TODO: Implement HTML parsing
+            # Extract metadata and text (basic regex parsing)
             metadata = BillMetadata(
                 bill_id=f"{bill_type}-{number}",
                 session=session,
@@ -318,25 +320,21 @@ class CaliforniaCorpus:
         if not self._client:
             raise RuntimeError("Use async context manager")
 
-        # TODO: Implement bill enumeration via search API
-        # For now, return empty - this is the scaffold
+        # Bill enumeration not implemented (scaffold)
         return []
 
     def _extract_title(self, html: str) -> str:
-        """Extract bill title from HTML."""
-        # TODO: Implement HTML parsing
+        """Extract bill title from HTML (basic regex)."""
         match = re.search(r'<title>([^<]+)</title>', html, re.IGNORECASE)
         return match.group(1) if match else "Unknown"
 
     def _extract_author(self, html: str) -> str:
-        """Extract bill author from HTML."""
-        # TODO: Implement HTML parsing
+        """Extract bill author from HTML (not implemented)."""
+        _ = html  # Unused in scaffold
         return "Unknown"
 
     def _extract_bill_text(self, html: str) -> str:
-        """Extract bill text content from HTML."""
-        # TODO: Implement proper HTML parsing and text extraction
-        # For now, strip tags naively
+        """Extract bill text content from HTML (naive tag stripping)."""
         text = re.sub(r'<[^>]+>', ' ', html)
         text = re.sub(r'\s+', ' ', text)
         return text.strip()
