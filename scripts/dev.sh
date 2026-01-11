@@ -1,6 +1,6 @@
 #!/bin/bash
 # Civic Development Server Launcher
-# Usage: ./scripts/dev.sh [api|ws|frontend|all]
+# Usage: ./scripts/dev.sh [api|api-fastapi|ws|frontend|all]
 #
 # Starts the development servers with proper environment configuration.
 
@@ -27,9 +27,25 @@ export PYTHONPATH="$CIVIC_SERVICES/monitoring:$CIVIC_SERVICES/clients:$CIVIC_SER
 # Activate virtual environment
 source "$PROJECT_ROOT/civic-env/bin/activate"
 
+# Use FastAPI by default if USE_FASTAPI=true (opt-in during migration)
+USE_FASTAPI="${USE_FASTAPI:-false}"
+
 start_api() {
-    echo "Starting API server on http://localhost:8001..."
-    python -m civic_services.servers.civic_api_integrated
+    if [ "$USE_FASTAPI" = "true" ]; then
+        echo "Starting FastAPI server on http://localhost:8001..."
+        echo "  - OpenAPI docs at http://localhost:8001/docs"
+        uvicorn civic_services.servers.civic_api_fastapi:app --host 0.0.0.0 --port 8001 --reload
+    else
+        echo "Starting API server on http://localhost:8001..."
+        python -m civic_services.servers.civic_api_integrated
+    fi
+}
+
+start_api_fastapi() {
+    echo "Starting FastAPI server on http://localhost:8001..."
+    echo "  - OpenAPI docs at http://localhost:8001/docs"
+    echo "  - ReDoc at http://localhost:8001/redoc"
+    uvicorn civic_services.servers.civic_api_fastapi:app --host 0.0.0.0 --port 8001 --reload
 }
 
 start_websocket() {
@@ -74,21 +90,26 @@ show_help() {
     echo "Usage: ./scripts/dev.sh [command]"
     echo ""
     echo "Commands:"
-    echo "  api       Start REST API server only (port 8001)"
-    echo "  ws        Start WebSocket server only (port 8002)"
-    echo "  frontend  Start Vue frontend only (port 5173)"
-    echo "  all       Start all servers (default)"
-    echo "  help      Show this help message"
+    echo "  api          Start REST API server only (port 8001)"
+    echo "  api-fastapi  Start FastAPI server only (port 8001, with /docs)"
+    echo "  ws           Start WebSocket server only (port 8002)"
+    echo "  frontend     Start Vue frontend only (port 5173)"
+    echo "  all          Start all servers (default)"
+    echo "  help         Show this help message"
     echo ""
     echo "Environment:"
     echo "  CIVIC_DEV_MODE=true"
     echo "  CIVIC_WEB_KEY=dev_key_local (or from .env)"
     echo "  GOOGLE_MAPS_API_KEY (from .env)"
+    echo "  USE_FASTAPI=true (opt-in to FastAPI for 'api' command)"
 }
 
 case "${1:-all}" in
     api)
         start_api
+        ;;
+    api-fastapi)
+        start_api_fastapi
         ;;
     ws)
         start_websocket
