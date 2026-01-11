@@ -135,6 +135,132 @@
       ],
       "leverage_point": "Participate in public hearings or comment periods during the QAP development or amendment process at the state housing agency. Submit written comments or attend meetings when local governments or housing authorities discuss affordable housing priorities or support for specific LIHTC projects.",
       "official_url": "https://www.irs.gov/forms-pubs/about-form-8586"
+    },
+    "emergency_solutions_grants": {
+      "program_name": "Emergency Solutions Grants (ESG)",
+      "administering_agency": "U.S. Department of Housing and Urban Development (HUD), Office of Community Planning and Development",
+      "cfda_number": "14.231",
+      "description": "Provides federal funding for rapid re-housing, homelessness prevention, emergency shelter, and street outreach services. ESG helps communities engage homeless individuals and families living on the street, improve the number and quality of emergency shelters, help operate these shelters, provide essential services to shelter residents, rapidly re-house homeless individuals and families, and prevent families and individuals from becoming homeless.",
+      "eligible_activities": [
+        "Emergency shelter operations, essential services, and renovation",
+        "Street outreach to unsheltered homeless individuals",
+        "Rapid re-housing assistance including rental assistance and housing relocation",
+        "Homelessness prevention including rental assistance and housing stabilization services",
+        "Data collection and HMIS participation",
+        "Administrative costs for program administration"
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Consolidated Plan public hearings and comment periods",
+        "Annual Action Plan development with required citizen participation",
+        "Continuum of Care coordination meetings",
+        "Community needs assessment input sessions"
+      ],
+      "leverage_point": "Participate in Consolidated Plan public hearings and Continuum of Care coordination meetings. Advocate for specific homelessness services or populations. Engage with local ESG subrecipient organizations to influence service delivery priorities.",
+      "official_url": "https://www.hudexchange.info/programs/esg/",
+      "keywords": [
+        "homelessness prevention",
+        "rapid re-housing",
+        "emergency shelter",
+        "street outreach",
+        "homeless services"
+      ]
+    },
+    "housing_opportunities_for_persons_with_aids": {
+      "program_name": "Housing Opportunities for Persons with AIDS (HOPWA)",
+      "administering_agency": "U.S. Department of Housing and Urban Development (HUD), Office of Community Planning and Development",
+      "cfda_number": "14.241",
+      "description": "The only federal program dedicated to addressing the housing needs of persons living with HIV/AIDS. HOPWA provides housing assistance and related supportive services to help individuals with HIV/AIDS and their families establish or maintain stable housing, reduce risk of homelessness, and improve access to HIV treatment and other health care support.",
+      "eligible_activities": [
+        "Tenant-based rental assistance (TBRA) for persons with HIV/AIDS",
+        "Short-term rent, mortgage, and utility payments to prevent homelessness",
+        "Facility-based housing including community residences and single-room occupancy dwellings",
+        "Permanent housing placement services",
+        "Supportive services including case management, substance abuse treatment, and mental health services",
+        "Housing information and resource identification",
+        "Operating costs for housing facilities"
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Consolidated Plan public hearings and comment periods",
+        "Annual Action Plan citizen participation process",
+        "HIV/AIDS housing planning councils and advisory committees",
+        "Community input sessions on HOPWA funding priorities"
+      ],
+      "leverage_point": "Participate in Consolidated Plan public hearings and local HIV/AIDS housing planning processes. Engage with HOPWA project sponsors and advocacy organizations to influence housing assistance priorities and service delivery models.",
+      "official_url": "https://www.hudexchange.info/programs/hopwa/",
+      "keywords": [
+        "HIV/AIDS housing",
+        "rental assistance",
+        "supportive services",
+        "housing stability",
+        "special needs housing"
+      ]
+    },
+    "housing_trust_fund": {
+      "program_name": "National Housing Trust Fund (HTF)",
+      "administering_agency": "U.S. Department of Housing and Urban Development (HUD), Office of Affordable Housing Programs",
+      "cfda_number": "14.275",
+      "description": "Provides grants to states to produce and preserve affordable housing for extremely low-income (ELI) households, including homeless families. The HTF targets households at or below 30% of area median income (AMI), with priority given to projects that serve the lowest income households for the longest period of time and leverage other funding sources.",
+      "eligible_activities": [
+        "Production of new rental housing for extremely low-income households",
+        "Preservation and rehabilitation of existing affordable rental housing",
+        "Construction of permanent supportive housing for homeless populations",
+        "Operating cost assistance and operating cost reserves for HTF rental units",
+        "Reasonable and necessary administrative and planning costs"
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "State allocation plan public hearings and comment periods",
+        "Consolidated Plan citizen participation process",
+        "Local affordable housing development project review processes",
+        "Public comment on state HTF allocation priorities"
+      ],
+      "leverage_point": "Participate in state allocation plan hearings and comment periods. Advocate for HTF funding in your community by engaging with state housing finance agencies. Support local developers applying for HTF funds through letters of support and community testimony.",
+      "official_url": "https://www.hudexchange.info/programs/htf/",
+      "keywords": [
+        "extremely low-income housing",
+        "affordable housing production",
+        "rental housing",
+        "permanent supportive housing",
+        "housing preservation"
+      ]
+    },
+    "continuum_of_care": {
+      "program_name": "Continuum of Care (CoC) Program",
+      "administering_agency": "U.S. Department of Housing and Urban Development (HUD), Office of Special Needs Assistance Programs",
+      "cfda_number": "14.267",
+      "description": "Provides funding to local continuums of care for projects that provide housing and services to individuals and families experiencing homelessness. The program promotes community-wide commitment to ending homelessness through coordinated entry systems, evidence-based practices, and performance measurement. CoC funds support permanent supportive housing, rapid re-housing, transitional housing, and supportive services.",
+      "eligible_activities": [
+        "Permanent supportive housing for chronically homeless individuals and families",
+        "Rapid re-housing to help homeless individuals and families quickly exit shelter",
+        "Transitional housing with supportive services",
+        "Supportive services only for persons in permanent housing",
+        "Homeless Management Information System (HMIS) data collection and analysis",
+        "Coordinated entry system development and operation",
+        "Planning and administration for CoC activities"
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "CoC board and committee meetings open to public participation",
+        "Annual Point-in-Time count volunteer opportunities",
+        "Coordinated entry system community input processes",
+        "CoC application priority setting public meetings",
+        "Homeless services provider coordination meetings"
+      ],
+      "leverage_point": "Join your local Continuum of Care board or committees. Participate in annual Point-in-Time counts and community planning processes. Advocate for specific populations or service models during CoC application priority setting. Engage with homeless service providers to influence local homeless system design.",
+      "official_url": "https://www.hudexchange.info/programs/coc/",
+      "keywords": [
+        "homelessness",
+        "permanent supportive housing",
+        "rapid re-housing",
+        "coordinated entry",
+        "chronic homelessness"
+      ]
     }
   }
 }

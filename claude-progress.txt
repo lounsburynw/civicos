@@ -13012,3 +13012,39 @@ Set `federal_programs_vector_embeddings` as next P0 (data_architecture > data_so
 
 ### Next P0
 Set `federal_programs_expand_catalog` as next P0 (data_architecture > data_source_unification)
+
+## Session 513 (2026-01-11) - federal_programs_expand_catalog
+
+### Task
+Expanded federal program catalog from 10 to 22 programs.
+
+### Changes Made
+1. **Housing programs** (data/funding/federal/housing.json): Added 4 programs
+   - Emergency Solutions Grants (ESG) - ALN 14.231
+   - Housing Opportunities for Persons with AIDS (HOPWA) - ALN 14.241
+   - National Housing Trust Fund (HTF) - ALN 14.275
+   - Continuum of Care (CoC) Program - ALN 14.267
+
+2. **Transportation programs** (data/funding/federal/transportation.json): Added 4 programs
+   - CMAQ (Congestion Mitigation & Air Quality) - ALN 20.205
+   - STBG (Surface Transportation Block Grant) - ALN 20.205
+   - Section 5310 (Enhanced Mobility for Seniors) - ALN 20.513
+   - RAISE Grants - ALN 20.933
+
+3. **Environment programs** (data/funding/federal/environment.json): Added 4 programs
+   - CWSRF (Clean Water State Revolving Fund) - ALN 66.458
+   - DWSRF (Drinking Water State Revolving Fund) - ALN 66.468
+   - Brownfields Program - ALN 66.818
+   - Clean School Bus Program - ALN 66.045
+
+4. **Ingestion & Indexing**
+   - Ran `scripts/ingest_federal_programs.py` - 22 programs stored in PostgreSQL
+   - Re-indexed `federal-US` corpus - 22 program embeddings in pgvector
+   - Verified semantic search: ESG, Section 5310, DWSRF, HOPWA, Clean School Bus, STBG all returning correctly
+
+### Verification
+- 42/42 smoke tests passing
+- Semantic search working for all new programs
+
+### Next P0
+Set `hud_exchange_parser` as next P0 (data_architecture > data_source_unification)

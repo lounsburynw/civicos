@@ -60,6 +60,135 @@
         "climate action",
         "sustainability"
       ]
+    },
+    "clean_water_state_revolving_fund": {
+      "program_name": "Clean Water State Revolving Fund (CWSRF)",
+      "administering_agency": "U.S. Environmental Protection Agency (EPA), Office of Water",
+      "cfda_number": "66.458",
+      "description": "Provides capitalization grants to states to establish revolving loan funds that provide low-cost financing for water quality infrastructure projects. CWSRF supports a wide range of projects including wastewater treatment facilities, stormwater management, green infrastructure, nonpoint source pollution control, and estuary protection. States have flexibility to set priorities and may offer additional subsidies for disadvantaged communities.",
+      "eligible_activities": [
+        "Construction, repair, and rehabilitation of publicly owned wastewater treatment facilities",
+        "Combined sewer overflow (CSO) correction projects",
+        "Stormwater management and green infrastructure projects",
+        "Nonpoint source pollution control projects",
+        "Decentralized wastewater treatment systems",
+        "Water conservation and efficiency projects",
+        "Watershed protection and restoration projects",
+        "Lead service line replacement in certain circumstances"
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "State CWSRF Intended Use Plan public hearings and comment periods",
+        "Local wastewater facility planning public meetings",
+        "Environmental review and permitting public comment opportunities",
+        "Disadvantaged community designation public input processes"
+      ],
+      "leverage_point": "Participate in state Intended Use Plan development to influence funding priorities. Engage with local government officials advocating for CWSRF-eligible projects. Support applications for projects addressing water quality in your community through public comment and attendance at planning meetings.",
+      "official_url": "https://www.epa.gov/cwsrf",
+      "keywords": [
+        "wastewater infrastructure",
+        "water quality",
+        "stormwater management",
+        "green infrastructure",
+        "water pollution control"
+      ]
+    },
+    "drinking_water_state_revolving_fund": {
+      "program_name": "Drinking Water State Revolving Fund (DWSRF)",
+      "administering_agency": "U.S. Environmental Protection Agency (EPA), Office of Water",
+      "cfda_number": "66.468",
+      "description": "Provides capitalization grants to states for drinking water infrastructure improvements that facilitate compliance with Safe Drinking Water Act requirements and protect public health. DWSRF offers low-interest loans and additional subsidies to public water systems serving disadvantaged communities. The program addresses treatment upgrades, distribution system improvements, source water protection, and technical assistance for small systems.",
+      "eligible_activities": [
+        "Installation, upgrade, and replacement of drinking water treatment facilities",
+        "Distribution system improvements including pipe replacement and storage tanks",
+        "Lead service line replacement and corrosion control",
+        "Source water protection and wellhead protection projects",
+        "Water system interconnections and consolidation",
+        "Technical assistance and operator training for small systems",
+        "Security improvements for drinking water facilities",
+        "Water meter installation and system monitoring equipment"
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "State DWSRF Intended Use Plan public hearings and comment periods",
+        "Drinking water system capital improvement planning meetings",
+        "Consumer Confidence Report review and feedback opportunities",
+        "Public comment on water rate changes and system improvements"
+      ],
+      "leverage_point": "Participate in state Intended Use Plan hearings to advocate for drinking water priorities. Engage with local water utilities on capital improvement plans. Review Consumer Confidence Reports and participate in rate-setting processes that fund local drinking water improvements.",
+      "official_url": "https://www.epa.gov/dwsrf",
+      "keywords": [
+        "drinking water infrastructure",
+        "water treatment",
+        "lead pipe replacement",
+        "water system improvements",
+        "safe drinking water"
+      ]
+    },
+    "brownfields_program": {
+      "program_name": "EPA Brownfields Program",
+      "administering_agency": "U.S. Environmental Protection Agency (EPA), Office of Land and Emergency Management",
+      "cfda_number": "66.818",
+      "description": "Provides grants and technical assistance to communities, states, tribes, and other stakeholders to assess, safely clean up, and sustainably reuse contaminated properties known as brownfields. The program supports environmental assessment, cleanup, job training, revolving loan funds, and technical assistance to address barriers to economic redevelopment posed by environmental contamination.",
+      "eligible_activities": [
+        "Environmental site assessments (Phase I and Phase II) for brownfield properties",
+        "Cleanup of hazardous substances, pollutants, and contaminants",
+        "Petroleum cleanup at eligible underground storage tank sites",
+        "Establishment and operation of brownfield revolving loan funds",
+        "Job training for environmental careers in brownfield communities",
+        "Technical assistance for brownfield assessment and cleanup planning",
+        "Area-wide planning for brownfield redevelopment",
+        "Multipurpose grants combining assessment and cleanup activities"
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "Brownfield grant application community involvement requirements",
+        "Site-specific cleanup planning public meetings",
+        "Area-wide planning community engagement processes",
+        "Environmental justice screening and community benefit discussions"
+      ],
+      "leverage_point": "Participate in community engagement sessions during brownfield grant applications. Advocate for cleanup and redevelopment of specific contaminated sites. Engage with local government on brownfield inventory and prioritization. Provide input on desired end uses for cleaned-up properties.",
+      "official_url": "https://www.epa.gov/brownfields",
+      "keywords": [
+        "contaminated sites",
+        "environmental cleanup",
+        "brownfield redevelopment",
+        "site assessment",
+        "land reuse"
+      ]
+    },
+    "clean_school_bus_program": {
+      "program_name": "Clean School Bus Program",
+      "administering_agency": "U.S. Environmental Protection Agency (EPA), Office of Transportation and Air Quality",
+      "cfda_number": "66.045",
+      "description": "Provides funding to replace existing school buses with zero-emission and low-emission models to reduce exposure to harmful air pollution for school children, bus drivers, and communities. Authorized under the Bipartisan Infrastructure Law, the program offers rebates and competitive grants to school districts, with priority for high-need local educational agencies, rural areas, and tribal schools.",
+      "eligible_activities": [
+        "Replacement of existing diesel school buses with zero-emission electric buses",
+        "Replacement with low-emission alternative fuel buses (propane, CNG)",
+        "Purchase of charging infrastructure for electric school buses",
+        "Workforce training for electric bus maintenance and operation",
+        "Scrappage requirements for replaced diesel buses"
+      ],
+      "local_compliance_required": true,
+      "annual_reporting": true,
+      "resident_input_opportunities": [
+        "School district budget and transportation planning meetings",
+        "School board meetings discussing fleet replacement applications",
+        "Parent-teacher organization discussions on student transportation",
+        "Community input on priority routes and equity considerations"
+      ],
+      "leverage_point": "Advocate at school board meetings for Clean School Bus Program applications. Engage with school district transportation departments on fleet electrification plans. Support applications by providing community input on air quality concerns and priority routes serving disadvantaged communities.",
+      "official_url": "https://www.epa.gov/cleanschoolbus",
+      "keywords": [
+        "school bus electrification",
+        "zero-emission vehicles",
+        "clean transportation",
+        "student health",
+        "electric buses"
+      ]
     }
   }
 }
