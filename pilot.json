@@ -1452,8 +1452,8 @@
         "estimated_effort": "3-4 hours with Claude Code"
       },
       "jurisdiction_config_system": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 99,
         "description": "Replace 28 hardcoded San Rafael references with jurisdiction config system",
         "notes": "Create JurisdictionConfig dataclass with city name, timezone, location formats. Update minutes.py, civic_api.py, and other files to use config. See docs/ARCHITECTURE_AUDIT_2026_01_FOLLOWUP.md issue #6.",
         "artifact": "packages/civic/src/civic/jurisdiction_config.py with per-jurisdiction configs",
@@ -1464,7 +1464,7 @@
       },
       "langgraph_workflow_cleanup": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "description": "Audit and clean up 4 unused LangGraph workflows",
         "notes": "Only run_coordination used from Civic facade. suggestion, preparation, pattern, strategy workflows only used in tests. Either integrate into API or remove. See docs/ARCHITECTURE_AUDIT_2026_01_FOLLOWUP.md issue #4.",
         "artifact": "Either integrated workflows or removed speculative code",

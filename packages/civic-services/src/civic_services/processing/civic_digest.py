@@ -2434,60 +2434,48 @@ IMPORTANT: The meeting date/time text should be clickable and hide the Google Ca
         return enhanced_opportunities
 
     def _detect_jurisdiction(self, url: str) -> str:
-        """Detect jurisdiction from meeting URL using centralized configuration"""
+        """Detect jurisdiction from meeting URL using centralized configuration.
+
+        Returns the jurisdiction_id (e.g., 'city-san-rafael') or 'unknown'.
+        """
+        try:
+            from civic_config.jurisdiction import JurisdictionRegistry
+            # Try domain-based lookup first
+            domain = url.split("//")[1].split("/")[0]
+            jurisdiction_id = JurisdictionRegistry.get_jurisdiction_id_by_domain(domain)
+            if jurisdiction_id:
+                return jurisdiction_id
+        except (ImportError, IndexError):
+            pass
+
+        # Fallback to automated_civic_refresh for URL pattern matching
         try:
             from civic_services.monitoring.automated_civic_refresh import get_jurisdiction_by_url
-            jurisdiction_id = get_jurisdiction_by_url(url)
-
-            # Convert jurisdiction_id to legacy format for wiki loading
-            jurisdiction_map = {
-                "city-berkeley": "berkeley",
-                "city-san-rafael": "san-rafael",
-                "marin-county": "marin-county",
-                "city-santa-rosa": "santa-rosa"
-            }
-
-            return jurisdiction_map.get(jurisdiction_id, "unknown")
+            return get_jurisdiction_by_url(url)
         except ImportError:
-            # Fallback to legacy detection if automated_civic_refresh not available
-            domain_map = {
-                "cityofsanrafael.org": "san-rafael",
-                "marincounty.org": "marin-county",
-                "marincounty.gov": "marin-county",
-                "berkeleyca.gov": "berkeley",
-                "hayward-ca.gov": "hayward"
-            }
+            return "unknown"
 
-            try:
-                domain = url.split("//")[1].split("/")[0]
-                return domain_map.get(domain, "unknown")
-            except:
-                return "unknown"
-    
-    def _load_wiki_files(self, jurisdiction: str) -> str:
-        """Load relevant wiki files for jurisdiction"""
-        import os
-        
-        wiki_files = {
-            "san-rafael": [
-                "wiki/jurisdictions/california/cities/san-rafael.md",
-                "wiki/engagement-strategies/municipal/public-comment-best-practices.md"
-            ],
-            "marin-county": [
-                "wiki/jurisdictions/california/counties/marin-county.md",
-                "wiki/engagement-strategies/municipal/public-comment-best-practices.md"
-            ]
-        }
-        
+    def _load_wiki_files(self, jurisdiction_id: str) -> str:
+        """Load relevant wiki files for jurisdiction.
+
+        Args:
+            jurisdiction_id: The jurisdiction ID (e.g., 'city-san-rafael')
+        """
+        try:
+            from civic_config.jurisdiction import JurisdictionRegistry
+            wiki_paths = JurisdictionRegistry.get_wiki_files(jurisdiction_id)
+        except ImportError:
+            wiki_paths = ()
+
         combined_content = ""
-        for file_path in wiki_files.get(jurisdiction, []):
+        for file_path in wiki_paths:
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     combined_content += f"\n\n## {file_path}\n{f.read()}"
             except FileNotFoundError:
                 print(f"⚠️  Wiki file not found: {file_path}")
                 continue
-                
+
         return combined_content
 
     def _ai_enhance_opportunity(self, opp: CivicOpportunity, wiki_content: str) -> CivicOpportunity:
