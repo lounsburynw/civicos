@@ -340,10 +340,10 @@
         "artifact": "packages/civic/src/civic/types.py additions"
       },
       "hud_exchange_parser": {
-        "status": "not_ready",
-        "priority": 0,
-        "description": "Create Playwright client for HUD Exchange allocation data",
-        "notes": "Scrape hudexchange.info/grantees/allocations-awards/ for authoritative CDBG/HOME/ESG/HOPWA allocation amounts per jurisdiction per fiscal year. Requires Playwright due to JavaScript rendering. See docs/FEDERAL_PROGRAMS_PARSER_STRATEGY.md.",
+        "status": "ready",
+        "priority": 99,
+        "description": "Create HUD Exchange / HUD CPD allocation data client",
+        "notes": "Downloads official HUD Excel spreadsheets (FY2020-2025) for CDBG/HOME/ESG/HOPWA/HTF/RHP allocations. Note: San Rafael receives HUD formula funds via Marin County consortium, not as direct entitlement. See docs/FEDERAL_PROGRAMS_PARSER_STRATEGY.md.",
         "depends_on": [
           "federal_programs_postgres_migration"
         ],
@@ -351,7 +351,7 @@
       },
       "sam_assistance_client": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Create SAM.gov Assistance Listings API client",
         "notes": "Replace Perplexity-sourced program definitions with authoritative SAM.gov data. REST API via open.gsa.gov/api/. Free API key from api.data.gov. Provides program eligibility, compliance requirements, ALN (CFDA) numbers. See docs/FEDERAL_PROGRAMS_PARSER_STRATEGY.md.",
         "depends_on": [
