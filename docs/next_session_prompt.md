@@ -1,63 +1,93 @@
-# Recommended: executive_orders_incremental_fetcher
+# Recommended: federal_programs_postgres_migration
 
 **Priority:** P0
-**Area:** pilot_validation > e2e_cloud_data_verification
+**Area:** data_architecture > data_source_unification
 **Date:** 2026-01-10
 
 > This is recommended context from Session 503. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 503 completed `federal_programs_2026_refresh` - updated San Rafael's federal programs data with accurate FY2026 information:
-- Corrected allocation model (San Rafael participates in Marin County's joint CDBG/HOME program)
-- Added Marin County FY2025-26 allocations: CDBG $1.5M, HOME $700K
-- Added FY2026 appropriations status (UNCERTAIN - CR through Jan 30, 2026)
-- Added Section 8 HCV and local AHTF contribution info
+Session 503 completed `federal_programs_2026_refresh` and discovered that federal programs data is stored in static JSON files, not in PostgreSQL like other corpus types. This creates gaps:
+- Not semantically searchable via vectors
+- Siloed from main data query paths
+- No temporal versioning for FY tracking
 
 ## Recommended Task
 
-Merge or fix PR #8: `feature/validation/eo-incremental-fetcher`
+Migrate federal programs data from static JSON to PostgreSQL with proper schema.
 
-This PR implements incremental fetching for Executive Orders but has merge conflicts. Options:
-1. **Rebase and resolve conflicts** - Get PR mergeable
-2. **Review changes** - Ensure implementation is correct
-3. **Merge or close** - Complete the work
+## Current Data Locations
 
-## PR #8 Details
-
-```bash
-# Check PR status
-gh pr view 8
-
-# Check conflicts
-gh pr checkout 8
-git status
+```
+data/funding/federal/{topic}.json          # National program info (CDBG, HOME descriptions)
+data/jurisdiction_overrides/{city}.json    # Local allocations, contacts, deadlines
 ```
 
-## Key Files
+## Suggested Schema
 
-- PR branch: `feature/validation/eo-incremental-fetcher`
-- Likely location: `packages/civic-extraction/src/civic_extraction/federal/`
-- Related: Executive Orders extraction and incremental fetching logic
+```sql
+CREATE TABLE federal_programs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    program_id TEXT NOT NULL,              -- e.g., 'cdbg', 'home', 'section_8_hcv'
+    program_name TEXT NOT NULL,
+    administering_agency TEXT,             -- e.g., 'HUD'
+    description TEXT,
 
-## Suggested Approach
+    -- Scope: national vs jurisdiction-specific
+    scope TEXT NOT NULL,                   -- 'national' or 'jurisdiction'
+    jurisdiction_id TEXT,                  -- NULL for national, 'city-san-rafael' for local
 
-1. **Check PR status**: `gh pr view 8 --comments`
-2. **Checkout and rebase**: `gh pr checkout 8 && git rebase main`
-3. **Resolve conflicts** if any
-4. **Run tests**: `pytest packages/civic-extraction/tests/ -k "executive" -v`
-5. **Push and merge**: `git push --force-with-lease && gh pr merge 8 --merge`
+    -- Program details (JSONB for flexibility)
+    eligible_activities JSONB,
+    compliance_requirements JSONB,
+    citizen_participation JSONB,
 
-## Alternative P1 Items
+    -- Allocations (jurisdiction-specific)
+    fiscal_year TEXT,                      -- 'FY2026'
+    allocation_amount INTEGER,
+    allocation_source TEXT,
+    allocation_status TEXT,                -- 'CONFIRMED', 'UNCERTAIN', 'DRAFT'
 
-If PR #8 is blocked or needs more work:
-- `turso_backend` - Cloud storage backend
-- `data_critic` - Developer tooling critic
-- `marin_county_financial_config` - Financial data infrastructure
-- `engagement_tracking_schema` - Audit infrastructure
+    -- Contacts and URLs
+    key_contacts JSONB,
+    official_url TEXT,
+
+    -- Temporal versioning
+    valid_from TIMESTAMP DEFAULT NOW(),
+    valid_to TIMESTAMP,
+
+    -- Metadata
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_federal_programs_jurisdiction ON federal_programs(jurisdiction_id);
+CREATE INDEX idx_federal_programs_fiscal_year ON federal_programs(fiscal_year);
+```
+
+## Implementation Steps
+
+1. **Create migration script** - `scripts/sql/create_federal_programs_table.sql`
+2. **Create data loader** - Parse existing JSON files into new table
+3. **Update storage backend** - Add methods to `PostgresBackend`
+4. **Create API methods** - `get_federal_programs()`, `get_jurisdiction_allocations()`
+5. **Test with San Rafael data** - Verify the data we just updated loads correctly
+
+## Files to Modify
+
+- `packages/civic/src/civic/storage/postgres_backend.py` - Add table + methods
+- `packages/civic/src/civic/storage/protocol.py` - Add protocol methods
+- `scripts/sql/` - Migration script
+- `packages/civic-extraction/` - Consider data loader
+
+## Follow-up Item
+
+After this is complete: `federal_programs_vector_embeddings` (P1) - Add to pgvector for semantic search
 
 ## Success Criteria
 
-- [ ] PR #8 merged OR conflicts documented with plan
-- [ ] Executive Orders incremental fetcher working
+- [ ] PostgreSQL table created with proper schema
+- [ ] Existing JSON data migrated
+- [ ] API methods working
 - [ ] pilot.json item updated to "ready"
