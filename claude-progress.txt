@@ -12907,4 +12907,4 @@ Audited and cleaned up stale TODO comments across the codebase.
 - 42/42 smoke tests passing
 
 ### Next P0
-`pilot_json_consolidation` - Consolidate 351 items into ~50-100 groups
+`fastapi_migration_complete` - Complete FastAPI migration, remove 10k-line civic_api_integrated.py monolith
