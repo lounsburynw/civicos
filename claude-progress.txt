@@ -12663,3 +12663,73 @@ Decomposed the 82-method StorageBackend protocol into 6 domain-specific sub-prot
 ### Next P0: civic_api_decomposition
 
 Split 10,456-line civic_api_integrated.py into domain-specific routers.
+
+---
+
+## Session 507: civic_api_decomposition Phase 1 - Mixin Infrastructure
+
+**Date:** 2026-01-10
+**Item:** civic_api_decomposition (data_architecture > architecture_audit)
+**Priority:** P0 → P2 (completed phase 1)
+
+### Summary
+
+Created the infrastructure for decomposing the 10,456-line civic_api_integrated.py into domain-specific handlers using Python's multiple inheritance mixin pattern. This is Phase 1 of a two-phase approach, with FastAPI migration as Phase 2.
+
+### Approach Decision
+
+Evaluated two approaches:
+1. **FastAPI migration** - Modern framework with automatic OpenAPI docs, Pydantic validation
+2. **Mixin pattern** - Lower risk, incremental decomposition
+
+Chose to implement mixin infrastructure first because:
+- Pilot is Jan 2026 - stability matters more than elegance
+- Current system works (42/42 tests passing)
+- Decomposition unlocks FastAPI - once handlers are in separate files, migration is easier
+- Added `fastapi_migration` as P0 for next session
+
+### Work Completed
+
+1. **Created routers/ directory structure:**
+   - `packages/civic-services/src/civic_services/servers/routers/__init__.py`
+   - `packages/civic-services/src/civic_services/servers/routers/base.py` - Router/Route classes
+   - `packages/civic-services/src/civic_services/servers/routers/core.py` - CoreMixin
+
+2. **CoreMixin handlers extracted:**
+   - `serve_status()` - Health check with system checks
+   - `serve_jurisdictions()` - List jurisdictions with metadata
+   - `serve_google_maps_key()` - Frontend config endpoint
+
+3. **Integration via multiple inheritance:**
+   - Changed: `class AuthenticatedCivicAPIHandler(CoreMixin, BaseHTTPRequestHandler)`
+   - MRO verified: AuthenticatedCivicAPIHandler → CoreMixin → BaseHTTPRequestHandler → ...
+
+4. **Updated pilot.json:**
+   - Marked `civic_api_decomposition` as ready (Phase 1 complete)
+   - Added `fastapi_migration` as new P0
+
+### Files Created
+
+- `packages/civic-services/src/civic_services/servers/routers/__init__.py`
+- `packages/civic-services/src/civic_services/servers/routers/base.py` (~250 lines)
+- `packages/civic-services/src/civic_services/servers/routers/core.py` (~250 lines)
+
+### Files Modified
+
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py` - Added CoreMixin inheritance
+- `pilot.json` - Updated status, added fastapi_migration item
+
+### Tests
+
+- 42/42 smoke tests passing
+- Import verification successful
+- MRO verified at runtime
+
+### Next P0: fastapi_migration
+
+Migrate API from BaseHTTPRequestHandler to FastAPI with proper routers. Benefits:
+- Automatic OpenAPI documentation at /docs
+- Pydantic request/response validation
+- Native async/await support
+- Cleaner route definitions with decorators
+- Industry-standard Python API framework

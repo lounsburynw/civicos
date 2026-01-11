@@ -4,6 +4,7 @@
   "target": "Jan 2026",
   "location": "San Rafael, CA",
   "last_updated": "2026-01-10",
+  "session_507_note": "API decomposition Phase 1: Created routers/ directory with base.py (Router/Route classes), core.py (CoreMixin with serve_status, serve_jurisdictions, serve_google_maps_key). Integrated CoreMixin into AuthenticatedCivicAPIHandler via multiple inheritance. 42/42 tests passing. Next P0: fastapi_migration.",
   "session_current_note": "Architecture audit follow-up: Addressing all 6 issues from ARCHITECTURE_AUDIT_2026_01_FOLLOWUP.md to bring grade from B+ to A/A+. Added architecture_audit category with 6 items. Bumped federal_programs_vector_embeddings to P1. New P0: storage_backend_decomposition.",
   "session_506_note": "Added federal programs parser strategy: HUDExchangeClient (Playwright) for authoritative allocations, SAMAssistanceClient (REST API) to replace Perplexity for program definitions. See docs/FEDERAL_PROGRAMS_PARSER_STRATEGY.md. Added 4 new items: hud_exchange_parser, sam_assistance_client, federal_programs_expand_catalog, san_rafael_allocations_ingest.",
   "session_491_note": "Architecture audit: Created docs/ARCHITECTURE_AUDIT_2026_01.md identifying pre/post-pilot improvements. Key findings: vector backend fragmentation (bumped to P1), civic.py dataclass sprawl (new P2 item). Added Serena memory 'architecture_audit_2026_01' for future reference.",
@@ -1428,15 +1429,27 @@
         "estimated_effort": "4-6 hours with Claude Code"
       },
       "civic_api_decomposition": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Split 10,456-line civic_api_integrated.py into domain-specific routers",
-        "notes": "Extract into meetings_router.py, legislation_router.py, community_router.py, admin_router.py, financial_router.py. See docs/ARCHITECTURE_AUDIT_2026_01_FOLLOWUP.md issue #8 (NEW).",
-        "artifact": "5 FastAPI routers in packages/civic-services/src/civic_services/servers/routers/",
+        "notes": "Session 507: Created mixin infrastructure with CoreMixin (serve_status, serve_jurisdictions, serve_google_maps_key). Proved pattern works with 42/42 tests passing. Next: fastapi_migration for complete conversion.",
+        "artifact": "packages/civic-services/src/civic_services/servers/routers/ with base.py, core.py, __init__.py",
         "depends_on": [
           "storage_backend_decomposition"
         ],
+        "completed": "2026-01-10",
         "estimated_effort": "2-3 hours with Claude Code"
+      },
+      "fastapi_migration": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Migrate API from BaseHTTPRequestHandler to FastAPI with proper routers",
+        "notes": "Convert mixin-based decomposition to FastAPI routers. Enables: automatic OpenAPI docs, Pydantic validation, async endpoints, cleaner route definitions. Uses existing routers/ structure.",
+        "artifact": "FastAPI app with domain routers, uvicorn server",
+        "depends_on": [
+          "civic_api_decomposition"
+        ],
+        "estimated_effort": "3-4 hours with Claude Code"
       },
       "jurisdiction_config_system": {
         "status": "not_ready",
