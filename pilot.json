@@ -1480,7 +1480,7 @@
       },
       "pilot_json_consolidation": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "description": "Consolidate 351 pilot.json items into logical groups",
         "notes": "Group related items (e.g., parallelization/pytest_xdist_setup + parallel_safe_fixtures + loadscope_distribution \u2192 single 'parallel_test_infrastructure'). Reduce cognitive overhead. See docs/ARCHITECTURE_AUDIT_2026_01_FOLLOWUP.md issue #7.",
         "artifact": "Consolidated pilot.json with ~50-100 grouped items",

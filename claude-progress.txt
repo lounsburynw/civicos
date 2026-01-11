@@ -12907,4 +12907,4 @@ Audited and cleaned up stale TODO comments across the codebase.
 - 42/42 smoke tests passing
 
 ### Next P0
-TBD - Need to set before session end.
+`pilot_json_consolidation` - Consolidate 351 items into ~50-100 groups
