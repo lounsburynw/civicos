@@ -1246,6 +1246,24 @@
         "artifact": "Wire API server to use cloud Postgres when DATABASE_URL is set",
         "note": "Session 387: COMPLETED - moved to pilot_validation.e2e_cloud_data_verification.api_reads_from_cloud",
         "completed": "2025-12-27"
+      },
+      "federal_programs_postgres_migration": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Migrate federal programs data from static JSON to PostgreSQL",
+        "notes": "Currently stored in data/funding/federal/*.json and data/jurisdiction_overrides/*.json. Need proper table schema with temporal versioning (FY tracking), jurisdiction linkage, and program metadata.",
+        "depends_on": [],
+        "artifact": "packages/civic/src/civic/storage/postgres_backend.py federal_programs table"
+      },
+      "federal_programs_vector_embeddings": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Add federal programs to pgvector corpus for semantic search",
+        "notes": "Enable queries like 'what federal housing money is available?' to find CDBG, HOME, Section 8 info. Include both national program descriptions and jurisdiction-specific allocations.",
+        "depends_on": [
+          "federal_programs_postgres_migration"
+        ],
+        "artifact": "Vector embeddings for federal_programs corpus type"
       }
     },
     "vector_sql_linkage": {
