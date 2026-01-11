@@ -3042,10 +3042,11 @@
         "completed": "2026-01-08"
       },
       "vector_indexing_automation": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "description": "Auto-trigger vector indexing after data ingestion",
-        "notes": "Add Modal @app.function decorators or post-ingestion hooks to automatically embed new data. Pattern: store_codified_law() -> trigger index_codified_law_vectors(). Prevents manual reindex after each ingestion."
+        "notes": "VERIFIED: Vector indexing is automated in Modal scheduled refreshes. High-velocity (daily 2PM UTC): index_vectors() for meetings, issues, transcripts, chunks at modal_ingest.py:1481-1488. Low-velocity (weekly Sun 3AM UTC): index_vectors(corpus='all') at modal_ingest.py:1364. --vectors CLI flag works. Sync check shows 100% coverage: chunks 5084/5084, decisions 44/44, issues 1500/1497, transcripts 4296 chunks from 19 docs, municipal_code 5857 chunks from 3811 sections.",
+        "completed": "2026-01-10"
       },
       "executive_orders_incremental_fetcher": {
         "status": "not_ready",
@@ -3055,7 +3056,7 @@
       },
       "federal_programs_2026_refresh": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Refresh federal grant programs for FY2026",
         "notes": "Current data from Oct 2025, marked DRAFT. Update CDBG, HOME, etc. with FY2026 funding levels and deadlines."
       },

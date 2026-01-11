@@ -12415,3 +12415,32 @@ python scripts/benchmark_api_vs_llm.py --clear-cache
 - [x] pilot.json updated
 - [x] Pushed to origin
 - [x] Merged (Session 501)
+
+---
+
+## Session 502 (2026-01-10)
+
+### Completed: vector_indexing_automation (P0)
+
+**Finding:** Vector indexing automation was ALREADY IMPLEMENTED in the Modal pipeline. Both scheduled refresh functions include `index_vectors()` calls after data ingestion:
+
+1. **High-velocity refresh** (daily 2 PM UTC) - `modal_ingest.py:1481-1488`
+   - Calls `index_vectors()` for meetings, issues, transcripts, chunks after storing
+
+2. **Low-velocity refresh** (weekly Sun 3 AM UTC) - `modal_ingest.py:1364`
+   - Calls `index_vectors(corpus="all")` after municipal code, legislation, decisions extraction
+
+**Verification:**
+- Vector-storage sync check shows 100% coverage for all corpus types
+- `--vectors` CLI flag works for manual runs
+- Cron schedules properly configured
+
+**Status:** Marked as `ready` with verification evidence in notes.
+
+### Next P0 Set: federal_programs_2026_refresh
+
+Refresh federal grant programs for FY2026. Current data from Oct 2025, marked DRAFT. Needs update for CDBG, HOME, etc. with FY2026 funding levels and deadlines.
+
+### Open PR
+
+PR #8 (feature/validation/eo-incremental-fetcher) has merge conflicts - implements executive_orders_incremental_fetcher. May need conflict resolution.
