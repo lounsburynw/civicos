@@ -1,28 +1,143 @@
 {
   "jurisdiction_id": "city-san-rafael",
   "jurisdiction_name": "San Rafael, CA",
-  "last_updated": "2025-10-07T16:03:00.000000",
+  "last_updated": "2026-01-10T12:00:00.000000",
   "federal_programs": {
     "cdbg": {
       "program_name": "Community Development Block Grant",
-      "fy2025_allocation": 715574,
-      "allocation_source": "HUD FY2025 CDBG Allocations",
-      "allocation_url": "https://www.hudexchange.info/GRANTEES/ALLOCATIONS-AWARDS/?na=32180&start=1610",
+      "administering_agency": "HUD",
+      "description": "Provides annual grants to develop viable urban communities by providing decent housing and suitable living environment, principally for low- and moderate-income persons.",
+      "local_allocation_model": "joint_county",
+      "allocation_note": "San Rafael participates in Marin County's Urban County CDBG program. Funds flow through County of Marin Community Development Agency.",
+      "marin_county_fy2026_allocation": {
+        "total_cdbg": 1500000,
+        "public_services": 230000,
+        "community_infrastructure": 430000,
+        "source": "Marin County 2025-26 NOFA",
+        "source_url": "https://www.marincounty.gov/departments/cda/housing-and-grants/funding-projects/notice-funding-availability-nofa"
+      },
+      "fy2026_status": {
+        "status": "UNCERTAIN - Operating under Continuing Resolution",
+        "note": "FY2026 appropriations not finalized. President's budget proposed eliminating CDBG. House proposed level funding ($3.3B). Senate proposed $3.1B (6% cut). CR extends FY2025 levels through Jan 30, 2026.",
+        "sources": [
+          "https://www.congress.gov/crs-product/R48728",
+          "https://nlihc.org/resource/final-hud-spending-bill-fy26-still-under-negotiations-take-action-today-protect-vital"
+        ]
+      },
       "application_process": {
-        "status": "Check city website for current application cycle",
-        "allocation_recommendations": "Published by city planning department",
-        "requirements": "Follow HUD and local guidelines"
+        "status": "Annual application through Marin County",
+        "typical_deadline": "February for following fiscal year",
+        "allocation_process": "40% countywide housing, 60% to three local planning areas",
+        "requirements": "Follow HUD and Marin County guidelines"
       },
       "compliance_requirements": [
         "24 CFR Part 570 (federal CDBG regulations)",
         "HUD guidelines",
-        "City of San Rafael Consolidated Plan priorities",
+        "Marin County 2025-2029 Consolidated Plan priorities",
         "Funds must principally benefit low- and moderate-income persons"
       ],
+      "citizen_participation": [
+        "Consolidated Plan public hearings",
+        "Annual Action Plan public comment periods",
+        "Community needs assessment input",
+        "Marin County Board of Supervisors meetings"
+      ],
       "key_contacts": {
-        "department": "Community Development",
-        "planning_contact": "Check city website for current Community Development Director"
-      }
+        "administrator": "Marin County Community Development Agency",
+        "address": "3501 Civic Center Drive, Suite 308, San Rafael, CA 94903",
+        "website": "https://www.marincounty.gov/departments/cda/housing-and-grants"
+      },
+      "official_url": "https://www.hud.gov/program_offices/comm_planning/cdbg"
+    },
+    "home": {
+      "program_name": "HOME Investment Partnerships Program",
+      "administering_agency": "HUD",
+      "description": "Provides formula grants to state and local governments to create affordable housing for low-income households through homebuyer assistance, rental housing development, and rehabilitation programs.",
+      "local_allocation_model": "joint_county",
+      "allocation_note": "San Rafael participates in Marin County's HOME Consortium. Funds administered by County of Marin Community Development Agency.",
+      "marin_county_fy2026_allocation": {
+        "total_home": 700000,
+        "source": "Marin County 2025-26 NOFA",
+        "source_url": "https://www.marincounty.gov/departments/cda/housing-and-grants/funding-projects/notice-funding-availability-nofa"
+      },
+      "fy2026_status": {
+        "status": "UNCERTAIN - Operating under Continuing Resolution",
+        "note": "FY2026 appropriations not finalized. President's budget proposed eliminating HOME. House proposed eliminating HOME. Senate proposed $1.25B (level funding). CR extends FY2025 levels through Jan 30, 2026.",
+        "sources": [
+          "https://www.congress.gov/crs-product/R48728",
+          "https://www.naco.org/resources/restore-funding-huds-home-investment-partnerships-home-program-3"
+        ]
+      },
+      "eligible_activities": [
+        "New construction of affordable housing",
+        "Rehabilitation of existing housing",
+        "Acquisition of existing housing",
+        "Tenant-based rental assistance",
+        "Homebuyer assistance programs"
+      ],
+      "compliance_requirements": [
+        "24 CFR Part 92 (HOME regulations)",
+        "15-year affordability period for rental units",
+        "HUD income targeting requirements",
+        "Marin County 2025-2029 Consolidated Plan priorities"
+      ],
+      "citizen_participation": [
+        "Consolidated Plan public hearings",
+        "Annual Action Plan public comment periods",
+        "Project-specific community input"
+      ],
+      "key_contacts": {
+        "administrator": "Marin County Community Development Agency",
+        "address": "3501 Civic Center Drive, Suite 308, San Rafael, CA 94903",
+        "website": "https://www.marincounty.gov/departments/cda/housing-and-grants"
+      },
+      "official_url": "https://www.hudexchange.info/programs/home/"
+    },
+    "section_8_hcv": {
+      "program_name": "Section 8 Housing Choice Vouchers",
+      "administering_agency": "HUD",
+      "description": "Provides rental assistance vouchers to help low-income families, the elderly, and disabled afford decent, safe housing in the private market.",
+      "local_administrator": "Marin Housing Authority",
+      "allocation_note": "Administered by Marin Housing Authority (separate from Marin County government). Waitlist-based program.",
+      "fy2025_income_limits": {
+        "median_family_income_4person": 185000,
+        "extremely_low_30pct": 55500,
+        "very_low_50pct": 92500,
+        "effective_date": "2025-04-01",
+        "source": "HUD FY2025 Income Limits for San Francisco HMFA"
+      },
+      "eligibility": {
+        "income_requirement": "Generally under 50% of area median income",
+        "preference_requirement": "75% of vouchers to applicants under 30% AMI",
+        "citizenship_requirement": "US citizens or eligible immigration status"
+      },
+      "key_contacts": {
+        "administrator": "Marin Housing Authority",
+        "address": "4020 Civic Center Drive, San Rafael, CA 94903",
+        "phone": "415-491-2525",
+        "website": "https://www.marinhousing.org/"
+      },
+      "official_url": "https://www.hud.gov/topics/housing_choice_voucher_program_section_8"
     }
+  },
+  "local_housing_programs": {
+    "ahtf": {
+      "program_name": "San Rafael Affordable Housing Trust Fund",
+      "administering_agency": "City of San Rafael",
+      "description": "Local funds contributed to Marin County's joint affordable housing funding pool.",
+      "fy2026_contribution": 500000,
+      "source": "Marin County 2025-26 NOFA",
+      "official_url": "https://www.cityofsanrafael.org/affordable-housing/"
+    }
+  },
+  "data_quality": {
+    "last_verified": "2026-01-10",
+    "verification_sources": [
+      "https://www.marincounty.gov/departments/cda/housing-and-grants/funding-projects/notice-funding-availability-nofa",
+      "https://www.marincounty.gov/departments/cda/housing-and-grants/funding-projects/consolidated-plan/2025-29-consolidated-plan",
+      "https://www.congress.gov/crs-product/R48728",
+      "https://www.marinhousing.org/"
+    ],
+    "notes": "FY2026 federal funding uncertain due to ongoing appropriations process. Marin County allocations based on 2025-26 NOFA. Federal funding levels subject to change when final FY2026 appropriations enacted."
   }
 }

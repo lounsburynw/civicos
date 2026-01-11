@@ -1,63 +1,63 @@
-# Recommended: fix_corrupted_city_council_transcripts
+# Recommended: executive_orders_incremental_fetcher
 
 **Priority:** P0
-**Area:** data_integrity > source_provenance
+**Area:** pilot_validation > e2e_cloud_data_verification
 **Date:** 2026-01-10
 
-> This is recommended context from Session 499. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> This is recommended context from Session 503. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Session 499 added automated transcript ingestion to the Modal pipeline (`extract_transcripts()` in `scripts/modal_ingest.py`). The pipeline now runs: meetings -> issues -> transcripts -> chunks -> vectors. However, 9 of 19 existing city-san-rafael transcripts have corrupted audio from a playlist concatenation bug. These need to be fixed before the automated pipeline will produce valid data.
+Session 503 completed `federal_programs_2026_refresh` - updated San Rafael's federal programs data with accurate FY2026 information:
+- Corrected allocation model (San Rafael participates in Marin County's joint CDBG/HOME program)
+- Added Marin County FY2025-26 allocations: CDBG $1.5M, HOME $700K
+- Added FY2026 appropriations status (UNCERTAIN - CR through Jan 30, 2026)
+- Added Section 8 HCV and local AHTF contribution info
 
 ## Recommended Task
 
-Re-download and re-transcribe 9 corrupted city council meeting transcripts. The audio files were originally downloaded from YouTube playlists instead of individual videos, causing concatenation/corruption.
+Merge or fix PR #8: `feature/validation/eo-incremental-fetcher`
 
-**Corrupted video IDs:**
-- IdgRa0uEywo, 1u4NX88tsCI, nSCoylgGf9M, k5ZUhxHn5pE, iYeihDimgxE
-- dnzo2fEXiO0, ZP7fkN8cBK4, SFsaaL51urs, QLDoO6OvMSA
+This PR implements incremental fetching for Executive Orders but has merge conflicts. Options:
+1. **Rebase and resolve conflicts** - Get PR mergeable
+2. **Review changes** - Ensure implementation is correct
+3. **Merge or close** - Complete the work
+
+## PR #8 Details
+
+```bash
+# Check PR status
+gh pr view 8
+
+# Check conflicts
+gh pr checkout 8
+git status
+```
 
 ## Key Files
 
-- `packages/civic/src/civic/storage/postgres_backend.py:2770-2850` - `store_transcripts()` and transcript storage
-- `packages/civic-extraction/src/civic_extraction/cli/transcribe.py:486-768` - Transcription with AssemblyAI
-- `packages/civic-extraction/src/civic_extraction/cli/audio.py:241-375` - Audio download from YouTube
-- `scripts/modal_ingest.py:1127-1279` - New `extract_transcripts()` Modal function
+- PR branch: `feature/validation/eo-incremental-fetcher`
+- Likely location: `packages/civic-extraction/src/civic_extraction/federal/`
+- Related: Executive Orders extraction and incremental fetching logic
 
 ## Suggested Approach
 
-1. **Soft-delete invalid transcripts** - Use `PostgresBackend.soft_delete()` on the 9 corrupted video IDs
-2. **Delete corrupted audio from R2** - Remove the concatenated audio files from blob storage
-3. **Re-download audio** - Use `civic-extract audio --jurisdiction city-san-rafael --cloud` to download individual videos (not playlists)
-4. **Re-transcribe** - Use `civic-extract transcribe --jurisdiction city-san-rafael --cloud` (~$20 AssemblyAI cost for 9 meetings)
-5. **Validate** - Run `civic-extract validate-transcripts --jurisdiction city-san-rafael` to confirm duration matches YouTube
+1. **Check PR status**: `gh pr view 8 --comments`
+2. **Checkout and rebase**: `gh pr checkout 8 && git rebase main`
+3. **Resolve conflicts** if any
+4. **Run tests**: `pytest packages/civic-extraction/tests/ -k "executive" -v`
+5. **Push and merge**: `git push --force-with-lease && gh pr merge 8 --merge`
 
-## Tests to Run
+## Alternative P1 Items
 
-```bash
-# Validate transcripts after fix
-civic-extract validate-transcripts --jurisdiction city-san-rafael
-
-# Verify transcript count
-python3 -c "
-from dotenv import load_dotenv; load_dotenv()
-from civic.storage import get_storage_backend
-b = get_storage_backend()
-t = b.get_transcripts('city-san-rafael')
-valid = [x for x in t if x.get('duration_valid') is True]
-print(f'Valid transcripts: {len(valid)}/{len(t)}')
-"
-```
+If PR #8 is blocked or needs more work:
+- `turso_backend` - Cloud storage backend
+- `data_critic` - Developer tooling critic
+- `marin_county_financial_config` - Financial data infrastructure
+- `engagement_tracking_schema` - Audit infrastructure
 
 ## Success Criteria
 
-- [ ] 9 corrupted transcripts soft-deleted
-- [ ] 9 audio files re-downloaded (single video, not playlist)
-- [ ] 9 transcripts re-created with AssemblyAI
-- [ ] All 19 city-san-rafael transcripts pass duration validation
-- [ ] pilot.json status updated to "ready"
-
-## Cost Estimate
-
-- AssemblyAI: ~$0.02/minute x ~120 min x 9 meetings = ~$20
+- [ ] PR #8 merged OR conflicts documented with plan
+- [ ] Executive Orders incremental fetcher working
+- [ ] pilot.json item updated to "ready"
