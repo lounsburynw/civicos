@@ -286,7 +286,7 @@
     "cloud_storage": {
       "turso_backend": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "TursoBackend implements StorageBackend protocol for cloud SQLite",
         "note": "Turso (libSQL) is SQLite-compatible with 9GB free tier. DEPRIORITIZED: Using PostgresBackend instead for cloud."
       },
@@ -1269,8 +1269,8 @@
         "artifact": "Vector embeddings for federal_programs corpus type"
       },
       "civic_type_extraction": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "description": "Extract 22 dataclasses from civic.py to types.py, add FederalProgram dataclass",
         "notes": "Audit recommended: 'Low effort (~30 min), high clarity improvement.' Also define FederalProgram with full schema (program_id, description, eligible_activities, citizen_participation, allocations, contacts, urls) to support postgres migration.",
         "artifact": "packages/civic/src/civic/types.py"
@@ -3094,7 +3094,7 @@
       },
       "federal_programs_2026_refresh": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Refresh federal grant programs for FY2026",
         "notes": "Updated 2026-01-10. San Rafael participates in Marin County joint CDBG/HOME program. FY2025-26 Marin County allocations: CDBG $1.5M, HOME $700K. FY2026 federal appropriations UNCERTAIN - operating under CR through Jan 30, 2026. Added Section 8 HCV info and local AHTF contribution."
       },
