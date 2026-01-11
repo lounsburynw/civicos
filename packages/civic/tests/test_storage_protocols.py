@@ -697,6 +697,55 @@ class TestStorageBackendProtocol:
             ) -> bool:
                 return True
 
+            # Federal programs methods (SESSION 505)
+            def store_federal_programs(
+                self,
+                programs: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(programs)
+
+            def get_federal_programs(
+                self,
+                program_id: Optional[str] = None,
+                topic: Optional[str] = None,
+                agency: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_federal_programs_count(
+                self,
+                topic: Optional[str] = None,
+            ) -> int:
+                return 0
+
+            def store_federal_program_allocations(
+                self,
+                jurisdiction_id: str,
+                allocations: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(allocations)
+
+            def get_federal_program_allocations(
+                self,
+                jurisdiction_id: str,
+                program_id: Optional[str] = None,
+                fiscal_year: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_federal_program_allocations_count(
+                self,
+                jurisdiction_id: str,
+                fiscal_year: Optional[str] = None,
+            ) -> int:
+                return 0
+
             # Agenda items methods
             def store_agenda_items(
                 self,
@@ -1543,6 +1592,55 @@ class TestProtocolIntegration:
                 confirmed_by: str,
             ) -> bool:
                 return True
+
+            # Federal programs methods (SESSION 505)
+            def store_federal_programs(
+                self,
+                programs: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(programs)
+
+            def get_federal_programs(
+                self,
+                program_id: Optional[str] = None,
+                topic: Optional[str] = None,
+                agency: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_federal_programs_count(
+                self,
+                topic: Optional[str] = None,
+            ) -> int:
+                return 0
+
+            def store_federal_program_allocations(
+                self,
+                jurisdiction_id: str,
+                allocations: List[Dict[str, Any]],
+                as_of: Optional[datetime] = None,
+            ) -> int:
+                return len(allocations)
+
+            def get_federal_program_allocations(
+                self,
+                jurisdiction_id: str,
+                program_id: Optional[str] = None,
+                fiscal_year: Optional[str] = None,
+                as_of: Optional[datetime] = None,
+                limit: Optional[int] = None,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_federal_program_allocations_count(
+                self,
+                jurisdiction_id: str,
+                fiscal_year: Optional[str] = None,
+            ) -> int:
+                return 0
 
             # Agenda items methods
             def store_agenda_items(
@@ -2737,8 +2835,8 @@ class TestSoftDelete:
         assert 'meetings' in postgres_storage.SOFT_DELETE_TABLES
         assert 'decisions' in postgres_storage.SOFT_DELETE_TABLES
         assert 'issues' in postgres_storage.SOFT_DELETE_TABLES
-        # Should have 19 tables
-        assert len(postgres_storage.SOFT_DELETE_TABLES) == 19
+        # Should have 21 tables (SESSION 505: added federal_programs, federal_program_allocations)
+        assert len(postgres_storage.SOFT_DELETE_TABLES) == 21
 
     def test_soft_delete_rejects_invalid_table(self, postgres_storage):
         """soft_delete raises ValueError for invalid table name."""

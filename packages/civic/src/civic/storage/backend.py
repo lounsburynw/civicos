@@ -1773,3 +1773,127 @@ class StorageBackend(Protocol):
             Official dictionary or None if not found
         """
         ...
+
+    # =======================================================================
+    # FEDERAL PROGRAMS METHODS (SESSION 505)
+    # Federal program catalog and jurisdiction-specific allocations
+    # =======================================================================
+
+    def store_federal_programs(
+        self,
+        programs: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store federal program definitions with temporal versioning.
+
+        These are national-level program definitions (e.g., CDBG, HOME).
+        For jurisdiction-specific allocations, use store_federal_program_allocations().
+
+        Args:
+            programs: List of program dictionaries with program_id, program_name, etc.
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of programs successfully stored
+        """
+        ...
+
+    def get_federal_programs(
+        self,
+        program_id: Optional[str] = None,
+        topic: Optional[str] = None,
+        agency: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve federal program definitions with optional filtering.
+
+        Args:
+            program_id: Filter by specific program ID
+            topic: Filter by topic (e.g., "housing", "transportation")
+            agency: Filter by administering agency (e.g., "HUD")
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of programs to return
+
+        Returns:
+            List of program dictionaries
+        """
+        ...
+
+    def get_federal_programs_count(
+        self,
+        topic: Optional[str] = None,
+    ) -> int:
+        """
+        Get count of current federal programs.
+
+        Args:
+            topic: Optional filter by topic
+
+        Returns:
+            Number of current (non-expired) programs
+        """
+        ...
+
+    def store_federal_program_allocations(
+        self,
+        jurisdiction_id: str,
+        allocations: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store jurisdiction-specific federal program allocations.
+
+        Example: San Rafael's CDBG allocation for FY2026 ($1.5M via Marin County).
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            allocations: List of allocation dictionaries with program_id, fiscal_year, etc.
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of allocations successfully stored
+        """
+        ...
+
+    def get_federal_program_allocations(
+        self,
+        jurisdiction_id: str,
+        program_id: Optional[str] = None,
+        fiscal_year: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve federal program allocations for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            program_id: Filter by program ID (e.g., "cdbg")
+            fiscal_year: Filter by fiscal year (e.g., "FY2026")
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of allocations to return
+
+        Returns:
+            List of allocation dictionaries
+        """
+        ...
+
+    def get_federal_program_allocations_count(
+        self,
+        jurisdiction_id: str,
+        fiscal_year: Optional[str] = None,
+    ) -> int:
+        """
+        Get count of current federal program allocations for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            fiscal_year: Optional filter by fiscal year
+
+        Returns:
+            Number of current (non-expired) allocations
+        """
+        ...

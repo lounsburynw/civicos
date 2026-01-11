@@ -1297,6 +1297,110 @@ class PostgresBackend:
             END $$;
         """)
 
+        # Federal Programs table (SESSION 505)
+        # Stores federal grant program definitions (CDBG, HOME, Section 8, etc.)
+        # Used for what_applies() and funding queries.
+        # Separate from federal_awards (actual grants) - this is the program catalog.
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS federal_programs (
+                id SERIAL PRIMARY KEY,
+                program_id TEXT NOT NULL,
+                program_name TEXT NOT NULL,
+                administering_agency TEXT NOT NULL,
+                description TEXT,
+                topic TEXT,
+                cfda_number TEXT,
+                eligible_activities JSONB,
+                compliance_requirements JSONB,
+                citizen_participation JSONB,
+                keywords JSONB,
+                key_contacts JSONB,
+                official_url TEXT,
+                source_url TEXT,
+                verification_status TEXT DEFAULT 'DRAFT',
+                data_sources JSONB,
+                last_verified DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
+                UNIQUE (program_id, valid_from),
+                CHECK (valid_to IS NULL OR valid_to > valid_from)
+            )
+        """)
+
+        # Federal programs indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_federal_programs_program_id
+            ON federal_programs(program_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_federal_programs_topic
+            ON federal_programs(topic)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_federal_programs_agency
+            ON federal_programs(administering_agency)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_federal_programs_cfda
+            ON federal_programs(cfda_number)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_federal_programs_temporal
+            ON federal_programs(program_id, valid_from, valid_to)
+        """)
+
+        # Federal Program Allocations table (SESSION 505)
+        # Stores jurisdiction-specific allocations per fiscal year.
+        # Example: San Rafael's CDBG allocation for FY2026 ($1.5M via Marin County).
+        # Links to federal_programs via program_id.
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS federal_program_allocations (
+                id SERIAL PRIMARY KEY,
+                program_id TEXT NOT NULL,
+                jurisdiction_id TEXT NOT NULL,
+                fiscal_year TEXT NOT NULL,
+                allocation_amount_cents BIGINT,
+                allocation_status TEXT,
+                allocation_note TEXT,
+                local_allocation_model TEXT,
+                administering_entity TEXT,
+                application_process JSONB,
+                compliance_requirements JSONB,
+                citizen_participation JSONB,
+                key_contacts JSONB,
+                source_url TEXT,
+                metadata JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                valid_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                valid_to TIMESTAMP,
+                deleted_at TIMESTAMP,
+                UNIQUE (program_id, jurisdiction_id, fiscal_year, valid_from),
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id),
+                CHECK (valid_to IS NULL OR valid_to > valid_from),
+                CHECK (allocation_amount_cents IS NULL OR allocation_amount_cents >= 0)
+            )
+        """)
+
+        # Federal program allocations indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_federal_allocations_jurisdiction
+            ON federal_program_allocations(jurisdiction_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_federal_allocations_program
+            ON federal_program_allocations(program_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_federal_allocations_fiscal_year
+            ON federal_program_allocations(jurisdiction_id, fiscal_year)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_federal_allocations_temporal
+            ON federal_program_allocations(jurisdiction_id, valid_from, valid_to)
+        """)
+
         conn.commit()
 
     def store_meetings(
@@ -6797,6 +6901,459 @@ class PostgresBackend:
         return None
 
     # =======================================================================
+    # FEDERAL PROGRAMS METHODS (SESSION 505)
+    # Federal program catalog (CDBG, HOME, Section 8, etc.)
+    # =======================================================================
+
+    def store_federal_programs(
+        self,
+        programs: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store federal program definitions with temporal versioning.
+
+        These are national-level program definitions (e.g., CDBG, HOME).
+        For jurisdiction-specific allocations, use store_federal_program_allocations().
+
+        Args:
+            programs: List of program dictionaries with keys:
+                - program_id: Unique identifier (e.g., "cdbg", "home")
+                - program_name: Full program name
+                - administering_agency: Federal agency (e.g., "HUD")
+                - description: Program description
+                - topic: Topic category (e.g., "housing", "transportation")
+                - cfda_number: CFDA/Assistance Listing number (optional)
+                - eligible_activities: List of eligible uses (JSONB)
+                - compliance_requirements: List of requirements (JSONB)
+                - citizen_participation: List of participation methods (JSONB)
+                - keywords: Searchable terms (JSONB)
+                - key_contacts: Contact information (JSONB)
+                - official_url: Program's official URL
+                - source_url: Data source URL
+                - verification_status: Data quality status
+                - data_sources: List of data sources (JSONB)
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of programs successfully stored
+        """
+        if not programs:
+            return 0
+
+        as_of = as_of or datetime.now()
+        as_of_str = as_of.isoformat()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Filter to valid programs with identifiers
+            valid_programs = [
+                p for p in programs
+                if p.get("program_id") and p.get("program_name")
+            ]
+
+            # Close previous versions for these program_ids
+            program_ids = [p.get("program_id") for p in valid_programs]
+            if program_ids:
+                for i in range(0, len(program_ids), 1000):
+                    chunk = program_ids[i:i + 1000]
+                    placeholders = ",".join(["%s"] * len(chunk))
+                    cursor.execute(f"""
+                        UPDATE federal_programs
+                        SET valid_to = %s
+                        WHERE program_id IN ({placeholders})
+                          AND valid_to IS NULL
+                    """, [as_of_str] + chunk)
+
+            # Insert new versions
+            values = []
+            for prog in valid_programs:
+                values.append((
+                    prog.get("program_id"),
+                    prog.get("program_name"),
+                    prog.get("administering_agency", "Unknown"),
+                    prog.get("description"),
+                    prog.get("topic"),
+                    prog.get("cfda_number"),
+                    json.dumps(prog.get("eligible_activities")) if prog.get("eligible_activities") else None,
+                    json.dumps(prog.get("compliance_requirements")) if prog.get("compliance_requirements") else None,
+                    json.dumps(prog.get("citizen_participation")) if prog.get("citizen_participation") else None,
+                    json.dumps(prog.get("keywords")) if prog.get("keywords") else None,
+                    json.dumps(prog.get("key_contacts")) if prog.get("key_contacts") else None,
+                    prog.get("official_url"),
+                    prog.get("source_url"),
+                    prog.get("verification_status", "DRAFT"),
+                    json.dumps(prog.get("data_sources")) if prog.get("data_sources") else None,
+                    as_of_str,
+                    as_of_str,
+                ))
+
+            if values:
+                psycopg2.extras.execute_values(
+                    cursor,
+                    """
+                    INSERT INTO federal_programs (
+                        program_id, program_name, administering_agency,
+                        description, topic, cfda_number,
+                        eligible_activities, compliance_requirements, citizen_participation,
+                        keywords, key_contacts, official_url, source_url,
+                        verification_status, data_sources,
+                        created_at, valid_from, valid_to
+                    ) VALUES %s
+                    """,
+                    values,
+                    template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)",
+                    page_size=500,
+                )
+
+            conn.commit()
+            return len(valid_programs)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_federal_programs(
+        self,
+        program_id: Optional[str] = None,
+        topic: Optional[str] = None,
+        agency: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve federal program definitions with optional filtering.
+
+        Args:
+            program_id: Filter by specific program ID
+            topic: Filter by topic (e.g., "housing", "transportation")
+            agency: Filter by administering agency (e.g., "HUD")
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of programs to return
+
+        Returns:
+            List of program dictionaries
+        """
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        query = """
+            SELECT * FROM federal_programs
+            WHERE valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
+        """
+        params: List[Any] = [as_of.isoformat(), as_of.isoformat()]
+
+        if program_id is not None:
+            query += " AND program_id = %s"
+            params.append(program_id)
+
+        if topic is not None:
+            query += " AND topic = %s"
+            params.append(topic)
+
+        if agency is not None:
+            query += " AND administering_agency = %s"
+            params.append(agency)
+
+        query += " ORDER BY program_name"
+
+        if limit is not None:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to dictionaries with parsed dates
+        programs = []
+        for row in rows:
+            prog = dict(row)
+            for key in ['created_at', 'valid_from', 'valid_to', 'last_verified']:
+                if key in prog and prog[key] is not None:
+                    if isinstance(prog[key], (datetime, date)):
+                        prog[key] = prog[key].isoformat()
+            programs.append(prog)
+
+        return programs
+
+    def get_federal_programs_count(
+        self,
+        topic: Optional[str] = None,
+    ) -> int:
+        """
+        Get count of current federal programs.
+
+        Args:
+            topic: Optional filter by topic
+
+        Returns:
+            Number of current (non-expired) programs
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        query = """
+            SELECT COUNT(*) FROM federal_programs
+            WHERE valid_to IS NULL AND deleted_at IS NULL
+        """
+        params: List[Any] = []
+
+        if topic is not None:
+            query += " AND topic = %s"
+            params.append(topic)
+
+        cursor.execute(query, params)
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
+    # =======================================================================
+    # FEDERAL PROGRAM ALLOCATIONS METHODS (SESSION 505)
+    # Jurisdiction-specific allocations per fiscal year
+    # =======================================================================
+
+    def store_federal_program_allocations(
+        self,
+        jurisdiction_id: str,
+        allocations: List[Dict[str, Any]],
+        as_of: Optional[datetime] = None,
+    ) -> int:
+        """
+        Store jurisdiction-specific federal program allocations.
+
+        Example: San Rafael's CDBG allocation for FY2026 ($1.5M via Marin County).
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+            allocations: List of allocation dictionaries with keys:
+                - program_id: Link to federal_programs.program_id
+                - fiscal_year: Fiscal year (e.g., "FY2026")
+                - allocation_amount_cents: Amount in cents (optional)
+                - allocation_status: Status (e.g., "CONFIRMED", "UNCERTAIN")
+                - allocation_note: Additional notes
+                - local_allocation_model: Model (e.g., "direct", "joint_county")
+                - administering_entity: Local administrator
+                - application_process: Application details (JSONB)
+                - compliance_requirements: Requirements (JSONB)
+                - citizen_participation: Participation methods (JSONB)
+                - key_contacts: Contact information (JSONB)
+                - source_url: Data source URL
+                - metadata: Additional metadata (JSONB)
+            as_of: Timestamp for temporal versioning (default: now)
+
+        Returns:
+            Number of allocations successfully stored
+        """
+        if not allocations:
+            return 0
+
+        # Normalize jurisdiction to canonical form
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+        as_of = as_of or datetime.now()
+        as_of_str = as_of.isoformat()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Ensure city_state exists
+            cursor.execute("""
+                INSERT INTO city_states (jurisdiction_id, jurisdiction_name, as_of)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (jurisdiction_id) DO NOTHING
+            """, (
+                jurisdiction_id,
+                jurisdiction_id.replace('-', ' ').title(),
+                as_of_str
+            ))
+
+            # Filter to valid allocations
+            valid_allocations = [
+                a for a in allocations
+                if a.get("program_id") and a.get("fiscal_year")
+            ]
+
+            # Close previous versions for these (program_id, fiscal_year) combos
+            for alloc in valid_allocations:
+                cursor.execute("""
+                    UPDATE federal_program_allocations
+                    SET valid_to = %s
+                    WHERE jurisdiction_id = %s
+                      AND program_id = %s
+                      AND fiscal_year = %s
+                      AND valid_to IS NULL
+                """, (as_of_str, jurisdiction_id, alloc["program_id"], alloc["fiscal_year"]))
+
+            # Insert new versions
+            values = []
+            for alloc in valid_allocations:
+                values.append((
+                    alloc.get("program_id"),
+                    jurisdiction_id,
+                    alloc.get("fiscal_year"),
+                    alloc.get("allocation_amount_cents"),
+                    alloc.get("allocation_status"),
+                    alloc.get("allocation_note"),
+                    alloc.get("local_allocation_model"),
+                    alloc.get("administering_entity"),
+                    json.dumps(alloc.get("application_process")) if alloc.get("application_process") else None,
+                    json.dumps(alloc.get("compliance_requirements")) if alloc.get("compliance_requirements") else None,
+                    json.dumps(alloc.get("citizen_participation")) if alloc.get("citizen_participation") else None,
+                    json.dumps(alloc.get("key_contacts")) if alloc.get("key_contacts") else None,
+                    alloc.get("source_url"),
+                    json.dumps(alloc.get("metadata"), cls=DateTimeEncoder) if alloc.get("metadata") else None,
+                    as_of_str,
+                    as_of_str,
+                ))
+
+            if values:
+                psycopg2.extras.execute_values(
+                    cursor,
+                    """
+                    INSERT INTO federal_program_allocations (
+                        program_id, jurisdiction_id, fiscal_year,
+                        allocation_amount_cents, allocation_status, allocation_note,
+                        local_allocation_model, administering_entity,
+                        application_process, compliance_requirements, citizen_participation,
+                        key_contacts, source_url, metadata,
+                        created_at, valid_from, valid_to
+                    ) VALUES %s
+                    """,
+                    values,
+                    template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)",
+                    page_size=500,
+                )
+
+            conn.commit()
+            return len(valid_allocations)
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_federal_program_allocations(
+        self,
+        jurisdiction_id: str,
+        program_id: Optional[str] = None,
+        fiscal_year: Optional[str] = None,
+        as_of: Optional[datetime] = None,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve federal program allocations for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            program_id: Filter by program ID (e.g., "cdbg")
+            fiscal_year: Filter by fiscal year (e.g., "FY2026")
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of allocations to return
+
+        Returns:
+            List of allocation dictionaries
+        """
+        # Normalize jurisdiction
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+        as_of = as_of or datetime.now()
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        query = """
+            SELECT * FROM federal_program_allocations
+            WHERE jurisdiction_id = %s
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
+        """
+        params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+
+        if program_id is not None:
+            query += " AND program_id = %s"
+            params.append(program_id)
+
+        if fiscal_year is not None:
+            query += " AND fiscal_year = %s"
+            params.append(fiscal_year)
+
+        query += " ORDER BY fiscal_year DESC, program_id"
+
+        if limit is not None:
+            query += " LIMIT %s"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        conn.close()
+
+        # Convert to dictionaries with parsed dates
+        allocations = []
+        for row in rows:
+            alloc = dict(row)
+            for key in ['created_at', 'valid_from', 'valid_to']:
+                if key in alloc and alloc[key] is not None:
+                    if isinstance(alloc[key], (datetime, date)):
+                        alloc[key] = alloc[key].isoformat()
+            allocations.append(alloc)
+
+        return allocations
+
+    def get_federal_program_allocations_count(
+        self,
+        jurisdiction_id: str,
+        fiscal_year: Optional[str] = None,
+    ) -> int:
+        """
+        Get count of current federal program allocations for a jurisdiction.
+
+        Args:
+            jurisdiction_id: Target jurisdiction
+            fiscal_year: Optional filter by fiscal year
+
+        Returns:
+            Number of current (non-expired) allocations
+        """
+        # Normalize jurisdiction
+        jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        query = """
+            SELECT COUNT(*) FROM federal_program_allocations
+            WHERE jurisdiction_id = %s
+              AND valid_to IS NULL AND deleted_at IS NULL
+        """
+        params: List[Any] = [jurisdiction_id]
+
+        if fiscal_year is not None:
+            query += " AND fiscal_year = %s"
+            params.append(fiscal_year)
+
+        cursor.execute(query, params)
+        count = cursor.fetchone()[0]
+        conn.close()
+
+        return count
+
+    # =======================================================================
     # SOFT DELETE (SESSION 480)
     # Never hard-delete content. Preserve audit trail.
     # =======================================================================
@@ -6808,7 +7365,8 @@ class PostgresBackend:
         'codified_law', 'budget_items', 'federal_awards',
         'state_passthrough_funds', 'budget_funding_source_links',
         'federal_audit_expenditures', 'elections', 'election_deadlines',
-        'election_contests', 'elected_officials'
+        'election_contests', 'elected_officials',
+        'federal_programs', 'federal_program_allocations'
     }
 
     def soft_delete(
