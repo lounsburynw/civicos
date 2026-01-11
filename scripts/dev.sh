@@ -27,21 +27,7 @@ export PYTHONPATH="$CIVIC_SERVICES/monitoring:$CIVIC_SERVICES/clients:$CIVIC_SER
 # Activate virtual environment
 source "$PROJECT_ROOT/civic-env/bin/activate"
 
-# Use FastAPI by default if USE_FASTAPI=true (opt-in during migration)
-USE_FASTAPI="${USE_FASTAPI:-false}"
-
 start_api() {
-    if [ "$USE_FASTAPI" = "true" ]; then
-        echo "Starting FastAPI server on http://localhost:8001..."
-        echo "  - OpenAPI docs at http://localhost:8001/docs"
-        uvicorn civic_services.servers.civic_api_fastapi:app --host 0.0.0.0 --port 8001 --reload
-    else
-        echo "Starting API server on http://localhost:8001..."
-        python -m civic_services.servers.civic_api_integrated
-    fi
-}
-
-start_api_fastapi() {
     echo "Starting FastAPI server on http://localhost:8001..."
     echo "  - OpenAPI docs at http://localhost:8001/docs"
     echo "  - ReDoc at http://localhost:8001/redoc"
@@ -63,8 +49,8 @@ start_all() {
     echo "Starting all Civic services..."
     echo ""
 
-    # Start API in background
-    python -m civic_services.servers.civic_api_integrated &
+    # Start FastAPI server in background (Session 511: Migration complete)
+    uvicorn civic_services.servers.civic_api_fastapi:app --host 0.0.0.0 --port 8001 &
     API_PID=$!
     echo "API server started (PID: $API_PID)"
 
@@ -90,8 +76,7 @@ show_help() {
     echo "Usage: ./scripts/dev.sh [command]"
     echo ""
     echo "Commands:"
-    echo "  api          Start REST API server only (port 8001)"
-    echo "  api-fastapi  Start FastAPI server only (port 8001, with /docs)"
+    echo "  api          Start FastAPI server only (port 8001, with /docs)"
     echo "  ws           Start WebSocket server only (port 8002)"
     echo "  frontend     Start Vue frontend only (port 5173)"
     echo "  all          Start all servers (default)"
@@ -101,15 +86,15 @@ show_help() {
     echo "  CIVIC_DEV_MODE=true"
     echo "  CIVIC_WEB_KEY=dev_key_local (or from .env)"
     echo "  GOOGLE_MAPS_API_KEY (from .env)"
-    echo "  USE_FASTAPI=true (opt-in to FastAPI for 'api' command)"
+    echo ""
+    echo "API Documentation:"
+    echo "  OpenAPI: http://localhost:8001/docs"
+    echo "  ReDoc:   http://localhost:8001/redoc"
 }
 
 case "${1:-all}" in
     api)
         start_api
-        ;;
-    api-fastapi)
-        start_api_fastapi
         ;;
     ws)
         start_websocket

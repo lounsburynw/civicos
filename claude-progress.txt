@@ -12908,3 +12908,39 @@ Audited and cleaned up stale TODO comments across the codebase.
 
 ### Next P0
 `fastapi_migration_complete` - Complete FastAPI migration, remove 10k-line civic_api_integrated.py monolith
+
+## Session 511: FastAPI Migration Complete
+**Date**: 2026-01-11
+**Item**: fastapi_migration_complete (P0)
+**Status**: COMPLETED
+
+### Summary
+Completed the FastAPI migration by:
+1. Verified all 49 frontend endpoints have matching FastAPI routes
+2. Fixed 4 endpoint gaps:
+   - Added `GET /api/follows` - list all user follows
+   - Fixed `/admin/status` → `/api/admin/status` (frontend updated)
+   - Fixed `/api/legislative/*` → `/api/legislation/*` (frontend updated)
+   - Added `GET /api/events/{event_id}/draft-comment` - get most recent draft
+3. Switched dev.sh default to FastAPI server
+4. Deleted 10,458-line monolith (civic_api_integrated.py)
+5. Updated frontend api.ts comments to reference new routers_fastapi/
+
+### Files Changed
+- `packages/civic-services/src/civic_services/servers/routers_fastapi/follows.py` - Added GET /follows endpoint
+- `packages/civic-services/src/civic_services/servers/routers_fastapi/drafts.py` - Added GET draft-comment endpoint  
+- `apps/civic-workspace/src/services/api.ts` - Fixed paths and updated comments
+- `scripts/dev.sh` - Switched to FastAPI as default
+- `packages/civic-services/src/civic_services/servers/civic_api_integrated.py` - DELETED (10,458 lines removed)
+
+### Test Results
+- 42/42 smoke tests passing
+- 67 FastAPI routes verified
+
+### Architecture Notes
+- FastAPI server at ~4,000 lines total (routers)
+- OpenAPI docs at /docs, ReDoc at /redoc
+- All frontend endpoints verified compatible
+
+### Next P0
+Need to identify next priority item from pilot.json

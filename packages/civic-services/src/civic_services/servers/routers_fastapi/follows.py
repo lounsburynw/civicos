@@ -2,6 +2,7 @@
 Follows router: following events, issues, topics.
 
 Endpoints:
+- GET /follows - Get all follows for user
 - GET /follows/{focal_type}/{focal_id} - Get follow info
 - POST /follows - Create a follow
 - POST /follows/{focal_type}/{focal_id}/mark-read - Mark thread as read
@@ -55,6 +56,37 @@ def get_follow_storage():
 
 
 # === Endpoints ===
+
+@router.get("/follows")
+async def get_user_follows(
+    token: str = Depends(verify_auth)
+):
+    """
+    Get all follows for the current user.
+
+    Returns list of all items the user is following.
+    Requires authentication.
+    """
+    try:
+        storage = get_follow_storage()
+        if not storage:
+            return {
+                "follows": [],
+                "count": 0,
+                "note": "Follow storage not available"
+            }
+
+        # Get all follows for user
+        follows = storage.get_follows_for_user(token)
+
+        return {
+            "follows": follows,
+            "count": len(follows)
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
 
 @router.get("/follows/{focal_type}/{focal_id}")
 async def get_follow_info(

@@ -3,6 +3,7 @@ Drafts router: draft comments and submissions.
 
 Endpoints:
 - GET /events/{event_id}/drafts - Get drafts for an event
+- GET /events/{event_id}/draft-comment - Get most recent draft for user
 - POST /events/{event_id}/draft-comment - Create draft comment
 - POST /events/{event_id}/items/{item_id}/regenerate - Regenerate item comment
 - GET /drafts/{draft_id} - Get single draft
@@ -96,6 +97,71 @@ async def get_event_drafts(
             "event_id": event_id,
             "drafts": drafts,
             "count": len(drafts)
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get("/events/{event_id}/draft-comment")
+async def get_event_draft_comment(
+    event_id: str,
+    user_id: Optional[str] = Query(None, description="User ID to get draft for"),
+    token: str = Depends(verify_auth)
+):
+    """
+    Get the most recent draft comment for an event.
+
+    Returns the user's most recent draft or null if none exists.
+    Enables Google Docs-style draft loading without API generation cost.
+    Requires authentication.
+    """
+    try:
+        storage = get_draft_storage()
+        if not storage:
+            return {
+                "draft_id": None,
+                "draft": None,
+                "structured_summary": None,
+                "personal_context": None,
+                "selected_agenda_items": [],
+                "is_template": False,
+                "created_at": None,
+                "updated_at": None,
+                "submitted": False,
+                "note": "Draft storage not available"
+            }
+
+        # Use provided user_id or token
+        target_user = user_id or token
+        drafts = storage.get_event_drafts(event_id=event_id, user_id=target_user)
+
+        if not drafts:
+            return {
+                "draft_id": None,
+                "draft": None,
+                "structured_summary": None,
+                "personal_context": None,
+                "selected_agenda_items": [],
+                "is_template": False,
+                "created_at": None,
+                "updated_at": None,
+                "submitted": False
+            }
+
+        # Get most recent draft (already sorted by updated_at desc)
+        most_recent = drafts[0]
+
+        return {
+            "draft_id": most_recent.get("id"),
+            "draft": most_recent.get("content"),
+            "structured_summary": most_recent.get("structured_summary"),
+            "personal_context": most_recent.get("personal_context"),
+            "selected_agenda_items": most_recent.get("selected_agenda_items", []),
+            "is_template": most_recent.get("is_template", False),
+            "created_at": most_recent.get("created_at"),
+            "updated_at": most_recent.get("updated_at"),
+            "submitted": most_recent.get("status") == "submitted"
         }
 
     except Exception as e:
