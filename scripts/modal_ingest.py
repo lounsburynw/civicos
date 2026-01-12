@@ -451,6 +451,140 @@ def fetch_federal_programs(
 
 
 # =============================================================================
+# HUD Allocations (CDBG, HOME, ESG, etc.)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=2048,
+    timeout=1800,  # 30 min (Excel downloads)
+    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=30.0),
+)
+def fetch_hud_allocations(
+    jurisdiction: str = "city-san-rafael",
+    grantee_name: str = "Marin County",
+    dry_run: bool = False,
+) -> dict:
+    """
+    Fetch HUD CPD formula allocations (CDBG, HOME, ESG, etc.) from HUD.gov.
+
+    Downloads official HUD Excel spreadsheets for each fiscal year and extracts
+    allocations for the specified grantee (e.g., Marin County for San Rafael).
+
+    Auto-detects new fiscal years by checking if the expected URL exists.
+    This allows automatic ingestion when FY2026+ allocations are published.
+
+    Args:
+        jurisdiction: Target Civic jurisdiction (e.g., "city-san-rafael")
+        grantee_name: HUD grantee name (e.g., "Marin County" for consortium cities)
+        dry_run: If True, fetch and parse but don't store to database
+
+    Returns:
+        dict with task results including allocations fetched/stored per fiscal year
+    """
+    import logging
+    import os
+    import time
+
+    import requests
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civic.storage.postgres_backend import PostgresBackend
+    from civic_extraction.clients.hud_exchange import (
+        HUDExchangeClient,
+        HUD_ALLOCATION_URLS,
+        hud_allocation_to_storage,
+    )
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    logger.info(f"[HUD ALLOCATIONS] Starting fetch for {jurisdiction} (grantee: {grantee_name})")
+
+    # Auto-detect available fiscal years (check for new years beyond configured)
+    current_year = 2026  # Update annually or compute from date
+    available_years = set(HUD_ALLOCATION_URLS.keys())
+
+    # Check for new fiscal years not yet in HUD_ALLOCATION_URLS
+    url_pattern = "https://www.hud.gov/sites/dfiles/CPD/documents/FY{year}-Formula-Allocations-All-Grantees.xlsx"
+    new_years_found = []
+
+    for year in range(max(available_years) + 1, current_year + 2):  # Check up to FY+1
+        test_url = url_pattern.format(year=year)
+        try:
+            response = requests.head(test_url, timeout=10)
+            if response.status_code == 200:
+                logger.info(f"  Discovered new fiscal year: FY{year}")
+                available_years.add(year)
+                new_years_found.append(year)
+        except requests.RequestException:
+            pass  # URL not available yet
+
+    if new_years_found:
+        logger.info(f"  New fiscal years detected: {new_years_found}")
+
+    # Initialize client
+    client = HUDExchangeClient()
+
+    # Fetch allocations for all available years
+    all_allocations = []
+    years_fetched = {}
+
+    for year in sorted(available_years, reverse=True):
+        try:
+            allocations = client.get_allocations(grantee_name, fiscal_year=year)
+            if allocations:
+                for a in allocations:
+                    storage_record = hud_allocation_to_storage(a, jurisdiction)
+                    # Add consortium metadata for non-direct grantees
+                    if grantee_name.lower() != jurisdiction.replace("city-", "").replace("-", " ").lower():
+                        storage_record["local_allocation_model"] = "joint_county"
+                        storage_record["allocation_note"] = (
+                            f"Receives HUD funds via {grantee_name} consortium. "
+                            f"County-wide allocation; local share per consortium agreement."
+                        )
+                        storage_record["metadata"]["consortium"] = f"{grantee_name} Urban County Program"
+                        storage_record["metadata"]["entitlement_grantee"] = a.grantee_name
+                    all_allocations.append(storage_record)
+                years_fetched[year] = len(allocations)
+                logger.info(f"  FY{year}: {len(allocations)} allocations")
+        except Exception as e:
+            logger.warning(f"  FY{year}: Failed to fetch - {e}")
+            years_fetched[year] = f"error: {e}"
+
+    logger.info(f"  Total allocations: {len(all_allocations)}")
+
+    # Store to database
+    stored = 0
+    if not dry_run and all_allocations:
+        logger.info("Storing to PostgreSQL...")
+        backend = PostgresBackend(database_url)
+        stored = backend.store_federal_program_allocations(jurisdiction, all_allocations)
+        logger.info(f"  Stored {stored} allocations")
+    elif dry_run:
+        logger.info("  [DRY RUN] Skipping storage")
+
+    elapsed = time.time() - start_time
+    return {
+        "task": "hud_allocations",
+        "jurisdiction": jurisdiction,
+        "grantee_name": grantee_name,
+        "years_fetched": years_fetched,
+        "new_years_discovered": new_years_found,
+        "allocations_total": len(all_allocations),
+        "allocations_stored": stored,
+        "dry_run": dry_run,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 2 * elapsed * 0.000463,
+    }
+
+
+# =============================================================================
 # Vector Indexing
 # =============================================================================
 
@@ -1457,6 +1591,24 @@ def scheduled_low_velocity_refresh():
     except Exception as e:
         logger.exception("Federal programs fetch failed")
         results["federal_programs"] = {"status": "failed", "error": str(e)}
+
+    # HUD allocations (CDBG, HOME, etc.) - auto-detects new fiscal years
+    try:
+        logger.info("Fetching HUD allocations for San Rafael (via Marin County)...")
+        result = fetch_hud_allocations.local(
+            jurisdiction="city-san-rafael",
+            grantee_name="Marin County",
+            dry_run=False,
+        )
+        results["hud_allocations"] = result
+        new_years = result.get("new_years_discovered", [])
+        if new_years:
+            logger.info(f"  HUD allocations: {result.get('allocations_stored', 0)} stored, NEW YEARS FOUND: {new_years}")
+        else:
+            logger.info(f"  HUD allocations: {result.get('allocations_stored', 0)} stored")
+    except Exception as e:
+        logger.exception("HUD allocations fetch failed")
+        results["hud_allocations"] = {"status": "failed", "error": str(e)}
 
     # Agenda items extraction (LLM-powered, after meetings are available)
     try:
