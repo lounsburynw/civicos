@@ -462,8 +462,8 @@ def fetch_federal_programs(
     retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=30.0),
 )
 def fetch_hud_allocations(
-    jurisdiction: str = "city-san-rafael",
-    grantee_name: str = "Marin County",
+    jurisdiction: str = "",
+    grantee_name: str = "",
     dry_run: bool = False,
 ) -> dict:
     """
@@ -475,9 +475,13 @@ def fetch_hud_allocations(
     Auto-detects new fiscal years by checking if the expected URL exists.
     This allows automatic ingestion when FY2026+ allocations are published.
 
+    If jurisdiction is provided without grantee_name, loads grantee from
+    jurisdiction config (data/extraction/{jurisdiction}.json).
+
     Args:
         jurisdiction: Target Civic jurisdiction (e.g., "city-san-rafael")
-        grantee_name: HUD grantee name (e.g., "Marin County" for consortium cities)
+        grantee_name: HUD grantee name (e.g., "Marin County" for consortium cities).
+                      If empty, loads from jurisdiction config.
         dry_run: If True, fetch and parse but don't store to database
 
     Returns:
@@ -499,12 +503,34 @@ def fetch_hud_allocations(
         HUD_ALLOCATION_URLS,
         hud_allocation_to_storage,
     )
+    from civic_extraction.config import get_hud_grantee, get_hud_relationship
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
         raise ValueError("DATABASE_URL not set")
 
-    logger.info(f"[HUD ALLOCATIONS] Starting fetch for {jurisdiction} (grantee: {grantee_name})")
+    # Load grantee from config if not explicitly provided
+    if not grantee_name and jurisdiction:
+        grantee_name = get_hud_grantee(jurisdiction)
+        if not grantee_name:
+            return {
+                "task": "hud_allocations",
+                "jurisdiction": jurisdiction,
+                "error": f"No HUD grantee configured for {jurisdiction}. Add federal_programs.hud_grantee to jurisdiction config.",
+                "elapsed_seconds": time.time() - start_time,
+            }
+
+    if not jurisdiction or not grantee_name:
+        return {
+            "task": "hud_allocations",
+            "error": "Must provide jurisdiction (and optionally grantee_name, or configure in jurisdiction config)",
+            "elapsed_seconds": time.time() - start_time,
+        }
+
+    # Get HUD relationship type from config
+    hud_relationship = get_hud_relationship(jurisdiction) or "unknown"
+
+    logger.info(f"[HUD ALLOCATIONS] Starting fetch for {jurisdiction} (grantee: {grantee_name}, relationship: {hud_relationship})")
 
     # Auto-detect available fiscal years (check for new years beyond configured)
     current_year = 2026  # Update annually or compute from date
@@ -541,8 +567,8 @@ def fetch_hud_allocations(
             if allocations:
                 for a in allocations:
                     storage_record = hud_allocation_to_storage(a, jurisdiction)
-                    # Add consortium metadata for non-direct grantees
-                    if grantee_name.lower() != jurisdiction.replace("city-", "").replace("-", " ").lower():
+                    # Add consortium metadata based on HUD relationship
+                    if hud_relationship == "consortium":
                         storage_record["local_allocation_model"] = "joint_county"
                         storage_record["allocation_note"] = (
                             f"Receives HUD funds via {grantee_name} consortium. "
@@ -574,10 +600,88 @@ def fetch_hud_allocations(
         "task": "hud_allocations",
         "jurisdiction": jurisdiction,
         "grantee_name": grantee_name,
+        "hud_relationship": hud_relationship,
         "years_fetched": years_fetched,
         "new_years_discovered": new_years_found,
         "allocations_total": len(all_allocations),
         "allocations_stored": stored,
+        "dry_run": dry_run,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 2 * elapsed * 0.000463,
+    }
+
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=2048,
+    timeout=3600,  # 1 hour (multiple jurisdictions)
+    retries=modal.Retries(max_retries=1, backoff_coefficient=2.0, initial_delay=30.0),
+)
+def fetch_all_hud_allocations(dry_run: bool = False) -> dict:
+    """
+    Fetch HUD allocations for ALL configured jurisdictions.
+
+    Iterates over all jurisdiction configs that have federal_programs.hud_grantee
+    defined and fetches allocations for each.
+
+    Args:
+        dry_run: If True, fetch and parse but don't store to database
+
+    Returns:
+        dict with results per jurisdiction
+    """
+    import logging
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civic_extraction.config import get_jurisdictions_with_hud_config
+
+    # Get all jurisdictions with HUD config
+    jurisdictions = get_jurisdictions_with_hud_config()
+
+    if not jurisdictions:
+        return {
+            "task": "fetch_all_hud_allocations",
+            "error": "No jurisdictions found with HUD config. Add federal_programs.hud_grantee to jurisdiction configs.",
+            "elapsed_seconds": time.time() - start_time,
+        }
+
+    logger.info(f"[HUD ALLOCATIONS] Found {len(jurisdictions)} jurisdictions with HUD config")
+
+    results = {}
+    total_stored = 0
+    new_years_all = []
+
+    for config in jurisdictions:
+        jid = config.get("jurisdiction_id")
+        grantee = config.get("federal_programs", {}).get("hud_grantee")
+
+        logger.info(f"  Processing {jid} (grantee: {grantee})...")
+
+        try:
+            result = fetch_hud_allocations.local(
+                jurisdiction=jid,
+                grantee_name=grantee,
+                dry_run=dry_run,
+            )
+            results[jid] = result
+            total_stored += result.get("allocations_stored", 0)
+            new_years_all.extend(result.get("new_years_discovered", []))
+        except Exception as e:
+            logger.exception(f"  Failed for {jid}")
+            results[jid] = {"error": str(e)}
+
+    elapsed = time.time() - start_time
+    return {
+        "task": "fetch_all_hud_allocations",
+        "jurisdictions_processed": len(jurisdictions),
+        "total_allocations_stored": total_stored,
+        "new_years_discovered": list(set(new_years_all)),
+        "results": results,
         "dry_run": dry_run,
         "elapsed_seconds": elapsed,
         "cost_usd": 2 * elapsed * 0.000463,
@@ -1592,20 +1696,18 @@ def scheduled_low_velocity_refresh():
         logger.exception("Federal programs fetch failed")
         results["federal_programs"] = {"status": "failed", "error": str(e)}
 
-    # HUD allocations (CDBG, HOME, etc.) - auto-detects new fiscal years
+    # HUD allocations (CDBG, HOME, etc.) - iterates all configured jurisdictions
     try:
-        logger.info("Fetching HUD allocations for San Rafael (via Marin County)...")
-        result = fetch_hud_allocations.local(
-            jurisdiction="city-san-rafael",
-            grantee_name="Marin County",
-            dry_run=False,
-        )
+        logger.info("Fetching HUD allocations for all configured jurisdictions...")
+        result = fetch_all_hud_allocations.local(dry_run=False)
         results["hud_allocations"] = result
         new_years = result.get("new_years_discovered", [])
+        jcount = result.get("jurisdictions_processed", 0)
+        stored = result.get("total_allocations_stored", 0)
         if new_years:
-            logger.info(f"  HUD allocations: {result.get('allocations_stored', 0)} stored, NEW YEARS FOUND: {new_years}")
+            logger.info(f"  HUD allocations: {stored} stored across {jcount} jurisdictions, NEW YEARS FOUND: {new_years}")
         else:
-            logger.info(f"  HUD allocations: {result.get('allocations_stored', 0)} stored")
+            logger.info(f"  HUD allocations: {stored} stored across {jcount} jurisdictions")
     except Exception as e:
         logger.exception("HUD allocations fetch failed")
         results["hud_allocations"] = {"status": "failed", "error": str(e)}
