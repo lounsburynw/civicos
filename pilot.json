@@ -376,6 +376,16 @@
           "federal_programs_vector_embeddings"
         ],
         "artifact": "San Rafael allocations in federal_program_allocations table (8 historical via Marin County consortium)"
+      },
+      "hud_allocations_scheduled_refresh": {
+        "status": "ready",
+        "priority": 2,
+        "description": "Add HUD allocations to Modal scheduled pipeline with auto-detection for new fiscal years",
+        "notes": "Session 516: Added fetch_hud_allocations() to Modal pipeline. Runs weekly in scheduled_low_velocity_refresh(). Auto-detects new fiscal years by probing HUD URLs (FY2026 will auto-ingest when published after appropriations enacted). Fetches Marin County allocations for San Rafael.",
+        "depends_on": [
+          "san_rafael_allocations_ingest"
+        ],
+        "artifact": "scripts/modal_ingest.py::fetch_hud_allocations() + scheduled_low_velocity_refresh() integration"
       }
     },
     "vector_sql_linkage": {

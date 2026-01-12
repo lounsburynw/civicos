@@ -13222,3 +13222,24 @@ allocations = c._storage.get_federal_program_allocations('city-san-rafael')
 
 ### Next P0
 `executive_orders_incremental_fetcher` - Add EO incremental fetcher to civic-extraction for Federal Register updates.
+
+### Additional Work: HUD Allocations Pipeline Automation
+
+Added automated HUD allocation refresh to Modal pipeline:
+
+1. **New Function: `fetch_hud_allocations()`** (`scripts/modal_ingest.py:464`)
+   - Downloads official HUD CPD Excel files for all fiscal years
+   - Auto-detects new fiscal years by probing URLs (FY2026 will auto-ingest when published)
+   - Fetches Marin County allocations for San Rafael consortium
+   - Adds consortium metadata (joint_county, administering_entity)
+
+2. **Scheduled Weekly** via `scheduled_low_velocity_refresh()`
+   - Runs Sunday 3 AM UTC with other low-velocity data
+   - Logs "NEW YEARS FOUND" when FY2026 becomes available
+
+3. **Auto-Detection Logic:**
+   - Checks `https://www.hud.gov/sites/dfiles/CPD/documents/FY{year}-Formula-Allocations-All-Grantees.xlsx`
+   - Probes FY2026, FY2027 each week
+   - When FY2026 appropriations pass and HUD publishes, it will auto-ingest
+
+Pilot progress: 332/366 (91%)
