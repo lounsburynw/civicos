@@ -296,9 +296,10 @@ class CaliforniaGrantsClient:
         offset = 0
 
         # Build SQL-like filter if needed
+        # Note: CA Grants API uses lowercase status values (active, forecasted, closed)
         filters = {}
         if status:
-            filters["Status"] = status
+            filters["Status"] = status.lower()
 
         while offset < max_records:
             params: Dict[str, Any] = {

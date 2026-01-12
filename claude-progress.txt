@@ -13303,3 +13303,46 @@ Pilot progress: 333/367 (91%)
 `state_programs_refresh` - Refresh California state programs for FY25-26
 
 Pilot progress: 334/367 (91%)
+
+---
+
+## Session 518: State Programs Refresh (FY25-26)
+
+**Date:** 2026-01-11
+**Item:** state_programs_refresh (pilot_validation > e2e_cloud_data_verification)
+**Priority:** P0 (IMMEDIATE)
+
+### Summary
+
+Refreshed California state programs for FY25-26 using CaliforniaGrantsClient. Fixed a case sensitivity bug that caused the API to return zero results when filtering by status.
+
+### Bug Fix
+
+The CA Grants API uses lowercase status values ("active", "forecasted", "closed") but the client was passing capitalized values ("Active"). Fixed in `cagrants.py:302` by normalizing to lowercase.
+
+### Data Ingested
+
+- **147 state grants** stored to PostgreSQL `state_passthrough_funds` table
+- 143 currently active, 4 forecasted
+- 33 grants from FY2025, 46 from FY2024
+- **8 housing-specific grants** from HCD including:
+  - PLHA (Permanent Local Housing Allocation)
+  - CDBG NOFA
+  - LHTF (Local Housing Trust Fund)
+  - Multifamily Finance Super NOFA
+
+### Key Files Modified
+- `packages/civic-extraction/src/civic_extraction/clients/cagrants.py:302` - Case sensitivity fix
+- `pilot.json` - Updated state_programs_refresh to ready
+
+### Verification
+
+```python
+from civic.storage.postgres_backend import PostgresBackend
+count = backend.get_state_passthrough_count('city-san-rafael')  # 147
+```
+
+### Next P0
+`executive_orders_incremental_fetcher` - Add EO incremental fetcher to civic-extraction
+
+Pilot progress: 335/368 (91%)
