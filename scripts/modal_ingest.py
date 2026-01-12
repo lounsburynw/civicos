@@ -343,6 +343,114 @@ def fetch_legislation(
 
 
 # =============================================================================
+# Federal Programs (SAM.gov Assistance Listings)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=4096,
+    timeout=3600,  # 1 hour (CSV download + parsing)
+    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=30.0),
+)
+def fetch_federal_programs(
+    dry_run: bool = False,
+    force_refresh: bool = False,
+) -> dict:
+    """
+    Fetch all federal program definitions from SAM.gov Assistance Listings.
+
+    Downloads the complete catalog (~2,300 programs) from GSA's public CSV
+    and stores to PostgreSQL. This replaces the manually curated subset with
+    authoritative federal data.
+
+    The CSV is cached for 24 hours locally, but force_refresh=True will
+    re-download regardless.
+
+    Args:
+        dry_run: If True, fetch and parse but don't store to database
+        force_refresh: If True, bypass cache and re-download CSV
+
+    Returns:
+        dict with task results including programs_fetched, programs_stored
+    """
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civic.storage.postgres_backend import PostgresBackend
+    from civic_extraction.clients.sam_assistance import (
+        SAMAssistanceClient,
+        sam_program_to_storage,
+    )
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    logger.info("[FEDERAL PROGRAMS] Starting SAM.gov Assistance Listings fetch")
+
+    # Initialize client with short cache if force_refresh
+    cache_max_age = 0.001 if force_refresh else 24.0  # 24 hours default
+    client = SAMAssistanceClient(cache_max_age_hours=cache_max_age)
+
+    # Validate connectivity
+    validation = client.validate()
+    if not validation.is_valid:
+        raise RuntimeError(f"SAM.gov validation failed: {validation.errors}")
+
+    # Fetch all programs
+    logger.info("Fetching all programs from SAM.gov...")
+    client._load_programs()  # Force load into cache
+    programs_fetched = client.get_program_count()
+    logger.info(f"  Fetched {programs_fetched} programs")
+
+    # Convert to storage format
+    logger.info("Converting to storage format...")
+    storage_programs = []
+    for aln, listing in client._program_cache.items():
+        try:
+            storage_programs.append(sam_program_to_storage(listing))
+        except Exception as e:
+            logger.warning(f"  Error converting {aln}: {e}")
+
+    logger.info(f"  Converted {len(storage_programs)} programs")
+
+    # Store to database
+    stored = 0
+    if not dry_run:
+        logger.info("Storing to PostgreSQL...")
+        backend = PostgresBackend(database_url)
+        stored = backend.store_federal_programs(storage_programs)
+        logger.info(f"  Stored {stored} programs")
+    else:
+        logger.info("  [DRY RUN] Skipping storage")
+
+    # Get agency breakdown
+    agency_counts: dict = {}
+    for p in storage_programs:
+        agency = p.get("administering_agency", "UNKNOWN")
+        agency_counts[agency] = agency_counts.get(agency, 0) + 1
+
+    elapsed = time.time() - start_time
+    return {
+        "task": "federal_programs",
+        "programs_fetched": programs_fetched,
+        "programs_converted": len(storage_programs),
+        "programs_stored": stored,
+        "dry_run": dry_run,
+        "force_refresh": force_refresh,
+        "agency_breakdown": dict(sorted(agency_counts.items(), key=lambda x: -x[1])[:10]),
+        "elapsed_seconds": elapsed,
+        "cost_usd": 4 * elapsed * 0.000463,
+    }
+
+
+# =============================================================================
 # Vector Indexing
 # =============================================================================
 
@@ -388,9 +496,11 @@ def index_vectors(
     if not validation.is_valid:
         raise RuntimeError(f"pgvector validation failed: {validation.errors}")
 
-    # Determine corpus types
+    # Determine corpus types based on jurisdiction
     if jurisdiction.startswith("state-"):
         all_corpus_types = ["legislation"]
+    elif jurisdiction.startswith("federal-"):
+        all_corpus_types = ["programs"]  # Federal programs from SAM.gov
     else:
         all_corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues", "agenda_items"]
 
@@ -1338,6 +1448,16 @@ def scheduled_low_velocity_refresh():
         logger.exception("CA legislation fetch failed")
         results["legislation_CA"] = {"status": "failed", "error": str(e)}
 
+    # Federal programs from SAM.gov (full catalog refresh)
+    try:
+        logger.info("Fetching federal programs from SAM.gov...")
+        result = fetch_federal_programs.local(dry_run=False, force_refresh=True)
+        results["federal_programs"] = result
+        logger.info(f"  Federal programs: {result.get('programs_stored', 0)} programs stored")
+    except Exception as e:
+        logger.exception("Federal programs fetch failed")
+        results["federal_programs"] = {"status": "failed", "error": str(e)}
+
     # Agenda items extraction (LLM-powered, after meetings are available)
     try:
         logger.info("Extracting agenda items...")
@@ -1360,13 +1480,23 @@ def scheduled_low_velocity_refresh():
 
     # Vector indexing (after data is refreshed)
     try:
-        logger.info("Indexing vectors...")
+        logger.info("Indexing vectors for city-san-rafael...")
         result = index_vectors.local(jurisdiction="city-san-rafael", corpus="all", reindex=False)
-        results["vectors"] = result
-        logger.info(f"  Vectors: {result.get('total_indexed', 0)} documents indexed")
+        results["vectors_city"] = result
+        logger.info(f"  City vectors: {result.get('total_indexed', 0)} documents indexed")
     except Exception as e:
-        logger.exception("Vector indexing failed")
-        results["vectors"] = {"status": "failed", "error": str(e)}
+        logger.exception("City vector indexing failed")
+        results["vectors_city"] = {"status": "failed", "error": str(e)}
+
+    # Federal programs vector indexing (for semantic search on programs)
+    try:
+        logger.info("Indexing federal programs vectors...")
+        result = index_vectors.local(jurisdiction="federal-US", corpus="programs", reindex=False)
+        results["vectors_federal"] = result
+        logger.info(f"  Federal vectors: {result.get('total_indexed', 0)} programs indexed")
+    except Exception as e:
+        logger.exception("Federal vector indexing failed")
+        results["vectors_federal"] = {"status": "failed", "error": str(e)}
 
     elapsed = time.time() - start_time
     logger.info(f"Low-velocity refresh complete in {elapsed:.1f}s")

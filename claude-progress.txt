@@ -13139,3 +13139,31 @@ SAM.gov does NOT have a direct REST API for Assistance Listings. Instead, the da
 
 ### Next P0
 `san_rafael_allocations_ingest` - Ingest San Rafael historical federal program allocations (Marin County consortium data).
+
+### Additional Work: Full Federal Programs Ingestion & Automation
+
+After implementing SAMAssistanceClient, extended the session to complete full catalog ingestion and automation.
+
+#### Full Catalog Ingestion
+- Ingested all 2,312 programs from SAM.gov to PostgreSQL
+- Now have 2,334 programs (includes previous 22 curated + 2,312 from SAM.gov)
+- Vector indexed all 2,334 programs to pgvector (took ~16 minutes)
+- Semantic search verified: "affordable housing for low income" → LIHTC, HTF, VLMI Loans, CDBG, HOME
+
+#### Modal Pipeline Automation
+Added `fetch_federal_programs()` to Modal scheduled pipeline:
+- **Function:** `fetch_federal_programs(dry_run, force_refresh)` at `scripts/modal_ingest.py:356`
+- **Schedule:** Weekly via `scheduled_low_velocity_refresh()` (Sunday 3 AM UTC)
+- **Pipeline order:** federal_programs → vector_indexing(federal-US, programs)
+
+Updated `index_vectors()` to support federal-US jurisdiction with programs corpus.
+
+#### Files Changed
+- `scripts/modal_ingest.py` - Added fetch_federal_programs function, updated scheduled pipeline
+- `pilot.json` - Marked federal_programs_scheduled_refresh, federal_programs_vector_workflow as ready
+
+#### Verification
+- 2,334 programs in PostgreSQL
+- 2,334 embeddings in pgvector
+- Semantic search working correctly
+- Pipeline ready for weekly automated refresh
