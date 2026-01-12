@@ -351,7 +351,7 @@
       },
       "sam_assistance_client": {
         "status": "ready",
-        "priority": 0,
+        "priority": 2,
         "description": "Create SAM.gov Assistance Listings API client",
         "notes": "Replace Perplexity-sourced program definitions with authoritative SAM.gov data. REST API via open.gsa.gov/api/. Free API key from api.data.gov. Provides program eligibility, compliance requirements, ALN (CFDA) numbers. See docs/FEDERAL_PROGRAMS_PARSER_STRATEGY.md.",
         "depends_on": [
@@ -2076,10 +2076,10 @@
         "notes": "Sources: CourtListener API, Harvard Caselaw Access Project. Deferred until data execution and vector indexing complete."
       },
       "scheduled_pipeline_jurisdiction_abstraction": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Abstract remaining hardcoded jurisdiction references in scheduled pipelines",
-        "notes": "Session 516 abstracted HUD allocations. Still need to abstract: scheduled_low_velocity_refresh (municipal_code, agenda_items, decisions, vectors), scheduled_high_velocity_refresh (meetings, issues, transcripts, vectors), scheduled_election_refresh (elections). Each should iterate get_active_jurisdictions() instead of hardcoding city-san-rafael.",
+        "notes": "Session 517 completed: All three scheduled pipelines (low_velocity, high_velocity, election) now iterate get_active_jurisdictions(). Added data/extraction dir mount to Modal image with CIVIC_CONFIG_DIR env var.",
         "depends_on": [
           "jurisdiction_config_abstraction"
         ],
@@ -2093,7 +2093,7 @@
       },
       "state_programs_refresh": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Refresh California state programs for FY25-26",
         "notes": "California fiscal year started July 1, 2025. Update state grant programs with current funding."
       }

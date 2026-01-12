@@ -13274,3 +13274,32 @@ Abstracted hardcoded `city-san-rafael` references into config-driven system:
    - HUD relationship type (consortium vs direct_entitlement) drives metadata
 
 Pilot progress: 333/367 (91%)
+
+## Session 517: Scheduled Pipeline Jurisdiction Abstraction
+- **P0 completed**: scheduled_pipeline_jurisdiction_abstraction
+
+### Changes Made
+1. **scheduled_low_velocity_refresh()** - Now iterates `get_active_jurisdictions()`:
+   - Global ops: legislation_CA, federal_programs, HUD allocations, federal vectors
+   - Per-jurisdiction: municipal_code, agenda_items, decisions, vectors
+
+2. **scheduled_high_velocity_refresh()** - Now iterates `get_active_jurisdictions()`:
+   - Per-jurisdiction: meetings, issues, transcripts, chunks, vectors
+   - Tracks total transcription cost across all jurisdictions
+
+3. **scheduled_election_refresh()** - Now iterates `get_active_jurisdictions()`:
+   - Per-jurisdiction: elections
+
+4. **Modal image update**:
+   - Added `data/extraction` directory mount to Modal image
+   - Set `CIVIC_CONFIG_DIR=/config/extraction` environment variable
+   - Ensures jurisdiction config files are available in Modal container
+
+### Key Files Modified
+- `scripts/modal_ingest.py` - Lines 1651-1984 (scheduled functions + image config)
+- `pilot.json` - Updated scheduled_pipeline_jurisdiction_abstraction to ready
+
+### Next P0
+`state_programs_refresh` - Refresh California state programs for FY25-26
+
+Pilot progress: 334/367 (91%)
