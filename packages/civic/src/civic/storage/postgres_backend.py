@@ -2842,6 +2842,9 @@ class PostgresBackend:
                 if key in video and video[key] is not None:
                     if isinstance(video[key], datetime):
                         video[key] = video[key].isoformat()
+            # Add video_id alias for compatibility with audio download pipeline
+            if 'id' in video:
+                video['video_id'] = video['id']
             videos.append(video)
 
         return videos
