@@ -792,7 +792,7 @@
       ],
       "srcs_transcript_pipeline": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 0,
         "artifact": "Transcribe SRCS board meetings and index for RAG",
         "note": "After YouTube integration, extend existing transcription pipeline (AssemblyAI) to school board meetings. Enables what_was_said() queries across both city and school governance.",
         "depends_on": [
@@ -990,7 +990,7 @@
       ],
       "engagement_tracking_schema": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "civic_engagement table stub for future anti-astroturf measures",
         "note": "Schema only - don't populate until coordination features built. Tracks 311 reports, meeting testimony, etc."
       }
