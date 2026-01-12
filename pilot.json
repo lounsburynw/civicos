@@ -791,13 +791,12 @@
         }
       ],
       "srcs_transcript_pipeline": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Transcribe SRCS board meetings and index for RAG",
-        "note": "After YouTube integration, extend existing transcription pipeline (AssemblyAI) to school board meetings. Enables what_was_said() queries across both city and school governance.",
-        "depends_on": [
-          "srcs_youtube_integration"
-        ]
+        "note": "Infrastructure complete: 69 SRCS videos stored in videos table, fetch_videos() function added to modal_ingest.py, video_id alias fix in get_videos(). Run transcription via: modal run scripts/modal_ingest.py --transcripts --jurisdiction school-san-rafael --transcripts-limit 1",
+        "completed_by": "Session 522",
+        "completed_date": "2026-01-11"
       },
       "srcs_decision_extraction": {
         "status": "not_ready",
@@ -990,7 +989,7 @@
       ],
       "engagement_tracking_schema": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "civic_engagement table stub for future anti-astroturf measures",
         "note": "Schema only - don't populate until coordination features built. Tracks 311 reports, meeting testimony, etc."
       }

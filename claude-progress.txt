@@ -13493,3 +13493,59 @@ Created `data/extraction/county-marin.json` with county-level financial data sou
 `engagement_tracking_schema` - civic_engagement table stub for future anti-astroturf measures
 
 Pilot progress: 14/46 (30.4%)
+
+---
+
+## Session 522 - SRCS Transcript Pipeline Infrastructure (2026-01-11)
+
+### Completed: `srcs_transcript_pipeline` (P0)
+
+Enabled the San Rafael City Schools (SRCS) transcript pipeline by extending the existing city council transcription infrastructure.
+
+**Problem:**
+- SRCS board meeting videos exist on YouTube but weren't connected to the transcript pipeline
+- `fetch_meetings()` only supported ProudCity (city council)
+- `get_videos()` returned `id` key but audio download expected `video_id`
+
+**Solution:**
+
+1. **Stored 69 SRCS videos in database**
+   - Used `YouTubeBoardsSource.from_jurisdiction('school-san-rafael')` to fetch videos
+   - Converted to storage format and called `backend.store_videos()`
+   - Verified with `backend.get_videos('school-san-rafael')` returning 69 videos
+
+2. **Fixed video_id key mismatch in PostgresBackend.get_videos()**
+   - Added `video['video_id'] = video['id']` alias for compatibility
+   - Audio download pipeline now finds videos correctly
+
+3. **Added `fetch_videos()` function to modal_ingest.py**
+   - New Modal function for YouTube-based jurisdictions
+   - Callable via: `modal run scripts/modal_ingest.py --videos --jurisdiction school-san-rafael`
+   - Integrated into CLI with `--videos` flag and result printing
+
+4. **Verified pipeline with dry run**
+   - Audio download identifies 69 videos ready for transcription
+   - Core test suite passes (42/42 tests)
+
+### Key Files Modified
+- `packages/civic/src/civic/storage/postgres_backend.py:2845-2848` - video_id alias
+- `scripts/modal_ingest.py:1001-1110` - NEW: fetch_videos() function
+- `scripts/modal_ingest.py:2389,2495-2517,2540-2541,2601-2607,2698-2699` - CLI integration
+- `pilot.json` - srcs_transcript_pipeline marked ready
+
+### Running Transcription
+
+To transcribe SRCS meetings (costs ~$2.40/meeting via AssemblyAI):
+
+```bash
+# Transcribe 1 video (test)
+modal run scripts/modal_ingest.py --transcripts --jurisdiction school-san-rafael --transcripts-limit 1
+
+# Transcribe all (69 videos, ~$170)
+modal run scripts/modal_ingest.py --transcripts --jurisdiction school-san-rafael
+```
+
+### Next P0
+`engagement_tracking_schema` - civic_engagement table stub for future anti-astroturf measures
+
+Pilot progress: 15/46 (32.6%)

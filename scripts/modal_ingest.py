@@ -995,6 +995,122 @@ def fetch_meetings(
 
 
 # =============================================================================
+# YouTube Video Fetch (for school districts and YouTube-based jurisdictions)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+        modal.Secret.from_name("civic-google"),  # GOOGLE_API_KEY for YouTube Data API
+    ],
+    memory=2048,
+    timeout=600,  # 10 minutes
+    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=10.0),
+)
+def fetch_videos(
+    jurisdiction: str = "school-san-rafael",
+    dry_run: bool = False,
+) -> dict:
+    """Fetch YouTube videos for a jurisdiction with YouTube playlist config.
+
+    This function is designed for jurisdictions like school districts that have
+    meetings recorded on YouTube but no Legistar/ProudCity integration.
+
+    Pipeline Integration:
+        Run this BEFORE extract_transcripts() to discover videos that can be
+        transcribed. The videos are stored to the 'videos' table, which is then
+        read by the audio download step of extract_transcripts().
+
+    Args:
+        jurisdiction: Target jurisdiction (e.g., "school-san-rafael")
+        dry_run: If True, fetch but don't store
+
+    Returns:
+        dict with task info, videos_discovered, videos_stored counts
+    """
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civic.storage.postgres_backend import PostgresBackend
+    from civic_extraction.clients.youtube_boards import YouTubeBoardsSource
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    backend = PostgresBackend(database_url)
+    logger.info(f"[VIDEOS] Starting YouTube fetch: jurisdiction={jurisdiction}")
+
+    # Get videos from YouTube playlist
+    try:
+        source = YouTubeBoardsSource.from_jurisdiction(jurisdiction)
+        youtube_videos = source.client.get_videos()
+        logger.info(f"  Discovered {len(youtube_videos)} videos from YouTube playlist")
+    except Exception as e:
+        logger.error(f"Error fetching videos: {e}")
+        raise
+
+    if not youtube_videos:
+        elapsed = time.time() - start_time
+        return {
+            "task": "videos",
+            "jurisdiction": jurisdiction,
+            "videos_discovered": 0,
+            "videos_stored": 0,
+            "dry_run": dry_run,
+            "elapsed_seconds": elapsed,
+            "cost_usd": 2 * elapsed * 0.000463,
+        }
+
+    # Convert to storage format
+    storage_videos = []
+    for v in youtube_videos:
+        storage_videos.append({
+            "video_id": v.video_id,
+            "title": v.title,
+            "date": v.published_at.strftime("%Y-%m-%d"),
+            "youtube_url": v.watch_url,
+            "meeting_url": None,
+        })
+
+    if dry_run:
+        logger.info(f"  [DRY RUN] Would store {len(storage_videos)} videos")
+        elapsed = time.time() - start_time
+        return {
+            "task": "videos",
+            "jurisdiction": jurisdiction,
+            "videos_discovered": len(youtube_videos),
+            "videos_stored": 0,
+            "dry_run": dry_run,
+            "elapsed_seconds": elapsed,
+            "cost_usd": 2 * elapsed * 0.000463,
+        }
+
+    # Store videos
+    videos_stored = backend.store_videos(jurisdiction, storage_videos)
+    logger.info(f"  Stored {videos_stored} videos")
+
+    elapsed = time.time() - start_time
+    logger.info(f"[VIDEOS] Complete in {elapsed:.1f}s")
+
+    return {
+        "task": "videos",
+        "jurisdiction": jurisdiction,
+        "videos_discovered": len(youtube_videos),
+        "videos_stored": videos_stored,
+        "dry_run": dry_run,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 2 * elapsed * 0.000463,
+    }
+
+
+# =============================================================================
 # Issue Fetch (Incremental)
 # =============================================================================
 
@@ -2270,6 +2386,7 @@ def main(
     meetings: bool = False,
     issues: bool = False,
     elections: bool = False,
+    videos: bool = False,
     transcripts: bool = False,
     chunks: bool = False,
     agenda: bool = False,
@@ -2300,6 +2417,7 @@ def main(
         modal run scripts/modal_ingest.py --meetings
         modal run scripts/modal_ingest.py --issues
         modal run scripts/modal_ingest.py --elections
+        modal run scripts/modal_ingest.py --videos --jurisdiction school-san-rafael
         modal run scripts/modal_ingest.py --transcripts
         modal run scripts/modal_ingest.py --chunks
         modal run scripts/modal_ingest.py --vectors
@@ -2374,10 +2492,11 @@ def main(
     run_chunks = all or chunks
     run_agenda = all or agenda
     run_decisions = decisions  # Explicitly not in --all (weekly only)
+    run_videos = videos  # Not in --all (YouTube jurisdictions need explicit flag)
     run_vectors = all or vectors
 
-    if not (run_municipal or run_legislation or run_meetings or run_issues or run_elections or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors):
-        print("No tasks specified. Use --all, --municipal, --legislation, --meetings, --issues, --elections, --transcripts, --chunks, --agenda, --decisions, or --vectors")
+    if not (run_municipal or run_legislation or run_meetings or run_issues or run_elections or run_videos or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors):
+        print("No tasks specified. Use --all, --municipal, --legislation, --meetings, --issues, --elections, --videos, --transcripts, --chunks, --agenda, --decisions, or --vectors")
         print("Use --stats-only to check current state")
         return
 
@@ -2395,6 +2514,8 @@ def main(
         task_list.append("issues")
     if run_elections:
         task_list.append("elections")
+    if run_videos:
+        task_list.append("videos")
     if run_transcripts:
         task_list.append("transcripts")
     if run_chunks:
@@ -2416,6 +2537,8 @@ def main(
         print(f"  Issues: {jurisdiction}" + (" (incremental)" if incremental else ""))
     if run_elections:
         print(f"  Elections: {jurisdiction}")
+    if run_videos:
+        print(f"  Videos: {jurisdiction} (YouTube)")
     if run_transcripts:
         print(f"  Transcripts: {jurisdiction}" + (f" (limit: {transcripts_limit})" if transcripts_limit else " (incremental)"))
     if run_chunks:
@@ -2474,6 +2597,14 @@ def main(
             dry_run=dry_run,
         )
         handles.append(("elections", handle))
+
+    if run_videos:
+        print("Spawning videos fetch (YouTube)...")
+        handle = fetch_videos.spawn(
+            jurisdiction=jurisdiction,
+            dry_run=dry_run,
+        )
+        handles.append(("videos", handle))
 
     # Wait for fetch tasks to complete before chunks and vectors
     # (chunks need meetings fetched, vectors need all data ready)
@@ -2564,6 +2695,8 @@ def main(
             print(f"+ Issues{incr}: {result.get('issues_fetched', 0)} fetched, {result.get('issues_stored', 0)} stored")
         elif name == "elections":
             print(f"+ Elections: {result.get('elections_fetched', 0)} fetched, {result.get('elections_stored', 0)} stored")
+        elif name == "videos":
+            print(f"+ Videos (YouTube): {result.get('videos_discovered', 0)} discovered, {result.get('videos_stored', 0)} stored")
 
     if transcripts_result:
         cost = transcripts_result.get("cost_usd", 0)
