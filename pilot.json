@@ -445,8 +445,8 @@
         "pattern": "Manual input should be structured, versioned, and clearly marked as human-curated"
       },
       "marin_county_financial_config": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 99,
         "artifact": "Create data/extraction/marin-county.json with financial data sources",
         "note": "County-level budget context. SCO data available. Identify budget/ACFR PDF locations.",
         "depends_on": "extraction_config_financial_section"
@@ -990,7 +990,7 @@
       ],
       "engagement_tracking_schema": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "civic_engagement table stub for future anti-astroturf measures",
         "note": "Schema only - don't populate until coordination features built. Tracks 311 reports, meeting testimony, etc."
       }

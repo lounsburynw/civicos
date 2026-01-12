@@ -13458,3 +13458,38 @@ print(result.get("vector_result"))  # Contains indexing stats
 `marin_county_financial_config` - Create extraction config for Marin County financial data
 
 Pilot progress: 13/46 (28.3%)
+
+## Session 521 - 2026-01-11
+
+### Completed: marin_county_financial_config (P0)
+
+Created `data/extraction/county-marin.json` with county-level financial data sources:
+
+**Data Sources Documented:**
+- **SCO Counties API** - `emxv-k8xv` dataset ID for County Financial Transactions Report
+  - API: `https://bythenumbers.sco.ca.gov/resource/emxv-k8xv.json`
+  - Coverage: FY2003-present, updated annually
+- **Budget Portal** - `https://www.marincounty.gov/departments/finance/fiscal-administrative-services/final-budgets`
+  - FY2024-26 biennial budget ($865M)
+  - Historical PDFs available
+- **ACFR Portal** - `https://www.marincounty.gov/departments/finance/accounting/annual-comprehensive-financial-reports-acfr`
+  - Audited financial statements
+
+**Additional Config:**
+- HUD Urban County relationship (administers CDBG/HOME for consortium cities)
+- Marin Housing Authority details (Section 8, Public Housing, BMR)
+- Lists all 11 incorporated cities in Marin County
+
+**Verification:**
+- JSON validated successfully
+- `load_jurisdiction_config('county-marin')` works via civic_extraction.config
+- `get_active_jurisdictions()` includes county-marin alongside city-san-rafael
+
+### Key Files Modified
+- `data/extraction/county-marin.json` - NEW: County financial extraction config
+- `pilot.json` - marin_county_financial_config marked ready
+
+### Next P0
+`engagement_tracking_schema` - civic_engagement table stub for future anti-astroturf measures
+
+Pilot progress: 14/46 (30.4%)
