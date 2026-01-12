@@ -1,0 +1,104 @@
+{
+  "source_id": "county-marin",
+  "source_type": "county",
+  "jurisdiction_id": "county-marin",
+  "jurisdiction_type": "county",
+  "state": "CA",
+  "metadata": {
+    "created": "2026-01-11",
+    "notes": "Marin County financial data sources. Provides county-level budget context for San Rafael and other incorporated cities.",
+    "population_2024": 260000,
+    "county_seat": "San Rafael",
+    "incorporated_cities": [
+      "Belvedere",
+      "Corte Madera",
+      "Fairfax",
+      "Larkspur",
+      "Mill Valley",
+      "Novato",
+      "Ross",
+      "San Anselmo",
+      "San Rafael",
+      "Sausalito",
+      "Tiburon"
+    ]
+  },
+  "financial": {
+    "sco": {
+      "dataset_id": "emxv-k8xv",
+      "api_url": "https://bythenumbers.sco.ca.gov/resource/emxv-k8xv.json",
+      "entity_name": "Marin",
+      "notes": "CA State Controller Counties Financial Transactions Report. Contains intergovernmental revenues, expenditures, debt. Updated annually.",
+      "data_available_from": 2003
+    },
+    "budget": {
+      "portal_url": "https://www.marincounty.gov/departments/finance/fiscal-administrative-services/final-budgets",
+      "budget_cycle": "biennial",
+      "current_budget": {
+        "fiscal_years": "2024-2026",
+        "total_budget_millions": 865,
+        "document_url": "https://www.marincounty.gov/departments/executive/budget-and-priority-setting/budget-reports-and-data",
+        "notes": "FY 2024-26 is two-year budget. FY 2025-26 proposed budget includes $10.4M one-time spending."
+      },
+      "historical_budgets": [
+        {"fiscal_year": "2024-2025", "format": "PDF", "size_mb": 9.17},
+        {"fiscal_year": "2023-2024", "format": "PDF", "size_mb": 10.21},
+        {"fiscal_year": "2022-2023", "format": "PDF", "size_mb": 3.04}
+      ]
+    },
+    "acfr": {
+      "portal_url": "https://www.marincounty.gov/departments/finance/accounting/annual-comprehensive-financial-reports-acfr",
+      "fiscal_year_end": "June 30",
+      "notes": "Annual Comprehensive Financial Report. Contains audited financial statements, fund balances, long-term debt."
+    },
+    "property_tax": {
+      "assessor_url": "https://www.marincounty.gov/departments/assessor-recorder-county-clerk",
+      "notes": "Property tax is primary revenue source. Prop 13 constraints apply."
+    }
+  },
+  "hud": {
+    "relationship": "Urban County",
+    "program": "Marin County Urban County Program",
+    "notes": "Marin County receives HUD CDBG/HOME as urban county entitlement. San Rafael participates as consortium member, not direct entitlement.",
+    "cdbg_annual_allocation_approx": 1500000,
+    "home_annual_allocation_approx": 700000,
+    "administering_agency": "Marin County Community Development Agency",
+    "portal_url": "https://www.marincounty.gov/departments/cda/housing-and-grants/funding-projects"
+  },
+  "housing_authority": {
+    "name": "Marin Housing Authority",
+    "url": "https://www.marinhousing.org",
+    "address": "4020 Civic Center Drive, San Rafael, CA 94903",
+    "phone": "415-491-2525",
+    "programs": [
+      "Housing Choice Voucher (Section 8)",
+      "Public Housing (Golden Gate Village)",
+      "Below Market Rate Homeownership",
+      "HCV Homeownership"
+    ]
+  },
+  "intergovernmental": {
+    "cities_in_county": 11,
+    "special_districts": "Multiple (fire, water, sanitary, recreation)",
+    "school_districts": 17,
+    "notes": "County provides services to unincorporated areas and some contracted services to cities."
+  },
+  "data_sources_summary": {
+    "sco_counties": {
+      "url": "https://bythenumbers.sco.ca.gov/resource/emxv-k8xv.json",
+      "type": "API",
+      "update_frequency": "annual",
+      "coverage": "FY2003-present"
+    },
+    "budget_pdfs": {
+      "url": "https://www.marincounty.gov/departments/finance/fiscal-administrative-services/final-budgets",
+      "type": "PDF",
+      "update_frequency": "annual/biennial"
+    },
+    "acfr_pdfs": {
+      "url": "https://www.marincounty.gov/departments/finance/accounting/annual-comprehensive-financial-reports-acfr",
+      "type": "PDF",
+      "update_frequency": "annual"
+    }
+  }
+}
