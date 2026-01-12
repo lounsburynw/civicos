@@ -2087,7 +2087,7 @@
       },
       "executive_orders_incremental_fetcher": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Add EO incremental fetcher to civic-extraction",
         "notes": "EOs have higher velocity than codified law. Federal Register API supports date filtering. Add to civic-extraction for scheduled updates like meetings/legislation."
       },
@@ -2096,6 +2096,18 @@
         "priority": 2,
         "description": "Refresh California state programs for FY25-26",
         "notes": "California fiscal year started July 1, 2025. 147 state grants ingested Jan 2026: 143 active, 4 forecasted. 8 housing-specific grants from HCD. Fixed CaliforniaGrantsClient case sensitivity bug."
+      },
+      "state_programs_vector_indexing": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Create vector embeddings for state programs",
+        "notes": "147 state grants ingested but not indexed. Add to pgvector for RAG queries like 'what state housing grants are available?'. Pattern: ingestion should auto-trigger indexing."
+      },
+      "ingestion_auto_indexing": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Enable auto-indexing conditional on ingestion for all corpus types",
+        "notes": "Ingestion pipelines should automatically trigger vector indexing when new data is ingested. Prevents data being stored but not searchable. Apply to: state_programs, federal_programs, meetings, issues, etc."
       }
     }
   }
