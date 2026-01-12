@@ -111,12 +111,15 @@ civic_image = (
         "assemblyai>=0.35.0",  # For transcription
         "yt-dlp>=2024.1.0",  # For audio download
         "google-api-python-client>=2.0.0",  # For YouTube duration validation
+        "python-dotenv>=1.0.0",  # For environment variable loading
+        "boto3>=1.34.0",  # For R2 blob storage access
     )
-    # Add local civic packages
+    # Environment variables (must come before add_local_* per Modal requirements)
+    .env({"CIVIC_CONFIG_DIR": "/config/extraction"})
+    # Add local civic packages (add_local_* must be last)
     .add_local_python_source("civic", "civic_config", "civic_extraction", "civic_services")
     # Add jurisdiction config files for config-driven pipeline iteration
     .add_local_dir("data/extraction", remote_path="/config/extraction")
-    .env({"CIVIC_CONFIG_DIR": "/config/extraction"})
 )
 
 
@@ -1770,6 +1773,7 @@ def extract_decisions(
         modal.Secret.from_name("civic-db"),
         modal.Secret.from_name("civic-assemblyai"),  # ASSEMBLYAI_API_KEY
         modal.Secret.from_name("civic-google"),  # GOOGLE_API_KEY for YouTube duration validation
+        modal.Secret.from_name("civic-r2"),  # R2 blob storage for audio files
     ],
     memory=8192,  # 8GB for concurrent audio processing
     timeout=7200,  # 2 hours (multi-meeting transcription batch)
@@ -2091,6 +2095,7 @@ def scheduled_low_velocity_refresh():
         modal.Secret.from_name("civic-db"),
         modal.Secret.from_name("civic-assemblyai"),  # For transcript extraction
         modal.Secret.from_name("civic-google"),  # For YouTube duration validation
+        modal.Secret.from_name("civic-r2"),  # R2 blob storage for audio files
     ],
     memory=4096,
     timeout=10800,  # 3 hours (transcription can take time)

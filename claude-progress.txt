@@ -13549,3 +13549,31 @@ modal run scripts/modal_ingest.py --transcripts --jurisdiction school-san-rafael
 `srcs_2025_transcription` - Transcribe and index 5 SRCS meetings (Oct 2025 - Jan 2026, ~$12 AssemblyAI)
 
 Pilot progress: 15/46 (32.6%)
+
+## Session 523 - SRCS Transcript Pipeline (2026-01-12)
+
+### Completed: srcs_2025_transcription [P0]
+- Downloaded 5 SRCS meeting audio files via yt-dlp with YouTube cookies (local)
+- Uploaded audio to R2 cloud storage (Cloudflare)
+- Fixed Modal R2 access: added boto3 to pip_install, created civic-r2 secret
+- Fixed tuple unpacking bug in transcribe.py (load_audio_from_cloud return value)
+- Transcribed 5 meetings via AssemblyAI: 2,171 utterances total, $13.41 cost
+  - v_zoBpvd1WU: Dec 16, 5 speakers, 450 utterances
+  - 9hkQ_ieGUbs: Nov 18 Regular, 6 speakers, 166 utterances  
+  - HNV3T4yMHVk: Nov 18 Special, 7 speakers, 733 utterances
+  - l6uCpjCPF6I: Oct 28, 8 speakers, 483 utterances
+  - MEM4v9-UiJc: Oct 14, 8 speakers, 339 utterances
+- Indexed 1,312 transcript chunks for RAG vector search
+- Verified what_was_said() working for SRCS jurisdiction
+
+### Code Changes
+- scripts/modal_ingest.py: Added boto3>=1.34.0 to pip_install, added civic-r2 secret to extract_transcripts and scheduled_high_velocity_refresh
+- packages/civic-extraction/src/civic_extraction/cli/transcribe.py: Fixed tuple unpacking for load_audio_from_cloud return value
+
+### Modal Secrets Created
+- civic-r2: BLOB_STORAGE_URL, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
+
+### Next P0 Candidate
+- srcs_decision_extraction: Extract decisions from SRCS minutes using LLM (depends on agenda items)
+- OR: Other data_readiness items for city-san-rafael
+
