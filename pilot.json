@@ -798,6 +798,12 @@
         "completed_by": "Session 522",
         "completed_date": "2026-01-11"
       },
+      "srcs_2025_transcription": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "Transcribe and index 21 SRCS meetings from 2025",
+        "note": "Run full transcription for 2025 school board meetings (~$50 AssemblyAI). Steps: 1) modal run --transcripts --jurisdiction school-san-rafael, 2) modal run --vectors --jurisdiction school-san-rafael, 3) verify what_was_said() works"
+      },
       "srcs_decision_extraction": {
         "status": "not_ready",
         "priority": 2,
@@ -989,7 +995,7 @@
       ],
       "engagement_tracking_schema": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "civic_engagement table stub for future anti-astroturf measures",
         "note": "Schema only - don't populate until coordination features built. Tracks 311 reports, meeting testimony, etc."
       }
