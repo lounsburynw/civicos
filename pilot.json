@@ -1510,7 +1510,7 @@
         }
       ],
       "federal_programs_scheduled_refresh": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "description": "Automated periodic refresh of federal programs from SAM.gov",
         "artifact": "Modal function or cron job that fetches updated program data from SAM.gov Assistance Listings API",
@@ -1626,7 +1626,7 @@
         ]
       },
       "federal_programs_vector_workflow": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "description": "Add federal programs corpus to vector-refresh GitHub Actions workflow",
         "artifact": "Update .github/workflows/vector-refresh.yml to include corpus_type='programs'",
