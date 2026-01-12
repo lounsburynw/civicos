@@ -533,6 +533,65 @@ class PgVectorBackend:
 
         return "\n".join(parts) if parts else ""
 
+    def _state_program_to_text(self, grant: Dict[str, Any]) -> str:
+        """
+        Convert a state passthrough grant dict to text for embedding.
+
+        State programs use a different schema from federal programs, with fields
+        like state_program_name, state_agency, notes, and rich metadata JSONB.
+        """
+        import json
+
+        parts = []
+
+        if grant.get("state_program_name"):
+            parts.append(f"Program: {grant['state_program_name']}")
+
+        if grant.get("state_agency"):
+            parts.append(f"Agency: {grant['state_agency']}")
+
+        if grant.get("notes"):
+            parts.append(f"Description: {grant['notes']}")
+
+        # Extract from metadata JSONB (rich grant details from grants.ca.gov)
+        metadata = grant.get("metadata", {})
+        if isinstance(metadata, str):
+            try:
+                metadata = json.loads(metadata)
+            except (json.JSONDecodeError, TypeError):
+                metadata = {}
+
+        if metadata.get("categories"):
+            cats = metadata["categories"]
+            if isinstance(cats, list):
+                parts.append(f"Categories: {', '.join(str(c) for c in cats)}")
+            elif isinstance(cats, str):
+                parts.append(f"Categories: {cats}")
+
+        if metadata.get("eligible_geography"):
+            parts.append(f"Geography: {metadata['eligible_geography']}")
+
+        if metadata.get("matching_funds"):
+            parts.append(f"Matching: {metadata['matching_funds']}")
+
+        if metadata.get("status"):
+            parts.append(f"Status: {metadata['status']}")
+
+        if metadata.get("description"):
+            # Full description from metadata if notes was brief
+            parts.append(f"Details: {metadata['description']}")
+
+        if grant.get("federal_cfda_number"):
+            parts.append(f"CFDA Number: {grant['federal_cfda_number']}")
+
+        # Include application period if available
+        period_start = grant.get("period_start")
+        period_end = grant.get("period_end")
+        if period_start and period_end:
+            parts.append(f"Application Period: {period_start} to {period_end}")
+
+        return "\n".join(parts) if parts else ""
+
     def _legislation_to_text(self, bill: Dict[str, Any]) -> str:
         """
         Convert a legislation bill to text for embedding.
@@ -765,6 +824,10 @@ class PgVectorBackend:
             # Federal programs don't need chunking - they're atomic definitions
             # Programs are global (not jurisdiction-specific), so ignore jurisdiction_id
             documents = storage_backend.get_programs()
+        elif corpus_type == "state_programs":
+            # State programs are per-jurisdiction (different grants per city)
+            # They're atomic grant definitions, no chunking needed
+            documents = storage_backend.get_state_passthrough_funds(jurisdiction_id)
         else:
             raise ValueError(f"Unknown corpus_type: {corpus_type}")
 
@@ -875,6 +938,12 @@ class PgVectorBackend:
                     doc_id = doc.get("program_id") or doc.get("id", f"program-{i}-{idx}")
                     meeting_id = None  # Not meeting-related
                     meeting_title = doc.get("program_name")
+                    meeting_datetime = None
+                elif corpus_type == "state_programs":
+                    text = self._state_program_to_text(doc)
+                    doc_id = doc.get("passthrough_id") or doc.get("id", f"state-program-{i}-{idx}")
+                    meeting_id = None  # Not meeting-related
+                    meeting_title = doc.get("state_program_name")
                     meeting_datetime = None
 
                 if not text.strip():
