@@ -13546,6 +13546,6 @@ modal run scripts/modal_ingest.py --transcripts --jurisdiction school-san-rafael
 ```
 
 ### Next P0
-`srcs_2025_transcription` - Transcribe and index 21 SRCS meetings from 2025 (~$50 AssemblyAI)
+`srcs_2025_transcription` - Transcribe and index 5 SRCS meetings (Oct 2025 - Jan 2026, ~$12 AssemblyAI)
 
 Pilot progress: 15/46 (32.6%)
