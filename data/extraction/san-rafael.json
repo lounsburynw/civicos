@@ -28,5 +28,10 @@
   "financial": {
     "state": "CA",
     "county": "Marin"
+  },
+  "federal_programs": {
+    "hud_grantee": "Marin County",
+    "hud_relationship": "consortium",
+    "notes": "San Rafael receives HUD funds via Marin County Urban County Program, not as direct entitlement"
   }
 }

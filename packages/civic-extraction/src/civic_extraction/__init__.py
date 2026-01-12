@@ -78,6 +78,13 @@ from civic_extraction.manifest import (
     list_manifests,
     get_latest_manifest,
 )
+from civic_extraction.config import (
+    load_jurisdiction_config,
+    get_active_jurisdictions,
+    get_jurisdictions_with_hud_config,
+    get_hud_grantee,
+    get_hud_relationship,
+)
 
 __version__ = "0.1.0"
 __all__ = [
@@ -118,4 +125,9 @@ __all__ = [
     "load_manifest",
     "list_manifests",
     "get_latest_manifest",
+    "load_jurisdiction_config",
+    "get_active_jurisdictions",
+    "get_jurisdictions_with_hud_config",
+    "get_hud_grantee",
+    "get_hud_relationship",
 ]

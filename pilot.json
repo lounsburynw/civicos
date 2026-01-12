@@ -386,6 +386,16 @@
           "san_rafael_allocations_ingest"
         ],
         "artifact": "scripts/modal_ingest.py::fetch_hud_allocations() + scheduled_low_velocity_refresh() integration"
+      },
+      "jurisdiction_config_abstraction": {
+        "status": "ready",
+        "priority": 2,
+        "description": "Abstract hardcoded jurisdiction references into config-driven system",
+        "notes": "Session 516: Created civic_extraction.config module with load_jurisdiction_config(), get_active_jurisdictions(), get_jurisdictions_with_hud_config(), get_hud_grantee(), get_hud_relationship(). Extended data/extraction/san-rafael.json with federal_programs section. Refactored Modal pipeline to iterate over configured jurisdictions instead of hardcoding city-san-rafael.",
+        "depends_on": [
+          "hud_allocations_scheduled_refresh"
+        ],
+        "artifact": "packages/civic-extraction/src/civic_extraction/config.py + data/extraction/*.json federal_programs section"
       }
     },
     "vector_sql_linkage": {

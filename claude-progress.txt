@@ -13243,3 +13243,34 @@ Added automated HUD allocation refresh to Modal pipeline:
    - When FY2026 appropriations pass and HUD publishes, it will auto-ingest
 
 Pilot progress: 332/366 (91%)
+
+### Additional Work: Jurisdiction Config Abstraction
+
+Abstracted hardcoded `city-san-rafael` references into config-driven system:
+
+1. **New Config Module:** `packages/civic-extraction/src/civic_extraction/config.py`
+   - `load_jurisdiction_config(jurisdiction_id)` - Load single jurisdiction config
+   - `get_active_jurisdictions()` - Get all configured jurisdictions
+   - `get_jurisdictions_with_hud_config()` - Get jurisdictions with HUD config
+   - `get_hud_grantee(jurisdiction_id)` - Get HUD grantee name
+   - `get_hud_relationship(jurisdiction_id)` - Get HUD relationship type
+
+2. **Extended Jurisdiction Config:** `data/extraction/san-rafael.json`
+   ```json
+   "federal_programs": {
+     "hud_grantee": "Marin County",
+     "hud_relationship": "consortium"
+   }
+   ```
+
+3. **Refactored Modal Pipeline:**
+   - `fetch_hud_allocations()` now loads grantee from config if not explicit
+   - Added `fetch_all_hud_allocations()` to iterate all configured jurisdictions
+   - `scheduled_low_velocity_refresh()` now uses `fetch_all_hud_allocations()`
+
+4. **Benefits:**
+   - Adding a new city only requires adding a config file
+   - No hardcoded jurisdiction references in scheduled pipelines
+   - HUD relationship type (consortium vs direct_entitlement) drives metadata
+
+Pilot progress: 333/367 (91%)
