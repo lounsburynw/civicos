@@ -2,8 +2,8 @@
 Tests for UnifiedSearch cross-corpus semantic search.
 
 This module validates the UnifiedSearch class that provides unified
-search across all 7 corpus types: decisions, pdf, transcript, issue,
-municipal_code, legislation, programs.
+search across all 8 corpus types: decisions, pdf, transcript, issue,
+municipal_code, legislation, programs, state_programs.
 
 Run: pytest packages/civic/tests/test_unified_search.py -v
 """
@@ -32,7 +32,7 @@ class TestCorpusTypes:
     """Test corpus type constants."""
 
     def test_corpus_types_contains_all_types(self):
-        """CORPUS_TYPES includes all 7 corpus types."""
+        """CORPUS_TYPES includes all 8 corpus types."""
         assert "decision" in CORPUS_TYPES
         assert "pdf" in CORPUS_TYPES
         assert "transcript" in CORPUS_TYPES
@@ -40,7 +40,8 @@ class TestCorpusTypes:
         assert "municipal_code" in CORPUS_TYPES
         assert "legislation" in CORPUS_TYPES
         assert "programs" in CORPUS_TYPES
-        assert len(CORPUS_TYPES) == 7
+        assert "state_programs" in CORPUS_TYPES
+        assert len(CORPUS_TYPES) == 8
 
     def test_corpus_types_is_frozen(self):
         """CORPUS_TYPES cannot be modified."""
