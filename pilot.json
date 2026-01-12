@@ -2075,9 +2075,19 @@
         "description": "Ingest federal case law (judicial decisions)",
         "notes": "Sources: CourtListener API, Harvard Caselaw Access Project. Deferred until data execution and vector indexing complete."
       },
-      "executive_orders_incremental_fetcher": {
+      "scheduled_pipeline_jurisdiction_abstraction": {
         "status": "not_ready",
         "priority": 0,
+        "description": "Abstract remaining hardcoded jurisdiction references in scheduled pipelines",
+        "notes": "Session 516 abstracted HUD allocations. Still need to abstract: scheduled_low_velocity_refresh (municipal_code, agenda_items, decisions, vectors), scheduled_high_velocity_refresh (meetings, issues, transcripts, vectors), scheduled_election_refresh (elections). Each should iterate get_active_jurisdictions() instead of hardcoding city-san-rafael.",
+        "depends_on": [
+          "jurisdiction_config_abstraction"
+        ],
+        "artifact": "scripts/modal_ingest.py scheduled functions iterate over configured jurisdictions"
+      },
+      "executive_orders_incremental_fetcher": {
+        "status": "not_ready",
+        "priority": 1,
         "description": "Add EO incremental fetcher to civic-extraction",
         "notes": "EOs have higher velocity than codified law. Federal Register API supports date filtering. Add to civic-extraction for scheduled updates like meetings/legislation."
       },
