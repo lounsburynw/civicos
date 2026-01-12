@@ -149,7 +149,7 @@ def index_corpus(
     # Legislation uses "legislation-CA" format
     codified_law_jurisdictions = {"federal-US", "federal-CFR", "state-CA"}
 
-    all_corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues", "elections"]
+    all_corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues", "elections", "state_programs"]
     if jurisdiction in codified_law_jurisdictions:
         all_corpus_types = ["codified_law"]
     elif jurisdiction == "federal-EO":
@@ -300,7 +300,7 @@ def get_stats(jurisdiction: str = "city-san-rafael") -> dict:
     elif jurisdiction.startswith("legislation-"):
         corpus_types = ["legislation"]
     else:
-        corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues", "elections"]
+        corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues", "elections", "state_programs"]
     stats = {}
 
     for ct in corpus_types:

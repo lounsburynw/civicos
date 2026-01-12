@@ -13346,3 +13346,47 @@ count = backend.get_state_passthrough_count('city-san-rafael')  # 147
 `executive_orders_incremental_fetcher` - Add EO incremental fetcher to civic-extraction
 
 Pilot progress: 335/368 (91%)
+
+---
+
+## Session 519: State Programs Vector Indexing
+**Date:** 2026-01-11
+**P0 Completed:** state_programs_vector_indexing
+
+### Summary
+Added vector indexing support for California state programs (grants from grants.ca.gov).
+
+### Changes Made
+1. **corpus_types.py**: Added `STATE_PROGRAMS` corpus type with:
+   - display_name: "State Programs"
+   - storage_method: get_state_passthrough_funds
+   - text_extractor: _state_program_to_text
+   - jurisdiction_type: city (per-jurisdiction)
+   - sql_table: state_passthrough_funds
+
+2. **pgvector_backend.py**: Added:
+   - `_state_program_to_text()` method to extract searchable text from state grants
+   - Handling for state_programs corpus in `index_from_storage()` 
+   - Text extraction in batch processing loop
+
+3. **modal_vectors.py**: Added state_programs to:
+   - all_corpus_types list for city jurisdictions
+   - get_stats() corpus types list
+
+### Verification
+- 147 state grants indexed via Modal (62s, $0.46)
+- RAG queries verified working:
+  - "housing grants" → PLHA, LHTF, CDBG (scores 0.69-0.71)
+  - "transportation infrastructure" → ISRF Program (score 0.67)
+  - "environmental protection" → Coastal Conservancy, Prop 1 Watershed (scores 0.71-0.72)
+
+### Key Files Modified
+- `packages/civic/src/civic/storage/corpus_types.py` - Added STATE_PROGRAMS enum and registry
+- `packages/civic/src/civic/storage/pgvector_backend.py` - Added text extractor and corpus handling
+- `scripts/modal_vectors.py` - Added to corpus type lists
+- `pilot.json` - Updated state_programs_vector_indexing to ready
+
+### Next P0
+`ingestion_auto_indexing` - Enable auto-indexing when data is ingested
+
+Pilot progress: 12/46 (26.1%)

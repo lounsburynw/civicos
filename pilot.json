@@ -2098,14 +2098,14 @@
         "notes": "California fiscal year started July 1, 2025. 147 state grants ingested Jan 2026: 143 active, 4 forecasted. 8 housing-specific grants from HCD. Fixed CaliforniaGrantsClient case sensitivity bug."
       },
       "state_programs_vector_indexing": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Create vector embeddings for state programs",
-        "notes": "147 state grants ingested but not indexed. Add to pgvector for RAG queries like 'what state housing grants are available?'. Pattern: ingestion should auto-trigger indexing."
+        "notes": "147 state grants indexed with fastembed nomic-embed-text-v1.5. Added STATE_PROGRAMS corpus type to corpus_types.py, _state_program_to_text() extractor to pgvector_backend.py, and state_programs to modal_vectors.py. RAG queries verified working: housing, transportation, environmental queries return relevant grants."
       },
       "ingestion_auto_indexing": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Enable auto-indexing conditional on ingestion for all corpus types",
         "notes": "Ingestion pipelines should automatically trigger vector indexing when new data is ingested. Prevents data being stored but not searchable. Apply to: state_programs, federal_programs, meetings, issues, etc."
       }

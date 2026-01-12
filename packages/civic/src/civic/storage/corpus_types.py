@@ -45,6 +45,7 @@ class CorpusType(str, Enum):
     # State/federal-level corpora
     LEGISLATION = "legislation"   # Bills (pending/historical) - parameterized by state
     PROGRAMS = "programs"         # Federal programs (grants, etc.)
+    STATE_PROGRAMS = "state_programs"  # State pass-through grants (per-jurisdiction)
     CODIFIED_LAW = "codified_law" # Statutes (U.S. Code, CA Codes, etc.) - parameterized by jurisdiction
     EXECUTIVE_ORDERS = "executive_orders"  # Presidential executive orders (SESSION 432)
 
@@ -198,6 +199,17 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         aliases=("program",),
         has_meeting_context=False,
     ),
+    CorpusType.STATE_PROGRAMS: CorpusConfig(
+        display_name="State Programs",
+        storage_method="get_state_passthrough_funds",
+        count_method="get_state_passthrough_count",
+        text_extractor="_state_program_to_text",
+        jurisdiction_type="city",  # Per-jurisdiction (different grants per city)
+        sql_table="state_passthrough_funds",
+        vector_collection_suffix="state_programs",
+        aliases=("state_program", "state_grant", "state_grants"),
+        has_meeting_context=False,
+    ),
     CorpusType.CODIFIED_LAW: CorpusConfig(
         display_name="Codified Law",
         storage_method="get_codified_law",
@@ -327,6 +339,7 @@ UNIFIED_SEARCH_ALIASES = {
     "municipal_code": CorpusType.MUNICIPAL_CODE,
     "legislation": CorpusType.LEGISLATION,
     "programs": CorpusType.PROGRAMS,
+    "state_programs": CorpusType.STATE_PROGRAMS,
     "codified_law": CorpusType.CODIFIED_LAW,
     "statutes": CorpusType.CODIFIED_LAW,
     "executive_orders": CorpusType.EXECUTIVE_ORDERS,
@@ -344,6 +357,7 @@ UNIFIED_CORPUS_TYPES = frozenset({
     "municipal_code",
     "legislation",
     "programs",
+    "state_programs",
 })
 
 
