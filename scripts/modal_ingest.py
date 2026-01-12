@@ -135,8 +135,16 @@ def fetch_municipal_code(
     jurisdiction: str = "city-san-rafael",
     dry_run: bool = False,
     rate_limit: float = 2.0,
+    auto_index: bool = False,
 ) -> dict:
-    """Fetch complete municipal code from Municode API and store to Postgres."""
+    """Fetch complete municipal code from Municode API and store to Postgres.
+
+    Args:
+        jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
+        dry_run: If True, fetch but don't store
+        rate_limit: Seconds between API requests
+        auto_index: If True, trigger vector indexing after successful storage
+    """
     import logging
     import os
     import time
@@ -178,8 +186,19 @@ def fetch_municipal_code(
         stored_count = backend.store_municipal_code(jurisdiction_id=jurisdiction, sections=sections)
         logger.info(f"Stored {stored_count} sections")
 
+    # Auto-index vectors if requested and data was stored
+    vector_result = None
+    if auto_index and stored_count > 0 and not dry_run:
+        logger.info(f"[MUNICIPAL] Auto-indexing vectors for {jurisdiction}...")
+        vector_result = index_vectors.local(
+            jurisdiction=jurisdiction,
+            corpus="municipal_code",
+            reindex=False,
+        )
+        logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
+
     elapsed = time.time() - start_time
-    return {
+    result = {
         "task": "municipal_code",
         "jurisdiction": jurisdiction,
         "sections_fetched": len(sections),
@@ -187,9 +206,13 @@ def fetch_municipal_code(
         "sections_stored": stored_count,
         "titles": len(titles_seen),
         "dry_run": dry_run,
+        "auto_index": auto_index,
         "elapsed_seconds": elapsed,
         "cost_usd": 4 * elapsed * 0.000463,
     }
+    if vector_result:
+        result["vector_result"] = vector_result
+    return result
 
 
 # =============================================================================
@@ -210,8 +233,16 @@ def fetch_legislation(
     jurisdiction: str = "state-CA",
     limit: int | None = None,
     dry_run: bool = False,
+    auto_index: bool = False,
 ) -> dict:
-    """Fetch bill text from LegiScan API and store to Postgres."""
+    """Fetch bill text from LegiScan API and store to Postgres.
+
+    Args:
+        jurisdiction: Target jurisdiction (e.g., "state-CA")
+        limit: Maximum bills to process (None = no limit)
+        dry_run: If True, fetch but don't store
+        auto_index: If True, trigger vector indexing after successful storage
+    """
     import base64
     import logging
     import os
@@ -332,17 +363,34 @@ def fetch_legislation(
         stored = backend.update_legislation_text(state_code, updates)
         logger.info(f"Stored {stored} bill texts")
 
+    # Auto-index vectors if requested and data was stored
+    vector_result = None
+    if auto_index and updates and not dry_run:
+        logger.info(f"[LEGISLATION] Auto-indexing vectors for {jurisdiction}...")
+        # Legislation uses "legislation-CA" format for vector indexing
+        vector_jurisdiction = f"legislation-{state_code}"
+        vector_result = index_vectors.local(
+            jurisdiction=vector_jurisdiction,
+            corpus="legislation",
+            reindex=False,
+        )
+        logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
+
     elapsed = time.time() - start_time
-    return {
+    result = {
         "task": "legislation",
         "jurisdiction": jurisdiction,
         "bills_processed": len(bills_needing_text),
         "bills_with_text": len(updates),
         "api_calls": api_calls,
         "dry_run": dry_run,
+        "auto_index": auto_index,
         "elapsed_seconds": elapsed,
         "cost_usd": 4 * elapsed * 0.000463,
     }
+    if vector_result:
+        result["vector_result"] = vector_result
+    return result
 
 
 # =============================================================================
@@ -359,6 +407,7 @@ def fetch_legislation(
 def fetch_federal_programs(
     dry_run: bool = False,
     force_refresh: bool = False,
+    auto_index: bool = False,
 ) -> dict:
     """
     Fetch all federal program definitions from SAM.gov Assistance Listings.
@@ -373,6 +422,7 @@ def fetch_federal_programs(
     Args:
         dry_run: If True, fetch and parse but don't store to database
         force_refresh: If True, bypass cache and re-download CSV
+        auto_index: If True, trigger vector indexing after successful storage
 
     Returns:
         dict with task results including programs_fetched, programs_stored
@@ -439,18 +489,33 @@ def fetch_federal_programs(
         agency = p.get("administering_agency", "UNKNOWN")
         agency_counts[agency] = agency_counts.get(agency, 0) + 1
 
+    # Auto-index vectors if requested and data was stored
+    vector_result = None
+    if auto_index and stored > 0 and not dry_run:
+        logger.info("[FEDERAL PROGRAMS] Auto-indexing vectors...")
+        vector_result = index_vectors.local(
+            jurisdiction="federal-US",
+            corpus="programs",
+            reindex=False,
+        )
+        logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
+
     elapsed = time.time() - start_time
-    return {
+    result = {
         "task": "federal_programs",
         "programs_fetched": programs_fetched,
         "programs_converted": len(storage_programs),
         "programs_stored": stored,
         "dry_run": dry_run,
         "force_refresh": force_refresh,
+        "auto_index": auto_index,
         "agency_breakdown": dict(sorted(agency_counts.items(), key=lambda x: -x[1])[:10]),
         "elapsed_seconds": elapsed,
         "cost_usd": 4 * elapsed * 0.000463,
     }
+    if vector_result:
+        result["vector_result"] = vector_result
+    return result
 
 
 # =============================================================================
@@ -817,6 +882,7 @@ def fetch_meetings(
     days_ahead: int = 90,
     incremental: bool = False,
     dry_run: bool = False,
+    auto_index: bool = False,
 ) -> dict:
     """Fetch meetings from ProudCity API with optional incremental mode.
 
@@ -826,6 +892,7 @@ def fetch_meetings(
         days_ahead: Days to look ahead for meetings (default 90)
         incremental: If True, use refresh_metadata to determine date range
         dry_run: If True, fetch but don't store
+        auto_index: If True, trigger vector indexing after successful storage
     """
     import logging
     import os
@@ -897,8 +964,19 @@ def fetch_meetings(
             fetch_window_days=days_past,
         )
 
+    # Auto-index vectors if requested and data was stored
+    vector_result = None
+    if auto_index and stored_count > 0 and not dry_run:
+        logger.info(f"[MEETINGS] Auto-indexing vectors for {jurisdiction}...")
+        vector_result = index_vectors.local(
+            jurisdiction=jurisdiction,
+            corpus="meetings",
+            reindex=False,
+        )
+        logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
+
     elapsed = time.time() - start_time
-    return {
+    result = {
         "task": "meetings",
         "jurisdiction": jurisdiction,
         "meetings_fetched": len(meetings),
@@ -907,9 +985,13 @@ def fetch_meetings(
         "days_past": days_past,
         "days_ahead": days_ahead,
         "dry_run": dry_run,
+        "auto_index": auto_index,
         "elapsed_seconds": elapsed,
         "cost_usd": 4 * elapsed * 0.000463,
     }
+    if vector_result:
+        result["vector_result"] = vector_result
+    return result
 
 
 # =============================================================================
@@ -929,6 +1011,7 @@ def fetch_issues(
     per_page: int = 100,
     incremental: bool = False,
     dry_run: bool = False,
+    auto_index: bool = False,
 ) -> dict:
     """Fetch 311 issues from SeeClickFix API with optional incremental mode.
 
@@ -938,6 +1021,7 @@ def fetch_issues(
         per_page: Issues per page (default 100, max 100)
         incremental: If True, use refresh_metadata to determine starting page
         dry_run: If True, fetch but don't store
+        auto_index: If True, trigger vector indexing after successful storage
     """
     import logging
     import os
@@ -1038,8 +1122,19 @@ def fetch_issues(
             )
             raise
 
+    # Auto-index vectors if requested and data was stored
+    vector_result = None
+    if auto_index and stored_count > 0 and not dry_run:
+        logger.info(f"[ISSUES] Auto-indexing vectors for {jurisdiction}...")
+        vector_result = index_vectors.local(
+            jurisdiction=jurisdiction,
+            corpus="issues",
+            reindex=False,
+        )
+        logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
+
     elapsed = time.time() - start_time
-    return {
+    result = {
         "task": "issues",
         "jurisdiction": jurisdiction,
         "issues_fetched": len(all_issues),
@@ -1047,9 +1142,13 @@ def fetch_issues(
         "pages_fetched": current_page,
         "incremental": incremental,
         "dry_run": dry_run,
+        "auto_index": auto_index,
         "elapsed_seconds": elapsed,
         "cost_usd": 4 * elapsed * 0.000463,
     }
+    if vector_result:
+        result["vector_result"] = vector_result
+    return result
 
 
 # =============================================================================
@@ -1069,6 +1168,7 @@ def fetch_issues(
 def fetch_elections(
     jurisdiction: str = "city-san-rafael",
     dry_run: bool = False,
+    auto_index: bool = False,
 ) -> dict:
     """Fetch elections from Google Civic API and store to Postgres.
 
@@ -1079,6 +1179,7 @@ def fetch_elections(
     Args:
         jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
         dry_run: If True, fetch but don't store
+        auto_index: If True, trigger vector indexing after successful storage
 
     Setup:
         1. Create Modal secret with Google API key:
@@ -1153,16 +1254,31 @@ def fetch_elections(
             status="completed",
         )
 
+    # Auto-index vectors if requested and data was stored
+    vector_result = None
+    if auto_index and stored_count > 0 and not dry_run:
+        logger.info(f"[ELECTIONS] Auto-indexing vectors for {jurisdiction}...")
+        vector_result = index_vectors.local(
+            jurisdiction=jurisdiction,
+            corpus="elections",
+            reindex=False,
+        )
+        logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
+
     elapsed = time.time() - start_time
-    return {
+    result = {
         "task": "elections",
         "jurisdiction": jurisdiction,
         "elections_fetched": len(elections),
         "elections_stored": stored_count,
         "dry_run": dry_run,
+        "auto_index": auto_index,
         "elapsed_seconds": elapsed,
         "cost_usd": 4 * elapsed * 0.000463,
     }
+    if vector_result:
+        result["vector_result"] = vector_result
+    return result
 
 
 # =============================================================================
@@ -1180,6 +1296,7 @@ def extract_chunks(
     jurisdiction: str = "city-san-rafael",
     limit: int = 0,
     dry_run: bool = False,
+    auto_index: bool = False,
 ) -> dict:
     """Extract text chunks from meeting agenda PDFs.
 
@@ -1192,6 +1309,7 @@ def extract_chunks(
         jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
         limit: Maximum meetings to process (0 = no limit)
         dry_run: If True, show what would be processed without extracting
+        auto_index: If True, trigger vector indexing after successful extraction
     """
     import logging
     import os
@@ -1249,7 +1367,18 @@ def extract_chunks(
     logger.info(f"[CHUNKS] Extracted {total_chunks} chunks from {extracted} meetings")
     logger.info(f"[CHUNKS] Skipped {skipped} (already chunked), {failed} failed")
 
-    return {
+    # Auto-index vectors if requested and chunks were extracted
+    vector_result = None
+    if auto_index and total_chunks > 0 and not dry_run:
+        logger.info(f"[CHUNKS] Auto-indexing vectors for {jurisdiction}...")
+        vector_result = index_vectors.local(
+            jurisdiction=jurisdiction,
+            corpus="chunks",
+            reindex=False,
+        )
+        logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
+
+    result = {
         "task": "chunks",
         "jurisdiction": jurisdiction,
         "meetings_processed": len(results),
@@ -1258,9 +1387,13 @@ def extract_chunks(
         "meetings_failed": failed,
         "chunks_extracted": total_chunks,
         "dry_run": dry_run,
+        "auto_index": auto_index,
         "elapsed_seconds": elapsed,
         "cost_usd": 8 * elapsed * 0.000463,
     }
+    if vector_result:
+        result["vector_result"] = vector_result
+    return result
 
 
 # =============================================================================
@@ -1281,6 +1414,7 @@ def extract_agenda_items(
     jurisdiction: str = "city-san-rafael",
     limit: int = 0,
     dry_run: bool = False,
+    auto_index: bool = False,
 ) -> dict:
     """Extract actionable agenda items from meeting PDFs using LLM.
 
@@ -1294,6 +1428,7 @@ def extract_agenda_items(
         jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
         limit: Maximum meetings to process (0 = no limit)
         dry_run: If True, show what would be processed without extracting
+        auto_index: If True, trigger vector indexing after successful extraction
     """
     import logging
     import os
@@ -1343,11 +1478,22 @@ def extract_agenda_items(
     total_items = sum(r.items_count for r in results if r.status == "success")
     actionable_items = sum(r.actionable_count for r in results if r.status == "success")
 
+    # Auto-index vectors if requested and items were extracted
+    vector_result = None
+    if auto_index and total_items > 0 and not dry_run:
+        logger.info(f"[AGENDA] Auto-indexing vectors for {jurisdiction}...")
+        vector_result = index_vectors.local(
+            jurisdiction=jurisdiction,
+            corpus="agenda_items",
+            reindex=False,
+        )
+        logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
+
     elapsed = time.time() - start_time
     logger.info(f"[AGENDA] Extracted {total_items} items ({actionable_items} actionable) from {extracted} meetings")
     logger.info(f"[AGENDA] Skipped {skipped} (already extracted), {failed} failed")
 
-    return {
+    result = {
         "task": "agenda_items",
         "jurisdiction": jurisdiction,
         "meetings_processed": len(results),
@@ -1357,9 +1503,13 @@ def extract_agenda_items(
         "items_extracted": total_items,
         "actionable_items": actionable_items,
         "dry_run": dry_run,
+        "auto_index": auto_index,
         "elapsed_seconds": elapsed,
         "cost_usd": 8 * elapsed * 0.000463,
     }
+    if vector_result:
+        result["vector_result"] = vector_result
+    return result
 
 
 # =============================================================================
@@ -1380,6 +1530,7 @@ def extract_decisions(
     jurisdiction: str = "city-san-rafael",
     limit: int = 0,
     dry_run: bool = False,
+    auto_index: bool = False,
 ) -> dict:
     """Extract high-stakes decisions from meeting minutes using LLM.
 
@@ -1407,6 +1558,7 @@ def extract_decisions(
         jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
         limit: Maximum meetings to process (0 = no limit)
         dry_run: If True, show what would be processed without extracting
+        auto_index: If True, trigger vector indexing after successful extraction
     """
     import logging
     import os
@@ -1459,11 +1611,22 @@ def extract_decisions(
     failed = sum(1 for r in results if r.status == "error")
     total_decisions = sum(r.decisions_count for r in results if r.status == "success")
 
+    # Auto-index vectors if requested and decisions were extracted
+    vector_result = None
+    if auto_index and total_decisions > 0 and not dry_run:
+        logger.info(f"[DECISIONS] Auto-indexing vectors for {jurisdiction}...")
+        vector_result = index_vectors.local(
+            jurisdiction=jurisdiction,
+            corpus="decisions",
+            reindex=False,
+        )
+        logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
+
     elapsed = time.time() - start_time
     logger.info(f"[DECISIONS] Extracted {total_decisions} decisions from {extracted} meetings")
     logger.info(f"[DECISIONS] Skipped {skipped} (already extracted), {failed} failed")
 
-    return {
+    result = {
         "task": "decisions",
         "jurisdiction": jurisdiction,
         "meetings_processed": len(results),
@@ -1472,9 +1635,13 @@ def extract_decisions(
         "meetings_failed": failed,
         "decisions_extracted": total_decisions,
         "dry_run": dry_run,
+        "auto_index": auto_index,
         "elapsed_seconds": elapsed,
         "cost_usd": 8 * elapsed * 0.000463,
     }
+    if vector_result:
+        result["vector_result"] = vector_result
+    return result
 
 
 # =============================================================================
@@ -1497,6 +1664,7 @@ def extract_transcripts(
     limit: int = 0,
     dry_run: bool = False,
     batch: bool = True,
+    auto_index: bool = False,
 ) -> dict:
     """Extract transcripts from meeting audio using AssemblyAI.
 
@@ -1517,6 +1685,7 @@ def extract_transcripts(
         limit: Maximum meetings to process (0 = no limit)
         dry_run: If True, show what would be processed without extracting
         batch: If True, use AssemblyAI batch mode for parallel transcription
+        auto_index: If True, trigger vector indexing after successful extraction
 
     Cost: ~$0.02/minute audio (~$2.40 per 2-hour meeting)
     """
@@ -1616,10 +1785,21 @@ def extract_transcripts(
         duration_issues = 0
         total_cost = 0.0
 
+    # Auto-index vectors if requested and transcripts were extracted
+    vector_result = None
+    if auto_index and transcripts_extracted > 0 and not dry_run:
+        logger.info(f"[TRANSCRIPTS] Auto-indexing vectors for {jurisdiction}...")
+        vector_result = index_vectors.local(
+            jurisdiction=jurisdiction,
+            corpus="transcripts",
+            reindex=False,
+        )
+        logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
+
     elapsed = time.time() - start_time
     logger.info(f"[TRANSCRIPTS] Complete in {elapsed:.1f}s. Cost: ${total_cost:.2f}")
 
-    return {
+    result = {
         "task": "transcripts",
         "jurisdiction": jurisdiction,
         "audio_downloaded": audio_downloaded,
@@ -1630,10 +1810,14 @@ def extract_transcripts(
         "duration_validation_issues": duration_issues,
         "dry_run": dry_run,
         "batch_mode": batch,
+        "auto_index": auto_index,
         "elapsed_seconds": elapsed,
         "transcription_cost_usd": total_cost,
         "cost_usd": 8 * elapsed * 0.000463 + total_cost,  # Modal compute + AssemblyAI
     }
+    if vector_result:
+        result["vector_result"] = vector_result
+    return result
 
 
 # =============================================================================
