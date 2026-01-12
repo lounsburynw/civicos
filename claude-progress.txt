@@ -13390,3 +13390,71 @@ Added vector indexing support for California state programs (grants from grants.
 `ingestion_auto_indexing` - Enable auto-indexing when data is ingested
 
 Pilot progress: 12/46 (26.1%)
+
+## Session 520: ingestion_auto_indexing - Pilot Validation
+
+**Date:** 2026-01-11
+**Item:** ingestion_auto_indexing (pilot_validation > e2e_cloud_data_verification)
+**Priority:** P0
+
+### Summary
+
+Added `auto_index` parameter to all fetch/extract functions in `scripts/modal_ingest.py`. When enabled, triggers vector indexing immediately after data is stored, ensuring newly ingested data becomes searchable without waiting for scheduled refresh cycles.
+
+### Implementation Approach
+
+- Added `auto_index: bool = False` parameter to 10 functions
+- When `auto_index=True` and data was stored successfully, calls `index_vectors.local()` with the appropriate corpus type
+- Default is False to maintain backward compatibility and avoid unexpected costs
+- Returns `vector_result` in response dict when auto-indexing occurs
+
+### Functions Updated
+
+1. **fetch_meetings** - indexes `meetings` corpus
+2. **fetch_issues** - indexes `issues` corpus
+3. **fetch_municipal_code** - indexes `municipal_code` corpus
+4. **fetch_legislation** - indexes `legislation` corpus (uses `legislation-{state}` jurisdiction)
+5. **fetch_federal_programs** - indexes `programs` corpus (uses `federal-US` jurisdiction)
+6. **fetch_elections** - indexes `elections` corpus
+7. **extract_chunks** - indexes `chunks` corpus
+8. **extract_transcripts** - indexes `transcripts` corpus
+9. **extract_agenda_items** - indexes `agenda_items` corpus
+10. **extract_decisions** - indexes `decisions` corpus
+
+### Usage
+
+```bash
+# Ad-hoc ingestion with immediate indexing
+modal run scripts/modal_ingest.py::fetch_meetings --auto-index
+
+# Programmatic use
+result = fetch_meetings.local(jurisdiction="city-san-rafael", auto_index=True)
+print(result.get("vector_result"))  # Contains indexing stats
+```
+
+### Design Decisions
+
+- **Synchronous indexing**: Uses `index_vectors.local()` to ensure vectors are ready before function returns
+- **Conditional on success**: Only indexes if data was stored (`stored_count > 0`) and not dry run
+- **Corpus-specific**: Each function indexes only its relevant corpus type, not all types
+- **Cost-aware**: Default False prevents accidental cost increases; scheduled jobs don't need this flag
+
+### Not Requiring auto_index
+
+- `fetch_hud_allocations` - No vector corpus for HUD allocations
+- `fetch_all_hud_allocations` - Helper function, calls individual fetch_hud_allocations
+
+### Verification
+
+- Python syntax check passed
+- All 42 smoke tests pass (427s)
+- AST analysis confirms all 10 fetch/extract functions have auto_index parameter
+
+### Key Files Modified
+
+- `scripts/modal_ingest.py:134-1710` - All fetch/extract function signatures and implementations
+
+### Next P0
+`marin_county_financial_config` - Create extraction config for Marin County financial data
+
+Pilot progress: 13/46 (28.3%)

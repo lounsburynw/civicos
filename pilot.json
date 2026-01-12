@@ -446,7 +446,7 @@
       },
       "marin_county_financial_config": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Create data/extraction/marin-county.json with financial data sources",
         "note": "County-level budget context. SCO data available. Identify budget/ACFR PDF locations.",
         "depends_on": "extraction_config_financial_section"
@@ -2104,10 +2104,10 @@
         "notes": "147 state grants indexed with fastembed nomic-embed-text-v1.5. Added STATE_PROGRAMS corpus type to corpus_types.py, _state_program_to_text() extractor to pgvector_backend.py, and state_programs to modal_vectors.py. RAG queries verified working: housing, transportation, environmental queries return relevant grants."
       },
       "ingestion_auto_indexing": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Enable auto-indexing conditional on ingestion for all corpus types",
-        "notes": "Ingestion pipelines should automatically trigger vector indexing when new data is ingested. Prevents data being stored but not searchable. Apply to: state_programs, federal_programs, meetings, issues, etc."
+        "notes": "Added auto_index=False parameter to all fetch/extract functions in modal_ingest.py. When auto_index=True, triggers index_vectors.local() for the appropriate corpus type after successful storage. Functions updated: fetch_meetings, fetch_issues, fetch_municipal_code, fetch_legislation, fetch_federal_programs, fetch_elections, extract_chunks, extract_transcripts, extract_agenda_items, extract_decisions. Usage: modal run scripts/modal_ingest.py::fetch_meetings --auto-index"
       }
     }
   }
