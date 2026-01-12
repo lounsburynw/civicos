@@ -13088,3 +13088,54 @@ This is documented in the pilot.json notes for future reference.
 
 ### Next P0
 Set `sam_assistance_client` as next P0 - Create SAM.gov Assistance Listings API client to replace Perplexity-sourced program definitions with authoritative federal data.
+
+## Session 515 - 2026-01-11
+
+### Completed: `sam_assistance_client` (P0)
+
+Created SAMAssistanceClient for authoritative federal program definitions from SAM.gov Assistance Listings (formerly CFDA).
+
+#### Research Finding: No Direct API
+SAM.gov does NOT have a direct REST API for Assistance Listings. Instead, the data is available via:
+- **Bulk CSV download** from GSA S3 bucket (data.gov)
+- URL: `https://s3.amazonaws.com/falextracts/Assistance%20Listings/datagov/AssistanceListings_DataGov_PUBLIC_CURRENT.csv`
+- Public domain (CC0 license)
+- ~2,300 federal programs
+
+#### Implementation
+- `packages/civic-extraction/src/civic_extraction/clients/sam_assistance.py` - Main client (600+ lines)
+- Downloads and parses bulk CSV (cached locally for 24h)
+- Maps agency names to abbreviations (HUD, DOT, EPA, etc.)
+- Infers topic categories from ALN prefixes
+
+#### Key Classes & Functions
+- `SAMAssistanceClient` - Main client class
+  - `health()` / `validate()` - Standard DataSource protocol
+  - `get_program(aln)` - Get program by ALN (e.g., "14.218" for CDBG)
+  - `search_programs(keyword, agency, aln_prefix)` - Search programs
+  - `get_program_count()` - Total programs (2,312)
+  - `get_available_agencies()` - Agency list with counts
+- `AssistanceListing` - Dataclass for program data
+- `sam_program_to_storage()` - Map to federal_programs storage format
+- `extract_programs_by_aln()` / `extract_programs_for_topics()` - Bulk extraction helpers
+
+#### Test Coverage
+- 7 unit tests in `TestSAMAssistanceClient`
+- 8 integration tests in `TestSAMAssistanceClientIntegration`
+- All tests passing
+
+#### Verification Results
+- Successfully fetched CDBG (14.218): "Community Development Block Grants/Entitlement Grants"
+- Successfully fetched HOME (14.239): "Home Investment Partnerships Program"
+- Total programs: 2,312
+- Top agencies: USDA (412), DOI (313), HHS (299), DOJ (151), DOT (145)
+- 42/42 smoke tests passing
+
+#### Key Files Changed
+- `packages/civic-extraction/src/civic_extraction/clients/sam_assistance.py` (new)
+- `packages/civic-extraction/src/civic_extraction/clients/__init__.py` (added exports)
+- `packages/civic-extraction/tests/test_clients.py` (added tests)
+- `pilot.json` - Marked `sam_assistance_client` ready
+
+### Next P0
+`san_rafael_allocations_ingest` - Ingest San Rafael historical federal program allocations (Marin County consortium data).

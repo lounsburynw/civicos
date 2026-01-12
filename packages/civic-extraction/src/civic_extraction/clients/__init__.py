@@ -13,6 +13,7 @@ Each client wraps a specific municipal platform API:
 - san_rafael_clerk: San Rafael City Clerk (city candidates, local measures)
 - representatives: Unified representative lookup (Congress.gov, Open States, local)
 - hud_exchange: HUD Exchange / HUD CPD allocation data (CDBG, HOME, ESG, etc.)
+- sam_assistance: SAM.gov Assistance Listings (federal program definitions, formerly CFDA)
 """
 
 from civic_extraction.clients.legistar import LegistarClient
@@ -94,6 +95,14 @@ from civic_extraction.clients.hud_exchange import (
     hud_allocation_to_storage,
     extract_allocations_to_storage,
 )
+from civic_extraction.clients.sam_assistance import (
+    SAMAssistanceClient,
+    AssistanceListing,
+    create_sam_assistance_client,
+    sam_program_to_storage,
+    extract_programs_for_topics,
+    extract_programs_by_aln,
+)
 
 __all__ = [
     "LegistarClient",
@@ -154,4 +163,10 @@ __all__ = [
     "create_hud_exchange_client",
     "hud_allocation_to_storage",
     "extract_allocations_to_storage",
+    "SAMAssistanceClient",
+    "AssistanceListing",
+    "create_sam_assistance_client",
+    "sam_program_to_storage",
+    "extract_programs_for_topics",
+    "extract_programs_by_aln",
 ]
