@@ -114,6 +114,9 @@ civic_image = (
     )
     # Add local civic packages
     .add_local_python_source("civic", "civic_config", "civic_extraction", "civic_services")
+    # Add jurisdiction config files for config-driven pipeline iteration
+    .add_local_dir("data/extraction", remote_path="/config/extraction")
+    .env({"CIVIC_CONFIG_DIR": "/config/extraction"})
 )
 
 
@@ -1654,6 +1657,8 @@ def scheduled_low_velocity_refresh():
     Runs Sunday 3 AM UTC = Saturday 7 PM Pacific.
     Full refresh for static reference data that rarely changes.
     Also runs decision extraction (weekly because minutes PDFs lag behind meetings).
+
+    Iterates all configured jurisdictions from data/extraction/*.json.
     """
     import logging
     import time
@@ -1664,17 +1669,16 @@ def scheduled_low_velocity_refresh():
     logger.info("Starting scheduled low-velocity refresh")
     start_time = time.time()
 
+    from civic_extraction.config import get_active_jurisdictions
+
+    jurisdictions = get_active_jurisdictions()
+    logger.info(f"Found {len(jurisdictions)} configured jurisdictions: {list(jurisdictions.keys())}")
+
     results = {}
 
-    # Municipal code (always full refresh - no incremental API support)
-    try:
-        logger.info("Fetching municipal code...")
-        result = fetch_municipal_code.local(jurisdiction="city-san-rafael", dry_run=False)
-        results["municipal_code"] = result
-        logger.info(f"  Municipal code: {result.get('sections_stored', 0)} sections stored")
-    except Exception as e:
-        logger.exception("Municipal code fetch failed")
-        results["municipal_code"] = {"status": "failed", "error": str(e)}
+    # =========================================================================
+    # Global operations (not per-jurisdiction)
+    # =========================================================================
 
     # Legislation CA (run weekly to avoid quota issues)
     try:
@@ -1696,7 +1700,7 @@ def scheduled_low_velocity_refresh():
         logger.exception("Federal programs fetch failed")
         results["federal_programs"] = {"status": "failed", "error": str(e)}
 
-    # HUD allocations (CDBG, HOME, etc.) - iterates all configured jurisdictions
+    # HUD allocations (CDBG, HOME, etc.) - already iterates all configured jurisdictions
     try:
         logger.info("Fetching HUD allocations for all configured jurisdictions...")
         result = fetch_all_hud_allocations.local(dry_run=False)
@@ -1712,37 +1716,7 @@ def scheduled_low_velocity_refresh():
         logger.exception("HUD allocations fetch failed")
         results["hud_allocations"] = {"status": "failed", "error": str(e)}
 
-    # Agenda items extraction (LLM-powered, after meetings are available)
-    try:
-        logger.info("Extracting agenda items...")
-        result = extract_agenda_items.local(jurisdiction="city-san-rafael", dry_run=False)
-        results["agenda_items"] = result
-        logger.info(f"  Agenda items: {result.get('items_extracted', 0)} items ({result.get('actionable_items', 0)} actionable)")
-    except Exception as e:
-        logger.exception("Agenda items extraction failed")
-        results["agenda_items"] = {"status": "failed", "error": str(e)}
-
-    # Decision extraction (LLM-powered, weekly because minutes PDFs lag behind meetings)
-    try:
-        logger.info("Extracting decisions...")
-        result = extract_decisions.local(jurisdiction="city-san-rafael", dry_run=False)
-        results["decisions"] = result
-        logger.info(f"  Decisions: {result.get('decisions_extracted', 0)} decisions from {result.get('meetings_extracted', 0)} meetings")
-    except Exception as e:
-        logger.exception("Decision extraction failed")
-        results["decisions"] = {"status": "failed", "error": str(e)}
-
-    # Vector indexing (after data is refreshed)
-    try:
-        logger.info("Indexing vectors for city-san-rafael...")
-        result = index_vectors.local(jurisdiction="city-san-rafael", corpus="all", reindex=False)
-        results["vectors_city"] = result
-        logger.info(f"  City vectors: {result.get('total_indexed', 0)} documents indexed")
-    except Exception as e:
-        logger.exception("City vector indexing failed")
-        results["vectors_city"] = {"status": "failed", "error": str(e)}
-
-    # Federal programs vector indexing (for semantic search on programs)
+    # Federal programs vector indexing (global, not per-jurisdiction)
     try:
         logger.info("Indexing federal programs vectors...")
         result = index_vectors.local(jurisdiction="federal-US", corpus="programs", reindex=False)
@@ -1752,11 +1726,60 @@ def scheduled_low_velocity_refresh():
         logger.exception("Federal vector indexing failed")
         results["vectors_federal"] = {"status": "failed", "error": str(e)}
 
+    # =========================================================================
+    # Per-jurisdiction operations
+    # =========================================================================
+
+    for jid, config in jurisdictions.items():
+        logger.info(f"Processing jurisdiction: {jid}")
+        results[jid] = {}
+
+        # Municipal code (always full refresh - no incremental API support)
+        try:
+            logger.info(f"  [{jid}] Fetching municipal code...")
+            result = fetch_municipal_code.local(jurisdiction=jid, dry_run=False)
+            results[jid]["municipal_code"] = result
+            logger.info(f"    Municipal code: {result.get('sections_stored', 0)} sections stored")
+        except Exception as e:
+            logger.exception(f"  [{jid}] Municipal code fetch failed")
+            results[jid]["municipal_code"] = {"status": "failed", "error": str(e)}
+
+        # Agenda items extraction (LLM-powered, after meetings are available)
+        try:
+            logger.info(f"  [{jid}] Extracting agenda items...")
+            result = extract_agenda_items.local(jurisdiction=jid, dry_run=False)
+            results[jid]["agenda_items"] = result
+            logger.info(f"    Agenda items: {result.get('items_extracted', 0)} items ({result.get('actionable_items', 0)} actionable)")
+        except Exception as e:
+            logger.exception(f"  [{jid}] Agenda items extraction failed")
+            results[jid]["agenda_items"] = {"status": "failed", "error": str(e)}
+
+        # Decision extraction (LLM-powered, weekly because minutes PDFs lag behind meetings)
+        try:
+            logger.info(f"  [{jid}] Extracting decisions...")
+            result = extract_decisions.local(jurisdiction=jid, dry_run=False)
+            results[jid]["decisions"] = result
+            logger.info(f"    Decisions: {result.get('decisions_extracted', 0)} decisions from {result.get('meetings_extracted', 0)} meetings")
+        except Exception as e:
+            logger.exception(f"  [{jid}] Decision extraction failed")
+            results[jid]["decisions"] = {"status": "failed", "error": str(e)}
+
+        # Vector indexing (after data is refreshed)
+        try:
+            logger.info(f"  [{jid}] Indexing vectors...")
+            result = index_vectors.local(jurisdiction=jid, corpus="all", reindex=False)
+            results[jid]["vectors"] = result
+            logger.info(f"    Vectors: {result.get('total_indexed', 0)} documents indexed")
+        except Exception as e:
+            logger.exception(f"  [{jid}] Vector indexing failed")
+            results[jid]["vectors"] = {"status": "failed", "error": str(e)}
+
     elapsed = time.time() - start_time
-    logger.info(f"Low-velocity refresh complete in {elapsed:.1f}s")
+    logger.info(f"Low-velocity refresh complete in {elapsed:.1f}s for {len(jurisdictions)} jurisdictions")
 
     return {
         "schedule": "low_velocity_weekly",
+        "jurisdictions_processed": len(jurisdictions),
         "results": results,
         "elapsed_seconds": elapsed,
     }
@@ -1779,12 +1802,14 @@ def scheduled_high_velocity_refresh():
     Runs daily at 2 PM UTC = 6 AM Pacific.
     Incremental fetch for data that changes frequently.
 
-    Pipeline:
+    Pipeline (per jurisdiction):
         1. fetch_meetings() - Scrape new meetings from ProudCity
         2. fetch_issues() - Fetch new issues from SeeClickFix
         3. extract_transcripts() - Download audio + transcribe with AssemblyAI
         4. extract_chunks() - Download PDFs and extract text chunks (incremental)
         5. index_vectors() - Index meetings, issues, transcripts, and chunks to pgvector
+
+    Iterates all configured jurisdictions from data/extraction/*.json.
     """
     import logging
     import time
@@ -1795,92 +1820,107 @@ def scheduled_high_velocity_refresh():
     logger.info("Starting scheduled high-velocity refresh")
     start_time = time.time()
 
+    from civic_extraction.config import get_active_jurisdictions
+
+    jurisdictions = get_active_jurisdictions()
+    logger.info(f"Found {len(jurisdictions)} configured jurisdictions: {list(jurisdictions.keys())}")
+
     results = {}
+    total_transcription_cost = 0.0
 
-    # Meetings (incremental)
-    try:
-        logger.info("Fetching meetings (incremental)...")
-        result = fetch_meetings.local(
-            jurisdiction="city-san-rafael",
-            incremental=True,
-            dry_run=False,
-        )
-        results["meetings"] = result
-        logger.info(f"  Meetings: {result.get('meetings_stored', 0)} stored")
-    except Exception as e:
-        logger.exception("Meetings fetch failed")
-        results["meetings"] = {"status": "failed", "error": str(e)}
+    for jid, config in jurisdictions.items():
+        logger.info(f"Processing jurisdiction: {jid}")
+        results[jid] = {}
 
-    # Issues (incremental)
-    try:
-        logger.info("Fetching issues (incremental)...")
-        result = fetch_issues.local(
-            jurisdiction="city-san-rafael",
-            incremental=True,
-            dry_run=False,
-        )
-        results["issues"] = result
-        logger.info(f"  Issues: {result.get('issues_stored', 0)} stored")
-    except Exception as e:
-        logger.exception("Issues fetch failed")
-        results["issues"] = {"status": "failed", "error": str(e)}
-
-    # Transcript extraction (audio download + transcription)
-    # Runs BEFORE chunk extraction since transcript text needs to be indexed
-    try:
-        logger.info("Extracting transcripts (audio + transcription)...")
-        result = extract_transcripts.local(
-            jurisdiction="city-san-rafael",
-            dry_run=False,
-            batch=True,  # Use batch mode for parallel transcription
-        )
-        results["transcripts"] = result
-        logger.info(
-            f"  Transcripts: {result.get('transcripts_extracted', 0)} transcribed, "
-            f"{result.get('transcripts_skipped', 0)} skipped, "
-            f"cost: ${result.get('transcription_cost_usd', 0):.2f}"
-        )
-        if result.get("duration_validation_issues", 0) > 0:
-            logger.warning(f"  Duration validation issues: {result.get('duration_validation_issues')}")
-    except Exception as e:
-        logger.exception("Transcript extraction failed")
-        results["transcripts"] = {"status": "failed", "error": str(e)}
-
-    # Chunk extraction (incremental - skips already-chunked meetings)
-    try:
-        logger.info("Extracting chunks from new meetings...")
-        result = extract_chunks.local(
-            jurisdiction="city-san-rafael",
-            dry_run=False,
-        )
-        results["chunks"] = result
-        logger.info(f"  Chunks: {result.get('chunks_extracted', 0)} extracted from {result.get('meetings_extracted', 0)} meetings")
-    except Exception as e:
-        logger.exception("Chunk extraction failed")
-        results["chunks"] = {"status": "failed", "error": str(e)}
-
-    # Vector indexing for meetings, issues, transcripts, and chunks
-    try:
-        logger.info("Indexing vectors (meetings, issues, transcripts, chunks)...")
-        for corpus_type in ["meetings", "issues", "transcripts", "chunks"]:
-            result = index_vectors.local(
-                jurisdiction="city-san-rafael",
-                corpus=corpus_type,
-                reindex=False,
+        # Meetings (incremental)
+        try:
+            logger.info(f"  [{jid}] Fetching meetings (incremental)...")
+            result = fetch_meetings.local(
+                jurisdiction=jid,
+                incremental=True,
+                dry_run=False,
             )
-            results[f"vectors_{corpus_type}"] = result
-            logger.info(f"  {corpus_type} vectors: {result.get('total_indexed', 0)} indexed")
-    except Exception as e:
-        logger.exception("Vector indexing failed")
-        results["vectors"] = {"status": "failed", "error": str(e)}
+            results[jid]["meetings"] = result
+            logger.info(f"    Meetings: {result.get('meetings_stored', 0)} stored")
+        except Exception as e:
+            logger.exception(f"  [{jid}] Meetings fetch failed")
+            results[jid]["meetings"] = {"status": "failed", "error": str(e)}
+
+        # Issues (incremental)
+        try:
+            logger.info(f"  [{jid}] Fetching issues (incremental)...")
+            result = fetch_issues.local(
+                jurisdiction=jid,
+                incremental=True,
+                dry_run=False,
+            )
+            results[jid]["issues"] = result
+            logger.info(f"    Issues: {result.get('issues_stored', 0)} stored")
+        except Exception as e:
+            logger.exception(f"  [{jid}] Issues fetch failed")
+            results[jid]["issues"] = {"status": "failed", "error": str(e)}
+
+        # Transcript extraction (audio download + transcription)
+        # Runs BEFORE chunk extraction since transcript text needs to be indexed
+        try:
+            logger.info(f"  [{jid}] Extracting transcripts (audio + transcription)...")
+            result = extract_transcripts.local(
+                jurisdiction=jid,
+                dry_run=False,
+                batch=True,  # Use batch mode for parallel transcription
+            )
+            results[jid]["transcripts"] = result
+            cost = result.get("transcription_cost_usd", 0)
+            total_transcription_cost += cost
+            logger.info(
+                f"    Transcripts: {result.get('transcripts_extracted', 0)} transcribed, "
+                f"{result.get('transcripts_skipped', 0)} skipped, "
+                f"cost: ${cost:.2f}"
+            )
+            if result.get("duration_validation_issues", 0) > 0:
+                logger.warning(f"    Duration validation issues: {result.get('duration_validation_issues')}")
+        except Exception as e:
+            logger.exception(f"  [{jid}] Transcript extraction failed")
+            results[jid]["transcripts"] = {"status": "failed", "error": str(e)}
+
+        # Chunk extraction (incremental - skips already-chunked meetings)
+        try:
+            logger.info(f"  [{jid}] Extracting chunks from new meetings...")
+            result = extract_chunks.local(
+                jurisdiction=jid,
+                dry_run=False,
+            )
+            results[jid]["chunks"] = result
+            logger.info(f"    Chunks: {result.get('chunks_extracted', 0)} extracted from {result.get('meetings_extracted', 0)} meetings")
+        except Exception as e:
+            logger.exception(f"  [{jid}] Chunk extraction failed")
+            results[jid]["chunks"] = {"status": "failed", "error": str(e)}
+
+        # Vector indexing for meetings, issues, transcripts, and chunks
+        try:
+            logger.info(f"  [{jid}] Indexing vectors (meetings, issues, transcripts, chunks)...")
+            for corpus_type in ["meetings", "issues", "transcripts", "chunks"]:
+                result = index_vectors.local(
+                    jurisdiction=jid,
+                    corpus=corpus_type,
+                    reindex=False,
+                )
+                results[jid][f"vectors_{corpus_type}"] = result
+                logger.info(f"    {corpus_type} vectors: {result.get('total_indexed', 0)} indexed")
+        except Exception as e:
+            logger.exception(f"  [{jid}] Vector indexing failed")
+            results[jid]["vectors"] = {"status": "failed", "error": str(e)}
 
     elapsed = time.time() - start_time
-    logger.info(f"High-velocity refresh complete in {elapsed:.1f}s")
+    logger.info(f"High-velocity refresh complete in {elapsed:.1f}s for {len(jurisdictions)} jurisdictions")
+    logger.info(f"Total transcription cost: ${total_transcription_cost:.2f}")
 
     return {
         "schedule": "high_velocity_daily",
+        "jurisdictions_processed": len(jurisdictions),
         "results": results,
         "elapsed_seconds": elapsed,
+        "total_transcription_cost_usd": total_transcription_cost,
     }
 
 
@@ -1907,6 +1947,8 @@ def scheduled_election_refresh():
 
     The Google Civic Information API provides data on upcoming elections
     including national, state, and local races.
+
+    Iterates all configured jurisdictions from data/extraction/*.json.
     """
     import logging
     import time
@@ -1917,23 +1959,29 @@ def scheduled_election_refresh():
     logger.info("Starting scheduled election refresh")
     start_time = time.time()
 
+    from civic_extraction.config import get_active_jurisdictions
+
+    jurisdictions = get_active_jurisdictions()
+    logger.info(f"Found {len(jurisdictions)} configured jurisdictions: {list(jurisdictions.keys())}")
+
     results = {}
 
-    # Fetch elections for San Rafael
-    try:
-        logger.info("Fetching elections for city-san-rafael...")
-        result = fetch_elections.local(jurisdiction="city-san-rafael", dry_run=False)
-        results["elections"] = result
-        logger.info(f"  Elections: {result.get('elections_fetched', 0)} fetched, {result.get('elections_stored', 0)} stored")
-    except Exception as e:
-        logger.exception("Election fetch failed")
-        results["elections"] = {"status": "failed", "error": str(e)}
+    for jid, config in jurisdictions.items():
+        try:
+            logger.info(f"  [{jid}] Fetching elections...")
+            result = fetch_elections.local(jurisdiction=jid, dry_run=False)
+            results[jid] = result
+            logger.info(f"    Elections: {result.get('elections_fetched', 0)} fetched, {result.get('elections_stored', 0)} stored")
+        except Exception as e:
+            logger.exception(f"  [{jid}] Election fetch failed")
+            results[jid] = {"status": "failed", "error": str(e)}
 
     elapsed = time.time() - start_time
-    logger.info(f"Election refresh complete in {elapsed:.1f}s")
+    logger.info(f"Election refresh complete in {elapsed:.1f}s for {len(jurisdictions)} jurisdictions")
 
     return {
         "schedule": "election_monthly",
+        "jurisdictions_processed": len(jurisdictions),
         "results": results,
         "elapsed_seconds": elapsed,
     }
