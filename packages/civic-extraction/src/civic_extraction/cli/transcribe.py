@@ -842,7 +842,7 @@ def transcribe_batch(
 
         # Load audio from cloud if needed
         if audio_path is None and cloud_mode:
-            audio_data = load_audio_from_cloud(jurisdiction_id, video_id)
+            audio_data, audio_hash = load_audio_from_cloud(jurisdiction_id, video_id)
             if audio_data is None:
                 logger.error(f"  Failed to load audio for {video_id}")
                 results.append(

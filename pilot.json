@@ -799,10 +799,12 @@
         "completed_date": "2026-01-11"
       },
       "srcs_2025_transcription": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Transcribe and index 5 SRCS meetings (Oct 2025 - Jan 2026)",
-        "note": "Run transcription for recent school board meetings (~$12 AssemblyAI). Videos: Oct 14, Oct 28, Nov 18 (x2), Dec 16. Steps: 1) modal run --transcripts --jurisdiction school-san-rafael --transcripts-limit 5, 2) modal run --vectors --jurisdiction school-san-rafael, 3) verify what_was_said() works"
+        "note": "5 SRCS meetings (Oct-Dec 2025) transcribed via AssemblyAI and indexed. 1312 transcript chunks embedded. what_was_said() working. Cost: $13.41 (slightly over $12 estimate). Fixed R2 access in Modal (added boto3, civic-r2 secret).",
+        "completed_by": "Session 523",
+        "completed_date": "2026-01-12"
       },
       "srcs_decision_extraction": {
         "status": "not_ready",
@@ -2092,7 +2094,7 @@
       },
       "executive_orders_incremental_fetcher": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Add EO incremental fetcher to civic-extraction",
         "notes": "EOs have higher velocity than codified law. Federal Register API supports date filtering. Add to civic-extraction for scheduled updates like meetings/legislation."
       },
