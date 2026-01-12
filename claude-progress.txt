@@ -13167,3 +13167,58 @@ Updated `index_vectors()` to support federal-US jurisdiction with programs corpu
 - 2,334 embeddings in pgvector
 - Semantic search working correctly
 - Pipeline ready for weekly automated refresh
+
+---
+
+## Session 516: san_rafael_allocations_ingest - Data Architecture
+
+**Date:** 2026-01-11
+**Item:** san_rafael_allocations_ingest (data_architecture > data_source_unification)
+**Priority:** P0
+
+### Summary
+
+Ingested San Rafael historical federal program allocations from HUD Exchange. San Rafael receives HUD funds via the Marin County Urban County Program (consortium), not as a direct entitlement grantee. Retrieved Marin County allocations for CDBG and HOME programs across FY2022-2025.
+
+### Work Completed
+
+1. **HUD Data Retrieval:**
+   - Used existing `HUDExchangeClient` to download HUD CPD Formula Allocation Excel files
+   - Available fiscal years: FY2022-2025 (FY2020-2021 files no longer hosted at HUD.gov)
+   - Retrieved Marin County allocations (the consortium that includes San Rafael)
+
+2. **Allocations Ingested (8 records):**
+   | FY    | CDBG        | HOME        |
+   |-------|-------------|-------------|
+   | 2022  | $1,630,142  | $854,906    |
+   | 2023  | $1,589,600  | $846,217    |
+   | 2024  | $1,559,706  | $713,595    |
+   | 2025  | $1,512,738  | $694,560    |
+
+3. **Consortium Metadata:**
+   - `local_allocation_model: joint_county`
+   - `administering_entity: Marin County`
+   - `allocation_note: San Rafael receives HUD funds via Marin County consortium`
+   - `metadata.consortium: Marin County Urban County Program`
+
+4. **Storage:**
+   - Stored via `store_federal_program_allocations()` to PostgreSQL
+   - Total San Rafael allocation records: 11 (8 new + 3 FY2026 seed entries)
+
+### Key Files Used
+
+- `packages/civic-extraction/src/civic_extraction/clients/hud_exchange.py` - HUD data client
+- `packages/civic/src/civic/storage/postgres_backend.py` - Storage method
+- `pilot.json` - Status updated
+
+### Verification
+
+```python
+from civic import Civic
+c = Civic('city-san-rafael')
+allocations = c._storage.get_federal_program_allocations('city-san-rafael')
+# Returns 11 records with consortium metadata
+```
+
+### Next P0
+`executive_orders_incremental_fetcher` - Add EO incremental fetcher to civic-extraction for Federal Register updates.

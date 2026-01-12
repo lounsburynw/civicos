@@ -367,15 +367,15 @@
         "artifact": "22 federal programs in federal_programs table, 22 embeddings in pgvector"
       },
       "san_rafael_allocations_ingest": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Ingest San Rafael historical federal program allocations from HUD Exchange",
-        "notes": "Use HUDExchangeClient to retrieve San Rafael CDBG/HOME/ESG allocations for FY2020-FY2025. Store in federal_program_allocations table. Enables 'what federal money is available?' queries with real amounts.",
+        "notes": "Session 516: Ingested 8 Marin County consortium allocations (CDBG + HOME, FY2022-2025). San Rafael receives HUD funds via Marin County Urban County Program. FY2020-2021 files no longer available at HUD.gov. Total: 11 allocation records (including 3 FY2026 seed entries).",
         "depends_on": [
           "hud_exchange_parser",
           "federal_programs_vector_embeddings"
         ],
-        "artifact": "San Rafael allocations in federal_program_allocations table with vector embeddings"
+        "artifact": "San Rafael allocations in federal_program_allocations table (8 historical via Marin County consortium)"
       }
     },
     "vector_sql_linkage": {
@@ -2057,7 +2057,7 @@
       },
       "executive_orders_incremental_fetcher": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Add EO incremental fetcher to civic-extraction",
         "notes": "EOs have higher velocity than codified law. Federal Register API supports date filtering. Add to civic-extraction for scheduled updates like meetings/legislation."
       },
