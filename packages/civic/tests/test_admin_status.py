@@ -152,35 +152,46 @@ class TestOperationsEndpoint:
     """Tests for /api/admin/operations endpoints."""
 
     @pytest.fixture
+    def test_client_with_auth(self):
+        """Create a FastAPI test client with mocked auth."""
+        from fastapi.testclient import TestClient
+        from civic_services.servers.api import app
+        from civic_services.servers.routers.dependencies import verify_auth
+
+        # Override the auth dependency to always pass
+        async def mock_verify_auth():
+            return "test_user"
+
+        app.dependency_overrides[verify_auth] = mock_verify_auth
+        client = TestClient(app)
+        yield client
+        # Clean up override
+        app.dependency_overrides.clear()
+
+    @pytest.fixture
     def test_client(self):
-        """Create a FastAPI test client."""
+        """Create a FastAPI test client without auth override."""
         from fastapi.testclient import TestClient
         from civic_services.servers.api import app
 
         return TestClient(app)
 
-    @pytest.fixture
-    def auth_headers(self):
-        """Headers for authenticated requests."""
-        return {"Authorization": "Bearer dev_key_local"}
-
-    def test_list_operations(self, test_client, auth_headers):
+    def test_list_operations(self, test_client_with_auth):
         """Test that operations list returns expected format."""
-        response = test_client.get("/api/admin/operations", headers=auth_headers)
+        response = test_client_with_auth.get("/api/admin/operations")
 
-        if response.status_code == 200:
-            data = response.json()
+        assert response.status_code == 200
+        data = response.json()
 
-            assert 'operations' in data
-            assert 'count' in data
-            assert isinstance(data['operations'], list)
-            assert isinstance(data['count'], int)
+        assert 'operations' in data
+        assert 'count' in data
+        assert isinstance(data['operations'], list)
+        assert isinstance(data['count'], int)
 
-    def test_get_operation_not_found(self, test_client, auth_headers):
+    def test_get_operation_not_found(self, test_client_with_auth):
         """Test that non-existent operation returns 404."""
-        response = test_client.get(
-            "/api/admin/operations/nonexistent-id",
-            headers=auth_headers
+        response = test_client_with_auth.get(
+            "/api/admin/operations/nonexistent-id"
         )
 
         assert response.status_code == 404
