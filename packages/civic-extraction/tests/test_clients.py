@@ -2848,5 +2848,288 @@ class TestSimbliClientIntegration:
         print(f"Successfully downloaded {len(pdf_bytes)} bytes of PDF for {meeting.id}")
 
 
+class TestSAMAssistanceClient:
+    """Test SAMAssistanceClient for federal program definitions."""
+
+    def test_client_initialization(self):
+        """Test client creates with correct defaults."""
+        from civic_extraction.clients.sam_assistance import SAMAssistanceClient
+
+        client = SAMAssistanceClient()
+        assert client.jurisdiction_id == "federal-US"
+        assert client.platform_name == "sam_assistance"
+        assert client.source_id == "sam_assistance-federal-US"
+
+    def test_client_custom_cache_dir(self):
+        """Test client initialization with custom cache dir."""
+        import tempfile
+        from civic_extraction.clients.sam_assistance import SAMAssistanceClient
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            client = SAMAssistanceClient(cache_dir=tmpdir)
+            assert client.cache_dir == tmpdir
+
+    def test_agency_abbreviation_mappings(self):
+        """Test agency abbreviation extraction."""
+        from civic_extraction.clients.sam_assistance import SAMAssistanceClient
+
+        client = SAMAssistanceClient()
+
+        # Test common agency mappings
+        assert client._get_agency_abbrev("DEPARTMENT OF HOUSING AND URBAN DEVELOPMENT") == "HUD"
+        assert client._get_agency_abbrev("ENVIRONMENTAL PROTECTION AGENCY") == "EPA"
+        assert client._get_agency_abbrev("DEPARTMENT OF TRANSPORTATION") == "DOT"
+        # Sub-agencies like FTA are mapped to parent department DOT
+        # (SAM CSV format lists sub-agency first, then parent)
+        assert client._get_agency_abbrev("FEDERAL TRANSIT ADMINISTRATION, DEPARTMENT OF TRANSPORTATION") == "FTA"
+        # Direct FTA reference
+        assert client._get_agency_abbrev("FEDERAL TRANSIT ADMINISTRATION") == "FTA"
+
+    def test_infer_topic_from_aln(self):
+        """Test topic inference from ALN prefix."""
+        from civic_extraction.clients.sam_assistance import (
+            infer_topic,
+            AssistanceListing,
+        )
+
+        # Housing (HUD - prefix 14)
+        housing_listing = AssistanceListing(
+            aln="14.218",
+            program_name="CDBG",
+            agency="HUD",
+            agency_abbrev="HUD",
+            objectives="",
+            assistance_types="",
+            uses_restrictions="",
+            applicant_eligibility="",
+            beneficiary_eligibility="",
+            website="",
+            sam_url="",
+        )
+        assert infer_topic(housing_listing) == "housing"
+
+        # Transportation (DOT - prefix 20)
+        transport_listing = AssistanceListing(
+            aln="20.507",
+            program_name="Urbanized Area Formula",
+            agency="DOT",
+            agency_abbrev="DOT",
+            objectives="",
+            assistance_types="",
+            uses_restrictions="",
+            applicant_eligibility="",
+            beneficiary_eligibility="",
+            website="",
+            sam_url="",
+        )
+        assert infer_topic(transport_listing) == "transportation"
+
+    def test_extract_keywords(self):
+        """Test keyword extraction from listing."""
+        from civic_extraction.clients.sam_assistance import (
+            extract_keywords,
+            AssistanceListing,
+        )
+
+        listing = AssistanceListing(
+            aln="14.218",
+            program_name="Community Development Block Grant",
+            popular_name="CDBG",
+            agency="HUD",
+            agency_abbrev="HUD",
+            objectives="Develop viable urban communities",
+            assistance_types="",
+            uses_restrictions="",
+            applicant_eligibility="",
+            beneficiary_eligibility="",
+            website="",
+            sam_url="",
+        )
+
+        keywords = extract_keywords(listing)
+        assert "community" in keywords
+        assert "development" in keywords
+        assert "block" in keywords
+        assert "grant" in keywords
+        assert "hud" in keywords
+        # Common stopwords should be filtered out
+        assert "the" not in keywords
+        assert "of" not in keywords
+
+    def test_sam_program_to_storage(self):
+        """Test conversion to storage format."""
+        from civic_extraction.clients.sam_assistance import (
+            sam_program_to_storage,
+            AssistanceListing,
+        )
+
+        listing = AssistanceListing(
+            aln="14.218",
+            program_name="Community Development Block Grant",
+            popular_name="CDBG",
+            agency="DEPARTMENT OF HOUSING AND URBAN DEVELOPMENT",
+            agency_abbrev="HUD",
+            objectives="Develop viable urban communities through housing and economic development.",
+            assistance_types="Formula Grants",
+            uses_restrictions="Eligible activities include housing rehabilitation; public facilities improvements.",
+            applicant_eligibility="States, metropolitan cities, urban counties.",
+            beneficiary_eligibility="Low and moderate income persons.",
+            website="https://www.hud.gov/cdbg",
+            sam_url="https://sam.gov/fal/abc123",
+            published_date="Jan 01, 2024",
+        )
+
+        storage = sam_program_to_storage(listing)
+
+        assert storage["program_id"] == "sam_14_218"
+        assert storage["program_name"] == "Community Development Block Grant"
+        assert storage["administering_agency"] == "HUD"
+        assert storage["cfda_number"] == "14.218"
+        assert storage["topic"] == "housing"
+        assert storage["official_url"] == "https://www.hud.gov/cdbg"
+        assert "keywords" in storage
+        assert "source" in storage
+        assert storage["source"] == "sam_assistance_listings"
+        # Check eligible activities extracted
+        assert len(storage["eligible_activities"]) > 0
+
+    def test_assistance_listing_to_dict(self):
+        """Test AssistanceListing serialization."""
+        from civic_extraction.clients.sam_assistance import AssistanceListing
+
+        listing = AssistanceListing(
+            aln="14.218",
+            program_name="CDBG",
+            agency="HUD",
+            agency_abbrev="HUD",
+            objectives="Test objectives",
+            assistance_types="Grants",
+            uses_restrictions="Test uses",
+            applicant_eligibility="Test applicant",
+            beneficiary_eligibility="Test beneficiary",
+            website="https://test.gov",
+            sam_url="https://sam.gov/test",
+        )
+
+        d = listing.to_dict()
+        assert d["aln"] == "14.218"
+        assert d["program_name"] == "CDBG"
+        assert d["agency_abbrev"] == "HUD"
+
+
+class TestSAMAssistanceClientIntegration:
+    """Integration tests that call the real SAM.gov data."""
+
+    @pytest.mark.integration
+    def test_health_check(self):
+        """Test health check against real SAM.gov."""
+        from civic_extraction.clients.sam_assistance import SAMAssistanceClient
+
+        client = SAMAssistanceClient()
+        health = client.health()
+        assert health.is_available is True
+        assert health.source_id == "sam_assistance-federal-US"
+        assert health.check_duration_ms > 0
+
+    @pytest.mark.integration
+    def test_validate(self):
+        """Test validation against real SAM.gov."""
+        from civic_extraction.clients.sam_assistance import SAMAssistanceClient
+
+        client = SAMAssistanceClient()
+        result = client.validate()
+        assert result.is_valid is True
+        assert result.api_reachable is True
+        assert result.check_duration_ms > 0
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_get_program_cdbg(self):
+        """Test fetching CDBG program by ALN."""
+        from civic_extraction.clients.sam_assistance import SAMAssistanceClient
+
+        client = SAMAssistanceClient()
+        cdbg = client.get_program("14.218")
+
+        assert cdbg is not None
+        assert cdbg.aln == "14.218"
+        assert "Community Development Block Grant" in cdbg.program_name
+        assert cdbg.agency_abbrev == "HUD"
+        assert len(cdbg.objectives) > 0
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_search_programs_by_agency(self):
+        """Test searching programs by agency."""
+        from civic_extraction.clients.sam_assistance import SAMAssistanceClient
+
+        client = SAMAssistanceClient()
+        hud_programs = client.search_programs(agency="HUD", limit=10)
+
+        assert len(hud_programs) > 0
+        for program in hud_programs:
+            assert program.agency_abbrev == "HUD"
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_search_programs_by_keyword(self):
+        """Test searching programs by keyword."""
+        from civic_extraction.clients.sam_assistance import SAMAssistanceClient
+
+        client = SAMAssistanceClient()
+        housing_programs = client.search_programs(keyword="housing", limit=10)
+
+        assert len(housing_programs) > 0
+        # At least one should have "housing" in name or objectives
+        found_housing = False
+        for program in housing_programs:
+            if "housing" in program.program_name.lower() or "housing" in program.objectives.lower():
+                found_housing = True
+                break
+        assert found_housing, "Expected at least one program with 'housing' in name or objectives"
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_search_programs_by_aln_prefix(self):
+        """Test searching programs by ALN prefix."""
+        from civic_extraction.clients.sam_assistance import SAMAssistanceClient
+
+        client = SAMAssistanceClient()
+        # ALN prefix 14 = HUD
+        hud_programs = client.search_programs(aln_prefix="14", limit=10)
+
+        assert len(hud_programs) > 0
+        for program in hud_programs:
+            assert program.aln.startswith("14")
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_get_program_count(self):
+        """Test getting total program count."""
+        from civic_extraction.clients.sam_assistance import SAMAssistanceClient
+
+        client = SAMAssistanceClient()
+        count = client.get_program_count()
+
+        # Should have thousands of programs
+        assert count > 1000
+
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_get_available_agencies(self):
+        """Test getting agency list with counts."""
+        from civic_extraction.clients.sam_assistance import SAMAssistanceClient
+
+        client = SAMAssistanceClient()
+        agencies = client.get_available_agencies()
+
+        assert len(agencies) > 10
+        # Should have major agencies
+        assert "HUD" in agencies or "HHS" in agencies
+        # Counts should be positive
+        for count in agencies.values():
+            assert count > 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

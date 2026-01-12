@@ -350,7 +350,7 @@
         "artifact": "packages/civic-extraction/src/civic_extraction/clients/hud_exchange.py"
       },
       "sam_assistance_client": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "description": "Create SAM.gov Assistance Listings API client",
         "notes": "Replace Perplexity-sourced program definitions with authoritative SAM.gov data. REST API via open.gsa.gov/api/. Free API key from api.data.gov. Provides program eligibility, compliance requirements, ALN (CFDA) numbers. See docs/FEDERAL_PROGRAMS_PARSER_STRATEGY.md.",
@@ -368,7 +368,7 @@
       },
       "san_rafael_allocations_ingest": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Ingest San Rafael historical federal program allocations from HUD Exchange",
         "notes": "Use HUDExchangeClient to retrieve San Rafael CDBG/HOME/ESG allocations for FY2020-FY2025. Store in federal_program_allocations table. Enables 'what federal money is available?' queries with real amounts.",
         "depends_on": [
