@@ -212,6 +212,7 @@ Historical docs from completed phases. Recoverable if needed.
 | `/review [scope]` | Run pr-review-toolkit agents (code quality) | Yes (agents) |
 | `/commit` | Run critics on staged changes, then commit | No |
 | `/nextsesh` | Prepare handoff notes (requires P0 set) | No |
+| `/ingest-audio [jurisdiction] [limit]` | Download YouTube audio locally, upload to R2 | No |
 
 ### Subagent Usage for Context Management
 
