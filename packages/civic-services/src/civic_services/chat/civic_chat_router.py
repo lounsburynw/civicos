@@ -22,6 +22,9 @@ import instructor
 # Session 68: Import provider abstraction
 from ..core.llm_provider import get_provider_for_task, get_model_for_task
 
+# Session 507: Cost tracking for LLM calls
+from ..core.cost_tracking import log_llm_cost
+
 logger = logging.getLogger(__name__)
 
 # Session 60: JURISDICTION_MAPPINGS dictionary deleted - now using LLM-based normalization
@@ -814,6 +817,15 @@ Examples:
                 temperature=0.1  # Low temperature for consistent classification
             )
 
+            # Session 507: Log cost for mode detection
+            if response.usage:
+                log_llm_cost(
+                    model=provider.default_model,
+                    usage=response.usage,
+                    provider=provider.name,
+                    task='mode_detection',
+                )
+
             result = response.content.strip()
 
             # Parse "mode - reason" format (handle both hyphen and en dash)
@@ -1123,6 +1135,15 @@ Examples:
                 temperature=0.7
             )
 
+            # Session 507: Log cost for main routing call
+            if response.usage:
+                log_llm_cost(
+                    model=model_name,
+                    usage=response.usage,
+                    provider=provider_name,
+                    task=f'routing_{effective_mode}',
+                )
+
             # Check if model wants to call a function
             if response.tool_calls and len(response.tool_calls) > 0:
                 # Session 77: Log ALL tool calls to detect multi-operation queries
@@ -1154,6 +1175,15 @@ Examples:
 
                         search_result = search_response.content
                         search_usage = search_response.usage or {}
+
+                        # Session 507: Log cost for web search
+                        if search_usage:
+                            log_llm_cost(
+                                model=search_provider.default_model,
+                                usage=search_usage,
+                                provider=search_provider.name,
+                                task='web_search',
+                            )
 
                         logger.info(f"Web search completed: {len(search_result)} chars")
 
