@@ -311,6 +311,9 @@ class TemporalCostManager:
         with open(self.cost_log_file, 'w') as f:
             json.dump(cost_log, f, indent=2)
 
+        # Check thresholds and alert if exceeded (event-driven alerting)
+        self.get_daily_costs()  # This checks thresholds and sends alerts
+
     def get_monthly_costs(self) -> dict:
         """Calculate current month costs for budget monitoring with alerting"""
         if not os.path.exists(self.cost_log_file):
