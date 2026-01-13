@@ -1955,6 +1955,43 @@ class SQLiteBackend:
         """Get ETL cost summary (stub for SQLite - uses Postgres in production)."""
         return {"total_cost_usd": 0.0, "total_items": 0, "run_count": 0}
 
+    # ========== Operating Cost Methods (Postgres-only) ==========
+
+    def store_operating_cost(
+        self,
+        service: str,
+        category: str,
+        amount_usd: float,
+        jurisdiction_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> int:
+        """Store operating cost (stub for SQLite - uses Postgres in production)."""
+        return 0
+
+    def get_operating_costs(
+        self,
+        service: Optional[str] = None,
+        category: Optional[str] = None,
+        jurisdiction_id: Optional[str] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """Get operating costs (stub for SQLite - uses Postgres in production)."""
+        return []
+
+    def get_operating_cost_summary(
+        self,
+        service: Optional[str] = None,
+        category: Optional[str] = None,
+        jurisdiction_id: Optional[str] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Get operating cost summary (stub for SQLite - uses Postgres in production)."""
+        return {"total_cost_usd": 0.0, "record_count": 0, "by_service": {}, "by_category": {}}
+
     # ========== Legislation Methods (Postgres-only) ==========
 
     def store_legislation(

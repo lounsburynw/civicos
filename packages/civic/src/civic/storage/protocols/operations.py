@@ -96,3 +96,78 @@ class OperationsStorage(Protocol):
     ) -> Dict[str, Any]:
         """Get aggregated ETL cost summary."""
         ...
+
+    # ========== Operating Cost Methods ==========
+
+    def store_operating_cost(
+        self,
+        service: str,
+        category: str,
+        amount_usd: float,
+        jurisdiction_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> int:
+        """
+        Store operating cost record for unified cost tracking.
+
+        Args:
+            service: Service provider (modal, supabase, openai, anthropic, google, r2)
+            category: Cost category (compute, storage, llm, api)
+            amount_usd: Cost amount in USD
+            jurisdiction_id: Optional jurisdiction for city-specific costs
+            task_id: Optional link to operations table for task-level tracking
+            metadata: Optional provider-specific details (tokens, model, etc.)
+
+        Returns:
+            ID of the inserted cost record
+        """
+        ...
+
+    def get_operating_costs(
+        self,
+        service: Optional[str] = None,
+        category: Optional[str] = None,
+        jurisdiction_id: Optional[str] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve operating cost records with filtering.
+
+        Args:
+            service: Filter by service provider
+            category: Filter by cost category
+            jurisdiction_id: Filter by jurisdiction
+            since: Filter records from this timestamp (ISO format)
+            until: Filter records until this timestamp (ISO format)
+            limit: Maximum records to return
+
+        Returns:
+            List of cost record dictionaries
+        """
+        ...
+
+    def get_operating_cost_summary(
+        self,
+        service: Optional[str] = None,
+        category: Optional[str] = None,
+        jurisdiction_id: Optional[str] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Get aggregated operating cost summary.
+
+        Args:
+            service: Filter by service provider
+            category: Filter by cost category
+            jurisdiction_id: Filter by jurisdiction
+            since: Filter records from this timestamp (ISO format)
+            until: Filter records until this timestamp (ISO format)
+
+        Returns:
+            Dictionary with total_cost_usd, record_count, and breakdown by service/category
+        """
+        ...

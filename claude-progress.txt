@@ -13750,3 +13750,67 @@ Verified and fixed Executive Orders vector embeddings. Found 21,046 vectors alre
 NEXT SESSION:
 - Implement cost_alerts for ETL pipeline monitoring
 - Base on existing cost tracking in /admin/status endpoint
+
+## Session 528 - 2026-01-13
+
+### Completed: cost_alerts (P0)
+
+Implemented ETL cost alerting with daily and monthly thresholds to prevent runaway costs during pilot.
+
+**Changes:**
+1. `TemporalCostManager.get_daily_costs()` - Checks today's costs vs $5/day threshold
+2. `TemporalCostManager.get_cost_status()` - Combined daily + monthly status
+3. `ProductionAlertManager.send_daily_cost_alert()` - Email alert for daily threshold violations
+4. `/admin/cost-status` endpoint - Exposes cost status via API
+
+**Thresholds:**
+- Daily: $5/day (warning at 80%, over_limit at 100%)
+- Monthly: $50/month (warning at 70%, critical at 85%, over at 95%)
+
+**Debouncing:** Max 1 alert per day per type to prevent spam.
+
+**Housekeeping:**
+- Deleted `turso_backend` item (not needed - using PostgresBackend for cloud)
+- Progress: 21/44 items ready (48%)
+
+### Next P0
+- **srcs_decision_extraction** (data_readiness > school_district)
+- Extract decisions from San Rafael City Schools board minutes PDFs
+- Same pattern as city: civic_extraction.cli.decisions with Gemini
+
+## Session 506: operating_costs_table - Monitoring & Observability
+
+**Date:** 2026-01-13
+**Item:** operating_costs_table (monitoring_observability > cost_tracking)
+**Priority:** P0
+
+### Summary
+
+Created unified `operating_costs` table in PostgreSQL to be the single source of truth for all operating costs across services (Modal, Supabase, OpenAI, Anthropic, Google, R2).
+
+### Work Completed
+
+1. **Schema Design (postgres_backend.py:557-588):**
+   - `operating_costs` table with columns: id, timestamp, service, category, jurisdiction_id (nullable), amount_usd (DECIMAL(12,6)), task_id (nullable), metadata (JSONB)
+   - Indexes on timestamp (DESC), service, category, jurisdiction_id
+
+2. **Protocol Updates (protocols/operations.py:100-173):**
+   - `store_operating_cost()` - Insert cost record with service/category/amount/metadata
+   - `get_operating_costs()` - Query with filtering (service, category, jurisdiction, since, until)
+   - `get_operating_cost_summary()` - Aggregation with breakdowns by service and category
+
+3. **PostgresBackend Implementation (postgres_backend.py:3875-4089):**
+   - Full CRUD implementation with proper decimal/datetime handling
+   - Summary includes `by_service` and `by_category` breakdowns
+
+4. **SQLite Stubs (sqlite_backend.py:1958-1993):**
+   - Stub implementations returning empty/zero values for local dev
+
+5. **Verified:**
+   - Manual test against PostgreSQL: store, retrieve, summarize, cleanup
+   - 42/42 smoke tests passing
+
+### Next P0
+- **llm_cost_logging** (monitoring_observability > cost_tracking)
+- Instrument all LLM calls (OpenAI, Anthropic, Google) to log to operating_costs table
+- Calculate costs from token usage using provider-specific pricing

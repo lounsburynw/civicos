@@ -554,6 +554,39 @@ class PostgresBackend:
             ON etl_costs(run_date DESC)
         """)
 
+        # Operating costs table - unified cost tracking across all services
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS operating_costs (
+                id SERIAL PRIMARY KEY,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                service VARCHAR(50) NOT NULL,
+                category VARCHAR(50) NOT NULL,
+                jurisdiction_id VARCHAR(100),
+                amount_usd DECIMAL(12,6) NOT NULL,
+                task_id TEXT,
+                metadata JSONB,
+                FOREIGN KEY (jurisdiction_id) REFERENCES city_states(jurisdiction_id)
+            )
+        """)
+
+        # Operating costs indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_operating_costs_timestamp
+            ON operating_costs(timestamp DESC)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_operating_costs_service
+            ON operating_costs(service)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_operating_costs_category
+            ON operating_costs(category)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_operating_costs_jurisdiction
+            ON operating_costs(jurisdiction_id)
+        """)
+
         # Municipal code table (with temporal versioning)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS municipal_code (
@@ -3834,6 +3867,222 @@ class PostgresBackend:
                 "total_cost_usd": float(row[0]) if row[0] else 0.0,
                 "total_items": int(row[1]) if row[1] else 0,
                 "run_count": int(row[2]) if row[2] else 0,
+            }
+
+        finally:
+            conn.close()
+
+    # ========== Operating Cost Methods ==========
+
+    def store_operating_cost(
+        self,
+        service: str,
+        category: str,
+        amount_usd: float,
+        jurisdiction_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> int:
+        """
+        Store operating cost record for unified cost tracking.
+
+        Args:
+            service: Service provider (modal, supabase, openai, anthropic, google, r2)
+            category: Cost category (compute, storage, llm, api)
+            amount_usd: Cost amount in USD
+            jurisdiction_id: Optional jurisdiction for city-specific costs
+            task_id: Optional link to operations table for task-level tracking
+            metadata: Optional provider-specific details (tokens, model, etc.)
+
+        Returns:
+            ID of the inserted cost record
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("""
+                INSERT INTO operating_costs (
+                    service, category, amount_usd, jurisdiction_id,
+                    task_id, metadata
+                ) VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                service,
+                category,
+                amount_usd,
+                jurisdiction_id,
+                task_id,
+                json.dumps(metadata) if metadata else None,
+            ))
+
+            cost_id = cursor.fetchone()[0]
+            conn.commit()
+            return cost_id
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_operating_costs(
+        self,
+        service: Optional[str] = None,
+        category: Optional[str] = None,
+        jurisdiction_id: Optional[str] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve operating cost records with filtering.
+
+        Args:
+            service: Filter by service provider
+            category: Filter by cost category
+            jurisdiction_id: Filter by jurisdiction
+            since: Filter records from this timestamp (ISO format)
+            until: Filter records until this timestamp (ISO format)
+            limit: Maximum records to return
+
+        Returns:
+            List of cost record dictionaries
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        try:
+            query = "SELECT * FROM operating_costs WHERE 1=1"
+            params: List[Any] = []
+
+            if service:
+                query += " AND service = %s"
+                params.append(service)
+
+            if category:
+                query += " AND category = %s"
+                params.append(category)
+
+            if jurisdiction_id:
+                query += " AND jurisdiction_id = %s"
+                params.append(jurisdiction_id)
+
+            if since:
+                query += " AND timestamp >= %s"
+                params.append(since)
+
+            if until:
+                query += " AND timestamp <= %s"
+                params.append(until)
+
+            query += " ORDER BY timestamp DESC LIMIT %s"
+            params.append(limit)
+
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+            costs = []
+            for row in rows:
+                cost = dict(row)
+                # Convert datetime to ISO string
+                if 'timestamp' in cost and cost['timestamp'] is not None:
+                    if isinstance(cost['timestamp'], datetime):
+                        cost['timestamp'] = cost['timestamp'].isoformat()
+                # Convert Decimal to float for JSON serialization
+                if 'amount_usd' in cost and cost['amount_usd'] is not None:
+                    cost['amount_usd'] = float(cost['amount_usd'])
+                costs.append(cost)
+
+            return costs
+
+        finally:
+            conn.close()
+
+    def get_operating_cost_summary(
+        self,
+        service: Optional[str] = None,
+        category: Optional[str] = None,
+        jurisdiction_id: Optional[str] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Get aggregated operating cost summary.
+
+        Args:
+            service: Filter by service provider
+            category: Filter by cost category
+            jurisdiction_id: Filter by jurisdiction
+            since: Filter records from this timestamp (ISO format)
+            until: Filter records until this timestamp (ISO format)
+
+        Returns:
+            Dictionary with total_cost_usd, record_count, and breakdown by service/category
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Build filter clause
+            where_clause = "WHERE 1=1"
+            params: List[Any] = []
+
+            if service:
+                where_clause += " AND service = %s"
+                params.append(service)
+
+            if category:
+                where_clause += " AND category = %s"
+                params.append(category)
+
+            if jurisdiction_id:
+                where_clause += " AND jurisdiction_id = %s"
+                params.append(jurisdiction_id)
+
+            if since:
+                where_clause += " AND timestamp >= %s"
+                params.append(since)
+
+            if until:
+                where_clause += " AND timestamp <= %s"
+                params.append(until)
+
+            # Total summary
+            cursor.execute(f"""
+                SELECT
+                    COALESCE(SUM(amount_usd), 0) as total_cost_usd,
+                    COUNT(*) as record_count
+                FROM operating_costs {where_clause}
+            """, params)
+            row = cursor.fetchone()
+            total_cost = float(row[0]) if row[0] else 0.0
+            record_count = int(row[1]) if row[1] else 0
+
+            # Breakdown by service
+            cursor.execute(f"""
+                SELECT service, COALESCE(SUM(amount_usd), 0) as cost
+                FROM operating_costs {where_clause}
+                GROUP BY service ORDER BY cost DESC
+            """, params)
+            by_service = {r[0]: float(r[1]) for r in cursor.fetchall()}
+
+            # Breakdown by category
+            cursor.execute(f"""
+                SELECT category, COALESCE(SUM(amount_usd), 0) as cost
+                FROM operating_costs {where_clause}
+                GROUP BY category ORDER BY cost DESC
+            """, params)
+            by_category = {r[0]: float(r[1]) for r in cursor.fetchall()}
+
+            return {
+                "total_cost_usd": total_cost,
+                "record_count": record_count,
+                "by_service": by_service,
+                "by_category": by_category,
             }
 
         finally:
