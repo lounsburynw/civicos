@@ -13814,3 +13814,37 @@ Created unified `operating_costs` table in PostgreSQL to be the single source of
 - **llm_cost_logging** (monitoring_observability > cost_tracking)
 - Instrument all LLM calls (OpenAI, Anthropic, Google) to log to operating_costs table
 - Calculate costs from token usage using provider-specific pricing
+
+## Session 507: LLM Cost Logging (2026-01-13)
+
+### Item Completed
+**llm_cost_logging** (monitoring_observability > cost_tracking) - P0 → ready
+
+### Implementation
+
+1. **Created cost_tracking.py module** (civic_services/core/cost_tracking.py):
+   - `log_llm_cost()` - Main function to log LLM call costs
+   - `log_completion_cost()` - Convenience wrapper for CompletionResponse objects
+   - Lazy storage initialization (only connects when first called)
+   - Graceful degradation - never fails the caller, logs warnings on errors
+   - Uses calculate_cost() from model_registry for pricing
+
+2. **Integrated into chat_router.py** (3 call sites):
+   - Mode detection (line ~820)
+   - Main routing call (line ~1138)
+   - Web search call (line ~1179)
+
+3. **Verified:**
+   - Test call logged cost record to PostgreSQL
+   - Chat router test: both mode_detection and routing_navigation costs logged
+   - 42/42 smoke tests passing
+
+### Technical Notes
+- Instructor-wrapped calls (query planning) not instrumented - would require more invasive changes
+- Cost calculation uses MODEL_REGISTRY pricing (cost_per_1m_tokens)
+- Metadata includes: model, prompt_tokens, completion_tokens, total_tokens, task, timestamp
+
+### Next P0
+- **modal_cost_logging** (monitoring_observability > cost_tracking)
+- Instrument Modal functions to log compute costs to operating_costs table
+- Modal pricing: ~$0.000015/GB-second, track GPU vs CPU separately

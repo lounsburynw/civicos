@@ -1403,15 +1403,15 @@
         "note": "Single source of truth for all operating costs. Replaces fragmented cost_monitoring.json and etl_costs."
       },
       "llm_cost_logging": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Log LLM provider costs to operating_costs table",
-        "artifact": "Instrument all LLM calls (OpenAI, Anthropic, Google) to log token usage and calculated cost",
-        "note": "Use provider-specific pricing. Log at call site or via wrapper."
+        "artifact": "civic_services/core/cost_tracking.py + chat_router integration",
+        "note": "Instrumented mode_detection, routing, and web_search calls in chat router. Uses model_registry pricing."
       },
       "modal_cost_logging": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Log Modal compute costs to operating_costs table",
         "artifact": "Each Modal function logs compute time and estimated cost on completion",
         "note": "Modal pricing: ~$0.000015/GB-second. Log GPU vs CPU separately."
