@@ -13705,3 +13705,48 @@ NEXT SESSION:
 - Run transcript extraction for Planning Commission:
   modal run scripts/modal_ingest.py::extract_transcripts --meeting-type planning_commission
 - Or mark advisory_committee_transcripts as ready if infra is sufficient for pilot
+
+## Session 528: executive_orders_vector_embeddings - Data Readiness
+
+**Date:** 2026-01-12
+**Item:** executive_orders_vector_embeddings (data_readiness > election_data)
+**Priority:** P0
+
+### Summary
+
+Verified and fixed Executive Orders vector embeddings. Found 21,046 vectors already indexed but with a model name mismatch that was blocking queries. Fixed the model name and confirmed both full-text and semantic vector search work correctly.
+
+### Work Completed
+
+1. **Discovery:**
+   - Found 21,046 EO embeddings already in pgvector (indexed 2026-01-13)
+   - Discovered model name mismatch: stored as `nomic-embed-text-v1.5`, expected `nomic-ai/nomic-embed-text-v1.5`
+   - Both are same model (768 dimensions), just different naming convention
+
+2. **Fix Applied:**
+   - Updated 21,046 vector rows to use canonical model name
+   - Query: `UPDATE vector_embeddings SET embedding_model = 'nomic-ai/nomic-embed-text-v1.5' WHERE embedding_model = 'nomic-embed-text-v1.5'`
+
+3. **Verification:**
+   - Full-text search works: `search_executive_orders('immigration')` returns EO 13767, 13880, 13768, 14159, etc.
+   - Vector search works: `pgvector_backend.search(query='immigration border security', corpus_type='executive_orders')` returns 0.7+ similarity scores
+   - Both "immigration border security" and "trade tariffs reciprocal" queries return relevant EOs
+
+4. **Housekeeping:**
+   - Marked `storage_protocol_isinstance` and `database_url_log_detection` as ready (tests passing, issues were already fixed)
+   - Updated pilot.json progress: 345/371 items ready (93%)
+
+### Data Inventory
+- Executive Orders in SQL: 1,506
+- Vector embeddings: 21,046 (multiple chunks per EO)
+- Jurisdiction: federal-US
+- Model: nomic-ai/nomic-embed-text-v1.5 (768 dimensions)
+
+### Next P0
+- **cost_alerts** (monitoring_observability > cost_tracking)
+- Implement alert when ETL costs exceed threshold ($5/day or $50/month)
+- Prevents runaway costs during pilot
+
+NEXT SESSION:
+- Implement cost_alerts for ETL pipeline monitoring
+- Base on existing cost tracking in /admin/status endpoint
