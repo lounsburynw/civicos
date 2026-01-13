@@ -741,10 +741,10 @@
         }
       ],
       "executive_orders_vector_embeddings": {
-        "status": "ready",
-        "priority": 1,
+        "status": "not_ready",
+        "priority": 0,
         "artifact": "Vector embeddings for executive order RAG queries",
-        "note": "Session 524: EO incremental fetcher added. 1,506 EOs in SQL but not vectorized. Embed: EO titles, summaries, full text. Enables queries like 'executive orders about immigration' or 'Trump EOs affecting trade'.",
+        "note": "Session 524: EO incremental fetcher added. 1,506 EOs in SQL but not vectorized. Next: Use /vectors skill to index EOs on Modal GPU. Embed: EO titles, summaries, full text. Enables queries like 'executive orders about immigration' or 'Trump EOs affecting trade'.",
         "depends_on": [
           "executive_orders_ingestion"
         ],
@@ -817,10 +817,10 @@
         "jurisdiction_id": "school-san-rafael"
       },
       "advisory_committee_transcripts": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Extend transcript coverage to advisory committees",
-        "note": "Session 527 PROGRESS: (1) Added meeting_type column to videos table with backfill for all 335 videos. (2) Added meeting_id column for linking to meetings table (20 videos matched). (3) Updated get_videos(), load_videos(), run_audio_download(), find_audio_files(), run_transcription(), and extract_transcripts() to accept meeting_type filter parameter. Infrastructure now supports selective transcription by meeting type. READY TO RUN: modal run scripts/modal_ingest.py::extract_transcripts --jurisdiction city-san-rafael --meeting-type planning_commission --limit 8",
+        "note": "COMPLETE: Session 528 (1) Added 10 Planning Commission transcripts via Modal extract_transcripts. (2) Indexed 4,608 transcript vectors with 4 parallel GPU workers. (3) Created data management skills: /db-backup, /vectors, /checkpoint, /ingest, /blob-backup. (4) Updated Modal scripts to 64GB memory. Infrastructure complete for selective transcription by meeting_type.",
         "video_inventory": {
           "total_videos": 335,
           "city_council": 136,
@@ -837,20 +837,20 @@
           "ada_access_advisory_committee": 5
         },
         "transcript_coverage": {
-          "total_transcribed": 19,
+          "total_transcribed": 29,
+          "planning_commission": 13,
           "city_council": 6,
-          "planning_commission": 3,
           "fire_commission": 2,
           "tax_oversight": 2,
-          "paac": 1,
-          "bicycle_pedestrian_advisory_committee": 1,
+          "other": 2,
           "ada_access_advisory_committee": 1,
-          "other": 3
+          "bicycle_pedestrian_advisory_committee": 1,
+          "economic_development_subcommittee": 1,
+          "finance_subcommittee": 1
         },
+        "vector_embeddings": 4608,
         "next_steps": [
-          "Run transcript extraction for Planning Commission (49 videos, filter by meeting_type)",
-          "Index new transcripts to pgvector",
-          "Extend to other committee types as needed"
+          "Extend to other committee types as needed (Design Review, Library Trustees, etc.)"
         ],
         "youtube_channel": "@cityofsanrafael",
         "youtube_playlists": {

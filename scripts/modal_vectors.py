@@ -64,7 +64,7 @@ def extract_state_code(jurisdiction: str) -> str:
     image=civic_image,
     secrets=[modal.Secret.from_name("civic-db")],
     gpu="T4",  # T4 sufficient for embeddings, bulk DB inserts are the win
-    memory=16384,
+    memory=65536,  # 64GB for large embedding batches
     timeout=3600,
     retries=modal.Retries(
         max_retries=2,
@@ -234,7 +234,7 @@ def index_corpus(
 
     # Cost tracking
     elapsed_seconds = time.time() - start_time
-    memory_gb = 16  # Configured memory
+    memory_gb = 64  # Configured memory
     gb_seconds = memory_gb * elapsed_seconds
     estimated_cost = gb_seconds * 0.000463  # Modal CPU pricing
 
@@ -351,7 +351,8 @@ def get_stats(jurisdiction: str = "city-san-rafael") -> dict:
 @app.function(
     image=civic_image,
     secrets=[modal.Secret.from_name("civic-db")],
-    memory=16384,
+    gpu="T4",
+    memory=65536,  # 64GB for large embedding batches
     timeout=3600,
     schedule=modal.Cron("0 6 * * 0"),  # Weekly on Sunday at 6 AM UTC
 )

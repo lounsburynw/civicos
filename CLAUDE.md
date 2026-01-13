@@ -213,6 +213,11 @@ Historical docs from completed phases. Recoverable if needed.
 | `/commit` | Run critics on staged changes, then commit | No |
 | `/nextsesh` | Prepare handoff notes (requires P0 set) | No |
 | `/ingest-audio [jurisdiction] [limit]` | Download YouTube audio locally, upload to R2 | No |
+| `/db-backup [action]` | PostgreSQL backup (selective/full) | No |
+| `/vectors [action]` | Vector indexing on Modal GPU | No |
+| `/checkpoint [action]` | View/reset ingestion checkpoints | No |
+| `/ingest [source]` | Orchestrate data ingestion pipeline | No |
+| `/blob-backup [action]` | R2 blob storage management | No |
 
 ### Subagent Usage for Context Management
 

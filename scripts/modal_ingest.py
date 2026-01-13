@@ -1121,7 +1121,7 @@ def _embed_and_store_batch(
 @app.function(
     image=civic_image,
     secrets=[modal.Secret.from_name("civic-db")],
-    memory=16384,  # 16GB for orchestrator (loads all chunks)
+    memory=65536,  # 64GB for orchestrator (loads all chunks)
     timeout=1800,  # 30 min total
 )
 def index_vectors(
