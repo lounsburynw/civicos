@@ -189,6 +189,40 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
         self._send_email(subject, body)
 
+    def send_daily_cost_alert(self, daily_status: dict):
+        """Send daily cost threshold alert.
+
+        Triggered when ETL costs exceed $5/day threshold.
+        """
+        if not self.alert_recipients or not self.smtp_username:
+            print("⚠️  Email alerting not configured (missing CIVIC_ALERT_EMAILS or SMTP credentials)")
+            return
+
+        subject = f"🚨 Civic Platform Daily Cost Alert - ${daily_status['total_cost']:.2f} (>{daily_status['daily_limit']:.0f}/day)"
+        body = f"""
+Civic Engagement Platform Daily Cost Alert
+
+Current Status:
+- Today's Cost: ${daily_status['total_cost']:.2f} / ${daily_status['daily_limit']:.2f} limit
+- Usage: {daily_status['budget_percentage']:.1f}% of daily limit
+- Status: {daily_status['budget_status']}
+
+Recent Activity:
+- {len(daily_status['entries'])} operations today
+
+Action Required:
+🔴 Daily cost threshold exceeded! Review ETL operations to prevent runaway costs.
+
+This may indicate:
+- Unusually large batch processing
+- Unintended repeated operations
+- Need for pipeline cost optimization
+
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+        """
+
+        self._send_email(subject, body)
+
     def send_failure_alert(self, failure_status: dict):
         """Send persistent failure alert"""
         if not failure_status['needs_alert']:
@@ -246,6 +280,7 @@ class TemporalCostManager:
 
     def __init__(self):
         self.monthly_cost_limit = 50.0  # Foundation budget constraint
+        self.daily_cost_limit = 5.0  # Daily cost threshold for alerting
         self.cost_log_file = "data/cost_monitoring.json"
         self.alert_manager = ProductionAlertManager()
 
@@ -353,6 +388,129 @@ class TemporalCostManager:
                 self._log_alert("budget", today, budget_status)
 
         return budget_status_obj
+
+
+    def get_daily_costs(self) -> dict:
+        """Calculate today's costs for daily budget monitoring with alerting.
+
+        Triggers an alert if daily costs exceed $5/day threshold.
+        Supports debouncing to avoid alert spam (max 1 alert per day per type).
+
+        Returns:
+            Dictionary with:
+            - total_cost: Today's total estimated cost
+            - daily_limit: The $5/day threshold
+            - budget_percentage: Percentage of daily limit used
+            - entries: Cost entries from today
+            - budget_status: "under_limit", "warning", or "over_limit"
+        """
+        if not os.path.exists(self.cost_log_file):
+            return {
+                "total_cost": 0.0,
+                "daily_limit": self.daily_cost_limit,
+                "budget_percentage": 0.0,
+                "entries": [],
+                "budget_status": "under_limit"
+            }
+
+        try:
+            with open(self.cost_log_file, 'r') as f:
+                cost_log = json.load(f)
+        except Exception:
+            return {
+                "total_cost": 0.0,
+                "daily_limit": self.daily_cost_limit,
+                "budget_percentage": 0.0,
+                "entries": [],
+                "budget_status": "under_limit"
+            }
+
+        # Filter to today's entries
+        today = datetime.now().strftime('%Y-%m-%d')
+        today_entries = [
+            entry for entry in cost_log
+            if entry['timestamp'].startswith(today)
+        ]
+
+        total_cost = sum(entry['estimated_cost'] for entry in today_entries)
+        budget_percentage = (total_cost / self.daily_cost_limit) * 100 if self.daily_cost_limit > 0 else 0
+
+        # Determine status with thresholds
+        if budget_percentage >= 100:
+            budget_status = "over_limit"
+        elif budget_percentage >= 80:
+            budget_status = "warning"
+        else:
+            budget_status = "under_limit"
+
+        daily_status = {
+            "total_cost": total_cost,
+            "daily_limit": self.daily_cost_limit,
+            "budget_percentage": budget_percentage,
+            "entries": today_entries,
+            "budget_status": budget_status
+        }
+
+        # Send alert if over daily limit
+        if budget_status == "over_limit":
+            alert_log_file = "data/alert_log.json"
+
+            should_alert = True
+            if os.path.exists(alert_log_file):
+                try:
+                    with open(alert_log_file, 'r') as f:
+                        alert_log = json.load(f)
+
+                    # Check for existing daily cost alert today
+                    recent_daily_alerts = [
+                        alert for alert in alert_log
+                        if alert.get('type') == 'daily_cost' and alert.get('date') == today
+                    ]
+                    should_alert = len(recent_daily_alerts) == 0
+                except Exception:
+                    should_alert = True
+
+            if should_alert:
+                self.alert_manager.send_daily_cost_alert(daily_status)
+                self._log_alert("daily_cost", today, budget_status)
+
+        return daily_status
+
+    def get_cost_status(self) -> dict:
+        """Get combined daily and monthly cost status for monitoring.
+
+        Returns:
+            Dictionary with daily and monthly cost status, suitable for
+            the /admin/cost-status endpoint.
+        """
+        daily = self.get_daily_costs()
+        monthly = self.get_monthly_costs()
+
+        # Determine overall status (worst of daily/monthly)
+        if daily["budget_status"] == "over_limit" or monthly["budget_status"] == "over_budget":
+            overall_status = "critical"
+        elif daily["budget_status"] == "warning" or monthly["budget_status"] in ["warning", "critical_warning"]:
+            overall_status = "warning"
+        else:
+            overall_status = "healthy"
+
+        return {
+            "overall_status": overall_status,
+            "daily": {
+                "cost": daily["total_cost"],
+                "limit": daily["daily_limit"],
+                "percentage": daily["budget_percentage"],
+                "status": daily["budget_status"],
+                "entries_count": len(daily["entries"])
+            },
+            "monthly": {
+                "cost": monthly["total_cost"],
+                "limit": monthly["budget_limit"],
+                "percentage": monthly["budget_percentage"],
+                "status": monthly["budget_status"],
+                "entries_count": len(monthly["entries"])
+            }
+        }
 
     def _log_alert(self, alert_type: str, date: str, details: str):
         """Log sent alerts to prevent spam"""

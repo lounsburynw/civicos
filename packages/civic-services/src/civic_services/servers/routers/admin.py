@@ -4,7 +4,8 @@ Admin router: cache stats, operations, provider stats, monitoring.
 Endpoints:
 - GET /cache-stats - Cache statistics
 - GET /provider-stats - LLM provider usage
-- GET /cost-estimate - Cost estimation
+- GET /cost-estimate - Cost estimation (LLM tokens)
+- GET /cost-status - ETL cost status with daily/monthly thresholds
 - GET /operations - List background operations
 - GET /operations/{id} - Get operation status
 - GET /data/{type} - Data browser
@@ -197,6 +198,34 @@ async def get_cost_estimate(
             "estimated_cost": round(total_cost * multiplier, 4),
             "breakdown": {k: round(v * multiplier, 4) for k, v in breakdown.items()},
             "note": "Estimates based on current token usage patterns"
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get("/cost-status")
+async def get_cost_status(token: str = Depends(verify_auth)):
+    """
+    Get current ETL cost status with daily and monthly thresholds.
+
+    Returns:
+    - overall_status: "healthy", "warning", or "critical"
+    - daily: Cost status vs $5/day threshold
+    - monthly: Cost status vs $50/month threshold
+
+    Triggers alerts when thresholds are exceeded.
+    Requires authentication.
+    """
+    try:
+        from civic_services.monitoring.automated_civic_refresh import TemporalCostManager
+
+        manager = TemporalCostManager()
+        status = manager.get_cost_status()
+
+        return {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            **status
         }
 
     except Exception as e:
