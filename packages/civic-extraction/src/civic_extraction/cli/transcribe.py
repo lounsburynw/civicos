@@ -224,7 +224,10 @@ def setup_assemblyai() -> bool:
 
 
 def find_audio_files(
-    jurisdiction_id: str, input_dir: str, cloud: bool = False
+    jurisdiction_id: str,
+    input_dir: str,
+    cloud: bool = False,
+    meeting_type: Optional[str] = None,
 ) -> Optional[List]:
     """
     Find audio files for a jurisdiction from local storage or cloud.
@@ -236,6 +239,7 @@ def find_audio_files(
         jurisdiction_id: Jurisdiction ID (e.g., "city-san-rafael")
         input_dir: Directory containing audio files (local mode)
         cloud: If True, try cloud storage first
+        meeting_type: Filter by meeting type (e.g., "planning_commission")
 
     Returns:
         List of audio file paths (local) or video dicts (cloud), or None if none found
@@ -250,7 +254,7 @@ def find_audio_files(
 
             # First try: get videos from Postgres and check for audio in R2
             if backend.backend_type == "postgres":
-                videos = backend.get_videos(jurisdiction_id)
+                videos = backend.get_videos(jurisdiction_id, meeting_type=meeting_type)
                 if videos:
                     # Filter to videos that have audio in R2
                     audio_videos = []
@@ -1000,6 +1004,7 @@ def run_transcription(
     max_speakers: int = 10,
     cloud: bool = False,
     batch: bool = False,
+    meeting_type: Optional[str] = None,
 ) -> Optional[List[TranscribeResult]]:
     """
     Run transcription for audio files from a jurisdiction.
@@ -1015,11 +1020,14 @@ def run_transcription(
         max_speakers: Maximum expected speakers
         cloud: If True, use cloud storage (R2 for audio, Postgres for transcripts)
         batch: If True, use batch mode for parallel transcription
+        meeting_type: Filter by meeting type (e.g., "planning_commission")
 
     Returns:
         List of TranscribeResult if successful, None if failed
     """
     logger.info(f"Starting transcription for {jurisdiction_id}")
+    if meeting_type:
+        logger.info(f"Filtering by meeting_type: {meeting_type}")
 
     cloud_mode = cloud or os.environ.get("DATABASE_URL")
     if cloud_mode:
@@ -1031,7 +1039,7 @@ def run_transcription(
             return None
 
     # Find audio files (local or cloud)
-    audio_files = find_audio_files(jurisdiction_id, input_dir, cloud=cloud_mode)
+    audio_files = find_audio_files(jurisdiction_id, input_dir, cloud=cloud_mode, meeting_type=meeting_type)
     if not audio_files:
         return None
 

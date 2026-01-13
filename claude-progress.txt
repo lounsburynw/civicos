@@ -13577,3 +13577,131 @@ Pilot progress: 15/46 (32.6%)
 - srcs_decision_extraction: Extract decisions from SRCS minutes using LLM (depends on agenda items)
 - OR: Other data_readiness items for city-san-rafael
 
+
+## Session 524: executive_orders_incremental_fetcher - Pilot Validation
+
+**Date:** 2026-01-12
+**Item:** executive_orders_incremental_fetcher (pilot_validation > e2e_cloud_data_verification)
+**Priority:** P0
+
+### Summary
+
+Added incremental Executive Orders fetcher using Federal Register API. EOs have higher velocity than codified law and need scheduled updates. The new fetcher integrates with the existing modal_ingest.py pipeline.
+
+### Work Completed
+
+1. **FederalRegisterClient Created:**
+   - `packages/civic-extraction/src/civic_extraction/clients/federal_register.py`
+   - Fetches EOs from Federal Register API with date filtering
+   - Rate limiting, exponential backoff, pagination support
+   - Normalizes API response to match existing `executive_orders` table schema
+   - Exported in `__init__.py` with convenience function `get_recent_executive_orders()`
+
+2. **Modal Ingestion Integration:**
+   - Added `fetch_executive_orders()` function to `scripts/modal_ingest.py`
+   - Supports incremental mode using latest publication_date from DB (not refresh_metadata due to foreign key constraint on federal-US)
+   - Added `--executive-orders` CLI flag for manual runs
+   - Integrated into `scheduled_low_velocity_refresh()` for weekly updates
+
+3. **Incremental Logic:**
+   - Queries MAX(publication_date) from executive_orders table
+   - Fetches EOs published since that date with 7-day overlap
+   - Deduplication handled by COPY with existing document_number check
+
+### Key Files Changed
+- `packages/civic-extraction/src/civic_extraction/clients/federal_register.py` (new)
+- `packages/civic-extraction/src/civic_extraction/clients/__init__.py`
+- `scripts/modal_ingest.py`
+- `pilot.json`
+
+### Verification
+- 42/42 smoke tests passed
+- Incremental fetch tested: DB has 1,506 EOs, latest 2025-12-23, fetches since 2025-12-16 returns 7 EOs (all deduped)
+- Storage tested: `store_executive_orders()` correctly skips duplicates
+
+
+## Session 526: advisory_committee_transcripts - Data Readiness
+
+**Date:** 2026-01-12
+**Item:** advisory_committee_transcripts (data_readiness > school_district)
+**Priority:** P0
+
+### Summary
+
+Populated the videos table for city-san-rafael with 335 YouTube videos from San Rafael's municipal channel. This resolves the video discovery gap identified in Session 499 and enables the automated transcript pipeline to work for advisory committees.
+
+### Work Completed
+
+1. **YouTube Channel Analysis:**
+   - Discovered 2 main playlists: City Council (139 videos), Board & Commission (192 videos)
+   - Board & Commission includes: Planning Commission (49), Design Review (25), Fire Commission (21), Library Trustees (21), Park & Rec (18), BPAC (15), PAAC (13), Pickleweed (8), Council Subcommittees (8), ADA (5)
+   - Total unique videos: 331 (326 from playlists + 9 previously transcribed orphans)
+
+2. **Videos Table Population:**
+   - Used yt-dlp to fetch video metadata from both playlists
+   - Extracted meeting_type from video titles
+   - Extracted meeting dates from video titles (MM/DD/YYYY or "Month Day, Year" patterns)
+   - Stored 335 videos to PostgreSQL videos table
+   - All 19 existing transcripts now properly linked to videos
+
+3. **Transcript Coverage Analysis:**
+   - Total transcribed: 19 unique videos
+   - City Council: 6, Planning Commission: 3, Fire Commission: 2, Tax Oversight: 2, PAAC: 1, BPAC: 1, ADA: 1
+   - Planning Commission gap: 46 untranscribed (8 from 2025+, est $19.20 to transcribe)
+
+4. **Updated pilot.json:**
+   - Added video_inventory with counts by body type
+   - Added transcript_coverage breakdown
+   - Added youtube_playlists with playlist IDs
+   - Documented next steps: add meeting_type filter to extract_transcripts, transcribe Planning Commission
+
+### Key Technical Details
+
+- Videos stored with video_id as primary key (YouTube video ID)
+- Date extraction handles both "01/13/2026" and "January 13, 2026" formats
+- Meeting type extracted via title pattern matching (case-insensitive)
+- Duplicates avoided: store_videos() uses ON CONFLICT DO NOTHING
+
+### Next Steps (for next session)
+
+1. Add meeting_type parameter to extract_transcripts for selective transcription
+2. Run: `modal run scripts/modal_ingest.py::extract_transcripts --jurisdiction city-san-rafael --limit 8`
+3. Index new transcripts to pgvector
+
+### Cost Estimate
+
+- 8 recent Planning Commission videos (~2 hrs each): ~$19.20
+- Full Planning Commission backfill (46 videos): ~$110.40
+
+---
+Session 527 (2026-01-12): Advisory Committee Transcripts Infrastructure
+P0: advisory_committee_transcripts
+
+COMPLETED:
+- Added meeting_type column to videos table (schema migration)
+- Backfilled all 335 videos with meeting_type extracted from title:
+  - city_council: 136, planning_commission: 49, design_review_board: 25
+  - fire_commission: 21, board_of_library_trustees: 28, park_and_recreation: 18
+  - bicycle_pedestrian: 15, ada_access: 5, tax_oversight: 4, other: 26
+- Added meeting_id column for future meeting→video linking (20 videos matched)
+- Updated storage backend:
+  - PostgresBackend.get_videos() accepts meeting_type filter
+  - PostgresBackend.store_videos() stores meeting_type
+  - Protocol and SQLite stub updated
+- Updated transcript extraction pipeline:
+  - load_videos() accepts meeting_type
+  - run_audio_download() accepts meeting_type
+  - find_audio_files() accepts meeting_type
+  - run_transcription() accepts meeting_type
+  - extract_transcripts() accepts meeting_type parameter
+
+DISCOVERY:
+- meetings table only has 3 months of data (Oct 2025+) from ProudCity scraper
+- videos table has 8 years of data (2018-2026) from YouTube
+- Historical meetings were never ingested (ProudCity only shows upcoming)
+- Chose hybrid approach: meeting_type on videos for filtering + meeting_id for linking
+
+NEXT SESSION:
+- Run transcript extraction for Planning Commission:
+  modal run scripts/modal_ingest.py::extract_transcripts --meeting-type planning_commission
+- Or mark advisory_committee_transcripts as ready if infra is sufficient for pilot

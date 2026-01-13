@@ -88,6 +88,8 @@ Cost Estimates (Modal compute):
     - Full --all run: ~$0.40
 """
 
+from typing import Optional
+
 import modal
 
 # Define the Modal app
@@ -394,6 +396,256 @@ def fetch_legislation(
     if vector_result:
         result["vector_result"] = vector_result
     return result
+
+
+# =============================================================================
+# Executive Orders (Federal Register API)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=4096,
+    timeout=3600,  # 1 hour
+    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=30.0),
+)
+def fetch_executive_orders(
+    dry_run: bool = False,
+    incremental: bool = True,
+    days_lookback: int = 30,
+) -> dict:
+    """Fetch Executive Orders from Federal Register API and store to Postgres.
+
+    Supports incremental fetch using refresh_metadata to track last fetch time.
+    EOs have higher velocity than codified law, so weekly refresh is recommended.
+
+    Args:
+        dry_run: If True, fetch but don't store
+        incremental: If True, only fetch EOs published since last refresh
+        days_lookback: Days to look back for initial/full fetch (default 30)
+    """
+    import logging
+    import os
+    import time
+    from datetime import datetime, timedelta
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civic.storage.postgres_backend import PostgresBackend
+    from civic_extraction.clients.federal_register import FederalRegisterClient
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    backend = PostgresBackend(database_url)
+    client = FederalRegisterClient()
+
+    # Determine date filter for incremental fetch
+    # Use latest signing_date from existing EOs via public API (get_executive_orders)
+    # rather than raw SQL, to maintain protocol compliance and backend portability
+    since_date = None
+    if incremental:
+        # Get most recent EO via public API (returns ordered by signing_date DESC)
+        recent_eos = backend.get_executive_orders(limit=1)
+        if recent_eos:
+            latest_eo = recent_eos[0]
+            # Use signing_date as the reference (publication_date may be None)
+            latest_date = latest_eo.get("signing_date")
+            if latest_date:
+                # Add 7-day overlap to catch any delayed publications or republications
+                overlap_days = 7
+                if hasattr(latest_date, 'strftime'):
+                    since_date = (latest_date - timedelta(days=overlap_days)).strftime("%Y-%m-%d")
+                else:
+                    # Already a string, parse and adjust
+                    from datetime import date as date_type
+                    parsed = date_type.fromisoformat(str(latest_date)[:10])
+                    since_date = (parsed - timedelta(days=overlap_days)).strftime("%Y-%m-%d")
+                logger.info(f"[EO] Incremental mode: fetching since {since_date} (latest in DB: {latest_date})")
+            else:
+                since_date = (datetime.now() - timedelta(days=days_lookback)).strftime("%Y-%m-%d")
+                logger.info(f"[EO] Initial fetch: looking back {days_lookback} days (since {since_date})")
+        else:
+            # No existing EOs - use days_lookback
+            since_date = (datetime.now() - timedelta(days=days_lookback)).strftime("%Y-%m-%d")
+            logger.info(f"[EO] Initial fetch: looking back {days_lookback} days (since {since_date})")
+    else:
+        # Full fetch - use days_lookback
+        since_date = (datetime.now() - timedelta(days=days_lookback)).strftime("%Y-%m-%d")
+        logger.info(f"[EO] Full fetch: looking back {days_lookback} days (since {since_date})")
+
+    # Fetch EOs from Federal Register API
+    logger.info("[EO] Fetching Executive Orders from Federal Register...")
+    orders = client.fetch_executive_orders(since_date=since_date, per_page=100, max_pages=50)
+    logger.info(f"[EO] Fetched {len(orders)} Executive Orders")
+
+    # Store to database
+    stored_count = 0
+    if orders and not dry_run:
+        stored_count = backend.store_executive_orders(orders)
+        logger.info(f"[EO] Stored {stored_count} new Executive Orders (deduped)")
+    elif dry_run:
+        logger.info("[EO] Dry run - skipping storage")
+
+    elapsed = time.time() - start_time
+    return {
+        "task": "executive_orders",
+        "orders_fetched": len(orders),
+        "orders_stored": stored_count,
+        "since_date": since_date,
+        "incremental": incremental,
+        "dry_run": dry_run,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 4 * elapsed * 0.000463,
+    }
+
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=512,
+    timeout=900,  # 15 min per batch (Federal Register can be slow)
+)
+def _fetch_eo_text_batch(orders: list[dict]) -> dict:
+    """Worker function to fetch full_text for a batch of Executive Orders.
+
+    Called by backfill_executive_orders_text via .map() for parallel processing.
+    Each worker handles a small batch with internal rate limiting.
+    """
+    import os
+    import time
+    import requests
+
+    from civic.storage.postgres_backend import PostgresBackend
+
+    database_url = os.environ.get("DATABASE_URL")
+    backend = PostgresBackend(database_url)
+
+    succeeded = 0
+    failed = 0
+    skipped = 0
+
+    session = requests.Session()
+    session.headers.update({"User-Agent": "Civic Conversational OS"})
+
+    for order in orders:
+        doc_number = order["document_number"]
+        raw_url = order.get("raw_text_url")
+
+        if not raw_url:
+            skipped += 1
+            continue
+
+        try:
+            # Fetch full text
+            response = session.get(raw_url, timeout=30)
+            if response.status_code == 200 and len(response.text) > 100:
+                backend.update_executive_order_text(
+                    document_number=doc_number,
+                    full_text=response.text,
+                )
+                succeeded += 1
+            else:
+                failed += 1
+        except Exception:
+            failed += 1
+
+        # Light rate limiting within batch (0.1s)
+        time.sleep(0.1)
+
+    return {"succeeded": succeeded, "failed": failed, "skipped": skipped}
+
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=1024,
+    timeout=1200,  # 20 min orchestrator timeout
+)
+def backfill_executive_orders_text(
+    dry_run: bool = False,
+    num_workers: int = 30,
+    max_orders: Optional[int] = None,
+) -> dict:
+    """Backfill full_text for Executive Orders using parallel workers.
+
+    Fetches full text from raw_text_url for all EOs missing content.
+    Uses Modal .map() for parallel processing across multiple workers.
+
+    Args:
+        dry_run: If True, report what would be fetched but don't update
+        num_workers: Number of parallel workers (default 20)
+        max_orders: Maximum orders to process (None for all)
+
+    Returns:
+        Summary with counts of processed, succeeded, failed orders
+    """
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civic.storage.postgres_backend import PostgresBackend
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    backend = PostgresBackend(database_url)
+
+    # Get orders missing text
+    missing_orders = backend.get_executive_orders_missing_text(limit=max_orders)
+    logger.info(f"[EO Backfill] Found {len(missing_orders)} orders missing full_text")
+
+    if dry_run:
+        return {
+            "task": "backfill_executive_orders_text",
+            "orders_needing_text": len(missing_orders),
+            "dry_run": True,
+        }
+
+    if not missing_orders:
+        return {
+            "task": "backfill_executive_orders_text",
+            "orders_processed": 0,
+            "message": "No orders need backfill",
+        }
+
+    # Split into batches for parallel processing
+    batch_size = max(1, len(missing_orders) // num_workers)
+    batches = [
+        missing_orders[i:i + batch_size]
+        for i in range(0, len(missing_orders), batch_size)
+    ]
+    logger.info(f"[EO Backfill] Dispatching {len(batches)} batches to parallel workers")
+
+    # Run parallel workers
+    results = list(_fetch_eo_text_batch.map(batches))
+
+    # Aggregate results
+    total_succeeded = sum(r["succeeded"] for r in results)
+    total_failed = sum(r["failed"] for r in results)
+    total_skipped = sum(r["skipped"] for r in results)
+
+    elapsed = time.time() - start_time
+    logger.info(f"[EO Backfill] Complete: {total_succeeded} succeeded, {total_failed} failed, "
+               f"{total_skipped} skipped in {elapsed:.1f}s")
+
+    return {
+        "task": "backfill_executive_orders_text",
+        "orders_processed": total_succeeded + total_failed + total_skipped,
+        "succeeded": total_succeeded,
+        "failed": total_failed,
+        "skipped": total_skipped,
+        "elapsed_seconds": elapsed,
+        "num_workers": len(batches),
+    }
 
 
 # =============================================================================
@@ -760,22 +1012,125 @@ def fetch_all_hud_allocations(dry_run: bool = False) -> dict:
 
 
 # =============================================================================
-# Vector Indexing
+# Vector Indexing (Parallel)
 # =============================================================================
 
 @app.function(
     image=civic_image,
     secrets=[modal.Secret.from_name("civic-db")],
-    memory=16384,  # 16GB for embeddings
-    timeout=3600,  # 1 hour
-    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=10.0),
+    memory=65536,  # 64GB per worker
+    gpu="A10G",  # Faster GPU (24GB VRAM)
+    timeout=300,  # 5 min per batch
+)
+def _embed_and_store_batch(
+    chunks: list[dict],
+    jurisdiction_id: str,
+    corpus_type: str,
+) -> dict:
+    """Worker function to embed and store a batch of chunks.
+
+    Called by index_vectors via .map() for parallel processing.
+    Each worker embeds its batch and inserts via COPY.
+    """
+    import logging
+    import os
+    from io import StringIO
+    from datetime import datetime
+    import hashlib
+    import json
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+
+    from civic.storage.pgvector_backend import PgVectorBackend
+
+    database_url = os.environ.get("DATABASE_URL")
+    pgvector = PgVectorBackend(connection_string=database_url, provider_type="fastembed")
+
+    # Extract text content for embedding
+    texts = []
+    for chunk in chunks:
+        content = chunk.get("content") or chunk.get("text") or chunk.get("title", "")
+        texts.append(content)
+
+    # Generate embeddings using the provider
+    embeddings = pgvector._embedding_provider.encode(texts, batch_size=len(texts))
+
+    # Prepare rows for COPY
+    conn = pgvector._get_connection()
+    cursor = conn.cursor()
+    now = datetime.utcnow()
+
+    buffer = StringIO()
+    for chunk, embedding in zip(chunks, embeddings):
+        # Generate deterministic ID
+        content = chunk.get("content") or chunk.get("text") or chunk.get("title", "")
+        chunk_id = chunk.get("id") or hashlib.sha256(
+            f"{jurisdiction_id}:{corpus_type}:{content[:200]}".encode()
+        ).hexdigest()[:32]
+
+        # Extract metadata
+        meeting_id = chunk.get("meeting_id")
+        meeting_title = chunk.get("meeting_title")
+        meeting_datetime = chunk.get("meeting_datetime")
+        metadata = chunk.get("metadata", {})
+        if not isinstance(metadata, str):
+            metadata = json.dumps(metadata)
+
+        # Format row for COPY
+        row = [
+            chunk_id,
+            jurisdiction_id,
+            corpus_type,
+            content.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r"),
+            "[" + ",".join(str(x) for x in embedding) + "]",
+            "nomic-embed-text-v1.5",
+            meeting_id or "\\N",
+            (meeting_title or "").replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n") if meeting_title else "\\N",
+            meeting_datetime.isoformat() if meeting_datetime else "\\N",
+            metadata.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n"),
+            now.isoformat(),
+            now.isoformat(),
+        ]
+        buffer.write("\t".join(str(v) for v in row) + "\n")
+
+    buffer.seek(0)
+
+    # COPY to database
+    try:
+        cursor.copy_from(
+            buffer,
+            "vector_embeddings",
+            columns=(
+                "id", "jurisdiction_id", "corpus_type", "content", "embedding",
+                "embedding_model", "meeting_id", "meeting_title", "meeting_datetime",
+                "metadata", "created_at", "updated_at"
+            ),
+        )
+        conn.commit()
+        logger.info(f"Inserted {len(chunks)} embeddings")
+        return {"success": len(chunks), "failed": 0}
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"COPY failed: {e}")
+        return {"success": 0, "failed": len(chunks), "error": str(e)}
+    finally:
+        conn.close()
+
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=16384,  # 16GB for orchestrator (loads all chunks)
+    timeout=1800,  # 30 min total
 )
 def index_vectors(
     jurisdiction: str = "city-san-rafael",
     corpus: str = "all",
     reindex: bool = False,
+    num_workers: int = 40,
 ) -> dict:
-    """Generate embeddings and store to pgvector."""
+    """Generate embeddings and store to pgvector using parallel workers."""
     import logging
     import os
     import time
@@ -790,13 +1145,14 @@ def index_vectors(
     from civic._internal.legal.embeddings.chunker import (
         expand_municipal_code_to_chunks,
         expand_legislation_to_chunks,
+        expand_executive_orders_to_chunks,
     )
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
         raise ValueError("DATABASE_URL not set")
 
-    logger.info(f"[VECTORS] Starting indexing: jurisdiction={jurisdiction}, corpus={corpus}")
+    logger.info(f"[VECTORS] Starting parallel indexing: jurisdiction={jurisdiction}, corpus={corpus}, workers={num_workers}")
 
     backend = get_storage_backend(database_url)
     pgvector = PgVectorBackend(connection_string=database_url, provider_type="fastembed")
@@ -809,7 +1165,7 @@ def index_vectors(
     if jurisdiction.startswith("state-"):
         all_corpus_types = ["legislation"]
     elif jurisdiction.startswith("federal-"):
-        all_corpus_types = ["programs"]  # Federal programs from SAM.gov
+        all_corpus_types = ["programs", "executive_orders"]  # Federal programs + EOs
     else:
         all_corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues", "agenda_items"]
 
@@ -823,36 +1179,64 @@ def index_vectors(
             deleted = pgvector.delete_index(jurisdiction, ct)
             logger.info(f"  Deleted {deleted} existing vectors")
 
-        stats = pgvector.get_stats(jurisdiction, ct, backend)
+        # Fetch and expand documents to chunks
+        if ct == "decisions":
+            chunks = backend.get_decisions(jurisdiction)
+        elif ct == "chunks":
+            chunks = backend.get_chunks(jurisdiction)
+        elif ct == "meetings":
+            chunks = backend.get_meetings(jurisdiction)
+        elif ct == "transcripts":
+            raw = backend.get_transcripts(jurisdiction)
+            chunks = expand_transcripts_to_chunks(raw)
+        elif ct == "municipal_code":
+            raw = backend.get_municipal_code(jurisdiction)
+            chunks = expand_municipal_code_to_chunks(raw)
+        elif ct == "issues":
+            chunks = backend.get_issues(jurisdiction)
+        elif ct == "legislation":
+            state_code = jurisdiction.split("-")[-1].upper()
+            raw = backend.get_legislation(state=state_code)
+            chunks = expand_legislation_to_chunks(raw)
+        elif ct == "executive_orders":
+            raw = backend.get_executive_orders()
+            chunks = expand_executive_orders_to_chunks(raw)
+        elif ct == "agenda_items":
+            chunks = backend.get_agenda_items(jurisdiction_id=jurisdiction)
+        elif ct == "programs":
+            chunks = backend.get_programs()
+        else:
+            logger.warning(f"Unknown corpus type: {ct}")
+            continue
 
-        if not reindex and stats.storage_document_count:
-            if stats.document_count >= stats.storage_document_count:
-                results[ct] = {"status": "skipped", "indexed": 0}
-                continue
+        if not chunks:
+            logger.warning(f"  No chunks found for {ct}")
+            results[ct] = {"status": "skipped", "indexed": 0}
+            continue
 
-        try:
-            transcript_chunker = expand_transcripts_to_chunks if ct == "transcripts" else None
-            if ct == "municipal_code":
-                legal_chunker_fn = expand_municipal_code_to_chunks
-            elif ct == "legislation":
-                legal_chunker_fn = expand_legislation_to_chunks
-            else:
-                legal_chunker_fn = None
+        logger.info(f"  Expanded to {len(chunks)} chunks, dispatching to {num_workers} workers")
 
-            count = pgvector.index_from_storage(
-                storage_backend=backend,
-                jurisdiction_id=jurisdiction,
-                corpus_type=ct,
-                batch_size=100,
-                allow_dimension_change=reindex,
-                transcript_chunker=transcript_chunker,
-                legal_chunker=legal_chunker_fn,
-            )
-            results[ct] = {"status": "success", "indexed": count}
-            logger.info(f"  Indexed {count} documents")
-        except Exception as e:
-            logger.exception(f"  Error indexing {ct}")
-            results[ct] = {"status": "error", "error": str(e)}
+        # Split into batches for parallel processing
+        batch_size = max(1, len(chunks) // num_workers)
+        batches = [
+            (chunks[i:i + batch_size], jurisdiction, ct)
+            for i in range(0, len(chunks), batch_size)
+        ]
+
+        # Run parallel workers
+        worker_results = list(_embed_and_store_batch.starmap(batches))
+
+        # Aggregate results
+        total_success = sum(r["success"] for r in worker_results)
+        total_failed = sum(r["failed"] for r in worker_results)
+
+        results[ct] = {
+            "status": "success" if total_failed == 0 else "partial",
+            "indexed": total_success,
+            "failed": total_failed,
+            "workers": len(batches),
+        }
+        logger.info(f"  Indexed {total_success} chunks ({total_failed} failed)")
 
     elapsed = time.time() - start_time
     total_indexed = sum(r.get("indexed", 0) for r in results.values())
@@ -1785,6 +2169,7 @@ def extract_transcripts(
     dry_run: bool = False,
     batch: bool = True,
     auto_index: bool = False,
+    meeting_type: str = "",
 ) -> dict:
     """Extract transcripts from meeting audio using AssemblyAI.
 
@@ -1806,6 +2191,7 @@ def extract_transcripts(
         dry_run: If True, show what would be processed without extracting
         batch: If True, use AssemblyAI batch mode for parallel transcription
         auto_index: If True, trigger vector indexing after successful extraction
+        meeting_type: Filter by meeting type (e.g., "planning_commission")
 
     Cost: ~$0.02/minute audio (~$2.40 per 2-hour meeting)
     """
@@ -1825,7 +2211,8 @@ def extract_transcripts(
     if not assemblyai_key and not dry_run:
         raise ValueError("ASSEMBLYAI_API_KEY not set. Create Modal secret: modal secret create civic-assemblyai ASSEMBLYAI_API_KEY='...'")
 
-    logger.info(f"[TRANSCRIPTS] Starting extraction: jurisdiction={jurisdiction}, limit={limit}, batch={batch}")
+    meeting_type_filter = meeting_type if meeting_type else None
+    logger.info(f"[TRANSCRIPTS] Starting extraction: jurisdiction={jurisdiction}, limit={limit}, batch={batch}, meeting_type={meeting_type_filter}")
 
     # Step 1: Download audio files (if not already in R2)
     logger.info("[TRANSCRIPTS] Step 1: Downloading audio files...")
@@ -1842,6 +2229,7 @@ def extract_transcripts(
             limit=limit,
             quality="128",
             cloud=True,  # Store in R2
+            meeting_type=meeting_type_filter,
         )
 
         if audio_results is None and not dry_run:
@@ -1873,6 +2261,7 @@ def extract_transcripts(
             max_speakers=10,
             cloud=True,  # Read audio from R2, store transcripts in Postgres
             batch=batch,  # Use batch mode for parallel processing
+            meeting_type=meeting_type_filter,
         )
 
         if transcribe_results is None and not dry_run:
@@ -1993,6 +2382,16 @@ def scheduled_low_velocity_refresh():
     except Exception as e:
         logger.exception("CA legislation fetch failed")
         results["legislation_CA"] = {"status": "failed", "error": str(e)}
+
+    # Executive Orders from Federal Register (incremental)
+    try:
+        logger.info("Fetching Executive Orders from Federal Register...")
+        result = fetch_executive_orders.local(dry_run=False, incremental=True)
+        results["executive_orders"] = result
+        logger.info(f"  Executive Orders: {result.get('orders_stored', 0)} new orders stored (of {result.get('orders_fetched', 0)} fetched)")
+    except Exception as e:
+        logger.exception("Executive Orders fetch failed")
+        results["executive_orders"] = {"status": "failed", "error": str(e)}
 
     # Federal programs from SAM.gov (full catalog refresh)
     try:
@@ -2388,6 +2787,7 @@ def main(
     all: bool = False,
     municipal: bool = False,
     legislation: bool = False,
+    executive_orders: bool = False,
     meetings: bool = False,
     issues: bool = False,
     elections: bool = False,
@@ -2490,6 +2890,7 @@ def main(
     # Note: transcripts is included in --all as part of daily pipeline
     run_municipal = all or municipal
     run_legislation = all or legislation
+    run_executive_orders = all or executive_orders
     run_meetings = all or meetings
     run_issues = all or issues
     run_elections = all or elections
@@ -2500,8 +2901,8 @@ def main(
     run_videos = videos  # Not in --all (YouTube jurisdictions need explicit flag)
     run_vectors = all or vectors
 
-    if not (run_municipal or run_legislation or run_meetings or run_issues or run_elections or run_videos or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors):
-        print("No tasks specified. Use --all, --municipal, --legislation, --meetings, --issues, --elections, --videos, --transcripts, --chunks, --agenda, --decisions, or --vectors")
+    if not (run_municipal or run_legislation or run_executive_orders or run_meetings or run_issues or run_elections or run_videos or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors):
+        print("No tasks specified. Use --all, --municipal, --legislation, --executive-orders, --meetings, --issues, --elections, --videos, --transcripts, --chunks, --agenda, --decisions, or --vectors")
         print("Use --stats-only to check current state")
         return
 
@@ -2513,6 +2914,8 @@ def main(
         task_list.append("municipal")
     if run_legislation:
         task_list.append("legislation")
+    if run_executive_orders:
+        task_list.append("executive_orders")
     if run_meetings:
         task_list.append("meetings")
     if run_issues:
@@ -2536,6 +2939,8 @@ def main(
         print(f"  Municipal: {jurisdiction}")
     if run_legislation:
         print(f"  Legislation: {legislation_jurisdiction}" + (f" (limit: {legislation_limit})" if legislation_limit else ""))
+    if run_executive_orders:
+        print(f"  Executive Orders: federal-US (incremental)")
     if run_meetings:
         print(f"  Meetings: {jurisdiction}" + (" (incremental)" if incremental else ""))
     if run_issues:
@@ -2576,6 +2981,14 @@ def main(
             dry_run=dry_run,
         )
         handles.append(("legislation", handle))
+
+    if run_executive_orders:
+        print("Spawning executive orders fetch...")
+        handle = fetch_executive_orders.spawn(
+            dry_run=dry_run,
+            incremental=True,  # Always incremental for EOs
+        )
+        handles.append(("executive_orders", handle))
 
     if run_meetings:
         print("Spawning meetings fetch...")

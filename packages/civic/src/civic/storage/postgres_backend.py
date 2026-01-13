@@ -386,6 +386,8 @@ class PostgresBackend:
                 id TEXT NOT NULL,
                 jurisdiction_id TEXT NOT NULL,
                 meeting_url TEXT,
+                meeting_id TEXT,
+                meeting_type TEXT,
                 title TEXT,
                 date TEXT,
                 youtube_url TEXT,
@@ -399,6 +401,14 @@ class PostgresBackend:
             )
         """)
 
+        # Migration: Add meeting_id and meeting_type columns if table exists without them
+        cursor.execute("""
+            ALTER TABLE videos ADD COLUMN IF NOT EXISTS meeting_id TEXT
+        """)
+        cursor.execute("""
+            ALTER TABLE videos ADD COLUMN IF NOT EXISTS meeting_type TEXT
+        """)
+
         # Video indexes
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_videos_jurisdiction
@@ -407,6 +417,14 @@ class PostgresBackend:
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_videos_discovered
             ON videos(discovered_at DESC)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_videos_meeting_id
+            ON videos(meeting_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_videos_meeting_type
+            ON videos(meeting_type)
         """)
 
         # Transcripts table (SESSION 381)
@@ -2769,13 +2787,15 @@ class PostgresBackend:
 
                 cursor.execute("""
                     INSERT INTO videos (
-                        id, jurisdiction_id, meeting_url, title,
-                        date, youtube_url, discovered_at, valid_from, valid_to
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NULL)
+                        id, jurisdiction_id, meeting_url, meeting_id, meeting_type,
+                        title, date, youtube_url, discovered_at, valid_from, valid_to
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)
                 """, (
                     video_id,
                     jurisdiction_id,
                     video.get('meeting_url'),
+                    video.get('meeting_id'),
+                    video.get('meeting_type'),
                     video.get('title'),
                     video.get('date'),
                     video.get('youtube_url'),
@@ -2797,6 +2817,7 @@ class PostgresBackend:
         jurisdiction_id: str,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        meeting_type: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve videos with temporal filtering.
@@ -2805,6 +2826,7 @@ class PostgresBackend:
             jurisdiction_id: Source jurisdiction
             as_of: Point-in-time query (for temporal versioning)
             limit: Maximum number of videos to return
+            meeting_type: Filter by meeting type (uses videos.meeting_type column)
 
         Returns:
             List of video dictionaries
@@ -2821,9 +2843,14 @@ class PostgresBackend:
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
               AND deleted_at IS NULL
-            ORDER BY discovered_at DESC
         """
         params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+
+        if meeting_type:
+            query += " AND meeting_type = %s"
+            params.append(meeting_type)
+
+        query += " ORDER BY discovered_at DESC"
 
         if limit:
             query += " LIMIT %s"
@@ -5052,6 +5079,102 @@ class PostgresBackend:
         conn.close()
 
         return count
+
+    def update_executive_order_text(
+        self,
+        document_number: str,
+        full_text: Optional[str] = None,
+        abstract: Optional[str] = None,
+    ) -> bool:
+        """
+        Update the full_text and/or abstract of an Executive Order.
+
+        Used by backfill operations to populate text content fetched from
+        Federal Register raw_text_url.
+
+        Args:
+            document_number: The FR document number (unique key)
+            full_text: Full text content to store
+            abstract: Abstract/summary to store
+
+        Returns:
+            True if update succeeded, False if order not found
+        """
+        if full_text is None and abstract is None:
+            return False
+
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        try:
+            # Build dynamic update
+            updates = []
+            params: List[Any] = []
+
+            if full_text is not None:
+                # Sanitize: remove NUL bytes that PostgreSQL text fields reject
+                full_text = full_text.replace('\x00', '')
+                updates.append("full_text = %s")
+                params.append(full_text)
+
+            if abstract is not None:
+                abstract = abstract.replace('\x00', '')
+                updates.append("abstract = %s")
+                params.append(abstract)
+
+            params.append(document_number)
+
+            sql = f"""
+                UPDATE executive_orders
+                SET {', '.join(updates)}
+                WHERE document_number = %s
+            """
+            cursor.execute(sql, params)
+            conn.commit()
+
+            return cursor.rowcount > 0
+
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def get_executive_orders_missing_text(
+        self,
+        limit: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get Executive Orders that have raw_text_url but no full_text.
+
+        Used by backfill operations to identify orders needing text fetch.
+
+        Args:
+            limit: Maximum number to return (None for all)
+
+        Returns:
+            List of orders with document_number and raw_text_url
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        query = """
+            SELECT document_number, eo_number, title, raw_text_url
+            FROM executive_orders
+            WHERE raw_text_url IS NOT NULL
+              AND (full_text IS NULL OR full_text = '')
+            ORDER BY signing_date DESC
+        """
+        if limit:
+            query += f" LIMIT {limit}"
+
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [dict(row) for row in rows]
 
     # ========== Budget Items Methods (Municipal/County Budget Line Items) ==========
 

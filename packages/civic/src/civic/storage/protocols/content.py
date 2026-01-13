@@ -191,8 +191,16 @@ class ContentStorage(Protocol):
         jurisdiction_id: str,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        meeting_type: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        """Retrieve videos with temporal filtering."""
+        """Retrieve videos with temporal filtering.
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            as_of: Point-in-time query (for temporal versioning)
+            limit: Maximum number of videos to return
+            meeting_type: Filter by meeting type (joins with meetings table via meeting_id)
+        """
         ...
 
     def get_video_count(self, jurisdiction_id: str) -> int:
