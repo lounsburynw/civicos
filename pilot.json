@@ -1,7 +1,7 @@
 {
   "version": "2.0",
   "phase": "pilot",
-  "last_updated": "2026-01-11",
+  "last_updated": "2026-01-12",
   "target": "January 2026",
   "summary": "Consolidated pilot checklist: completed work summarized, active items tracked individually",
   "category_order": [
@@ -741,10 +741,10 @@
         }
       ],
       "executive_orders_vector_embeddings": {
-        "status": "not_ready",
-        "priority": 2,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Vector embeddings for executive order RAG queries",
-        "note": "Session 491: 1,506 EOs ingested to SQL (executive_orders table) but not vectorized. Embed: EO titles, summaries, full text. Enables queries like 'executive orders about immigration' or 'Trump EOs affecting trade'. Lower priority than elections since EOs are federal-level context.",
+        "note": "Session 524: EO incremental fetcher added. 1,506 EOs in SQL but not vectorized. Embed: EO titles, summaries, full text. Enables queries like 'executive orders about immigration' or 'Trump EOs affecting trade'.",
         "depends_on": [
           "executive_orders_ingestion"
         ],
@@ -818,67 +818,45 @@
       },
       "advisory_committee_transcripts": {
         "status": "not_ready",
-        "priority": 2,
-        "artifact": "Extend transcript coverage to PAAC and other advisory committees",
-        "note": "Session 499 audit: city-san-rafael has 115 meetings across 13 body types but only 19 city_council transcripts. Video discovery gap: videos table is empty, meetings.video_url not populated. Current transcripts were created by directly transcribing from YouTube playlist, bypassing discovery. Need to: (1) discover which bodies have YouTube recordings (check San Rafael YouTube channel @cityofsanrafael), (2) populate videos table or meetings.video_url, (3) run automated transcript pipeline. Priority bodies: PAAC (3 meetings), Planning Commission (13), Fire Commission (11).",
-        "meeting_type_inventory": {
-          "city_council": {
-            "meetings": 30,
-            "transcripts": 19
-          },
-          "council_subcommittees": {
-            "meetings": 16,
-            "transcripts": 0
-          },
-          "zoning_administrator": {
-            "meetings": 14,
-            "transcripts": 0
-          },
-          "planning_commission": {
-            "meetings": 13,
-            "transcripts": 0
-          },
-          "fire_commission": {
-            "meetings": 11,
-            "transcripts": 0
-          },
-          "board_of_library_trustees": {
-            "meetings": 7,
-            "transcripts": 0
-          },
-          "tax_oversight": {
-            "meetings": 6,
-            "transcripts": 0
-          },
-          "park_and_recreation_commission": {
-            "meetings": 6,
-            "transcripts": 0
-          },
-          "bicycle_pedestrian_advisory_committee": {
-            "meetings": 4,
-            "transcripts": 0
-          },
-          "paac": {
-            "meetings": 3,
-            "transcripts": 0
-          },
-          "ada_access_advisory_committee": {
-            "meetings": 3,
-            "transcripts": 0
-          },
-          "pickleweed_advisory_committee": {
-            "meetings": 1,
-            "transcripts": 0
-          },
-          "public_art_review_board": {
-            "meetings": 1,
-            "transcripts": 0
-          }
+        "priority": 0,
+        "artifact": "Extend transcript coverage to advisory committees",
+        "note": "Session 527 PROGRESS: (1) Added meeting_type column to videos table with backfill for all 335 videos. (2) Added meeting_id column for linking to meetings table (20 videos matched). (3) Updated get_videos(), load_videos(), run_audio_download(), find_audio_files(), run_transcription(), and extract_transcripts() to accept meeting_type filter parameter. Infrastructure now supports selective transcription by meeting type. READY TO RUN: modal run scripts/modal_ingest.py::extract_transcripts --jurisdiction city-san-rafael --meeting-type planning_commission --limit 8",
+        "video_inventory": {
+          "total_videos": 335,
+          "city_council": 136,
+          "planning_commission": 49,
+          "design_review_board": 25,
+          "fire_commission": 21,
+          "board_of_library_trustees": 21,
+          "park_and_recreation_commission": 18,
+          "bicycle_pedestrian_advisory_committee": 15,
+          "paac": 13,
+          "tax_oversight": 9,
+          "pickleweed_advisory_committee": 8,
+          "council_subcommittees": 8,
+          "ada_access_advisory_committee": 5
         },
-        "depends_on": [
-          "automated_transcript_ingestion"
+        "transcript_coverage": {
+          "total_transcribed": 19,
+          "city_council": 6,
+          "planning_commission": 3,
+          "fire_commission": 2,
+          "tax_oversight": 2,
+          "paac": 1,
+          "bicycle_pedestrian_advisory_committee": 1,
+          "ada_access_advisory_committee": 1,
+          "other": 3
+        },
+        "next_steps": [
+          "Run transcript extraction for Planning Commission (49 videos, filter by meeting_type)",
+          "Index new transcripts to pgvector",
+          "Extend to other committee types as needed"
         ],
         "youtube_channel": "@cityofsanrafael",
+        "youtube_playlists": {
+          "city_council": "PLU84ufByx_6Nw0MstIOpwG7QrUo-ojKBh",
+          "board_commission": "PLU84ufByx_6NpLph1wvWTcrVtgbLoJTAr"
+        },
         "jurisdiction_id": "city-san-rafael"
       }
     }
@@ -997,9 +975,9 @@
       ],
       "engagement_tracking_schema": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 99,
         "artifact": "civic_engagement table stub for future anti-astroturf measures",
-        "note": "Schema only - don't populate until coordination features built. Tracks 311 reports, meeting testimony, etc."
+        "note": "DEFERRED: Post-pilot. Schema only - don't populate until coordination features built. Tracks 311 reports, meeting testimony, etc."
       }
     },
     "pipeline_completeness": {
@@ -2093,10 +2071,9 @@
         "artifact": "scripts/modal_ingest.py scheduled functions iterate over configured jurisdictions"
       },
       "executive_orders_incremental_fetcher": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
         "description": "Add EO incremental fetcher to civic-extraction",
-        "notes": "EOs have higher velocity than codified law. Federal Register API supports date filtering. Add to civic-extraction for scheduled updates like meetings/legislation."
+        "notes": "Session 524: FederalRegisterClient created in civic_extraction/clients/federal_register.py. fetch_executive_orders() added to modal_ingest.py with incremental mode. Added to scheduled_low_velocity_refresh() for weekly updates. CLI: --executive-orders flag."
       },
       "state_programs_refresh": {
         "status": "ready",

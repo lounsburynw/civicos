@@ -103,6 +103,10 @@ from civic_extraction.clients.sam_assistance import (
     extract_programs_for_topics,
     extract_programs_by_aln,
 )
+from civic_extraction.clients.federal_register import (
+    FederalRegisterClient,
+    get_recent_executive_orders,
+)
 
 __all__ = [
     "LegistarClient",
@@ -169,4 +173,6 @@ __all__ = [
     "sam_program_to_storage",
     "extract_programs_for_topics",
     "extract_programs_by_aln",
+    "FederalRegisterClient",
+    "get_recent_executive_orders",
 ]

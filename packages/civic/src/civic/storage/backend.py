@@ -765,6 +765,7 @@ class StorageBackend(
         jurisdiction_id: str,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        meeting_type: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve videos with temporal filtering.
@@ -773,6 +774,7 @@ class StorageBackend(
             jurisdiction_id: Source jurisdiction
             as_of: Point-in-time query (for temporal versioning)
             limit: Maximum number of videos to return
+            meeting_type: Filter by meeting type (joins with meetings table via meeting_id)
 
         Returns:
             List of video dictionaries

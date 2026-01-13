@@ -160,7 +160,10 @@ def run_audio(args: argparse.Namespace) -> int:
 
 
 def load_videos(
-    jurisdiction_id: str, input_dir: str, cloud: bool = False
+    jurisdiction_id: str,
+    input_dir: str,
+    cloud: bool = False,
+    meeting_type: Optional[str] = None,
 ) -> Optional[List[Dict]]:
     """
     Load videos from cloud storage or local JSON file.
@@ -169,6 +172,7 @@ def load_videos(
         jurisdiction_id: Jurisdiction ID (e.g., "city-san-rafael")
         input_dir: Directory containing the videos JSON (fallback)
         cloud: If True, try cloud storage first
+        meeting_type: Filter by meeting type (e.g., "planning_commission")
 
     Returns:
         List of video dicts or None if not found
@@ -180,10 +184,11 @@ def load_videos(
 
             backend = get_storage_backend()
             if backend.backend_type == "postgres":
-                videos = backend.get_videos(jurisdiction_id)
+                videos = backend.get_videos(jurisdiction_id, meeting_type=meeting_type)
                 if videos:
+                    type_msg = f" (meeting_type={meeting_type})" if meeting_type else ""
                     logger.info(
-                        f"Loaded {len(videos)} videos from cloud storage ({backend.backend_type})"
+                        f"Loaded {len(videos)} videos from cloud storage ({backend.backend_type}){type_msg}"
                     )
                     return videos
                 else:
@@ -385,6 +390,7 @@ def run_audio_download(
     limit: int = 0,
     quality: str = "128",
     cloud: bool = False,
+    meeting_type: Optional[str] = None,
 ) -> Optional[List[DownloadResult]]:
     """
     Run audio download for videos from a jurisdiction.
@@ -399,17 +405,20 @@ def run_audio_download(
         limit: Maximum videos to download (0 = no limit)
         quality: Audio quality in kbps
         cloud: If True, upload audio to R2 cloud storage
+        meeting_type: Filter by meeting type (e.g., "planning_commission")
 
     Returns:
         List of DownloadResult if successful, None if failed
     """
     logger.info(f"Starting audio download for {jurisdiction_id}")
+    if meeting_type:
+        logger.info(f"Filtering by meeting_type: {meeting_type}")
 
     if cloud or os.environ.get("BLOB_STORAGE_URL"):
         logger.info("Cloud storage mode enabled")
 
     # Load videos (tries cloud first if enabled)
-    videos = load_videos(jurisdiction_id, input_dir, cloud=cloud)
+    videos = load_videos(jurisdiction_id, input_dir, cloud=cloud, meeting_type=meeting_type)
     if not videos:
         return None
 

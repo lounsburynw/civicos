@@ -1847,9 +1847,16 @@ class SQLiteBackend:
         jurisdiction_id: str,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        meeting_type: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         Get videos (stub for SQLite - uses Postgres in production).
+
+        Args:
+            jurisdiction_id: Source jurisdiction
+            as_of: Point-in-time query (ignored in stub)
+            limit: Maximum number of videos (ignored in stub)
+            meeting_type: Filter by meeting type (ignored in stub)
 
         Returns:
             Empty list (SQLite stub)
