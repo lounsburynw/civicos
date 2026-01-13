@@ -809,7 +809,7 @@
       },
       "srcs_decision_extraction": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 2,
         "artifact": "Extract decisions/votes from SRCS meeting minutes using LLM",
         "note": "After agenda items, extract decisions from minutes PDFs (if available). Same pattern as city: civic_extraction.cli.decisions with Gemini. Populates decisions table. Lower priority - minutes often lag behind meetings.",
         "depends_on": [
@@ -1394,6 +1394,41 @@
         "priority": 2,
         "artifact": "Global API rate limit to prevent cost spikes from traffic surges",
         "note": "Simple slowapi limiter on API endpoints. No auth required. Set ceiling at 10x expected pilot traffic. Protects against viral spikes or bot traffic."
+      },
+      "operating_costs_table": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Create unified operating_costs table in PostgreSQL",
+        "artifact": "Table with: timestamp, service (modal/supabase/openai/anthropic/google/r2), category (compute/storage/llm/api), amount_usd, task_id, metadata",
+        "note": "Single source of truth for all operating costs. Replaces fragmented cost_monitoring.json and etl_costs."
+      },
+      "llm_cost_logging": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Log LLM provider costs to operating_costs table",
+        "artifact": "Instrument all LLM calls (OpenAI, Anthropic, Google) to log token usage and calculated cost",
+        "note": "Use provider-specific pricing. Log at call site or via wrapper."
+      },
+      "modal_cost_logging": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Log Modal compute costs to operating_costs table",
+        "artifact": "Each Modal function logs compute time and estimated cost on completion",
+        "note": "Modal pricing: ~$0.000015/GB-second. Log GPU vs CPU separately."
+      },
+      "daily_cost_summary": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Daily email summarizing all operating costs",
+        "artifact": "Scheduled job sends daily digest: by service, by category, vs budget",
+        "note": "Depends on operating_costs_table being populated. Include trend vs yesterday/last week."
+      },
+      "provider_api_polling": {
+        "status": "not_ready",
+        "priority": 3,
+        "description": "Poll external APIs for cost reconciliation",
+        "artifact": "Pull actual costs from Modal, Supabase, Cloudflare APIs for reconciliation",
+        "note": "Monthly reconciliation to catch any costs not logged in real-time."
       }
     },
     "data_source_validation": {
