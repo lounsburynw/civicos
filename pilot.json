@@ -116,22 +116,18 @@
         {
           "name": "speaker_name_detection",
           "status": "ready"
+        },
+        {
+          "name": "storage_protocol_isinstance",
+          "status": "ready",
+          "note": "Session 528: All 89 storage protocol tests passing. Issue was previously fixed."
+        },
+        {
+          "name": "database_url_log_detection",
+          "status": "ready",
+          "note": "Session 528: Test passing. Issue was previously fixed."
         }
-      ],
-      "storage_protocol_isinstance": {
-        "status": "not_ready",
-        "priority": 2,
-        "artifact": "Fix StorageBackend/VectorBackend protocol isinstance checks",
-        "note": "4 tests failing: isinstance(mock, StorageBackend) returns False. Protocol classes may need @runtime_checkable or test mocks need adjustment. Tests: test_protocol_is_runtime_checkable, test_embedding_properties_required, test_index_from_storage_pattern.",
-        "test_file": "packages/civic/tests/test_storage_protocols.py"
-      },
-      "database_url_log_detection": {
-        "status": "not_ready",
-        "priority": 2,
-        "artifact": "Fix false positive in database connection string log detection",
-        "note": "Test detects 'DATABASE_URL' in error messages like logger.error('DATABASE_URL not set'). These are not actual connection strings - they're missing-config warnings. Fix: update test regex to exclude 'not set' patterns, or refactor log messages.",
-        "test_file": "packages/civic/tests/test_e2e_verification.py::TestSecurityNoSecretsInLogs::test_database_connection_strings_not_logged"
-      }
+      ]
     },
     "ci_reliability": {
       "_completed_items": [
@@ -741,14 +737,16 @@
         }
       ],
       "executive_orders_vector_embeddings": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Vector embeddings for executive order RAG queries",
-        "note": "Session 524: EO incremental fetcher added. 1,506 EOs in SQL but not vectorized. Next: Use /vectors skill to index EOs on Modal GPU. Embed: EO titles, summaries, full text. Enables queries like 'executive orders about immigration' or 'Trump EOs affecting trade'.",
+        "note": "COMPLETE: Session 528: 21,046 vector embeddings indexed for 1,506 EOs. Fixed embedding model name mismatch (nomic-embed-text-v1.5 -> nomic-ai/nomic-embed-text-v1.5). Both full-text (search_executive_orders) and semantic vector search work. Tested queries: 'immigration border security', 'trade tariffs reciprocal' return relevant EOs with scores 0.7+.",
         "depends_on": [
           "executive_orders_ingestion"
         ],
-        "corpus_type": "executive_orders"
+        "corpus_type": "executive_orders",
+        "vector_count": 21046,
+        "verified_queries": ["immigration border security", "trade tariffs reciprocal"]
       }
     },
     "school_district": {
@@ -1389,9 +1387,9 @@
       },
       "cost_alerts": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Alert when ETL costs exceed threshold ($5/day or $50/month)",
-        "note": "Prevent runaway costs from misconfigured pipelines or unexpected data volume."
+        "note": "P0 for pilot: Prevent runaway costs from misconfigured pipelines or unexpected data volume. Implement simple daily cost check that alerts if etl_costs exceed threshold. Can use existing cost tracking in /admin/status endpoint as base."
       },
       "global_rate_limit": {
         "status": "not_ready",
