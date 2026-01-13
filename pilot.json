@@ -746,7 +746,10 @@
         ],
         "corpus_type": "executive_orders",
         "vector_count": 21046,
-        "verified_queries": ["immigration border security", "trade tariffs reciprocal"]
+        "verified_queries": [
+          "immigration border security",
+          "trade tariffs reciprocal"
+        ]
       }
     },
     "school_district": {
@@ -806,7 +809,7 @@
       },
       "srcs_decision_extraction": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Extract decisions/votes from SRCS meeting minutes using LLM",
         "note": "After agenda items, extract decisions from minutes PDFs (if available). Same pattern as city: civic_extraction.cli.decisions with Gemini. Populates decisions table. Lower priority - minutes often lag behind meetings.",
         "depends_on": [
@@ -1285,13 +1288,7 @@
           "name": "storage_migration_script",
           "status": "ready"
         }
-      ],
-      "turso_backend": {
-        "status": "not_ready",
-        "priority": 1,
-        "artifact": "TursoBackend implements StorageBackend protocol for cloud SQLite",
-        "note": "Turso (libSQL) is SQLite-compatible with 9GB free tier. DEPRIORITIZED: Using PostgresBackend instead for cloud."
-      }
+      ]
     }
   },
   "monitoring_observability": {
@@ -1386,10 +1383,11 @@
         "note": "Aggregate from etl_costs table. Show daily/weekly/monthly breakdown by pipeline type."
       },
       "cost_alerts": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Alert when ETL costs exceed threshold ($5/day or $50/month)",
-        "note": "P0 for pilot: Prevent runaway costs from misconfigured pipelines or unexpected data volume. Implement simple daily cost check that alerts if etl_costs exceed threshold. Can use existing cost tracking in /admin/status endpoint as base."
+        "note": "P0 for pilot: Prevent runaway costs from misconfigured pipelines or unexpected data volume. Implement simple daily cost check that alerts if etl_costs exceed threshold. Can use existing cost tracking in /admin/status endpoint as base.",
+        "description": "ETL cost alerting with daily ($5/day) and monthly ($50/month) thresholds. Implemented via TemporalCostManager.get_daily_costs() and /admin/cost-status endpoint."
       },
       "global_rate_limit": {
         "status": "not_ready",
