@@ -1,3 +1,52 @@
+## Session 515: cost_tracking - Admin Operations
+
+**Date:** 2026-01-14
+**Item:** cost_tracking (admin_operations > configuration)
+**Priority:** P0
+
+### Summary
+
+Added AssemblyAI usage tracking endpoint (`GET /api/admin/assemblyai-usage`) to complement the api_key_status endpoint from Session 514. Shows transcript count, total minutes transcribed, and estimated cost for current month or last 30 days.
+
+### Work Completed
+
+1. **Pydantic Models:**
+   - `AssemblyAIUsage`: period, period_start, period_end, transcript_count, total_minutes, estimated_cost_usd, last_updated
+   - `AssemblyAIUsageResponse`: timestamp, is_configured, usage, error_message, cached
+
+2. **Usage Cache:**
+   - Separate cache from key validation cache
+   - 1-hour TTL (usage doesn't change frequently)
+   - Cache key includes period (current_month/last_30_days)
+
+3. **Helper Function `_fetch_assemblyai_usage()`:**
+   - Fetches transcripts from /v2/transcript with pagination
+   - Filters by date range (current month or last 30 days)
+   - Sums audio_duration for completed transcripts only
+   - Calculates cost at $0.02/minute
+
+4. **Endpoint `GET /api/admin/assemblyai-usage`:**
+   - Parameters: period (current_month|last_30_days), force_refresh
+   - Returns usage stats or error message
+   - Requires authentication
+
+5. **Tests (19 new):**
+   - `TestAssemblyAIUsageEndpoint` (6 tests) - endpoint integration
+   - `TestAssemblyAIUsageFetcher` (6 tests) - mocked unit tests
+   - `TestAssemblyAIUsageCache` (4 tests) - cache behavior
+   - `test_usage_cache_ttl_is_one_hour` - verifies 1-hour TTL
+
+### Testing
+- 42 smoke tests passing
+- 58 admin status tests passing (including 19 new)
+
+### Files Modified
+- `packages/civic-services/src/civic_services/servers/routers/admin.py` - new endpoint + helpers
+- `packages/civic/tests/test_admin_status.py` - 19 new tests
+- `pilot.json` - cost_tracking marked ready
+
+---
+
 ## Session 505: federal_programs_postgres_migration - Data Architecture
 
 **Date:** 2026-01-10

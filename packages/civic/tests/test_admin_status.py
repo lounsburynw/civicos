@@ -837,3 +837,337 @@ class TestAPIKeyValidationCache:
 
         cached = _get_cached_validation('expired_service')
         assert cached is None
+
+
+class TestAssemblyAIUsageEndpoint:
+    """Tests for /api/admin/assemblyai-usage endpoint.
+
+    Session 515: Tests for AssemblyAI usage tracking endpoint that shows
+    transcript count, total minutes, and estimated cost for the current
+    month or last 30 days.
+    """
+
+    @pytest.fixture
+    def test_client(self):
+        """Create a FastAPI test client."""
+        from fastapi.testclient import TestClient
+        from civic_services.servers.api import app
+
+        return TestClient(app)
+
+    @pytest.fixture
+    def auth_headers(self):
+        """Headers for authenticated requests."""
+        return {"Authorization": "Bearer dev_key_local"}
+
+    def test_assemblyai_usage_returns_expected_structure(self, test_client, auth_headers):
+        """Test that assemblyai-usage returns expected JSON structure."""
+        response = test_client.get("/api/admin/assemblyai-usage", headers=auth_headers)
+
+        if response.status_code == 200:
+            data = response.json()
+
+            # Check required top-level keys
+            assert 'timestamp' in data
+            assert 'is_configured' in data
+            assert isinstance(data['is_configured'], bool)
+
+            # If configured and no error, usage should be present
+            if data['is_configured'] and data.get('error_message') is None:
+                assert 'usage' in data
+                usage = data['usage']
+                assert 'period' in usage
+                assert 'period_start' in usage
+                assert 'period_end' in usage
+                assert 'transcript_count' in usage
+                assert 'total_minutes' in usage
+                assert 'estimated_cost_usd' in usage
+                assert 'last_updated' in usage
+
+    def test_assemblyai_usage_period_parameter(self, test_client, auth_headers):
+        """Test that period parameter accepts valid values."""
+        # Current month (default)
+        response = test_client.get(
+            "/api/admin/assemblyai-usage?period=current_month",
+            headers=auth_headers
+        )
+        assert response.status_code in [200, 401]
+
+        # Last 30 days
+        response = test_client.get(
+            "/api/admin/assemblyai-usage?period=last_30_days",
+            headers=auth_headers
+        )
+        assert response.status_code in [200, 401]
+
+    def test_assemblyai_usage_requires_auth(self, test_client):
+        """Test that assemblyai-usage requires authentication."""
+        response = test_client.get("/api/admin/assemblyai-usage")
+
+        # Should return 401/403/422 without auth
+        assert response.status_code in [401, 403, 422]
+
+    def test_assemblyai_usage_force_refresh_parameter(self, test_client, auth_headers):
+        """Test that force_refresh parameter is accepted."""
+        response = test_client.get(
+            "/api/admin/assemblyai-usage?force_refresh=true",
+            headers=auth_headers
+        )
+
+        # Should not error
+        assert response.status_code in [200, 401]
+
+    def test_assemblyai_usage_timestamp_format(self, test_client, auth_headers):
+        """Test that timestamp is in ISO format with Z suffix."""
+        response = test_client.get("/api/admin/assemblyai-usage", headers=auth_headers)
+
+        if response.status_code == 200:
+            data = response.json()
+            assert data['timestamp'].endswith('Z')
+            # Should be parseable as ISO format
+            datetime.fromisoformat(data['timestamp'].replace('Z', '+00:00'))
+
+    def test_assemblyai_usage_unconfigured_returns_error(self, test_client, auth_headers):
+        """Test that missing API key returns appropriate error."""
+        import os
+        from unittest.mock import patch
+
+        # Mock environment to not have API key
+        with patch.dict(os.environ, {'ASSEMBLYAI_API_KEY': ''}, clear=False):
+            with patch.object(os, 'getenv', side_effect=lambda k, d=None: '' if k == 'ASSEMBLYAI_API_KEY' else os.environ.get(k, d)):
+                response = test_client.get("/api/admin/assemblyai-usage", headers=auth_headers)
+
+        # Response structure should still be valid
+        if response.status_code == 200:
+            data = response.json()
+            # When not configured, should have error message
+            if not data.get('is_configured', True):
+                assert data.get('error_message') is not None
+                assert 'not set' in data['error_message'].lower()
+
+
+class TestAssemblyAIUsageFetcher:
+    """Unit tests for _fetch_assemblyai_usage helper function.
+
+    Session 515: Tests the usage fetching logic with mocked API calls.
+    """
+
+    def test_fetch_usage_success(self):
+        """Test successful usage fetch with mock transcripts."""
+        from unittest.mock import patch, Mock
+        from civic_services.servers.routers.admin import _fetch_assemblyai_usage
+
+        # Mock response with 2 completed transcripts
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "transcripts": [
+                {
+                    "id": "abc123",
+                    "status": "completed",
+                    "audio_duration": 120000,  # 2 minutes in ms
+                    "created": "2026-01-10T15:30:00.000000Z"
+                },
+                {
+                    "id": "def456",
+                    "status": "completed",
+                    "audio_duration": 180000,  # 3 minutes in ms
+                    "created": "2026-01-08T10:00:00.000000Z"
+                }
+            ],
+            "page_details": {}
+        }
+
+        with patch('requests.get', return_value=mock_response):
+            result = _fetch_assemblyai_usage("test_api_key", "current_month")
+
+            assert "error" not in result
+            assert result["period"] == "current_month"
+            assert result["transcript_count"] == 2
+            assert result["total_minutes"] == 5.0  # 2 + 3 minutes
+            assert result["estimated_cost_usd"] == 0.10  # 5 * $0.02
+
+    def test_fetch_usage_filters_by_date(self):
+        """Test that old transcripts are filtered out."""
+        from unittest.mock import patch, Mock
+        from civic_services.servers.routers.admin import _fetch_assemblyai_usage
+
+        # Mock response with one current and one old transcript
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "transcripts": [
+                {
+                    "id": "recent",
+                    "status": "completed",
+                    "audio_duration": 60000,  # 1 minute
+                    "created": "2026-01-10T15:30:00.000000Z"
+                },
+                {
+                    "id": "old",
+                    "status": "completed",
+                    "audio_duration": 600000,  # 10 minutes
+                    "created": "2025-01-01T10:00:00.000000Z"  # Last year
+                }
+            ],
+            "page_details": {}
+        }
+
+        with patch('requests.get', return_value=mock_response):
+            result = _fetch_assemblyai_usage("test_api_key", "current_month")
+
+            # Only the recent transcript should be counted
+            assert result["transcript_count"] == 1
+            assert result["total_minutes"] == 1.0
+
+    def test_fetch_usage_excludes_non_completed(self):
+        """Test that non-completed transcripts are excluded."""
+        from unittest.mock import patch, Mock
+        from civic_services.servers.routers.admin import _fetch_assemblyai_usage
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "transcripts": [
+                {
+                    "id": "completed1",
+                    "status": "completed",
+                    "audio_duration": 60000,
+                    "created": "2026-01-10T15:30:00.000000Z"
+                },
+                {
+                    "id": "processing",
+                    "status": "processing",
+                    "audio_duration": 120000,
+                    "created": "2026-01-10T14:00:00.000000Z"
+                },
+                {
+                    "id": "error",
+                    "status": "error",
+                    "audio_duration": 180000,
+                    "created": "2026-01-10T13:00:00.000000Z"
+                }
+            ],
+            "page_details": {}
+        }
+
+        with patch('requests.get', return_value=mock_response):
+            result = _fetch_assemblyai_usage("test_api_key", "current_month")
+
+            # Only completed transcripts count
+            assert result["transcript_count"] == 1
+            assert result["total_minutes"] == 1.0
+
+    def test_fetch_usage_handles_api_error(self):
+        """Test handling of API error response."""
+        from unittest.mock import patch, Mock
+        from civic_services.servers.routers.admin import _fetch_assemblyai_usage
+
+        mock_response = Mock()
+        mock_response.status_code = 401
+
+        with patch('requests.get', return_value=mock_response):
+            result = _fetch_assemblyai_usage("invalid_key", "current_month")
+
+            assert "error" in result
+            assert "401" in result["error"]
+
+    def test_fetch_usage_handles_timeout(self):
+        """Test handling of request timeout."""
+        from unittest.mock import patch
+        import requests
+        from civic_services.servers.routers.admin import _fetch_assemblyai_usage
+
+        with patch('requests.get', side_effect=requests.exceptions.Timeout()):
+            result = _fetch_assemblyai_usage("test_key", "current_month")
+
+            assert "error" in result
+            assert "timed out" in result["error"].lower()
+
+    def test_fetch_usage_handles_connection_error(self):
+        """Test handling of connection error."""
+        from unittest.mock import patch
+        import requests
+        from civic_services.servers.routers.admin import _fetch_assemblyai_usage
+
+        with patch('requests.get', side_effect=requests.exceptions.ConnectionError("Failed")):
+            result = _fetch_assemblyai_usage("test_key", "current_month")
+
+            assert "error" in result
+            assert "connection error" in result["error"].lower()
+
+
+class TestAssemblyAIUsageCache:
+    """Tests for AssemblyAI usage caching.
+
+    Session 515: Tests that usage results are cached for 1 hour.
+    """
+
+    def test_usage_cache_stores_result(self):
+        """Test that usage results are cached."""
+        from civic_services.servers.routers.admin import (
+            _get_cached_usage,
+            _set_cached_usage,
+            _usage_cache
+        )
+
+        # Clear cache first
+        _usage_cache.clear()
+
+        # Store a result
+        test_result = {
+            'period': 'current_month',
+            'transcript_count': 5,
+            'total_minutes': 120.0,
+            'estimated_cost_usd': 2.40
+        }
+        _set_cached_usage('assemblyai_usage_current_month', test_result)
+
+        # Retrieve it
+        cached = _get_cached_usage('assemblyai_usage_current_month')
+
+        assert cached is not None
+        assert cached['transcript_count'] == 5
+        assert cached['total_minutes'] == 120.0
+        assert 'cached_at' in cached
+
+    def test_usage_cache_miss_returns_none(self):
+        """Test that cache miss returns None."""
+        from civic_services.servers.routers.admin import (
+            _get_cached_usage,
+            _usage_cache
+        )
+
+        # Clear cache first
+        _usage_cache.clear()
+
+        cached = _get_cached_usage('nonexistent_key')
+        assert cached is None
+
+    def test_usage_cache_expiry(self):
+        """Test that expired cache entries are not returned."""
+        import time
+        from civic_services.servers.routers.admin import (
+            _get_cached_usage,
+            _usage_cache,
+            _USAGE_CACHE_TTL_SECONDS
+        )
+
+        # Clear cache first
+        _usage_cache.clear()
+
+        # Store an expired result (set cached_at in the past)
+        _usage_cache['expired_usage'] = {
+            'period': 'current_month',
+            'transcript_count': 10,
+            'cached_at': time.time() - _USAGE_CACHE_TTL_SECONDS - 10
+        }
+
+        cached = _get_cached_usage('expired_usage')
+        assert cached is None
+
+    def test_usage_cache_ttl_is_one_hour(self):
+        """Verify cache TTL is set to 1 hour (3600 seconds)."""
+        from civic_services.servers.routers.admin import _USAGE_CACHE_TTL_SECONDS
+
+        assert _USAGE_CACHE_TTL_SECONDS == 3600

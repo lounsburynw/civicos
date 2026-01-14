@@ -12,6 +12,7 @@ Endpoints:
 - GET /data/{type} - Data browser
 - GET /vector-stats - Vector index stats
 - GET /api-key-status - External API key validation status
+- GET /assemblyai-usage - AssemblyAI transcription usage and cost tracking
 - POST /trigger - Trigger admin actions
 """
 
@@ -91,10 +92,35 @@ class APIKeyStatusResponse(BaseModel):
     overall_status: str  # "healthy", "warning", "degraded", "unconfigured"
 
 
+class AssemblyAIUsage(BaseModel):
+    """AssemblyAI transcription usage statistics."""
+    period: str  # "current_month" or "last_30_days"
+    period_start: str  # ISO date
+    period_end: str  # ISO date
+    transcript_count: int
+    total_minutes: float
+    estimated_cost_usd: float
+    last_updated: str  # ISO timestamp
+
+
+class AssemblyAIUsageResponse(BaseModel):
+    """Response for AssemblyAI usage endpoint."""
+    timestamp: str
+    is_configured: bool
+    usage: Optional[AssemblyAIUsage] = None
+    error_message: Optional[str] = None
+    cached: bool = False
+
+
 # === API Key Validation Cache ===
 # Simple in-memory cache to avoid hitting external APIs on every request
 _api_key_cache: Dict[str, Dict[str, Any]] = {}
 _API_KEY_CACHE_TTL_SECONDS = 300  # 5 minutes
+
+# === AssemblyAI Usage Cache ===
+# Cache usage stats for 1 hour (usage doesn't change frequently)
+_usage_cache: Dict[str, Dict[str, Any]] = {}
+_USAGE_CACHE_TTL_SECONDS = 3600  # 1 hour
 
 
 def _get_cached_validation(service_name: str) -> Optional[Dict[str, Any]]:
@@ -110,6 +136,21 @@ def _set_cached_validation(service_name: str, result: Dict[str, Any]) -> None:
     """Cache a validation result."""
     result["cached_at"] = time.time()
     _api_key_cache[service_name] = result
+
+
+def _get_cached_usage(cache_key: str) -> Optional[Dict[str, Any]]:
+    """Get cached usage result if not expired."""
+    if cache_key in _usage_cache:
+        cached = _usage_cache[cache_key]
+        if time.time() - cached.get("cached_at", 0) < _USAGE_CACHE_TTL_SECONDS:
+            return cached
+    return None
+
+
+def _set_cached_usage(cache_key: str, result: Dict[str, Any]) -> None:
+    """Cache a usage result."""
+    result["cached_at"] = time.time()
+    _usage_cache[cache_key] = result
 
 
 # === Auth Dependency ===
@@ -595,6 +636,122 @@ def _validate_legiscan_key(api_key: str) -> Dict[str, Any]:
         }
 
 
+# Cost per minute from transcribe.py: $0.015 transcription + $0.005 diarization
+ASSEMBLYAI_COST_PER_MINUTE = 0.02
+
+
+def _fetch_assemblyai_usage(api_key: str, period: str = "current_month") -> Dict[str, Any]:
+    """
+    Fetch AssemblyAI transcription usage for a given period.
+
+    Args:
+        api_key: AssemblyAI API key
+        period: "current_month" or "last_30_days"
+
+    Returns:
+        Dict with transcript_count, total_minutes, estimated_cost_usd, period dates
+    """
+    import requests
+    from datetime import datetime, timedelta
+
+    # Determine date range
+    now = datetime.utcnow()
+    if period == "current_month":
+        period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:  # last_30_days
+        period_start = now - timedelta(days=30)
+    period_end = now
+
+    try:
+        # AssemblyAI /v2/transcript returns transcripts with pagination
+        # We need to fetch all transcripts created since period_start
+        transcripts = []
+        after_id = None
+        page_limit = 200  # Max per page
+
+        while True:
+            params = {"limit": page_limit}
+            if after_id:
+                params["after_id"] = after_id
+
+            response = requests.get(
+                "https://api.assemblyai.com/v2/transcript",
+                headers={"Authorization": api_key},
+                params=params,
+                timeout=30
+            )
+
+            if response.status_code != 200:
+                return {
+                    "error": f"API error: {response.status_code}",
+                    "period": period
+                }
+
+            data = response.json()
+            page_transcripts = data.get("transcripts", [])
+
+            if not page_transcripts:
+                break
+
+            # Filter and collect transcripts within date range
+            for t in page_transcripts:
+                created = t.get("created")
+                if created:
+                    try:
+                        # AssemblyAI returns ISO format: 2026-01-10T15:30:00.000000Z
+                        created_dt = datetime.fromisoformat(created.replace("Z", "+00:00")).replace(tzinfo=None)
+                        if created_dt >= period_start:
+                            transcripts.append(t)
+                        elif created_dt < period_start:
+                            # Transcripts are returned newest-first, so we can stop
+                            break
+                    except (ValueError, TypeError):
+                        continue
+
+            # Check if we should stop pagination
+            last_created = page_transcripts[-1].get("created")
+            if last_created:
+                try:
+                    last_dt = datetime.fromisoformat(last_created.replace("Z", "+00:00")).replace(tzinfo=None)
+                    if last_dt < period_start:
+                        break
+                except (ValueError, TypeError):
+                    pass
+
+            # Get next page
+            page_info = data.get("page_details", {})
+            if not page_info.get("next_url"):
+                break
+            after_id = page_transcripts[-1].get("id")
+            if not after_id:
+                break
+
+        # Calculate totals
+        total_seconds = 0
+        for t in transcripts:
+            # audio_duration is in milliseconds
+            duration_ms = t.get("audio_duration")
+            if duration_ms and t.get("status") == "completed":
+                total_seconds += duration_ms / 1000
+
+        total_minutes = total_seconds / 60
+        estimated_cost = total_minutes * ASSEMBLYAI_COST_PER_MINUTE
+
+        return {
+            "period": period,
+            "period_start": period_start.strftime("%Y-%m-%d"),
+            "period_end": period_end.strftime("%Y-%m-%d"),
+            "transcript_count": len([t for t in transcripts if t.get("status") == "completed"]),
+            "total_minutes": round(total_minutes, 2),
+            "estimated_cost_usd": round(estimated_cost, 2)
+        }
+
+    except requests.exceptions.Timeout:
+        return {"error": "Request timed out", "period": period}
+    except requests.exceptions.RequestException as e:
+        return {"error": f"Connection error: {str(e)}", "period": period}
+
+
 @router.get("/api-key-status")
 async def get_api_key_status(
     force_refresh: bool = Query(False, description="Bypass cache and re-validate keys"),
@@ -707,6 +864,95 @@ async def get_api_key_status(
         timestamp=timestamp,
         keys=keys_status,
         overall_status=overall_status
+    )
+
+
+@router.get("/assemblyai-usage")
+async def get_assemblyai_usage(
+    period: str = Query("current_month", description="Period: 'current_month' or 'last_30_days'"),
+    force_refresh: bool = Query(False, description="Bypass cache and fetch fresh data"),
+    token: str = Depends(verify_auth)
+):
+    """
+    Get AssemblyAI transcription usage statistics.
+
+    Shows transcript count, total minutes transcribed, and estimated cost ($0.02/minute)
+    for the specified period. Results are cached for 1 hour.
+
+    Args:
+        period: "current_month" (default) or "last_30_days"
+        force_refresh: Bypass cache if True
+
+    Returns:
+        AssemblyAIUsageResponse with usage stats or error message
+
+    Requires authentication.
+    """
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    timestamp = datetime.utcnow().isoformat() + "Z"
+
+    # Validate period
+    if period not in ("current_month", "last_30_days"):
+        period = "current_month"
+
+    # Check if API key is configured
+    api_key = os.getenv("ASSEMBLYAI_API_KEY")
+    if not api_key:
+        return AssemblyAIUsageResponse(
+            timestamp=timestamp,
+            is_configured=False,
+            error_message="ASSEMBLYAI_API_KEY not set in environment"
+        )
+
+    # Check cache
+    cache_key = f"assemblyai_usage_{period}"
+    if not force_refresh:
+        cached = _get_cached_usage(cache_key)
+        if cached:
+            return AssemblyAIUsageResponse(
+                timestamp=timestamp,
+                is_configured=True,
+                usage=AssemblyAIUsage(
+                    period=cached.get("period", period),
+                    period_start=cached.get("period_start", ""),
+                    period_end=cached.get("period_end", ""),
+                    transcript_count=cached.get("transcript_count", 0),
+                    total_minutes=cached.get("total_minutes", 0.0),
+                    estimated_cost_usd=cached.get("estimated_cost_usd", 0.0),
+                    last_updated=cached.get("last_updated", timestamp)
+                ),
+                cached=True
+            )
+
+    # Fetch fresh usage data
+    result = _fetch_assemblyai_usage(api_key, period)
+
+    if "error" in result:
+        return AssemblyAIUsageResponse(
+            timestamp=timestamp,
+            is_configured=True,
+            error_message=result["error"]
+        )
+
+    # Cache the result
+    result["last_updated"] = timestamp
+    _set_cached_usage(cache_key, result)
+
+    return AssemblyAIUsageResponse(
+        timestamp=timestamp,
+        is_configured=True,
+        usage=AssemblyAIUsage(
+            period=result["period"],
+            period_start=result["period_start"],
+            period_end=result["period_end"],
+            transcript_count=result["transcript_count"],
+            total_minutes=result["total_minutes"],
+            estimated_cost_usd=result["estimated_cost_usd"],
+            last_updated=timestamp
+        ),
+        cached=False
     )
 
 
