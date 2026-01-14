@@ -7,6 +7,7 @@ Modules:
 - automated_civic_refresh: Automated data refresh
 - multi_platform_monitor: Multi-platform meeting monitoring
 - unified_data_source_manager: Data source management
+- daily_cost_digest: Daily operating cost email digest
 """
 
 from .error_alerting import (
@@ -15,10 +16,18 @@ from .error_alerting import (
     ErrorMetrics,
     check_error_rates,
 )
+from .daily_cost_digest import (
+    DailyCostDigest,
+    CostDigestData,
+    send_daily_digest,
+)
 
 __all__ = [
     "ErrorAlertManager",
     "ErrorMetricsCollector",
     "ErrorMetrics",
     "check_error_rates",
+    "DailyCostDigest",
+    "CostDigestData",
+    "send_daily_digest",
 ]

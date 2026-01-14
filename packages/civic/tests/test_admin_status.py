@@ -467,3 +467,94 @@ class TestCostDashboardEndpoint:
                 assert isinstance(value, (int, float))
             for value in summary['by_category'].values():
                 assert isinstance(value, (int, float))
+
+
+class TestDailyCostDigest:
+    """Tests for DailyCostDigest email generation.
+
+    Session 512: Tests for daily cost digest that sends email summary
+    of operating costs vs budget thresholds.
+    """
+
+    def test_digest_data_collection(self):
+        """Test that digest collects cost data correctly."""
+        from civic_services.monitoring.daily_cost_digest import DailyCostDigest
+
+        digest = DailyCostDigest(jurisdiction_id="city-san-rafael")
+        data = digest.collect_data()
+
+        # Check required fields
+        assert data.date is not None
+        assert isinstance(data.total_cost_usd, float)
+        assert isinstance(data.by_service, dict)
+        assert isinstance(data.by_category, dict)
+        assert isinstance(data.record_count, int)
+        assert isinstance(data.daily_budget, float)
+        assert isinstance(data.monthly_budget, float)
+        assert data.budget_status in ["healthy", "warning", "critical"]
+        assert data.trend in ["up", "down", "flat"]
+
+    def test_digest_plaintext_format(self):
+        """Test that plaintext format is valid."""
+        from civic_services.monitoring.daily_cost_digest import DailyCostDigest
+
+        digest = DailyCostDigest(jurisdiction_id="city-san-rafael")
+        data = digest.collect_data()
+        plaintext = digest.format_plaintext(data)
+
+        # Check content includes expected sections
+        assert "Daily Cost Digest" in plaintext
+        assert "TODAY'S COSTS" in plaintext
+        assert "BY SERVICE" in plaintext
+        assert "MONTHLY STATUS" in plaintext
+        assert data.date in plaintext
+
+    def test_digest_html_format(self):
+        """Test that HTML format is valid."""
+        from civic_services.monitoring.daily_cost_digest import DailyCostDigest
+
+        digest = DailyCostDigest(jurisdiction_id="city-san-rafael")
+        data = digest.collect_data()
+        html = digest.format_html(data)
+
+        # Check HTML structure
+        assert "<!DOCTYPE html>" in html
+        assert "<html>" in html
+        assert "</html>" in html
+        assert "Cost Digest" in html
+        assert data.date in html
+
+    def test_digest_preview(self):
+        """Test preview function returns expected structure."""
+        from civic_services.monitoring.daily_cost_digest import DailyCostDigest
+
+        digest = DailyCostDigest(jurisdiction_id="city-san-rafael")
+        preview = digest.preview()
+
+        assert "data" in preview
+        assert "plaintext" in preview
+        assert "html" in preview
+        assert "date" in preview["data"]
+        assert "budget_status" in preview["data"]
+
+    def test_digest_disabled_mode(self):
+        """Test that digest respects disabled flag."""
+        import os
+        from civic_services.monitoring.daily_cost_digest import DailyCostDigest
+
+        # Save original value
+        original = os.environ.get("CIVIC_COST_DIGEST_ENABLED")
+
+        try:
+            os.environ["CIVIC_COST_DIGEST_ENABLED"] = "false"
+            digest = DailyCostDigest(jurisdiction_id="city-san-rafael")
+            result = digest.send()
+
+            assert result["success"] is False
+            assert result["reason"] == "disabled"
+        finally:
+            # Restore original value
+            if original is not None:
+                os.environ["CIVIC_COST_DIGEST_ENABLED"] = original
+            elif "CIVIC_COST_DIGEST_ENABLED" in os.environ:
+                del os.environ["CIVIC_COST_DIGEST_ENABLED"]
