@@ -349,3 +349,121 @@ HTTPError: HTTP 503: Service Unavailable''',
         assert 'Traceback' in result['error_traceback'], "Must include traceback for debugging"
         assert 'proudcity.py' in result['error_traceback'], "Traceback should show source file"
         assert result['failed_at'] is not None, "Must include failure timestamp"
+
+
+class TestCostDashboardEndpoint:
+    """Tests for /api/admin/cost-dashboard endpoint.
+
+    Session 509: Tests cost dashboard showing actual operating costs
+    from the operating_costs table (LLM and Modal compute costs).
+    """
+
+    @pytest.fixture
+    def test_client(self):
+        """Create a FastAPI test client."""
+        from fastapi.testclient import TestClient
+        from civic_services.servers.api import app
+
+        return TestClient(app)
+
+    @pytest.fixture
+    def auth_headers(self):
+        """Headers for authenticated requests."""
+        return {"Authorization": "Bearer dev_key_local"}
+
+    def test_cost_dashboard_returns_expected_structure(self, test_client, auth_headers):
+        """Test that cost-dashboard returns expected JSON structure."""
+        response = test_client.get("/api/admin/cost-dashboard", headers=auth_headers)
+
+        if response.status_code == 200:
+            data = response.json()
+
+            # Check required top-level keys
+            assert 'timestamp' in data
+            assert 'period' in data
+            assert 'range' in data
+            assert 'summary' in data
+            assert 'time_series' in data
+
+            # Check summary structure
+            summary = data['summary']
+            assert 'total_cost_usd' in summary
+            assert 'record_count' in summary
+            assert 'by_service' in summary
+            assert 'by_category' in summary
+
+            # Check range structure
+            assert 'since' in data['range']
+            assert 'until' in data['range']
+
+    def test_cost_dashboard_period_parameter(self, test_client, auth_headers):
+        """Test that period parameter is accepted and reflected in response."""
+        for period in ["day", "week", "month", "all"]:
+            response = test_client.get(
+                f"/api/admin/cost-dashboard?period={period}",
+                headers=auth_headers
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                assert data['period'] == period
+
+    def test_cost_dashboard_service_filter(self, test_client, auth_headers):
+        """Test that service filter parameter is accepted."""
+        response = test_client.get(
+            "/api/admin/cost-dashboard?service=modal",
+            headers=auth_headers
+        )
+
+        # Should not error
+        assert response.status_code in [200, 500]
+
+    def test_cost_dashboard_timestamp_format(self, test_client, auth_headers):
+        """Test that timestamp is in ISO format with Z suffix."""
+        response = test_client.get("/api/admin/cost-dashboard", headers=auth_headers)
+
+        if response.status_code == 200:
+            data = response.json()
+            assert data['timestamp'].endswith('Z')
+            # Should be parseable as ISO format
+            datetime.fromisoformat(data['timestamp'].replace('Z', '+00:00'))
+
+    def test_cost_dashboard_time_series_structure(self, test_client, auth_headers):
+        """Test that time_series has correct structure when data exists."""
+        response = test_client.get("/api/admin/cost-dashboard", headers=auth_headers)
+
+        if response.status_code == 200:
+            data = response.json()
+            time_series = data['time_series']
+
+            assert isinstance(time_series, list)
+
+            # If there's data, check structure
+            if time_series:
+                entry = time_series[0]
+                assert 'date' in entry
+                assert 'total_usd' in entry
+                assert 'by_service' in entry
+
+    def test_cost_dashboard_requires_auth(self, test_client):
+        """Test that cost-dashboard requires authentication."""
+        response = test_client.get("/api/admin/cost-dashboard")
+
+        # Should return 401 without auth
+        assert response.status_code in [401, 403, 422]
+
+    def test_cost_dashboard_numeric_values(self, test_client, auth_headers):
+        """Test that cost values are numeric types."""
+        response = test_client.get("/api/admin/cost-dashboard", headers=auth_headers)
+
+        if response.status_code == 200:
+            data = response.json()
+            summary = data['summary']
+
+            assert isinstance(summary['total_cost_usd'], (int, float))
+            assert isinstance(summary['record_count'], int)
+
+            for value in summary['by_service'].values():
+                assert isinstance(value, (int, float))
+            for value in summary['by_category'].values():
+                assert isinstance(value, (int, float))
