@@ -1377,10 +1377,11 @@
         }
       ],
       "cost_dashboard": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Admin dashboard showing cumulative ETL costs by pipeline and time period",
-        "note": "Aggregate from etl_costs table. Show daily/weekly/monthly breakdown by pipeline type."
+        "note": "Returns actual costs from operating_costs table with summary aggregation and daily time-series breakdown.",
+        "description": "GET /api/admin/cost-dashboard endpoint with period/service/jurisdiction filters"
       },
       "cost_alerts": {
         "status": "ready",
@@ -1391,7 +1392,7 @@
       },
       "global_rate_limit": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Global API rate limit to prevent cost spikes from traffic surges",
         "note": "Simple slowapi limiter on API endpoints. No auth required. Set ceiling at 10x expected pilot traffic. Protects against viral spikes or bot traffic."
       },

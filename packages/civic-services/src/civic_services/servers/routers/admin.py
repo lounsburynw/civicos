@@ -6,6 +6,7 @@ Endpoints:
 - GET /provider-stats - LLM provider usage
 - GET /cost-estimate - Cost estimation (LLM tokens)
 - GET /cost-status - ETL cost status with daily/monthly thresholds
+- GET /cost-dashboard - Actual operating costs with time-series breakdown
 - GET /operations - List background operations
 - GET /operations/{id} - Get operation status
 - GET /data/{type} - Data browser
@@ -228,6 +229,111 @@ async def get_cost_status(token: str = Depends(verify_auth)):
             **status
         }
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get("/cost-dashboard")
+async def get_cost_dashboard(
+    period: str = Query("month", description="Period: day, week, month, or all"),
+    service: Optional[str] = Query(None, description="Filter by service (modal, openai, anthropic)"),
+    jurisdiction_id: Optional[str] = Query(None, description="Filter by jurisdiction"),
+    token: str = Depends(verify_auth)
+):
+    """
+    Get operating cost dashboard with aggregated costs and time-series breakdown.
+
+    Returns actual costs logged to operating_costs table (LLM and Modal compute).
+    Provides summary totals and daily breakdown for visualization.
+
+    Requires authentication.
+    """
+    from datetime import timedelta
+
+    try:
+        # Import Civic to access storage
+        try:
+            from civic import Civic
+            from dotenv import load_dotenv
+            load_dotenv()
+            c = Civic("city-san-rafael")
+        except ImportError:
+            raise HTTPException(status_code=503, detail="Civic library not available")
+
+        storage = c._storage
+
+        # Calculate date range based on period
+        now = datetime.utcnow()
+        if period == "day":
+            since = (now - timedelta(days=1)).isoformat()
+        elif period == "week":
+            since = (now - timedelta(days=7)).isoformat()
+        elif period == "month":
+            since = (now - timedelta(days=30)).isoformat()
+        else:  # "all"
+            since = None
+
+        until = now.isoformat()
+
+        # Get summary using existing backend method
+        summary = storage.get_operating_cost_summary(
+            service=service,
+            jurisdiction_id=jurisdiction_id,
+            since=since,
+            until=until,
+        )
+
+        # Get raw records for time-series aggregation
+        records = storage.get_operating_costs(
+            service=service,
+            jurisdiction_id=jurisdiction_id,
+            since=since,
+            until=until,
+            limit=10000,  # Reasonable limit for dashboard
+        )
+
+        # Aggregate by day for time-series
+        daily_costs: Dict[str, Dict[str, float]] = defaultdict(lambda: defaultdict(float))
+        for record in records:
+            # Extract date from timestamp
+            ts = record.get("timestamp", "")
+            if isinstance(ts, str) and len(ts) >= 10:
+                date_str = ts[:10]  # YYYY-MM-DD
+            else:
+                continue
+            svc = record.get("service", "unknown")
+            amount = float(record.get("amount_usd", 0))
+            daily_costs[date_str][svc] += amount
+            daily_costs[date_str]["total"] += amount
+
+        # Convert to sorted list for frontend
+        time_series = [
+            {
+                "date": date,
+                "total_usd": round(costs.pop("total", 0), 6),
+                "by_service": {k: round(v, 6) for k, v in costs.items()},
+            }
+            for date, costs in sorted(daily_costs.items())
+        ]
+
+        return {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "period": period,
+            "range": {
+                "since": since,
+                "until": until,
+            },
+            "summary": {
+                "total_cost_usd": round(summary["total_cost_usd"], 6),
+                "record_count": summary["record_count"],
+                "by_service": {k: round(v, 6) for k, v in summary["by_service"].items()},
+                "by_category": {k: round(v, 6) for k, v in summary["by_category"].items()},
+            },
+            "time_series": time_series,
+        }
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
