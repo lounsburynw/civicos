@@ -14018,3 +14018,43 @@ Implemented global API rate limiting to protect against cost spikes from traffic
 ### Next P0
 - **daily_cost_summary** (monitoring_observability > cost_tracking)
 - Daily email digest summarizing operating costs by service/category vs budget
+
+---
+## Session 512 - 2026-01-14
+
+### Completed: daily_cost_summary (P0)
+
+Created daily cost digest email system for operating cost monitoring.
+
+### Implementation
+
+**New Files:**
+- `packages/civic-services/src/civic_services/monitoring/daily_cost_digest.py`
+  - `DailyCostDigest` class with collect_data(), format_plaintext(), format_html(), send_email(), send_slack(), send(), preview()
+  - `CostDigestData` dataclass for structured cost data
+  - `send_daily_digest()` convenience function
+
+- `.github/workflows/daily-cost-digest.yml`
+  - Scheduled to run daily at 9 AM UTC
+  - Supports manual trigger with preview mode
+  - Creates GitHub Issue on failure
+
+**Modified Files:**
+- `packages/civic-services/src/civic_services/monitoring/__init__.py` - Added exports
+- `packages/civic/tests/test_admin_status.py` - Added TestDailyCostDigest (5 tests)
+- `pilot.json` - daily_cost_summary marked ready, real_data_canary set as P0
+
+### Features
+- HTML and plaintext email with service/category breakdown
+- Trend comparison (vs yesterday, 7-day average)
+- Budget threshold warnings ($5/day, $50/month)
+- Slack webhook fallback
+- Preview mode for testing
+
+### Tests
+- All 5 new TestDailyCostDigest tests passing
+- All 42 smoke tests passing
+
+### Next P0
+- **real_data_canary** (monitoring_observability > data_source_validation)
+- Monthly CI workflow to validate external data sources haven't changed
