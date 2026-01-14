@@ -14058,3 +14058,30 @@ Created daily cost digest email system for operating cost monitoring.
 ### Next P0
 - **real_data_canary** (monitoring_observability > data_source_validation)
 - Monthly CI workflow to validate external data sources haven't changed
+
+## Session 513 - 2026-01-14
+
+**Item:** real_data_canary (monitoring_observability > data_source_validation)
+**Status:** Complete
+
+### Summary
+Created monthly CI workflow to validate external data sources haven't changed format. This "canary" check catches API/schema changes before they cause ingestion failures.
+
+### Changes
+- Created `.github/workflows/data-source-canary.yml`
+- Validates 3 data sources:
+  - **Legistar API** (Oakland as canary) - tests /bodies and /events endpoints, validates schema
+  - **SeeClickFix API** (San Rafael) - tests /issues endpoint, validates schema
+  - **ProudCity** (San Rafael agenda pages) - tests page structure, PDF accessibility
+- Creates GitHub Issue on any validation failure with:
+  - Failed source details
+  - Remediation steps
+  - Workflow run link
+- Schedule: Monthly on 1st at 10:00 AM UTC + manual trigger
+
+### Testing
+- All 3 validations tested locally and passing
+- 42 smoke tests passing
+
+### Next
+- P0 to be assigned via `/nextsesh`
