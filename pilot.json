@@ -1652,7 +1652,7 @@
       ],
       "auto_vector_indexing_on_ingest": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Automatically trigger vector indexing when new corpus data is stored",
         "note": "Current gap: discover/ingest/store runs together but indexing is a separate weekly GitHub Actions job. New data can be stale for up to 7 days before vectors are built. Options: (1) Post-store callback in Pipeline class that triggers index_from_storage(), (2) Event-based trigger (Postgres NOTIFY/LISTEN or webhook), (3) Reduce weekly schedule to daily. Consider cost implications - indexing is compute-intensive.",
         "gap_identified": "Session investigating PAAC extraction found extraction runs but vectors lag by up to 7 days",
