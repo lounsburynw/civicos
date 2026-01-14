@@ -1391,10 +1391,11 @@
         "description": "ETL cost alerting with daily ($5/day) and monthly ($50/month) thresholds. Implemented via TemporalCostManager.get_daily_costs() and /admin/cost-status endpoint."
       },
       "global_rate_limit": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Global API rate limit to prevent cost spikes from traffic surges",
-        "note": "Simple slowapi limiter on API endpoints. No auth required. Set ceiling at 10x expected pilot traffic. Protects against viral spikes or bot traffic."
+        "note": "Simple slowapi limiter on API endpoints. No auth required. Set ceiling at 10x expected pilot traffic. Protects against viral spikes or bot traffic.",
+        "description": "Rate limiting middleware in api.py. Global: 1000 req/min, 10000 req/hour, 20 burst. Endpoint-specific: /api/conversation 30/min, /api/chat/route 30/min, /api/admin/trigger 10/min. Returns 429 with Retry-After header. Bypasses health/docs endpoints."
       },
       "operating_costs_table": {
         "status": "ready",
@@ -1412,14 +1413,14 @@
       },
       "modal_cost_logging": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Log Modal compute costs to operating_costs table",
         "artifact": "Each Modal function logs compute time and estimated cost on completion",
         "note": "Modal pricing: ~$0.000015/GB-second. Log GPU vs CPU separately."
       },
       "daily_cost_summary": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "description": "Daily email summarizing all operating costs",
         "artifact": "Scheduled job sends daily digest: by service, by category, vs budget",
         "note": "Depends on operating_costs_table being populated. Include trend vs yesterday/last week."

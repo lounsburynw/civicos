@@ -177,6 +177,129 @@ from .routers.dependencies import (
 
 # === Request Logging Middleware ===
 
+# Per-endpoint rate limits for expensive operations (requests per minute)
+# These are stricter than global limits to protect against cost spikes
+ENDPOINT_RATE_LIMITS = {
+    "/api/conversation": 30,      # LLM calls - 30/min per client
+    "/api/chat/route": 30,        # LLM intent classification - 30/min per client
+    "/api/admin/trigger": 10,     # ETL operations - 10/min per client
+}
+
+# In-memory tracking for endpoint-specific rate limits
+_endpoint_requests: dict = {}
+_endpoint_lock = None
+
+
+def _get_endpoint_lock():
+    """Lazy initialization of endpoint lock."""
+    global _endpoint_lock
+    if _endpoint_lock is None:
+        from threading import Lock
+        _endpoint_lock = Lock()
+    return _endpoint_lock
+
+
+def _check_endpoint_limit(client_id: str, path: str) -> tuple:
+    """Check endpoint-specific rate limit. Returns (allowed, limit_info)."""
+    limit = ENDPOINT_RATE_LIMITS.get(path)
+    if not limit:
+        return True, None
+
+    lock = _get_endpoint_lock()
+    with lock:
+        now = time.time()
+        key = f"{client_id}:{path}"
+
+        # Initialize tracking for this client+endpoint
+        if key not in _endpoint_requests:
+            _endpoint_requests[key] = []
+
+        # Clean requests older than 60 seconds
+        _endpoint_requests[key] = [t for t in _endpoint_requests[key] if t > now - 60]
+
+        # Check if limit exceeded
+        if len(_endpoint_requests[key]) >= limit:
+            oldest = _endpoint_requests[key][0] if _endpoint_requests[key] else now
+            retry_after = max(1, int(60 - (now - oldest)))
+            return False, {
+                'limit': 'endpoint_minute',
+                'retry_after': retry_after,
+                'limit_value': limit,
+                'endpoint': path
+            }
+
+        # Record this request
+        _endpoint_requests[key].append(now)
+        return True, None
+
+
+async def rate_limit_middleware(request: Request, call_next):
+    """Apply global rate limiting to all requests."""
+    # Skip rate limiting for health checks (load balancers need this)
+    if request.url.path in ["/health", "/docs", "/redoc", "/openapi.json"]:
+        return await call_next(request)
+
+    # Get client ID for rate limiting
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        client_id = forwarded.split(",")[0].strip()
+    else:
+        client_id = request.client.host if request.client else "unknown"
+
+    # Check endpoint-specific rate limit first (stricter for expensive operations)
+    endpoint_allowed, endpoint_info = _check_endpoint_limit(client_id, request.url.path)
+    if not endpoint_allowed:
+        logger.warning("rate_limit_exceeded", extra={
+            "client_id": client_id,
+            "path": request.url.path,
+            "limit": endpoint_info['limit'],
+            "limit_value": endpoint_info['limit_value'],
+            "endpoint": endpoint_info.get('endpoint')
+        })
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": "Rate limit exceeded",
+                "message": f"Too many requests to {endpoint_info['endpoint']}. Limit: {endpoint_info['limit_value']} per minute",
+                "retry_after": endpoint_info['retry_after']
+            },
+            headers={"Retry-After": str(endpoint_info['retry_after'])}
+        )
+
+    # Check global rate limit
+    allowed, limit_info = rate_limiter.check_rate_limit(client_id)
+
+    if not allowed:
+        logger.warning("rate_limit_exceeded", extra={
+            "client_id": client_id,
+            "path": request.url.path,
+            "limit": limit_info['limit'],
+            "limit_value": limit_info['limit_value']
+        })
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": "Rate limit exceeded",
+                "message": f"Too many requests. Limit: {limit_info['limit_value']} per {limit_info['limit']}",
+                "retry_after": limit_info['retry_after']
+            },
+            headers={"Retry-After": str(limit_info['retry_after'])}
+        )
+
+    # Process request
+    response = await call_next(request)
+
+    # Add rate limit headers to successful responses
+    if limit_info and isinstance(limit_info, dict):
+        for header, value in limit_info.items():
+            if header.startswith('X-RateLimit'):
+                response.headers[header] = value
+
+    return response
+
+
 async def log_request(request: Request, call_next):
     """Log request start and completion."""
     start_time = time.time()
@@ -207,8 +330,10 @@ async def log_request(request: Request, call_next):
 
 app = create_app()
 
-# Add request logging middleware
+# Add middleware (order matters: rate limiting runs before logging)
+# This means rate-limited requests are still logged
 app.middleware("http")(log_request)
+app.middleware("http")(rate_limit_middleware)
 
 
 # === Direct Routes (not in routers) ===
