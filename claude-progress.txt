@@ -14165,3 +14165,57 @@ Added GET /api/admin/api-key-status endpoint to validate external API keys (Asse
 
 ### Next
 - P0 to be assigned via `/nextsesh`
+
+---
+
+## Session 516: Auto Vector Indexing on Ingest
+**Date**: 2026-01-14
+**P0**: auto_vector_indexing_on_ingest (pipeline_automation > cloud_integration)
+**Status**: Complete
+
+### Summary
+Closed the staleness gap between data ingestion and vector availability. Previously, new data could take up to 7 days to become searchable (weekly GitHub Actions workflow). Now vectors are indexed immediately after store or within 24 hours via scheduled refresh.
+
+### Key Findings
+Modal scheduled functions ALREADY included vector indexing:
+- `scheduled_high_velocity_refresh` (daily 2PM UTC) - indexes meetings, issues, transcripts, chunks
+- `scheduled_low_velocity_refresh` (weekly Sun 3AM UTC) - indexes all corpora
+The 7-day gap was outdated - it described the state before Modal scheduled functions included `index_vectors()` calls.
+
+### Changes Made
+
+**scripts/modal_ingest.py:**
+- Added `--auto-index` CLI flag (defaults to `True`)
+- Wired `auto_index` to all fetch/extract function calls:
+  - fetch_municipal_code, fetch_legislation, fetch_meetings, fetch_issues
+  - fetch_elections, fetch_executive_orders (newly added)
+  - extract_chunks, extract_transcripts, extract_agenda_items, extract_decisions
+- Added `auto_index` parameter to `fetch_executive_orders` (was missing)
+- Updated docstring with auto-indexing examples
+
+**.github/workflows/vector-refresh.yml:**
+- Changed from weekly to monthly (1st of month at 6AM UTC)
+- Updated header to document new role as fallback/maintenance
+- Primary indexing now via Modal scheduled functions + CLI auto-index
+
+**pilot.json:**
+- Updated `auto_vector_indexing_on_ingest` status: `not_ready` → `ready`
+- Changed priority from P0 to P2 (no longer blocking)
+- Added implementation notes documenting the 3-layer indexing approach
+
+### How It Works Now
+1. **CLI runs**: `--auto-index` is on by default, vectors indexed after each store
+2. **Daily scheduled refresh**: Modal indexes high-velocity corpora at 2PM UTC
+3. **Weekly scheduled refresh**: Modal indexes all corpora on Sunday 3AM UTC
+4. **Monthly fallback**: GitHub Actions workflow catches any gaps
+
+### Cost Impact
+Minimal - embedding costs ~$0.0001 per 1K tokens. Only indexes new items incrementally, not full corpus.
+
+### Testing
+- 42 smoke tests passing
+- 19 pipeline tests passing
+- Python syntax check passing
+
+### Next
+- P0 to be assigned via `/nextsesh`

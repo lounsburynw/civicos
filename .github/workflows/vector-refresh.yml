@@ -1,11 +1,19 @@
 # Vector Index Refresh for Civic Platform
 #
-# Indexes documents into pgvector for semantic search.
-# Parallelizes across corpus types for speed.
-# Large corpuses (chunks, issues) are split into multiple jobs.
+# IMPORTANT: This workflow is now a FALLBACK/MAINTENANCE mechanism.
+#
+# Primary vector indexing happens via:
+#   1. Modal scheduled_high_velocity_refresh (daily) - meetings, issues, transcripts, chunks
+#   2. Modal scheduled_low_velocity_refresh (weekly) - municipal_code, legislation, decisions, etc.
+#   3. CLI runs with --auto-index (enabled by default since Jan 2026)
+#
+# This GitHub Actions workflow runs monthly as a safety net to:
+#   - Catch any gaps if Modal cron fails
+#   - Verify vector-SQL sync across all corpus types
+#   - Provide manual trigger for full reindex if needed
 #
 # Triggers:
-#   - Weekly on Sunday at 6:00 AM UTC (Saturday 10:00 PM Pacific)
+#   - Monthly on 1st at 6:00 AM UTC (prev month last day 10:00 PM Pacific)
 #   - Manual trigger via workflow_dispatch
 #
 # Prerequisites:
@@ -16,8 +24,8 @@ name: Vector Refresh
 
 on:
   schedule:
-    # Weekly on Sunday at 6:00 AM UTC (Saturday 10:00 PM Pacific)
-    - cron: '0 6 * * 0'
+    # Monthly on 1st at 6:00 AM UTC (fallback/maintenance only)
+    - cron: '0 6 1 * *'
 
   # Allow manual trigger with options
   workflow_dispatch:

@@ -1651,19 +1651,20 @@
         }
       ],
       "auto_vector_indexing_on_ingest": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Automatically trigger vector indexing when new corpus data is stored",
-        "note": "Current gap: discover/ingest/store runs together but indexing is a separate weekly GitHub Actions job. New data can be stale for up to 7 days before vectors are built. Options: (1) Post-store callback in Pipeline class that triggers index_from_storage(), (2) Event-based trigger (Postgres NOTIFY/LISTEN or webhook), (3) Reduce weekly schedule to daily. Consider cost implications - indexing is compute-intensive.",
-        "gap_identified": "Session investigating PAAC extraction found extraction runs but vectors lag by up to 7 days",
-        "options": [
-          "Pipeline post-store callback",
-          "Postgres NOTIFY trigger",
-          "Daily instead of weekly indexing",
-          "On-demand indexing via API endpoint"
+        "note": "Session 516: Implemented via CLI --auto-index flag (enabled by default). Modal scheduled functions already included vector indexing (daily high-velocity, weekly low-velocity). GitHub Actions workflow changed from weekly to monthly fallback. Gap closed: vectors now update within 24 hours via scheduled refresh, or immediately via CLI with --auto-index.",
+        "implementation": [
+          "CLI --auto-index defaults to True, triggers index_vectors() after each store",
+          "Modal scheduled_high_velocity_refresh (daily) indexes meetings, issues, transcripts, chunks",
+          "Modal scheduled_low_velocity_refresh (weekly) indexes all corpora",
+          "GitHub Actions vector-refresh.yml changed to monthly fallback/maintenance",
+          "Added auto_index to fetch_executive_orders for completeness"
         ],
+        "cost_impact": "Minimal - embedding costs ~$0.0001/1K tokens, only indexes new items incrementally",
         "modified_files": [
-          "packages/civic-extraction/src/civic_extraction/pipeline.py",
+          "scripts/modal_ingest.py",
           ".github/workflows/vector-refresh.yml"
         ]
       },
@@ -1680,7 +1681,7 @@
       },
       "conditional_vector_reindex_after_ingest": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "description": "Trigger vector re-indexing automatically after federal programs data refresh",
         "artifact": "Post-ingest hook that calls pgvector.index_from_storage() for programs corpus when data changes",
         "note": "Builds on auto_vector_indexing_on_ingest but specific to federal programs. When SAM.gov refresh completes, should automatically re-embed changed programs. Consider: only re-index programs with changed content (hash comparison) to minimize embedding API costs.",
