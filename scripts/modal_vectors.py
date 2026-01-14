@@ -248,6 +248,24 @@ def index_corpus(
         "gb_seconds": gb_seconds,
         "estimated_cost_usd": estimated_cost,
     }
+
+    # Log to operating_costs table
+    from civic.cost import log_modal_cost
+    log_modal_cost(
+        function_name="index_corpus",
+        elapsed_seconds=elapsed_seconds,
+        memory_gb=memory_gb,
+        gpu="T4",
+        jurisdiction_id=jurisdiction,
+        metadata={
+            "corpus": corpus,
+            "total_indexed": total_indexed,
+            "success_count": success_count,
+            "error_count": error_count,
+        },
+        storage_backend=backend,
+    )
+
     return results
 
 

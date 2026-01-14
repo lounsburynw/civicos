@@ -1378,7 +1378,7 @@
       ],
       "cost_dashboard": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Admin dashboard showing cumulative ETL costs by pipeline and time period",
         "note": "Aggregate from etl_costs table. Show daily/weekly/monthly breakdown by pipeline type."
       },
@@ -1410,7 +1410,7 @@
         "note": "Instrumented mode_detection, routing, and web_search calls in chat router. Uses model_registry pricing."
       },
       "modal_cost_logging": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "description": "Log Modal compute costs to operating_costs table",
         "artifact": "Each Modal function logs compute time and estimated cost on completion",
