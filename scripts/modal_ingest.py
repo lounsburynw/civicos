@@ -203,6 +203,7 @@ def fetch_municipal_code(
         logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
 
     elapsed = time.time() - start_time
+    cost_usd = 4 * elapsed * 0.000463
     result = {
         "task": "municipal_code",
         "jurisdiction": jurisdiction,
@@ -213,10 +214,23 @@ def fetch_municipal_code(
         "dry_run": dry_run,
         "auto_index": auto_index,
         "elapsed_seconds": elapsed,
-        "cost_usd": 4 * elapsed * 0.000463,
+        "cost_usd": cost_usd,
     }
     if vector_result:
         result["vector_result"] = vector_result
+
+    # Log to operating_costs table
+    if not dry_run:
+        from civic.cost import log_modal_cost
+        log_modal_cost(
+            function_name="fetch_municipal_code",
+            elapsed_seconds=elapsed,
+            memory_gb=4,
+            jurisdiction_id=jurisdiction,
+            metadata={"sections_stored": stored_count, "titles": len(titles_seen)},
+            storage_backend=backend,
+        )
+
     return result
 
 
@@ -382,6 +396,7 @@ def fetch_legislation(
         logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
 
     elapsed = time.time() - start_time
+    cost_usd = 4 * elapsed * 0.000463
     result = {
         "task": "legislation",
         "jurisdiction": jurisdiction,
@@ -391,10 +406,23 @@ def fetch_legislation(
         "dry_run": dry_run,
         "auto_index": auto_index,
         "elapsed_seconds": elapsed,
-        "cost_usd": 4 * elapsed * 0.000463,
+        "cost_usd": cost_usd,
     }
     if vector_result:
         result["vector_result"] = vector_result
+
+    # Log to operating_costs table
+    if not dry_run:
+        from civic.cost import log_modal_cost
+        log_modal_cost(
+            function_name="fetch_legislation",
+            elapsed_seconds=elapsed,
+            memory_gb=4,
+            jurisdiction_id=jurisdiction,
+            metadata={"bills_with_text": len(updates), "api_calls": api_calls},
+            storage_backend=backend,
+        )
+
     return result
 
 

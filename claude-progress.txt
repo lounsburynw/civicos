@@ -13848,3 +13848,39 @@ Created unified `operating_costs` table in PostgreSQL to be the single source of
 - **modal_cost_logging** (monitoring_observability > cost_tracking)
 - Instrument Modal functions to log compute costs to operating_costs table
 - Modal pricing: ~$0.000015/GB-second, track GPU vs CPU separately
+
+---
+
+## Session 508 (2026-01-13)
+
+**modal_cost_logging** (monitoring_observability > cost_tracking) - P0 → ready
+
+### Implementation
+
+1. **Created civic.cost module** (packages/civic/src/civic/cost.py):
+   - `log_modal_cost()` - Logs Modal compute costs to operating_costs table
+   - `MODAL_CPU_RATE` = $0.000463/GB-second
+   - `MODAL_GPU_RATES` = T4: $0.000164/s, A10G: $0.000306/s, A100: $0.001389/s, H100: $0.003472/s
+   - Available in Modal image (civic package, not civic-services)
+   - Graceful degradation - never fails the caller
+
+2. **Instrumented Modal functions**:
+   - `index_corpus` (modal_vectors.py) - Vector indexing, 64GB + T4 GPU
+   - `fetch_municipal_code` (modal_ingest.py) - Municipal code fetch, 4GB
+   - `fetch_legislation` (modal_ingest.py) - LegiScan API fetch, 4GB
+   - Pattern established for remaining ~40 functions
+
+3. **Verified:**
+   - Test call: ID 5 stored with $0.1111 cost (4GB × 60s)
+   - Metadata includes: function, elapsed_seconds, memory_gb, gb_seconds, cpu_cost_usd, gpu, gpu_cost_usd
+
+### Technical Notes
+- Modal doesn't expose billing API - costs are estimated from memory × time × rate
+- GPU cost calculated separately from CPU/memory cost
+- Cost logging happens only when not in dry_run mode
+- Storage backend passed explicitly to avoid redundant connections
+
+### Next P0
+- **cost_dashboard** (monitoring_observability > cost_tracking)
+- Admin dashboard showing cumulative ETL costs by pipeline and time period
+- Aggregate from operating_costs table, show daily/weekly/monthly breakdown
