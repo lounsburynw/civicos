@@ -441,6 +441,7 @@ def fetch_executive_orders(
     dry_run: bool = False,
     incremental: bool = True,
     days_lookback: int = 30,
+    auto_index: bool = False,
 ) -> dict:
     """Fetch Executive Orders from Federal Register API and store to Postgres.
 
@@ -451,6 +452,7 @@ def fetch_executive_orders(
         dry_run: If True, fetch but don't store
         incremental: If True, only fetch EOs published since last refresh
         days_lookback: Days to look back for initial/full fetch (default 30)
+        auto_index: If True, trigger vector indexing after successful storage
     """
     import logging
     import os
@@ -518,17 +520,32 @@ def fetch_executive_orders(
     elif dry_run:
         logger.info("[EO] Dry run - skipping storage")
 
+    # Auto-index vectors if requested and data was stored
+    vector_result = None
+    if auto_index and stored_count > 0 and not dry_run:
+        logger.info("[EO] Auto-indexing vectors for executive_orders...")
+        vector_result = index_vectors.local(
+            jurisdiction="federal-US",
+            corpus="executive_orders",
+            reindex=False,
+        )
+        logger.info(f"  Vectors indexed: {vector_result.get('total_indexed', 0)}")
+
     elapsed = time.time() - start_time
-    return {
+    result = {
         "task": "executive_orders",
         "orders_fetched": len(orders),
         "orders_stored": stored_count,
         "since_date": since_date,
         "incremental": incremental,
         "dry_run": dry_run,
+        "auto_index": auto_index,
         "elapsed_seconds": elapsed,
         "cost_usd": 4 * elapsed * 0.000463,
     }
+    if vector_result:
+        result["vector_result"] = vector_result
+    return result
 
 
 @app.function(
@@ -2836,6 +2853,7 @@ def main(
     reindex: bool = False,
     dry_run: bool = False,
     stats_only: bool = False,
+    auto_index: bool = True,
 ):
     """
     Unified ingestion entrypoint.
@@ -2879,6 +2897,11 @@ def main(
 
         # Dry run
         modal run scripts/modal_ingest.py --all --dry-run
+
+        # Auto-indexing (enabled by default)
+        # Vectors are indexed after each data store, closing the staleness gap
+        modal run scripts/modal_ingest.py --meetings  # Indexes meeting vectors after store
+        modal run scripts/modal_ingest.py --meetings --no-auto-index  # Skip vector indexing
     """
     if stats_only:
         result = get_stats.remote(jurisdiction)
@@ -2988,6 +3011,7 @@ def main(
     if run_vectors:
         print(f"  Vectors: {jurisdiction}")
     print(f"Dry run: {dry_run}")
+    print(f"Auto-index: {auto_index}" + (" (vectors indexed after each store)" if auto_index else " (vectors NOT indexed after store)"))
     print("=" * 60)
 
     # Spawn tasks in parallel
@@ -2998,6 +3022,7 @@ def main(
         handle = fetch_municipal_code.spawn(
             jurisdiction=jurisdiction,
             dry_run=dry_run,
+            auto_index=auto_index,
         )
         handles.append(("municipal_code", handle))
 
@@ -3007,6 +3032,7 @@ def main(
             jurisdiction=legislation_jurisdiction,
             limit=legislation_limit,
             dry_run=dry_run,
+            auto_index=auto_index,
         )
         handles.append(("legislation", handle))
 
@@ -3015,6 +3041,7 @@ def main(
         handle = fetch_executive_orders.spawn(
             dry_run=dry_run,
             incremental=True,  # Always incremental for EOs
+            auto_index=auto_index,
         )
         handles.append(("executive_orders", handle))
 
@@ -3024,6 +3051,7 @@ def main(
             jurisdiction=jurisdiction,
             incremental=incremental,
             dry_run=dry_run,
+            auto_index=auto_index,
         )
         handles.append(("meetings", handle))
 
@@ -3033,6 +3061,7 @@ def main(
             jurisdiction=jurisdiction,
             incremental=incremental,
             dry_run=dry_run,
+            auto_index=auto_index,
         )
         handles.append(("issues", handle))
 
@@ -3041,6 +3070,7 @@ def main(
         handle = fetch_elections.spawn(
             jurisdiction=jurisdiction,
             dry_run=dry_run,
+            auto_index=auto_index,
         )
         handles.append(("elections", handle))
 
@@ -3070,6 +3100,7 @@ def main(
             limit=transcripts_limit,
             dry_run=dry_run,
             batch=True,  # Use batch mode for parallel transcription
+            auto_index=auto_index,
         )
         print(f"  transcripts: {transcripts_result.get('elapsed_seconds', 0):.1f}s, cost: ${transcripts_result.get('cost_usd', 0):.4f}")
         if transcripts_result.get("duration_validation_issues", 0) > 0:
@@ -3083,6 +3114,7 @@ def main(
             jurisdiction=jurisdiction,
             limit=chunks_limit,
             dry_run=dry_run,
+            auto_index=auto_index,
         )
         print(f"  chunks: {chunks_result.get('elapsed_seconds', 0):.1f}s, cost: ${chunks_result.get('cost_usd', 0):.4f}")
 
@@ -3094,6 +3126,7 @@ def main(
             jurisdiction=jurisdiction,
             limit=agenda_limit,
             dry_run=dry_run,
+            auto_index=auto_index,
         )
         print(f"  agenda: {agenda_result.get('elapsed_seconds', 0):.1f}s, cost: ${agenda_result.get('cost_usd', 0):.4f}")
 
@@ -3105,6 +3138,7 @@ def main(
             jurisdiction=jurisdiction,
             limit=decisions_limit,
             dry_run=dry_run,
+            auto_index=auto_index,
         )
         print(f"  decisions: {decisions_result.get('elapsed_seconds', 0):.1f}s, cost: ${decisions_result.get('cost_usd', 0):.4f}")
 
