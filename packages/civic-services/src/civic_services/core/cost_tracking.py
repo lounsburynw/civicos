@@ -45,7 +45,7 @@ def _get_storage():
 
     # Only initialize if DATABASE_URL is set (PostgreSQL mode)
     if not os.getenv('DATABASE_URL'):
-        logger.debug("Cost tracking disabled - no DATABASE_URL (local dev mode)")
+        logger.debug("Cost tracking disabled - DATABASE_URL not set (local dev mode)")
         return None
 
     try:

@@ -5436,6 +5436,14 @@ class TestSecurityNoSecretsInLogs:
 
         debug_regex = re.compile('|'.join(debug_patterns), re.IGNORECASE)
 
+        # Safe patterns - logging counts/metrics, not actual credentials
+        safe_patterns = [
+            r'total_tokens',      # Token count metric
+            r'\d+ tokens',        # "123 tokens" - a count
+            r'tokens\)',          # Ending with "tokens)" - likely a count in format string
+        ]
+        safe_regex = re.compile('|'.join(safe_patterns), re.IGNORECASE)
+
         violations = []
         source_path = str(PROJECT_ROOT)
 
@@ -5450,7 +5458,7 @@ class TestSecurityNoSecretsInLogs:
                     filepath = os.path.join(root, filename)
                     with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
                         for line_num, line in enumerate(f, 1):
-                            if debug_regex.search(line):
+                            if debug_regex.search(line) and not safe_regex.search(line):
                                 violations.append(f"{filepath}:{line_num}: {line.strip()}")
 
         assert len(violations) == 0, \

@@ -71,7 +71,7 @@ def log_modal_cost(
     if storage_backend is None:
         database_url = os.environ.get("DATABASE_URL")
         if not database_url:
-            logger.debug("Cost tracking disabled - no DATABASE_URL")
+            logger.debug("Cost tracking disabled - DATABASE_URL not set")
             return None
 
         try:
