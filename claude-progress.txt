@@ -14085,3 +14085,34 @@ Created monthly CI workflow to validate external data sources haven't changed fo
 
 ### Next
 - P0 to be assigned via `/nextsesh`
+
+## Session 514: API Key Status Endpoint
+**Date**: 2026-01-14
+**P0**: api_key_status (admin_operations > configuration)
+**Status**: Complete
+
+### Summary
+Added GET /api/admin/api-key-status endpoint to validate external API keys (AssemblyAI, LegiScan) and help catch expired/invalid keys before they cause pipeline failures.
+
+### Changes
+- `packages/civic-services/src/civic_services/servers/routers/admin.py`:
+  - Added `APIKeyStatus` and `APIKeyStatusResponse` Pydantic models
+  - Added `_validate_assemblyai_key()` helper - validates via /v2/transcript endpoint
+  - Added `_validate_legiscan_key()` helper - validates via getStateList operation
+  - Added in-memory cache with 5-minute TTL to avoid excessive API calls
+  - Added `GET /api/admin/api-key-status` endpoint with `force_refresh` parameter
+  - Returns per-key status (configured, valid, error message, response time)
+  - Returns overall_status: healthy/warning/degraded/unconfigured
+
+- `packages/civic/tests/test_admin_status.py`:
+  - Added `TestAPIKeyStatusEndpoint` class (7 tests) - endpoint integration tests
+  - Added `TestAPIKeyValidationHelpers` class (6 tests) - mocked unit tests
+  - Added `TestAPIKeyValidationCache` class (3 tests) - cache behavior tests
+  - All 16 new tests passing
+
+### Testing
+- 42 smoke tests passing
+- 16 new API key status tests passing
+
+### Next
+- P0 to be assigned via `/nextsesh`

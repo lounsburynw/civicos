@@ -11,15 +11,21 @@ Endpoints:
 - GET /operations/{id} - Get operation status
 - GET /data/{type} - Data browser
 - GET /vector-stats - Vector index stats
+- GET /api-key-status - External API key validation status
 - POST /trigger - Trigger admin actions
 """
 
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from collections import defaultdict
+import os
+import time
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter()
@@ -65,6 +71,45 @@ class AdminTriggerRequest(BaseModel):
     """Admin trigger request."""
     action: str
     params: Optional[Dict[str, Any]] = None
+
+
+class APIKeyStatus(BaseModel):
+    """Status of an external API key."""
+    service_name: str
+    is_configured: bool  # Key exists in environment
+    is_valid: Optional[bool] = None  # Successfully validated (None if not checked)
+    validation_method: str  # "api_call", "not_configured", "cached"
+    last_validated: Optional[str] = None
+    error_message: Optional[str] = None
+    response_time_ms: Optional[int] = None
+
+
+class APIKeyStatusResponse(BaseModel):
+    """Response for API key status endpoint."""
+    timestamp: str
+    keys: Dict[str, APIKeyStatus]
+    overall_status: str  # "healthy", "warning", "degraded", "unconfigured"
+
+
+# === API Key Validation Cache ===
+# Simple in-memory cache to avoid hitting external APIs on every request
+_api_key_cache: Dict[str, Dict[str, Any]] = {}
+_API_KEY_CACHE_TTL_SECONDS = 300  # 5 minutes
+
+
+def _get_cached_validation(service_name: str) -> Optional[Dict[str, Any]]:
+    """Get cached validation result if not expired."""
+    if service_name in _api_key_cache:
+        cached = _api_key_cache[service_name]
+        if time.time() - cached.get("cached_at", 0) < _API_KEY_CACHE_TTL_SECONDS:
+            return cached
+    return None
+
+
+def _set_cached_validation(service_name: str, result: Dict[str, Any]) -> None:
+    """Cache a validation result."""
+    result["cached_at"] = time.time()
+    _api_key_cache[service_name] = result
 
 
 # === Auth Dependency ===
@@ -432,6 +477,237 @@ async def get_vector_stats(token: str = Depends(verify_auth)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+def _validate_assemblyai_key(api_key: str) -> Dict[str, Any]:
+    """
+    Validate AssemblyAI API key by making a lightweight API call.
+
+    Uses the /v2/upload endpoint with a simple HEAD-like call to verify auth.
+    """
+    import requests
+
+    start_time = time.time()
+    try:
+        # AssemblyAI uses Authorization header with the API key directly
+        # We can verify the key by calling the /v2/transcript endpoint with a list request
+        # This is lightweight (just lists recent transcripts, limited to 1)
+        response = requests.get(
+            "https://api.assemblyai.com/v2/transcript",
+            headers={"Authorization": api_key},
+            params={"limit": 1},
+            timeout=10
+        )
+        elapsed_ms = int((time.time() - start_time) * 1000)
+
+        if response.status_code == 200:
+            return {
+                "is_valid": True,
+                "response_time_ms": elapsed_ms,
+                "validation_method": "api_call"
+            }
+        elif response.status_code == 401:
+            return {
+                "is_valid": False,
+                "error_message": "Invalid API key (401 Unauthorized)",
+                "response_time_ms": elapsed_ms,
+                "validation_method": "api_call"
+            }
+        else:
+            return {
+                "is_valid": False,
+                "error_message": f"Unexpected response: {response.status_code}",
+                "response_time_ms": elapsed_ms,
+                "validation_method": "api_call"
+            }
+    except requests.exceptions.Timeout:
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        return {
+            "is_valid": None,
+            "error_message": "Request timed out",
+            "response_time_ms": elapsed_ms,
+            "validation_method": "api_call"
+        }
+    except requests.exceptions.RequestException as e:
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        return {
+            "is_valid": None,
+            "error_message": f"Connection error: {str(e)}",
+            "response_time_ms": elapsed_ms,
+            "validation_method": "api_call"
+        }
+
+
+def _validate_legiscan_key(api_key: str) -> Dict[str, Any]:
+    """
+    Validate LegiScan API key by making a lightweight API call.
+
+    Uses the getStateList operation which is minimal and doesn't consume query quota significantly.
+    """
+    import requests
+
+    start_time = time.time()
+    try:
+        response = requests.get(
+            "https://api.legiscan.com/",
+            params={"key": api_key, "op": "getStateList"},
+            timeout=10
+        )
+        elapsed_ms = int((time.time() - start_time) * 1000)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("status") == "OK":
+                return {
+                    "is_valid": True,
+                    "response_time_ms": elapsed_ms,
+                    "validation_method": "api_call"
+                }
+            elif data.get("status") == "ERROR":
+                error_msg = data.get("alert", {}).get("message", "Unknown API error")
+                return {
+                    "is_valid": False,
+                    "error_message": f"API error: {error_msg}",
+                    "response_time_ms": elapsed_ms,
+                    "validation_method": "api_call"
+                }
+        return {
+            "is_valid": False,
+            "error_message": f"Unexpected response: {response.status_code}",
+            "response_time_ms": elapsed_ms,
+            "validation_method": "api_call"
+        }
+    except requests.exceptions.Timeout:
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        return {
+            "is_valid": None,
+            "error_message": "Request timed out",
+            "response_time_ms": elapsed_ms,
+            "validation_method": "api_call"
+        }
+    except requests.exceptions.RequestException as e:
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        return {
+            "is_valid": None,
+            "error_message": f"Connection error: {str(e)}",
+            "response_time_ms": elapsed_ms,
+            "validation_method": "api_call"
+        }
+
+
+@router.get("/api-key-status")
+async def get_api_key_status(
+    force_refresh: bool = Query(False, description="Bypass cache and re-validate keys"),
+    token: str = Depends(verify_auth)
+):
+    """
+    Get validation status for external API keys.
+
+    Checks AssemblyAI and LegiScan API keys by making lightweight validation calls.
+    Results are cached for 5 minutes to avoid excessive API calls.
+
+    Returns:
+    - Per-key status (configured, valid, error details)
+    - Overall status: healthy (all valid), warning (some invalid), degraded (none valid), unconfigured (none set)
+
+    Requires authentication.
+    """
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    keys_status: Dict[str, APIKeyStatus] = {}
+    timestamp = datetime.utcnow().isoformat() + "Z"
+
+    # Check AssemblyAI
+    assemblyai_key = os.getenv("ASSEMBLYAI_API_KEY")
+    if assemblyai_key:
+        cached = None if force_refresh else _get_cached_validation("assemblyai")
+        if cached:
+            keys_status["assemblyai"] = APIKeyStatus(
+                service_name="AssemblyAI",
+                is_configured=True,
+                is_valid=cached.get("is_valid"),
+                validation_method="cached",
+                last_validated=cached.get("last_validated"),
+                error_message=cached.get("error_message"),
+                response_time_ms=cached.get("response_time_ms")
+            )
+        else:
+            result = _validate_assemblyai_key(assemblyai_key)
+            result["last_validated"] = timestamp
+            _set_cached_validation("assemblyai", result)
+            keys_status["assemblyai"] = APIKeyStatus(
+                service_name="AssemblyAI",
+                is_configured=True,
+                is_valid=result.get("is_valid"),
+                validation_method=result.get("validation_method", "api_call"),
+                last_validated=timestamp,
+                error_message=result.get("error_message"),
+                response_time_ms=result.get("response_time_ms")
+            )
+    else:
+        keys_status["assemblyai"] = APIKeyStatus(
+            service_name="AssemblyAI",
+            is_configured=False,
+            is_valid=None,
+            validation_method="not_configured",
+            error_message="ASSEMBLYAI_API_KEY not set in environment"
+        )
+
+    # Check LegiScan
+    legiscan_key = os.getenv("LEGISCAN_API_KEY")
+    if legiscan_key:
+        cached = None if force_refresh else _get_cached_validation("legiscan")
+        if cached:
+            keys_status["legiscan"] = APIKeyStatus(
+                service_name="LegiScan",
+                is_configured=True,
+                is_valid=cached.get("is_valid"),
+                validation_method="cached",
+                last_validated=cached.get("last_validated"),
+                error_message=cached.get("error_message"),
+                response_time_ms=cached.get("response_time_ms")
+            )
+        else:
+            result = _validate_legiscan_key(legiscan_key)
+            result["last_validated"] = timestamp
+            _set_cached_validation("legiscan", result)
+            keys_status["legiscan"] = APIKeyStatus(
+                service_name="LegiScan",
+                is_configured=True,
+                is_valid=result.get("is_valid"),
+                validation_method=result.get("validation_method", "api_call"),
+                last_validated=timestamp,
+                error_message=result.get("error_message"),
+                response_time_ms=result.get("response_time_ms")
+            )
+    else:
+        keys_status["legiscan"] = APIKeyStatus(
+            service_name="LegiScan",
+            is_configured=False,
+            is_valid=None,
+            validation_method="not_configured",
+            error_message="LEGISCAN_API_KEY not set in environment"
+        )
+
+    # Determine overall status
+    configured_keys = [k for k, v in keys_status.items() if v.is_configured]
+    valid_keys = [k for k, v in keys_status.items() if v.is_valid is True]
+
+    if not configured_keys:
+        overall_status = "unconfigured"
+    elif len(valid_keys) == len(configured_keys):
+        overall_status = "healthy"
+    elif len(valid_keys) > 0:
+        overall_status = "warning"
+    else:
+        overall_status = "degraded"
+
+    return APIKeyStatusResponse(
+        timestamp=timestamp,
+        keys=keys_status,
+        overall_status=overall_status
+    )
 
 
 @router.post("/trigger")
