@@ -205,12 +205,18 @@ class CivicConfig:
         return origins if origins else ['https://civic.example.com']
     
     def get_rate_limit_config(self) -> dict:
-        """Get rate limiting configuration"""
+        """Get rate limiting configuration.
+
+        Defaults are set for pilot scale (~10 users):
+        - 1000 req/min: 10x expected pilot traffic (100 req/min)
+        - 10000 req/hour: Allows sustained usage
+        - 20 burst: Handles page loads with many parallel requests
+        """
         return {
             'enabled': self.env != 'development' or os.getenv('ENABLE_RATE_LIMIT', 'false').lower() == 'true',
-            'requests_per_minute': int(os.getenv('RATE_LIMIT_PER_MINUTE', '60')),
-            'requests_per_hour': int(os.getenv('RATE_LIMIT_PER_HOUR', '1000')),
-            'burst_size': int(os.getenv('RATE_LIMIT_BURST', '10'))
+            'requests_per_minute': int(os.getenv('RATE_LIMIT_PER_MINUTE', '1000')),
+            'requests_per_hour': int(os.getenv('RATE_LIMIT_PER_HOUR', '10000')),
+            'burst_size': int(os.getenv('RATE_LIMIT_BURST', '20'))
         }
     
     def is_debug(self) -> bool:
