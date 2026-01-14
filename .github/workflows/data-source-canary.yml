@@ -1,0 +1,501 @@
+# Data Source Canary Validation
+#
+# Monthly check that validates external data sources haven't changed format.
+# This is a "canary" check to catch API/schema changes before they cause
+# ingestion pipeline failures.
+#
+# Validated sources:
+#   - Legistar API (Berkeley as canary)
+#   - SeeClickFix API (San Rafael)
+#   - ProudCity/WordPress agenda pages (San Rafael)
+#
+# Triggers:
+#   - Weekly on Sunday at 10:00 AM UTC
+#   - Manual trigger via workflow_dispatch
+
+name: Data Source Canary
+
+on:
+  schedule:
+    # Weekly on Sunday at 10:00 AM UTC (2:00 AM Pacific)
+    - cron: '0 10 * * 0'
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+# Permissions needed for creating issues on failure
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  validate-sources:
+    name: Validate Data Sources
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    outputs:
+      legistar_ok: ${{ steps.legistar.outputs.ok }}
+      legistar_report: ${{ steps.legistar.outputs.report }}
+      seeclickfix_ok: ${{ steps.seeclickfix.outputs.ok }}
+      seeclickfix_report: ${{ steps.seeclickfix.outputs.report }}
+      proudcity_ok: ${{ steps.proudcity.outputs.ok }}
+      proudcity_report: ${{ steps.proudcity.outputs.report }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4
+
+      - name: Validate Legistar API
+        id: legistar
+        run: |
+          python3 << 'EOF'
+          import os
+          import requests
+          import time
+
+          # Use Oakland as canary (stable, public API with 150+ bodies)
+          CLIENT_NAME = "oakland"
+          BASE_URL = f"https://webapi.legistar.com/v1/{CLIENT_NAME}"
+
+          print("=" * 60)
+          print("LEGISTAR API VALIDATION")
+          print(f"Canary: {CLIENT_NAME}")
+          print("=" * 60)
+
+          errors = []
+          warnings = []
+
+          try:
+              # Test 1: API reachability via /bodies endpoint
+              print("\n[1/3] Testing API reachability (/bodies)...")
+              response = requests.get(f"{BASE_URL}/bodies", timeout=10)
+
+              if response.status_code != 200:
+                  errors.append(f"API returned status {response.status_code}")
+              else:
+                  bodies = response.json()
+                  if not isinstance(bodies, list):
+                      errors.append(f"Expected list, got {type(bodies).__name__}")
+                  elif len(bodies) == 0:
+                      warnings.append("No bodies found (expected at least 1)")
+                  else:
+                      print(f"   Found {len(bodies)} bodies")
+
+              # Rate limit
+              time.sleep(1)
+
+              # Test 2: Events endpoint with OData filter
+              print("\n[2/3] Testing events endpoint...")
+              from datetime import datetime, timedelta
+              start_date = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+              end_date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
+
+              params = {
+                  "$filter": f"EventDate ge datetime'{start_date}' and EventDate le datetime'{end_date}'"
+              }
+              response = requests.get(f"{BASE_URL}/events", params=params, timeout=10)
+
+              if response.status_code != 200:
+                  errors.append(f"Events endpoint returned status {response.status_code}")
+              else:
+                  events = response.json()
+                  if not isinstance(events, list):
+                      errors.append(f"Events expected list, got {type(events).__name__}")
+                  else:
+                      print(f"   Found {len(events)} events in 14-day window")
+
+                      # Test 3: Validate expected fields on first event
+                      if len(events) > 0:
+                          print("\n[3/3] Validating event schema...")
+                          event = events[0]
+                          required_fields = ['EventId', 'EventDate', 'EventBodyName']
+                          optional_fields = ['EventTime', 'EventLocation', 'EventVideoPath']
+
+                          for field in required_fields:
+                              if field not in event:
+                                  errors.append(f"Missing required field: {field}")
+                              elif event[field] is None:
+                                  warnings.append(f"Field {field} is null")
+
+                          present_optional = [f for f in optional_fields if f in event]
+                          print(f"   Required fields: all present")
+                          print(f"   Optional fields: {len(present_optional)}/{len(optional_fields)} present")
+                      else:
+                          warnings.append("No events in 14-day window to validate schema")
+
+          except requests.exceptions.Timeout:
+              errors.append("API request timed out after 10s")
+          except requests.exceptions.ConnectionError as e:
+              errors.append(f"Connection error: {str(e)[:100]}")
+          except Exception as e:
+              errors.append(f"Unexpected error: {str(e)[:100]}")
+
+          # Generate report
+          is_ok = len(errors) == 0
+          report_parts = [f"Canary: {CLIENT_NAME}"]
+
+          if errors:
+              report_parts.append(f"ERRORS: {'; '.join(errors)}")
+          if warnings:
+              report_parts.append(f"WARNINGS: {'; '.join(warnings)}")
+          if is_ok:
+              report_parts.append("All checks passed")
+
+          print("\n" + "=" * 60)
+          print(f"Status: {'OK' if is_ok else 'FAILED'}")
+          if errors:
+              print(f"Errors: {errors}")
+          if warnings:
+              print(f"Warnings: {warnings}")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"ok={'true' if is_ok else 'false'}\n")
+              f.write(f"report={' | '.join(report_parts)}\n")
+          EOF
+
+      - name: Validate SeeClickFix API
+        id: seeclickfix
+        run: |
+          python3 << 'EOF'
+          import os
+          import requests
+
+          # Use San Rafael as canary
+          PLACE_URL = "san-rafael"
+          BASE_URL = "https://seeclickfix.com/api/v2"
+
+          print("=" * 60)
+          print("SEECLICKFIX API VALIDATION")
+          print(f"Canary: {PLACE_URL}")
+          print("=" * 60)
+
+          errors = []
+          warnings = []
+
+          try:
+              # Test 1: API reachability
+              print("\n[1/2] Testing API reachability...")
+              params = {
+                  'place_url': PLACE_URL,
+                  'per_page': 5,
+                  'status': 'open'
+              }
+              response = requests.get(
+                  f"{BASE_URL}/issues",
+                  params=params,
+                  headers={
+                      'User-Agent': 'Civic-Engagement-Platform/1.0',
+                      'Accept': 'application/json'
+                  },
+                  timeout=10
+              )
+
+              if response.status_code != 200:
+                  errors.append(f"API returned status {response.status_code}")
+              else:
+                  data = response.json()
+
+                  # Handle both array and object responses
+                  if isinstance(data, list):
+                      issues = data
+                  else:
+                      issues = data.get('issues', [])
+
+                  print(f"   Found {len(issues)} issues")
+
+                  # Test 2: Validate schema
+                  if len(issues) > 0:
+                      print("\n[2/2] Validating issue schema...")
+                      issue = issues[0]
+
+                      # Required fields for our normalization
+                      required_fields = ['id', 'summary', 'status']
+                      recommended_fields = ['address', 'lat', 'lng', 'request_type', 'created_at']
+
+                      for field in required_fields:
+                          if field not in issue:
+                              errors.append(f"Missing required field: {field}")
+                          elif issue[field] is None:
+                              warnings.append(f"Field {field} is null")
+
+                      present_recommended = [f for f in recommended_fields if f in issue and issue[f] is not None]
+                      print(f"   Required fields: all present")
+                      print(f"   Recommended fields: {len(present_recommended)}/{len(recommended_fields)} present")
+
+                      # Check request_type nested structure
+                      if 'request_type' in issue and issue['request_type']:
+                          rt = issue['request_type']
+                          if not isinstance(rt, dict):
+                              warnings.append(f"request_type expected dict, got {type(rt).__name__}")
+                          elif 'title' not in rt:
+                              warnings.append("request_type missing 'title' field")
+                  else:
+                      warnings.append(f"No open issues in {PLACE_URL} to validate schema")
+
+          except requests.exceptions.Timeout:
+              errors.append("API request timed out after 10s")
+          except requests.exceptions.ConnectionError as e:
+              errors.append(f"Connection error: {str(e)[:100]}")
+          except Exception as e:
+              errors.append(f"Unexpected error: {str(e)[:100]}")
+
+          # Generate report
+          is_ok = len(errors) == 0
+          report_parts = [f"Canary: {PLACE_URL}"]
+
+          if errors:
+              report_parts.append(f"ERRORS: {'; '.join(errors)}")
+          if warnings:
+              report_parts.append(f"WARNINGS: {'; '.join(warnings)}")
+          if is_ok:
+              report_parts.append("All checks passed")
+
+          print("\n" + "=" * 60)
+          print(f"Status: {'OK' if is_ok else 'FAILED'}")
+          if errors:
+              print(f"Errors: {errors}")
+          if warnings:
+              print(f"Warnings: {warnings}")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"ok={'true' if is_ok else 'false'}\n")
+              f.write(f"report={' | '.join(report_parts)}\n")
+          EOF
+
+      - name: Validate ProudCity Agenda Pages
+        id: proudcity
+        run: |
+          python3 << 'EOF'
+          import os
+          import requests
+          from bs4 import BeautifulSoup
+
+          # Use San Rafael as canary
+          BASE_URL = "https://www.cityofsanrafael.org"
+          ARCHIVE_PATH = "/city-council-meetings/"
+
+          print("=" * 60)
+          print("PROUDCITY AGENDA PAGE VALIDATION")
+          print(f"Canary: {BASE_URL}{ARCHIVE_PATH}")
+          print("=" * 60)
+
+          errors = []
+          warnings = []
+
+          try:
+              # Test 1: Page reachability
+              print("\n[1/3] Testing page reachability...")
+              response = requests.get(
+                  f"{BASE_URL}{ARCHIVE_PATH}",
+                  headers={
+                      'User-Agent': 'Civic-Engagement-Platform/1.0 (civic transparency tool)'
+                  },
+                  timeout=15
+              )
+
+              if response.status_code != 200:
+                  errors.append(f"Page returned status {response.status_code}")
+              else:
+                  soup = BeautifulSoup(response.text, 'html.parser')
+
+                  # Test 2: Find meeting entries
+                  print("\n[2/3] Finding meeting entries...")
+
+                  # ProudCity uses various structures - try common patterns
+                  # Look for article elements or list items with links
+                  articles = soup.find_all('article')
+                  list_items = soup.find_all('li', class_=lambda x: x and 'meeting' in x.lower() if x else False)
+
+                  # Also look for common WordPress archive patterns
+                  entries = soup.select('.entry-content a, .post-content a, article a, .meetings-list a')
+
+                  meeting_count = len(articles) if articles else len(entries)
+
+                  if meeting_count == 0:
+                      # Try alternative selectors
+                      all_links = soup.find_all('a', href=True)
+                      pdf_links = [a for a in all_links if '.pdf' in a.get('href', '').lower()]
+                      meeting_links = [a for a in all_links if 'meeting' in a.get('href', '').lower() or 'agenda' in a.get('href', '').lower()]
+
+                      if pdf_links or meeting_links:
+                          meeting_count = len(pdf_links) + len(meeting_links)
+                          print(f"   Found {len(pdf_links)} PDF links, {len(meeting_links)} meeting links")
+                      else:
+                          warnings.append("No meeting entries found with standard selectors")
+                  else:
+                      print(f"   Found {meeting_count} meeting entries")
+
+                  # Test 3: Validate PDF links exist
+                  print("\n[3/3] Checking for PDF resources...")
+                  all_links = soup.find_all('a', href=True)
+                  pdf_links = [a for a in all_links if '.pdf' in a.get('href', '').lower()]
+
+                  if len(pdf_links) == 0:
+                      warnings.append("No PDF links found on archive page")
+                  else:
+                      print(f"   Found {len(pdf_links)} PDF links")
+
+                      # Validate first PDF is accessible (HEAD request only)
+                      first_pdf = pdf_links[0].get('href')
+                      if not first_pdf.startswith('http'):
+                          first_pdf = BASE_URL + first_pdf
+
+                      try:
+                          pdf_response = requests.head(first_pdf, timeout=10, allow_redirects=True)
+                          if pdf_response.status_code == 200:
+                              print(f"   Sample PDF accessible: {first_pdf[:60]}...")
+                          else:
+                              warnings.append(f"Sample PDF returned status {pdf_response.status_code}")
+                      except Exception as e:
+                          warnings.append(f"Could not verify PDF: {str(e)[:50]}")
+
+          except requests.exceptions.Timeout:
+              errors.append("Page request timed out after 15s")
+          except requests.exceptions.ConnectionError as e:
+              errors.append(f"Connection error: {str(e)[:100]}")
+          except Exception as e:
+              errors.append(f"Unexpected error: {str(e)[:100]}")
+
+          # Generate report
+          is_ok = len(errors) == 0
+          report_parts = [f"Canary: {BASE_URL}{ARCHIVE_PATH}"]
+
+          if errors:
+              report_parts.append(f"ERRORS: {'; '.join(errors)}")
+          if warnings:
+              report_parts.append(f"WARNINGS: {'; '.join(warnings)}")
+          if is_ok:
+              report_parts.append("All checks passed")
+
+          print("\n" + "=" * 60)
+          print(f"Status: {'OK' if is_ok else 'FAILED'}")
+          if errors:
+              print(f"Errors: {errors}")
+          if warnings:
+              print(f"Warnings: {warnings}")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"ok={'true' if is_ok else 'false'}\n")
+              f.write(f"report={' | '.join(report_parts)}\n")
+          EOF
+
+  # Create issue on any failure
+  notify-failure:
+    name: Create Alert Issue
+    runs-on: ubuntu-latest
+    needs: validate-sources
+    if: |
+      needs.validate-sources.outputs.legistar_ok == 'false' ||
+      needs.validate-sources.outputs.seeclickfix_ok == 'false' ||
+      needs.validate-sources.outputs.proudcity_ok == 'false'
+
+    steps:
+      - name: Create or Update Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const legistarOk = '${{ needs.validate-sources.outputs.legistar_ok }}' === 'true';
+            const seeclickfixOk = '${{ needs.validate-sources.outputs.seeclickfix_ok }}' === 'true';
+            const proudcityOk = '${{ needs.validate-sources.outputs.proudcity_ok }}' === 'true';
+
+            const legistarReport = '${{ needs.validate-sources.outputs.legistar_report }}';
+            const seeclickfixReport = '${{ needs.validate-sources.outputs.seeclickfix_report }}';
+            const proudcityReport = '${{ needs.validate-sources.outputs.proudcity_report }}';
+
+            const today = new Date().toISOString().split('T')[0];
+
+            let failedSources = [];
+            if (!legistarOk) failedSources.push('Legistar');
+            if (!seeclickfixOk) failedSources.push('SeeClickFix');
+            if (!proudcityOk) failedSources.push('ProudCity');
+
+            const title = `Data source canary failed - ${today}`;
+            const body = `## Data Source Canary Alert
+
+            **Time:** ${new Date().toISOString()}
+            **Failed Sources:** ${failedSources.join(', ')}
+
+            This monthly canary check validates that external data sources haven't changed their API format or HTML structure.
+
+            ### Legistar API (Oakland)
+            ${legistarOk ? '✅ OK' : '❌ FAILED'}
+            ${legistarReport.split(' | ').join('\n')}
+
+            ### SeeClickFix API (San Rafael)
+            ${seeclickfixOk ? '✅ OK' : '❌ FAILED'}
+            ${seeclickfixReport.split(' | ').join('\n')}
+
+            ### ProudCity Agenda Pages (San Rafael)
+            ${proudcityOk ? '✅ OK' : '❌ FAILED'}
+            ${proudcityReport.split(' | ').join('\n')}
+
+            ### Actions Required
+
+            **Investigate the failing source(s):**
+
+            ${!legistarOk ? `
+            **Legistar:**
+            - Check if Oakland's Legistar API is temporarily down
+            - Verify API endpoint at https://webapi.legistar.com/v1/oakland/events
+            - Check for schema changes in response
+            - Update \`packages/civic-extraction/src/civic_extraction/clients/legistar.py\` if needed
+            ` : ''}
+
+            ${!seeclickfixOk ? `
+            **SeeClickFix:**
+            - Check if SeeClickFix API is temporarily down
+            - Verify API at https://seeclickfix.com/api/v2/issues?place_url=san-rafael
+            - Check for schema changes in response
+            - Update \`packages/civic-extraction/src/civic_extraction/clients/seeclickfix.py\` if needed
+            ` : ''}
+
+            ${!proudcityOk ? `
+            **ProudCity:**
+            - Check if San Rafael city website is down
+            - Visit https://www.cityofsanrafael.org/city-council-meetings/
+            - Look for HTML structure changes
+            - Update \`packages/civic-extraction/src/civic_extraction/clients/proudcity.py\` if needed
+            ` : ''}
+
+            **Workflow Run:** [View logs](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
+            `;
+
+            // Check for existing open issue with this label
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'data-source-canary',
+              state: 'open'
+            });
+
+            if (issues.data.length === 0) {
+              // Create new issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['data-source-canary', 'automated']
+              });
+              console.log('Created new data source canary alert issue');
+            } else {
+              // Add comment to existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                body: `## Monthly Check - ${today}\n\n${body}`
+              });
+              console.log('Added comment to existing issue');
+            }

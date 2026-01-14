@@ -1436,10 +1436,11 @@
     },
     "data_source_validation": {
       "real_data_canary": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Monthly CI workflow that validates external data sources haven't changed",
-        "note": "GitHub Actions workflow on monthly schedule. Downloads sample from each source (Legistar, SeeClickFix, San Rafael agendas), runs extraction, validates output structure. Creates GitHub Issue on failure. Not for ingestion - just validates APIs and formats haven't broken."
+        "note": "GitHub Actions workflow on weekly schedule (Sundays). Downloads sample from each source (Legistar, SeeClickFix, San Rafael agendas), runs extraction, validates output structure. Creates GitHub Issue on failure. Not for ingestion - just validates APIs and formats haven't broken.",
+        "workflow": ".github/workflows/data-source-canary.yml"
       }
     }
   },
@@ -1497,8 +1498,9 @@
     "configuration": {
       "api_key_status": {
         "status": "not_ready",
-        "priority": 2,
-        "artifact": "Show API key status for AssemblyAI, LegiScan"
+        "priority": 0,
+        "artifact": "Show API key status for AssemblyAI, LegiScan",
+        "note": "Admin dashboard panel showing API key validity and recent usage for external services (AssemblyAI, LegiScan). Helps catch expired/invalid keys before they cause pipeline failures."
       },
       "cost_tracking": {
         "status": "not_ready",
