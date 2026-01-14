@@ -1497,15 +1497,16 @@
     },
     "configuration": {
       "api_key_status": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Show API key status for AssemblyAI, LegiScan",
-        "note": "Admin dashboard panel showing API key validity and recent usage for external services (AssemblyAI, LegiScan). Helps catch expired/invalid keys before they cause pipeline failures."
+        "note": "GET /api/admin/api-key-status validates external API keys with caching. Session 514."
       },
       "cost_tracking": {
         "status": "not_ready",
-        "priority": 2,
-        "artifact": "Show AssemblyAI usage/cost this month"
+        "priority": 0,
+        "artifact": "Show AssemblyAI usage/cost this month",
+        "note": "Add AssemblyAI usage stats to admin dashboard. Complements api_key_status endpoint."
       }
     },
     "developer_tooling": {

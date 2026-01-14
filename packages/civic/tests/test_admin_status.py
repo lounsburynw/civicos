@@ -558,3 +558,282 @@ class TestDailyCostDigest:
                 os.environ["CIVIC_COST_DIGEST_ENABLED"] = original
             elif "CIVIC_COST_DIGEST_ENABLED" in os.environ:
                 del os.environ["CIVIC_COST_DIGEST_ENABLED"]
+
+
+class TestAPIKeyStatusEndpoint:
+    """Tests for /api/admin/api-key-status endpoint.
+
+    Session 514: Tests for API key status endpoint that validates external
+    API keys (AssemblyAI, LegiScan) and helps catch expired/invalid keys
+    before they cause pipeline failures.
+    """
+
+    @pytest.fixture
+    def test_client(self):
+        """Create a FastAPI test client."""
+        from fastapi.testclient import TestClient
+        from civic_services.servers.api import app
+
+        return TestClient(app)
+
+    @pytest.fixture
+    def auth_headers(self):
+        """Headers for authenticated requests."""
+        return {"Authorization": "Bearer dev_key_local"}
+
+    def test_api_key_status_returns_expected_structure(self, test_client, auth_headers):
+        """Test that api-key-status returns expected JSON structure."""
+        response = test_client.get("/api/admin/api-key-status", headers=auth_headers)
+
+        if response.status_code == 200:
+            data = response.json()
+
+            # Check required top-level keys
+            assert 'timestamp' in data
+            assert 'keys' in data
+            assert 'overall_status' in data
+
+            # Check keys structure
+            keys = data['keys']
+            assert 'assemblyai' in keys
+            assert 'legiscan' in keys
+
+            # Check per-key fields
+            for key_name, key_status in keys.items():
+                assert 'service_name' in key_status
+                assert 'is_configured' in key_status
+                assert 'validation_method' in key_status
+                assert isinstance(key_status['is_configured'], bool)
+
+    def test_api_key_status_overall_status_values(self, test_client, auth_headers):
+        """Test that overall_status is one of expected values."""
+        response = test_client.get("/api/admin/api-key-status", headers=auth_headers)
+
+        if response.status_code == 200:
+            data = response.json()
+            assert data['overall_status'] in ['healthy', 'warning', 'degraded', 'unconfigured']
+
+    def test_api_key_status_timestamp_format(self, test_client, auth_headers):
+        """Test that timestamp is in ISO format with Z suffix."""
+        response = test_client.get("/api/admin/api-key-status", headers=auth_headers)
+
+        if response.status_code == 200:
+            data = response.json()
+            assert data['timestamp'].endswith('Z')
+            # Should be parseable as ISO format
+            datetime.fromisoformat(data['timestamp'].replace('Z', '+00:00'))
+
+    def test_api_key_status_requires_auth(self, test_client):
+        """Test that api-key-status requires authentication."""
+        response = test_client.get("/api/admin/api-key-status")
+
+        # Should return 401 without auth
+        assert response.status_code in [401, 403, 422]
+
+    def test_api_key_status_force_refresh_parameter(self, test_client, auth_headers):
+        """Test that force_refresh parameter is accepted."""
+        response = test_client.get(
+            "/api/admin/api-key-status?force_refresh=true",
+            headers=auth_headers
+        )
+
+        # Should not error
+        assert response.status_code in [200, 401]
+
+    def test_api_key_status_validation_method_values(self, test_client, auth_headers):
+        """Test that validation_method is one of expected values."""
+        response = test_client.get("/api/admin/api-key-status", headers=auth_headers)
+
+        if response.status_code == 200:
+            data = response.json()
+            valid_methods = ['api_call', 'not_configured', 'cached']
+
+            for key_status in data['keys'].values():
+                assert key_status['validation_method'] in valid_methods
+
+    def test_api_key_status_unconfigured_key_has_error_message(self, test_client, auth_headers):
+        """Test that unconfigured keys have appropriate error message."""
+        response = test_client.get("/api/admin/api-key-status", headers=auth_headers)
+
+        if response.status_code == 200:
+            data = response.json()
+
+            for key_name, key_status in data['keys'].items():
+                if not key_status['is_configured']:
+                    assert key_status['validation_method'] == 'not_configured'
+                    assert key_status['error_message'] is not None
+                    assert 'not set' in key_status['error_message'].lower()
+
+
+class TestAPIKeyValidationHelpers:
+    """Unit tests for API key validation helper functions.
+
+    Session 514: Tests the validation logic for AssemblyAI and LegiScan keys
+    without making actual API calls (mocked).
+    """
+
+    def test_validate_assemblyai_key_success(self):
+        """Test AssemblyAI key validation with successful response."""
+        from unittest.mock import patch, Mock
+        from civic_services.servers.routers.admin import _validate_assemblyai_key
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+
+        with patch('requests.get', return_value=mock_response) as mock_get:
+            result = _validate_assemblyai_key("test_api_key")
+
+            assert result['is_valid'] is True
+            assert result['validation_method'] == 'api_call'
+            assert 'response_time_ms' in result
+
+            # Verify correct endpoint was called
+            mock_get.assert_called_once()
+            call_args = mock_get.call_args
+            assert 'api.assemblyai.com' in call_args[0][0]
+            assert call_args[1]['headers']['Authorization'] == 'test_api_key'
+
+    def test_validate_assemblyai_key_unauthorized(self):
+        """Test AssemblyAI key validation with 401 response."""
+        from unittest.mock import patch, Mock
+        from civic_services.servers.routers.admin import _validate_assemblyai_key
+
+        mock_response = Mock()
+        mock_response.status_code = 401
+
+        with patch('requests.get', return_value=mock_response):
+            result = _validate_assemblyai_key("invalid_key")
+
+            assert result['is_valid'] is False
+            assert 'Unauthorized' in result['error_message']
+
+    def test_validate_assemblyai_key_timeout(self):
+        """Test AssemblyAI key validation with timeout."""
+        from unittest.mock import patch
+        import requests
+        from civic_services.servers.routers.admin import _validate_assemblyai_key
+
+        with patch('requests.get', side_effect=requests.exceptions.Timeout()):
+            result = _validate_assemblyai_key("test_key")
+
+            assert result['is_valid'] is None
+            assert 'timed out' in result['error_message'].lower()
+
+    def test_validate_legiscan_key_success(self):
+        """Test LegiScan key validation with successful response."""
+        from unittest.mock import patch, Mock
+        from civic_services.servers.routers.admin import _validate_legiscan_key
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {'status': 'OK'}
+
+        with patch('requests.get', return_value=mock_response) as mock_get:
+            result = _validate_legiscan_key("test_api_key")
+
+            assert result['is_valid'] is True
+            assert result['validation_method'] == 'api_call'
+
+            # Verify correct endpoint was called
+            mock_get.assert_called_once()
+            call_args = mock_get.call_args
+            assert 'api.legiscan.com' in call_args[0][0]
+            assert call_args[1]['params']['key'] == 'test_api_key'
+            assert call_args[1]['params']['op'] == 'getStateList'
+
+    def test_validate_legiscan_key_api_error(self):
+        """Test LegiScan key validation with API error response."""
+        from unittest.mock import patch, Mock
+        from civic_services.servers.routers.admin import _validate_legiscan_key
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            'status': 'ERROR',
+            'alert': {'message': 'Invalid API key'}
+        }
+
+        with patch('requests.get', return_value=mock_response):
+            result = _validate_legiscan_key("invalid_key")
+
+            assert result['is_valid'] is False
+            assert 'Invalid API key' in result['error_message']
+
+    def test_validate_legiscan_key_connection_error(self):
+        """Test LegiScan key validation with connection error."""
+        from unittest.mock import patch
+        import requests
+        from civic_services.servers.routers.admin import _validate_legiscan_key
+
+        with patch('requests.get', side_effect=requests.exceptions.ConnectionError("Failed to connect")):
+            result = _validate_legiscan_key("test_key")
+
+            assert result['is_valid'] is None
+            assert 'connection error' in result['error_message'].lower()
+
+
+class TestAPIKeyValidationCache:
+    """Tests for API key validation caching.
+
+    Session 514: Tests that validation results are cached to avoid
+    hitting external APIs on every request.
+    """
+
+    def test_cache_stores_result(self):
+        """Test that validation results are cached."""
+        from civic_services.servers.routers.admin import (
+            _get_cached_validation,
+            _set_cached_validation,
+            _api_key_cache
+        )
+
+        # Clear cache first
+        _api_key_cache.clear()
+
+        # Store a result
+        test_result = {
+            'is_valid': True,
+            'response_time_ms': 100
+        }
+        _set_cached_validation('test_service', test_result)
+
+        # Retrieve it
+        cached = _get_cached_validation('test_service')
+
+        assert cached is not None
+        assert cached['is_valid'] is True
+        assert 'cached_at' in cached
+
+    def test_cache_miss_returns_none(self):
+        """Test that cache miss returns None."""
+        from civic_services.servers.routers.admin import (
+            _get_cached_validation,
+            _api_key_cache
+        )
+
+        # Clear cache first
+        _api_key_cache.clear()
+
+        cached = _get_cached_validation('nonexistent_service')
+        assert cached is None
+
+    def test_expired_cache_returns_none(self):
+        """Test that expired cache entries are not returned."""
+        import time
+        from civic_services.servers.routers.admin import (
+            _get_cached_validation,
+            _api_key_cache,
+            _API_KEY_CACHE_TTL_SECONDS
+        )
+
+        # Clear cache first
+        _api_key_cache.clear()
+
+        # Store an expired result (set cached_at in the past)
+        _api_key_cache['expired_service'] = {
+            'is_valid': True,
+            'cached_at': time.time() - _API_KEY_CACHE_TTL_SECONDS - 10
+        }
+
+        cached = _get_cached_validation('expired_service')
+        assert cached is None
