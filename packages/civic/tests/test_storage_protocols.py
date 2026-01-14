@@ -466,6 +466,39 @@ class TestStorageBackendProtocol:
             ) -> Dict[str, Any]:
                 return {"total_cost_usd": 0.0, "total_items": 0, "run_count": 0}
 
+            # Operating Cost methods
+            def store_operating_cost(
+                self,
+                service: str,
+                category: str,
+                amount_usd: float,
+                jurisdiction_id: Optional[str] = None,
+                task_id: Optional[str] = None,
+                metadata: Optional[Dict[str, Any]] = None,
+            ) -> int:
+                return 0
+
+            def get_operating_costs(
+                self,
+                service: Optional[str] = None,
+                category: Optional[str] = None,
+                jurisdiction_id: Optional[str] = None,
+                since: Optional[str] = None,
+                until: Optional[str] = None,
+                limit: int = 100,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_operating_cost_summary(
+                self,
+                service: Optional[str] = None,
+                category: Optional[str] = None,
+                jurisdiction_id: Optional[str] = None,
+                since: Optional[str] = None,
+                until: Optional[str] = None,
+            ) -> Dict[str, Any]:
+                return {"total_cost_usd": 0.0, "record_count": 0, "by_service": {}, "by_category": {}}
+
             # Legislation methods
             def store_legislation(
                 self,
@@ -1532,6 +1565,39 @@ class TestProtocolIntegration:
                 pipeline: Optional[str] = None,
             ) -> Dict[str, Any]:
                 return {"total_cost_usd": 0.0, "total_items": 0, "run_count": 0}
+
+            # Operating Cost methods
+            def store_operating_cost(
+                self,
+                service: str,
+                category: str,
+                amount_usd: float,
+                jurisdiction_id: Optional[str] = None,
+                task_id: Optional[str] = None,
+                metadata: Optional[Dict[str, Any]] = None,
+            ) -> int:
+                return 0
+
+            def get_operating_costs(
+                self,
+                service: Optional[str] = None,
+                category: Optional[str] = None,
+                jurisdiction_id: Optional[str] = None,
+                since: Optional[str] = None,
+                until: Optional[str] = None,
+                limit: int = 100,
+            ) -> List[Dict[str, Any]]:
+                return []
+
+            def get_operating_cost_summary(
+                self,
+                service: Optional[str] = None,
+                category: Optional[str] = None,
+                jurisdiction_id: Optional[str] = None,
+                since: Optional[str] = None,
+                until: Optional[str] = None,
+            ) -> Dict[str, Any]:
+                return {"total_cost_usd": 0.0, "record_count": 0, "by_service": {}, "by_category": {}}
 
             # Legislation methods
             def store_legislation(

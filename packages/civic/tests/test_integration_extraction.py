@@ -234,9 +234,9 @@ class TestAgendaItemsPresent:
         test_meeting = None
         for m in recent_past:
             if m.get('date_parsed', '9999') < today:
-                # Skip closed session meetings - they often don't have public agendas
+                # Skip closed session and cancelled meetings - they often don't have public agendas
                 title = m.get('title', '').lower()
-                if 'closed session' in title:
+                if 'closed session' in title or 'cancelled' in title or 'canceled' in title:
                     continue
                 test_meeting = m
                 break
