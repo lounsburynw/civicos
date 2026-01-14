@@ -934,6 +934,84 @@ class StorageBackend(
         """
         ...
 
+    # ========== Operating Cost Methods ==========
+    #
+    # Operating costs track all system costs: LLM usage, Modal compute,
+    # storage, API calls. Unified cost tracking for budget monitoring.
+
+    def store_operating_cost(
+        self,
+        service: str,
+        category: str,
+        amount_usd: float,
+        jurisdiction_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> int:
+        """
+        Store an operating cost record.
+
+        Args:
+            service: Service provider (modal, openai, anthropic, google, r2)
+            category: Cost category (compute, llm, storage, api)
+            amount_usd: Cost amount in USD
+            jurisdiction_id: Associated jurisdiction (optional)
+            task_id: Associated task/operation ID (optional)
+            metadata: Additional metadata (optional)
+
+        Returns:
+            ID of the stored cost record
+        """
+        ...
+
+    def get_operating_costs(
+        self,
+        service: Optional[str] = None,
+        category: Optional[str] = None,
+        jurisdiction_id: Optional[str] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve operating cost records with optional filtering.
+
+        Args:
+            service: Filter by service provider (optional)
+            category: Filter by cost category (optional)
+            jurisdiction_id: Filter by jurisdiction (optional)
+            since: Filter records from this timestamp (ISO format)
+            until: Filter records until this timestamp (ISO format)
+            limit: Maximum records to return (default 100)
+
+        Returns:
+            List of cost record dictionaries
+        """
+        ...
+
+    def get_operating_cost_summary(
+        self,
+        service: Optional[str] = None,
+        category: Optional[str] = None,
+        jurisdiction_id: Optional[str] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Get aggregated operating cost summary.
+
+        Args:
+            service: Filter by service provider (optional)
+            category: Filter by cost category (optional)
+            jurisdiction_id: Filter by jurisdiction (optional)
+            since: Filter records from this timestamp (ISO format)
+            until: Filter records until this timestamp (ISO format)
+
+        Returns:
+            Dictionary with total_cost_usd, record_count, by_service, by_category
+        """
+        ...
+
     # ========== Legislation Methods ==========
     #
     # Legislation includes state and federal bills that may affect local

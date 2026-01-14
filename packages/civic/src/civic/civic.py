@@ -175,6 +175,97 @@ class Civic:
         jurisdiction_id = jurisdiction_id or self.jurisdiction
         return self._storage.get_stats(jurisdiction_id)
 
+    def get_operating_cost_dashboard(
+        self,
+        period: str = "month",
+        service: Optional[str] = None,
+        jurisdiction_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Get operating cost dashboard data with aggregation and time-series.
+
+        Returns actual costs logged to operating_costs table (LLM and Modal
+        compute). Provides summary totals and daily breakdown for visualization.
+        Used by admin dashboards for cost monitoring.
+
+        Args:
+            period: Time period - "day", "week", "month", or "all"
+            service: Filter by service (modal, openai, anthropic)
+            jurisdiction_id: Filter by jurisdiction
+
+        Returns:
+            Dictionary with summary (totals, by_service, by_category)
+            and time_series (daily breakdown)
+        """
+        from datetime import timedelta
+        from collections import defaultdict
+
+        # Calculate date range based on period
+        now = datetime.utcnow()
+        if period == "day":
+            since = (now - timedelta(days=1)).isoformat()
+        elif period == "week":
+            since = (now - timedelta(days=7)).isoformat()
+        elif period == "month":
+            since = (now - timedelta(days=30)).isoformat()
+        else:  # "all"
+            since = None
+
+        until = now.isoformat()
+
+        # Get summary using backend method
+        summary = self._storage.get_operating_cost_summary(
+            service=service,
+            jurisdiction_id=jurisdiction_id,
+            since=since,
+            until=until,
+        )
+
+        # Get raw records for time-series aggregation
+        records = self._storage.get_operating_costs(
+            service=service,
+            jurisdiction_id=jurisdiction_id,
+            since=since,
+            until=until,
+            limit=10000,
+        )
+
+        # Aggregate by day for time-series
+        daily_costs: Dict[str, Dict[str, float]] = defaultdict(lambda: defaultdict(float))
+        for record in records:
+            ts = record.get("timestamp", "")
+            if isinstance(ts, str) and len(ts) >= 10:
+                date_str = ts[:10]  # YYYY-MM-DD
+            else:
+                continue
+            svc = record.get("service", "unknown")
+            amount = float(record.get("amount_usd", 0))
+            daily_costs[date_str][svc] += amount
+            daily_costs[date_str]["total"] += amount
+
+        # Convert to sorted list
+        time_series = [
+            {
+                "date": date,
+                "total_usd": round(costs.pop("total", 0), 6),
+                "by_service": {k: round(v, 6) for k, v in costs.items()},
+            }
+            for date, costs in sorted(daily_costs.items())
+        ]
+
+        return {
+            "timestamp": now.isoformat() + "Z",
+            "period": period,
+            "range": {"since": since, "until": until},
+            "summary": {
+                "total_cost_usd": round(summary["total_cost_usd"], 6),
+                "record_count": summary["record_count"],
+                "by_service": {k: round(v, 6) for k, v in summary["by_service"].items()},
+                "by_category": {k: round(v, 6) for k, v in summary["by_category"].items()},
+            },
+            "time_series": time_series,
+        }
+
     # ─────────── QUERY METHODS (Learn) ───────────
 
     def what_applies(self, topic: str, location: str = None) -> RegulatoryStack:

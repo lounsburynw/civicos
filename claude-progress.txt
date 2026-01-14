@@ -13923,3 +13923,16 @@ pytest packages/civic/tests/test_admin_status.py::TestCostDashboardEndpoint -v
 - **global_rate_limit** (monitoring_observability > cost_tracking)
 - Global API rate limit to prevent cost spikes from traffic surges
 - Simple slowapi limiter on API endpoints, 10x expected pilot traffic ceiling
+
+### Critic Fix (Same Session)
+
+Addressed architecture and protocol critics:
+
+1. **Architecture critic**: Refactored `/cost-dashboard` endpoint to use public `Civic.get_operating_cost_dashboard()` instead of accessing `c._storage` directly. Proper layer isolation maintained.
+
+2. **Protocol critic**: Added operating cost methods to `StorageBackend` protocol at `backend.py:937-1013`:
+   - `store_operating_cost()`
+   - `get_operating_costs()` 
+   - `get_operating_cost_summary()`
+
+Both critics now pass. All 7 tests still pass.
