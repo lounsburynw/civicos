@@ -75,22 +75,28 @@ cursor.execute("UPDATE meetings SET agenda_url = ...")
 
 When reviewing changes:
 
-1. **Layer isolation?**
+1. **No raw SQL for data queries?**
+   - Use `StorageBackend.get_*()` methods, not `cursor.execute()`
+   - Use `DataStatus` for diagnostics, not ad-hoc SQL
+   - Use `CORPUS_REGISTRY` for schema info, not hardcoded column names
+   - Scripts may use raw SQL for one-off migrations, but must use protocol methods for data access
+
+2. **Layer isolation?**
    - No direct imports between wrong layers
    - Intelligence doesn't call Coordination directly
    - Orchestration mediates between layers
 
-2. **Package boundaries?**
+3. **Package boundaries?**
    - `civic-extraction` doesn't import from `civic-services`
    - `civic` core has no framework dependencies (Flask, FastAPI)
    - Frontend imports via API, not Python
 
-3. **Public API stability?**
+4. **Public API stability?**
    - Changes to `Civic` class methods are backwards compatible
    - New methods follow existing patterns
    - Deprecation warnings before removal
 
-4. **Data flow direction?**
+5. **Data flow direction?**
    - Data flows: Intelligence → Orchestration → Coordination → Impact
    - Feedback flows back via event bus, not direct calls
 
@@ -107,6 +113,14 @@ Respond with JSON:
 ```
 
 ## Examples
+
+### FAIL - Raw SQL for Data Query
+```python
+# In any non-migration code
+cursor.execute("SELECT COUNT(*) FROM meetings WHERE meeting_date > ...")  # Wrong column name!
+cursor.execute("SELECT * FROM embeddings WHERE ...")  # Table doesn't exist!
+```
+Use instead: `DataStatus(storage, vectors, jurisdiction).summary()` or `storage.get_meetings()`
 
 ### FAIL - Layer Violation
 ```python
