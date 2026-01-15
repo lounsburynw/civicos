@@ -14219,3 +14219,43 @@ Minimal - embedding costs ~$0.0001 per 1K tokens. Only indexes new items increme
 
 ### Next
 - P0 to be assigned via `/nextsesh`
+
+## Session 517: conditional_vector_reindex_after_ingest
+
+**Date:** 2026-01-14
+**Item:** conditional_vector_reindex_after_ingest (pipeline_automation > cloud_integration)
+**Priority:** P0
+
+### Summary
+
+Wired up automatic vector indexing for federal programs during scheduled SAM.gov refresh. The `fetch_federal_programs` function already had `auto_index` parameter support (added in previous sessions) - it just wasn't being used in `scheduled_low_velocity_refresh()`.
+
+### Changes Made
+
+1. **Added `auto_index=True` to federal programs fetch** (`scripts/modal_ingest.py:2444`)
+   - Now triggers `index_vectors.local(jurisdiction="federal-US", corpus="programs")` after successful store
+   - Updated logging to show both stored and indexed counts
+
+2. **Removed redundant vector indexing block** (`scripts/modal_ingest.py:2469-2477`)
+   - Previously had separate `index_vectors.local()` call after the fetch
+   - Now handled by auto_index in the fetch function (avoids duplicate indexing)
+   - Left explanatory comment for future maintainers
+
+3. **Chose Option 2 (full re-index)** over hash-based detection
+   - ~2,300 programs from SAM.gov
+   - Cost: ~$0.0001 per refresh (embeddings are cheap)
+   - Simplicity preferred over premature optimization
+
+### Cost Impact
+
+Negligible - embedding cost is ~$0.0001 per 1K tokens. Full federal programs corpus is ~700K tokens = ~$0.07 per full re-index. Monthly cost under $0.50 even with weekly refreshes.
+
+### Testing
+
+- 42 smoke tests passing
+- Python syntax verification passing
+- Structural checks confirm changes in place
+
+### Next
+
+- P0 to be assigned via `/nextsesh`
