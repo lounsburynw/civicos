@@ -108,6 +108,45 @@ c.coordinate(...)           # LangGraph coordination workflow
 c.report_outcome(...)       # Close feedback loop
 ```
 
+### Data Access Patterns
+
+**IMPORTANT:** Use the right abstraction layer. Never write raw SQL.
+
+| Need | Use This | NOT This |
+|------|----------|----------|
+| User-facing queries | `Civic` API (`what_happened()`, etc.) | Raw SQL |
+| Data counts/diagnostics | `DataStatus` or `StorageBackend.get_*_count()` | Raw SQL |
+| Bulk data access | `StorageBackend.get_*()` methods | Raw SQL |
+| Schema information | `CORPUS_REGISTRY` | Hardcoded column names |
+
+**Layered architecture:**
+```
+Civic API (high-level)     →  what_happened(), what_applies()
+    ↓
+StorageBackend (protocol)  →  get_decisions(), get_meetings(), get_decision_count()
+    ↓
+PostgresBackend/SQLite     →  SQL (you never touch this directly)
+```
+
+**Examples:**
+```python
+# RIGHT: Use Civic API for semantic queries
+c = Civic('city-san-rafael')
+decisions = c.what_happened("housing")
+
+# RIGHT: Use DataStatus for diagnostics
+from civic import DataStatus
+status = DataStatus(c._storage, c._vectors, 'city-san-rafael')
+print(status.gaps())
+
+# RIGHT: Use StorageBackend for bulk access
+meetings = c._storage.get_meetings('city-san-rafael')
+count = c._storage.get_decision_count('city-san-rafael')
+
+# WRONG: Never do this
+cursor.execute("SELECT * FROM meetings WHERE meeting_date > ...")  # Wrong column name!
+```
+
 ## Project Structure
 
 ```
