@@ -1,7 +1,7 @@
 {
   "version": "2.0",
   "phase": "pilot",
-  "last_updated": "2026-01-15",
+  "last_updated": "2026-01-15 (data readiness audit)",
   "target": "January 2026",
   "summary": "Consolidated pilot checklist: completed work summarized, active items tracked individually",
   "category_order": [
@@ -510,6 +510,16 @@
         "files_created": [
           ".claude/commands/data-status.md",
           ".claude/commands/vector-coverage.md"
+        ]
+      },
+      "data_status_coverage_flag": {
+        "status": "not_ready",
+        "priority": 3,
+        "description": "Add --coverage flag to /data-status for relational coverage metrics",
+        "artifact": "DataStatus.relational_coverage() method and --coverage flag",
+        "note": "DATA_READINESS_AUDIT.md finding: No command shows % of meetings with linked transcript/decision/chunk. This is a gap in data quality visibility.",
+        "depends_on": [
+          "diagnostics_module"
         ]
       }
     }
@@ -1081,7 +1091,35 @@
           "name": "whats_next_postgres_migration",
           "status": "ready"
         }
-      ]
+      ],
+      "store_meetings_upsert_fix": {
+        "status": "ready",
+        "priority": 2,
+        "description": "Fix upsert logic in store_meetings() to prevent duplicate insertion",
+        "artifact": "Bug fix in PostgresBackend.store_meetings()",
+        "note": "RESOLVED Session 521: Bug was already fixed in Session 471 (Jan 5, 2026). Cleaned up 76 historical duplicate rows. Added regression test test_store_meetings_idempotent().",
+        "key_files": [
+          "packages/civic/src/civic/storage/postgres_backend.py",
+          "packages/civic/tests/test_postgres_backend.py"
+        ]
+      },
+      "orphan_video_linkage": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Link 315 orphan videos to meetings via date/title matching",
+        "artifact": "One-time linking script",
+        "note": "DATA_READINESS_AUDIT.md finding: Videos have meeting date in title. Parse and match to meetings by date + body type. Updates meeting_id column. Restores transcript→meeting linkage for 15 orphaned transcripts."
+      },
+      "transcript_vector_meeting_id_fix": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Fix transcript vectors storing video_id in meeting_id field",
+        "artifact": "Re-index with correct meeting_id lookup",
+        "note": "DATA_READINESS_AUDIT.md finding: 4,608 transcript vectors have YouTube video IDs in meeting_id. Depends on orphan_video_linkage completing first so video→meeting relationship exists.",
+        "depends_on": [
+          "orphan_video_linkage"
+        ]
+      }
     },
     "architectural_debt": {
       "_completed_items": [
