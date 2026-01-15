@@ -936,8 +936,8 @@
     "description": "Provenance and integrity infrastructure for future resilience - build now, expensive to retrofit",
     "temporal_filtering": {
       "investigate_data_discrepancy": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Investigate API vs DB count discrepancy caused by temporal filtering",
         "artifact": "Root cause analysis and fix for valid_from/valid_to filtering",
         "note": "DATA_GAPS_INVESTIGATION_2026_01_15.md found: Report shows 123 meetings but API returns 3. Hypothesis: records exist in DB but are filtered out by valid_from/valid_to constraints in PostgresBackend.get_meetings() and related methods. May be bug in insertion timestamps or intentional behavior not accounted for.",
@@ -952,8 +952,8 @@
         ]
       },
       "fix_meetings_visibility": {
-        "status": "not_ready",
-        "priority": 1,
+        "status": "ready",
+        "priority": 2,
         "description": "Fix temporal constraints so all valid meetings are returned by API",
         "artifact": "Migration or code fix to correct valid_from/valid_to filtering",
         "note": "Depends on investigate_data_discrepancy findings. If records exist but are incorrectly filtered: (a) fix code if timestamps are wrong on insert, (b) migrate data if valid_to was incorrectly set, or (c) document if behavior is intentional.",

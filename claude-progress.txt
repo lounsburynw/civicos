@@ -14259,3 +14259,55 @@ Negligible - embedding cost is ~$0.0001 per 1K tokens. Full federal programs cor
 ### Next
 
 - P0 to be assigned via `/nextsesh`
+
+---
+
+## Session 518: Fix Data Discrepancy (Modal Deployment Gap)
+
+**Date:** 2026-01-15
+**Item:** investigate_data_discrepancy + fix_meetings_visibility
+**Priority:** P0 → ready
+
+### Summary
+
+Identified and fixed the root cause of meetings/issues data not appearing in API despite existing in database. The Modal scheduled ingestion app was still running code from Dec 31, 2025 - **before the Session 471 fix** to `store_meetings()` temporal versioning.
+
+### Root Cause
+
+1. **Session 471 (Jan 5)**: Fixed `store_meetings()` to use proper upsert pattern with change detection
+2. **Modal app was deployed Dec 31, 2025** - before the fix
+3. Daily scheduled refresh at 2PM UTC was running old buggy code that:
+   - Closed ALL meeting versions (set `valid_to`) before inserting
+   - Instead of using change detection to preserve unchanged records
+4. Only meetings scraped in the most recent run had `valid_to = NULL` (visible via API)
+
+### Data State Before Fix
+- Meetings: 3 current / 50 unique / 126 total rows
+- Issues: 1521 current / 1547 unique / 2630 total rows
+- Elections: 8 current / 8 unique / 38 total rows
+
+### Fix Applied
+
+1. **Redeployed Modal** (`modal deploy scripts/modal_ingest.py`)
+   - Now uses fixed `store_meetings()` code with change detection
+   - Future scheduled runs will preserve unchanged records
+
+2. **Data migration** to reopen incorrectly expired records:
+   - Meetings: Reopened 47 (now 50 current)
+   - Issues: Reopened 26 (now 1547 current)
+   - Elections: No change needed (8 were already correct)
+
+### Final Data State
+- Meetings: 50 current / 50 unique (49 via API due to date filtering)
+- Issues: 1547 current / 1547 unique (matches API)
+- Elections: 8 current / 8 unique (6 via API due to date filtering)
+- Decisions: 44 current / 44 unique (matches API)
+
+### Key Files Changed
+- `pilot.json`: `investigate_data_discrepancy` and `fix_meetings_visibility` → ready
+
+### Testing
+- 42 smoke tests (pending completion)
+
+### Next
+- P0: `mcp_vector_search_tools`
