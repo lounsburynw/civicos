@@ -58,6 +58,17 @@ from civic.history import UnifiedSearchResult, HybridSearchResult
 # Storage types (for dashboard/admin use)
 from civic.storage import StorageStats
 
+# Diagnostics (schema-aware data status and coverage)
+from civic.diagnostics import (
+    DataStatus,
+    VectorCoverage,
+    DataStatusReport,
+    CorpusCount,
+    format_data_status,
+    format_vector_coverage,
+    SCHEMA_REFERENCE,
+)
+
 # Jurisdiction registry (centralized config)
 from civic.jurisdiction import JurisdictionRegistry, JurisdictionConfig, CITY_CONFIGS
 
@@ -126,6 +137,14 @@ __all__ = [
     "HybridSearchResult",
     # Storage types
     "StorageStats",
+    # Diagnostics
+    "DataStatus",
+    "VectorCoverage",
+    "DataStatusReport",
+    "CorpusCount",
+    "format_data_status",
+    "format_vector_coverage",
+    "SCHEMA_REFERENCE",
     # Jurisdiction registry
     "JurisdictionRegistry",
     "JurisdictionConfig",

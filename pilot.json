@@ -488,23 +488,29 @@
     },
     "query_utilities": {
       "diagnostics_module": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "description": "Create civic.diagnostics module with schema-aware data status utilities",
         "artifact": "DataStatus class for corpus counts, gaps, and coverage queries",
-        "note": "Session 518 investigation hit 6+ schema mismatches (column names, table names). A proper abstraction would encapsulate schema knowledge for reuse by agents, CLI, and monitoring.",
-        "files_to_create": [
-          "packages/civic/src/civic/diagnostics/__init__.py",
-          "packages/civic/src/civic/diagnostics/data_status.py",
-          "packages/civic/src/civic/diagnostics/vector_coverage.py"
+        "note": "Session 519: Created civic.diagnostics module with DataStatus, VectorCoverage classes. Encapsulates CORPUS_REGISTRY for schema-aware queries.",
+        "files_to_create": null,
+        "files_created": [
+          "packages/civic/src/civic/diagnostics.py"
         ]
       },
       "data_status_skill": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "description": "Create /data-status, /pipeline-health, /vector-coverage skills",
         "artifact": "Claude Code skills for data completeness and pipeline monitoring",
-        "depends_on": ["diagnostics_module"]
+        "depends_on": [
+          "diagnostics_module"
+        ],
+        "note": "Session 519: Created /data-status and /vector-coverage skills. /pipeline-health deferred (requires Modal API integration).",
+        "files_created": [
+          ".claude/commands/data-status.md",
+          ".claude/commands/vector-coverage.md"
+        ]
       }
     }
   },
@@ -978,7 +984,9 @@
         "description": "Fix temporal constraints so all valid meetings are returned by API",
         "artifact": "Migration or code fix to correct valid_from/valid_to filtering",
         "note": "Depends on investigate_data_discrepancy findings. If records exist but are incorrectly filtered: (a) fix code if timestamps are wrong on insert, (b) migrate data if valid_to was incorrectly set, or (c) document if behavior is intentional.",
-        "depends_on": ["investigate_data_discrepancy"]
+        "depends_on": [
+          "investigate_data_discrepancy"
+        ]
       }
     },
     "content_hashing": {

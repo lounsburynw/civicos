@@ -14311,3 +14311,59 @@ Identified and fixed the root cause of meetings/issues data not appearing in API
 
 ### Next
 - P0: `mcp_vector_search_tools`
+
+## Session 519 (2026-01-15)
+
+### Item: Query Infrastructure (from Session 518 handoff)
+
+Built schema-aware diagnostics utilities to prevent ad-hoc SQL queries from using incorrect column/table names.
+
+### What Was Done
+
+1. **Created `civic.diagnostics` module** (`packages/civic/src/civic/diagnostics.py`):
+   - `DataStatus` class - schema-aware corpus counts, gaps, coverage
+   - `VectorCoverage` class - vector embedding coverage analysis
+   - `SCHEMA_REFERENCE` - documents correct column names
+   - `format_data_status()`, `format_vector_coverage()` - terminal formatting
+
+2. **Exported from civic package** - Added to `__init__.py`
+
+3. **Created skill commands**:
+   - `/data-status` - Shows corpus counts, storage vs indexed, gaps
+   - `/vector-coverage` - Vector embedding coverage by corpus
+
+4. **Updated pilot.json**:
+   - `diagnostics_module` → ready
+   - `data_status_skill` → ready
+
+### Schema Reference Created
+
+| Table | ID Column | Date Column | Notes |
+|-------|-----------|-------------|-------|
+| meetings | id | meeting_datetime | NOT meeting_date |
+| decisions | id | meeting_date | Text field |
+| chunks | id | - | Links via meeting_id |
+| transcripts | id | - | Links via video_id |
+| issues | id | created_at | - |
+
+### Testing Results
+
+- 42 smoke tests passed
+- DataStatus correctly reports corpus counts and gaps
+- VectorCoverage shows embedding expansion (transcripts 29→4608)
+
+### Key Insight
+
+Transcripts and municipal code show >100% coverage because they're "expanded":
+- 1 transcript → N speaker turn embeddings
+- 1 code section → M chunk embeddings
+
+This is expected for semantic search quality.
+
+### Deferred
+
+- `/pipeline-health` skill (requires Modal API integration)
+
+### Next
+
+- P0: `mcp_vector_search_tools` (unchanged)
