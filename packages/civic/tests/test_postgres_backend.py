@@ -216,6 +216,47 @@ class TestPostgresBackendStoreMeetings:
         assert len(result2) == 1
         assert result2[0]["title"] == "V2"
 
+    def test_store_meetings_idempotent(self, backend):
+        """Storing identical meetings multiple times should not create duplicates.
+
+        This is a regression test for the bug fixed in Session 471 where
+        store_meetings was closing all meetings before inserting, causing
+        duplicate historical versions on each run.
+        """
+        meeting = {
+            "id": "mtg-idempotent",
+            "title": "Idempotent Test",
+            "meeting_datetime": "2025-12-15T18:00:00",
+            "status": "scheduled",
+            "location": None,
+            "agenda_url": "https://example.com/agenda",
+            "minutes_url": None,
+            "video_url": None,
+            "virtual_url": None,
+            "source_platform": "test",
+        }
+
+        # Store three times with identical data
+        backend.store_meetings("city-idempotent", [meeting])
+        backend.store_meetings("city-idempotent", [meeting])
+        backend.store_meetings("city-idempotent", [meeting])
+
+        # Should have exactly 1 current row (valid_to IS NULL)
+        result = backend.get_meetings("city-idempotent")
+        assert len(result) == 1
+        assert result[0]["title"] == "Idempotent Test"
+
+        # Verify no historical versions were created (check raw table)
+        conn = psycopg2.connect(POSTGRES_URL)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT COUNT(*) FROM meetings WHERE id = 'mtg-idempotent'"
+        )
+        total_rows = cursor.fetchone()[0]
+        conn.close()
+
+        assert total_rows == 1, f"Expected 1 row, got {total_rows} (idempotency failed)"
+
     def test_store_meetings_multiple_jurisdictions(self, backend, sample_meetings):
         """Meetings should be stored separately per jurisdiction."""
         backend.store_meetings("city-a", sample_meetings[:1])

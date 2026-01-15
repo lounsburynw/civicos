@@ -1,3 +1,52 @@
+## Session 521: store_meetings_upsert_fix - Data Integrity
+
+**Date:** 2026-01-15
+**Item:** store_meetings_upsert_fix (data_integrity > pipeline_completeness)
+**Priority:** P0
+
+### Summary
+
+Investigated and resolved the duplicate meetings issue identified in the DATA_READINESS_AUDIT.md. Found that the bug was already fixed in Session 471 (Jan 5, 2026). Cleaned up 76 historical duplicate rows and added a regression test.
+
+### Investigation
+
+1. **Initial Finding:** 126 total rows, 50 unique meetings, 76 historical "versions"
+2. **Root Cause:** Session 471 identified a critical bug where `store_meetings()` was closing ALL meetings before inserting new ones
+3. **Fix Status:** Already fixed in Session 471 with proper upsert semantics
+4. **Current State:** Each meeting has exactly 1 current version (valid_to IS NULL)
+
+### Work Completed
+
+1. **Data Cleanup:**
+   - Verified all 76 historical versions were identical to successors (no actual data changes)
+   - Deleted 76 redundant historical rows with `DELETE FROM meetings WHERE valid_to IS NOT NULL`
+   - Final state: 50 meetings, 50 rows, 0 duplicates
+
+2. **Regression Test:**
+   - Added `test_store_meetings_idempotent()` to `test_postgres_backend.py`
+   - Tests that storing identical meetings 3 times creates only 1 row
+   - Verifies both via `get_meetings()` and raw table count
+
+3. **Pilot.json Update:**
+   - Changed status from `not_ready` to `ready`
+   - Updated note to reference Session 521 and the fix from Session 471
+
+### Testing
+- 42 smoke tests passing
+- New idempotent test added (skipped locally, runs in CI with CIVIC_TEST_POSTGRES_URL)
+
+### Files Modified
+- `packages/civic/tests/test_postgres_backend.py` - new regression test
+- `pilot.json` - store_meetings_upsert_fix marked ready
+
+### Note
+The bug was caused by the old `store_meetings()` implementation that closed all meetings per jurisdiction before inserting. Session 471 fixed this with a proper upsert pattern that:
+- Checks if meeting exists by ID
+- Compares key fields to detect changes
+- Only closes old version if data actually changed
+
+---
+
 ## Session 515: cost_tracking - Admin Operations
 
 **Date:** 2026-01-14
