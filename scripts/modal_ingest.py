@@ -2441,9 +2441,11 @@ def scheduled_low_velocity_refresh():
     # Federal programs from SAM.gov (full catalog refresh)
     try:
         logger.info("Fetching federal programs from SAM.gov...")
-        result = fetch_federal_programs.local(dry_run=False, force_refresh=True)
+        result = fetch_federal_programs.local(dry_run=False, force_refresh=True, auto_index=True)
         results["federal_programs"] = result
-        logger.info(f"  Federal programs: {result.get('programs_stored', 0)} programs stored")
+        stored = result.get("programs_stored", 0)
+        indexed = result.get("vector_result", {}).get("total_indexed", 0) if result.get("auto_index") else 0
+        logger.info(f"  Federal programs: {stored} programs stored, {indexed} vectors indexed")
     except Exception as e:
         logger.exception("Federal programs fetch failed")
         results["federal_programs"] = {"status": "failed", "error": str(e)}
@@ -2464,15 +2466,8 @@ def scheduled_low_velocity_refresh():
         logger.exception("HUD allocations fetch failed")
         results["hud_allocations"] = {"status": "failed", "error": str(e)}
 
-    # Federal programs vector indexing (global, not per-jurisdiction)
-    try:
-        logger.info("Indexing federal programs vectors...")
-        result = index_vectors.local(jurisdiction="federal-US", corpus="programs", reindex=False)
-        results["vectors_federal"] = result
-        logger.info(f"  Federal vectors: {result.get('total_indexed', 0)} programs indexed")
-    except Exception as e:
-        logger.exception("Federal vector indexing failed")
-        results["vectors_federal"] = {"status": "failed", "error": str(e)}
+    # NOTE: Federal programs vector indexing is now handled by auto_index=True
+    # in the fetch_federal_programs call above (avoids duplicate indexing).
 
     # =========================================================================
     # Per-jurisdiction operations

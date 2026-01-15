@@ -1680,11 +1680,11 @@
         ]
       },
       "conditional_vector_reindex_after_ingest": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Trigger vector re-indexing automatically after federal programs data refresh",
         "artifact": "Post-ingest hook that calls pgvector.index_from_storage() for programs corpus when data changes",
-        "note": "Builds on auto_vector_indexing_on_ingest but specific to federal programs. When SAM.gov refresh completes, should automatically re-embed changed programs. Consider: only re-index programs with changed content (hash comparison) to minimize embedding API costs.",
+        "note": "Implemented Option 2 (full re-index). Added auto_index=True to fetch_federal_programs.local() in scheduled_low_velocity_refresh(). The function already had auto_index support - just needed wiring. Removed separate vector indexing block to avoid duplicate indexing. Cost: ~$0.0001 per refresh (2300 programs x ~300 tokens avg).",
         "depends_on": [
           "federal_programs_scheduled_refresh",
           "auto_vector_indexing_on_ingest"
@@ -1695,8 +1695,7 @@
           "Event-driven via Postgres trigger"
         ],
         "modified_files": [
-          "scripts/ingest_federal_programs.py",
-          "packages/civic/src/civic/storage/pgvector_backend.py"
+          "scripts/modal_ingest.py"
         ]
       }
     },
@@ -1961,7 +1960,7 @@
       },
       "mcp_vector_search_tools": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "MCP tools exposing cross-corpus vector search to LLM clients",
         "description": "Add MCP tools: search_regulatory_stack (local+state+federal law), search_meeting_history (transcripts+decisions), find_similar_issues (whos_with_me for MCP). Enables RAG pattern: LLM reasons over retrieved context.",
         "note": "Session 489: Current MCP tools limited to compose_public_comment, query_issues. Missing vector search exposure. With pgvector_cross_corpus_search complete, these tools become simple wrappers. Key for Claude/ChatGPT integration.",
