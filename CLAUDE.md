@@ -218,6 +218,8 @@ Historical docs from completed phases. Recoverable if needed.
 | `/checkpoint [action]` | View/reset ingestion checkpoints | No |
 | `/ingest [source]` | Orchestrate data ingestion pipeline | No |
 | `/blob-backup [action]` | R2 blob storage management | No |
+| `/data-status [jurisdiction]` | Schema-aware corpus counts, gaps, coverage | No |
+| `/vector-coverage [jurisdiction]` | Vector embedding coverage analysis | No |
 
 ### Subagent Usage for Context Management
 
@@ -448,6 +450,29 @@ The `data/civic_state.db` file contains a subset of data for offline development
 | Cloudflare R2 | Blob storage (PDFs, audio) | `BLOB_STORAGE_URL` in `.env` |
 
 **Security:** RLS enabled via `scripts/sql/enable_rls.sql` - only service_role can access.
+
+### Data Diagnostics
+
+Use the `civic.diagnostics` module for schema-aware data queries. This prevents common mistakes with column/table names.
+
+```python
+from civic import Civic, DataStatus, VectorCoverage, format_data_status
+
+c = Civic('city-san-rafael')
+status = DataStatus(c._storage, c._vectors, 'city-san-rafael')
+print(format_data_status(status.summary()))  # Corpus counts, gaps, coverage
+print(status.gaps())  # Only corpora with indexing gaps
+```
+
+**Schema reference** (avoid these common mistakes):
+
+| Table | Correct Column | NOT This |
+|-------|----------------|----------|
+| meetings | `meeting_datetime` | ~~meeting_date~~ |
+| chunks | `meeting_id` | ~~content_id~~ |
+| vector_embeddings | (pgvector table) | ~~embeddings~~ |
+
+Use `/data-status` and `/vector-coverage` commands for quick checks.
 
 ## Constraints
 
