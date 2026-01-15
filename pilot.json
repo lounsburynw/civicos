@@ -1,7 +1,7 @@
 {
   "version": "2.0",
   "phase": "pilot",
-  "last_updated": "2026-01-12",
+  "last_updated": "2026-01-15",
   "target": "January 2026",
   "summary": "Consolidated pilot checklist: completed work summarized, active items tracked individually",
   "category_order": [
@@ -750,6 +750,17 @@
           "immigration border security",
           "trade tariffs reciprocal"
         ]
+      },
+      "elected_officials_pipeline_integration": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Wire elected officials extraction into scheduled ingestion pipeline",
+        "artifact": "Modal function or script to populate elected_officials table",
+        "note": "DATA_GAPS_INVESTIGATION_2026_01_15.md found: Code exists at civic_extraction.clients.representatives.extract_elected_officials_to_storage() with hardcoded SAN_RAFAEL_LOCAL_OFFICIALS. Never integrated into modal_ingest.py. Options: (a) Add to Modal scheduled refresh, (b) Create one-time population script.",
+        "key_files": [
+          "packages/civic-extraction/src/civic_extraction/clients/representatives.py:1188",
+          "scripts/modal_ingest.py"
+        ]
       }
     },
     "school_district": {
@@ -923,6 +934,32 @@
   },
   "data_integrity": {
     "description": "Provenance and integrity infrastructure for future resilience - build now, expensive to retrofit",
+    "temporal_filtering": {
+      "investigate_data_discrepancy": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Investigate API vs DB count discrepancy caused by temporal filtering",
+        "artifact": "Root cause analysis and fix for valid_from/valid_to filtering",
+        "note": "DATA_GAPS_INVESTIGATION_2026_01_15.md found: Report shows 123 meetings but API returns 3. Hypothesis: records exist in DB but are filtered out by valid_from/valid_to constraints in PostgresBackend.get_meetings() and related methods. May be bug in insertion timestamps or intentional behavior not accounted for.",
+        "investigation_steps": [
+          "Query DB directly: SELECT COUNT(*) FROM meetings WHERE jurisdiction_id = 'city-san-rafael'",
+          "Check valid_from/valid_to values: SELECT valid_from, valid_to, COUNT(*) FROM meetings GROUP BY valid_from, valid_to",
+          "Compare with API: PostgresBackend.get_meetings() with temporal filter",
+          "Determine if filtering is bug or intentional"
+        ],
+        "key_files": [
+          "packages/civic/src/civic/storage/postgres_backend.py:1625"
+        ]
+      },
+      "fix_meetings_visibility": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Fix temporal constraints so all valid meetings are returned by API",
+        "artifact": "Migration or code fix to correct valid_from/valid_to filtering",
+        "note": "Depends on investigate_data_discrepancy findings. If records exist but are incorrectly filtered: (a) fix code if timestamps are wrong on insert, (b) migrate data if valid_to was incorrectly set, or (c) document if behavior is intentional.",
+        "depends_on": ["investigate_data_discrepancy"]
+      }
+    },
     "content_hashing": {
       "_completed_items": [
         {
@@ -1441,6 +1478,16 @@
         "artifact": "Monthly CI workflow that validates external data sources haven't changed",
         "note": "GitHub Actions workflow on weekly schedule (Sundays). Downloads sample from each source (Legistar, SeeClickFix, San Rafael agendas), runs extraction, validates output structure. Creates GitHub Issue on failure. Not for ingestion - just validates APIs and formats haven't broken.",
         "workflow": ".github/workflows/data-source-canary.yml"
+      },
+      "data_readiness_report_methodology": {
+        "status": "not_ready",
+        "priority": 3,
+        "description": "Update Data Readiness Report to use API query paths",
+        "artifact": "Revised DATA_READINESS_REPORT.md or report generator using API methods",
+        "note": "DATA_GAPS_INVESTIGATION_2026_01_15.md found: Report used raw SQL queries (SELECT COUNT(*) FROM meetings) but API uses temporal filtering (valid_from/valid_to). Counts differ by 40-97%. Options: (a) Report should query via same path as API, (b) Document that counts are raw DB vs API-visible.",
+        "key_files": [
+          "docs/DATA_READINESS_REPORT.md"
+        ]
       }
     }
   },
