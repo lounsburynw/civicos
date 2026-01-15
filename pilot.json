@@ -485,6 +485,27 @@
           "note": "Reduced pilot.json from 183KB to 57KB (69% reduction), preserving all tracking capability"
         }
       ]
+    },
+    "query_utilities": {
+      "diagnostics_module": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Create civic.diagnostics module with schema-aware data status utilities",
+        "artifact": "DataStatus class for corpus counts, gaps, and coverage queries",
+        "note": "Session 518 investigation hit 6+ schema mismatches (column names, table names). A proper abstraction would encapsulate schema knowledge for reuse by agents, CLI, and monitoring.",
+        "files_to_create": [
+          "packages/civic/src/civic/diagnostics/__init__.py",
+          "packages/civic/src/civic/diagnostics/data_status.py",
+          "packages/civic/src/civic/diagnostics/vector_coverage.py"
+        ]
+      },
+      "data_status_skill": {
+        "status": "not_ready",
+        "priority": 2,
+        "description": "Create /data-status, /pipeline-health, /vector-coverage skills",
+        "artifact": "Claude Code skills for data completeness and pipeline monitoring",
+        "depends_on": ["diagnostics_module"]
+      }
     }
   },
   "data_readiness": {
