@@ -76,6 +76,8 @@ for r in cur.fetchall(): print(f'  {r[0]}: {r[1]} ({r[2]} rows)')
 "
 ```
 
+**For corpus counts and coverage:** Use `/data-status` instead of raw SQL queries.
+
 ### 2. Create Selective Backup
 
 ```bash

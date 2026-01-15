@@ -12,9 +12,16 @@ Critics are specialized prompts that review code changes against Civic's pattern
 |--------|---------|---------|
 | `pipeline.critic.md` | 4-stage ETL pattern | Storage gaps, stage ordering, persistence issues |
 | `protocol.critic.md` | Protocol conformance | Missing methods, signature mismatches |
-| `architecture.critic.md` | Layer boundaries | Cross-layer imports, package violations |
+| `architecture.critic.md` | Layer boundaries | Cross-layer imports, package violations, raw SQL |
 | `session.critic.md` | Session hygiene | Missing P0, multiple P0s, incomplete handoff |
 | `data.critic.md` | ETL data quality | Schema violations, type mismatches, missing fields |
+
+## Related Tools
+
+For data diagnostics, use the dedicated utilities instead of ad-hoc queries:
+- `/data-status` - Schema-aware corpus counts and gaps
+- `/vector-coverage` - Vector embedding coverage
+- `civic.diagnostics.DataStatus` - Programmatic access
 
 ## Usage
 

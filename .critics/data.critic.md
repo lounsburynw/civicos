@@ -15,11 +15,34 @@ Critical invariants:
 
 ## Key Files
 
+- `packages/civic/src/civic/storage/corpus_types.py` - **CORPUS_REGISTRY** (source of truth for schema)
 - `packages/civic/src/civic/storage/postgres_backend.py` - Schema definitions, store methods
 - `packages/civic/src/civic/storage/sqlite_backend.py` - Local schema mirror
+- `packages/civic/src/civic/diagnostics.py` - DataStatus, VectorCoverage utilities
 - `packages/civic-extraction/src/civic_extraction/clients/*.py` - Platform clients with normalization
 - `packages/civic-extraction/src/civic_extraction/meeting_schema.py` - Meeting validation
 - `scripts/modal_ingest.py` - Cloud ingestion pipeline
+
+## Schema Source of Truth
+
+**Always use `CORPUS_REGISTRY`** for schema information, not hardcoded values:
+
+```python
+from civic.storage.corpus_types import CORPUS_REGISTRY, CorpusType
+
+# Get correct table name
+config = CORPUS_REGISTRY[CorpusType.MEETINGS]
+table = config.sql_table  # "meetings"
+
+# For diagnostics, use DataStatus
+from civic import DataStatus
+status = DataStatus(storage, vectors, 'city-san-rafael')
+```
+
+**Common schema mistakes to catch:**
+- `meeting_date` vs `meeting_datetime` (depends on table)
+- `content_id` vs `meeting_id` (chunks use meeting_id)
+- `embeddings` table doesn't exist (use `vector_embeddings` for pgvector)
 
 ## Check
 
