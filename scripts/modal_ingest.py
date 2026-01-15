@@ -115,6 +115,8 @@ civic_image = (
         "google-api-python-client>=2.0.0",  # For YouTube duration validation
         "python-dotenv>=1.0.0",  # For environment variable loading
         "boto3>=1.34.0",  # For R2 blob storage access
+        "openai>=1.0.0",  # For agenda/decision extraction (LLM calls)
+        "google-generativeai>=0.8.0",  # For Gemini-based extraction
     )
     # Environment variables (must come before add_local_* per Modal requirements)
     .env({"CIVIC_CONFIG_DIR": "/config/extraction"})
@@ -2418,22 +2420,26 @@ def scheduled_low_velocity_refresh():
     # Global operations (not per-jurisdiction)
     # =========================================================================
 
-    # Legislation CA (run weekly to avoid quota issues)
+    # Legislation CA (run weekly to avoid quota issues, auto-index vectors)
     try:
         logger.info("Fetching CA legislation...")
-        result = fetch_legislation.local(jurisdiction="state-CA", dry_run=False)
+        result = fetch_legislation.local(jurisdiction="state-CA", dry_run=False, auto_index=True)
         results["legislation_CA"] = result
-        logger.info(f"  CA Legislation: {result.get('bills_with_text', 0)} bills updated")
+        updated = result.get('bills_with_text', 0)
+        indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+        logger.info(f"  CA Legislation: {updated} bills updated, {indexed} vectors indexed")
     except Exception as e:
         logger.exception("CA legislation fetch failed")
         results["legislation_CA"] = {"status": "failed", "error": str(e)}
 
-    # Executive Orders from Federal Register (incremental)
+    # Executive Orders from Federal Register (incremental, auto-index vectors)
     try:
         logger.info("Fetching Executive Orders from Federal Register...")
-        result = fetch_executive_orders.local(dry_run=False, incremental=True)
+        result = fetch_executive_orders.local(dry_run=False, incremental=True, auto_index=True)
         results["executive_orders"] = result
-        logger.info(f"  Executive Orders: {result.get('orders_stored', 0)} new orders stored (of {result.get('orders_fetched', 0)} fetched)")
+        stored = result.get('orders_stored', 0)
+        indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+        logger.info(f"  Executive Orders: {stored} new orders stored (of {result.get('orders_fetched', 0)} fetched), {indexed} vectors indexed")
     except Exception as e:
         logger.exception("Executive Orders fetch failed")
         results["executive_orders"] = {"status": "failed", "error": str(e)}
@@ -2477,45 +2483,45 @@ def scheduled_low_velocity_refresh():
         logger.info(f"Processing jurisdiction: {jid}")
         results[jid] = {}
 
-        # Municipal code (always full refresh - no incremental API support)
+        # Municipal code (always full refresh - no incremental API support, auto-index vectors)
         try:
             logger.info(f"  [{jid}] Fetching municipal code...")
-            result = fetch_municipal_code.local(jurisdiction=jid, dry_run=False)
+            result = fetch_municipal_code.local(jurisdiction=jid, dry_run=False, auto_index=True)
             results[jid]["municipal_code"] = result
-            logger.info(f"    Municipal code: {result.get('sections_stored', 0)} sections stored")
+            stored = result.get('sections_stored', 0)
+            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+            logger.info(f"    Municipal code: {stored} sections stored, {indexed} vectors indexed")
         except Exception as e:
             logger.exception(f"  [{jid}] Municipal code fetch failed")
             results[jid]["municipal_code"] = {"status": "failed", "error": str(e)}
 
-        # Agenda items extraction (LLM-powered, after meetings are available)
+        # Agenda items extraction (LLM-powered, after meetings are available, auto-index vectors)
         try:
             logger.info(f"  [{jid}] Extracting agenda items...")
-            result = extract_agenda_items.local(jurisdiction=jid, dry_run=False)
+            result = extract_agenda_items.local(jurisdiction=jid, dry_run=False, auto_index=True)
             results[jid]["agenda_items"] = result
-            logger.info(f"    Agenda items: {result.get('items_extracted', 0)} items ({result.get('actionable_items', 0)} actionable)")
+            extracted = result.get('items_extracted', 0)
+            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+            logger.info(f"    Agenda items: {extracted} items ({result.get('actionable_items', 0)} actionable), {indexed} vectors indexed")
         except Exception as e:
             logger.exception(f"  [{jid}] Agenda items extraction failed")
             results[jid]["agenda_items"] = {"status": "failed", "error": str(e)}
 
-        # Decision extraction (LLM-powered, weekly because minutes PDFs lag behind meetings)
+        # Decision extraction (LLM-powered, weekly because minutes PDFs lag behind meetings, auto-index vectors)
         try:
             logger.info(f"  [{jid}] Extracting decisions...")
-            result = extract_decisions.local(jurisdiction=jid, dry_run=False)
+            result = extract_decisions.local(jurisdiction=jid, dry_run=False, auto_index=True)
             results[jid]["decisions"] = result
-            logger.info(f"    Decisions: {result.get('decisions_extracted', 0)} decisions from {result.get('meetings_extracted', 0)} meetings")
+            extracted = result.get('decisions_extracted', 0)
+            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+            logger.info(f"    Decisions: {extracted} decisions from {result.get('meetings_extracted', 0)} meetings, {indexed} vectors indexed")
         except Exception as e:
             logger.exception(f"  [{jid}] Decision extraction failed")
             results[jid]["decisions"] = {"status": "failed", "error": str(e)}
 
-        # Vector indexing (after data is refreshed)
-        try:
-            logger.info(f"  [{jid}] Indexing vectors...")
-            result = index_vectors.local(jurisdiction=jid, corpus="all", reindex=False)
-            results[jid]["vectors"] = result
-            logger.info(f"    Vectors: {result.get('total_indexed', 0)} documents indexed")
-        except Exception as e:
-            logger.exception(f"  [{jid}] Vector indexing failed")
-            results[jid]["vectors"] = {"status": "failed", "error": str(e)}
+        # NOTE: Vector indexing now handled by auto_index=True on each fetch/extract call above.
+        # This ensures vectors are indexed immediately after data is stored, closing the
+        # staleness gap where data could exist in storage but not be searchable.
 
     elapsed = time.time() - start_time
     logger.info(f"Low-velocity refresh complete in {elapsed:.1f}s for {len(jurisdictions)} jurisdictions")
@@ -2576,35 +2582,41 @@ def scheduled_high_velocity_refresh():
         logger.info(f"Processing jurisdiction: {jid}")
         results[jid] = {}
 
-        # Meetings (incremental)
+        # Meetings (incremental, auto-index vectors after store)
         try:
             logger.info(f"  [{jid}] Fetching meetings (incremental)...")
             result = fetch_meetings.local(
                 jurisdiction=jid,
                 incremental=True,
                 dry_run=False,
+                auto_index=True,
             )
             results[jid]["meetings"] = result
-            logger.info(f"    Meetings: {result.get('meetings_stored', 0)} stored")
+            stored = result.get('meetings_stored', 0)
+            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+            logger.info(f"    Meetings: {stored} stored, {indexed} vectors indexed")
         except Exception as e:
             logger.exception(f"  [{jid}] Meetings fetch failed")
             results[jid]["meetings"] = {"status": "failed", "error": str(e)}
 
-        # Issues (incremental)
+        # Issues (incremental, auto-index vectors after store)
         try:
             logger.info(f"  [{jid}] Fetching issues (incremental)...")
             result = fetch_issues.local(
                 jurisdiction=jid,
                 incremental=True,
                 dry_run=False,
+                auto_index=True,
             )
             results[jid]["issues"] = result
-            logger.info(f"    Issues: {result.get('issues_stored', 0)} stored")
+            stored = result.get('issues_stored', 0)
+            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+            logger.info(f"    Issues: {stored} stored, {indexed} vectors indexed")
         except Exception as e:
             logger.exception(f"  [{jid}] Issues fetch failed")
             results[jid]["issues"] = {"status": "failed", "error": str(e)}
 
-        # Transcript extraction (audio download + transcription)
+        # Transcript extraction (audio download + transcription, auto-index vectors)
         # Runs BEFORE chunk extraction since transcript text needs to be indexed
         try:
             logger.info(f"  [{jid}] Extracting transcripts (audio + transcription)...")
@@ -2612,14 +2624,17 @@ def scheduled_high_velocity_refresh():
                 jurisdiction=jid,
                 dry_run=False,
                 batch=True,  # Use batch mode for parallel transcription
+                auto_index=True,
             )
             results[jid]["transcripts"] = result
             cost = result.get("transcription_cost_usd", 0)
             total_transcription_cost += cost
+            extracted = result.get('transcripts_extracted', 0)
+            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
             logger.info(
-                f"    Transcripts: {result.get('transcripts_extracted', 0)} transcribed, "
+                f"    Transcripts: {extracted} transcribed, "
                 f"{result.get('transcripts_skipped', 0)} skipped, "
-                f"cost: ${cost:.2f}"
+                f"{indexed} vectors indexed, cost: ${cost:.2f}"
             )
             if result.get("duration_validation_issues", 0) > 0:
                 logger.warning(f"    Duration validation issues: {result.get('duration_validation_issues')}")
@@ -2627,33 +2642,25 @@ def scheduled_high_velocity_refresh():
             logger.exception(f"  [{jid}] Transcript extraction failed")
             results[jid]["transcripts"] = {"status": "failed", "error": str(e)}
 
-        # Chunk extraction (incremental - skips already-chunked meetings)
+        # Chunk extraction (incremental - skips already-chunked meetings, auto-index vectors)
         try:
             logger.info(f"  [{jid}] Extracting chunks from new meetings...")
             result = extract_chunks.local(
                 jurisdiction=jid,
                 dry_run=False,
+                auto_index=True,
             )
             results[jid]["chunks"] = result
-            logger.info(f"    Chunks: {result.get('chunks_extracted', 0)} extracted from {result.get('meetings_extracted', 0)} meetings")
+            extracted = result.get('chunks_extracted', 0)
+            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+            logger.info(f"    Chunks: {extracted} extracted from {result.get('meetings_extracted', 0)} meetings, {indexed} vectors indexed")
         except Exception as e:
             logger.exception(f"  [{jid}] Chunk extraction failed")
             results[jid]["chunks"] = {"status": "failed", "error": str(e)}
 
-        # Vector indexing for meetings, issues, transcripts, and chunks
-        try:
-            logger.info(f"  [{jid}] Indexing vectors (meetings, issues, transcripts, chunks)...")
-            for corpus_type in ["meetings", "issues", "transcripts", "chunks"]:
-                result = index_vectors.local(
-                    jurisdiction=jid,
-                    corpus=corpus_type,
-                    reindex=False,
-                )
-                results[jid][f"vectors_{corpus_type}"] = result
-                logger.info(f"    {corpus_type} vectors: {result.get('total_indexed', 0)} indexed")
-        except Exception as e:
-            logger.exception(f"  [{jid}] Vector indexing failed")
-            results[jid]["vectors"] = {"status": "failed", "error": str(e)}
+        # NOTE: Vector indexing now handled by auto_index=True on each fetch/extract call above.
+        # This ensures vectors are indexed immediately after data is stored, closing the
+        # staleness gap where data could exist in storage but not be searchable.
 
     elapsed = time.time() - start_time
     logger.info(f"High-velocity refresh complete in {elapsed:.1f}s for {len(jurisdictions)} jurisdictions")
@@ -2713,9 +2720,11 @@ def scheduled_election_refresh():
     for jid, config in jurisdictions.items():
         try:
             logger.info(f"  [{jid}] Fetching elections...")
-            result = fetch_elections.local(jurisdiction=jid, dry_run=False)
+            result = fetch_elections.local(jurisdiction=jid, dry_run=False, auto_index=True)
             results[jid] = result
-            logger.info(f"    Elections: {result.get('elections_fetched', 0)} fetched, {result.get('elections_stored', 0)} stored")
+            stored = result.get('elections_stored', 0)
+            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+            logger.info(f"    Elections: {result.get('elections_fetched', 0)} fetched, {stored} stored, {indexed} vectors indexed")
         except Exception as e:
             logger.exception(f"  [{jid}] Election fetch failed")
             results[jid] = {"status": "failed", "error": str(e)}
