@@ -1,3 +1,65 @@
+## Session 522: mcp_vector_search_tools - Full MCP Server Build
+
+**Date:** 2026-01-15
+**Item:** mcp_vector_search_tools (pilot_validation > distribution_channels)
+**Priority:** P0
+
+### Summary
+
+Built comprehensive MCP server exposing the full Civic API to LLM clients. Started with 3 vector search tools, expanded to 22 MCP primitives (15 tools + 5 resources + 2 prompts) after user requested maximizing database value.
+
+### MCP Primitives (22 total)
+
+**Tools (15):**
+1. compose_public_comment - AI comment generation
+2. get_comment_guidelines - Submission guidelines
+3. search_regulatory_stack - Local/state/federal law (what_applies)
+4. search_meeting_history - Decisions + transcripts (what_happened + what_was_said)
+5. find_similar_issues - 311/SeeClickFix (whos_with_me)
+6. search_agenda_packets - PDF staff reports (what_happened_with_discussion)
+7. search_budget - $180M budget query (budget + budget_summary)
+8. get_upcoming_meetings - Future meetings (whats_next)
+9. get_voting_record - Official voting history
+10. get_decision_context - Decisions with linked testimony (what_happened_full_context)
+11. get_public_testimony - Public comments only (get_public_testimony)
+12. get_funding_flow - Federal→state→city funding traces
+13. get_federal_expenditures - FAC Single Audit data ($39.7M)
+14. get_intergovernmental_revenue - State Controller data ($8.8M)
+15. prepare_for_meeting - Action: meeting prep materials
+
+**Resources (5):**
+- civic://san-rafael/meetings - Browsable meeting list
+- civic://san-rafael/decisions - Browsable decision list
+- civic://san-rafael/budget-departments - Budget by department
+- civic://san-rafael/corpus-stats - Data inventory
+- civic-events://san-rafael/meetings - Meeting events (stub)
+
+**Prompts (2):**
+- research_topic - Multi-tool research workflow
+- meeting_prep - Meeting preparation workflow
+
+### Files Modified
+
+- `apps/civic-mcp/civic_server.py` - 1600+ lines, full MCP server
+- `apps/civic_input_validator.py` - Input validation module (security)
+
+### Use Cases Discussed
+
+1. Claude Desktop for city staff
+2. ChatGPT Custom GPT for residents
+3. IDE integration (Cursor/VS Code)
+4. Multi-agent workflows (2026 pattern)
+
+### Coordination Features
+
+NOT exposed: start_something, add_voice, follow - need to be built out first
+
+### Next
+
+- P0: `orphan_video_linkage` - Link 315 orphan videos to meetings
+
+---
+
 ## Session 521: store_meetings_upsert_fix - Data Integrity
 
 **Date:** 2026-01-15
