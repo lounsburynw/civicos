@@ -1105,7 +1105,7 @@
       },
       "orphan_video_linkage": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "description": "Link 315 orphan videos to meetings via date/title matching",
         "artifact": "One-time linking script",
         "note": "DATA_READINESS_AUDIT.md finding: Videos have meeting date in title. Parse and match to meetings by date + body type. Updates meeting_id column. Restores transcript→meeting linkage for 15 orphaned transcripts."
@@ -2073,14 +2073,15 @@
         "note": "apps/civic-mcp/ exists but needs polish before launch. Power user / developer access. Contributor onramp - developers can query Civic from Claude while building parsers."
       },
       "mcp_vector_search_tools": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "MCP tools exposing cross-corpus vector search to LLM clients",
-        "description": "Add MCP tools: search_regulatory_stack (local+state+federal law), search_meeting_history (transcripts+decisions), find_similar_issues (whos_with_me for MCP). Enables RAG pattern: LLM reasons over retrieved context.",
-        "note": "Session 489: Current MCP tools limited to compose_public_comment, query_issues. Missing vector search exposure. With pgvector_cross_corpus_search complete, these tools become simple wrappers. Key for Claude/ChatGPT integration.",
+        "status": "ready",
+        "priority": 2,
+        "artifact": "Full MCP server with 22 primitives (15 tools + 5 resources + 2 prompts)",
+        "description": "Complete MCP coverage: 15 tools (regulations, decisions, transcripts, PDFs, budget, meetings, issues, voting, testimony, funding flow, federal/state revenue, meeting prep), 5 browsable resources, 2 workflow prompts. Enables RAG for Claude/ChatGPT/Copilot.",
+        "note": "Session 522: Built comprehensive MCP server exposing full Civic API. Tools cover all query methods + prepare() action. Resources enable data discovery. Prompts guide multi-tool workflows. Created civic_input_validator.py for security.",
         "depends_on": "pgvector_cross_corpus_search",
         "modified_files": [
-          "apps/civic-mcp/civic_server.py"
+          "apps/civic-mcp/civic_server.py",
+          "apps/civic_input_validator.py"
         ]
       },
       "web_frontend": {
