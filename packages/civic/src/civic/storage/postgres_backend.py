@@ -2770,6 +2770,10 @@ class PostgresBackend:
         Atomic operation: either all videos are stored or none.
         Uses upsert semantics - closes previous versions and inserts new ones.
 
+        Auto-linking: If a video has meeting_url but no meeting_id, automatically
+        looks up the meeting by matching source_url and sets the FK. This ensures
+        videos discovered from meeting pages are linked to their meetings.
+
         Args:
             jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
             videos: List of video dictionaries with id, meeting_url, title, date, youtube_url
@@ -2818,6 +2822,26 @@ class PostgresBackend:
                 if not video_id:
                     continue  # Skip videos without ID
 
+                # Auto-link to meeting if meeting_url provided but meeting_id not set
+                meeting_id = video.get('meeting_id')
+                meeting_type = video.get('meeting_type')
+                meeting_url = video.get('meeting_url')
+
+                if meeting_url and not meeting_id:
+                    # Look up meeting by source_url match
+                    cursor.execute("""
+                        SELECT id, meeting_type
+                        FROM meetings
+                        WHERE jurisdiction_id = %s
+                          AND source_url = %s
+                          AND valid_to IS NULL
+                        LIMIT 1
+                    """, (jurisdiction_id, meeting_url))
+                    match = cursor.fetchone()
+                    if match:
+                        meeting_id = match[0]
+                        meeting_type = meeting_type or match[1]
+
                 cursor.execute("""
                     INSERT INTO videos (
                         id, jurisdiction_id, meeting_url, meeting_id, meeting_type,
@@ -2826,9 +2850,9 @@ class PostgresBackend:
                 """, (
                     video_id,
                     jurisdiction_id,
-                    video.get('meeting_url'),
-                    video.get('meeting_id'),
-                    video.get('meeting_type'),
+                    meeting_url,
+                    meeting_id,
+                    meeting_type,
                     video.get('title'),
                     video.get('date'),
                     video.get('youtube_url'),

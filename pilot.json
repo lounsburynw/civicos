@@ -1106,18 +1106,58 @@
       "orphan_video_linkage": {
         "status": "not_ready",
         "priority": 0,
-        "description": "Link 315 orphan videos to meetings via date/title matching",
-        "artifact": "One-time linking script",
-        "note": "DATA_READINESS_AUDIT.md finding: Videos have meeting date in title. Parse and match to meetings by date + body type. Updates meeting_id column. Restores transcript→meeting linkage for 15 orphaned transcripts."
+        "description": "Link orphan videos to meetings by scraping meeting pages for embedded YouTube videos",
+        "artifact": "Script to scrape meetings.source_url, extract video IDs, update meetings.video_url and videos.meeting_id",
+        "note": "Session 523 analysis: 335 videos, only 23 linked (7%). Root cause: videos and meetings ingested separately without linkage. Option A approach: scrape each meeting's source_url (ProudCity page) to find embedded YouTube video, then match videos.youtube_url to meetings.video_url. More reliable than date+body parsing. Also created scripts/link_orphan_videos.py for fallback date matching and added auto-link logic to store_videos().",
+        "approach": [
+          "1. For each meeting with source_url, scrape page to find embedded YouTube video ID",
+          "2. Update meetings.video_url with YouTube URL",
+          "3. Match videos.youtube_url to meetings.video_url",
+          "4. Set videos.meeting_id for matches",
+          "5. Fall back to date+body matching for any remaining orphans"
+        ],
+        "key_files": [
+          "packages/civic/src/civic/storage/postgres_backend.py",
+          "scripts/link_orphan_videos.py"
+        ]
+      },
+      "video_meeting_schema_alignment": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Align video-meeting schema: populate meetings.video_url, videos.meeting_url, add video_id to transcript vectors",
+        "artifact": "Schema updates, ingestion code changes, and re-indexing",
+        "note": "Session 523 analysis: Current schema has gaps - meetings.video_url always NULL, videos.meeting_url always NULL, transcript vectors store video_id in meeting_id field (wrong). Requires both schema changes AND ingestion code updates to populate fields going forward.",
+        "schema_changes": [
+          "meetings.video_url: Populate by scraping source_url for YouTube embed",
+          "videos.meeting_url: Persist ProudCity URL from video discovery (already in JSON, not saved to DB)",
+          "vector_embeddings: Add video_id column for transcript corpus, keep meeting_id for proper FK"
+        ],
+        "ingestion_code_changes": [
+          "ProudCitySource/store_meetings: Scrape source_url for YouTube embed, set video_url",
+          "civic-extract youtube CLI: Pass meeting_url to store_videos (currently sets None)",
+          "modal_ingest.py fetch_videos: Pass meeting_url for school videos if available",
+          "PgVectorBackend.index_documents: Add video_id to transcript embeddings metadata"
+        ],
+        "depends_on": [
+          "orphan_video_linkage"
+        ],
+        "key_files": [
+          "packages/civic/src/civic/storage/postgres_backend.py",
+          "packages/civic/src/civic/storage/pgvector_backend.py",
+          "packages/civic-extraction/src/civic_extraction/clients/proudcity.py",
+          "packages/civic-extraction/src/civic_extraction/cli/youtube.py",
+          "scripts/modal_ingest.py"
+        ]
       },
       "transcript_vector_meeting_id_fix": {
         "status": "not_ready",
         "priority": 2,
         "description": "Fix transcript vectors storing video_id in meeting_id field",
-        "artifact": "Re-index with correct meeting_id lookup",
-        "note": "DATA_READINESS_AUDIT.md finding: 4,608 transcript vectors have YouTube video IDs in meeting_id. Depends on orphan_video_linkage completing first so video→meeting relationship exists.",
+        "artifact": "Re-index with correct meeting_id lookup via video_id→meeting_id chain",
+        "note": "DATA_READINESS_AUDIT.md finding: 4,608 transcript vectors have YouTube video IDs in meeting_id field instead of proudcity meeting IDs. After orphan_video_linkage and video_meeting_schema_alignment complete, re-index transcripts with proper meeting_id lookup: transcript.video_id → videos.meeting_id → meetings.id.",
         "depends_on": [
-          "orphan_video_linkage"
+          "orphan_video_linkage",
+          "video_meeting_schema_alignment"
         ]
       }
     },
