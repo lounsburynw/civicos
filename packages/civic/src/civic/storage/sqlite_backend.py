@@ -1872,6 +1872,18 @@ class SQLiteBackend:
         """
         return 0
 
+    def get_video_meeting_mapping(
+        self,
+        jurisdiction_id: str,
+    ) -> Dict[str, str]:
+        """
+        Get video→meeting mapping (stub for SQLite - uses Postgres in production).
+
+        Returns:
+            Empty dict (SQLite stub)
+        """
+        return {}
+
     # ========== Transcript Methods (SESSION 410 - Protocol Compliance) ==========
 
     def store_transcripts(

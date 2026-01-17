@@ -1239,15 +1239,7 @@ def index_vectors(
 
             # Build video_id → meeting_id lookup for proper meeting linkage
             # Transcript chunks have video_id but need actual meeting_id
-            import psycopg2
-            conn = psycopg2.connect(database_url)
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT id, meeting_id FROM videos
-                WHERE jurisdiction_id = %s AND valid_to IS NULL AND meeting_id IS NOT NULL
-            """, (jurisdiction,))
-            video_to_meeting = {vid: mid for vid, mid in cursor.fetchall()}
-            conn.close()
+            video_to_meeting = backend.get_video_meeting_mapping(jurisdiction)
 
             if video_to_meeting:
                 logger.info(f"  Built video→meeting lookup: {len(video_to_meeting)} mappings")
