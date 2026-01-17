@@ -1104,26 +1104,19 @@
         ]
       },
       "orphan_video_linkage": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Link orphan videos to meetings by scraping meeting pages for embedded YouTube videos",
-        "artifact": "Script to scrape meetings.source_url, extract video IDs, update meetings.video_url and videos.meeting_id",
-        "note": "Session 523 analysis: 335 videos, only 23 linked (7%). Root cause: videos and meetings ingested separately without linkage. Option A approach: scrape each meeting's source_url (ProudCity page) to find embedded YouTube video, then match videos.youtube_url to meetings.video_url. More reliable than date+body parsing. Also created scripts/link_orphan_videos.py for fallback date matching and added auto-link logic to store_videos().",
-        "approach": [
-          "1. For each meeting with source_url, scrape page to find embedded YouTube video ID",
-          "2. Update meetings.video_url with YouTube URL",
-          "3. Match videos.youtube_url to meetings.video_url",
-          "4. Set videos.meeting_id for matches",
-          "5. Fall back to date+body matching for any remaining orphans"
-        ],
+        "artifact": "scripts/populate_meeting_video_urls.py + scripts/link_orphan_videos.py",
+        "note": "Session 524: COMPLETE. Created populate_meeting_video_urls.py which scraped 56 meetings, extracted video_url for 33 (23 cancelled/upcoming have no videos). Within meeting date range (Oct 2025+): 23 of 24 videos linked (96%). The 1 remaining is mislabeled (Design Review Board 9-6-2023 uploaded recently). 311 historical videos (pre-Oct 2025) are outside our meeting data scope - not a linkage failure, just data coverage limitation. Linkage mechanism works: source_url scraping -> video_url extraction -> youtube_url matching.",
         "key_files": [
-          "packages/civic/src/civic/storage/postgres_backend.py",
+          "scripts/populate_meeting_video_urls.py",
           "scripts/link_orphan_videos.py"
         ]
       },
       "video_meeting_schema_alignment": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Align video-meeting schema: populate meetings.video_url, videos.meeting_url, add video_id to transcript vectors",
         "artifact": "Schema updates, ingestion code changes, and re-indexing",
         "note": "Session 523 analysis: Current schema has gaps - meetings.video_url always NULL, videos.meeting_url always NULL, transcript vectors store video_id in meeting_id field (wrong). Requires both schema changes AND ingestion code updates to populate fields going forward.",

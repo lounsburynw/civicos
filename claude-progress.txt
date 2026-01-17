@@ -14478,3 +14478,41 @@ This is expected for semantic search quality.
 ### Next
 
 - P0: `mcp_vector_search_tools` (unchanged)
+
+---
+
+## Session 524 - Video-Meeting Linkage Implementation
+
+### Completed: orphan_video_linkage (P0)
+
+**Problem:** 335 videos with only 7% linked to meetings.
+
+**Root Cause Analysis:**
+- Meetings table: 56 records (Oct 2025 - Jan 2026)
+- Videos table: 335 records (Dec 2018 - Jan 2026)
+- Only 24 videos fall within meeting date range
+- 23 were already linked; 311 "orphans" are pre-Oct 2025
+
+**Solution Implemented:**
+1. Created `scripts/populate_meeting_video_urls.py`
+   - Scrapes each meeting's source_url (ProudCity page)
+   - Extracts embedded YouTube video ID
+   - Updates meetings.video_url
+
+2. Execution Results:
+   - Scraped 56 meetings
+   - Found video_url for 33 (23 cancelled/upcoming have no videos)
+   - 23 of 24 videos in date range now linked (96%)
+   - 1 mislabeled video (Design Review Board 9-6-2023 uploaded Jan 2026)
+
+**Key Finding:** The linkage mechanism works correctly. The remaining 311 "orphan" videos are outside our meeting data range (pre-Oct 2025) - this is a data scope limitation, not a linkage failure.
+
+### Files Created
+- `scripts/populate_meeting_video_urls.py` - Video URL extraction script
+
+### pilot.json Updates
+- `orphan_video_linkage`: not_ready → ready
+- `video_meeting_schema_alignment`: P1 → P0 (next session)
+
+### Next
+- P0: `video_meeting_schema_alignment` - Align video-meeting schema fields
