@@ -14548,3 +14548,22 @@ Transcript embeddings stored video_id (YouTube ID) in `meeting_id` field instead
 
 ### Next
 - P0: `elected_officials_pipeline_integration` - Wire elected officials extraction into pipeline
+
+## Session 525 (continued): Transcript Re-indexing Complete
+
+### Additional Work
+- Fixed Modal script's index_vectors() to add video→meeting lookup (modal_ingest.py)
+- Redeployed Modal app and re-indexed transcripts
+- Results: 72% of embeddings now have proper meeting_id (3,193/4,411)
+
+### Critics' Feedback (deferred to next session)
+- Pipeline/Architecture critics warned about raw SQL in pgvector_backend.py and modal_ingest.py
+- Recommendation: Create StorageBackend.get_video_meeting_mapping() protocol method
+- This would encapsulate the query and maintain protocol abstraction
+
+### Commits
+- b5d2c68: Session 525: Fix transcript embeddings meeting_id resolution
+- 714ca29: Fix transcript embedding meeting_id in Modal ingestion
+
+### Next P0
+- `protocol_video_meeting_mapping` - Add StorageBackend method for video→meeting lookup
