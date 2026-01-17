@@ -1843,6 +1843,139 @@ def fetch_elections(
     return result
 
 
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+        modal.Secret.from_name("civic-legiscan"),  # LEGISCAN_API_KEY for state legislators
+    ],
+    memory=4096,
+    timeout=300,  # 5 minutes
+)
+def fetch_elected_officials(
+    jurisdiction: str = "city-san-rafael",
+    include_federal: bool = True,
+    include_state: bool = True,
+    include_local: bool = True,
+    dry_run: bool = False,
+) -> dict:
+    """Fetch elected officials and store to Postgres.
+
+    This fetches representatives from multiple levels of government:
+    - Federal: Congress.gov API (US House, Senate)
+    - State: LegiScan API (CA Assembly, Senate)
+    - Local: Curated data (San Rafael City Council, Mayor, County Supervisor)
+
+    Args:
+        jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
+        include_federal: Include federal representatives
+        include_state: Include state legislators
+        include_local: Include local officials (council, mayor)
+        dry_run: If True, fetch but don't store
+
+    Setup:
+        1. Modal secrets should include:
+           - civic-db: DATABASE_URL
+           - civic-legiscan: LEGISCAN_API_KEY (for state legislators)
+        2. Federal API uses data.gov key from FAC_API_KEY or CONGRESS_GOV_API_KEY
+           (already in civic-db or can be omitted - will return partial results)
+    """
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civic.storage.postgres_backend import PostgresBackend
+    from civic_extraction.clients.representatives import (
+        RepresentativesClient,
+        extract_elected_officials_to_storage,
+    )
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    logger.info(f"[ELECTED_OFFICIALS] Starting fetch: jurisdiction={jurisdiction}")
+    logger.info(f"  include_federal={include_federal}, include_state={include_state}, include_local={include_local}")
+
+    # Create client (picks up API keys from environment)
+    client = RepresentativesClient(
+        jurisdiction_id=jurisdiction,
+        congress_api_key=os.environ.get("CONGRESS_GOV_API_KEY") or os.environ.get("FAC_API_KEY"),
+        legiscan_api_key=os.environ.get("LEGISCAN_API_KEY"),
+    )
+
+    # Fetch representatives
+    representatives = client.get_representatives(
+        include_federal=include_federal,
+        include_state=include_state,
+        include_local=include_local,
+    )
+    logger.info(f"Fetched {len(representatives)} representatives")
+
+    # Log representatives by level
+    federal = [r for r in representatives if r.level == "federal"]
+    state = [r for r in representatives if r.level == "state"]
+    local = [r for r in representatives if r.level == "local"]
+    logger.info(f"  Federal: {len(federal)}, State: {len(state)}, Local: {len(local)}")
+
+    for rep in representatives:
+        logger.info(f"  - {rep.name} ({rep.office}) [{rep.level}]")
+
+    if not representatives:
+        elapsed = time.time() - start_time
+        return {
+            "task": "elected_officials",
+            "jurisdiction": jurisdiction,
+            "officials_fetched": 0,
+            "officials_stored": 0,
+            "dry_run": dry_run,
+            "elapsed_seconds": elapsed,
+            "cost_usd": 4 * elapsed * 0.000463,
+        }
+
+    # Store to database
+    stored_count = 0
+    if not dry_run:
+        backend = PostgresBackend(database_url)
+        stored_count = extract_elected_officials_to_storage(
+            client=client,
+            storage=backend,
+            jurisdiction_id=jurisdiction,
+            include_federal=include_federal,
+            include_state=include_state,
+            include_local=include_local,
+        )
+        logger.info(f"Stored {stored_count} elected officials")
+
+        # Update refresh metadata
+        backend.update_refresh_metadata(
+            jurisdiction, "elected_officials", "representatives",
+            items_fetched=len(representatives),
+            items_stored=stored_count,
+            status="completed",
+        )
+
+    elapsed = time.time() - start_time
+    return {
+        "task": "elected_officials",
+        "jurisdiction": jurisdiction,
+        "officials_fetched": len(representatives),
+        "officials_stored": stored_count,
+        "by_level": {
+            "federal": len(federal),
+            "state": len(state),
+            "local": len(local),
+        },
+        "dry_run": dry_run,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 4 * elapsed * 0.000463,
+    }
+
+
 # =============================================================================
 # Chunk Extraction (PDF Processing)
 # =============================================================================
@@ -2696,20 +2829,23 @@ def scheduled_high_velocity_refresh():
     secrets=[
         modal.Secret.from_name("civic-db"),
         modal.Secret.from_name("civic-google"),  # Contains GOOGLE_API_KEY
+        modal.Secret.from_name("civic-legiscan"),  # LEGISCAN_API_KEY for state legislators
     ],
     memory=4096,
     timeout=600,  # 10 minutes
     schedule=modal.Cron("0 3 1 * *"),  # Monthly on 1st at 3 AM UTC (7 PM Pacific prev day)
 )
 def scheduled_election_refresh():
-    """Monthly scheduled refresh for election data from Google Civic API.
+    """Monthly scheduled refresh for election and elected officials data.
 
     Runs 1st of month at 3 AM UTC = 7 PM Pacific previous day.
-    Monthly cadence is sufficient because VIP (Voter Information Project)
-    publishes election data 2-3 weeks before elections.
+    Monthly cadence is sufficient because:
+    - VIP (Voter Information Project) publishes election data 2-3 weeks before elections
+    - Elected officials change infrequently (after elections or special circumstances)
 
-    The Google Civic Information API provides data on upcoming elections
-    including national, state, and local races.
+    Data sources:
+    - Elections: Google Civic Information API
+    - Elected officials: Congress.gov (federal), LegiScan (state), curated (local)
 
     Iterates all configured jurisdictions from data/extraction/*.json.
     """
@@ -2730,16 +2866,32 @@ def scheduled_election_refresh():
     results = {}
 
     for jid, config in jurisdictions.items():
+        results[jid] = {}
+
+        # Fetch elections
         try:
             logger.info(f"  [{jid}] Fetching elections...")
             result = fetch_elections.local(jurisdiction=jid, dry_run=False, auto_index=True)
-            results[jid] = result
+            results[jid]["elections"] = result
             stored = result.get('elections_stored', 0)
             indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
             logger.info(f"    Elections: {result.get('elections_fetched', 0)} fetched, {stored} stored, {indexed} vectors indexed")
         except Exception as e:
             logger.exception(f"  [{jid}] Election fetch failed")
-            results[jid] = {"status": "failed", "error": str(e)}
+            results[jid]["elections"] = {"status": "failed", "error": str(e)}
+
+        # Fetch elected officials
+        try:
+            logger.info(f"  [{jid}] Fetching elected officials...")
+            result = fetch_elected_officials.local(jurisdiction=jid, dry_run=False)
+            results[jid]["elected_officials"] = result
+            stored = result.get('officials_stored', 0)
+            by_level = result.get('by_level', {})
+            logger.info(f"    Officials: {result.get('officials_fetched', 0)} fetched, {stored} stored")
+            logger.info(f"      Federal: {by_level.get('federal', 0)}, State: {by_level.get('state', 0)}, Local: {by_level.get('local', 0)}")
+        except Exception as e:
+            logger.exception(f"  [{jid}] Elected officials fetch failed")
+            results[jid]["elected_officials"] = {"status": "failed", "error": str(e)}
 
     elapsed = time.time() - start_time
     logger.info(f"Election refresh complete in {elapsed:.1f}s for {len(jurisdictions)} jurisdictions")
@@ -2852,6 +3004,7 @@ def main(
     meetings: bool = False,
     issues: bool = False,
     elections: bool = False,
+    elected_officials: bool = False,
     videos: bool = False,
     transcripts: bool = False,
     chunks: bool = False,
@@ -2884,6 +3037,7 @@ def main(
         modal run scripts/modal_ingest.py --meetings
         modal run scripts/modal_ingest.py --issues
         modal run scripts/modal_ingest.py --elections
+        modal run scripts/modal_ingest.py --elected-officials
         modal run scripts/modal_ingest.py --videos --jurisdiction school-san-rafael
         modal run scripts/modal_ingest.py --transcripts
         modal run scripts/modal_ingest.py --chunks
@@ -2955,12 +3109,14 @@ def main(
     # Note: decisions is NOT included in --all because it should run weekly, not with daily refresh
     # Note: elections is included in --all as it's a lightweight API call
     # Note: transcripts is included in --all as part of daily pipeline
+    # Note: elected_officials is NOT in --all (monthly refresh via scheduled_election_refresh)
     run_municipal = all or municipal
     run_legislation = all or legislation
     run_executive_orders = all or executive_orders
     run_meetings = all or meetings
     run_issues = all or issues
     run_elections = all or elections
+    run_elected_officials = elected_officials  # Not in --all (monthly refresh)
     run_transcripts = all or transcripts
     run_chunks = all or chunks
     run_agenda = all or agenda
@@ -2968,8 +3124,8 @@ def main(
     run_videos = videos  # Not in --all (YouTube jurisdictions need explicit flag)
     run_vectors = all or vectors
 
-    if not (run_municipal or run_legislation or run_executive_orders or run_meetings or run_issues or run_elections or run_videos or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors):
-        print("No tasks specified. Use --all, --municipal, --legislation, --executive-orders, --meetings, --issues, --elections, --videos, --transcripts, --chunks, --agenda, --decisions, or --vectors")
+    if not (run_municipal or run_legislation or run_executive_orders or run_meetings or run_issues or run_elections or run_elected_officials or run_videos or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors):
+        print("No tasks specified. Use --all, --municipal, --legislation, --executive-orders, --meetings, --issues, --elections, --elected-officials, --videos, --transcripts, --chunks, --agenda, --decisions, or --vectors")
         print("Use --stats-only to check current state")
         return
 
@@ -2989,6 +3145,8 @@ def main(
         task_list.append("issues")
     if run_elections:
         task_list.append("elections")
+    if run_elected_officials:
+        task_list.append("elected_officials")
     if run_videos:
         task_list.append("videos")
     if run_transcripts:
@@ -3014,6 +3172,8 @@ def main(
         print(f"  Issues: {jurisdiction}" + (" (incremental)" if incremental else ""))
     if run_elections:
         print(f"  Elections: {jurisdiction}")
+    if run_elected_officials:
+        print(f"  Elected Officials: {jurisdiction} (federal, state, local)")
     if run_videos:
         print(f"  Videos: {jurisdiction} (YouTube)")
     if run_transcripts:
@@ -3089,6 +3249,14 @@ def main(
             auto_index=auto_index,
         )
         handles.append(("elections", handle))
+
+    if run_elected_officials:
+        print("Spawning elected officials fetch...")
+        handle = fetch_elected_officials.spawn(
+            jurisdiction=jurisdiction,
+            dry_run=dry_run,
+        )
+        handles.append(("elected_officials", handle))
 
     if run_videos:
         print("Spawning videos fetch (YouTube)...")

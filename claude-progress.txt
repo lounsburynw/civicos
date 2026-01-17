@@ -14567,3 +14567,59 @@ Transcript embeddings stored video_id (YouTube ID) in `meeting_id` field instead
 
 ### Next P0
 - `protocol_video_meeting_mapping` - Add StorageBackend method for video→meeting lookup
+
+## Session 526: protocol_video_meeting_mapping
+
+### Summary
+Refactored raw SQL video→meeting lookup into proper StorageBackend protocol method.
+
+### Changes
+- Added `get_video_meeting_mapping()` to ContentStorage protocol (protocols/content.py)
+- Implemented in PostgresBackend (postgres_backend.py:2959-2986)
+- Added stub in SQLiteBackend (sqlite_backend.py:1875-1885)
+- Updated PgVectorBackend.index_from_storage() to use new method
+- Updated modal_ingest.py index_vectors() to use new method
+
+### Commit
+- f946b8c: Session 526: Add StorageBackend.get_video_meeting_mapping() protocol method
+
+### Critics
+All 4 critics passed: pipeline, protocol, architecture, session
+
+### Next P0
+TBD - need to identify next priority item
+
+## Session 527: elected_officials_pipeline_integration
+
+### Summary
+Wired elected officials extraction code into the Modal ingestion pipeline.
+
+### Changes
+- Added `fetch_elected_officials()` Modal function to modal_ingest.py (lines 1846-1976)
+  - Fetches federal (Congress.gov), state (LegiScan), and local officials
+  - Supports dry_run, jurisdiction parameters
+  - Returns structured result with by_level breakdown
+- Integrated into `scheduled_election_refresh()` (monthly scheduled task)
+- Added `--elected-officials` CLI flag for manual runs
+
+### Data Populated
+- 6 local elected officials for city-san-rafael:
+  - Kate Colin (Mayor)
+  - Maribeth Bushey (Vice Mayor)
+  - Rachel Kertz, Eli Hill, Cynthia Silveri (City Council)
+  - Mary Sackett (County Supervisor)
+- Each official has name_variations for fuzzy matching on votes
+
+### Verification
+- get_elected_officials('city-san-rafael') returns 6 officials
+- get_official_by_name('city-san-rafael', 'Kate Colin') works
+- Fuzzy matching by last name works via name_variations
+
+### Commit
+- Session 527: Add fetch_elected_officials() to Modal ingestion pipeline
+
+### Critics
+All 4 critics passed: pipeline, protocol, architecture, session
+
+### Next P0
+- `remote_mcp_deployment` - Deploy civic-mcp as remote MCP server for Claude.ai access
