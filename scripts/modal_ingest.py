@@ -1134,7 +1134,7 @@ def _embed_and_store_batch(
             "nomic-embed-text-v1.5",
             meeting_id or "\\N",
             (meeting_title or "").replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n") if meeting_title else "\\N",
-            meeting_datetime.isoformat() if meeting_datetime else "\\N",
+            (meeting_datetime.isoformat() if hasattr(meeting_datetime, 'isoformat') else meeting_datetime) if meeting_datetime else "\\N",
             metadata.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n"),
             now.isoformat(),
             now.isoformat(),
@@ -1236,6 +1236,26 @@ def index_vectors(
         elif ct == "transcripts":
             raw = backend.get_transcripts(jurisdiction)
             chunks = expand_transcripts_to_chunks(raw)
+
+            # Build video_id → meeting_id lookup for proper meeting linkage
+            # Transcript chunks have video_id but need actual meeting_id
+            import psycopg2
+            conn = psycopg2.connect(database_url)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, meeting_id FROM videos
+                WHERE jurisdiction_id = %s AND valid_to IS NULL AND meeting_id IS NOT NULL
+            """, (jurisdiction,))
+            video_to_meeting = {vid: mid for vid, mid in cursor.fetchall()}
+            conn.close()
+
+            if video_to_meeting:
+                logger.info(f"  Built video→meeting lookup: {len(video_to_meeting)} mappings")
+                # Enrich chunks with meeting_id
+                for chunk in chunks:
+                    video_id = chunk.get("video_id")
+                    if video_id and video_id in video_to_meeting:
+                        chunk["meeting_id"] = video_to_meeting[video_id]
         elif ct == "municipal_code":
             raw = backend.get_municipal_code(jurisdiction)
             chunks = expand_municipal_code_to_chunks(raw)
