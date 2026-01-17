@@ -1,7 +1,7 @@
 {
   "version": "2.0",
   "phase": "pilot",
-  "last_updated": "2026-01-15 (data readiness audit)",
+  "last_updated": "2026-01-17 (multi-platform distribution strategy)",
   "target": "January 2026",
   "summary": "Consolidated pilot checklist: completed work summarized, active items tracked individually",
   "category_order": [
@@ -802,11 +802,11 @@
         ]
       },
       "elected_officials_pipeline_integration": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Wire elected officials extraction into scheduled ingestion pipeline",
         "artifact": "Modal function or script to populate elected_officials table",
-        "note": "DATA_GAPS_INVESTIGATION_2026_01_15.md found: Code exists at civic_extraction.clients.representatives.extract_elected_officials_to_storage() with hardcoded SAN_RAFAEL_LOCAL_OFFICIALS. Never integrated into modal_ingest.py. Options: (a) Add to Modal scheduled refresh, (b) Create one-time population script.",
+        "note": "Session 527: Added fetch_elected_officials() to modal_ingest.py, integrated into scheduled_election_refresh(), added --elected-officials CLI flag. Local officials (6) populated in elected_officials table.",
         "key_files": [
           "packages/civic-extraction/src/civic_extraction/clients/representatives.py:1188",
           "scripts/modal_ingest.py"
@@ -2078,24 +2078,6 @@
       }
     },
     "distribution_channels": {
-      "chatgpt_gpt": {
-        "status": "not_ready",
-        "priority": 4,
-        "artifact": "Custom GPT 'Civic San Rafael' in ChatGPT GPT store",
-        "note": "Session 481: Create ChatGPT GPT with Actions calling Civic API. Low effort if API is solid (~1 day). Use for clerk demo - more relatable than custom web app. GPT responses link back to web frontend for depth. Test thoroughly before demo to avoid hallucinations.",
-        "dependencies": [
-          "OpenAPI spec for Civic API endpoints",
-          "GPT system prompt",
-          "Example conversations"
-        ],
-        "demo_use": "Let city clerk ask questions about San Rafael directly in ChatGPT"
-      },
-      "mcp_server": {
-        "status": "not_ready",
-        "priority": 4,
-        "artifact": "MCP server for Claude integration",
-        "note": "apps/civic-mcp/ exists but needs polish before launch. Power user / developer access. Contributor onramp - developers can query Civic from Claude while building parsers."
-      },
       "mcp_vector_search_tools": {
         "status": "ready",
         "priority": 2,
@@ -2108,11 +2090,98 @@
           "apps/civic_input_validator.py"
         ]
       },
+      "remote_mcp_deployment": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "MCP server deployed remotely with OAuth for Claude.ai web access",
+        "description": "Deploy civic-mcp as a remote MCP server accessible from Claude.ai web, Claude Desktop, and Claude Mobile. Requires public hosting + OAuth 2.0 implementation.",
+        "note": "Session 529: Claude.ai Integrations (May 2025) enables remote MCP servers for Pro/Max/Team/Enterprise users. Key for clerk demo - clerk can use via claude.ai without installing anything. OAuth callback: https://claude.ai/api/mcp/auth_callback",
+        "subtasks": [
+          "Choose hosting platform (Railway, Fly.io, Render)",
+          "Implement OAuth 2.0 authentication flow",
+          "Configure SSE or Streamable HTTP transport",
+          "Test with Claude.ai Connectors",
+          "Document user setup flow"
+        ],
+        "depends_on": [
+          "mcp_vector_search_tools"
+        ],
+        "references": [
+          "https://support.claude.com/en/articles/11503834-building-custom-connectors-via-remote-mcp-servers",
+          "https://modelcontextprotocol.io/docs/develop/connect-remote-servers"
+        ]
+      },
+      "mcp_registry_listing": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Civic MCP server listed on MCP Registry and community directories",
+        "description": "Register civic-mcp on official MCP Registry and community directories (MCP.so, MCPServers.org) for discoverability.",
+        "note": "Session 529: MCP Registry launched Sept 2025, progressing toward GA. Community directories have 17k+ servers. Registration increases discoverability for civic-minded developers.",
+        "subtasks": [
+          "Prepare server metadata for registry submission",
+          "Submit to official MCP Registry (registry.modelcontextprotocol.io)",
+          "Submit to MCP.so",
+          "Submit to MCPServers.org"
+        ],
+        "depends_on": [
+          "remote_mcp_deployment"
+        ]
+      },
+      "openapi_spec": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "OpenAPI 3.0 spec for civic-services REST API endpoints",
+        "description": "Generate or write OpenAPI spec covering key civic-services endpoints needed for ChatGPT Actions and API documentation.",
+        "note": "FastAPI auto-generates OpenAPI at /docs endpoint. May need customization for GPT Actions compatibility (simpler schemas, clear descriptions).",
+        "endpoints_to_cover": [
+          "GET /api/meetings - whats_next()",
+          "GET /api/decisions - what_happened()",
+          "GET /api/issues - whos_with_me()",
+          "POST /api/search - multi-corpus search",
+          "GET /api/budget - budget queries",
+          "GET /api/corpus/stats - data coverage"
+        ],
+        "key_files": [
+          "packages/civic-services/src/civic_services/servers/api.py",
+          "packages/civic-services/src/civic_services/servers/routers/"
+        ]
+      },
+      "chatgpt_custom_gpt": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Custom GPT 'Civic San Rafael' in ChatGPT GPT store",
+        "description": "Build ChatGPT Custom GPT with Actions calling Civic REST API. Primary demo vehicle for city clerk meeting.",
+        "note": "Session 529: ChatGPT plugins deprecated (March 2024), Custom GPTs + Actions is replacement. OpenAI Apps SDK (Oct 2025) extends MCP - future convergence likely. For demo, Custom GPT is most accessible (clerk likely uses ChatGPT).",
+        "subtasks": [
+          "Create GPT system prompt (civic engagement assistant persona)",
+          "Configure Actions from OpenAPI spec",
+          "Add conversation starters for common queries",
+          "Test thoroughly to avoid hallucinations",
+          "Add linkbacks to web app in responses"
+        ],
+        "depends_on": [
+          "openapi_spec"
+        ],
+        "demo_use": "Let city clerk ask questions about San Rafael directly in ChatGPT"
+      },
       "web_frontend": {
         "status": "not_ready",
-        "priority": 4,
-        "artifact": "apps/civic-workspace/ Vue frontend",
-        "note": "Primary interface for general public and clerk demo. Needs polish before launch. ChatGPT/MCP drive discovery, web app provides depth."
+        "priority": 2,
+        "artifact": "apps/civic-workspace/ Vue frontend deployed",
+        "description": "Deploy Vue frontend as primary web interface. ChatGPT/MCP drive discovery, web app provides depth.",
+        "note": "Frontend functional locally via /launch. Needs deployment for public access. Linkback destination from all AI assistant interactions."
+      },
+      "linkback_integration": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Deep links from AI responses back to web app",
+        "description": "All MCP tools and ChatGPT GPT responses include links to web app for detailed views, related content, and actions.",
+        "note": "Session 529: Linkback strategy is key for driving users from AI assistants to main product. Like Canva in ChatGPT - AI surfaces content, web app provides full experience.",
+        "depends_on": [
+          "web_frontend",
+          "mcp_vector_search_tools",
+          "chatgpt_custom_gpt"
+        ]
       }
     },
     "data_pipeline": {
