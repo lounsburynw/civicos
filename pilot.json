@@ -790,7 +790,7 @@
       },
       "protocol_video_meeting_mapping": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Add StorageBackend.get_video_meeting_mapping() protocol method",
         "artifact": "Protocol method in backend.py + implementations in PostgresBackend/SQLiteBackend",
         "note": "Session 525 critics' feedback: Raw SQL in pgvector_backend.py and modal_ingest.py bypasses protocol abstraction. Create proper method to encapsulate video_id\u2192meeting_id lookup.",
@@ -803,7 +803,7 @@
       },
       "elected_officials_pipeline_integration": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Wire elected officials extraction into scheduled ingestion pipeline",
         "artifact": "Modal function or script to populate elected_officials table",
         "note": "DATA_GAPS_INVESTIGATION_2026_01_15.md found: Code exists at civic_extraction.clients.representatives.extract_elected_officials_to_storage() with hardcoded SAN_RAFAEL_LOCAL_OFFICIALS. Never integrated into modal_ingest.py. Options: (a) Add to Modal scheduled refresh, (b) Create one-time population script.",
