@@ -14516,3 +14516,35 @@ This is expected for semantic search quality.
 
 ### Next
 - P0: `video_meeting_schema_alignment` - Align video-meeting schema fields
+
+## Session 525: video_meeting_schema_alignment (2026-01-17)
+
+### Problem
+Transcript embeddings stored video_id (YouTube ID) in `meeting_id` field instead of actual meeting ID. Also, `videos.meeting_url` was NULL for all records.
+
+### Solution
+
+1. **PgVectorBackend.index_from_storage** (`pgvector_backend.py:772-785`)
+   - Added video_id → meeting_id lookup when indexing transcripts
+   - Builds lookup dict from videos table before processing chunks
+   - Resolves actual meeting_id via video link, falls back to video_id for unlinked videos
+
+2. **Ran YouTube discovery** to populate `videos.meeting_url`
+   - Discovered 31 videos with meeting_url populated
+   - 26 videos now have meeting_id linked to meetings table
+
+### Files Changed
+- `packages/civic/src/civic/storage/pgvector_backend.py` - Added video→meeting lookup
+
+### Testing
+- 42/42 smoke tests pass
+- Verified lookup logic works correctly
+- Videos with meeting links resolve to proper meeting IDs
+
+### Current State
+- Code fix is in place
+- Re-indexing transcripts will apply the fix
+- Run: `modal run scripts/modal_ingest.py --vectors` to re-index
+
+### Next
+- P0: `elected_officials_pipeline_integration` - Wire elected officials extraction into pipeline

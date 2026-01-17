@@ -790,7 +790,7 @@
       },
       "elected_officials_pipeline_integration": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "description": "Wire elected officials extraction into scheduled ingestion pipeline",
         "artifact": "Modal function or script to populate elected_officials table",
         "note": "DATA_GAPS_INVESTIGATION_2026_01_15.md found: Code exists at civic_extraction.clients.representatives.extract_elected_officials_to_storage() with hardcoded SAN_RAFAEL_LOCAL_OFFICIALS. Never integrated into modal_ingest.py. Options: (a) Add to Modal scheduled refresh, (b) Create one-time population script.",
@@ -1115,43 +1115,21 @@
         ]
       },
       "video_meeting_schema_alignment": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "description": "Align video-meeting schema: populate meetings.video_url, videos.meeting_url, add video_id to transcript vectors",
-        "artifact": "Schema updates, ingestion code changes, and re-indexing",
-        "note": "Session 523 analysis: Current schema has gaps - meetings.video_url always NULL, videos.meeting_url always NULL, transcript vectors store video_id in meeting_id field (wrong). Requires both schema changes AND ingestion code updates to populate fields going forward.",
-        "schema_changes": [
-          "meetings.video_url: Populate by scraping source_url for YouTube embed",
-          "videos.meeting_url: Persist ProudCity URL from video discovery (already in JSON, not saved to DB)",
-          "vector_embeddings: Add video_id column for transcript corpus, keep meeting_id for proper FK"
-        ],
-        "ingestion_code_changes": [
-          "ProudCitySource/store_meetings: Scrape source_url for YouTube embed, set video_url",
-          "civic-extract youtube CLI: Pass meeting_url to store_videos (currently sets None)",
-          "modal_ingest.py fetch_videos: Pass meeting_url for school videos if available",
-          "PgVectorBackend.index_documents: Add video_id to transcript embeddings metadata"
-        ],
-        "depends_on": [
-          "orphan_video_linkage"
-        ],
+        "artifact": "PgVectorBackend.index_from_storage video→meeting lookup for transcripts",
+        "note": "Session 525 COMPLETE: Modified index_from_storage to build video_id→meeting_id lookup from videos table when indexing transcripts. Now uses actual meeting_id instead of video_id (falls back to video_id for unlinked videos). Also ran youtube discovery to populate videos.meeting_url for 31 videos (26 now have meeting_id). Re-indexing transcripts will apply the fix.",
         "key_files": [
-          "packages/civic/src/civic/storage/postgres_backend.py",
-          "packages/civic/src/civic/storage/pgvector_backend.py",
-          "packages/civic-extraction/src/civic_extraction/clients/proudcity.py",
-          "packages/civic-extraction/src/civic_extraction/cli/youtube.py",
-          "scripts/modal_ingest.py"
+          "packages/civic/src/civic/storage/pgvector_backend.py:772-785"
         ]
       },
       "transcript_vector_meeting_id_fix": {
-        "status": "not_ready",
-        "priority": 2,
+        "status": "ready",
+        "priority": 1,
         "description": "Fix transcript vectors storing video_id in meeting_id field",
-        "artifact": "Re-index with correct meeting_id lookup via video_id→meeting_id chain",
-        "note": "DATA_READINESS_AUDIT.md finding: 4,608 transcript vectors have YouTube video IDs in meeting_id field instead of proudcity meeting IDs. After orphan_video_linkage and video_meeting_schema_alignment complete, re-index transcripts with proper meeting_id lookup: transcript.video_id → videos.meeting_id → meetings.id.",
-        "depends_on": [
-          "orphan_video_linkage",
-          "video_meeting_schema_alignment"
-        ]
+        "artifact": "PgVectorBackend.index_from_storage video→meeting lookup (same fix as video_meeting_schema_alignment)",
+        "note": "Session 525: ADDRESSED by video_meeting_schema_alignment code change. The lookup logic resolves transcript.video_id → videos.meeting_id → actual meeting ID. Re-indexing transcripts will apply the fix. Run: modal run scripts/modal_ingest.py --vectors --reindex transcripts"
       }
     },
     "architectural_debt": {

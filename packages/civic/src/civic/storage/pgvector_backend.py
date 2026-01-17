@@ -768,6 +768,21 @@ class PgVectorBackend:
                 )
             raw_transcripts = storage_backend.get_transcripts(jurisdiction_id)
             documents = transcript_chunker(raw_transcripts)
+
+            # Build video_id → meeting_id lookup for proper meeting linkage
+            # Transcript chunks have video_id but we need the actual meeting_id
+            video_to_meeting = {}
+            try:
+                cursor.execute("""
+                    SELECT id, meeting_id FROM videos
+                    WHERE jurisdiction_id = %s AND valid_to IS NULL AND meeting_id IS NOT NULL
+                """, (jurisdiction_id,))
+                for video_id, meeting_id in cursor.fetchall():
+                    video_to_meeting[video_id] = meeting_id
+                if video_to_meeting:
+                    logger.info(f"  Built video→meeting lookup: {len(video_to_meeting)} mappings")
+            except Exception as e:
+                logger.warning(f"  Could not build video→meeting lookup: {e}")
         elif corpus_type == "municipal_code":
             # Expand municipal code sections to chunks for semantic search
             if legal_chunker is None:
@@ -884,7 +899,10 @@ class PgVectorBackend:
                     # doc is already a chunk from _expand_transcripts_to_chunks
                     text = doc.get("text", "")
                     doc_id = doc.get("id", f"transcript-{i}-{idx}")
-                    meeting_id = doc.get("video_id")  # Use video_id as meeting reference
+                    video_id = doc.get("video_id")
+                    # Resolve actual meeting_id via video→meeting lookup
+                    # Falls back to video_id if no meeting link exists
+                    meeting_id = video_to_meeting.get(video_id, video_id) if video_to_meeting else video_id
                     meeting_title = None  # Will be in metadata
                     meeting_datetime = None  # Not available at chunk level
                 elif corpus_type == "municipal_code":
