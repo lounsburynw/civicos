@@ -2956,6 +2956,35 @@ class PostgresBackend:
 
         return count
 
+    def get_video_meeting_mapping(
+        self,
+        jurisdiction_id: str,
+    ) -> Dict[str, str]:
+        """
+        Get mapping of video IDs to meeting IDs.
+
+        Used by vector indexing to resolve transcript video_ids to meeting_ids.
+        Only returns videos that have a linked meeting_id.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+
+        Returns:
+            Dict mapping video_id -> meeting_id for videos with meeting links
+        """
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT id, meeting_id FROM videos
+            WHERE jurisdiction_id = %s AND valid_to IS NULL AND meeting_id IS NOT NULL
+        """, (jurisdiction_id,))
+        mapping = {video_id: meeting_id for video_id, meeting_id in cursor.fetchall()}
+        conn.close()
+
+        return mapping
+
     # ========== Transcript Methods (SESSION 381) ==========
 
     def store_transcripts(

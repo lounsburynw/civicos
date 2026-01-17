@@ -206,3 +206,21 @@ class ContentStorage(Protocol):
     def get_video_count(self, jurisdiction_id: str) -> int:
         """Get count of current videos for a jurisdiction."""
         ...
+
+    def get_video_meeting_mapping(
+        self,
+        jurisdiction_id: str,
+    ) -> Dict[str, str]:
+        """
+        Get mapping of video IDs to meeting IDs.
+
+        Used by vector indexing to resolve transcript video_ids to meeting_ids.
+        Only returns videos that have a linked meeting_id.
+
+        Args:
+            jurisdiction_id: Target jurisdiction (e.g., "city-san-rafael")
+
+        Returns:
+            Dict mapping video_id -> meeting_id for videos with meeting links
+        """
+        ...

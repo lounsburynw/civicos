@@ -789,11 +789,11 @@
         ]
       },
       "protocol_video_meeting_mapping": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "description": "Add StorageBackend.get_video_meeting_mapping() protocol method",
         "artifact": "Protocol method in backend.py + implementations in PostgresBackend/SQLiteBackend",
-        "note": "Session 525 critics' feedback: Raw SQL in pgvector_backend.py and modal_ingest.py bypasses protocol abstraction. Create proper method to encapsulate video_id→meeting_id lookup.",
+        "note": "Session 525 critics' feedback: Raw SQL in pgvector_backend.py and modal_ingest.py bypasses protocol abstraction. Create proper method to encapsulate video_id\u2192meeting_id lookup.",
         "key_files": [
           "packages/civic/src/civic/storage/backend.py",
           "packages/civic/src/civic/storage/postgres_backend.py",
@@ -1131,8 +1131,8 @@
         "status": "ready",
         "priority": 1,
         "description": "Align video-meeting schema: populate meetings.video_url, videos.meeting_url, add video_id to transcript vectors",
-        "artifact": "PgVectorBackend.index_from_storage video→meeting lookup for transcripts",
-        "note": "Session 525 COMPLETE: Modified index_from_storage to build video_id→meeting_id lookup from videos table when indexing transcripts. Now uses actual meeting_id instead of video_id (falls back to video_id for unlinked videos). Also ran youtube discovery to populate videos.meeting_url for 31 videos (26 now have meeting_id). Re-indexing transcripts will apply the fix.",
+        "artifact": "PgVectorBackend.index_from_storage video\u2192meeting lookup for transcripts",
+        "note": "Session 525 COMPLETE: Modified index_from_storage to build video_id\u2192meeting_id lookup from videos table when indexing transcripts. Now uses actual meeting_id instead of video_id (falls back to video_id for unlinked videos). Also ran youtube discovery to populate videos.meeting_url for 31 videos (26 now have meeting_id). Re-indexing transcripts will apply the fix.",
         "key_files": [
           "packages/civic/src/civic/storage/pgvector_backend.py:772-785"
         ]
@@ -1141,8 +1141,8 @@
         "status": "ready",
         "priority": 1,
         "description": "Fix transcript vectors storing video_id in meeting_id field",
-        "artifact": "PgVectorBackend.index_from_storage video→meeting lookup (same fix as video_meeting_schema_alignment)",
-        "note": "Session 525: ADDRESSED by video_meeting_schema_alignment code change. The lookup logic resolves transcript.video_id → videos.meeting_id → actual meeting ID. Re-indexing transcripts will apply the fix. Run: modal run scripts/modal_ingest.py --vectors --reindex transcripts"
+        "artifact": "PgVectorBackend.index_from_storage video\u2192meeting lookup (same fix as video_meeting_schema_alignment)",
+        "note": "Session 525: ADDRESSED by video_meeting_schema_alignment code change. The lookup logic resolves transcript.video_id \u2192 videos.meeting_id \u2192 actual meeting ID. Re-indexing transcripts will apply the fix. Run: modal run scripts/modal_ingest.py --vectors --reindex transcripts"
       }
     },
     "architectural_debt": {
