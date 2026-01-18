@@ -1425,6 +1425,153 @@ def prepare_for_meeting(
         return f"Error preparing for meeting: {str(e)}"
 
 
+# ─────────── ONBOARDING TOOLS ───────────
+# Help users discover what Civic can do
+
+@mcp.tool()
+def get_started(
+    user_type: str = "resident",
+) -> str:
+    """
+    Get help discovering what you can ask Civic.
+
+    Returns example questions and guidance tailored to your role.
+    Use this when you're new to Civic or want to explore its capabilities.
+
+    Args:
+        user_type: Your role - "resident", "city_staff", or "developer"
+
+    Returns:
+        Example questions organized by category, with suggested follow-ups
+    """
+    logger.info(f"Getting started guide for user_type: {user_type}")
+
+    user_type = user_type.lower().strip()
+
+    if user_type in ("resident", "citizen", "community_member", ""):
+        return _get_started_resident()
+    elif user_type in ("city_staff", "staff", "clerk", "planner"):
+        return _get_started_city_staff()
+    elif user_type in ("developer", "dev", "engineer", "technical"):
+        return _get_started_developer()
+    else:
+        return _get_started_resident()
+
+
+def _get_started_resident() -> str:
+    """Friendly category-based guidance for residents."""
+    return """# Welcome to Civic
+
+What would you like to explore?
+
+## 1. What's Happening
+*Upcoming meetings and agenda items*
+
+Try asking:
+- "What's on the agenda this week?"
+- "When is the next council meeting about housing?"
+
+## 2. What Happened
+*Past decisions and what people said*
+
+Try asking:
+- "What has the council decided about parking downtown?"
+- "What did residents say about the bike lane project?"
+
+## 3. Take Action
+*Submit comments or prepare to speak*
+
+Try asking:
+- "How do I submit a public comment?"
+- "Help me prepare to speak at Monday's meeting"
+
+---
+*Just ask your question naturally - I'll find the answer!*"""
+
+
+def _get_started_city_staff() -> str:
+    """Workflow-oriented guidance for city staff."""
+    return """# Civic for City Staff
+
+## Meeting Prep
+*Research background for upcoming items*
+
+- "Summarize what was said about [topic] at previous meetings"
+- "What public testimony was given on housing?"
+- "Search staff reports for homeless services recommendations"
+
+Tools: `search_meeting_history()`, `get_public_testimony()`, `search_agenda_packets()`
+
+## Constituent Insights
+*Understand community concerns*
+
+- "What issues are residents reporting downtown?"
+- "How many complaints about traffic on Lincoln Ave?"
+
+Tool: `find_similar_issues()`
+
+## Policy Research
+*Regulations and voting history*
+
+- "What state laws affect ADU policy?"
+- "How did council vote on similar items?"
+- "What federal programs fund housing?"
+
+Tools: `search_regulatory_stack()`, `get_voting_record()`, `get_federal_expenditures()`
+
+## Budget Questions
+*Department spending and revenue*
+
+- "What's budgeted for Community Development?"
+- "How much federal money do we receive?"
+
+Tools: `search_budget()`, `get_intergovernmental_revenue()`
+
+---
+*Ask naturally or call tools directly for precise queries.*"""
+
+
+def _get_started_developer() -> str:
+    """Technical reference for developers."""
+    return """# Civic MCP Tools Reference
+
+## Semantic Search
+| Tool | Purpose |
+|------|---------|
+| `search_meeting_history(query)` | Decisions + transcripts |
+| `search_regulatory_stack(topic)` | Local/state/federal law |
+| `search_agenda_packets(query)` | PDF staff reports |
+| `get_public_testimony(topic)` | Public comments |
+| `find_similar_issues(topic)` | 311/SeeClickFix match |
+| `get_decision_context(query)` | Decisions + linked discussion |
+
+## Structured Queries
+| Tool | Purpose |
+|------|---------|
+| `search_budget(department, fund)` | Budget items |
+| `get_upcoming_meetings(topics, days)` | Scheduled meetings |
+| `get_voting_record(official_name)` | Vote history |
+| `get_federal_expenditures(cfda)` | Single Audit data |
+| `get_intergovernmental_revenue()` | State Controller data |
+
+## Action Tools
+| Tool | Purpose |
+|------|---------|
+| `compose_public_comment(item)` | Comment context |
+| `prepare_for_meeting(item_id)` | Prep materials |
+
+## Resources
+- `civic://san-rafael/meetings`
+- `civic://san-rafael/decisions`
+- `civic://san-rafael/corpus-stats`
+
+## Prompts
+- `research_topic(topic)` - Multi-step research
+- `meeting_prep(description)` - Meeting preparation
+
+Jurisdiction: san-rafael (env: CIVIC_JURISDICTION)"""
+
+
 # ─────────── MCP RESOURCES ───────────
 # Browsable data that clients can discover and explore
 
