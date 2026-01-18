@@ -4,7 +4,7 @@ Tests for the unified VectorStore with configurable EmbeddingProvider.
 Validates that VectorStore works correctly with any EmbeddingProvider implementation,
 including dimension validation and proper integration.
 
-Run: pytest packages/civic/tests/test_unified_vector_store.py -v
+Run: pytest packages/civicos/tests/test_unified_vector_store.py -v
 """
 
 import os
@@ -24,7 +24,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.rag]
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.absolute()
 
 # Add source path for imports
-sys.path.insert(0, str(PROJECT_ROOT / "packages/civic/src"))
+sys.path.insert(0, str(PROJECT_ROOT / "packages/civicos/src"))
 
 from civicos._internal.embeddings import (
     SentenceTransformerProvider,

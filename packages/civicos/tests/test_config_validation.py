@@ -5,7 +5,7 @@ Tests the CivicConfig.validate_environment() method and related
 configuration validation functionality.
 
 Run with:
-    pytest packages/civic/tests/test_config_validation.py -v
+    pytest packages/civicos/tests/test_config_validation.py -v
 """
 
 import os

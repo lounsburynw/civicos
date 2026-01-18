@@ -70,7 +70,7 @@ class CivicServer:
     def _get_civic(self):
         """Lazy-load Civic instance."""
         if self._civic is None:
-            from civicos.civicos import Civic
+            from civicos.civicos import CivicOS
             self._civic = CivicOS(self.jurisdiction_id, db_path=self.db_path)
         return self._civic
 
@@ -102,7 +102,7 @@ class CivicServer:
             Returns:
                 Dict with federal, state, and local regulatory context
             """
-            from civicos.civicos import Civic
+            from civicos.civicos import CivicOS
             c = CivicOS(jurisdiction, db_path=self.db_path)
             result = c.what_applies(topic, location)
             return {
@@ -132,7 +132,7 @@ class CivicServer:
             Returns:
                 List of matching decisions
             """
-            from civicos.civicos import Civic
+            from civicos.civicos import CivicOS
             c = CivicOS(jurisdiction, db_path=self.db_path)
             results = c.what_happened(query, since)
             return [
@@ -165,7 +165,7 @@ class CivicServer:
             Returns:
                 List of upcoming meetings with agenda items
             """
-            from civicos.civicos import Civic
+            from civicos.civicos import CivicOS
             c = CivicOS(jurisdiction, db_path=self.db_path)
             meetings = c.whats_next(topics, days)
             return [
@@ -197,7 +197,7 @@ class CivicServer:
             Returns:
                 Community info with follower count, voices, initiatives
             """
-            from civicos.civicos import Civic
+            from civicos.civicos import CivicOS
             c = CivicOS(jurisdiction, db_path=self.db_path)
             community = c.whos_with_me(topic)
             return {
@@ -234,7 +234,7 @@ class CivicServer:
             Returns:
                 Created initiative info
             """
-            from civicos.civicos import Civic
+            from civicos.civicos import CivicOS
             c = CivicOS(jurisdiction, db_path=self.db_path)
             initiative = c.start_something(topic, title, description, location)
             return {
@@ -268,7 +268,7 @@ class CivicServer:
             Returns:
                 Created voice info
             """
-            from civicos.civicos import Civic
+            from civicos.civicos import CivicOS
             c = CivicOS(jurisdiction, db_path=self.db_path)
             voice = c.add_voice(item_type, item_id, stance, comment)
             return {
@@ -298,7 +298,7 @@ class CivicServer:
             Returns:
                 Subscription info
             """
-            from civicos.civicos import Civic
+            from civicos.civicos import CivicOS
             c = CivicOS(jurisdiction, db_path=self.db_path)
             subscription = c.follow(item_type, item_id)
             return {
@@ -326,7 +326,7 @@ class CivicServer:
             Returns:
                 Preparation materials
             """
-            from civicos.civicos import Civic
+            from civicos.civicos import CivicOS
             c = CivicOS(jurisdiction, db_path=self.db_path)
             prep = c.prepare(agenda_item_id)
             return {
@@ -357,7 +357,7 @@ class CivicServer:
             Returns:
                 List of suggestions with type, title, reason, action
             """
-            from civicos.civicos import Civic
+            from civicos.civicos import CivicOS
             c = CivicOS(jurisdiction, db_path=self.db_path)
             suggestions = c.suggestions(user_id)
             return [
@@ -391,7 +391,7 @@ class CivicServer:
             Returns:
                 Coordination plan with steps and participants
             """
-            from civicos.civicos import Civic
+            from civicos.civicos import CivicOS
             c = CivicOS(jurisdiction, db_path=self.db_path)
             plan = c.coordinate(initiative_id, action)
             return {
@@ -423,7 +423,7 @@ class CivicServer:
             Returns:
                 Recorded outcome info
             """
-            from civicos.civicos import Civic
+            from civicos.civicos import CivicOS
             c = CivicOS(jurisdiction, db_path=self.db_path)
             result = c.report_outcome(item_id, outcome, notes)
             return {

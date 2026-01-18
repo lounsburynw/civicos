@@ -4,7 +4,7 @@ Tests for the EmbeddingProvider abstraction.
 Tests both SentenceTransformerProvider (local) and OpenAIProvider (API-based)
 to ensure the unified interface works correctly across implementations.
 
-Run: pytest packages/civic/tests/test_embedding_provider.py -v
+Run: pytest packages/civicos/tests/test_embedding_provider.py -v
 """
 
 import os
@@ -22,7 +22,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.rag]
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.absolute()
 
 # Add source path for imports
-sys.path.insert(0, str(PROJECT_ROOT / "packages/civic/src"))
+sys.path.insert(0, str(PROJECT_ROOT / "packages/civicos/src"))
 
 from civicos._internal.embeddings import (
     EmbeddingProvider,

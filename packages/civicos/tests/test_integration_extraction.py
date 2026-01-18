@@ -8,7 +8,7 @@ These tests verify the san_rafael_extraction item from integration.json:
 
 These tests make real HTTP requests to cityofsanrafael.org.
 
-Run: python -m pytest packages/civic/tests/test_integration_extraction.py -v
+Run: python -m pytest packages/civicos/tests/test_integration_extraction.py -v
 """
 
 import os

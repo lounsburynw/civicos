@@ -4,7 +4,7 @@ Tests for video transcript chunking.
 Tests the TranscriptChunker class that converts AssemblyAI diarized transcripts
 into semantic chunks preserving speaker attribution and timestamps.
 
-Run: python -m pytest packages/civic/tests/test_transcript_chunking.py -v
+Run: python -m pytest packages/civicos/tests/test_transcript_chunking.py -v
 """
 
 import sys
@@ -16,7 +16,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.absolute()
 
 # Add source path for imports
-sys.path.insert(0, str(PROJECT_ROOT / "packages/civic/src"))
+sys.path.insert(0, str(PROJECT_ROOT / "packages/civicos/src"))
 
 # Paths to testimony files
 TESTIMONY_DIR = PROJECT_ROOT / "data/testimony"

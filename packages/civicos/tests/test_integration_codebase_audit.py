@@ -22,13 +22,13 @@ pytestmark = pytest.mark.integration
 
 # Files to audit for consistent patterns
 CORE_CIVICOS_FILES = [
-    "packages/civic/src/civic/_internal/state/manager.py",
-    "packages/civic/src/civic/history.py",
-    "packages/civic/src/civic/calendar.py",
-    "packages/civic/src/civic/civic.py",
-    "packages/civic/src/civic/actions/preparation.py",
-    "packages/civic/src/civic/actions/voices.py",
-    "packages/civic/src/civic/actions/subscriptions.py",
+    "packages/civicos/src/civicos/_internal/state/manager.py",
+    "packages/civicos/src/civicos/history.py",
+    "packages/civicos/src/civicos/calendar.py",
+    "packages/civicos/src/civicos/civic.py",
+    "packages/civicos/src/civicos/actions/preparation.py",
+    "packages/civicos/src/civicos/actions/voices.py",
+    "packages/civicos/src/civicos/actions/subscriptions.py",
 ]
 
 # Patterns that indicate potential issues
@@ -59,7 +59,7 @@ class TestJsonExtractionPatterns:
     def test_no_bare_except_in_state_manager(self):
         """Verify state/manager.py has no bare except handlers."""
         root = get_project_root()
-        file_path = root / "packages/civic/src/civic/_internal/state/manager.py"
+        file_path = root / "packages/civicos/src/civicos/_internal/state/manager.py"
 
         if not file_path.exists():
             pytest.skip(f"File not found: {file_path}")
@@ -75,7 +75,7 @@ class TestJsonExtractionPatterns:
     def test_no_bare_except_in_history(self):
         """Verify history.py has no bare except handlers."""
         root = get_project_root()
-        file_path = root / "packages/civic/src/civic/history.py"
+        file_path = root / "packages/civicos/src/civicos/history.py"
 
         if not file_path.exists():
             pytest.skip(f"File not found: {file_path}")
@@ -116,7 +116,7 @@ class TestFieldNamingConventions:
     def test_meeting_datetime_field_documented(self):
         """Verify the meeting datetime field naming is handled consistently."""
         root = get_project_root()
-        calendar_path = root / "packages/civic/src/civic/calendar.py"
+        calendar_path = root / "packages/civicos/src/civicos/calendar.py"
 
         if not calendar_path.exists():
             pytest.skip(f"File not found: {calendar_path}")
@@ -136,7 +136,7 @@ class TestFieldNamingConventions:
     def test_project_type_field_documented(self):
         """Verify the agenda item topic field naming is handled consistently."""
         root = get_project_root()
-        prep_path = root / "packages/civic/src/civic/actions/preparation.py"
+        prep_path = root / "packages/civicos/src/civicos/actions/preparation.py"
 
         if not prep_path.exists():
             pytest.skip(f"File not found: {prep_path}")
@@ -604,7 +604,7 @@ class TestRedundantDataPaths:
         import sys
         from pathlib import Path
         PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.absolute()
-        sys.path.insert(0, str(PROJECT_ROOT / "packages/civic/src"))
+        sys.path.insert(0, str(PROJECT_ROOT / "packages/civicos/src"))
         from civicos._internal.state import StateManager
         return StateManager(temp_db)
 
@@ -938,7 +938,7 @@ class TestRedundantDataPaths:
         from pathlib import Path
 
         root = Path(__file__).parent.parent.parent.parent.absolute()
-        manager_path = root / "packages/civic/src/civic/_internal/state/manager.py"
+        manager_path = root / "packages/civicos/src/civicos/_internal/state/manager.py"
 
         assert manager_path.exists(), "StateManager file should exist"
 
@@ -967,7 +967,7 @@ class TestRedundantDataPaths:
         import re
 
         root = Path(__file__).parent.parent.parent.parent.absolute()
-        civic_path = root / "packages/civic/src/civic/civic.py"
+        civic_path = root / "packages/civicos/src/civicos/civic.py"
 
         assert civic_path.exists(), "civic.py should exist"
 

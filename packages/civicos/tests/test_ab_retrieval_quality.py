@@ -16,7 +16,7 @@ Quality Metrics:
 - Known domain queries return domain-specific content
 
 Run tests:
-    pytest packages/civic/tests/test_ab_retrieval_quality.py -v
+    pytest packages/civicos/tests/test_ab_retrieval_quality.py -v
 
 Requirements:
     - DATABASE_URL set in .env (for pgvector)
