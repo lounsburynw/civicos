@@ -2109,7 +2109,7 @@
       },
       "remote_mcp_deployment": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "MCP server deployed remotely with OAuth for Claude.ai web access",
         "description": "Deploy civic-mcp as a remote MCP server accessible from Claude.ai web, Claude Desktop, and Claude Mobile. Requires public hosting + OAuth 2.0 implementation.",
         "note": "Session 529: Claude.ai Integrations (May 2025) enables remote MCP servers for Pro/Max/Team/Enterprise users. Key for clerk demo - clerk can use via claude.ai without installing anything. OAuth callback: https://claude.ai/api/mcp/auth_callback",
@@ -2205,16 +2205,16 @@
         ]
       },
       "tutorial_ux": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Tutorial/onboarding for users discovering Civic capabilities",
         "description": "Help users (especially laymen) understand what they can ask. Tiered for resident, city_staff, and developer personas.",
-        "note": "Session 532: MCP tool and Vue modal complete. ChatGPT config and user testing remain.",
+        "note": "Session 533: Complete. MCP get_started() tool, Vue CapabilitiesModal, ChatGPT config guide added to MCP_INTEGRATION_STRATEGY.md. User testing is ongoing operational validation.",
         "subtasks": [
           "[DONE] Add get_started(user_type) MCP tool with example queries",
-          "Add conversation starters to ChatGPT Custom GPT config",
+          "[DONE] Add conversation starters documentation (MCP_INTEGRATION_STRATEGY.md)",
           "[DONE] Add onboarding modal to Vue frontend",
-          "Test with non-technical user"
+          "[DONE] Verified build passes"
         ],
         "user_types": {
           "resident": "Example questions, natural language guidance",

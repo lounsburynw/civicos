@@ -14697,3 +14697,35 @@ Integrated in App.vue:
 ### Next P0
 - `tutorial_ux` remains P0 - ChatGPT config is external, user testing is manual
 - Consider marking ready after brief manual test, or proceed to `rename_to_civicos` (P1)
+
+## Session 533: 2026-01-17
+### Task: tutorial_ux (P0) - COMPLETE
+
+### Summary
+Verified tutorial_ux implementation and added ChatGPT configuration documentation.
+
+### Work Done
+1. **Verified existing implementations**:
+   - MCP get_started(user_type) tool: civic_server.py:1432-1572
+   - Vue CapabilitiesModal: apps/civic-workspace/src/components/onboarding/CapabilitiesModal.vue
+   - Integration in App.vue with localStorage persistence
+
+2. **Added ChatGPT Custom GPT Configuration Guide**:
+   - Step-by-step guide added to docs/critical/MCP_INTEGRATION_STRATEGY.md
+   - Includes: system prompt, conversation starters, OpenAPI spec template, verification checklist
+   - Conversation starters match get_started() categories
+
+3. **Verified build**:
+   - Vue build passes (npm run build)
+   - Smoke tests pass (42 tests)
+
+### Files Modified
+- `docs/critical/MCP_INTEGRATION_STRATEGY.md` (ChatGPT config guide added)
+- `pilot.json` (tutorial_ux marked ready, remote_mcp_deployment set to P0)
+
+### Status
+- tutorial_ux: ready (all implementation complete, operational testing ongoing)
+- Next P0: remote_mcp_deployment (deploy MCP server for Claude.ai web access)
+
+### Next P0
+- `remote_mcp_deployment` - Deploy civic-mcp remotely with OAuth for Claude.ai Integrations

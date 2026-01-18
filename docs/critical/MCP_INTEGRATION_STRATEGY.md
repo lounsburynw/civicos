@@ -1,20 +1,303 @@
 # MCP Integration Strategy
 
 **Created**: 2025-11-24 (Session 118)
-**Status**: Strategy Defined, Implementation Starting Session 119
-**Priority**: Strategic - Industry standards adoption for portability
+**Updated**: 2026-01-17 (Session 529 - Multi-platform distribution strategy)
+**Status**: MCP Server Complete (22 primitives), Distribution Planning Active
+**Priority**: Strategic - Multi-platform AI distribution for pilot demo
 
 ---
 
 ## Executive Summary
 
-**Decision**: Adopt MCP (Model Context Protocol) incrementally for new integrations, not as a full migration.
+**Decision**: Deploy MCP server remotely for Claude.ai web + build ChatGPT Custom GPT for multi-platform distribution.
 
-**Why Now**: MCP is becoming the industry standard for AI-tool integration (Anthropic, Vercel, OpenAI ecosystem). Building on standards ensures portability and ecosystem access.
+**Why Now**:
+- Claude.ai web now supports remote MCP servers (May 2025 "Integrations" launch)
+- MCP Registry launched (Sept 2025) for discoverability
+- ChatGPT plugins deprecated → Custom GPTs with Actions is the path
+- OpenAI Apps SDK extends MCP (Oct 2025) - ecosystem converging
 
-**Approach**: New integrations as MCP-native servers. Existing REST API remains for frontend. LangGraph workflows can consume MCP tools.
+**Strategy**: Meet users where they are (Claude, ChatGPT, web app), with linkbacks to main product.
 
-**First Target**: StateManager as MCP server (Session 119, ~50 lines)
+**Current State**:
+- MCP server complete: 15 tools + 5 resources + 2 prompts (`apps/civic-mcp/civic_server.py`)
+- REST API complete: FastAPI endpoints (`packages/civic-services/`)
+- Vue frontend available: `apps/civic-workspace/`
+
+**Next Steps**:
+1. Deploy MCP server remotely with OAuth for Claude.ai web access
+2. Register on MCP Registry and community directories
+3. Build ChatGPT Custom GPT with Actions wrapping REST API
+
+---
+
+## Multi-Platform Distribution Strategy (2026)
+
+### Platform Landscape
+
+| Platform | Method | Reach | Status |
+|----------|--------|-------|--------|
+| **Claude.ai web** | Remote MCP via Integrations | Pro/Max/Team/Enterprise users | Ready to deploy |
+| **Claude Desktop** | Local MCP server | All users | Working locally |
+| **Claude Mobile** | Remote MCP (same as web) | Pro+ users (iOS/Android) | Ready to deploy |
+| **ChatGPT** | Custom GPT + Actions | All ChatGPT users | Requires build |
+| **Web app** | Direct access | Everyone | Working |
+
+### Claude.ai Remote MCP (NEW - May 2025)
+
+Claude.ai web now supports **remote MCP servers** via "Integrations" feature:
+- Available on Pro, Max, Team, Enterprise plans
+- Also works on Claude Mobile (iOS/Android)
+- Supports OAuth authentication
+- User connects via Settings > Connectors
+
+**Deployment requirements**:
+```
+Remote MCP Server Checklist:
+├── Host MCP server publicly (Railway, Fly.io, Render, etc.)
+├── Implement OAuth 2.0 authentication
+│   └── Callback URL: https://claude.ai/api/mcp/auth_callback
+├── Support SSE or Streamable HTTP transport
+├── Expose tools, resources, prompts via MCP protocol
+└── Add to Claude.ai via connector URL
+```
+
+**References**:
+- [Claude Integrations announcement](https://www.anthropic.com/news/integrations)
+- [Building Custom Connectors](https://support.claude.com/en/articles/11503834-building-custom-connectors-via-remote-mcp-servers)
+- [Remote MCP Server docs](https://modelcontextprotocol.io/docs/develop/connect-remote-servers)
+
+### MCP Discovery Channels
+
+| Channel | URL | Notes |
+|---------|-----|-------|
+| **Official MCP Registry** | [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/) | Canonical, launching toward GA |
+| **MCP.so** | [mcp.so](https://mcp.so/) | 17k+ servers, community-driven |
+| **MCPServers.org** | [mcpservers.org](https://mcpservers.org/) | Curated collection |
+| **MCP Market** | [mcpmarket.com](https://mcpmarket.com/) | Discovery + docs |
+| **Desktop Extensions** | `.mcpb` bundles | One-click install for Claude Desktop |
+
+**Strategy**: Register on all directories for maximum discoverability.
+
+### ChatGPT Distribution
+
+ChatGPT plugins deprecated (March 2024). Replacement stack:
+
+1. **Custom GPTs + Actions** - Build GPT with OpenAPI-based Actions calling REST API
+2. **GPT Store** - Distribution surface for Custom GPTs
+3. **Apps in ChatGPT** (Oct 2025) - OpenAI's Apps SDK extends MCP for interactive UI
+
+**Build approach**:
+```
+ChatGPT Custom GPT "Civic San Rafael":
+├── System prompt: Civic engagement assistant for San Rafael
+├── Actions: OpenAPI spec wrapping civic-services REST API
+│   ├── GET /api/meetings - whats_next()
+│   ├── GET /api/decisions - what_happened()
+│   ├── GET /api/issues - whos_with_me()
+│   ├── POST /api/search - multi-corpus search
+│   └── GET /api/budget - budget queries
+├── Knowledge: San Rafael context document
+└── Conversation starters: "What's on the city council agenda?"
+```
+
+**References**:
+- [GPT Actions docs](https://platform.openai.com/docs/actions/introduction)
+- [Apps in ChatGPT announcement](https://skywork.ai/blog/apps-in-chatgpt-vs-custom-gpts-gpt-apps-2025-comparison/)
+
+### ChatGPT Custom GPT Configuration Guide
+
+Step-by-step guide for creating the "Civic San Rafael" Custom GPT.
+
+#### 1. Create the GPT
+
+1. Go to [chat.openai.com/gpts/editor](https://chat.openai.com/gpts/editor) (requires ChatGPT Plus)
+2. Click "Create a GPT"
+3. Use the "Configure" tab for detailed settings
+
+#### 2. Configure Basic Info
+
+**Name**: `Civic San Rafael`
+
+**Description**:
+```
+Your local government assistant for San Rafael, CA. Track city council decisions,
+find upcoming meetings, discover community issues, and prepare to participate in
+local democracy.
+```
+
+**Profile Picture**: Use Civic logo or San Rafael city seal
+
+#### 3. System Prompt (Instructions)
+
+```
+You are Civic, a friendly assistant helping San Rafael residents engage with their
+local government. You have access to city council meetings, decisions, community
+issues, and budget information.
+
+CAPABILITIES:
+- Search past city council decisions and what was said at meetings
+- Find upcoming meetings and agenda items
+- Discover community concerns similar to the user's
+- Explain budget allocations and expenditures
+- Help users prepare public comments
+
+GUIDELINES:
+- Be conversational and accessible - avoid jargon
+- When citing decisions or meetings, include dates
+- Encourage civic participation but remain neutral on political positions
+- If you don't have information, say so and suggest where to look
+- Offer to help users take action (submit comments, attend meetings)
+
+JURISDICTION: San Rafael, California
+DATA FRESHNESS: Updated daily from official city sources
+```
+
+#### 4. Conversation Starters
+
+Add these 4 conversation starters (matches get_started() categories):
+
+| Starter | Purpose |
+|---------|---------|
+| "What's on the agenda for the next council meeting?" | Discovery - upcoming meetings |
+| "What has the council decided about housing?" | Research - past decisions |
+| "What are residents saying about traffic downtown?" | Community - similar issues |
+| "Help me prepare to speak at Monday's meeting" | Action - public participation |
+
+#### 5. Configure Actions (API Integration)
+
+**Schema Type**: OpenAPI 3.0
+
+**Server URL**: `https://civic-api.example.com` (replace with deployed civic-services URL)
+
+**OpenAPI Spec** (minimal example):
+```yaml
+openapi: 3.0.0
+info:
+  title: Civic San Rafael API
+  version: 1.0.0
+servers:
+  - url: https://civic-api.example.com
+paths:
+  /api/meetings:
+    get:
+      operationId: getUpcomingMeetings
+      summary: Get upcoming city council meetings
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        '200':
+          description: List of upcoming meetings
+  /api/decisions:
+    get:
+      operationId: searchDecisions
+      summary: Search past council decisions
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Matching decisions
+  /api/issues:
+    get:
+      operationId: findSimilarIssues
+      summary: Find community issues similar to a topic
+      parameters:
+        - name: topic
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Similar community issues
+```
+
+**Authentication**: Configure API key or OAuth as appropriate
+
+#### 6. Knowledge Files (Optional)
+
+Upload supporting documents:
+- San Rafael municipal code summary
+- City council member roster
+- Common civic processes guide
+
+#### 7. Publishing
+
+1. Test thoroughly with sample questions
+2. Set visibility: "Anyone with a link" or "Public" (GPT Store)
+3. Copy shareable link for distribution
+
+#### 8. Verification Checklist
+
+| Check | Expected Result |
+|-------|-----------------|
+| "What's on the agenda?" | Returns upcoming meeting info |
+| "Council decisions about housing" | Returns relevant decisions |
+| "Traffic complaints downtown" | Returns similar SeeClickFix issues |
+| "How do I submit a comment?" | Explains public comment process |
+
+### Distribution Architecture
+
+```
+                    ┌─────────────────────────────────┐
+                    │     civic-mcp (MCP Server)      │
+                    │   Deploy remotely with OAuth    │
+                    └───────────────┬─────────────────┘
+                                    │
+            ┌───────────────────────┼───────────────────────┐
+            │                       │                       │
+            ▼                       ▼                       ▼
+    ┌───────────────┐      ┌───────────────┐      ┌───────────────┐
+    │  Claude.ai    │      │ Claude Desktop│      │ Claude Mobile │
+    │  (Web)        │      │ (All users)   │      │ (iOS/Android) │
+    │  Pro+ plans   │      │               │      │ Pro+ plans    │
+    └───────────────┘      └───────────────┘      └───────────────┘
+
+                    ┌─────────────────────────────────┐
+                    │   civic-services REST API       │
+                    │   (FastAPI, already deployed)   │
+                    └───────────────┬─────────────────┘
+                                    │
+            ┌───────────────────────┼───────────────────────┐
+            │                       │                       │
+            ▼                       ▼                       ▼
+    ┌───────────────┐      ┌───────────────┐      ┌───────────────┐
+    │ ChatGPT       │      │ civic-workspace│     │ Future: Apps  │
+    │ Custom GPT    │      │ (Vue web app)  │     │ SDK / Gemini  │
+    │ via Actions   │      │ Main product   │     │               │
+    └───────────────┘      └───────────────┘      └───────────────┘
+```
+
+### Linkback Strategy
+
+AI assistants should drive users to the main web app for depth:
+
+```python
+# MCP tool responses include deep links
+def search_meeting_history(query: str) -> str:
+    results = civic.what_happened(query)
+    return f"""
+Found {len(results)} decisions about "{query}".
+
+Top result: {results[0]['title']}
+- Date: {results[0]['date']}
+- Outcome: {results[0]['outcome']}
+
+View full details and related documents:
+→ https://civic.example.com/decisions/{results[0]['id']}
+
+Browse all results:
+→ https://civic.example.com/search?q={query}
+"""
+```
 
 ---
 
