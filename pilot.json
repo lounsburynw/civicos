@@ -2209,11 +2209,11 @@
         "priority": 0,
         "artifact": "Tutorial/onboarding for users discovering Civic capabilities",
         "description": "Help users (especially laymen) understand what they can ask. Tiered for resident, city_staff, and developer personas.",
-        "note": "Session 529: Essential for clerk demo - users won't know what to ask without guidance. Implements get_started() tool for MCP, conversation starters for ChatGPT GPT, onboarding modal for web app.",
+        "note": "Session 532: MCP tool and Vue modal complete. ChatGPT config and user testing remain.",
         "subtasks": [
-          "Add get_started(user_type) MCP tool with example queries",
+          "[DONE] Add get_started(user_type) MCP tool with example queries",
           "Add conversation starters to ChatGPT Custom GPT config",
-          "Add onboarding modal to Vue frontend",
+          "[DONE] Add onboarding modal to Vue frontend",
           "Test with non-technical user"
         ],
         "user_types": {
