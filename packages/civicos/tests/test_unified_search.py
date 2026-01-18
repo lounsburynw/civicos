@@ -68,7 +68,7 @@ class TestCorpusInfo:
 class TestUnifiedSearchInit:
     """Test UnifiedSearch initialization."""
 
-    @patch("civic._internal.search.unified.CivicEmbeddings")
+    @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_init_creates_embeddings(self, mock_embeddings_cls):
         """UnifiedSearch creates CivicEmbeddings on init."""
         mock_embeddings = Mock()
@@ -83,7 +83,7 @@ class TestUnifiedSearchInit:
         assert search.jurisdiction_id == "city-san-rafael"
         assert search._embeddings is mock_embeddings
 
-    @patch("civic._internal.search.unified.CivicEmbeddings")
+    @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_init_with_custom_persist_dir(self, mock_embeddings_cls):
         """UnifiedSearch accepts custom persist directory."""
         mock_embeddings = Mock()
@@ -100,7 +100,7 @@ class TestUnifiedSearchInit:
 class TestUnifiedSearchGetAvailableCorpora:
     """Test get_available_corpora method."""
 
-    @patch("civic._internal.search.unified.CivicEmbeddings")
+    @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_get_available_corpora_all_available(self, mock_embeddings_cls):
         """get_available_corpora returns info for all corpus types."""
         mock_embeddings = Mock()
@@ -134,7 +134,7 @@ class TestUnifiedSearchGetAvailableCorpora:
         assert corpora["legislation"].available is True
         assert corpora["programs"].available is True
 
-    @patch("civic._internal.search.unified.CivicEmbeddings")
+    @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_get_available_corpora_some_missing(self, mock_embeddings_cls):
         """get_available_corpora handles missing collections."""
         mock_embeddings = Mock()
@@ -173,7 +173,7 @@ class TestUnifiedSearchGetAvailableCorpora:
         assert corpora["legislation"].available is False
         assert corpora["programs"].available is False
 
-    @patch("civic._internal.search.unified.CivicEmbeddings")
+    @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_get_available_corpora_caches_result(self, mock_embeddings_cls):
         """get_available_corpora caches result by default."""
         mock_embeddings = Mock()
@@ -204,7 +204,7 @@ class TestUnifiedSearchGetAvailableCorpora:
         assert mock_client.get_collection.call_count == 8
         assert corpora1 is corpora2
 
-    @patch("civic._internal.search.unified.CivicEmbeddings")
+    @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_get_available_corpora_refresh(self, mock_embeddings_cls):
         """get_available_corpora refresh=True bypasses cache."""
         mock_embeddings = Mock()
@@ -238,7 +238,7 @@ class TestUnifiedSearchGetAvailableCorpora:
 class TestUnifiedSearchSearchAll:
     """Test search_all method."""
 
-    @patch("civic._internal.search.unified.CivicEmbeddings")
+    @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_search_all_invalid_corpus_type(self, mock_embeddings_cls):
         """search_all raises ValueError for invalid corpus type."""
         mock_embeddings = Mock()
@@ -252,7 +252,7 @@ class TestUnifiedSearchSearchAll:
         assert "Invalid corpus types" in str(exc_info.value)
         assert "invalid_type" in str(exc_info.value)
 
-    @patch("civic._internal.search.unified.CivicEmbeddings")
+    @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_search_all_returns_empty_when_no_corpora(self, mock_embeddings_cls):
         """search_all returns empty list when no corpora available."""
         mock_embeddings = Mock()
@@ -274,7 +274,7 @@ class TestUnifiedSearchSearchAll:
 
         assert results == []
 
-    @patch("civic._internal.search.unified.CivicEmbeddings")
+    @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_search_all_queries_available_corpora(self, mock_embeddings_cls):
         """search_all queries all available corpora."""
         mock_embeddings = Mock()
@@ -329,7 +329,7 @@ class TestUnifiedSearchSearchAll:
         # Should have 2 results
         assert len(results) == 2
 
-    @patch("civic._internal.search.unified.CivicEmbeddings")
+    @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_search_all_filters_by_corpus_types(self, mock_embeddings_cls):
         """search_all only queries specified corpus types."""
         mock_embeddings = Mock()
@@ -361,7 +361,7 @@ class TestUnifiedSearchSearchAll:
         mock_embeddings.search_municipal_code.assert_not_called()
         mock_embeddings.search_legislation.assert_not_called()
 
-    @patch("civic._internal.search.unified.CivicEmbeddings")
+    @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_search_all_sorts_by_score(self, mock_embeddings_cls):
         """search_all returns results sorted by score (highest first)."""
         mock_embeddings = Mock()
@@ -400,7 +400,7 @@ class TestUnifiedSearchSearchAll:
         assert results[1].score == 0.7
         assert results[2].score == 0.5
 
-    @patch("civic._internal.search.unified.CivicEmbeddings")
+    @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_search_all_respects_top_k(self, mock_embeddings_cls):
         """search_all limits results to top_k."""
         mock_embeddings = Mock()
@@ -435,7 +435,7 @@ class TestUnifiedSearchSearchAll:
 
         assert len(results) == 3
 
-    @patch("civic._internal.search.unified.CivicEmbeddings")
+    @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_search_all_returns_unified_search_results(self, mock_embeddings_cls):
         """search_all returns UnifiedSearchResult objects."""
         mock_embeddings = Mock()
@@ -479,7 +479,7 @@ class TestUnifiedSearchSearchAll:
 class TestUnifiedSearchSearchCorpus:
     """Test search_corpus method."""
 
-    @patch("civic._internal.search.unified.CivicEmbeddings")
+    @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_search_corpus_invalid_type(self, mock_embeddings_cls):
         """search_corpus raises ValueError for invalid corpus type."""
         mock_embeddings = Mock()
@@ -492,7 +492,7 @@ class TestUnifiedSearchSearchCorpus:
 
         assert "Invalid corpus type" in str(exc_info.value)
 
-    @patch("civic._internal.search.unified.CivicEmbeddings")
+    @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_search_corpus_unavailable(self, mock_embeddings_cls):
         """search_corpus raises ValueError for unavailable corpus."""
         mock_embeddings = Mock()
@@ -516,7 +516,7 @@ class TestUnifiedSearchSearchCorpus:
 
         assert "not available" in str(exc_info.value)
 
-    @patch("civic._internal.search.unified.CivicEmbeddings")
+    @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_search_corpus_decision_with_filters(self, mock_embeddings_cls):
         """search_corpus passes filters to decision search."""
         mock_embeddings = Mock()
@@ -558,7 +558,7 @@ class TestUnifiedSearchSearchCorpus:
             until_ts=1800000000,
         )
 
-    @patch("civic._internal.search.unified.CivicEmbeddings")
+    @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_search_corpus_transcript_with_filters(self, mock_embeddings_cls):
         """search_corpus passes filters to transcript search."""
         mock_embeddings = Mock()
@@ -599,7 +599,7 @@ class TestUnifiedSearchSearchCorpus:
             public_comment_only=True,
         )
 
-    @patch("civic._internal.search.unified.CivicEmbeddings")
+    @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_search_corpus_legislation_with_filters(self, mock_embeddings_cls):
         """search_corpus passes filters to legislation search."""
         mock_embeddings = Mock()
@@ -645,7 +645,7 @@ class TestUnifiedSearchSearchCorpus:
 class TestUnifiedSearchGetStats:
     """Test get_stats method."""
 
-    @patch("civic._internal.search.unified.CivicEmbeddings")
+    @patch("civicos._internal.search.unified.CivicEmbeddings")
     def test_get_stats_returns_summary(self, mock_embeddings_cls):
         """get_stats returns comprehensive statistics."""
         mock_embeddings = Mock()

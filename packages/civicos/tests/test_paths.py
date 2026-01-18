@@ -352,8 +352,8 @@ class TestEmbeddingModelConfiguration:
         os.environ.pop("CIVICOS_EMBEDDING_MODEL", None)
 
         # Force reimport to pick up env change
-        if "civic._internal.meetings.embeddings" in sys.modules:
-            del sys.modules["civic._internal.meetings.embeddings"]
+        if "civicos._internal.meetings.embeddings" in sys.modules:
+            del sys.modules["civicos._internal.meetings.embeddings"]
 
         from civicos._internal.meetings.embeddings import CivicEmbeddings
 
@@ -367,8 +367,8 @@ class TestEmbeddingModelConfiguration:
         # Set custom model via env
         with patch.dict(os.environ, {"CIVICOS_EMBEDDING_MODEL": "custom/test-model"}):
             # Force reimport to pick up env change
-            if "civic._internal.meetings.embeddings" in sys.modules:
-                del sys.modules["civic._internal.meetings.embeddings"]
+            if "civicos._internal.meetings.embeddings" in sys.modules:
+                del sys.modules["civicos._internal.meetings.embeddings"]
 
             from civicos._internal.meetings.embeddings import CivicEmbeddings
 
@@ -376,8 +376,8 @@ class TestEmbeddingModelConfiguration:
 
         # Clean up: reimport with default
         os.environ.pop("CIVICOS_EMBEDDING_MODEL", None)
-        if "civic._internal.meetings.embeddings" in sys.modules:
-            del sys.modules["civic._internal.meetings.embeddings"]
+        if "civicos._internal.meetings.embeddings" in sys.modules:
+            del sys.modules["civicos._internal.meetings.embeddings"]
 
     def test_instance_respects_default_model(self):
         """CivicEmbeddings instance should use DEFAULT_MODEL when no model_name passed."""
@@ -386,8 +386,8 @@ class TestEmbeddingModelConfiguration:
         # Set custom model via env
         with patch.dict(os.environ, {"CIVICOS_EMBEDDING_MODEL": "test/env-model"}):
             # Force reimport to pick up env change
-            if "civic._internal.meetings.embeddings" in sys.modules:
-                del sys.modules["civic._internal.meetings.embeddings"]
+            if "civicos._internal.meetings.embeddings" in sys.modules:
+                del sys.modules["civicos._internal.meetings.embeddings"]
 
             from civicos._internal.meetings.embeddings import CivicEmbeddings
 
@@ -397,5 +397,5 @@ class TestEmbeddingModelConfiguration:
 
         # Clean up: reimport with default
         os.environ.pop("CIVICOS_EMBEDDING_MODEL", None)
-        if "civic._internal.meetings.embeddings" in sys.modules:
-            del sys.modules["civic._internal.meetings.embeddings"]
+        if "civicos._internal.meetings.embeddings" in sys.modules:
+            del sys.modules["civicos._internal.meetings.embeddings"]
