@@ -136,9 +136,9 @@ jobs:
           python -m pip install --upgrade pip
           # Install with fastembed (portable ONNX, no PyTorch needed)
           pip install psycopg2-binary  # Required for PostgresBackend
-          pip install -e packages/civic-config
+          pip install -e packages/civicos-config
           pip install -e packages/civic[embeddings]
-          pip install -e packages/civic-extraction
+          pip install -e packages/civicos-extraction
 
       - name: Check if should run this corpus
         id: check
@@ -205,9 +205,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install psycopg2-binary  # Required for PostgresBackend
-          pip install -e packages/civic-config
+          pip install -e packages/civicos-config
           pip install -e packages/civic[embeddings]
-          pip install -e packages/civic-extraction
+          pip install -e packages/civicos-extraction
 
       - name: Show vector statistics
         id: stats
@@ -277,7 +277,7 @@ jobs:
 
             Run vector indexing manually:
             \`\`\`bash
-            source civic-env/bin/activate
+            source civicos-env/bin/activate
             export DATABASE_URL="your_connection_string"
             civic-extract vectors --jurisdiction city-san-rafael --corpus all --provider fastembed
             \`\`\`

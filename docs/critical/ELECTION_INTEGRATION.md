@@ -476,10 +476,10 @@ def get_voting_record(
 ### Basic Election Queries
 
 ```python
-from civic import Civic
+from civicos import CivicOS
 from datetime import date
 
-c = Civic("san-rafael")
+c = CivicOS("san-rafael")
 
 # ========================================
 # 1. whats_next() with elections

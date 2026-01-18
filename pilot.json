@@ -2109,7 +2109,7 @@
       },
       "remote_mcp_deployment": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "MCP server deployed remotely with OAuth for Claude.ai web access",
         "description": "Deploy civic-mcp as a remote MCP server accessible from Claude.ai web, Claude Desktop, and Claude Mobile. Requires public hosting + OAuth 2.0 implementation.",
         "note": "Session 529: Claude.ai Integrations (May 2025) enables remote MCP servers for Pro/Max/Team/Enterprise users. Key for clerk demo - clerk can use via claude.ai without installing anything. OAuth callback: https://claude.ai/api/mcp/auth_callback",
@@ -2381,7 +2381,7 @@
     "post_pilot": {
       "rename_to_civicos": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Rename Civic to CivicOS across entire codebase",
         "description": "Comprehensive rebrand from Civic to CivicOS. Affects package names, class names, imports, env vars, MCP URIs, documentation.",
         "note": "Session 531: Pre-pilot rebrand. Do after tutorial_ux is complete. Use IDE refactoring tools + full test suite.",

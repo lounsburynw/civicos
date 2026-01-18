@@ -85,8 +85,8 @@ As of January 2026:
 ## API Methods
 
 ```python
-from civic import Civic
-c = Civic("san-rafael")
+from civicos import CivicOS
+c = CivicOS("san-rafael")
 
 # Authoritative audited federal spending (FAC)
 c.federal_expenditures(audit_year=2023)
@@ -127,8 +127,8 @@ The CA State Controller's ByTheNumbers portal has **structured, queryable data**
 
 **Usage:**
 ```python
-from civic import Civic
-c = Civic("san-rafael")
+from civicos import CivicOS
+c = CivicOS("san-rafael")
 
 # Get intergovernmental revenue summary
 summary = c.intergovernmental_revenue(fiscal_year=2024)

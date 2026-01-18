@@ -1,4 +1,4 @@
-# 🏛️ Civic Engagement Platform
+# 🏛️ CivicOS
 
 **Conversational Operating System for Local Democracy** - Transform civic participation through AI-powered conversations with actionable engagement buttons. Event-centric architecture with multi-platform data collection across 26 Bay Area municipalities, enriched with integrated state/federal legislative context.
 
@@ -38,11 +38,11 @@ cp .env.example .env
 
 # Edit .env with your actual API keys:
 # - OPENAI_API_KEY (required for AI features)
-# - CIVIC_WEB_KEY=dev_key_local (for local development)
+# - CIVICOS_WEB_KEY=dev_key_local (for local development)
 # - GOOGLE_MAPS_API_KEY (required for location filtering)
 
 # Then activate the environment
-source civic-env/bin/activate
+source civicos-env/bin/activate
 ```
 
 **Note**: Frontend `.env` is only needed for production deployment. Local dev uses defaults + Vite proxy.

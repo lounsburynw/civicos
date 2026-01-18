@@ -7,7 +7,7 @@ This guide explains how to connect Civic's MCP (Model Context Protocol) servers 
 MCP lets AI assistants like Claude access external tools and data. Civic provides two MCP servers:
 
 1. **civic-issues** — Query local civic complaints and issues (SeeClickFix data)
-2. **civic-server** — Draft public comments for city council meetings
+2. **civicos-server** — Draft public comments for city council meetings
 
 Once connected, you can ask Claude questions like "What issues have been reported on 5th Avenue?" and it will query live civic data to answer.
 
@@ -99,7 +99,7 @@ If the file doesn't exist, create it. Add the Civic MCP servers:
       "args": ["/path/to/civic/apps/civic-mcp/civic_issues.py"],
       "cwd": "/path/to/civic"
     },
-    "civic-server": {
+    "civicos-server": {
       "command": "/path/to/civic/civic-env/bin/python",
       "args": ["/path/to/civic/apps/civic-mcp/civic_server.py"],
       "cwd": "/path/to/civic",
@@ -125,7 +125,7 @@ If your Civic installation is at `/Users/jane/projects/civic`:
       "args": ["/Users/jane/projects/civic/apps/civic-mcp/civic_issues.py"],
       "cwd": "/Users/jane/projects/civic"
     },
-    "civic-server": {
+    "civicos-server": {
       "command": "/Users/jane/projects/civic/civic-env/bin/python",
       "args": ["/Users/jane/projects/civic/apps/civic-mcp/civic_server.py"],
       "cwd": "/Users/jane/projects/civic",
@@ -165,7 +165,7 @@ Claude should call `list_jurisdictions()` and show you available cities.
 
 Claude should call `query_issues()` and return actual civic complaint data.
 
-### Test civic-server
+### Test civicos-server
 
 > "Help me draft a public comment supporting the bike lane proposal"
 
@@ -186,7 +186,7 @@ Once connected, Claude has access to these tools:
 | `get_street_issues_summary` | Analyze issues for a specific street | "Summarize 5th Avenue problems" |
 | `list_jurisdictions` | List all available jurisdictions | "What cities have data?" |
 
-### civic-server Server
+### civicos-server Server
 
 | Tool | Description | Example Use |
 |------|-------------|-------------|
@@ -271,7 +271,7 @@ For integration with LangGraph or other systems, run the servers in HTTP mode:
 # civic-issues on port 8080
 python apps/civic-mcp/civic_issues.py --http --port 8080
 
-# civic-server on port 8081
+# civicos-server on port 8081
 python apps/civic-mcp/civic_server.py --http --port 8081
 ```
 

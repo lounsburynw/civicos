@@ -373,9 +373,9 @@ Source Comparison
 ### Verify Vector Search
 
 ```python
-from civic import Civic
+from civicos import CivicOS
 
-c = Civic("san-rafael")
+c = CivicOS("san-rafael")
 
 # Test semantic search
 results = c.what_happened("housing")
@@ -406,7 +406,7 @@ For deployment details, see [DEPLOYMENT_GUIDE.md](../critical/DEPLOYMENT_GUIDE.m
 
 - [ ] Data directory synced to production storage
 - [ ] Vector database files included (`data/pilot/vectors/`)
-- [ ] Environment variables configured (OpenAI key, CIVIC_WEB_KEY)
+- [ ] Environment variables configured (OpenAI key, CIVICOS_WEB_KEY)
 - [ ] API endpoints tested
 - [ ] Frontend configured for new jurisdiction
 

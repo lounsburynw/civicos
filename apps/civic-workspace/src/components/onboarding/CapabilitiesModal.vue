@@ -3,7 +3,7 @@
     <div class="modal-container">
       <!-- Header -->
       <div class="modal-header">
-        <h2 class="modal-title">Welcome to Civic OS</h2>
+        <h2 class="modal-title">Welcome to CivicOS</h2>
         <p class="modal-subtitle">
           Discover what you can do with your local civic information
         </p>

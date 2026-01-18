@@ -449,7 +449,7 @@ jobs:
             - Check if Oakland's Legistar API is temporarily down
             - Verify API endpoint at https://webapi.legistar.com/v1/oakland/events
             - Check for schema changes in response
-            - Update \`packages/civic-extraction/src/civic_extraction/clients/legistar.py\` if needed
+            - Update \`packages/civicos-extraction/src/civic_extraction/clients/legistar.py\` if needed
             ` : ''}
 
             ${!seeclickfixOk ? `
@@ -457,7 +457,7 @@ jobs:
             - Check if SeeClickFix API is temporarily down
             - Verify API at https://seeclickfix.com/api/v2/issues?place_url=san-rafael
             - Check for schema changes in response
-            - Update \`packages/civic-extraction/src/civic_extraction/clients/seeclickfix.py\` if needed
+            - Update \`packages/civicos-extraction/src/civic_extraction/clients/seeclickfix.py\` if needed
             ` : ''}
 
             ${!proudcityOk ? `
@@ -465,7 +465,7 @@ jobs:
             - Check if San Rafael city website is down
             - Visit https://www.cityofsanrafael.org/city-council-meetings/
             - Look for HTML structure changes
-            - Update \`packages/civic-extraction/src/civic_extraction/clients/proudcity.py\` if needed
+            - Update \`packages/civicos-extraction/src/civic_extraction/clients/proudcity.py\` if needed
             ` : ''}
 
             **Workflow Run:** [View logs](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})

@@ -359,7 +359,7 @@
             :class="{ 'is-rotated': isMeetingsExpanded }"
           />
           <Calendar :size="18" class="section-icon" />
-          <span class="section-title">Relevant Civic Meetings</span>
+          <span class="section-title">Relevant Meetings</span>
           <span class="meeting-count">({{ issue.matched_events.length }})</span>
         </button>
 
@@ -535,7 +535,7 @@ import ThreadArtifact from './ThreadArtifact.vue';
 import {
   // Status & timeline
   Clock,           // Government Response
-  Calendar,        // Relevant Civic Meetings
+  Calendar,        // Relevant Meetings
   FileText,        // Similar Issues (legacy)
   AlertCircle,     // Issue icon (matches TabBar)
   CheckCircle2,    // Filed, Matched, Mark Resolved, Resolved reason

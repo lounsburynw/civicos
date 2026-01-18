@@ -166,7 +166,7 @@ def test_search_returns_results(self, tmp_path):
 
 ```python
 def test_with_isolated_db(self, isolated_db_path):
-    civic = Civic("test", db_path=isolated_db_path)
+    civic = CivicOS("test", db_path=isolated_db_path)
     ...
 
 def test_with_isolated_vectors(self, isolated_chroma_config):

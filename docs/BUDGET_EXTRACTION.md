@@ -288,9 +288,9 @@ civic-extract budget --load \
 ### New `Civic.budget()` Method
 
 ```python
-from civic import Civic
+from civicos import CivicOS
 
-c = Civic("san-rafael")
+c = CivicOS("san-rafael")
 
 # Get all budget items for current FY
 items = c.budget()

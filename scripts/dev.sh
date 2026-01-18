@@ -8,7 +8,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-CIVIC_SERVICES="$PROJECT_ROOT/packages/civic-services/src/civic_services"
+CIVICOS_SERVICES="$PROJECT_ROOT/packages/civic-services/src/civic_services"
 
 # Load .env if it exists
 if [ -f "$PROJECT_ROOT/.env" ]; then
@@ -18,14 +18,14 @@ if [ -f "$PROJECT_ROOT/.env" ]; then
 fi
 
 # Development environment overrides
-export CIVIC_DEV_MODE=true
-export CIVIC_WEB_KEY="${CIVIC_WEB_KEY:-dev_key_local}"
+export CIVICOS_DEV_MODE=true
+export CIVICOS_WEB_KEY="${CIVICOS_WEB_KEY:-dev_key_local}"
 
 # PYTHONPATH for bare imports (TODO: fix imports to use full module paths)
-export PYTHONPATH="$CIVIC_SERVICES/monitoring:$CIVIC_SERVICES/clients:$CIVIC_SERVICES/storage:$CIVIC_SERVICES/processing:$CIVIC_SERVICES/chat:$CIVIC_SERVICES/core:${PYTHONPATH:-}"
+export PYTHONPATH="$CIVICOS_SERVICES/monitoring:$CIVICOS_SERVICES/clients:$CIVICOS_SERVICES/storage:$CIVICOS_SERVICES/processing:$CIVICOS_SERVICES/chat:$CIVICOS_SERVICES/core:${PYTHONPATH:-}"
 
 # Activate virtual environment
-source "$PROJECT_ROOT/civic-env/bin/activate"
+source "$PROJECT_ROOT/civicos-env/bin/activate"
 
 start_api() {
     echo "Starting FastAPI server on http://localhost:8001..."
@@ -83,8 +83,8 @@ show_help() {
     echo "  help         Show this help message"
     echo ""
     echo "Environment:"
-    echo "  CIVIC_DEV_MODE=true"
-    echo "  CIVIC_WEB_KEY=dev_key_local (or from .env)"
+    echo "  CIVICOS_DEV_MODE=true"
+    echo "  CIVICOS_WEB_KEY=dev_key_local (or from .env)"
     echo "  GOOGLE_MAPS_API_KEY (from .env)"
     echo ""
     echo "API Documentation:"

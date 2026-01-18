@@ -850,7 +850,7 @@ function stopResizeSidebar() {
 
           <!-- Empty State: No Artifacts Open -->
           <div v-if="workspaceStore.openArtifacts.length === 0" class="empty-state">
-            <h1 class="civic-title">Civic Conversational OS</h1>
+            <h1 class="civic-title">CivicOS</h1>
             <p class="subtitle">
               Select a jurisdiction from the sidebar to get started
             </p>

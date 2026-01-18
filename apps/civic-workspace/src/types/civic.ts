@@ -1,5 +1,5 @@
 /**
- * TypeScript interfaces for Civic Conversational OS
+ * TypeScript interfaces for CivicOS
  * Matches civic-app-schema.json
  */
 

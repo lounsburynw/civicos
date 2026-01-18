@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "civicos-services"
+version = "0.1.0"
+description = "CivicOS services layer - API servers, websocket, platform clients, and services"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+
+# Minimal dependencies - most come from civicos package and requirements.txt
+dependencies = [
+    "civicos-config",       # Shared jurisdiction configuration
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+civicos_services = ["py.typed"]

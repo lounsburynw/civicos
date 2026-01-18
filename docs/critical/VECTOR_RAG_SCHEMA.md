@@ -443,10 +443,10 @@ Examples:
 
 ```python
 # Environment variable controls embedding provider
-CIVIC_EMBEDDING_PROVIDER = "local"  # or "openai"
+CIVICOS_EMBEDDING_PROVIDER = "local"  # or "openai"
 
 # Provider-specific settings
-CIVIC_EMBEDDING_MODEL = "nomic-embed-text-v1.5"  # or "text-embedding-3-small"
+CIVICOS_EMBEDDING_MODEL = "nomic-embed-text-v1.5"  # or "text-embedding-3-small"
 ```
 
 ---

@@ -37,13 +37,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # Install local package dependencies first
-          pip install -e packages/civic-config
+          pip install -e packages/civicos-config
           # Smoke tests only need core + dev deps (skip embeddings to save ~2GB disk)
           pip install -e packages/civic[dev]
 
       - name: Run smoke tests
         run: |
-          pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
+          pytest packages/civicos/tests/test_civic.py -q --override-ini="addopts="
 
   # Full test suite - runs in parallel across multiple jobs
   full:
@@ -74,16 +74,16 @@ jobs:
           # Install storage dependencies
           pip install psycopg2-binary boto3
           # Install local package dependencies first
-          pip install -e packages/civic-config
+          pip install -e packages/civicos-config
           pip install -e packages/civic[all]
-          pip install -e packages/civic-extraction
+          pip install -e packages/civicos-extraction
           pip install -r requirements.txt
-          pip install -e packages/civic-services/  # Application layer (API servers, etc.)
+          pip install -e packages/civicos-services/  # Application layer (API servers, etc.)
           pip install pytest-split
 
       - name: Run test group ${{ matrix.group }}
         run: |
-          pytest packages/civic/tests/ \
+          pytest packages/civicos/tests/ \
             --override-ini="addopts=" \
             --splits 8 \
             --group ${{ matrix.group }} \
@@ -115,7 +115,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install psycopg2-binary
-          pip install -e packages/civic-config
+          pip install -e packages/civicos-config
           pip install -e packages/civic[all]
           pip install -r requirements.txt
 
@@ -127,7 +127,7 @@ jobs:
             echo "DATABASE_URL secret not configured - skipping pgvector tests"
             exit 0
           fi
-          pytest packages/civic/tests/test_integration_pgvector.py -v --override-ini="addopts="
+          pytest packages/civicos/tests/test_integration_pgvector.py -v --override-ini="addopts="
 
   # Summary job - reports overall status
   summary:

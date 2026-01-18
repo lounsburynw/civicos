@@ -101,9 +101,9 @@
 ### Query Methods (Learn)
 
 ```python
-from civic import Civic
+from civicos import CivicOS
 
-c = Civic("san-rafael-ca")
+c = CivicOS("san-rafael-ca")
 
 # What rules apply to my situation?
 c.what_applies(topic, location?) -> RegulatoryStack
@@ -354,7 +354,7 @@ civic/
 ```python
 # civic/mcp.py
 from mcp.server import Server
-from civic import Civic
+from civicos import CivicOS
 
 server = Server("civic")
 
@@ -366,7 +366,7 @@ def what_applies(jurisdiction: str, topic: str, location: str = None) -> dict:
 
     Use when user asks: "What are the rules for...", "Can I...", "Is it legal to..."
     """
-    return Civic(jurisdiction).what_applies(topic, location)
+    return CivicOS(jurisdiction).what_applies(topic, location)
 
 @server.tool()
 def what_happened(jurisdiction: str, query: str, since: str = None) -> list:
@@ -374,7 +374,7 @@ def what_happened(jurisdiction: str, query: str, since: str = None) -> list:
 
     Use when user asks: "Has the city ever...", "What happened with...", "Any precedent for..."
     """
-    return Civic(jurisdiction).what_happened(query, since)
+    return CivicOS(jurisdiction).what_happened(query, since)
 
 @server.tool()
 def whats_next(jurisdiction: str, topics: list = None, days: int = 30) -> list:
@@ -382,7 +382,7 @@ def whats_next(jurisdiction: str, topics: list = None, days: int = 30) -> list:
 
     Use when user asks: "When can I...", "Is there a meeting about...", "How do I participate..."
     """
-    return Civic(jurisdiction).whats_next(topics, days)
+    return CivicOS(jurisdiction).whats_next(topics, days)
 
 @server.tool()
 def whos_with_me(jurisdiction: str, topic: str) -> dict:
@@ -390,7 +390,7 @@ def whos_with_me(jurisdiction: str, topic: str) -> dict:
 
     Use when user asks: "Am I alone in...", "Who else cares about...", "Is anyone working on..."
     """
-    return Civic(jurisdiction).whos_with_me(topic)
+    return CivicOS(jurisdiction).whos_with_me(topic)
 
 # ─────────── ACTION TOOLS ───────────
 
@@ -407,7 +407,7 @@ def start_something(
     Use when user says: "I want to change...", "Someone should...", "Let's get people together..."
     AI should confirm intent before creating.
     """
-    return Civic(jurisdiction).start_something(topic, title, description, location)
+    return CivicOS(jurisdiction).start_something(topic, title, description, location)
 
 @server.tool()
 def add_voice(
@@ -422,7 +422,7 @@ def add_voice(
     Use when user says: "I support...", "I oppose...", "I want to comment on..."
     AI should help draft comment if requested.
     """
-    return Civic(jurisdiction).add_voice(item_type, item_id, stance, comment)
+    return CivicOS(jurisdiction).add_voice(item_type, item_id, stance, comment)
 
 @server.tool()
 def follow(jurisdiction: str, item_type: str, item_id: str) -> dict:
@@ -430,7 +430,7 @@ def follow(jurisdiction: str, item_type: str, item_id: str) -> dict:
 
     Use when user says: "Keep me posted on...", "Let me know when...", "Track this for me..."
     """
-    return Civic(jurisdiction).follow(item_type, item_id)
+    return CivicOS(jurisdiction).follow(item_type, item_id)
 
 @server.tool()
 def prepare(jurisdiction: str, agenda_item_id: str) -> dict:
@@ -439,7 +439,7 @@ def prepare(jurisdiction: str, agenda_item_id: str) -> dict:
     Use when user says: "I'm going to the meeting...", "How do I testify about...", "Help me prepare..."
     Returns: context, talking points, who else is going, logistics.
     """
-    return Civic(jurisdiction).prepare(agenda_item_id)
+    return CivicOS(jurisdiction).prepare(agenda_item_id)
 
 # ─────────── ORCHESTRATION TOOLS ───────────
 
@@ -449,7 +449,7 @@ def get_suggestions(jurisdiction: str, user_id: str = None) -> list:
 
     AI should call this periodically or at session start to surface opportunities.
     """
-    return Civic(jurisdiction).suggestions(user_id)
+    return CivicOS(jurisdiction).suggestions(user_id)
 
 @server.tool()
 def coordinate(jurisdiction: str, initiative_id: str, action: str) -> dict:
@@ -458,7 +458,7 @@ def coordinate(jurisdiction: str, initiative_id: str, action: str) -> dict:
     Use when initiative is ready for collective action.
     Actions: "schedule_meeting", "draft_letter", "plan_testimony", "notify_supporters"
     """
-    return Civic(jurisdiction).coordinate(initiative_id, action)
+    return CivicOS(jurisdiction).coordinate(initiative_id, action)
 
 @server.tool()
 def report_outcome(
@@ -472,7 +472,7 @@ def report_outcome(
     Use when: meeting concluded, vote taken, initiative succeeded/failed.
     This closes the feedback loop and improves future recommendations.
     """
-    return Civic(jurisdiction).report_outcome(item_id, outcome, notes)
+    return CivicOS(jurisdiction).report_outcome(item_id, outcome, notes)
 ```
 
 ---

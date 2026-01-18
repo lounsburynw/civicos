@@ -321,7 +321,7 @@ curl -s https://civic-websocket.fly.dev/health | jq .
 
 ```bash
 # Test core endpoint (requires auth)
-curl -s -H "Authorization: Bearer $CIVIC_WEB_KEY" \
+curl -s -H "Authorization: Bearer $CIVICOS_WEB_KEY" \
   https://civic-api.fly.dev/api/civic/san-rafael | jq .status
 ```
 
@@ -588,8 +588,8 @@ The Civic schema uses **temporal versioning** for data safety:
 **Query historical state:**
 ```python
 # Get data as of a specific datetime
-from civic import Civic
-c = Civic("san-rafael")
+from civicos import CivicOS
+c = CivicOS("san-rafael")
 c.what_happened("housing", as_of="2025-12-01T12:00:00")
 ```
 

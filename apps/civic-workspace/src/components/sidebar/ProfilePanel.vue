@@ -66,10 +66,10 @@
         </div>
       </div>
 
-      <!-- Civic Archetypes (Privacy-First) -->
+      <!-- CivicOS Archetypes (Privacy-First) -->
       <div v-if="localArchetypes && localArchetypes.length > 0" class="archetypes-section">
         <div class="section-header">
-          <h4 class="section-title">Your Civic Archetypes</h4>
+          <h4 class="section-title">Your CivicOS Archetypes</h4>
           <span class="privacy-badge">🔒 Device only</span>
         </div>
         <div class="archetypes-list">
@@ -167,7 +167,7 @@ const showDataHint = ref(false)
 
 // Computed
 const displayName = computed(() => {
-  return profileStore.profile?.display_name || 'Civic User'
+  return profileStore.profile?.display_name || 'CivicOS User'
 })
 
 const jurisdictionName = computed(() => {

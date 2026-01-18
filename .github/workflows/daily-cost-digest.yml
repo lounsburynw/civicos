@@ -5,9 +5,9 @@
 #
 # Prerequisites:
 #   - DATABASE_URL secret configured (Supabase PostgreSQL)
-#   - CIVIC_ALERT_EMAILS secret (comma-separated recipients)
-#   - CIVIC_SMTP_* secrets for email delivery
-#   - Optional: CIVIC_SLACK_WEBHOOK_URL for Slack notifications
+#   - CIVICOS_ALERT_EMAILS secret (comma-separated recipients)
+#   - CIVICOS_SMTP_* secrets for email delivery
+#   - Optional: CIVICOS_SLACK_WEBHOOK_URL for Slack notifications
 
 name: Daily Cost Digest
 
@@ -27,14 +27,14 @@ on:
 
 env:
   DATABASE_URL: ${{ secrets.DATABASE_URL }}
-  CIVIC_ALERT_EMAILS: ${{ secrets.CIVIC_ALERT_EMAILS }}
-  CIVIC_SMTP_SERVER: ${{ secrets.CIVIC_SMTP_SERVER }}
-  CIVIC_SMTP_PORT: ${{ secrets.CIVIC_SMTP_PORT }}
-  CIVIC_SMTP_USERNAME: ${{ secrets.CIVIC_SMTP_USERNAME }}
-  CIVIC_SMTP_PASSWORD: ${{ secrets.CIVIC_SMTP_PASSWORD }}
-  CIVIC_SLACK_WEBHOOK_URL: ${{ secrets.CIVIC_SLACK_WEBHOOK_URL }}
-  CIVIC_DAILY_BUDGET: '5.0'
-  CIVIC_MONTHLY_BUDGET: '50.0'
+  CIVICOS_ALERT_EMAILS: ${{ secrets.CIVICOS_ALERT_EMAILS }}
+  CIVICOS_SMTP_SERVER: ${{ secrets.CIVICOS_SMTP_SERVER }}
+  CIVICOS_SMTP_PORT: ${{ secrets.CIVICOS_SMTP_PORT }}
+  CIVICOS_SMTP_USERNAME: ${{ secrets.CIVICOS_SMTP_USERNAME }}
+  CIVICOS_SMTP_PASSWORD: ${{ secrets.CIVICOS_SMTP_PASSWORD }}
+  CIVICOS_SLACK_WEBHOOK_URL: ${{ secrets.CIVICOS_SLACK_WEBHOOK_URL }}
+  CIVICOS_DAILY_BUDGET: '5.0'
+  CIVICOS_MONTHLY_BUDGET: '50.0'
 
 # Permissions needed for creating issues on failure
 permissions:
@@ -60,7 +60,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install -q -e packages/civic
-          pip install -q -e packages/civic-services
+          pip install -q -e packages/civicos-services
           pip install python-dotenv psycopg2-binary
 
       - name: Preview Digest (if requested)
@@ -138,14 +138,14 @@ jobs:
             1. Check the [workflow logs](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
             2. Verify DATABASE_URL secret is configured
             3. Verify SMTP secrets are configured
-            4. Test manually: \`python packages/civic-services/src/civic_services/monitoring/daily_cost_digest.py --preview\`
+            4. Test manually: \`python packages/civicos-services/src/civic_services/monitoring/daily_cost_digest.py --preview\`
 
             ### Manual Recovery
 
             Run digest manually:
             \`\`\`bash
-            source civic-env/bin/activate
-            python packages/civic-services/src/civic_services/monitoring/daily_cost_digest.py --send
+            source civicos-env/bin/activate
+            python packages/civicos-services/src/civic_services/monitoring/daily_cost_digest.py --send
             \`\`\`
             `;
 

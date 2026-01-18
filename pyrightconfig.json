@@ -1,22 +1,22 @@
 {
   "include": [
-    "packages/civic/src",
-    "packages/civic/tests",
-    "packages/civic-extraction/src",
-    "packages/civic-extraction/tests",
-    "packages/civic-services/src",
-    "packages/civic-services/tests",
-    "apps/civic-mcp"
+    "packages/civicos/src",
+    "packages/civicos/tests",
+    "packages/civicos-extraction/src",
+    "packages/civicos-extraction/tests",
+    "packages/civicos-services/src",
+    "packages/civicos-services/tests",
+    "apps/civicos-mcp"
   ],
   "exclude": [
     "**/node_modules",
     "**/__pycache__",
-    "civic-env",
+    "civicos-env",
     ".venv",
     "data"
   ],
   "venvPath": ".",
-  "venv": "civic-env",
+  "venv": "civicos-env",
   "pythonVersion": "3.11",
   "typeCheckingMode": "basic",
   "reportMissingImports": true,

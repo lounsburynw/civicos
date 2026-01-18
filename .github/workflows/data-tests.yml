@@ -50,15 +50,15 @@ jobs:
           # Install CPU-only PyTorch first (saves ~2GB by skipping CUDA)
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           # Install local package dependencies first
-          pip install -e packages/civic-config
+          pip install -e packages/civicos-config
           pip install -e packages/civic[all]
-          pip install -e packages/civic-extraction
-          pip install -e packages/civic-services/
+          pip install -e packages/civicos-extraction
+          pip install -e packages/civicos-services/
           pip install -r requirements.txt
 
       - name: Run slow tests
         run: |
-          pytest packages/civic/tests/ \
+          pytest packages/civicos/tests/ \
             -m slow \
             --override-ini="addopts=" \
             -v \
@@ -111,15 +111,15 @@ jobs:
             ### Troubleshooting Steps
 
             1. Check the [workflow logs](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
-            2. Run slow tests locally: \`pytest packages/civic/tests/ -m slow -v --override-ini="addopts="\`
+            2. Run slow tests locally: \`pytest packages/civicos/tests/ -m slow -v --override-ini="addopts="\`
             3. Check for resource exhaustion (memory, disk space)
 
             ### Manual Recovery
 
             If tests are flaky, try running specific test file:
             \`\`\`bash
-            source civic-env/bin/activate
-            pytest packages/civic/tests/test_integration_load.py -v --override-ini="addopts="
+            source civicos-env/bin/activate
+            pytest packages/civicos/tests/test_integration_load.py -v --override-ini="addopts="
             \`\`\`
             `;
 

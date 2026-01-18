@@ -3,7 +3,7 @@
     <div class="location-entry-modal">
       <!-- Header -->
       <div class="modal-header">
-        <h1 class="modal-title">Welcome to Civic OS</h1>
+        <h1 class="modal-title">Welcome to CivicOS</h1>
         <p class="modal-subtitle">
           Enter your address to see civic meetings and opportunities in your area
         </p>
