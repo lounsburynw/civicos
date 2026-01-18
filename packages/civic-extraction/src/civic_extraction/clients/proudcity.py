@@ -44,6 +44,7 @@ class ProudCityClient(BaseExtractor):
     """
 
     # Default archive paths for common meeting types
+    # Keep in sync with data/extraction/san-rafael.json
     DEFAULT_ARCHIVES = {
         'city_council': '/city-council-meetings/',
         'planning_commission': '/planning-commission-meetings/',
@@ -51,6 +52,15 @@ class ProudCityClient(BaseExtractor):
         'tax_oversight': '/voter-approved-tax-oversight-committee-meetings/',
         'zoning_administrator': '/zoning-administrator-hearings/',
         'council_subcommittees': '/council-subcommittee-meetings/',
+        'ada_access_advisory_committee': '/ada-access-advisory-committee-meetings/',
+        'bicycle_pedestrian_advisory_committee': '/bicycle-pedestrian-advisory-committee-meetings/',
+        'board_of_library_trustees': '/board-of-library-trustees-meetings/',
+        'design_review_board': '/design-review-board-hearings/',
+        'paac': '/paac-meetings/',
+        'park_and_recreation_commission': '/park-and-recreation-commission-meetings/',
+        'pickleweed_advisory_committee': '/pickleweed-advisory-committee-meetings/',
+        'public_art_review_board': '/public-art-review-board-meetings/',
+        'board_and_commission': '/board-and-commission-meetings/',
     }
 
     def __init__(
@@ -568,7 +578,8 @@ class ProudCityClient(BaseExtractor):
     def _scrape_archive_page(
         self,
         archive_url: str,
-        meeting_type: str
+        meeting_type: str,
+        fetch_individual_pages: bool = True
     ) -> List[Dict[str, Any]]:
         """
         Scrape a meeting archive page.
@@ -576,6 +587,9 @@ class ProudCityClient(BaseExtractor):
         Args:
             archive_url: URL of the archive page
             meeting_type: Type identifier for the meetings
+            fetch_individual_pages: If True, fetch each meeting page to get
+                accurate date/time (slower but more accurate). If False, only
+                parse dates from URL slugs.
 
         Returns:
             List of meeting dictionaries
@@ -610,15 +624,27 @@ class ProudCityClient(BaseExtractor):
 
             meeting_slug = match.group(1)
 
-            # Parse date from slug or text
-            date_str = self._extract_date_from_slug(meeting_slug, text)
+            # Parse date from slug or text (fallback)
+            slug_date = self._extract_date_from_slug(meeting_slug, text)
 
-            if date_str:
+            if slug_date:
+                # Fetch individual page to get accurate date/time
+                actual_date = slug_date
+                meeting_time = None
+
+                if fetch_individual_pages:
+                    actual_date, meeting_time = self._extract_date_from_meeting_page(
+                        meeting_url.split('#')[0],
+                        fallback_date=slug_date
+                    )
+
                 meeting = {
                     'title': text or meeting_slug.replace('-', ' ').title(),
                     'meeting_slug': meeting_slug,
                     'meeting_url': meeting_url.split('#')[0],
-                    'date_parsed': date_str,
+                    'date_parsed': actual_date,
+                    'slug_date': slug_date,  # Keep original for debugging
+                    'meeting_time': meeting_time,
                     'meeting_type': meeting_type,
                     'source_archive': archive_url
                 }
@@ -665,6 +691,101 @@ class ProudCityClient(BaseExtractor):
 
         return None
 
+    def _extract_date_from_meeting_page(
+        self,
+        meeting_url: str,
+        fallback_date: Optional[str] = None
+    ) -> tuple[Optional[str], Optional[str]]:
+        """
+        Fetch individual meeting page and extract actual date/time from content.
+
+        ProudCity pages sometimes have URL slugs with incorrect dates while the
+        page content shows the correct date. This method fetches the page and
+        parses the displayed date/time.
+
+        Args:
+            meeting_url: URL of the individual meeting page
+            fallback_date: Date parsed from slug to use if page fetch fails
+
+        Returns:
+            Tuple of (ISO date string, time string) e.g. ('2026-01-22', '18:00')
+        """
+        response = self._make_request(meeting_url)
+        if not response:
+            return fallback_date, None
+
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # Get all text content from the page
+        text_content = soup.get_text(separator='\n')
+
+        # Month mappings for both full and abbreviated forms
+        months_full = {
+            'january': 1, 'february': 2, 'march': 3, 'april': 4,
+            'may': 5, 'june': 6, 'july': 7, 'august': 8,
+            'september': 9, 'october': 10, 'november': 11, 'december': 12
+        }
+        months_abbrev = {
+            'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+            'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12
+        }
+
+        parsed_date = None
+        parsed_time = None
+
+        # Try abbreviated month format first (e.g., "Jan 22 2026")
+        # This is typically the actual event date displayed on the page
+        for month_abbrev, month_num in months_abbrev.items():
+            # Pattern: Jan 22 2026 or Jan 22, 2026
+            pattern = rf'\b{month_abbrev}\s+(\d{{1,2}})[,]?\s+(\d{{4}})\b'
+            match = re.search(pattern, text_content.lower())
+            if match:
+                day = int(match.group(1))
+                year = int(match.group(2))
+                try:
+                    date_obj = datetime(year, month_num, day)
+                    parsed_date = date_obj.strftime('%Y-%m-%d')
+                    break
+                except ValueError:
+                    pass
+
+        # If no abbreviated match, try full month names
+        if not parsed_date:
+            for month_name, month_num in months_full.items():
+                # Pattern: January 22, 2026 or January 22 2026
+                pattern = rf'\b{month_name}\s+(\d{{1,2}})[,]?\s+(\d{{4}})\b'
+                match = re.search(pattern, text_content.lower())
+                if match:
+                    day = int(match.group(1))
+                    year = int(match.group(2))
+                    try:
+                        date_obj = datetime(year, month_num, day)
+                        parsed_date = date_obj.strftime('%Y-%m-%d')
+                        break
+                    except ValueError:
+                        pass
+
+        # Extract time (e.g., "6:00 pm", "6:00pm", "18:00")
+        time_pattern = r'\b(\d{1,2}):(\d{2})\s*(am|pm|AM|PM)?\b'
+        time_matches = re.findall(time_pattern, text_content)
+        for hour, minute, ampm in time_matches:
+            hour = int(hour)
+            minute = int(minute)
+            if ampm and ampm.lower() == 'pm' and hour != 12:
+                hour += 12
+            elif ampm and ampm.lower() == 'am' and hour == 12:
+                hour = 0
+            # Skip times that look like page metadata (very early morning)
+            if 6 <= hour <= 22:  # Reasonable meeting hours
+                parsed_time = f"{hour:02d}:{minute:02d}"
+                break
+
+        # Use fallback if page parsing failed
+        if not parsed_date:
+            parsed_date = fallback_date
+
+        return parsed_date, parsed_time
+
     def _filter_by_date_range(
         self,
         meetings: List[Dict[str, Any]],
@@ -697,11 +818,18 @@ class ProudCityClient(BaseExtractor):
         Returns:
             Normalized Meeting object
         """
-        # Parse date
+        # Parse date and time
         meeting_datetime = None
         if event.get('date_parsed'):
             try:
-                meeting_datetime = datetime.fromisoformat(event['date_parsed'])
+                date_str = event['date_parsed']
+                time_str = event.get('meeting_time')
+
+                if time_str:
+                    # Combine date and time
+                    meeting_datetime = datetime.fromisoformat(f"{date_str}T{time_str}")
+                else:
+                    meeting_datetime = datetime.fromisoformat(date_str)
             except ValueError:
                 pass
 
