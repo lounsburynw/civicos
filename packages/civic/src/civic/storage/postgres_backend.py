@@ -7165,7 +7165,8 @@ class PostgresBackend:
 
         # Normalize jurisdiction to canonical form
         jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
-        as_of = as_of or datetime.now()
+        # Use UTC for consistent temporal versioning across timezones
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
 
         conn = self._get_connection()
         self._ensure_schema(conn)
@@ -7246,7 +7247,8 @@ class PostgresBackend:
         """
         # Normalize jurisdiction to canonical form
         jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
-        as_of = as_of or datetime.now()
+        # Use UTC for consistent temporal queries across timezones
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
 
         conn = self._get_connection()
         self._ensure_schema(conn)

@@ -1848,6 +1848,7 @@ def fetch_elections(
     secrets=[
         modal.Secret.from_name("civic-db"),
         modal.Secret.from_name("civic-legiscan"),  # LEGISCAN_API_KEY for state legislators
+        modal.Secret.from_name("civic-congress"),  # FAC_API_KEY for federal representatives
     ],
     memory=4096,
     timeout=300,  # 5 minutes
@@ -2830,6 +2831,7 @@ def scheduled_high_velocity_refresh():
         modal.Secret.from_name("civic-db"),
         modal.Secret.from_name("civic-google"),  # Contains GOOGLE_API_KEY
         modal.Secret.from_name("civic-legiscan"),  # LEGISCAN_API_KEY for state legislators
+        modal.Secret.from_name("civic-congress"),  # FAC_API_KEY for federal representatives
     ],
     memory=4096,
     timeout=600,  # 10 minutes
