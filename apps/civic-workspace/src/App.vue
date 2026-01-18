@@ -19,6 +19,7 @@ import ProfileForm from '@/components/workspace/ProfileForm.vue';
 import ValuesExplorerArtifact from '@/components/workspace/ValuesExplorerArtifact.vue';
 import AdminStatusPage from '@/components/workspace/AdminStatusPage.vue';
 import LocationEntry from '@/components/LocationEntry.vue';
+import CapabilitiesModal from '@/components/onboarding/CapabilitiesModal.vue';
 import ChatPanel from '@/components/chat/ChatPanel.vue';
 import TabBar from '@/components/workspace/TabBar.vue';
 import { useWorkspaceStore } from '@/stores/workspace';
@@ -39,6 +40,10 @@ const developerStore = useDeveloperStore();
 
 // Location entry modal state
 const showLocationEntry = ref(false);
+
+// Onboarding modal state (capabilities discovery)
+const ONBOARDING_DISMISSED_KEY = 'civic_onboarding_dismissed'
+const showOnboardingModal = ref(false);
 
 // Issue form modal state
 const showIssueForm = ref(false);
@@ -80,11 +85,17 @@ onMounted(() => {
   }
 });
 
-// Check if user needs location entry on mount
+// Check if user needs location entry or onboarding on mount
 onMounted(() => {
   // Show location entry if not set (users can browse without a profile)
   if (!userStore.hasLocation) {
     showLocationEntry.value = true;
+  } else {
+    // Location is set - check if we should show onboarding modal
+    const onboardingDismissed = localStorage.getItem(ONBOARDING_DISMISSED_KEY);
+    if (!onboardingDismissed) {
+      showOnboardingModal.value = true;
+    }
   }
 
   // Initialize profile store
@@ -260,6 +271,16 @@ async function handleOpenFocalPoint(focalType: 'issue' | 'event', focalId: strin
 function handleLocationSet() {
   console.log('[App] Location set:', userStore.cityName);
   showLocationEntry.value = false;
+
+  // After location is set, show onboarding modal if not previously dismissed
+  const onboardingDismissed = localStorage.getItem(ONBOARDING_DISMISSED_KEY);
+  if (!onboardingDismissed) {
+    showOnboardingModal.value = true;
+  }
+}
+
+function handleOnboardingClose() {
+  showOnboardingModal.value = false;
 }
 
 // Open Admin Status Page (Session 301 - Pilot status_page artifact)
@@ -853,6 +874,12 @@ function stopResizeSidebar() {
     <LocationEntry
       v-if="showLocationEntry"
       @location-set="handleLocationSet"
+    />
+
+    <!-- Onboarding Modal (shown after location is set, for capability discovery) -->
+    <CapabilitiesModal
+      v-if="showOnboardingModal"
+      @close="handleOnboardingClose"
     />
   </div>
 </template>

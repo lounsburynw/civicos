@@ -14623,3 +14623,77 @@ All 4 critics passed: pipeline, protocol, architecture, session
 
 ### Next P0
 - `remote_mcp_deployment` - Deploy civic-mcp as remote MCP server for Claude.ai access
+
+## Session 531 - 2026-01-17
+
+### Task: tutorial_ux (P0)
+Add get_started(user_type) MCP tool for user onboarding
+
+### Approach
+Ran simulated user panel with 5 personas (Maria/resident, James/parent, Linda/clerk, Derek/planner, Priya/developer) to evaluate 3 UX approaches:
+1. Conversation starters only - Too minimal
+2. Category-based progressive disclosure - Best balance
+3. Single question + follow-ups - Too slow
+
+Panel recommended hybrid: categories with examples for residents, workflow-oriented for staff, reference tables for devs.
+
+### Implementation
+- Added `get_started(user_type)` MCP tool to civic_server.py
+- Three helper functions: `_get_started_resident()`, `_get_started_city_staff()`, `_get_started_developer()`
+- Resident view: 3 categories (What's Happening, What Happened, Take Action) with 2 example questions each
+- Staff view: 4 workflow categories with tool references
+- Developer view: Tool reference tables
+
+### Verification
+- Tool registered correctly in MCP server
+- All 4 critics passed (pipeline, protocol, architecture, session)
+
+### Commit
+- 1e6ad10: feat(mcp): Add get_started() onboarding tool for user discovery
+
+### Status
+- Subtask 1/4 complete: MCP tool implemented
+- Remaining: ChatGPT GPT config, Vue onboarding modal, user testing
+
+### Next P0
+- `tutorial_ux` remains P0 - continue with remaining subtasks
+
+## Session 532 - 2026-01-17
+
+### Task: tutorial_ux (P0) - Vue Onboarding Modal
+Add onboarding modal to Vue frontend for capability discovery
+
+### Implementation
+Created `CapabilitiesModal.vue` component:
+- Three category cards matching MCP get_started() resident view:
+  1. What's Happening - upcoming meetings, agenda items
+  2. What Happened - past decisions, public testimony
+  3. Take Action - submit comments, prepare to speak
+- Each card has icon, title, description, and 2 example questions
+- "Get Started" and "Don't show again" buttons
+- localStorage persistence via `civic_onboarding_dismissed` key
+- Follows existing modal patterns (LocationEntry, EventSelectionModal)
+
+Integrated in App.vue:
+- Shows after LocationEntry modal is dismissed
+- Only shows if localStorage key not set
+- z-index 9998 (below LocationEntry at 9999)
+
+### Files Modified
+- `apps/civic-workspace/src/components/onboarding/CapabilitiesModal.vue` (new)
+- `apps/civic-workspace/src/App.vue` (import, state, render)
+- `pilot.json` (subtask progress)
+
+### Verification
+- Vue build passes (npm run build)
+- No TypeScript errors in new component
+- Modal flows: LocationEntry -> CapabilitiesModal -> Main app
+
+### Status
+- Subtask 2/4 complete: Vue onboarding modal implemented
+- Progress: MCP tool done, Vue modal done
+- Remaining: ChatGPT GPT config (external), user testing (manual)
+
+### Next P0
+- `tutorial_ux` remains P0 - ChatGPT config is external, user testing is manual
+- Consider marking ready after brief manual test, or proceed to `rename_to_civicos` (P1)
