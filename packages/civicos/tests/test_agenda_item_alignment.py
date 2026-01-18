@@ -4,7 +4,7 @@ Tests for agenda item alignment in video transcripts.
 Tests the AgendaItemAligner class that detects agenda item transitions
 in meeting transcripts and aligns transcript chunks with specific agenda items.
 
-Run: python -m pytest packages/civic/tests/test_agenda_item_alignment.py -v
+Run: python -m pytest packages/civicos/tests/test_agenda_item_alignment.py -v
 """
 
 import sys
@@ -16,7 +16,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.absolute()
 
 # Add source path for imports
-sys.path.insert(0, str(PROJECT_ROOT / "packages/civic/src"))
+sys.path.insert(0, str(PROJECT_ROOT / "packages/civicos/src"))
 
 
 class TestAgendaItemSpan:

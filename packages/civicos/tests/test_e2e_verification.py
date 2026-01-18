@@ -3928,7 +3928,7 @@ class TestSecuritySqlInjection:
         """
         import re
 
-        manager_path = str(PROJECT_ROOT / 'packages/civic/src/civic/_internal/state/manager.py')
+        manager_path = str(PROJECT_ROOT / 'packages/civicos/src/civicos/_internal/state/manager.py')
 
         with open(manager_path, 'r') as f:
             source_code = f.read()
@@ -4525,7 +4525,7 @@ class TestSecurityXssPrevention:
         import re
 
         # Read the input validator source
-        validator_path = str(PROJECT_ROOT / 'packages/civic-services/src/civic_services/processing/civic_input_validator.py')
+        validator_path = str(PROJECT_ROOT / 'packages/civicos-services/src/civicos_services/processing/civic_input_validator.py')
         with open(validator_path, 'r') as f:
             source_code = f.read()
 
@@ -4550,7 +4550,7 @@ class TestSecurityXssPrevention:
         """
         import re
 
-        validator_path = str(PROJECT_ROOT / 'packages/civic-services/src/civic_services/processing/civic_input_validator.py')
+        validator_path = str(PROJECT_ROOT / 'packages/civicos-services/src/civicos_services/processing/civic_input_validator.py')
         with open(validator_path, 'r') as f:
             source_code = f.read()
 
@@ -4633,7 +4633,7 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -4682,7 +4682,7 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -4748,7 +4748,7 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -4799,7 +4799,7 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -4852,7 +4852,7 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -5037,7 +5037,7 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -5083,7 +5083,7 @@ class TestSecurityNoSecretsInLogs:
         # These patterns are more difficult to detect with regex alone
         # For now, verify the codebase doesn't have obvious violations
 
-        source_path = str(PROJECT_ROOT / 'packages/civic/src/civic')
+        source_path = str(PROJECT_ROOT / 'packages/civicos/src/civic')
 
         if not os.path.exists(source_path):
             return  # Skip if source not found
@@ -5131,7 +5131,7 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -5309,7 +5309,7 @@ class TestSecurityNoSecretsInLogs:
         """
         import os
 
-        state_manager_path = str(PROJECT_ROOT / 'packages/civic/src/civic/_internal/state/manager.py')
+        state_manager_path = str(PROJECT_ROOT / 'packages/civicos/src/civicos/_internal/state/manager.py')
 
         if not os.path.exists(state_manager_path):
             pytest.skip("StateManager not found at expected path")
@@ -5392,7 +5392,7 @@ class TestSecurityNoSecretsInLogs:
         """
         import os
 
-        validator_path = str(PROJECT_ROOT / 'packages/civic-services/src/civic_services/processing/civic_input_validator.py')
+        validator_path = str(PROJECT_ROOT / 'packages/civicos-services/src/civicos_services/processing/civic_input_validator.py')
 
         if not os.path.exists(validator_path):
             pytest.skip("Input validator not found")
@@ -5495,7 +5495,7 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -5568,7 +5568,7 @@ class TestSecurityErrorMessagesSafe:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -5935,7 +5935,7 @@ class TestSecurityErrorMessagesSafe:
         ve_regex = re.compile('|'.join(value_error_patterns), re.IGNORECASE)
 
         violations = []
-        source_dir = str(PROJECT_ROOT / 'packages/civic/src/civic')
+        source_dir = str(PROJECT_ROOT / 'packages/civicos/src/civic')
 
         if not os.path.exists(source_dir):
             pytest.skip("Source directory not found")
@@ -5965,7 +5965,7 @@ class TestSecurityErrorMessagesSafe:
         import re
 
         # Check ImportError messages in civic package
-        source_dir = str(PROJECT_ROOT / 'packages/civic/src/civic')
+        source_dir = str(PROJECT_ROOT / 'packages/civicos/src/civic')
 
         if not os.path.exists(source_dir):
             pytest.skip("Source directory not found")
@@ -6027,7 +6027,7 @@ class TestSecurityErrorMessagesSafe:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -6074,7 +6074,7 @@ class TestSecurityErrorMessagesSafe:
             pass
 
         # Static check: verify MCP module doesn't expose paths in errors
-        mcp_path = str(PROJECT_ROOT / 'packages/civic/src/civic/mcp.py')
+        mcp_path = str(PROJECT_ROOT / 'packages/civicos/src/civicos/mcp.py')
 
         if os.path.exists(mcp_path):
             with open(mcp_path, 'r') as f:
@@ -6211,7 +6211,7 @@ class TestSecurityErrorMessagesSafe:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civic/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -6308,7 +6308,7 @@ class TestCodeAuditArchitecture:
         """
         import os
 
-        civic_src = str(PROJECT_ROOT / 'packages/civic/src/civic')
+        civic_src = str(PROJECT_ROOT / 'packages/civicos/src/civic')
 
         # Core modules
         assert os.path.exists(f"{civic_src}/civic.py"), "Missing civic.py (main entry point)"
@@ -6366,7 +6366,7 @@ class TestCodeAuditArchitecture:
         """
         import os
 
-        civic_src = str(PROJECT_ROOT / 'packages/civic/src/civic')
+        civic_src = str(PROJECT_ROOT / 'packages/civicos/src/civic')
 
         # Layer 1: Intelligence - internal data modules
         assert os.path.isdir(f"{civic_src}/_internal"), "Missing _internal/ (intelligence layer)"
@@ -6443,7 +6443,7 @@ class TestCodeAuditTestCoverage:
         import os
 
         # Search all test files
-        test_dir = str(PROJECT_ROOT / 'packages/civic/tests')
+        test_dir = str(PROJECT_ROOT / 'packages/civicos/tests')
         all_test_content = ""
 
         for filename in os.listdir(test_dir):
@@ -6466,7 +6466,7 @@ class TestCodeAuditTestCoverage:
         """
         MCP tools should have test coverage.
         """
-        test_file = str(PROJECT_ROOT / 'packages/civic/tests/test_mcp.py')
+        test_file = str(PROJECT_ROOT / 'packages/civicos/tests/test_mcp.py')
 
         with open(test_file, 'r') as f:
             test_content = f.read()
@@ -6488,7 +6488,7 @@ class TestCodeAuditTestCoverage:
         """
         Each action module should have dedicated tests.
         """
-        test_file = str(PROJECT_ROOT / 'packages/civic/tests/test_actions.py')
+        test_file = str(PROJECT_ROOT / 'packages/civicos/tests/test_actions.py')
 
         with open(test_file, 'r') as f:
             test_content = f.read()
@@ -6503,7 +6503,7 @@ class TestCodeAuditTestCoverage:
         """
         Edge cases should be tested per verification.json.
         """
-        test_file = str(PROJECT_ROOT / 'packages/civic/tests/test_e2e_verification.py')
+        test_file = str(PROJECT_ROOT / 'packages/civicos/tests/test_e2e_verification.py')
 
         with open(test_file, 'r') as f:
             test_content = f.read()
@@ -6517,7 +6517,7 @@ class TestCodeAuditTestCoverage:
         """
         Security tests should exist per verification.json.
         """
-        test_file = str(PROJECT_ROOT / 'packages/civic/tests/test_e2e_verification.py')
+        test_file = str(PROJECT_ROOT / 'packages/civicos/tests/test_e2e_verification.py')
 
         with open(test_file, 'r') as f:
             test_content = f.read()
@@ -6536,7 +6536,7 @@ class TestCodeAuditTestCoverage:
 
         result = subprocess.run(
             ['pytest', '--collect-only', '-q',
-             str(PROJECT_ROOT / 'packages/civic/tests/')],
+             str(PROJECT_ROOT / 'packages/civicos/tests/')],
             capture_output=True,
             text=True
         )
@@ -6571,7 +6571,7 @@ class TestCodeAuditDependencies:
         """
         import tomllib
 
-        with open(str(PROJECT_ROOT / 'packages/civic/pyproject.toml'), 'rb') as f:
+        with open(str(PROJECT_ROOT / 'packages/civicos/pyproject.toml'), 'rb') as f:
             config = tomllib.load(f)
 
         dependencies = config['project'].get('dependencies', [])
@@ -6591,7 +6591,7 @@ class TestCodeAuditDependencies:
         """
         import tomllib
 
-        with open(str(PROJECT_ROOT / 'packages/civic/pyproject.toml'), 'rb') as f:
+        with open(str(PROJECT_ROOT / 'packages/civicos/pyproject.toml'), 'rb') as f:
             config = tomllib.load(f)
 
         optional = config['project'].get('optional-dependencies', {})
@@ -6611,7 +6611,7 @@ class TestCodeAuditDependencies:
         """
         import tomllib
 
-        with open(str(PROJECT_ROOT / 'packages/civic/pyproject.toml'), 'rb') as f:
+        with open(str(PROJECT_ROOT / 'packages/civicos/pyproject.toml'), 'rb') as f:
             config = tomllib.load(f)
 
         all_deps = []
@@ -6638,7 +6638,7 @@ class TestCodeAuditDependencies:
         """
         import tomllib
 
-        with open(str(PROJECT_ROOT / 'packages/civic/pyproject.toml'), 'rb') as f:
+        with open(str(PROJECT_ROOT / 'packages/civicos/pyproject.toml'), 'rb') as f:
             config = tomllib.load(f)
 
         requires_python = config['project'].get('requires-python', '')
@@ -6740,9 +6740,9 @@ class TestCodeAuditDocumentation:
         """
         import os
 
-        readme_path = str(PROJECT_ROOT / 'packages/civic/README.md')
+        readme_path = str(PROJECT_ROOT / 'packages/civicos/README.md')
 
-        assert os.path.exists(readme_path), "Missing packages/civic/README.md"
+        assert os.path.exists(readme_path), "Missing packages/civicos/README.md"
 
         with open(readme_path, 'r') as f:
             content = f.read()

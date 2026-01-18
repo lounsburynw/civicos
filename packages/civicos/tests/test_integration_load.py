@@ -6,7 +6,7 @@ These tests verify the load_testing items from integration.json:
 - Action endpoints respond < 1s at p95
 - System handles 50 concurrent requests
 
-Run: python -m pytest packages/civic/tests/test_integration_load.py -v
+Run: python -m pytest packages/civicos/tests/test_integration_load.py -v
 """
 
 import os
@@ -27,7 +27,7 @@ pytestmark = pytest.mark.slow
 
 # Get absolute path to project root
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.absolute()
-sys.path.insert(0, str(PROJECT_ROOT / "packages/civic/src"))
+sys.path.insert(0, str(PROJECT_ROOT / "packages/civicos/src"))
 os.chdir(str(PROJECT_ROOT))
 
 from civicos import CivicOS

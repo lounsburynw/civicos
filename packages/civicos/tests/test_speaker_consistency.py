@@ -8,7 +8,7 @@ Validates that:
 4. Confidence scores don't degrade for same speaker
 5. Real San Rafael transcripts pass diarization quality checks
 
-Run: python -m pytest packages/civic/tests/test_speaker_consistency.py -v
+Run: python -m pytest packages/civicos/tests/test_speaker_consistency.py -v
 """
 
 import json
@@ -21,7 +21,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.absolute()
 
 # Add source path for imports
-sys.path.insert(0, str(PROJECT_ROOT / "packages/civic/src"))
+sys.path.insert(0, str(PROJECT_ROOT / "packages/civicos/src"))
 
 # Paths to testimony files
 TESTIMONY_DIR = PROJECT_ROOT / "data/testimony"

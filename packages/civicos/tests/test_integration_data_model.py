@@ -7,7 +7,7 @@ Tests verify:
 - whats_next() can filter by topic using relational agenda_items
 - prepare() can find agenda items from relational table
 
-Run: python -m pytest packages/civic/tests/test_integration_data_model.py -v
+Run: python -m pytest packages/civicos/tests/test_integration_data_model.py -v
 """
 
 import os
@@ -26,7 +26,7 @@ pytestmark = pytest.mark.integration
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.absolute()
 
 # Add packages to path
-sys.path.insert(0, str(PROJECT_ROOT / "packages/civic/src"))
+sys.path.insert(0, str(PROJECT_ROOT / "packages/civicos/src"))
 
 from civicos._internal.state import StateManager
 from civicos import CivicOS

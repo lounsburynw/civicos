@@ -8,7 +8,7 @@ Tests are marked with @pytest.mark.requires_pgvector and automatically skip
 when DATABASE_URL is not set. In CI, these run with GitHub Actions secrets.
 
 Run locally (with DATABASE_URL in .env):
-    pytest packages/civic/tests/test_integration_pgvector.py -v
+    pytest packages/civicos/tests/test_integration_pgvector.py -v
 
 Run in CI:
     Automatically runs as part of full test suite when DATABASE_URL secret is set.

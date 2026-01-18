@@ -5,7 +5,7 @@ This module validates the UnifiedSearch class that provides unified
 search across all 8 corpus types: decisions, pdf, transcript, issue,
 municipal_code, legislation, programs, state_programs.
 
-Run: pytest packages/civic/tests/test_unified_search.py -v
+Run: pytest packages/civicos/tests/test_unified_search.py -v
 """
 
 import os

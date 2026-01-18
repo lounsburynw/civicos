@@ -9,7 +9,7 @@ Test Scenario: 350 Merrydale Road homeless shelter project
 - Supporting documents: Staff report, minutes, ordinances
 - Validation queries: what_happened('merrydale shelter') etc.
 
-Run: python -m pytest packages/civic/tests/test_integration_rag_merrydale.py -v
+Run: python -m pytest packages/civicos/tests/test_integration_rag_merrydale.py -v
 """
 
 import os
@@ -32,7 +32,7 @@ NOV17_CHUNKS_PATH = RAG_CORPUS_DIR / "nov17_chunks.json"
 SCENARIO_PATH = PROJECT_ROOT / "data/pilot/san_rafael_shelter_scenario.json"
 
 # Add source path for imports
-sys.path.insert(0, str(PROJECT_ROOT / "packages/civic/src"))
+sys.path.insert(0, str(PROJECT_ROOT / "packages/civicos/src"))
 
 
 @pytest.mark.requires_real_data

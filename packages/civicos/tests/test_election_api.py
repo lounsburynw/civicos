@@ -81,9 +81,9 @@ class TestElectionEndpoints:
     @pytest.fixture
     def civic_with_mock(self, mock_storage):
         """Create Civic instance with mocked storage."""
-        with patch('civic.civic.get_storage_backend') as mock_get_storage:
+        with patch('civicos.civicos.get_storage_backend') as mock_get_storage:
             mock_get_storage.return_value = mock_storage
-            with patch('civic.civic.get_vector_backend') as mock_get_vector:
+            with patch('civicos.civicos.get_vector_backend') as mock_get_vector:
                 mock_get_vector.return_value = Mock()
                 c = CivicOS("san-rafael")
                 c._storage = mock_storage
@@ -197,9 +197,9 @@ class TestVotingRecordEndpoint:
     @pytest.fixture
     def civic_with_mock(self, mock_storage):
         """Create Civic with mocked storage."""
-        with patch('civic.civic.get_storage_backend') as mock_get_storage:
+        with patch('civicos.civicos.get_storage_backend') as mock_get_storage:
             mock_get_storage.return_value = mock_storage
-            with patch('civic.civic.get_vector_backend') as mock_get_vector:
+            with patch('civicos.civicos.get_vector_backend') as mock_get_vector:
                 mock_get_vector.return_value = Mock()
                 c = CivicOS("san-rafael")
                 c._storage = mock_storage

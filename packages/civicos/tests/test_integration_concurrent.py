@@ -7,7 +7,7 @@ These tests verify the concurrent_users items from integration.json:
 - Voice counts remain accurate under concurrent writes
 - Same user can't create duplicate subscriptions
 
-Run: python -m pytest packages/civic/tests/test_integration_concurrent.py -v
+Run: python -m pytest packages/civicos/tests/test_integration_concurrent.py -v
 """
 
 import os
@@ -26,7 +26,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.concurrent]
 
 # Get absolute path to project root
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.absolute()
-sys.path.insert(0, str(PROJECT_ROOT / "packages/civic/src"))
+sys.path.insert(0, str(PROJECT_ROOT / "packages/civicos/src"))
 os.chdir(str(PROJECT_ROOT))
 
 from civicos import CivicOS

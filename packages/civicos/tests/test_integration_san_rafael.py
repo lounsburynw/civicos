@@ -6,7 +6,7 @@ Tests all query methods with real data from:
 - Legislative cache (state bills, federal programs)
 - Coordination workflow (LangGraph)
 
-Run: python -m pytest packages/civic/tests/test_integration_san_rafael.py -v
+Run: python -m pytest packages/civicos/tests/test_integration_san_rafael.py -v
 """
 
 import os
@@ -23,7 +23,7 @@ pytestmark = pytest.mark.integration
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.absolute()
 
 # Add packages to path
-sys.path.insert(0, str(PROJECT_ROOT / "packages/civic/src"))
+sys.path.insert(0, str(PROJECT_ROOT / "packages/civicos/src"))
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 # Set working directory for data file access

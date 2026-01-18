@@ -8,7 +8,7 @@ These tests verify the platform_extraction_failures items from integration.json:
 
 Uses mocking to simulate failure scenarios without waiting for actual timeouts.
 
-Run: python -m pytest packages/civic/tests/test_integration_extraction_failures.py -v
+Run: python -m pytest packages/civicos/tests/test_integration_extraction_failures.py -v
 """
 
 import os
