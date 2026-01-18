@@ -1,7 +1,7 @@
 {
   "version": "2.0",
   "phase": "pilot",
-  "last_updated": "2026-01-17 (multi-platform distribution strategy)",
+  "last_updated": "2026-01-17",
   "target": "January 2026",
   "summary": "Consolidated pilot checklist: completed work summarized, active items tracked individually",
   "category_order": [
@@ -2078,6 +2078,23 @@
       }
     },
     "distribution_channels": {
+      "_ip_strategy": {
+        "note": "Session 529: All distribution channels expose interface (capabilities), not implementation (code). Source code stays in private repo until ready to open source. Real moat is indexed data, city relationships, and domain expertise - not code.",
+        "what_stays_private": [
+          "Source code (private GitHub repo)",
+          "Parsing logic for 10+ platforms",
+          "Enrichment algorithms",
+          "Coordination workflows",
+          "Database schema",
+          "Prompt engineering details"
+        ],
+        "what_is_exposed": [
+          "Tool/endpoint names and schemas",
+          "Query capabilities (what questions can be asked)",
+          "Response formats",
+          "General UX patterns"
+        ]
+      },
       "mcp_vector_search_tools": {
         "status": "ready",
         "priority": 2,
@@ -2092,7 +2109,7 @@
       },
       "remote_mcp_deployment": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "MCP server deployed remotely with OAuth for Claude.ai web access",
         "description": "Deploy civic-mcp as a remote MCP server accessible from Claude.ai web, Claude Desktop, and Claude Mobile. Requires public hosting + OAuth 2.0 implementation.",
         "note": "Session 529: Claude.ai Integrations (May 2025) enables remote MCP servers for Pro/Max/Team/Enterprise users. Key for clerk demo - clerk can use via claude.ai without installing anything. OAuth callback: https://claude.ai/api/mcp/auth_callback",
@@ -2109,7 +2126,8 @@
         "references": [
           "https://support.claude.com/en/articles/11503834-building-custom-connectors-via-remote-mcp-servers",
           "https://modelcontextprotocol.io/docs/develop/connect-remote-servers"
-        ]
+        ],
+        "ip_protection": "Exposes tool names/schemas/responses only. Implementation code stays in private repo. Deploy from private GitHub repo or local build."
       },
       "mcp_registry_listing": {
         "status": "not_ready",
@@ -2144,7 +2162,8 @@
         "key_files": [
           "packages/civic-services/src/civic_services/servers/api.py",
           "packages/civic-services/src/civic_services/servers/routers/"
-        ]
+        ],
+        "ip_protection": "OpenAPI spec describes interface, not implementation. Endpoint signatures are public by design. Backend logic stays private."
       },
       "chatgpt_custom_gpt": {
         "status": "not_ready",
@@ -2162,14 +2181,16 @@
         "depends_on": [
           "openapi_spec"
         ],
-        "demo_use": "Let city clerk ask questions about San Rafael directly in ChatGPT"
+        "demo_use": "Let city clerk ask questions about San Rafael directly in ChatGPT",
+        "ip_protection": "System prompt visible via prompt injection - keep generic. Actions call our API but don't expose backend. GPT config is not source code."
       },
       "web_frontend": {
         "status": "not_ready",
         "priority": 2,
         "artifact": "apps/civic-workspace/ Vue frontend deployed",
         "description": "Deploy Vue frontend as primary web interface. ChatGPT/MCP drive discovery, web app provides depth.",
-        "note": "Frontend functional locally via /launch. Needs deployment for public access. Linkback destination from all AI assistant interactions."
+        "note": "Frontend functional locally via /launch. Needs deployment for public access. Linkback destination from all AI assistant interactions.",
+        "ip_protection": "Frontend JS is visible but not core IP. Real value is in backend APIs, data enrichment, and coordination logic - all stay server-side."
       },
       "linkback_integration": {
         "status": "not_ready",
@@ -2182,6 +2203,24 @@
           "mcp_vector_search_tools",
           "chatgpt_custom_gpt"
         ]
+      },
+      "tutorial_ux": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "Tutorial/onboarding for users discovering Civic capabilities",
+        "description": "Help users (especially laymen) understand what they can ask. Tiered for resident, city_staff, and developer personas.",
+        "note": "Session 529: Essential for clerk demo - users won't know what to ask without guidance. Implements get_started() tool for MCP, conversation starters for ChatGPT GPT, onboarding modal for web app.",
+        "subtasks": [
+          "Add get_started(user_type) MCP tool with example queries",
+          "Add conversation starters to ChatGPT Custom GPT config",
+          "Add onboarding modal to Vue frontend",
+          "Test with non-technical user"
+        ],
+        "user_types": {
+          "resident": "Example questions, natural language guidance",
+          "city_staff": "Meeting prep workflows, constituent insights",
+          "developer": "API docs, tool list, endpoints"
+        }
       }
     },
     "data_pipeline": {
@@ -2337,6 +2376,32 @@
         "priority": 2,
         "description": "Enable auto-indexing conditional on ingestion for all corpus types",
         "notes": "Added auto_index=False parameter to all fetch/extract functions in modal_ingest.py. When auto_index=True, triggers index_vectors.local() for the appropriate corpus type after successful storage. Functions updated: fetch_meetings, fetch_issues, fetch_municipal_code, fetch_legislation, fetch_federal_programs, fetch_elections, extract_chunks, extract_transcripts, extract_agenda_items, extract_decisions. Usage: modal run scripts/modal_ingest.py::fetch_meetings --auto-index"
+      }
+    },
+    "post_pilot": {
+      "rename_to_civicos": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Rename Civic to CivicOS across entire codebase",
+        "description": "Comprehensive rebrand from Civic to CivicOS. Affects package names, class names, imports, env vars, MCP URIs, documentation.",
+        "note": "Session 531: Deferred to post-pilot to avoid introducing bugs before Jan 2026 launch. Use IDE refactoring tools + full test suite.",
+        "scope": {
+          "package_names": "packages/civic/ -> packages/civicos/",
+          "class_names": "Civic -> CivicOS",
+          "imports": "from civic import Civic -> from civicos import CivicOS",
+          "env_vars": "CIVIC_* -> CIVICOS_*",
+          "mcp_uris": "civic:// -> civicos://",
+          "documentation": "All docs, README, CLAUDE.md"
+        },
+        "subtasks": [
+          "Create migration script for imports",
+          "Update package names and pyproject.toml",
+          "Rename environment variables",
+          "Update MCP resource URIs",
+          "Update all documentation",
+          "Run full test suite",
+          "Update deployment configs"
+        ]
       }
     }
   }
