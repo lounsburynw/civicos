@@ -2381,10 +2381,10 @@
     "post_pilot": {
       "rename_to_civicos": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "Rename Civic to CivicOS across entire codebase",
         "description": "Comprehensive rebrand from Civic to CivicOS. Affects package names, class names, imports, env vars, MCP URIs, documentation.",
-        "note": "Session 531: Deferred to post-pilot to avoid introducing bugs before Jan 2026 launch. Use IDE refactoring tools + full test suite.",
+        "note": "Session 531: Pre-pilot rebrand. Do after tutorial_ux is complete. Use IDE refactoring tools + full test suite.",
         "scope": {
           "package_names": "packages/civic/ -> packages/civicos/",
           "class_names": "Civic -> CivicOS",
