@@ -25,7 +25,7 @@ CORE_CIVICOS_FILES = [
     "packages/civicos/src/civicos/_internal/state/manager.py",
     "packages/civicos/src/civicos/history.py",
     "packages/civicos/src/civicos/calendar.py",
-    "packages/civicos/src/civicos/civic.py",
+    "packages/civicos/src/civicos/civicos.py",
     "packages/civicos/src/civicos/actions/preparation.py",
     "packages/civicos/src/civicos/actions/voices.py",
     "packages/civicos/src/civicos/actions/subscriptions.py",
@@ -958,7 +958,7 @@ class TestRedundantDataPaths:
         """
         Verify Civic API uses relational data path for queries.
 
-        At civic.py:298-310, the code prefers relational agenda_items
+        At civicos.py:298-310, the code prefers relational agenda_items
         over embedded full_data. This is the correct pattern because:
         1. Relational items have normalized field names
         2. They support efficient filtering by project_type
@@ -967,9 +967,9 @@ class TestRedundantDataPaths:
         import re
 
         root = Path(__file__).parent.parent.parent.parent.absolute()
-        civic_path = root / "packages/civicos/src/civicos/civic.py"
+        civic_path = root / "packages/civicos/src/civicos/civicos.py"
 
-        assert civic_path.exists(), "civic.py should exist"
+        assert civic_path.exists(), "civicos.py should exist"
 
         content = civic_path.read_text()
 
@@ -977,10 +977,10 @@ class TestRedundantDataPaths:
         # The code should check for relational agenda_items first
         pattern = r"m\.get\(['\"]agenda_items['\"]"
         assert re.search(pattern, content), (
-            "civic.py should get agenda_items from meeting dict (relational)"
+            "civicos.py should get agenda_items from meeting dict (relational)"
         )
 
         # Verify fallback to full_data exists
         assert "full_data" in content, (
-            "civic.py should have fallback to full_data for compatibility"
+            "civicos.py should have fallback to full_data for compatibility"
         )

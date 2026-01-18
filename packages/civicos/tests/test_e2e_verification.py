@@ -4899,7 +4899,7 @@ class TestSecurityNoSecretsInLogs:
         handler.setLevel(logging.DEBUG)
 
         # Get the StateManager logger
-        sm_logger = logging.getLogger('civic._internal.state.manager')
+        sm_logger = logging.getLogger('civicos._internal.state.manager')
         original_level = sm_logger.level
         sm_logger.setLevel(logging.DEBUG)
         sm_logger.addHandler(handler)
