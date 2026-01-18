@@ -1,5 +1,5 @@
 """
-Tests for the main Civic class.
+Tests for the main CivicOS class.
 
 Tests the unified API entry point.
 """
@@ -39,23 +39,23 @@ def temp_db():
 
 
 class TestCivicInstantiation:
-    """Test Civic class instantiation."""
+    """Test CivicOS class instantiation."""
 
     def test_create_civic_instance(self):
-        """Can create a Civic instance with jurisdiction."""
+        """Can create a CivicOS instance with jurisdiction."""
         c = CivicOS("san-rafael-ca")
         # Jurisdiction is normalized to canonical format
         assert c.jurisdiction == "city-san-rafael"
 
     def test_civic_has_state_manager(self):
-        """Civic instance has StateManager."""
+        """CivicOS instance has StateManager."""
         c = CivicOS("san-rafael-ca")
         assert c._state is not None
 
     def test_civic_custom_db_path(self):
         """Can specify custom database path."""
-        c = CivicOS("san-rafael-ca", db_path="/tmp/test_civic.db")
-        assert c.db_path == "/tmp/test_civic.db"
+        c = CivicOS("san-rafael-ca", db_path="/tmp/test_civicos.db")
+        assert c.db_path == "/tmp/test_civicos.db"
 
 
 class TestQueryMethods:
@@ -143,7 +143,7 @@ class TestQueryMethods:
         assert len(result) <= 2
 
     def test_decision_with_context_types_exist(self):
-        """DecisionWithContext and TranscriptLink can be imported from civicos.civic."""
+        """DecisionWithContext and TranscriptLink can be imported from civicos.civicos."""
         # This verifies the types are properly exported
         assert DecisionWithContext is not None
         assert TranscriptLink is not None
@@ -185,7 +185,7 @@ class TestQueryMethods:
             assert isinstance(result[0], BudgetSummary)
 
     def test_budget_item_and_summary_types_exist(self):
-        """BudgetItem and BudgetSummary can be imported from civicos.civic."""
+        """BudgetItem and BudgetSummary can be imported from civicos.civicos."""
         assert BudgetItem is not None
         assert BudgetSummary is not None
 

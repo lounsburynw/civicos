@@ -1,7 +1,7 @@
 """
 State management for civic data.
 
-Internal module - use `from civicos import Civic` instead.
+Internal module - use `from civicos import CivicOS` instead.
 """
 
 from civicos._internal.state.manager import StateManager

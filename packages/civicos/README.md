@@ -1,24 +1,24 @@
-# Civic
+# CivicOS
 
 Unified civic engagement platform for local self-organization.
 
 ## Installation
 
 ```bash
-pip install civic
+pip install civicos
 ```
 
 With MCP server support:
 ```bash
-pip install civic[mcp]
+pip install civicos[mcp]
 ```
 
 ## Quick Start
 
 ```python
-from civic import Civic
+from civicos import CivicOS
 
-c = Civic("san-rafael-ca")
+c = CivicOS("san-rafael-ca")
 
 # Query (Learn)
 c.what_applies("housing")           # Get regulatory context
@@ -43,7 +43,7 @@ c.report_outcome("item_789", "passed")
 Run the unified MCP server:
 
 ```bash
-civic-server
+civicos-server
 ```
 
 ## Architecture
