@@ -93,8 +93,8 @@ Before deployment, gather these values. See [SECRETS_MANAGEMENT.md](./SECRETS_MA
 | Secret | Required | How to Generate |
 |--------|----------|-----------------|
 | `OPENAI_API_KEY` | Yes | From OpenAI dashboard |
-| `CIVIC_WEB_KEY` | Yes (prod) | `openssl rand -hex 32` |
-| `CIVIC_CORS_ORIGINS` | Yes (prod) | Your frontend domain(s) |
+| `CIVICOS_WEB_KEY` | Yes (prod) | `openssl rand -hex 32` |
+| `CIVICOS_CORS_ORIGINS` | Yes (prod) | Your frontend domain(s) |
 
 ---
 
@@ -190,14 +190,14 @@ Set required secrets for both applications:
 # API server secrets
 fly secrets set \
   OPENAI_API_KEY="sk-proj-..." \
-  CIVIC_WEB_KEY="$(openssl rand -hex 32)" \
-  CIVIC_CORS_ORIGINS="https://your-frontend-domain.com" \
+  CIVICOS_WEB_KEY="$(openssl rand -hex 32)" \
+  CIVICOS_CORS_ORIGINS="https://your-frontend-domain.com" \
   -a civic-api
 
 # WebSocket server secrets (same values)
 fly secrets set \
   OPENAI_API_KEY="sk-proj-..." \
-  CIVIC_WEB_KEY="your-civic-web-key" \
+  CIVICOS_WEB_KEY="your-civic-web-key" \
   -a civic-websocket
 ```
 
@@ -209,8 +209,8 @@ fly secrets list -a civic-api
 **Expected output:**
 ```
 NAME                    DIGEST                  CREATED AT
-CIVIC_CORS_ORIGINS      xxxxxxxx                ...
-CIVIC_WEB_KEY           xxxxxxxx                ...
+CIVICOS_CORS_ORIGINS      xxxxxxxx                ...
+CIVICOS_WEB_KEY           xxxxxxxx                ...
 OPENAI_API_KEY          xxxxxxxx                ...
 ```
 
@@ -422,11 +422,11 @@ curl -s https://civic-websocket.fly.dev/health | jq .
 
 ```bash
 # Test events endpoint (requires auth)
-curl -s -H "Authorization: Bearer YOUR_CIVIC_WEB_KEY" \
+curl -s -H "Authorization: Bearer YOUR_CIVICOS_WEB_KEY" \
   https://civic-api.fly.dev/api/events | jq .
 
 # Test civic info
-curl -s -H "Authorization: Bearer YOUR_CIVIC_WEB_KEY" \
+curl -s -H "Authorization: Bearer YOUR_CIVICOS_WEB_KEY" \
   https://civic-api.fly.dev/api/civic/san-rafael | jq .
 ```
 

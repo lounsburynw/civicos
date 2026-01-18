@@ -37,9 +37,9 @@ python3
 ### 1.1 Query Methods
 
 ```python
-from civic import Civic
+from civicos import CivicOS
 
-c = Civic("san-rafael")
+c = CivicOS("san-rafael")
 
 # What's coming up?
 meetings = c.whats_next(days=30)
@@ -218,7 +218,7 @@ SELECT * FROM outcomes LIMIT 5;
 
 | Component | Test | Pass? |
 |-----------|------|-------|
-| **Python API** | `Civic("san-rafael")` instantiates | |
+| **Python API** | `CivicOS("san-rafael")` instantiates | |
 | **Query** | `whats_next()` returns list | |
 | **Query** | `what_applies("housing")` returns context | |
 | **Action** | `start_something()` creates initiative | |

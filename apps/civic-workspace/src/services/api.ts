@@ -29,7 +29,7 @@ import type {
 /**
  * Civic API Service
  *
- * Type-safe client for the Civic Conversational OS backend API.
+ * Type-safe client for the CivicOS backend API.
  * Uses Vite proxy configuration to route /api requests to backend server.
  */
 class CivicAPI {

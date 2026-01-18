@@ -107,8 +107,8 @@ primary_region = "sjc"
   dockerfile = "Dockerfile"
 
 [env]
-  CIVIC_ENV = "production"
-  CIVIC_API_PORT = "8001"
+  CIVICOS_ENV = "production"
+  CIVICOS_API_PORT = "8001"
 
 [http_service]
   internal_port = 8001
@@ -138,7 +138,7 @@ primary_region = "sjc"
   dockerfile = "Dockerfile"
 
 [env]
-  CIVIC_ENV = "production"
+  CIVICOS_ENV = "production"
 
 [http_service]
   internal_port = 8002
@@ -178,7 +178,7 @@ fly volumes create civic_data --region sjc --size 3 -a civic-api
 fly volumes create civic_data --region sjc --size 3 -a civic-websocket
 
 # 5. Set secrets
-fly secrets set CIVIC_WEB_KEY="..." -a civic-api
+fly secrets set CIVICOS_WEB_KEY="..." -a civic-api
 fly secrets set OPENAI_API_KEY="..." -a civic-api
 fly secrets set GOOGLE_MAPS_API_KEY="..." -a civic-api
 # Repeat for civic-websocket

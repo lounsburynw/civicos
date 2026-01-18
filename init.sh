@@ -1,6 +1,6 @@
 #!/bin/bash
 cd /Users/nicolaslounsbury/projects/civic
-source civic-env/bin/activate
+source civicos-env/bin/activate
 
 echo "=========================================="
 echo "CIVIC ENVIRONMENT CHECK"
@@ -10,7 +10,7 @@ echo "=========================================="
 # Full test suite should only run before commits
 echo ""
 echo "Running smoke tests (core API)..."
-pytest packages/civic/tests/test_civic.py -q --tb=no
+pytest packages/civicos/tests/test_civic.py -q --tb=no
 
 # Quick API check
 echo ""

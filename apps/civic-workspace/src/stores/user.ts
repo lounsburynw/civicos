@@ -205,7 +205,7 @@ export const useUserStore = defineStore('user', () => {
   })
 
   const displayName = computed(() => {
-    if (!location.value) return 'Civic OS'
+    if (!location.value) return 'CivicOS'
     return `${location.value.city} Civic OS`
   })
 

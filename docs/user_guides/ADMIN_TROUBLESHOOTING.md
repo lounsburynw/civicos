@@ -73,14 +73,14 @@ fly secrets set OPENAI_API_KEY="sk-proj-..." -a civic-api
 fly deploy -a civic-api
 ```
 
-### "CIVIC_WEB_KEY not set" (production only)
+### "CIVICOS_WEB_KEY not set" (production only)
 
 ```bash
 # Generate a production-grade key
-fly secrets set CIVIC_WEB_KEY="$(openssl rand -hex 32)" -a civic-api
+fly secrets set CIVICOS_WEB_KEY="$(openssl rand -hex 32)" -a civic-api
 
 # Set same key for WebSocket server
-fly secrets set CIVIC_WEB_KEY="your-key-here" -a civic-websocket
+fly secrets set CIVICOS_WEB_KEY="your-key-here" -a civic-websocket
 ```
 
 ### Health Check Timeouts
@@ -119,7 +119,7 @@ fly logs -a civic-api | head -50
 | Cause | How to Verify | Fix |
 |-------|---------------|-----|
 | Missing header | Check request logs | Add `Authorization: Bearer YOUR_KEY` header |
-| Wrong key | Compare key values | Use the correct CIVIC_WEB_KEY |
+| Wrong key | Compare key values | Use the correct CIVICOS_WEB_KEY |
 | Key not deployed | `fly secrets list -a civic-api` | Set secret and redeploy |
 
 **Test authentication:**
@@ -128,7 +128,7 @@ fly logs -a civic-api | head -50
 curl -s https://civic-api.fly.dev/api/events
 
 # Should work
-curl -s -H "Authorization: Bearer $CIVIC_WEB_KEY" \
+curl -s -H "Authorization: Bearer $CIVICOS_WEB_KEY" \
   https://civic-api.fly.dev/api/events
 ```
 
@@ -155,7 +155,7 @@ fly secrets set OPENAI_API_KEY="sk-proj-new-key" -a civic-api
 fly secrets list -a civic-api | grep CORS
 
 # Set correct origins (include protocol)
-fly secrets set CIVIC_CORS_ORIGINS="https://your-domain.com" -a civic-api
+fly secrets set CIVICOS_CORS_ORIGINS="https://your-domain.com" -a civic-api
 
 # Redeploy
 fly deploy -a civic-api
@@ -481,10 +481,10 @@ print(f"Results: {len(results)}")
 **Check embedding provider:**
 ```bash
 # Local embeddings (default)
-CIVIC_EMBEDDING_PROVIDER=local
+CIVICOS_EMBEDDING_PROVIDER=local
 
 # Or OpenAI (requires key)
-CIVIC_EMBEDDING_PROVIDER=openai
+CIVICOS_EMBEDDING_PROVIDER=openai
 # Requires OPENAI_API_KEY
 ```
 

@@ -9,8 +9,8 @@ This document provides a comprehensive reference for all secrets and API keys us
 | Secret | Purpose | Where to Obtain | Cost |
 |--------|---------|-----------------|------|
 | `OPENAI_API_KEY` | LLM completions, embeddings (if using OpenAI) | [OpenAI Platform](https://platform.openai.com/api-keys) | Pay-per-use |
-| `CIVIC_WEB_KEY` | API authentication | Generate: `openssl rand -hex 32` | Free |
-| `CIVIC_CORS_ORIGINS` | Security - allowed origins | Configure based on deployment | Free |
+| `CIVICOS_WEB_KEY` | API authentication | Generate: `openssl rand -hex 32` | Free |
+| `CIVICOS_CORS_ORIGINS` | Security - allowed origins | Configure based on deployment | Free |
 
 ### Optional Secrets by Category
 
@@ -42,7 +42,7 @@ This document provides a comprehensive reference for all secrets and API keys us
 | Secret | Purpose | Where to Obtain | Cost |
 |--------|---------|-----------------|------|
 | `GMAIL_APP_PASSWORD` | Digest email sending | [Google App Passwords](https://myaccount.google.com/apppasswords) | Free |
-| `CIVIC_SMTP_PASSWORD` | SMTP server auth | Your email provider | Varies |
+| `CIVICOS_SMTP_PASSWORD` | SMTP server auth | Your email provider | Varies |
 
 ---
 
@@ -82,17 +82,17 @@ curl https://api.openai.com/v1/models \
 
 ---
 
-### 2. CIVIC_WEB_KEY (REQUIRED-PROD)
+### 2. CIVICOS_WEB_KEY (REQUIRED-PROD)
 
 **Purpose**: Bearer token for API authentication.
 
 **Generation**:
 ```bash
 # Development (use default)
-CIVIC_WEB_KEY=dev_key_local
+CIVICOS_WEB_KEY=dev_key_local
 
 # Production (generate strong token)
-CIVIC_WEB_KEY=$(openssl rand -hex 32)
+CIVICOS_WEB_KEY=$(openssl rand -hex 32)
 ```
 
 **Security Requirements**:
@@ -102,13 +102,13 @@ CIVIC_WEB_KEY=$(openssl rand -hex 32)
 
 **Usage**:
 ```bash
-curl -H "Authorization: Bearer $CIVIC_WEB_KEY" \
+curl -H "Authorization: Bearer $CIVICOS_WEB_KEY" \
   http://localhost:8001/api/v1/health
 ```
 
 ---
 
-### 3. CIVIC_CORS_ORIGINS (REQUIRED-PROD)
+### 3. CIVICOS_CORS_ORIGINS (REQUIRED-PROD)
 
 **Purpose**: Restricts which domains can make cross-origin requests.
 
@@ -117,10 +117,10 @@ curl -H "Authorization: Bearer $CIVIC_WEB_KEY" \
 # Development - not required (allows localhost by default)
 
 # Staging
-CIVIC_CORS_ORIGINS=https://staging.civic.example.com
+CIVICOS_CORS_ORIGINS=https://staging.civic.example.com
 
 # Production
-CIVIC_CORS_ORIGINS=https://civic.example.com,https://www.civic.example.com
+CIVICOS_CORS_ORIGINS=https://civic.example.com,https://www.civic.example.com
 ```
 
 **Security Notes**:
@@ -136,14 +136,14 @@ CIVIC_CORS_ORIGINS=https://civic.example.com,https://www.civic.example.com
 Uses local `all-MiniLM-L6-v2` model - no API key required.
 
 ```bash
-CIVIC_EMBEDDING_PROVIDER=local
-CIVIC_EMBEDDING_MODEL=all-MiniLM-L6-v2
+CIVICOS_EMBEDDING_PROVIDER=local
+CIVICOS_EMBEDDING_MODEL=all-MiniLM-L6-v2
 ```
 
 **OpenAI Embeddings (Better Quality)**:
 ```bash
-CIVIC_EMBEDDING_PROVIDER=openai
-CIVIC_EMBEDDING_MODEL=text-embedding-3-small
+CIVICOS_EMBEDDING_PROVIDER=openai
+CIVICOS_EMBEDDING_MODEL=text-embedding-3-small
 # Requires OPENAI_API_KEY
 ```
 
@@ -181,9 +181,9 @@ Minimal configuration for local development:
 
 ```bash
 # .env for development
-CIVIC_ENV=development
+CIVICOS_ENV=development
 OPENAI_API_KEY=sk-proj-...
-CIVIC_WEB_KEY=dev_key_local
+CIVICOS_WEB_KEY=dev_key_local
 ```
 
 ### Staging Environment
@@ -192,10 +192,10 @@ Full testing configuration:
 
 ```bash
 # .env for staging
-CIVIC_ENV=staging
+CIVICOS_ENV=staging
 OPENAI_API_KEY=sk-proj-...
-CIVIC_WEB_KEY=$(openssl rand -hex 32)
-CIVIC_CORS_ORIGINS=https://staging.civic.example.com
+CIVICOS_WEB_KEY=$(openssl rand -hex 32)
+CIVICOS_CORS_ORIGINS=https://staging.civic.example.com
 
 # Rate limiting (test production behavior)
 ENABLE_RATE_LIMIT=true
@@ -212,10 +212,10 @@ Full production configuration:
 
 ```bash
 # .env for production
-CIVIC_ENV=production
+CIVICOS_ENV=production
 OPENAI_API_KEY=sk-proj-...
-CIVIC_WEB_KEY=$(openssl rand -hex 32)
-CIVIC_CORS_ORIGINS=https://civic.example.com,https://www.civic.example.com
+CIVICOS_WEB_KEY=$(openssl rand -hex 32)
+CIVICOS_CORS_ORIGINS=https://civic.example.com,https://www.civic.example.com
 
 # Security hardening
 ENABLE_RATE_LIMIT=true
@@ -224,7 +224,7 @@ RATE_LIMIT_PER_HOUR=1000
 RATE_LIMIT_BURST=10
 
 # Production notifications
-CIVIC_ALERT_EMAILS=admin@example.com,ops@example.com
+CIVICOS_ALERT_EMAILS=admin@example.com,ops@example.com
 GMAIL_EMAIL=notifications@example.com
 GMAIL_APP_PASSWORD=...
 
@@ -262,7 +262,7 @@ api_key = "sk-proj-..."
 
 | Secret | Rotation Frequency | Trigger Events |
 |--------|-------------------|----------------|
-| `CIVIC_WEB_KEY` | Quarterly | Team member leaves, suspected breach |
+| `CIVICOS_WEB_KEY` | Quarterly | Team member leaves, suspected breach |
 | `OPENAI_API_KEY` | Annually | Cost anomaly, suspected breach |
 | `GMAIL_APP_PASSWORD` | Annually | Account compromise |
 | Other API keys | Annually | Provider recommendation |
@@ -288,7 +288,7 @@ metadata:
 type: Opaque
 stringData:
   OPENAI_API_KEY: sk-proj-...
-  CIVIC_WEB_KEY: ...
+  CIVICOS_WEB_KEY: ...
 ```
 
 ---
@@ -302,8 +302,8 @@ The system validates required secrets on startup. Check logs for:
 ```
 INFO: Environment: production
 INFO: OPENAI_API_KEY: configured
-INFO: CIVIC_WEB_KEY: configured (production-grade)
-INFO: CIVIC_CORS_ORIGINS: 2 origins configured
+INFO: CIVICOS_WEB_KEY: configured (production-grade)
+INFO: CIVICOS_CORS_ORIGINS: 2 origins configured
 ```
 
 ### Common Errors
@@ -325,7 +325,7 @@ curl https://api.openai.com/v1/models \
 ```
 
 **"CORS error in browser"**
-- Check `CIVIC_CORS_ORIGINS` includes your frontend URL
+- Check `CIVICOS_CORS_ORIGINS` includes your frontend URL
 - Ensure protocol (http vs https) matches exactly
 
 **"Rate limit exceeded"**
@@ -342,10 +342,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 required = ['OPENAI_API_KEY']
-required_prod = ['CIVIC_WEB_KEY', 'CIVIC_CORS_ORIGINS']
+required_prod = ['CIVICOS_WEB_KEY', 'CIVICOS_CORS_ORIGINS']
 optional = ['ANTHROPIC_API_KEY', 'GOOGLE_API_KEY', 'ASSEMBLYAI_API_KEY']
 
-env = os.environ.get('CIVIC_ENV', 'development')
+env = os.environ.get('CIVICOS_ENV', 'development')
 print(f'Environment: {env}')
 
 print('\nRequired:')
@@ -384,7 +384,7 @@ for key in optional:
 
 **Cost Optimization Tips**:
 1. Use `gpt-4o-mini` instead of `gpt-4` for most queries
-2. Use local embeddings (`CIVIC_EMBEDDING_PROVIDER=local`)
+2. Use local embeddings (`CIVICOS_EMBEDDING_PROVIDER=local`)
 3. Cache legislative data to reduce API calls
 4. Batch meeting transcriptions during off-peak
 
@@ -395,8 +395,8 @@ for key in optional:
 Before deployment, verify:
 
 - [ ] `OPENAI_API_KEY` is set and valid
-- [ ] `CIVIC_WEB_KEY` is production-grade (32+ chars, randomly generated)
-- [ ] `CIVIC_CORS_ORIGINS` lists all frontend domains
+- [ ] `CIVICOS_WEB_KEY` is production-grade (32+ chars, randomly generated)
+- [ ] `CIVICOS_CORS_ORIGINS` lists all frontend domains
 - [ ] `.env` file is NOT committed to git
 - [ ] Secrets are rotated on regular schedule
 - [ ] Team has documented where production secrets are stored

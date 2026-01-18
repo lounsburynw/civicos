@@ -1,4 +1,4 @@
-# Civic Platform - Docker Image
+# CivicOS Platform - Docker Image
 # Multi-stage build for optimized image size
 # Targets: REST API (8001) and WebSocket (8002) servers
 #
@@ -29,15 +29,15 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Install civic package
-COPY packages/civic/pyproject.toml packages/civic/README.md /tmp/civic/
-COPY packages/civic/src /tmp/civic/src
-RUN pip install --no-cache-dir /tmp/civic[embeddings]
+# Install civicos package
+COPY packages/civicos/pyproject.toml packages/civicos/README.md /tmp/civicos/
+COPY packages/civicos/src /tmp/civicos/src
+RUN pip install --no-cache-dir /tmp/civicos[embeddings]
 
-# Install civic-services package (application layer)
-COPY packages/civic-services/pyproject.toml /tmp/civic-services/
-COPY packages/civic-services/src /tmp/civic-services/src
-RUN pip install --no-cache-dir /tmp/civic-services
+# Install civicos-services package (application layer)
+COPY packages/civicos-services/pyproject.toml /tmp/civicos-services/
+COPY packages/civicos-services/src /tmp/civicos-services/src
+RUN pip install --no-cache-dir /tmp/civicos-services
 
 # Stage 2: Runtime image
 FROM python:3.11-slim AS runtime
@@ -52,7 +52,7 @@ COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Create non-root user for security
-RUN useradd --create-home --shell /bin/bash civic
+RUN useradd --create-home --shell /bin/bash civicos
 WORKDIR /app
 
 # Copy application code
@@ -70,16 +70,16 @@ COPY data/legislative_context/ ./bundled-data/legislative_context/
 
 # Create user data directory (will be mounted as volume in production)
 # User data is persistent and never overwritten by deploys
-# Ensure all app files are owned by civic user
+# Ensure all app files are owned by civicos user
 RUN mkdir -p user-data && \
-    chown -R civic:civic /app
+    chown -R civicos:civicos /app
 
 # Switch to non-root user
-USER civic
+USER civicos
 
 # Environment defaults
-ENV CIVIC_ENV=production
-ENV CIVIC_API_PORT=8001
+ENV CIVICOS_ENV=production
+ENV CIVICOS_API_PORT=8001
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
@@ -91,4 +91,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8001/health || exit 1
 
 # Default command: REST API server
-CMD ["python", "-m", "civic_services.servers.civic_api_integrated"]
+CMD ["python", "-m", "civicos_services.servers.civic_api_integrated"]

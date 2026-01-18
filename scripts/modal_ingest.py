@@ -119,7 +119,7 @@ civic_image = (
         "google-generativeai>=0.8.0",  # For Gemini-based extraction
     )
     # Environment variables (must come before add_local_* per Modal requirements)
-    .env({"CIVIC_CONFIG_DIR": "/config/extraction"})
+    .env({"CIVICOS_CONFIG_DIR": "/config/extraction"})
     # Add local civic packages (add_local_* must be last)
     .add_local_python_source("civic", "civic_config", "civic_extraction", "civic_services")
     # Add jurisdiction config files for config-driven pipeline iteration
@@ -1763,7 +1763,7 @@ def fetch_elections(
     )
 
     database_url = os.environ.get("DATABASE_URL")
-    google_api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GOOGLE_CIVIC_API_KEY")
+    google_api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GOOGLE_CIVICOS_API_KEY")
 
     if not database_url:
         raise ValueError("DATABASE_URL not set")

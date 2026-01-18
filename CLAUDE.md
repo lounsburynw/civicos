@@ -18,8 +18,8 @@ Always confirm you're using PostgreSQL with full pilot data:
 ```bash
 source civic-env/bin/activate && python3 -c "
 from dotenv import load_dotenv; load_dotenv()
-from civic import Civic
-c = Civic('city-san-rafael')
+from civicos import CivicOS
+c = CivicOSOS('city-san-rafael')
 print(f'Backend: {type(c._storage).__name__}')
 # Quick API test
 print(f'Decisions: {len(c.what_happened(\"test\"))}')
@@ -87,8 +87,8 @@ P0 is reserved for critical blockers. `/start` and `init.sh` will warn if multip
 ## Core API
 
 ```python
-from civic import Civic
-c = Civic("san-rafael")
+from civicos import CivicOS
+c = CivicOSOS("san-rafael")
 
 # Query methods
 c.whats_next()              # Upcoming meetings/decisions
@@ -121,7 +121,7 @@ c.report_outcome(...)       # Close feedback loop
 
 **Layered architecture:**
 ```
-Civic API (high-level)     →  what_happened(), what_applies()
+CivicOS API (high-level)     →  what_happened(), what_applies()
     ↓
 StorageBackend (protocol)  →  get_decisions(), get_meetings(), get_decision_count()
     ↓
@@ -130,12 +130,12 @@ PostgresBackend/SQLite     →  SQL (you never touch this directly)
 
 **Examples:**
 ```python
-# RIGHT: Use Civic API for semantic queries
-c = Civic('city-san-rafael')
+# RIGHT: Use CivicOS API for semantic queries
+c = CivicOSOS('city-san-rafael')
 decisions = c.what_happened("housing")
 
 # RIGHT: Use DataStatus for diagnostics
-from civic import DataStatus
+from civicos import DataStatus
 status = DataStatus(c._storage, c._vectors, 'city-san-rafael')
 print(status.gaps())
 
@@ -154,7 +154,7 @@ phase.json                  # Current development phase
 pilot.json                  # Pilot checklist (active)
 claude-progress.txt         # Session state (append-only)
 init.sh                     # Verification script
-packages/civic/             # Core API package
+packages/civicos/             # Core API package
 packages/civic-extraction/  # Platform parsers
 packages/civic-services/         # Application layer (API server, chat, websocket)
 apps/civic-workspace/       # Vue frontend
@@ -174,7 +174,7 @@ Read only when needed. Organized by purpose:
 |-----|---------|
 | `FINAL_PACKAGE_ARCHITECTURE.md` | **Master architecture** - API, LangGraph, coordination, error handling |
 | `FOCAL_POINT_DECISION_AWARENESS.md` | Core hypothesis - why civic coordination works |
-| `MCP_INTEGRATION_STRATEGY.md` | MCP server design |
+| `MCP_INTEGRATION_STRATEGY.md` | MCP server + multi-platform distribution (Claude.ai, ChatGPT, web) |
 | `VECTOR_RAG_SCHEMA.md` | Vector storage schema, corpus types |
 | `COMMITMENT_TRACKER_ARCHITECTURE.md` | Tracking official commitments |
 | `FINANCIAL_DATA_INTEGRATION.md` | Budget, ACFR, intergovernmental data |
@@ -374,7 +374,7 @@ Use the dev launch script to start all services with proper environment configur
 
 The script automatically:
 - Loads `.env` (requires `GOOGLE_MAPS_API_KEY` with Geocoding API enabled)
-- Sets `CIVIC_DEV_MODE=true` and `CIVIC_WEB_KEY=dev_key_local`
+- Sets `CIVICOS_DEV_MODE=true` and `CIVICOS_WEB_KEY=dev_key_local`
 - Activates `civic-env` virtual environment
 
 Or use the `/launch` command which documents the full process.
@@ -399,13 +399,13 @@ Use tiered testing: fast tests locally, full suite in CI.
 
 ```bash
 # Smoke test (core API)
-pytest packages/civic/tests/test_civic.py -q --override-ini="addopts="
+pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
 # Targeted test (example: RAG work)
-pytest packages/civic/tests/test_integration_rag_san_rafael.py -q --override-ini="addopts="
+pytest packages/civicos/tests/test_integration_rag_san_rafael.py -q --override-ini="addopts="
 
 # Full suite locally (if needed - resource intensive!)
-pytest packages/civic/tests/ -q --override-ini="addopts="
+pytest packages/civicos/tests/ -q --override-ini="addopts="
 ```
 
 ### CI Integration
@@ -434,7 +434,7 @@ Full test suite runs automatically on GitHub Actions:
 | **Production** | `DATABASE_URL` set in `.env` | PostgresBackend | PgVectorBackend |
 | **Local dev** | `DATABASE_URL` not set | SQLiteBackend | ChromaDB |
 
-The `.env` file contains `DATABASE_URL` pointing to Supabase PostgreSQL. When set, the Civic API automatically uses PostgreSQL with full pilot data.
+The `.env` file contains `DATABASE_URL` pointing to Supabase PostgreSQL. When set, the CivicOS API automatically uses PostgreSQL with full pilot data.
 
 ### Verifying Your Backend
 
@@ -442,8 +442,8 @@ The `.env` file contains `DATABASE_URL` pointing to Supabase PostgreSQL. When se
 from dotenv import load_dotenv
 load_dotenv()  # REQUIRED to load DATABASE_URL
 
-from civic import Civic
-c = Civic('city-san-rafael')
+from civicos import CivicOS
+c = CivicOSOS('city-san-rafael')
 print(type(c._storage).__name__)  # Should print: PostgresBackend
 ```
 
@@ -495,9 +495,9 @@ The `data/civic_state.db` file contains a subset of data for offline development
 Use the `civic.diagnostics` module for schema-aware data queries. This prevents common mistakes with column/table names.
 
 ```python
-from civic import Civic, DataStatus, VectorCoverage, format_data_status
+from civicos import CivicOS, DataStatus, VectorCoverage, format_data_status
 
-c = Civic('city-san-rafael')
+c = CivicOSOS('city-san-rafael')
 status = DataStatus(c._storage, c._vectors, 'city-san-rafael')
 print(format_data_status(status.summary()))  # Corpus counts, gaps, coverage
 print(status.gaps())  # Only corpora with indexing gaps

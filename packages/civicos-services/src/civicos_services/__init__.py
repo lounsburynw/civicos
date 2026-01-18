@@ -1,0 +1,24 @@
+"""
+Civic Services Layer - API servers, platform clients, and processing pipelines.
+
+Sub-packages:
+    servers     - FastAPI REST API (api.py) and WebSocket server (civic_socketio_server.py)
+    clients     - External API clients (CDP, Legistar, LegiScan, SeeClickFix, etc.)
+    providers   - LLM provider abstractions (OpenAI, Anthropic, Google, Groq, etc.)
+    processing  - Data transformation pipelines (agenda, testimony, retrospective)
+    storage     - State management and persistence (state_manager, issue_storage)
+    legislative - Legislative enrichment and discovery
+    issues      - Issue detection, matching, and handling
+    chat        - Chat routing and conversation management
+    monitoring  - Dashboard, refresh automation, data source management
+    core        - Core infrastructure (config, logging, model registry, LLM provider)
+    utils       - Utility services (content cache, session manager)
+    interfaces  - Abstract interfaces (participation mechanisms)
+
+Usage:
+    from civicos_services.servers.api import app  # FastAPI application
+    from civicos_services.clients.legistar_client import LegistarClient
+    from civicos_services.core.llm_provider import get_provider_for_task
+"""
+
+__version__ = "0.1.0"

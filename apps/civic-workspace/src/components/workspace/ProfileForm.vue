@@ -25,7 +25,7 @@
       <div v-if="props.artifact?.data?.fromOnboarding" class="privacy-notice-banner">
         <div class="notice-icon">🔒</div>
         <div class="notice-content">
-          <div class="notice-title">Your Civic Values Are Saved</div>
+          <div class="notice-title">Your CivicOS Values Are Saved</div>
           <div class="notice-text">
             Your political preferences are stored on <strong>this device only</strong> and will never be sent to our servers.
             This form only collects basic demographics to help personalize your experience.
@@ -133,7 +133,7 @@
           <div v-if="formData.civic_interests.length > 0" class="discovered-interests">
             <div class="discovered-header">
               <span class="icon">✨</span>
-              <span class="text">Your Civic Values</span>
+              <span class="text">Your CivicOS Values</span>
             </div>
             <div class="interest-tags">
               <span

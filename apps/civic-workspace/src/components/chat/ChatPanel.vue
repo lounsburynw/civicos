@@ -6,7 +6,7 @@
       <!-- Header -->
       <div class="chat-header">
         <div class="chat-header-left">
-          <span class="chat-title">Civic Assistant</span>
+          <span class="chat-title">CivicOS Assistant</span>
         </div>
         <div class="chat-header-right">
           <!-- Session 50 DEBUG: Test research injection -->

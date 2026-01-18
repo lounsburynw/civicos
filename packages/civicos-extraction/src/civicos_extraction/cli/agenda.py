@@ -1,0 +1,610 @@
+"""
+Agenda item extraction command for civic-extract CLI.
+
+Extracts actionable agenda items from meeting agendas using LLM analysis.
+
+Usage:
+    civic-extract agenda --jurisdiction city-san-rafael
+    civic-extract agenda --jurisdiction city-san-rafael --dry-run
+    civic-extract agenda --jurisdiction city-san-rafael --limit 5
+    civic-extract agenda --jurisdiction city-san-rafael --cloud
+
+Cloud mode (--cloud):
+    - Reads meetings from Postgres (requires DATABASE_URL)
+    - Stores agenda items in Postgres via store_agenda_items()
+    - Falls back to local storage if cloud unavailable
+
+Cost: Uses Gemini for extraction (~$0.10-0.50/meeting depending on agenda size)
+"""
+
+import argparse
+import json
+import logging
+import os
+import sys
+from dataclasses import dataclass, asdict
+from datetime import datetime
+from pathlib import Path
+from typing import List, Optional, Dict, Any
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class AgendaResult:
+    """Result of agenda extraction for a meeting."""
+
+    meeting_id: str
+    meeting_date: str
+    status: str  # "success", "skipped", "error"
+    items_count: int = 0
+    actionable_count: int = 0
+    error: Optional[str] = None
+
+
+@dataclass
+class AgendaCheckpoint:
+    """Checkpoint for agenda extraction progress."""
+
+    jurisdiction_id: str
+    last_meeting_id: str
+    items_processed: int
+    items_extracted: int
+    items_skipped: int
+    items_failed: int
+    total_agenda_items: int
+    timestamp: str
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "AgendaCheckpoint":
+        return cls(**data)
+
+
+def add_agenda_parser(subparsers: argparse._SubParsersAction) -> None:
+    """Add the agenda subcommand to the parser."""
+    parser = subparsers.add_parser(
+        "agenda",
+        help="Extract agenda items from meeting agendas",
+        description="Extract actionable agenda items using LLM analysis",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--jurisdiction",
+        required=True,
+        help="Jurisdiction ID (e.g., city-san-rafael)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show meetings that would be processed, don't actually extract",
+    )
+    parser.add_argument(
+        "--checkpoint-dir",
+        default="data/checkpoints",
+        help="Directory for checkpoint files (default: data/checkpoints)",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="Limit number of meetings to process (0 = no limit, default: 0)",
+    )
+    parser.add_argument(
+        "--cloud",
+        action="store_true",
+        help="Store agenda items in cloud storage (requires DATABASE_URL)",
+    )
+    parser.add_argument(
+        "--since",
+        type=str,
+        help="Process meetings since this date (YYYY-MM-DD)",
+    )
+    parser.add_argument(
+        "--until",
+        type=str,
+        help="Process meetings until this date (YYYY-MM-DD)",
+    )
+
+
+def run_agenda(args: argparse.Namespace) -> int:
+    """Run the agenda command."""
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+
+    results = run_agenda_extraction(
+        args.jurisdiction,
+        checkpoint_dir=args.checkpoint_dir,
+        dry_run=args.dry_run,
+        limit=args.limit,
+        cloud=args.cloud,
+        since=args.since,
+        until=args.until,
+    )
+
+    if results is None and not args.dry_run:
+        return 1
+
+    return 0
+
+
+def find_meetings(
+    jurisdiction_id: str, cloud: bool = False,
+    since: Optional[str] = None, until: Optional[str] = None
+) -> Optional[List[Dict[str, Any]]]:
+    """
+    Find meetings with agenda URLs for agenda item extraction.
+
+    In cloud mode, returns meetings from Postgres.
+    In local mode, returns meetings from checkpoint file.
+
+    Args:
+        jurisdiction_id: Jurisdiction ID (e.g., "city-san-rafael")
+        cloud: If True, try cloud storage first
+        since: Filter meetings since this date (YYYY-MM-DD)
+        until: Filter meetings until this date (YYYY-MM-DD)
+
+    Returns:
+        List of meeting dictionaries, or None if none found
+    """
+    # Try cloud storage first if enabled
+    if cloud or os.environ.get("DATABASE_URL"):
+        try:
+            from civicos.storage import get_storage_backend
+            from datetime import datetime as dt
+
+            backend = get_storage_backend()
+            if backend.backend_type == "postgres":
+                # Build datetime filters
+                since_dt = dt.fromisoformat(since) if since else None
+                until_dt = dt.fromisoformat(until) if until else None
+
+                meetings = backend.get_meetings(
+                    jurisdiction_id,
+                    since=since_dt,
+                    until=until_dt,
+                )
+                if meetings:
+                    # Filter to meetings with agenda URLs
+                    meetings_with_agendas = [
+                        m for m in meetings
+                        if m.get("agenda_url")
+                    ]
+                    if meetings_with_agendas:
+                        logger.info(
+                            f"Found {len(meetings_with_agendas)} meetings with agendas in cloud storage"
+                        )
+                        return meetings_with_agendas
+                    else:
+                        logger.info("No meetings with agendas in cloud, trying local fallback")
+        except ImportError:
+            logger.debug("civic.storage not available, using local fallback")
+        except Exception as e:
+            logger.warning(f"Cloud storage check failed: {e}, using local fallback")
+
+    # Local mode fallback - load from checkpoint file
+    checkpoint_file = Path("data/checkpoints") / f"{jurisdiction_id}.json"
+    if checkpoint_file.exists():
+        try:
+            with open(checkpoint_file) as f:
+                checkpoint = json.load(f)
+            meetings = checkpoint.get("events", [])
+            if meetings:
+                # Filter by date if specified
+                if since:
+                    meetings = [m for m in meetings if m.get("meeting_date", "") >= since]
+                if until:
+                    meetings = [m for m in meetings if m.get("meeting_date", "") <= until]
+                # Filter to meetings with agendas
+                meetings_with_agendas = [m for m in meetings if m.get("agenda_url")]
+                if meetings_with_agendas:
+                    logger.info(f"Loaded {len(meetings_with_agendas)} meetings from checkpoint")
+                    return meetings_with_agendas
+        except Exception as e:
+            logger.warning(f"Error loading checkpoint: {e}")
+
+    logger.error(f"No meetings found for {jurisdiction_id}")
+    logger.error("Run 'civic-extract discover --cloud' first to ingest meetings")
+    return None
+
+
+def checkpoint_path_for_agenda(jurisdiction_id: str, checkpoint_dir: str) -> Path:
+    """Get checkpoint file path for agenda extraction."""
+    path = Path(checkpoint_dir)
+    path.mkdir(parents=True, exist_ok=True)
+    return path / f"agenda_{jurisdiction_id}.json"
+
+
+def save_checkpoint(checkpoint: AgendaCheckpoint, path: Path) -> None:
+    """Save checkpoint to file."""
+    with open(path, "w") as f:
+        json.dump(checkpoint.to_dict(), f, indent=2)
+
+
+def load_checkpoint(path: Path) -> Optional[AgendaCheckpoint]:
+    """Load checkpoint from file if it exists."""
+    if not path.exists():
+        return None
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        return AgendaCheckpoint.from_dict(data)
+    except Exception as e:
+        logger.warning(f"Error loading checkpoint: {e}")
+        return None
+
+
+def agenda_items_exist_in_cloud(meeting_id: str) -> bool:
+    """Check if agenda items exist in cloud storage for a meeting."""
+    try:
+        from civicos.storage import get_storage_backend
+
+        backend = get_storage_backend()
+        if backend.backend_type == "postgres":
+            items = backend.get_agenda_items(meeting_id=meeting_id, limit=1)
+            return len(items) > 0
+    except ImportError:
+        logger.debug("civic.storage not available for cloud check")
+    except Exception as e:
+        logger.debug(f"Cloud check failed: {e}")
+    return False
+
+
+def extract_agenda_items_from_meeting(
+    meeting: Dict[str, Any],
+    jurisdiction_id: str,
+    cloud: bool = False,
+) -> AgendaResult:
+    """
+    Extract agenda items from a meeting using AgendaIntegrator.
+
+    Args:
+        meeting: Meeting dictionary with agenda_url
+        jurisdiction_id: Jurisdiction ID
+        cloud: If True, store to cloud
+
+    Returns:
+        AgendaResult with status and details
+    """
+    meeting_id = meeting.get("id") or meeting.get("meeting_id", "unknown")
+    meeting_date = meeting.get("meeting_date") or meeting.get("meeting_datetime", "")[:10]
+
+    cloud_mode = cloud or os.environ.get("DATABASE_URL")
+
+    # Check if already extracted in cloud
+    if cloud_mode and agenda_items_exist_in_cloud(meeting_id):
+        logger.info(f"  Skipping (already extracted in cloud): {meeting_id}")
+        return AgendaResult(
+            meeting_id=meeting_id,
+            meeting_date=meeting_date,
+            status="skipped",
+        )
+
+    try:
+        # Import AgendaIntegrator from local processing module
+        from civicos_extraction.processing.agenda_integration import AgendaIntegrator
+
+        # Import LLM provider from civicos_services (CLI entry point can orchestrate between packages)
+        try:
+            from civicos_services.core.llm_provider import get_model_for_task
+            provider = get_model_for_task('long_document')
+        except ImportError:
+            logger.error("civic_services package not available for LLM provider")
+            return AgendaResult(
+                meeting_id=meeting_id,
+                meeting_date=meeting_date,
+                status="error",
+                error="civic_services not installed (needed for LLM provider)",
+            )
+
+        meeting_page_url = meeting.get("agenda_url")
+        if not meeting_page_url:
+            logger.info(f"  Skipping (no agenda URL): {meeting_id}")
+            return AgendaResult(
+                meeting_id=meeting_id,
+                meeting_date=meeting_date,
+                status="skipped",
+            )
+
+        logger.info(f"  Extracting agenda items...")
+
+        # Initialize integrator with injected provider
+        integrator = AgendaIntegrator(provider=provider)
+
+        # The meeting's agenda_url is typically the meeting PAGE, not the PDF.
+        # We need to discover the actual PDF URL first.
+        # Create event dict with source_url pointing to meeting page
+        event_for_discovery = meeting.copy()
+        event_for_discovery['source_url'] = meeting_page_url
+        event_for_discovery.pop('agenda_url', None)  # Clear so discovery runs
+
+        # Discover the actual PDF URL
+        pdf_url, pdf_available = integrator.discover_agenda_url(event_for_discovery)
+
+        if not pdf_available or not pdf_url:
+            # Fallback: if the meeting_page_url is already a PDF, use it directly
+            if meeting_page_url.lower().endswith('.pdf'):
+                pdf_url = meeting_page_url
+            else:
+                logger.info(f"  No PDF agenda found at {meeting_page_url[:60]}...")
+                return AgendaResult(
+                    meeting_id=meeting_id,
+                    meeting_date=meeting_date,
+                    status="skipped",
+                )
+
+        logger.info(f"  Found PDF: {pdf_url[:80]}...")
+
+        # Extract agenda items from the PDF
+        agenda_items = integrator.parse_agenda_content(pdf_url, meeting)
+
+        if not agenda_items:
+            logger.info(f"  No agenda items extracted")
+            return AgendaResult(
+                meeting_id=meeting_id,
+                meeting_date=meeting_date,
+                status="success",
+                items_count=0,
+                actionable_count=0,
+            )
+
+        # Filter out cancellation notices
+        real_items = [item for item in agenda_items if item.item_ref != "CANCELLATION_NOTICE"]
+
+        if not real_items:
+            logger.info(f"  Meeting cancelled or no real items")
+            return AgendaResult(
+                meeting_id=meeting_id,
+                meeting_date=meeting_date,
+                status="success",
+                items_count=0,
+                actionable_count=0,
+            )
+
+        # Convert AgendaItem objects to dictionaries for storage
+        items_data = []
+        for item in real_items:
+            item_dict = {
+                "item_ref": item.item_ref,
+                "item_number": item.item_ref,
+                "title": item.title,
+                "description": item.description,
+                "actionable": item.actionable,
+                "actionable_reason": item.actionable_reason,
+                "project_types": item.project_types,
+                "participation_mechanisms": item.participation_mechanisms,
+                "related_agenda_items": item.related_agenda_items,
+                "follows_from": item.follows_from,
+                "addresses_issues": item.addresses_issues,
+                "policy_chain": item.policy_chain,
+            }
+            items_data.append(item_dict)
+
+        # Store agenda items (cloud or local)
+        stored_to_cloud = False
+        if cloud_mode:
+            stored_to_cloud = store_agenda_items_to_cloud(meeting_id, items_data)
+
+        actionable_count = sum(1 for item in real_items if item.actionable)
+        logger.info(f"  Extracted {len(items_data)} items ({actionable_count} actionable)")
+
+        return AgendaResult(
+            meeting_id=meeting_id,
+            meeting_date=meeting_date,
+            status="success",
+            items_count=len(items_data),
+            actionable_count=actionable_count,
+        )
+
+    except Exception as e:
+        logger.error(f"  Error extracting agenda items: {e}")
+        return AgendaResult(
+            meeting_id=meeting_id,
+            meeting_date=meeting_date,
+            status="error",
+            error=str(e),
+        )
+
+
+def store_agenda_items_to_cloud(
+    meeting_id: str, agenda_items: List[Dict[str, Any]]
+) -> bool:
+    """
+    Store agenda items to cloud storage (Postgres).
+
+    Args:
+        meeting_id: Meeting ID these items belong to
+        agenda_items: List of agenda item dictionaries
+
+    Returns:
+        True if stored successfully, False otherwise
+    """
+    try:
+        from civicos.storage import get_storage_backend
+
+        backend = get_storage_backend()
+        if backend.backend_type == "postgres":
+            count = backend.store_agenda_items(meeting_id, agenda_items)
+            if count > 0:
+                logger.info(f"  Stored {count} agenda items in cloud storage")
+                return True
+    except ImportError:
+        logger.warning("civic.storage not available, skipping cloud storage")
+    except Exception as e:
+        logger.warning(f"Cloud storage failed: {e}")
+    return False
+
+
+def run_agenda_extraction(
+    jurisdiction_id: str,
+    checkpoint_dir: str = "data/checkpoints",
+    dry_run: bool = False,
+    limit: int = 0,
+    cloud: bool = False,
+    since: Optional[str] = None,
+    until: Optional[str] = None,
+) -> Optional[List[AgendaResult]]:
+    """
+    Run agenda item extraction for meetings from a jurisdiction.
+
+    Args:
+        jurisdiction_id: Jurisdiction ID (e.g., "city-san-rafael")
+        checkpoint_dir: Directory for checkpoint files
+        dry_run: If True, show what would be processed without extracting
+        limit: Maximum meetings to process (0 = no limit)
+        cloud: If True, use cloud storage
+        since: Process meetings since this date (YYYY-MM-DD)
+        until: Process meetings until this date (YYYY-MM-DD)
+
+    Returns:
+        List of AgendaResult if successful, None if failed
+    """
+    logger.info(f"Starting agenda extraction for {jurisdiction_id}")
+
+    cloud_mode = cloud or os.environ.get("DATABASE_URL")
+    if cloud_mode:
+        logger.info("Cloud storage mode enabled")
+
+    # Find meetings with agendas
+    meetings = find_meetings(jurisdiction_id, cloud=cloud_mode, since=since, until=until)
+    if not meetings:
+        return None
+
+    # Sort by date (oldest first for chronological processing)
+    meetings = sorted(meetings, key=lambda m: m.get("meeting_date", "") or m.get("meeting_datetime", "")[:10])
+
+    # Check for existing checkpoint
+    checkpoint_path = checkpoint_path_for_agenda(jurisdiction_id, checkpoint_dir)
+    resume_from = load_checkpoint(checkpoint_path)
+    start_index = 0
+
+    if resume_from:
+        logger.info(f"Found checkpoint: {resume_from.items_processed} items processed")
+        # Find the index to resume from
+        for i, meeting in enumerate(meetings):
+            meeting_id = meeting.get("id") or meeting.get("meeting_id")
+            if meeting_id == resume_from.last_meeting_id:
+                start_index = i + 1
+                break
+        if start_index > 0:
+            logger.info(f"Resuming from meeting {start_index}")
+
+    # Apply limit
+    meetings_to_process = meetings[start_index:]
+    if limit > 0:
+        meetings_to_process = meetings_to_process[:limit]
+        logger.info(f"Limited to {limit} meetings")
+
+    if dry_run:
+        logger.info("Dry-run mode - showing meetings to process:")
+        already_extracted = 0
+        total_to_extract = 0
+
+        for i, meeting in enumerate(meetings_to_process, start=1):
+            meeting_id = meeting.get("id") or meeting.get("meeting_id", "unknown")
+            meeting_date = meeting.get("meeting_date") or meeting.get("meeting_datetime", "")[:10]
+            title = meeting.get("title", "Unknown")[:50]
+
+            # Check cloud
+            exists = False
+            if cloud_mode:
+                exists = agenda_items_exist_in_cloud(meeting_id)
+            status = "(already extracted)" if exists else ""
+
+            if exists:
+                already_extracted += 1
+            else:
+                total_to_extract += 1
+
+            logger.info(f"  [{i}/{len(meetings_to_process)}] {meeting_date} - {title} {status}")
+
+        logger.info(f"Would process {len(meetings_to_process)} meetings")
+        logger.info(f"Already extracted: {already_extracted}")
+        logger.info(f"To extract: {total_to_extract}")
+        logger.info(f"Estimated cost: ${total_to_extract * 0.25:.2f} (assuming ~$0.25/meeting)")
+        return None
+
+    # Extract agenda items
+    results = []
+    items_processed = start_index
+    items_extracted = 0
+    items_skipped = 0
+    items_failed = 0
+    total_agenda_items = 0
+
+    for i, meeting in enumerate(meetings_to_process, start=start_index + 1):
+        meeting_id = meeting.get("id") or meeting.get("meeting_id", "unknown")
+        meeting_date = meeting.get("meeting_date") or meeting.get("meeting_datetime", "")[:10]
+        title = meeting.get("title", "Unknown")[:50]
+
+        logger.info(f"[{i}/{len(meetings)}] {meeting_date} - {title}")
+
+        result = extract_agenda_items_from_meeting(
+            meeting,
+            jurisdiction_id,
+            cloud=cloud_mode,
+        )
+        results.append(result)
+
+        if result.status == "success":
+            items_extracted += 1
+            total_agenda_items += result.items_count
+        elif result.status == "skipped":
+            items_skipped += 1
+        else:
+            items_failed += 1
+
+        items_processed = i
+
+        # Save checkpoint every 5 meetings
+        if i % 5 == 0:
+            checkpoint = AgendaCheckpoint(
+                jurisdiction_id=jurisdiction_id,
+                last_meeting_id=meeting_id,
+                items_processed=items_processed,
+                items_extracted=items_extracted,
+                items_skipped=items_skipped,
+                items_failed=items_failed,
+                total_agenda_items=total_agenda_items,
+                timestamp=datetime.now().isoformat(),
+            )
+            save_checkpoint(checkpoint, checkpoint_path)
+            logger.debug(f"Checkpoint saved: {items_processed} processed")
+
+    # Final checkpoint
+    if meetings_to_process:
+        last_meeting = meetings_to_process[-1]
+        last_meeting_id = last_meeting.get("id") or last_meeting.get("meeting_id", "unknown")
+        checkpoint = AgendaCheckpoint(
+            jurisdiction_id=jurisdiction_id,
+            last_meeting_id=last_meeting_id,
+            items_processed=items_processed,
+            items_extracted=items_extracted,
+            items_skipped=items_skipped,
+            items_failed=items_failed,
+            total_agenda_items=total_agenda_items,
+            timestamp=datetime.now().isoformat(),
+        )
+        save_checkpoint(checkpoint, checkpoint_path)
+
+    # Summary
+    logger.info("=" * 50)
+    logger.info(f"Agenda Extraction Complete for {jurisdiction_id}")
+    logger.info(f"Meetings processed: {len(results)}")
+    logger.info(f"Meetings with items: {items_extracted}")
+    logger.info(f"Skipped (already exist): {items_skipped}")
+    logger.info(f"Failed: {items_failed}")
+    logger.info(f"Total agenda items extracted: {total_agenda_items}")
+    if cloud_mode:
+        logger.info("Agenda items stored in: cloud (Postgres)")
+    logger.info("=" * 50)
+
+    return results

@@ -85,21 +85,21 @@ Edit `.env` with your values:
 
 ```bash
 # REQUIRED: Environment type
-CIVIC_ENV=development  # or staging, production
+CIVICOS_ENV=development  # or staging, production
 
 # REQUIRED: OpenAI API key for AI features
 OPENAI_API_KEY=sk-proj-your-key-here
 
 # REQUIRED FOR PRODUCTION: Authentication token
 # Generate with: openssl rand -hex 32
-CIVIC_WEB_KEY=dev_key_local  # Use generated key in production
+CIVICOS_WEB_KEY=dev_key_local  # Use generated key in production
 
 # REQUIRED FOR PRODUCTION: Allowed frontend domains
-CIVIC_CORS_ORIGINS=https://your-domain.com
+CIVICOS_CORS_ORIGINS=https://your-domain.com
 
 # OPTIONAL: Local embeddings (free, default)
-CIVIC_EMBEDDING_PROVIDER=local
-CIVIC_EMBEDDING_MODEL=all-MiniLM-L6-v2
+CIVICOS_EMBEDDING_PROVIDER=local
+CIVICOS_EMBEDDING_MODEL=all-MiniLM-L6-v2
 
 # OPTIONAL: Google Maps for geocoding
 GOOGLE_MAPS_API_KEY=AIza-your-key
@@ -394,7 +394,7 @@ cd apps/civic-workspace && npm run dev
 3. **Configure secrets:**
    ```bash
    fly secrets set OPENAI_API_KEY="sk-proj-..." -a civic-api-your-city
-   fly secrets set CIVIC_WEB_KEY="$(openssl rand -hex 32)" -a civic-api-your-city
+   fly secrets set CIVICOS_WEB_KEY="$(openssl rand -hex 32)" -a civic-api-your-city
    ```
 
 4. **Deploy:**
@@ -466,9 +466,9 @@ Before launching, verify each component:
 ### Core Features
 
 ```python
-from civic import Civic
+from civicos import CivicOS
 
-c = Civic("your-city")
+c = CivicOS("your-city")
 
 # Test each method
 print("Testing whats_next...")
@@ -549,7 +549,7 @@ print("RAG working correctly")
 
 ### "CORS errors in browser"
 
-1. Verify `CIVIC_CORS_ORIGINS` includes your frontend domain
+1. Verify `CIVICOS_CORS_ORIGINS` includes your frontend domain
 2. Ensure protocol matches (http vs https)
 3. Redeploy after changing secrets
 

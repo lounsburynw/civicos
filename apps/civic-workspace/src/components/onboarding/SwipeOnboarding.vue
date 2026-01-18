@@ -10,7 +10,7 @@
     <div v-else-if="!isComplete" class="scenario-view">
       <!-- Header with progress -->
       <div class="onboarding-header">
-        <h1 class="onboarding-title">Discover Your Civic Archetype</h1>
+        <h1 class="onboarding-title">Discover Your CivicOS Archetype</h1>
         <p class="onboarding-subtitle">
           Answer {{ scenarios.length }} scenarios to find your civic identity
         </p>
@@ -80,7 +80,7 @@
     <div v-else class="results-view">
       <div class="results-header">
         <CircleCheck :size="64" class="completion-icon" />
-        <h1>Your Civic Archetypes</h1>
+        <h1>Your CivicOS Archetypes</h1>
         <p class="results-subtitle">
           Based on your responses, you align most closely with these civic identities:
         </p>

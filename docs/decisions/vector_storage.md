@@ -117,8 +117,8 @@ fly volumes create civic_vectors --size 3 --region sjc
 ### Environment Variables
 
 ```bash
-CIVIC_VECTORS_DIR=/data/vectors
-CIVIC_EMBEDDING_MODEL=nomic-ai/nomic-embed-text-v1.5
+CIVICOS_VECTORS_DIR=/data/vectors
+CIVICOS_EMBEDDING_MODEL=nomic-ai/nomic-embed-text-v1.5
 ```
 
 ### Backup Strategy

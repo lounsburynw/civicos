@@ -121,9 +121,9 @@ Represents an item on a meeting agenda.
 ### Usage Examples
 
 ```python
-from civic import Civic
+from civicos import CivicOS
 
-c = Civic("san-rafael")
+c = CivicOS("san-rafael")
 
 # Prepare for a specific agenda item
 prep = c.prepare(meeting_id="2025-01-15-council", item_number="6.a")
