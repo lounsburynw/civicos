@@ -137,7 +137,7 @@ jobs:
           # Install with fastembed (portable ONNX, no PyTorch needed)
           pip install psycopg2-binary  # Required for PostgresBackend
           pip install -e packages/civicos-config
-          pip install -e packages/civic[embeddings]
+          pip install -e packages/civicos[embeddings]
           pip install -e packages/civicos-extraction
 
       - name: Check if should run this corpus
@@ -206,7 +206,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install psycopg2-binary  # Required for PostgresBackend
           pip install -e packages/civicos-config
-          pip install -e packages/civic[embeddings]
+          pip install -e packages/civicos[embeddings]
           pip install -e packages/civicos-extraction
 
       - name: Show vector statistics
