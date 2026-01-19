@@ -1138,7 +1138,15 @@ class PgVectorBackend:
         indexed_models = {row[0] for row in cursor.fetchall()}
 
         current_model = self._embedding_model
-        if indexed_models and indexed_models != {'unknown'} and current_model not in indexed_models:
+
+        # Normalize model names for comparison (e.g., "nomic-ai/nomic-embed-text-v1.5" -> "nomic-embed-text-v1.5")
+        def normalize_model_name(name: str) -> str:
+            return name.split('/')[-1] if '/' in name else name
+
+        normalized_current = normalize_model_name(current_model)
+        normalized_indexed = {normalize_model_name(m) for m in indexed_models}
+
+        if indexed_models and indexed_models != {'unknown'} and normalized_current not in normalized_indexed:
             conn.close()
             raise ValueError(
                 f"Model mismatch: index contains vectors from {indexed_models}, "
