@@ -789,15 +789,15 @@
         ]
       },
       "protocol_video_meeting_mapping": {
-        "status": "ready",
+        "status": "complete",
         "priority": 1,
         "description": "Add StorageBackend.get_video_meeting_mapping() protocol method",
         "artifact": "Protocol method in backend.py + implementations in PostgresBackend/SQLiteBackend",
-        "note": "Session 525 critics' feedback: Raw SQL in pgvector_backend.py and modal_ingest.py bypasses protocol abstraction. Create proper method to encapsulate video_id\u2192meeting_id lookup.",
+        "note": "Completed in Session 526. Method implemented in all backends.",
         "key_files": [
-          "packages/civic/src/civic/storage/backend.py",
-          "packages/civic/src/civic/storage/postgres_backend.py",
-          "packages/civic/src/civic/storage/pgvector_backend.py",
+          "packages/civicos/src/civicos/storage/protocols/content.py",
+          "packages/civicos/src/civicos/storage/postgres_backend.py",
+          "packages/civicos/src/civicos/storage/pgvector_backend.py",
           "scripts/modal_ingest.py"
         ]
       },
@@ -1138,7 +1138,7 @@
         ]
       },
       "transcript_vector_meeting_id_fix": {
-        "status": "ready",
+        "status": "complete",
         "priority": 1,
         "description": "Fix transcript vectors storing video_id in meeting_id field",
         "artifact": "PgVectorBackend.index_from_storage video\u2192meeting lookup (same fix as video_meeting_schema_alignment)",
@@ -1512,14 +1512,14 @@
         "description": "GET /api/admin/cost-dashboard endpoint with period/service/jurisdiction filters"
       },
       "cost_alerts": {
-        "status": "ready",
+        "status": "complete",
         "priority": 1,
         "artifact": "Alert when ETL costs exceed threshold ($5/day or $50/month)",
         "note": "P0 for pilot: Prevent runaway costs from misconfigured pipelines or unexpected data volume. Implement simple daily cost check that alerts if etl_costs exceed threshold. Can use existing cost tracking in /admin/status endpoint as base.",
         "description": "ETL cost alerting with daily ($5/day) and monthly ($50/month) thresholds. Implemented via TemporalCostManager.get_daily_costs() and /admin/cost-status endpoint."
       },
       "global_rate_limit": {
-        "status": "ready",
+        "status": "complete",
         "priority": 1,
         "artifact": "Global API rate limit to prevent cost spikes from traffic surges",
         "note": "Simple slowapi limiter on API endpoints. No auth required. Set ceiling at 10x expected pilot traffic. Protects against viral spikes or bot traffic.",
