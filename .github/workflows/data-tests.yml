@@ -51,7 +51,7 @@ jobs:
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           # Install local package dependencies first
           pip install -e packages/civicos-config
-          pip install -e packages/civic[all]
+          pip install -e packages/civicos[all]
           pip install -e packages/civicos-extraction
           pip install -e packages/civicos-services/
           pip install -r requirements.txt
