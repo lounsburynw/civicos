@@ -4633,7 +4633,7 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civicos'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -4682,7 +4682,7 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civicos'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -4748,7 +4748,7 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civicos'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -4799,7 +4799,7 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civicos'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -4852,7 +4852,7 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civicos'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -5037,7 +5037,7 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civicos'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -5083,7 +5083,7 @@ class TestSecurityNoSecretsInLogs:
         # These patterns are more difficult to detect with regex alone
         # For now, verify the codebase doesn't have obvious violations
 
-        source_path = str(PROJECT_ROOT / 'packages/civicos/src/civic')
+        source_path = str(PROJECT_ROOT / 'packages/civicos/src/civicos')
 
         if not os.path.exists(source_path):
             return  # Skip if source not found
@@ -5131,7 +5131,7 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civicos'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -5495,7 +5495,7 @@ class TestSecurityNoSecretsInLogs:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civicos'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -5568,7 +5568,7 @@ class TestSecurityErrorMessagesSafe:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civicos'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -5935,7 +5935,7 @@ class TestSecurityErrorMessagesSafe:
         ve_regex = re.compile('|'.join(value_error_patterns), re.IGNORECASE)
 
         violations = []
-        source_dir = str(PROJECT_ROOT / 'packages/civicos/src/civic')
+        source_dir = str(PROJECT_ROOT / 'packages/civicos/src/civicos')
 
         if not os.path.exists(source_dir):
             pytest.skip("Source directory not found")
@@ -5965,7 +5965,7 @@ class TestSecurityErrorMessagesSafe:
         import re
 
         # Check ImportError messages in civic package
-        source_dir = str(PROJECT_ROOT / 'packages/civicos/src/civic')
+        source_dir = str(PROJECT_ROOT / 'packages/civicos/src/civicos')
 
         if not os.path.exists(source_dir):
             pytest.skip("Source directory not found")
@@ -6027,7 +6027,7 @@ class TestSecurityErrorMessagesSafe:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civicos'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -6211,7 +6211,7 @@ class TestSecurityErrorMessagesSafe:
 
         violations = []
         source_dirs = [
-            str(PROJECT_ROOT / 'packages/civicos/src/civic'),
+            str(PROJECT_ROOT / 'packages/civicos/src/civicos'),
             str(PROJECT_ROOT / 'src')
         ]
 
@@ -6259,21 +6259,21 @@ class TestCodeAuditArchitecture:
         from civicos import CivicOS
 
         # Query methods (Learn)
-        assert hasattr(Civic, 'what_applies'), "Missing what_applies query method"
-        assert hasattr(Civic, 'what_happened'), "Missing what_happened query method"
-        assert hasattr(Civic, 'whats_next'), "Missing whats_next query method"
-        assert hasattr(Civic, 'whos_with_me'), "Missing whos_with_me query method"
+        assert hasattr(CivicOS, 'what_applies'), "Missing what_applies query method"
+        assert hasattr(CivicOS, 'what_happened'), "Missing what_happened query method"
+        assert hasattr(CivicOS, 'whats_next'), "Missing whats_next query method"
+        assert hasattr(CivicOS, 'whos_with_me'), "Missing whos_with_me query method"
 
         # Action methods (Act)
-        assert hasattr(Civic, 'start_something'), "Missing start_something action method"
-        assert hasattr(Civic, 'add_voice'), "Missing add_voice action method"
-        assert hasattr(Civic, 'follow'), "Missing follow action method"
-        assert hasattr(Civic, 'prepare'), "Missing prepare action method"
+        assert hasattr(CivicOS, 'start_something'), "Missing start_something action method"
+        assert hasattr(CivicOS, 'add_voice'), "Missing add_voice action method"
+        assert hasattr(CivicOS, 'follow'), "Missing follow action method"
+        assert hasattr(CivicOS, 'prepare'), "Missing prepare action method"
 
         # Orchestration methods (AI)
-        assert hasattr(Civic, 'suggestions'), "Missing suggestions orchestration method"
-        assert hasattr(Civic, 'coordinate'), "Missing coordinate orchestration method"
-        assert hasattr(Civic, 'report_outcome'), "Missing report_outcome orchestration method"
+        assert hasattr(CivicOS, 'suggestions'), "Missing suggestions orchestration method"
+        assert hasattr(CivicOS, 'coordinate'), "Missing coordinate orchestration method"
+        assert hasattr(CivicOS, 'report_outcome'), "Missing report_outcome orchestration method"
 
     def test_result_types_defined(self):
         """
@@ -6308,10 +6308,10 @@ class TestCodeAuditArchitecture:
         """
         import os
 
-        civic_src = str(PROJECT_ROOT / 'packages/civicos/src/civic')
+        civic_src = str(PROJECT_ROOT / 'packages/civicos/src/civicos')
 
         # Core modules
-        assert os.path.exists(f"{civic_src}/civic.py"), "Missing civic.py (main entry point)"
+        assert os.path.exists(f"{civic_src}/civicos.py"), "Missing civic.py (main entry point)"
         assert os.path.exists(f"{civic_src}/mcp.py"), "Missing mcp.py (MCP server)"
 
         # Query modules
@@ -6366,7 +6366,7 @@ class TestCodeAuditArchitecture:
         """
         import os
 
-        civic_src = str(PROJECT_ROOT / 'packages/civicos/src/civic')
+        civic_src = str(PROJECT_ROOT / 'packages/civicos/src/civicos')
 
         # Layer 1: Intelligence - internal data modules
         assert os.path.isdir(f"{civic_src}/_internal"), "Missing _internal/ (intelligence layer)"
@@ -6389,13 +6389,13 @@ class TestCodeAuditArchitecture:
         from civicos import CivicOS
 
         # what_applies should take topic, not government_level
-        sig = inspect.signature(Civic.what_applies)
+        sig = inspect.signature(CivicOS.what_applies)
         params = list(sig.parameters.keys())
         assert 'topic' in params, "what_applies should have 'topic' parameter"
         assert 'government_level' not in params, "what_applies should not require government_level"
 
         # whats_next should take topics, not department_id
-        sig = inspect.signature(Civic.whats_next)
+        sig = inspect.signature(CivicOS.whats_next)
         params = list(sig.parameters.keys())
         assert 'topics' in params, "whats_next should have 'topics' parameter"
         assert 'department_id' not in params, "whats_next should not require department_id"
@@ -6763,7 +6763,7 @@ class TestCodeAuditDocumentation:
         ]
 
         for method_name in public_methods:
-            method = getattr(Civic, method_name, None)
+            method = getattr(CivicOS, method_name, None)
             assert method is not None, f"Missing method: {method_name}"
             assert method.__doc__ is not None, f"Missing docstring for {method_name}"
             assert len(method.__doc__) > 20, f"Docstring too short for {method_name}"

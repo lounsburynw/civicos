@@ -223,7 +223,7 @@ class TestSlackAlertChannel:
         mock_response.__enter__ = MagicMock(return_value=mock_response)
         mock_response.__exit__ = MagicMock(return_value=False)
 
-        with patch("civic_services.monitoring.error_alerting.urlopen", return_value=mock_response) as mock_urlopen:
+        with patch("civicos_services.monitoring.error_alerting.urlopen", return_value=mock_response) as mock_urlopen:
             result = manager._send_slack_alert(alert, metrics)
 
         assert result is True
@@ -274,7 +274,7 @@ class TestSlackAlertChannel:
         )
 
         # Mock urlopen to raise HTTP error
-        with patch("civic_services.monitoring.error_alerting.urlopen") as mock_urlopen:
+        with patch("civicos_services.monitoring.error_alerting.urlopen") as mock_urlopen:
             mock_urlopen.side_effect = HTTPError(
                 url="https://hooks.slack.com/test",
                 code=400,
@@ -325,7 +325,7 @@ class TestSlackAlertChannel:
         mock_response.__enter__ = MagicMock(return_value=mock_response)
         mock_response.__exit__ = MagicMock(return_value=False)
 
-        with patch("civic_services.monitoring.error_alerting.urlopen", return_value=mock_response) as mock_urlopen:
+        with patch("civicos_services.monitoring.error_alerting.urlopen", return_value=mock_response) as mock_urlopen:
             manager._send_slack_alert(alert, metrics)
 
         call_args = mock_urlopen.call_args[0][0]
@@ -376,7 +376,7 @@ class TestMultiChannelAlerting:
         mock_slack_response.__enter__ = MagicMock(return_value=mock_slack_response)
         mock_slack_response.__exit__ = MagicMock(return_value=False)
 
-        with patch("civic_services.monitoring.error_alerting.urlopen", return_value=mock_slack_response), \
+        with patch("civicos_services.monitoring.error_alerting.urlopen", return_value=mock_slack_response), \
              patch("smtplib.SMTP") as mock_smtp:
             mock_smtp_instance = MagicMock()
             mock_smtp.return_value.__enter__ = MagicMock(return_value=mock_smtp_instance)
@@ -421,7 +421,7 @@ class TestMultiChannelAlerting:
         mock_response.__enter__ = MagicMock(return_value=mock_response)
         mock_response.__exit__ = MagicMock(return_value=False)
 
-        with patch("civic_services.monitoring.error_alerting.urlopen", return_value=mock_response):
+        with patch("civicos_services.monitoring.error_alerting.urlopen", return_value=mock_response):
             alert = manager.check_and_alert()
 
         assert alert is not None
