@@ -1786,5 +1786,39 @@ Provide a briefing that includes:
 
 
 if __name__ == "__main__":
-    logger.info("Starting Civic Engagement MCP Server")
-    mcp.run()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="CivicOS MCP Server")
+    parser.add_argument(
+        "--transport", "-t",
+        choices=["stdio", "http", "sse"],
+        default="stdio",
+        help="Transport protocol: stdio (Claude Desktop), http (ChatGPT/Claude.ai), sse (legacy)"
+    )
+    parser.add_argument(
+        "--port", "-p",
+        type=int,
+        default=8000,
+        help="Port for HTTP/SSE transport (default: 8000)"
+    )
+    parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="Host for HTTP/SSE transport (default: 0.0.0.0)"
+    )
+    args = parser.parse_args()
+
+    # Map 'http' to 'streamable-http' (the actual transport name)
+    transport = "streamable-http" if args.transport == "http" else args.transport
+
+    logger.info(f"Starting CivicOS MCP Server (transport={transport})")
+
+    if transport == "stdio":
+        mcp.run(transport="stdio")
+    else:
+        # For HTTP/SSE, we need to reconfigure the server with host/port
+        # FastMCP settings are set at construction time
+        mcp.settings.host = args.host
+        mcp.settings.port = args.port
+        logger.info(f"Listening on http://{args.host}:{args.port}/mcp")
+        mcp.run(transport=transport)
