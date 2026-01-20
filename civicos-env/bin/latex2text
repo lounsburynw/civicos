@@ -1,4 +1,4 @@
-#!/Users/nicolaslounsbury/projects/civic/civic-env/bin/python
+#!/Users/nicolaslounsbury/projects/civicos/civicos-env/bin/python
 # EASY-INSTALL-ENTRY-SCRIPT: 'pylatexenc==2.10','console_scripts','latex2text'
 import re
 import sys
