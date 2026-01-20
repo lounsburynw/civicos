@@ -1,46 +1,159 @@
 # MCP Integration Strategy
 
 **Created**: 2025-11-24 (Session 118)
-**Updated**: 2026-01-17 (Session 529 - Multi-platform distribution strategy)
-**Status**: MCP Server Complete (22 primitives), Distribution Planning Active
+**Updated**: 2026-01-20 (Session 536 - HTTP transport deployment)
+**Status**: MCP Server Complete (22 primitives), HTTP Transport Ready, Deployment in Progress
 **Priority**: Strategic - Multi-platform AI distribution for pilot demo
 
 ---
 
 ## Executive Summary
 
-**Decision**: Deploy MCP server remotely for Claude.ai web + build ChatGPT Custom GPT for multi-platform distribution.
+**Decision**: Deploy single MCP server with HTTP transport to serve both Claude.ai AND ChatGPT.
 
-**Why Now**:
-- Claude.ai web now supports remote MCP servers (May 2025 "Integrations" launch)
-- MCP Registry launched (Sept 2025) for discoverability
-- ChatGPT plugins deprecated → Custom GPTs with Actions is the path
-- OpenAI Apps SDK extends MCP (Oct 2025) - ecosystem converging
+**Key Discovery (Jan 2026)**: ChatGPT now has native MCP client support (developer mode beta). This supersedes the Custom GPT + Actions approach - a single MCP server now serves all platforms.
 
-**Strategy**: Meet users where they are (Claude, ChatGPT, web app), with linkbacks to main product.
+**Why This Matters**:
+- Single codebase serves Claude Desktop, Claude.ai, AND ChatGPT
+- No need for separate OpenAPI spec maintenance for ChatGPT Actions
+- Better security (no exposed system prompts like Custom GPTs)
+- Future-proof as MCP becomes industry standard
+
+**Strategy**: Deploy MCP server publicly with HTTPS, connect to ChatGPT and Claude.ai as connectors.
 
 **Current State**:
-- MCP server complete: 15 tools + 5 resources + 2 prompts (`apps/civicos-mcp/civic_server.py`)
+- MCP server complete: 15 tools + 5 resources + 2 prompts (`apps/civicos-mcp/civicos_server.py`)
+- HTTP transport added (Session 535) - ready for public deployment
 - REST API complete: FastAPI endpoints (`packages/civicos-services/`)
 - Vue frontend available: `apps/civicos-workspace/`
 
-**Next Steps**:
-1. Deploy MCP server remotely with OAuth for Claude.ai web access
-2. Register on MCP Registry and community directories
-3. Build ChatGPT Custom GPT with Actions wrapping REST API
+**Next Steps** (P0):
+1. Deploy MCP server with HTTPS (Railway, Fly.io, or ngrok for testing)
+2. Connect to ChatGPT via developer mode connector
+3. Connect to Claude.ai via Connectors settings (OAuth optional for start)
+4. Register on MCP Registry after validation
+
+---
+
+## HTTP Transport Deployment Guide (NEW - Session 536)
+
+This section covers deploying the MCP server with HTTP transport for public access.
+
+### Quick Start - Local Testing
+
+```bash
+# Start MCP server with HTTP transport
+civicos-env/bin/python apps/civicos-mcp/civicos_server.py -t http -p 8080
+
+# In another terminal, expose via ngrok for HTTPS
+ngrok http 8080
+# Copy the HTTPS URL (e.g., https://abc123.ngrok.io)
+```
+
+### Server Usage
+
+```bash
+# Local development (stdio - Claude Desktop default)
+civicos-env/bin/python apps/civicos-mcp/civicos_server.py
+
+# HTTP transport for ChatGPT/Claude.ai
+civicos-env/bin/python apps/civicos-mcp/civicos_server.py -t http -p 8080
+
+# With custom host (for production deployment)
+civicos-env/bin/python apps/civicos-mcp/civicos_server.py -t http --host 0.0.0.0 -p 8080
+```
+
+### Testing HTTP Endpoint
+
+```bash
+# Test MCP initialization
+curl -s http://localhost:8080/mcp \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc": "2.0", "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "test", "version": "1.0"}}, "id": 1}'
+
+# Expected response includes serverInfo: "CivicOS Engagement Server"
+```
+
+### Deployment Options
+
+| Option | Use Case | Cost | Setup Complexity |
+|--------|----------|------|------------------|
+| **ngrok** | Development/Demo | Free tier available | Lowest |
+| **Railway** | Production | ~$5/month | Low |
+| **Fly.io** | Production | ~$5/month | Medium |
+| **Render** | Production | Free tier + $7/month | Low |
+
+### Environment Variables (Required for Deployment)
+
+```bash
+DATABASE_URL=postgresql://...        # Supabase connection string
+CIVICOS_JURISDICTION=city-san-rafael  # Default jurisdiction
+```
+
+### Connecting to ChatGPT
+
+ChatGPT has native MCP support in developer mode (beta, Jan 2025):
+
+1. Enable developer mode: **Settings > Connectors > Advanced > Developer mode**
+2. Create connector: **Settings > Connectors > Create**
+3. Enter your HTTPS URL (e.g., `https://your-app.railway.app/mcp`)
+4. Test: "What's on the San Rafael city council agenda?"
+
+**References**:
+- [ChatGPT MCP Connectors](https://help.openai.com/en/articles/12584461-developer-mode-apps-and-full-mcp-connectors-in-chatgpt-beta)
+- [OpenAI Apps SDK - MCP](https://developers.openai.com/apps-sdk/concepts/mcp-server/)
+
+### Connecting to Claude.ai
+
+Claude.ai supports remote MCP servers for Pro/Max/Team/Enterprise:
+
+1. Deploy MCP server publicly with HTTPS
+2. (Optional) Implement OAuth 2.0 for authentication
+   - Callback URL: `https://claude.ai/api/mcp/auth_callback`
+3. Add connector: **Settings > Connectors > Add connector**
+4. Enter server URL
+
+**References**:
+- [Building Custom Connectors](https://support.claude.com/en/articles/11503834-building-custom-connectors-via-remote-mcp-servers)
+
+### Railway Deployment Example
+
+```bash
+# Install Railway CLI
+npm install -g @railway/cli
+
+# Login and initialize
+railway login
+railway init
+
+# Set environment variables
+railway variables set DATABASE_URL="postgresql://..."
+railway variables set CIVICOS_JURISDICTION="city-san-rafael"
+
+# Deploy (needs Dockerfile or Procfile)
+railway up
+```
+
+**Procfile** for Railway:
+```
+web: python apps/civicos-mcp/civicos_server.py -t http --host 0.0.0.0 -p $PORT
+```
 
 ---
 
 ## Multi-Platform Distribution Strategy (2026)
 
-### Platform Landscape
+### Platform Landscape (Updated Jan 2026)
 
 | Platform | Method | Reach | Status |
 |----------|--------|-------|--------|
-| **Claude.ai web** | Remote MCP via Integrations | Pro/Max/Team/Enterprise users | Ready to deploy |
-| **Claude Desktop** | Local MCP server | All users | Working locally |
+| **Claude.ai web** | Remote MCP via Connectors | Pro/Max/Team/Enterprise users | Ready to deploy |
+| **Claude Desktop** | Local MCP server (stdio) | All users | Working |
 | **Claude Mobile** | Remote MCP (same as web) | Pro+ users (iOS/Android) | Ready to deploy |
-| **ChatGPT** | Custom GPT + Actions | All ChatGPT users | Requires build |
+| **ChatGPT** | MCP via developer mode | ChatGPT Plus/Team | Ready to deploy |
+| **ChatGPT (fallback)** | Custom GPT + Actions | All ChatGPT users | SUPERSEDED by MCP |
 | **Web app** | Direct access | Everyone | Working |
 
 ### Claude.ai Remote MCP (NEW - May 2025)
@@ -79,15 +192,26 @@ Remote MCP Server Checklist:
 
 **Strategy**: Register on all directories for maximum discoverability.
 
-### ChatGPT Distribution
+### ChatGPT Distribution (Updated Jan 2026)
 
-ChatGPT plugins deprecated (March 2024). Replacement stack:
+**IMPORTANT**: ChatGPT now supports MCP natively via developer mode (beta, Jan 2025). This supersedes the Custom GPT + Actions approach.
 
-1. **Custom GPTs + Actions** - Build GPT with OpenAPI-based Actions calling REST API
-2. **GPT Store** - Distribution surface for Custom GPTs
-3. **Apps in ChatGPT** (Oct 2025) - OpenAI's Apps SDK extends MCP for interactive UI
+**Preferred Approach**: MCP Server with HTTP Transport
+```
+ChatGPT MCP Integration:
+├── Deploy MCP server with HTTPS
+├── Enable developer mode in ChatGPT settings
+├── Create connector pointing to MCP server URL
+└── All 15 MCP tools available automatically
+```
 
-**Build approach**:
+**Benefits over Custom GPT**:
+- Single codebase for Claude AND ChatGPT
+- No OpenAPI spec maintenance
+- No exposed system prompts (security)
+- Real-time tool updates without GPT reconfiguration
+
+**Fallback Approach** (if MCP unavailable): Custom GPT + Actions
 ```
 ChatGPT Custom GPT "Civic San Rafael":
 ├── System prompt: Civic engagement assistant for San Rafael
@@ -102,8 +226,9 @@ ChatGPT Custom GPT "Civic San Rafael":
 ```
 
 **References**:
-- [GPT Actions docs](https://platform.openai.com/docs/actions/introduction)
-- [Apps in ChatGPT announcement](https://skywork.ai/blog/apps-in-chatgpt-vs-custom-gpts-gpt-apps-2025-comparison/)
+- [ChatGPT MCP Developer Mode](https://help.openai.com/en/articles/12584461-developer-mode-apps-and-full-mcp-connectors-in-chatgpt-beta)
+- [OpenAI Apps SDK - MCP](https://developers.openai.com/apps-sdk/concepts/mcp-server/)
+- [GPT Actions docs](https://platform.openai.com/docs/actions/introduction) (fallback)
 
 ### ChatGPT Custom GPT Configuration Guide
 
@@ -244,36 +369,47 @@ Upload supporting documents:
 | "Traffic complaints downtown" | Returns similar SeeClickFix issues |
 | "How do I submit a comment?" | Explains public comment process |
 
-### Distribution Architecture
+### Distribution Architecture (Updated Jan 2026)
+
+**Unified MCP Approach**: Single server serves all AI platforms
 
 ```
                     ┌─────────────────────────────────┐
-                    │     civicos-mcp (MCP Server)      │
-                    │   Deploy remotely with OAuth    │
+                    │     civicos-mcp (MCP Server)    │
+                    │   HTTP transport on HTTPS       │
+                    │   (civicos_server.py -t http)   │
                     └───────────────┬─────────────────┘
                                     │
-            ┌───────────────────────┼───────────────────────┐
-            │                       │                       │
-            ▼                       ▼                       ▼
-    ┌───────────────┐      ┌───────────────┐      ┌───────────────┐
-    │  Claude.ai    │      │ Claude Desktop│      │ Claude Mobile │
-    │  (Web)        │      │ (All users)   │      │ (iOS/Android) │
-    │  Pro+ plans   │      │               │      │ Pro+ plans    │
-    └───────────────┘      └───────────────┘      └───────────────┘
+        ┌───────────────┬───────────┼───────────┬───────────────┐
+        │               │           │           │               │
+        ▼               ▼           ▼           ▼               ▼
+┌───────────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐
+│  Claude.ai    │ │ Claude    │ │ Claude    │ │ ChatGPT   │ │ Future:   │
+│  (Web)        │ │ Desktop   │ │ Mobile    │ │ (MCP dev  │ │ Gemini,   │
+│  Pro+ plans   │ │ (stdio)   │ │ (iOS/And) │ │  mode)    │ │ Copilot   │
+└───────────────┘ └───────────┘ └───────────┘ └───────────┘ └───────────┘
 
                     ┌─────────────────────────────────┐
-                    │   civicos-services REST API       │
-                    │   (FastAPI, already deployed)   │
+                    │   civicos-services REST API     │
+                    │   (FastAPI for web frontend)    │
                     └───────────────┬─────────────────┘
                                     │
-            ┌───────────────────────┼───────────────────────┐
-            │                       │                       │
-            ▼                       ▼                       ▼
-    ┌───────────────┐      ┌───────────────┐      ┌───────────────┐
-    │ ChatGPT       │      │ civicos-workspace│     │ Future: Apps  │
-    │ Custom GPT    │      │ (Vue web app)  │     │ SDK / Gemini  │
-    │ via Actions   │      │ Main product   │     │               │
-    └───────────────┘      └───────────────┘      └───────────────┘
+                                    ▼
+                          ┌───────────────┐
+                          │civicos-workspace│
+                          │ (Vue web app)  │
+                          │ Main product   │
+                          └───────────────┘
+```
+
+**Note**: ChatGPT now uses MCP directly - no separate Custom GPT needed.
+The REST API is primarily for the Vue frontend.
+
+```
+BEFORE (Jan 2026):           AFTER (Jan 2026):
+├── MCP → Claude             ├── MCP → Claude + ChatGPT + Future
+├── REST/OpenAPI → ChatGPT   │     (single server)
+└── REST → Vue frontend      └── REST → Vue frontend only
 ```
 
 ### Linkback Strategy

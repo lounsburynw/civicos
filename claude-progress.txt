@@ -14824,3 +14824,72 @@ Created OpenAPI 3.0 spec for ChatGPT GPT Actions compatibility.
 Custom GPT + Actions approach is superseded - single MCP server serves both platforms.
 
 **Next P0**: Deploy MCP server with HTTP transport (ngrok or Railway/Fly.io)
+
+## Session 536 - 2026-01-20
+
+### Task: MCP Distribution Strategy Update
+
+### Summary
+Revised distribution strategy to use unified MCP approach instead of separate ChatGPT Custom GPT.
+Key discovery: ChatGPT now supports MCP natively via developer mode (beta, Jan 2025).
+
+### Strategic Decision
+
+**BEFORE**: 
+- MCP server → Claude platforms only
+- Custom GPT + Actions → ChatGPT
+- Two separate integration paths
+
+**AFTER**:
+- MCP server with HTTP transport → Claude + ChatGPT + future platforms
+- Single codebase serves all
+- No OpenAPI spec maintenance for ChatGPT
+
+### Work Done
+
+1. **pilot.json updates**:
+   - Marked `chatgpt_custom_gpt` as SUPERSEDED (was P0)
+   - Promoted `remote_mcp_deployment` to P0
+   - Added HTTP transport subtasks (done in Session 535)
+   - Updated references to ChatGPT MCP documentation
+
+2. **MCP_INTEGRATION_STRATEGY.md updates**:
+   - Added "HTTP Transport Deployment Guide" section
+   - Updated executive summary with MCP-unified approach
+   - Updated platform landscape table (ChatGPT now uses MCP)
+   - Updated distribution architecture diagram
+   - Added deployment options (ngrok, Railway, Fly.io, Render)
+   - Added ChatGPT MCP connector setup instructions
+   - Added Railway deployment example with Procfile
+
+3. **HTTP Transport Testing**:
+   - Verified MCP server works with `-t http -p 8080`
+   - Tested initialization endpoint locally
+   - Server returns valid MCP protocol response
+
+### Files Modified
+- pilot.json
+- docs/critical/MCP_INTEGRATION_STRATEGY.md
+
+### Why This Matters
+
+| Approach | Effort | Maintenance | Security |
+|----------|--------|-------------|----------|
+| Custom GPT | Create GPT, configure Actions | OpenAPI updates | System prompt exposed |
+| MCP Server | Deploy once | Single codebase | MCP protocol |
+
+MCP approach is:
+- Simpler (one deployment serves all)
+- More secure (no exposed prompts)
+- More maintainable (tool changes auto-propagate)
+- Future-proof (MCP becoming industry standard)
+
+### Next P0
+- `remote_mcp_deployment` - Deploy MCP server publicly with HTTPS
+
+**Immediate next steps**:
+1. Choose hosting platform (ngrok for demo, Railway/Fly.io for production)
+2. Deploy with HTTPS (required by ChatGPT)
+3. Set DATABASE_URL and CIVICOS_JURISDICTION env vars
+4. Test with ChatGPT developer mode connector
+5. Test with Claude.ai web connector

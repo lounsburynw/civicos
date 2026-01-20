@@ -1,7 +1,7 @@
 {
   "version": "2.0",
   "phase": "pilot",
-  "last_updated": "2026-01-17",
+  "last_updated": "2026-01-20",
   "target": "January 2026",
   "summary": "Consolidated pilot checklist: completed work summarized, active items tracked individually",
   "category_order": [
@@ -2109,24 +2109,36 @@
       },
       "remote_mcp_deployment": {
         "status": "not_ready",
-        "priority": 1,
-        "artifact": "MCP server deployed remotely with OAuth for Claude.ai web access",
-        "description": "Deploy civicos-mcp as a remote MCP server accessible from Claude.ai web, Claude Desktop, and Claude Mobile. Requires public hosting + OAuth 2.0 implementation.",
-        "note": "Session 529: Claude.ai Integrations (May 2025) enables remote MCP servers for Pro/Max/Team/Enterprise users. Key for clerk demo - clerk can use via claude.ai without installing anything. OAuth callback: https://claude.ai/api/mcp/auth_callback",
+        "priority": 0,
+        "artifact": "MCP server deployed publicly with HTTPS for Claude.ai AND ChatGPT",
+        "description": "Deploy civicos-mcp as a remote MCP server accessible from Claude.ai web, Claude Desktop, Claude Mobile, AND ChatGPT. Single server serves all platforms via HTTP transport.",
+        "note": "Session 535-536: HTTP transport added to civicos_server.py. ChatGPT now has native MCP support (developer mode beta). This is the unified distribution channel - one deployment serves Claude AND ChatGPT. OAuth needed for Claude.ai, API key or open for ChatGPT.",
         "subtasks": [
-          "Choose hosting platform (Railway, Fly.io, Render)",
-          "Implement OAuth 2.0 authentication flow",
-          "Configure SSE or Streamable HTTP transport",
-          "Test with Claude.ai Connectors",
-          "Document user setup flow"
+          "[DONE] Add HTTP transport support to MCP server (Session 535)",
+          "[DONE] Test HTTP transport locally (Session 536)",
+          "Choose hosting platform (Railway, Fly.io, Render, ngrok for dev)",
+          "Deploy with HTTPS (required by ChatGPT)",
+          "Set environment variables (DATABASE_URL, CIVICOS_JURISDICTION)",
+          "Implement OAuth 2.0 for Claude.ai (optional, can start without)",
+          "Test with ChatGPT developer mode connector",
+          "Test with Claude.ai web connector",
+          "Document user setup flow for both platforms"
         ],
         "depends_on": [
           "mcp_vector_search_tools"
         ],
         "references": [
+          "https://developers.openai.com/apps-sdk/concepts/mcp-server/",
+          "https://help.openai.com/en/articles/12584461-developer-mode-apps-and-full-mcp-connectors-in-chatgpt-beta",
           "https://support.claude.com/en/articles/11503834-building-custom-connectors-via-remote-mcp-servers",
-          "https://modelcontextprotocol.io/docs/develop/connect-remote-servers"
+          "https://gofastmcp.com/deployment/running-server"
         ],
+        "usage": {
+          "local_dev": "civicos-env/bin/python apps/civicos-mcp/civicos_server.py -t http -p 8080",
+          "ngrok_tunnel": "ngrok http 8080",
+          "chatgpt_setup": "Settings > Connectors > Developer mode > Create connector with HTTPS URL",
+          "claude_setup": "Settings > Connectors > Add connector with OAuth"
+        },
         "ip_protection": "Exposes tool names/schemas/responses only. Implementation code stays in private repo. Deploy from private GitHub repo or local build."
       },
       "mcp_registry_listing": {
@@ -2174,11 +2186,13 @@
         "ip_protection": "OpenAPI spec describes interface, not implementation. Endpoint signatures are public by design. Backend logic stays private."
       },
       "chatgpt_custom_gpt": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "superseded",
+        "priority": 99,
         "artifact": "Custom GPT 'Civic San Rafael' in ChatGPT GPT store",
         "description": "Build ChatGPT Custom GPT with Actions calling Civic REST API. Primary demo vehicle for city clerk meeting.",
-        "note": "Session 529: ChatGPT plugins deprecated (March 2024), Custom GPTs + Actions is replacement. OpenAI Apps SDK (Oct 2025) extends MCP - future convergence likely. For demo, Custom GPT is most accessible (clerk likely uses ChatGPT).",
+        "note": "Session 536: SUPERSEDED by MCP approach. ChatGPT now has native MCP client support (developer mode beta, Jan 2025). Single MCP server serves Claude Desktop, Claude.ai, AND ChatGPT. No need for separate Custom GPT + Actions. See remote_mcp_deployment.",
+        "superseded_by": "remote_mcp_deployment",
+        "superseded_reason": "ChatGPT MCP support (Jan 2025) enables single codebase for all platforms. MCP approach is simpler, more maintainable, and more secure (no exposed system prompts).",
         "subtasks": [
           "Create GPT system prompt (civic engagement assistant persona)",
           "Configure Actions from OpenAPI spec",
