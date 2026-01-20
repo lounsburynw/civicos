@@ -2146,28 +2146,36 @@
         ]
       },
       "openapi_spec": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "OpenAPI 3.0 spec for civicos-services REST API endpoints",
         "description": "Generate or write OpenAPI spec covering key civicos-services endpoints needed for ChatGPT Actions and API documentation.",
-        "note": "FastAPI auto-generates OpenAPI at /docs endpoint. May need customization for GPT Actions compatibility (simpler schemas, clear descriptions).",
-        "endpoints_to_cover": [
-          "GET /api/meetings - whats_next()",
-          "GET /api/decisions - what_happened()",
-          "GET /api/issues - whos_with_me()",
-          "POST /api/search - multi-corpus search",
-          "GET /api/budget - budget queries",
-          "GET /api/corpus/stats - data coverage"
+        "completed_session": 535,
+        "completed_date": "2026-01-20",
+        "output_file": "docs/openapi.json",
+        "endpoints_covered": [
+          "GET /health - Health check",
+          "GET /api/status - System status",
+          "GET /api/jurisdictions - List jurisdictions",
+          "GET /api/events - List events (whats_next)",
+          "GET /api/events/search - Search events",
+          "GET /api/events/{event_id} - Event details",
+          "GET /api/issues - List issues",
+          "POST /api/issues - Create issue",
+          "GET /api/issues/search - Search issues (whos_with_me)",
+          "GET /api/operational-issues/{jurisdiction_id} - SeeClickFix issues",
+          "GET /api/legislation/state/{topic} - State bills (what_applies)",
+          "GET /api/legislation/federal/{topic} - Federal bills",
+          "GET /api/elections/{jurisdiction_id} - Elections",
+          "POST /api/conversation - AI chat",
+          "POST /api/chat/route - Intent routing"
         ],
-        "key_files": [
-          "packages/civicos-services/src/civic_services/servers/api.py",
-          "packages/civicos-services/src/civic_services/servers/routers/"
-        ],
+        "gpt_actions_ready": true,
         "ip_protection": "OpenAPI spec describes interface, not implementation. Endpoint signatures are public by design. Backend logic stays private."
       },
       "chatgpt_custom_gpt": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Custom GPT 'Civic San Rafael' in ChatGPT GPT store",
         "description": "Build ChatGPT Custom GPT with Actions calling Civic REST API. Primary demo vehicle for city clerk meeting.",
         "note": "Session 529: ChatGPT plugins deprecated (March 2024), Custom GPTs + Actions is replacement. OpenAI Apps SDK (Oct 2025) extends MCP - future convergence likely. For demo, Custom GPT is most accessible (clerk likely uses ChatGPT).",
