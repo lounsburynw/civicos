@@ -7,7 +7,7 @@ name = "civicos-services"
 version = "0.1.0"
 description = "CivicOS services layer - API servers, websocket, platform clients, and services"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = {text = "PolyForm Noncommercial 1.0.0"}
 
 # Minimal dependencies - most come from civicos package and requirements.txt
 dependencies = [

@@ -7,16 +7,16 @@ name = "civicos-extraction"
 version = "0.1.0"
 description = "Platform clients for extracting civic meeting data - Legistar, CivicClerk, Granicus"
 readme = "README.md"
-license = {text = "Apache-2.0"}
+license = {text = "PolyForm Noncommercial 1.0.0"}
 requires-python = ">=3.9"
 authors = [
-    {name = "CivicOS Platform", email = "contact@civicos.example.com"}
+    {name = "Nicolas Lounsbury"}
 ]
 keywords = ["civicos", "legistar", "civicclerk", "granicus", "municipal", "meetings"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
+    "License :: Other/Proprietary License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
