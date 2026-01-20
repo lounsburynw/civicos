@@ -60,7 +60,7 @@ Backs up **all tables** including regenerable data:
 ### 1. Check Current Database Size
 
 ```bash
-source civic-env/bin/activate && python3 -c "
+source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv; load_dotenv()
 import os, psycopg2
 conn = psycopg2.connect(os.environ['DATABASE_URL'])
@@ -81,7 +81,7 @@ for r in cur.fetchall(): print(f'  {r[0]}: {r[1]} ({r[2]} rows)')
 ### 2. Create Selective Backup
 
 ```bash
-source civic-env/bin/activate
+source civicos-env/bin/activate
 
 CRITICAL_TABLES="meetings,transcripts,decisions,issues,videos,agenda_items,budget_items,elections,elected_officials,election_contests,etl_costs,operations"
 BACKUP_FILE="data/backups/civic_critical_$(date +%Y%m%d_%H%M%S).dump"

@@ -29,10 +29,10 @@ Categories are grouped into **tracks** to prevent file conflicts:
 
 | Track | Categories | Typical Files |
 |-------|------------|---------------|
-| **data** | data_architecture, data_readiness, data_standards, data_integrity, ingestion_visibility | packages/civic/, scripts/ingest_*.py |
+| **data** | data_architecture, data_readiness, data_standards, data_integrity, ingestion_visibility | packages/civicos/, scripts/ingest_*.py |
 | **ops** | deployment_artifacts, monitoring_observability, admin_operations, rollback_procedures | scripts/, .github/, docs/critical/*DEPLOY* |
 | **infra** | test_infrastructure, pipeline_automation | tests/, conftest.py, .github/workflows/ |
-| **frontend** | frontend_refinement, user_documentation, city_onboarding | apps/civic-workspace/, docs/user_guides/ |
+| **frontend** | frontend_refinement, user_documentation, city_onboarding | apps/civicos-workspace/, docs/user_guides/ |
 | **validation** | pilot_validation | Various (review only) |
 
 ```bash
@@ -200,7 +200,7 @@ fi
 ```bash
 # In a NEW terminal window:
 cd ../civic-${TRACK}
-source civic-env/bin/activate  # Activate venv (symlinked from main)
+source civicos-env/bin/activate  # Activate venv (symlinked from main)
 claude
 ```
 

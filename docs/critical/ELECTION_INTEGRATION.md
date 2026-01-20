@@ -36,7 +36,7 @@ Elections span all government levels. Google Civic API returns all applicable el
 
 ## 1. Add ELECTIONS to CorpusType
 
-**File:** `packages/civic/src/civic/storage/corpus_types.py`
+**File:** `packages/civicos/src/civicos/storage/corpus_types.py`
 
 ```python
 # Add to CorpusType enum (line ~44, after ISSUES)
@@ -69,7 +69,7 @@ class CorpusType(str, Enum):
 
 ## 2. Data Models
 
-**New file:** `packages/civic/src/civic/_internal/elections/__init__.py`
+**New file:** `packages/civicos/src/civicos/_internal/elections/__init__.py`
 
 ```python
 """Election data models."""
@@ -657,7 +657,7 @@ Bob Jones: No voting record (challenger)
 
 ## 5. Extend StorageBackend Protocol
 
-**File:** `packages/civic/src/civic/storage/backend.py`
+**File:** `packages/civicos/src/civicos/storage/backend.py`
 
 Add after `get_transcript_count` method (line ~727):
 
@@ -785,13 +785,13 @@ CREATE INDEX IF NOT EXISTS idx_officials_current ON elected_officials(term_end) 
 ## 7. Implementation Phases
 
 ### Phase 1: Foundation
-1. Create `packages/civic/src/civic/_internal/elections/__init__.py` with data models
+1. Create `packages/civicos/src/civicos/_internal/elections/__init__.py` with data models
 2. Add `ELECTIONS` to `CorpusType` in `corpus_types.py` (with `jurisdiction_type="both"`)
 3. Add election methods to `StorageBackend` protocol
 4. Implement SQLite storage
 
 ### Phase 2: Google Civic API Client
-1. Create `packages/civic-extraction/src/civic_extraction/clients/google_civic.py`
+1. Create `packages/civicos-extraction/src/civic_extraction/clients/google_civic.py`
 2. Add tests
 3. Test with real API key against San Rafael address
 
@@ -817,12 +817,12 @@ CREATE INDEX IF NOT EXISTS idx_officials_current ON elected_officials(term_end) 
 
 | File | Change |
 |------|--------|
-| `packages/civic/src/civic/storage/corpus_types.py` | Add `ELECTIONS` enum (jurisdiction_type="both") |
-| `packages/civic/src/civic/storage/backend.py` | Add election + official storage methods |
-| `packages/civic/src/civic/storage/sqlite_backend.py` | Implement election + official storage |
-| `packages/civic/src/civic/_internal/elections/__init__.py` | NEW: Election + ElectedOfficial models |
-| `packages/civic-extraction/src/civic_extraction/clients/google_civic.py` | NEW: Google Civic API client |
-| `packages/civic/src/civic/civic.py` | Add `whats_on_ballot()`, `get_voting_record()` |
+| `packages/civicos/src/civicos/storage/corpus_types.py` | Add `ELECTIONS` enum (jurisdiction_type="both") |
+| `packages/civicos/src/civicos/storage/backend.py` | Add election + official storage methods |
+| `packages/civicos/src/civicos/storage/sqlite_backend.py` | Implement election + official storage |
+| `packages/civicos/src/civicos/_internal/elections/__init__.py` | NEW: Election + ElectedOfficial models |
+| `packages/civicos-extraction/src/civic_extraction/clients/google_civic.py` | NEW: Google Civic API client |
+| `packages/civicos/src/civicos/civic.py` | Add `whats_on_ballot()`, `get_voting_record()` |
 
 ---
 

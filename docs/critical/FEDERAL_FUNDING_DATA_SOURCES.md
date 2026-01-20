@@ -153,7 +153,7 @@ print(f"  County: ${summary.county_total_dollars:,.0f}")
 - **Socrata API** - Structured, queryable, no PDF parsing
 - **10+ years of history** - Data back to FY2014 for San Rafael
 
-**Implementation:** `packages/civic-extraction/src/civic_extraction/clients/ca_state_controller.py`
+**Implementation:** `packages/civicos-extraction/src/civic_extraction/clients/ca_state_controller.py`
 
 ### Other Potential Data Sources
 

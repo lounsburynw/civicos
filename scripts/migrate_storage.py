@@ -139,7 +139,7 @@ class StorageMigration:
         target_postgres_url: Optional[str] = None,
         source_blobs_path: str = "data/blobs",
         target_r2_url: Optional[str] = None,
-        vectors_dir: str = "apps/civic-workspace/data/vectors",
+        vectors_dir: str = "apps/civicos-workspace/data/vectors",
         manifest_path: str = "data/migration_manifest.json",
         dry_run: bool = False,
         verbose: bool = False,
@@ -740,8 +740,8 @@ def main():
     parser.add_argument(
         "--vectors-dir",
         metavar="PATH",
-        default="apps/civic-workspace/data/vectors",
-        help="ChromaDB vectors directory (default: apps/civic-workspace/data/vectors)",
+        default="apps/civicos-workspace/data/vectors",
+        help="ChromaDB vectors directory (default: apps/civicos-workspace/data/vectors)",
     )
 
     parser.add_argument(

@@ -86,6 +86,6 @@ For small corpus types or if Modal is unavailable, `.github/workflows/vector-ref
 
 Check index coverage:
 ```bash
-source civic-env/bin/activate && source .env
+source civicos-env/bin/activate && source .env
 civic-extract vectors --jurisdiction city-san-rafael --corpus all --stats
 ```

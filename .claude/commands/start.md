@@ -158,8 +158,8 @@ Phase: [CURRENT PHASE]
 Area: [CATEGORY > SUBCATEGORY]
 
 Investigate:
-1. Find relevant source files in packages/civic/src/civic/ and related areas
-2. Check existing tests in packages/civic/tests/
+1. Find relevant source files in packages/civicos/src/civic/ and related areas
+2. Check existing tests in packages/civicos/tests/
 3. Look at docs/critical/ for architectural context if relevant
 4. Identify patterns and dependencies
 
@@ -188,18 +188,18 @@ Use tiered testing to save time:
 
 | Tier | When | Command |
 |------|------|---------|
-| **Smoke** | Session start (automatic via `init.sh`) | `pytest test_civic.py -q` (~30s) |
+| **Smoke** | Session start (automatic via `init.sh`) | `pytest test_civicos.py -q` (~30s) |
 | **Targeted** | During development | `pytest {item's test_file} -q` (1-5m) |
-| **Full** | Before commit only | `pytest packages/civic/tests/ -q` (~14m) |
+| **Full** | Before commit only | `pytest packages/civicos/tests/ -q` (~14m) |
 
 **Find the targeted test**: Check the `test_file` field in the item's checklist entry (if specified).
 
 **Example workflow**:
 ```bash
 # Working on 'hybrid_queries' item
-pytest packages/civic/tests/test_integration_rag_san_rafael.py -q  # targeted
+pytest packages/civicos/tests/test_integration_rag_san_rafael.py -q  # targeted
 # ... make changes, iterate ...
-pytest packages/civic/tests/ -q  # full suite before commit
+pytest packages/civicos/tests/ -q  # full suite before commit
 ```
 
 ### Phase-Specific Rules

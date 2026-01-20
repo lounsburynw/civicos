@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 
 # Set API key for testing
-os.environ['CIVIC_WEB_KEY'] = 'test-key-12345'
+os.environ['CIVICOS_WEB_KEY'] = 'test-key-12345'
 API_KEY = 'test-key-12345'
 BASE_URL = 'http://localhost:8001'
 

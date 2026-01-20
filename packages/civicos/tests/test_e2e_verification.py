@@ -76,7 +76,7 @@ def _check_frontend_available():
         if shutil.which("npm") is None:
             return False
         # Check if frontend node_modules exist
-        frontend_dir = PROJECT_ROOT / "frontend" / "civic-workspace"
+        frontend_dir = PROJECT_ROOT / "frontend" / "civicos-workspace"
         if not frontend_dir.exists():
             return False
         if not (frontend_dir / "node_modules").exists():
@@ -1576,7 +1576,7 @@ class TestFrontendBrowserE2E:
         frontend_proc = subprocess.Popen(
             ["npm", "run", "dev", "--", "--port", str(frontend_port), "--strictPort"],
             env=frontend_env,
-            cwd=os.path.join(project_root, "frontend", "civic-workspace"),
+            cwd=os.path.join(project_root, "frontend", "civicos-workspace"),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -5194,7 +5194,7 @@ class TestSecurityNoSecretsInLogs:
             # Skip non-source directories
             dirs[:] = [d for d in dirs if d not in [
                 '__pycache__', 'tests', '.git', 'node_modules',
-                'civic-env', 'venv', '.venv', 'data', 'docs'
+                'civicos-env', 'venv', '.venv', 'data', 'docs'
             ]]
 
             for filename in files:
@@ -5257,7 +5257,7 @@ class TestSecurityNoSecretsInLogs:
         for root, dirs, files in os.walk(source_path):
             dirs[:] = [d for d in dirs if d not in [
                 '__pycache__', 'tests', '.git', 'node_modules',
-                'civic-env', 'venv', '.venv', 'data', 'docs'
+                'civicos-env', 'venv', '.venv', 'data', 'docs'
             ]]
 
             for filename in files:
@@ -5450,7 +5450,7 @@ class TestSecurityNoSecretsInLogs:
         for root, dirs, files in os.walk(source_path):
             dirs[:] = [d for d in dirs if d not in [
                 '__pycache__', 'tests', '.git', 'node_modules',
-                'civic-env', 'venv', '.venv'
+                'civicos-env', 'venv', '.venv'
             ]]
 
             for filename in files:

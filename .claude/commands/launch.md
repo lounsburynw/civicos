@@ -29,7 +29,7 @@ The script automatically:
 1. Loads `.env` file
 2. Sets `CIVIC_DEV_MODE=true`
 3. Sets `CIVIC_WEB_KEY=dev_key_local` (matches frontend)
-4. Activates the `civic-env` virtual environment
+4. Activates the `civicos-env` virtual environment
 
 ## Required API Keys in `.env`
 

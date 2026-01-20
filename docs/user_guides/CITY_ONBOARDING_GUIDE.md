@@ -274,7 +274,7 @@ Once configuration is ready, run the bootstrap command.
 
 ```bash
 # Activate environment
-source civic-env/bin/activate
+source civicos-env/bin/activate
 
 # Run bootstrap (standard)
 civic-bootstrap san-rafael

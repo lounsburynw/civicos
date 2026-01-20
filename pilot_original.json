@@ -140,12 +140,12 @@
         "status": "ready",
         "priority": 2,
         "artifact": "Move src/ to packages/civic-app/ with proper structure",
-        "note": "Moved src/ to packages/civic-services/src/civic_services/. Package renamed from civic-app to civic-services for clarity."
+        "note": "Moved src/ to packages/civicos-services/src/civic_services/. Package renamed from civic-app to civicos-services for clarity."
       },
       "civic_services_subpackages": {
         "status": "ready",
         "priority": 1,
-        "artifact": "Organize civic-services into sub-packages for library publication",
+        "artifact": "Organize civicos-services into sub-packages for library publication",
         "completed": "2025-12-15",
         "note": "Organized 59 modules into 11 sub-packages: servers/, clients/, providers/, processing/, storage/, legislative/, issues/, chat/, monitoring/, core/, utils/. All imports updated to use relative paths. 31 smoke tests pass."
       },
@@ -153,7 +153,7 @@
         "status": "ready",
         "priority": 1,
         "artifact": "Consolidate frontend/ and mcp_servers/ into apps/ directory",
-        "note": "Makes multi-app architecture explicit. Structure: apps/civic-workspace/ (Vue), apps/civic-mcp/ (MCP server). Prepares for future CLI, bot, widget apps. 'Apps' is neutral - each consumes Civic API regardless of protocol role."
+        "note": "Makes multi-app architecture explicit. Structure: apps/civicos-workspace/ (Vue), apps/civicos-mcp/ (MCP server). Prepares for future CLI, bot, widget apps. 'Apps' is neutral - each consumes Civic API regardless of protocol role."
       },
       "civic_types_extraction": {
         "status": "ready",
@@ -394,7 +394,7 @@
         "priority": 2,
         "artifact": "Alert on elevated error rates",
         "completed": "2025-12-17",
-        "note": "ErrorAlertManager in packages/civic-services/src/civic_services/monitoring/error_alerting.py. Monitors 5xx error rates (5%=elevated, 10%=critical), emails alerts with debouncing. Integrated into /health endpoint."
+        "note": "ErrorAlertManager in packages/civicos-services/src/civic_services/monitoring/error_alerting.py. Monitors 5xx error rates (5%=elevated, 10%=critical), emails alerts with debouncing. Integrated into /health endpoint."
       },
       "alert_channel": {
         "status": "ready",
@@ -696,14 +696,14 @@
       "meeting_discovery_cron": {
         "status": "ready",
         "priority": 1,
-        "artifact": "civic-extract discover CLI - packages/civic-extraction/src/civic_extraction/cli/discover.py",
+        "artifact": "civic-extract discover CLI - packages/civicos-extraction/src/civic_extraction/cli/discover.py",
         "note": "Session 321: CLI with --schedule mode for daily 6am, checkpoint support, logging. Refactored from scripts/ to package CLI.",
         "completed": "2025-12-21"
       },
       "youtube_discovery_cron": {
         "status": "ready",
         "priority": 1,
-        "artifact": "civic-extract youtube CLI - packages/civic-extraction/src/civic_extraction/cli/youtube.py",
+        "artifact": "civic-extract youtube CLI - packages/civicos-extraction/src/civic_extraction/cli/youtube.py",
         "note": "Session 322: CLI with --schedule mode for daily 7am, checkpoint support, logging. Sources meetings directly from ProudCity website.",
         "completed": "2025-12-21"
       },
@@ -717,21 +717,21 @@
       "transcription_cron": {
         "status": "ready",
         "priority": 1,
-        "artifact": "civic-extract transcribe CLI - packages/civic-extraction/src/civic_extraction/cli/transcribe.py",
+        "artifact": "civic-extract transcribe CLI - packages/civicos-extraction/src/civic_extraction/cli/transcribe.py",
         "note": "Session 324: CLI with --schedule mode for daily 9am (after audio at 8am), AssemblyAI transcription with speaker diarization, checkpoint support, skip already-transcribed files.",
         "completed": "2025-12-21"
       },
       "seeclickfix_cron": {
         "status": "ready",
         "priority": 1,
-        "artifact": "civic-extract seeclickfix CLI - packages/civic-extraction/src/civic_extraction/cli/seeclickfix.py",
+        "artifact": "civic-extract seeclickfix CLI - packages/civicos-extraction/src/civic_extraction/cli/seeclickfix.py",
         "note": "Session 325: CLI with --schedule mode for daily 8am, SeeClickFixClient integration, checkpoint support, pagination handling for all issues.",
         "completed": "2025-12-21"
       },
       "legislative_cron": {
         "status": "ready",
         "priority": 1,
-        "artifact": "civic-extract legislative CLI - packages/civic-extraction/src/civic_extraction/cli/legislative.py",
+        "artifact": "civic-extract legislative CLI - packages/civicos-extraction/src/civic_extraction/cli/legislative.py",
         "note": "Session 326: CLI with --schedule mode for weekly Sunday 6am, LegiScan API + LLM filtering, checkpoint support, topic filtering (housing/transportation/environment/budget/education/all).",
         "completed": "2025-12-21"
       }
@@ -784,7 +784,7 @@
         "artifact": "Cache raw scraped content (HTML, PDFs, API responses) in R2",
         "note": "SourceCache class in civic_extraction/cache.py caches HTTP responses with TTL. Integrated with ProudCityClient via optional cache param. CLI support via --cache flag.",
         "completed": "2025-12-27",
-        "test_file": "packages/civic-extraction/tests/test_source_cache.py"
+        "test_file": "packages/civicos-extraction/tests/test_source_cache.py"
       },
       "e2e_fresh_ingestion": {
         "status": "ready",
@@ -854,7 +854,7 @@
           "On-demand indexing via API endpoint"
         ],
         "modified_files": [
-          "packages/civic-extraction/src/civic_extraction/pipeline.py",
+          "packages/civicos-extraction/src/civic_extraction/pipeline.py",
           ".github/workflows/vector-refresh.yml"
         ]
       },
@@ -870,9 +870,9 @@
           "new_flag": "--force for explicit destructive operations"
         },
         "modified_files": [
-          "packages/civic-extraction/src/civic_extraction/cli/vectors.py"
+          "packages/civicos-extraction/src/civic_extraction/cli/vectors.py"
         ],
-        "test_file": "packages/civic-extraction/tests/test_vectors_cli.py",
+        "test_file": "packages/civicos-extraction/tests/test_vectors_cli.py",
         "test_cases": [
           "Incremental index adds new vectors without deleting existing",
           "--reindex with matching counts proceeds normally",
@@ -1036,7 +1036,7 @@
         "status": "ready",
         "priority": 1,
         "artifact": "Move JurisdictionRegistry to shared package for clean layer separation",
-        "note": "Session 456: Created packages/civic-config/ with JurisdictionRegistry, JurisdictionConfig, GranicusConfig, CITY_CONFIGS. Updated civic-services to import from civic_config. Backward-compatible re-exports in civic.jurisdiction.",
+        "note": "Session 456: Created packages/civic-config/ with JurisdictionRegistry, JurisdictionConfig, GranicusConfig, CITY_CONFIGS. Updated civicos-services to import from civic_config. Backward-compatible re-exports in civic.jurisdiction.",
         "completed": "2026-01-03"
       },
       "chunker_layer_separation": {
@@ -1213,7 +1213,7 @@
         "status": "ready",
         "priority": 1,
         "artifact": "Centralize file path generation with environment variable support",
-        "note": "Created DataPathResolver class in packages/civic/src/civic/paths.py. Supports CIVIC_DATA_ROOT, CIVIC_BUNDLED_DATA_DIR, CIVIC_USER_DATA_DIR env vars. Convenience functions: get_state_db_path(), get_vectors_dir(), get_checkpoints_dir(). Refactored civic.py, sqlite_backend.py, embeddings.py, manager.py to use resolver. civic-extraction uses _get_data_root() helper. 36 new tests.",
+        "note": "Created DataPathResolver class in packages/civic/src/civic/paths.py. Supports CIVIC_DATA_ROOT, CIVIC_BUNDLED_DATA_DIR, CIVIC_USER_DATA_DIR env vars. Convenience functions: get_state_db_path(), get_vectors_dir(), get_checkpoints_dir(). Refactored civic.py, sqlite_backend.py, embeddings.py, manager.py to use resolver. civicos-extraction uses _get_data_root() helper. 36 new tests.",
         "completed": "2025-12-22",
         "test_file": "packages/civic/tests/test_paths.py"
       },
@@ -1307,7 +1307,7 @@
         "depends_on": [
           "federal_programs_postgres_migration"
         ],
-        "artifact": "packages/civic-extraction/src/civic_extraction/clients/hud_exchange.py"
+        "artifact": "packages/civicos-extraction/src/civic_extraction/clients/hud_exchange.py"
       },
       "sam_assistance_client": {
         "status": "not_ready",
@@ -1317,7 +1317,7 @@
         "depends_on": [
           "federal_programs_postgres_migration"
         ],
-        "artifact": "packages/civic-extraction/src/civic_extraction/clients/sam_assistance.py"
+        "artifact": "packages/civicos-extraction/src/civic_extraction/clients/sam_assistance.py"
       },
       "federal_programs_expand_catalog": {
         "status": "not_ready",
@@ -1379,7 +1379,7 @@
         "priority": 1,
         "artifact": "CAStateControllerClient, FACClient, USAspendingClient implement DataSource protocol",
         "note": "All three clients implement DataSource protocol with health() and validate() methods. Protocol compliance verified at runtime via isinstance() check.",
-        "test_file": "packages/civic-extraction/tests/test_clients.py",
+        "test_file": "packages/civicos-extraction/tests/test_clients.py",
         "completed": "2026-01-03"
       },
       "extraction_config_financial_section": {
@@ -1387,7 +1387,7 @@
         "priority": 1,
         "artifact": "Add optional 'financial' field to ExtractionConfig dataclass",
         "note": "Added FinancialConfig dataclass with state, county, sco_entity_name, fac_auditee_name, uei, usaspending_recipient_name, budget/acfr patterns, fiscal_year_start_month. Updated san-rafael.json with full config.",
-        "test_file": "packages/civic-extraction/tests/test_clients.py",
+        "test_file": "packages/civicos-extraction/tests/test_clients.py",
         "completed": "2026-01-03"
       },
       "budget_extractor_protocol": {
@@ -1433,7 +1433,7 @@
         "priority": 2,
         "description": "Split 10,456-line civic_api_integrated.py into domain-specific routers",
         "notes": "Session 507: Created mixin infrastructure with CoreMixin (serve_status, serve_jurisdictions, serve_google_maps_key). Proved pattern works with 42/42 tests passing. Next: fastapi_migration for complete conversion.",
-        "artifact": "packages/civic-services/src/civic_services/servers/routers/ with base.py, core.py, __init__.py",
+        "artifact": "packages/civicos-services/src/civic_services/servers/routers/ with base.py, core.py, __init__.py",
         "depends_on": [
           "storage_backend_decomposition"
         ],
@@ -1688,7 +1688,7 @@
         "artifact": "Abstract research infrastructure across document types",
         "note": "Refactor research/ to separate core orchestration (ensemble, rate-limiting, audit) from topic-specific logic (prompts, parsing, schemas). See docs/next_session_prompt.md for design proposal.",
         "key_files": [
-          "packages/civic-extraction/src/civic_extraction/research/",
+          "packages/civicos-extraction/src/civic_extraction/research/",
           "packages/civic/src/civic/_internal/meetings/embeddings.py"
         ]
       }
@@ -1708,7 +1708,7 @@
         "artifact": "AI-assisted extraction prompt template for municipal budgets",
         "doc": "docs/BUDGET_EXTRACTION.md#ai-assisted-etl-template",
         "note": "BudgetExtractionPrompt module with Layer 2 accuracy rules, validation, and JSON schema",
-        "test_file": "packages/civic-extraction/tests/test_budget_extraction.py",
+        "test_file": "packages/civicos-extraction/tests/test_budget_extraction.py",
         "completed": "2026-01-02"
       },
       "san_rafael_fy2526_budget": {
@@ -1771,7 +1771,7 @@
         "data_source": "https://api.usaspending.gov/",
         "example_query": "GET /api/v2/search/spending_by_award/ with filters for recipient_location",
         "completed": "2026-01-02",
-        "test_file": "packages/civic-extraction/tests/test_clients.py::TestUSAspendingClient"
+        "test_file": "packages/civicos-extraction/tests/test_clients.py::TestUSAspendingClient"
       },
       "state_passthrough_schema": {
         "status": "ready",
@@ -1905,7 +1905,7 @@
         },
         "new_files": [
           "packages/civic/src/civic/_internal/elections/__init__.py",
-          "packages/civic-extraction/src/civic_extraction/clients/google_civic.py"
+          "packages/civicos-extraction/src/civic_extraction/clients/google_civic.py"
         ],
         "modified_files": [
           "packages/civic/src/civic/storage/corpus_types.py",
@@ -1938,13 +1938,13 @@
           "election_integration"
         ],
         "new_files": [
-          "packages/civic-extraction/src/civic_extraction/clients/representatives.py (mappers added)"
+          "packages/civicos-extraction/src/civic_extraction/clients/representatives.py (mappers added)"
         ],
         "modified_files": [
-          "packages/civic-extraction/src/civic_extraction/clients/__init__.py",
-          "packages/civic-extraction/tests/test_clients.py"
+          "packages/civicos-extraction/src/civic_extraction/clients/__init__.py",
+          "packages/civicos-extraction/tests/test_clients.py"
         ],
-        "test": "pytest packages/civic-extraction/tests/test_clients.py::TestElectedOfficialsMappers packages/civic-extraction/tests/test_clients.py::TestElectedOfficialsExtraction packages/civic-extraction/tests/test_clients.py::TestElectedOfficialsStorageIntegration -v"
+        "test": "pytest packages/civicos-extraction/tests/test_clients.py::TestElectedOfficialsMappers packages/civicos-extraction/tests/test_clients.py::TestElectedOfficialsExtraction packages/civicos-extraction/tests/test_clients.py::TestElectedOfficialsStorageIntegration -v"
       },
       "voting_record_api": {
         "status": "ready",
@@ -2020,7 +2020,7 @@
           "election_ingestion_pipeline"
         ],
         "modified_files": [
-          "packages/civic-services/src/civic_services/servers/civic_api_integrated.py"
+          "packages/civicos-services/src/civic_services/servers/civic_api_integrated.py"
         ],
         "test_file": "packages/civic/tests/test_election_api.py",
         "completed": "2026-01-08"
@@ -2055,8 +2055,8 @@
         "priority": 2,
         "artifact": "Scraper for Marin County Registrar local election data",
         "note": "MarinRegistrarClient for county-wide election dates. SanRafaelClerkClient added for city-specific candidates, measures, and school board races. Covers 2026 races: Districts 2 & 3.",
-        "implementation": "packages/civic-extraction/src/civic_extraction/clients/marin_registrar.py",
-        "test_file": "packages/civic-extraction/tests/test_clients.py::TestMarinRegistrarClient",
+        "implementation": "packages/civicos-extraction/src/civic_extraction/clients/marin_registrar.py",
+        "test_file": "packages/civicos-extraction/tests/test_clients.py::TestMarinRegistrarClient",
         "completed": "2026-01-08",
         "data_sources": [
           "https://www.marincounty.gov/departments/elections",
@@ -2077,8 +2077,8 @@
         "priority": 2,
         "artifact": "San Rafael City Clerk election data client",
         "note": "SanRafaelClerkClient scrapes city-specific election data: candidates, local measures, district elections. Knows 2026 schedule (Districts 2 & 3), 2028 schedule (Districts 1 & 4 + Mayor). Parsed 10 candidates and Measure P from 2024 election.",
-        "implementation": "packages/civic-extraction/src/civic_extraction/clients/san_rafael_clerk.py",
-        "test_file": "packages/civic-extraction/tests/test_clients.py::TestSanRafaelClerkClient",
+        "implementation": "packages/civicos-extraction/src/civic_extraction/clients/san_rafael_clerk.py",
+        "test_file": "packages/civicos-extraction/tests/test_clients.py::TestSanRafaelClerkClient",
         "completed": "2026-01-08",
         "data_sources": [
           "https://www.cityofsanrafael.org/elections/"
@@ -2124,8 +2124,8 @@
           "workshop"
         ],
         "modified_files": [
-          "packages/civic-extraction/src/civic_extraction/clients/youtube_boards.py",
-          "packages/civic-extraction/src/civic_extraction/cli/youtube_boards.py",
+          "packages/civicos-extraction/src/civic_extraction/clients/youtube_boards.py",
+          "packages/civicos-extraction/src/civic_extraction/cli/youtube_boards.py",
           "data/extraction/san-rafael-schools.json"
         ],
         "completed": "2026-01-09",
@@ -2146,8 +2146,8 @@
         "artifact": "Playwright-based scraper for Simbli/eBoard meeting data",
         "note": "SimbliClient implemented with Playwright. Bypasses Incapsula WAF. Extracts meeting metadata (dates, types, titles) from SRCS board portal at simbli.eboardsolutions.com (district ID 36030430). 24 tests pass. Correct URL discovered: https://simbli.eboardsolutions.com/SB_Meetings/SB_MeetingListing.aspx?S=36030430",
         "completed": "2026-01-08",
-        "test_file": "packages/civic-extraction/tests/test_clients.py::TestSimbliClient",
-        "source_file": "packages/civic-extraction/src/civic_extraction/clients/simbli.py"
+        "test_file": "packages/civicos-extraction/tests/test_clients.py::TestSimbliClient",
+        "source_file": "packages/civicos-extraction/src/civic_extraction/clients/simbli.py"
       },
       "simbli_mid_discovery": {
         "status": "ready",
@@ -2155,8 +2155,8 @@
         "artifact": "Capture Simbli meeting IDs (MIDs) during meeting parsing",
         "note": "Implemented - extracts MIDs from onclick attributes (ViewMeeting pattern) without clicking. Integration test verified 4/4 meetings with MIDs discovered. simbli_mid field added to SimbliMeeting dataclass, stored in raw_data when mapped to storage.",
         "completed": "2026-01-08",
-        "source_file": "packages/civic-extraction/src/civic_extraction/clients/simbli.py",
-        "test_file": "packages/civic-extraction/tests/test_clients.py::TestSimbliClientIntegration::test_get_meetings_discovers_mids",
+        "source_file": "packages/civicos-extraction/src/civic_extraction/clients/simbli.py",
+        "test_file": "packages/civicos-extraction/tests/test_clients.py::TestSimbliClientIntegration::test_get_meetings_discovers_mids",
         "depends_on": [
           "simbli_browser_automation"
         ]
@@ -2166,8 +2166,8 @@
         "priority": 2,
         "artifact": "Two-step PDF download workflow for Simbli agendas",
         "note": "Implemented download_agenda_pdf_via_mid(mid) method. Workflow: (1) Navigate to PrintAgenda.aspx?S={district}&MID={mid}, (2) Click Print button, (3) Capture /api/PrintAgenda/PrintAgenda response with FileUrl, (4) Download PDF from FileUrl. Tested successfully - 843KB PDF downloaded (7 pages). 6 unit tests + 1 integration test added.",
-        "source_file": "packages/civic-extraction/src/civic_extraction/clients/simbli.py",
-        "test_file": "packages/civic-extraction/tests/test_clients.py::TestSimbliClientIntegration::test_download_agenda_pdf_via_mid",
+        "source_file": "packages/civicos-extraction/src/civic_extraction/clients/simbli.py",
+        "test_file": "packages/civicos-extraction/tests/test_clients.py::TestSimbliClientIntegration::test_download_agenda_pdf_via_mid",
         "completed": "2026-01-09",
         "depends_on": [
           "simbli_mid_discovery"
@@ -2219,7 +2219,7 @@
           "srcs_r2_pdf_storage"
         ],
         "jurisdiction_id": "school-san-rafael",
-        "reference_module": "packages/civic-extraction/src/civic_extraction/cli/agenda.py",
+        "reference_module": "packages/civicos-extraction/src/civic_extraction/cli/agenda.py",
         "completed": "2026-01-09"
       },
       "srcs_decision_extraction": {
@@ -2319,7 +2319,7 @@
         "artifact": "Validate Meeting objects against JSON schema during extraction",
         "note": "Session 349: Created MeetingValidator class in civic_extraction/meeting_schema.py. Pipeline validates meetings before storage, filters invalid meetings, logs validation errors. 26 tests pass (21 schema + 5 pipeline).",
         "completed": "2025-12-22",
-        "test_file": "packages/civic-extraction/tests/test_meeting_schema.py"
+        "test_file": "packages/civicos-extraction/tests/test_meeting_schema.py"
       },
       "validate_decisions_on_ingest": {
         "status": "ready",
@@ -2337,7 +2337,7 @@
         "artifact": "Standardized manifest tracking: what was processed, when, checksums",
         "note": "Session 350: Created IngestionManifest in civic_extraction/manifest.py with SourceEntry, ValidationSummary, checksums. Pipeline.run(save_manifest=True) saves after completion. CLI: civic-extract manifest list/show/latest. 20 tests.",
         "completed": "2025-12-22",
-        "test_file": "packages/civic-extraction/tests/test_manifest.py"
+        "test_file": "packages/civicos-extraction/tests/test_manifest.py"
       },
       "extraction_audit_log": {
         "status": "ready",
@@ -2345,7 +2345,7 @@
         "artifact": "Log extraction runs with success/failure counts per platform",
         "note": "Session 351: Created AuditEntry and AuditLog classes in manifest.py. AuditLog.from_manifests() aggregates metrics per platform (run count, success rate, total records, first/last run). CLI: civic-extract audit --jurisdiction city-san-rafael. 13 new tests.",
         "completed": "2025-12-22",
-        "test_file": "packages/civic-extraction/tests/test_manifest.py"
+        "test_file": "packages/civicos-extraction/tests/test_manifest.py"
       }
     },
     "versioning": {
@@ -2420,7 +2420,7 @@
         "priority": 99,
         "artifact": "Validate transcript duration matches YouTube video duration",
         "note": "Session 496: Implemented duration validation. Added validate_transcript_duration() and get_youtube_video_duration() functions that compare AssemblyAI duration against YouTube API duration. Allows 10% tolerance for encoding overhead. Added youtube_duration_seconds, duration_valid, duration_validation_error columns to transcripts table. New CLI command 'civic-extract validate-transcripts' validates existing transcripts. Ran validation on city-san-rafael: 10 valid, 9 invalid (corrupted audio from playlist concatenation). 11 unit/integration tests added.",
-        "test_file": "packages/civic-extraction/tests/test_transcribe.py",
+        "test_file": "packages/civicos-extraction/tests/test_transcribe.py",
         "completed": "2026-01-09"
       },
       "fix_corrupted_city_council_transcripts": {
@@ -2456,7 +2456,7 @@
         "priority": 1,
         "artifact": "extraction_version field on all extracted records",
         "completed": "2026-01-06",
-        "note": "SESSION 484: Added extraction_version field to Meeting dataclass and to_dict(). Pipeline._run_ingest() now injects civic-extraction package version into each meeting. PostgresBackend store methods updated to populate extraction_version column: store_meetings, store_chunks, store_decisions, store_transcripts, store_issues, store_municipal_code. Added 5 tests in TestExtractionVersioning class. Schema columns already existed from migration 015_data_integrity.sql."
+        "note": "SESSION 484: Added extraction_version field to Meeting dataclass and to_dict(). Pipeline._run_ingest() now injects civicos-extraction package version into each meeting. PostgresBackend store methods updated to populate extraction_version column: store_meetings, store_chunks, store_decisions, store_transcripts, store_issues, store_municipal_code. Added 5 tests in TestExtractionVersioning class. Schema columns already existed from migration 015_data_integrity.sql."
       }
     },
     "audit_infrastructure": {
@@ -2551,9 +2551,9 @@
       "extraction_services_layer_violation": {
         "status": "ready",
         "priority": 2,
-        "artifact": "Remove civic-extraction \u2192 civic-services import dependency",
-        "note": "Session 474: Fixed by moving AgendaIntegrator, RetrospectiveAnalyzer, LegiScanClient, SeeClickFixClient, and LegislativeDiscovery to civic-extraction. Used dependency injection for LLM provider (CLI entry points import from civic_services and pass provider to extraction classes). civic-extraction library code now has ZERO civic_services imports.",
-        "test_cmd": "grep -r 'from civic_services' packages/civic-extraction/",
+        "artifact": "Remove civicos-extraction \u2192 civicos-services import dependency",
+        "note": "Session 474: Fixed by moving AgendaIntegrator, RetrospectiveAnalyzer, LegiScanClient, SeeClickFixClient, and LegislativeDiscovery to civicos-extraction. Used dependency injection for LLM provider (CLI entry points import from civic_services and pass provider to extraction classes). civicos-extraction library code now has ZERO civic_services imports.",
+        "test_cmd": "grep -r 'from civic_services' packages/civicos-extraction/",
         "completed": "2026-01-05"
       }
     }
@@ -2580,7 +2580,7 @@
         "priority": 2,
         "artifact": "Script to auto-detect city's meeting platform",
         "note": "detect_platform() probes Legistar/CivicClerk APIs and scrapes ProudCity patterns",
-        "test_file": "packages/civic-extraction/tests/test_platform_detection.py"
+        "test_file": "packages/civicos-extraction/tests/test_platform_detection.py"
       }
     },
     "orchestration": {
@@ -2590,14 +2590,14 @@
         "artifact": "Pipeline class with stages: discover -> ingest -> index, each with status callbacks",
         "note": "Dashboard consumes pipeline.status() for real-time progress",
         "completed": "2025-12-21",
-        "location": "packages/civic-extraction/src/civic_extraction/pipeline.py"
+        "location": "packages/civicos-extraction/src/civic_extraction/pipeline.py"
       },
       "checkpoint_for_meetings": {
         "status": "ready",
         "priority": 2,
         "artifact": "Extend checkpoint/resume to meeting discovery (currently only transcription)",
         "note": "IngestCheckpoint dataclass + Pipeline.run(resume_from=checkpoint) + save/load utilities",
-        "test_file": "packages/civic-extraction/tests/test_pipeline_checkpoint.py",
+        "test_file": "packages/civicos-extraction/tests/test_pipeline_checkpoint.py",
         "completed": "2025-12-21"
       },
       "full_city_bootstrap": {
@@ -2653,7 +2653,7 @@
         "status": "ready",
         "priority": 2,
         "description": "Add corpus methods to StorageBackend protocol",
-        "notes": "Session 433: Added 17 corpus methods to StorageBackend protocol (ETL costs, legislation, codified law, executive orders), SQLiteBackend stubs, and MockStorageBackend test stubs. All 69 protocol tests pass. Script relocation (Modal scripts from /scripts/ to civic-extraction) deferred as separate concern.",
+        "notes": "Session 433: Added 17 corpus methods to StorageBackend protocol (ETL costs, legislation, codified law, executive orders), SQLiteBackend stubs, and MockStorageBackend test stubs. All 69 protocol tests pass. Script relocation (Modal scripts from /scripts/ to civicos-extraction) deferred as separate concern.",
         "completed": "2026-01-02"
       }
     },
@@ -2677,7 +2677,7 @@
         "priority": 1,
         "artifact": "source.validate() checks config and API access before running pipeline",
         "note": "Fail fast with clear error messages for missing API keys, unreachable endpoints",
-        "test_file": "packages/civic-extraction/tests/test_clients.py::TestValidateMethods"
+        "test_file": "packages/civicos-extraction/tests/test_clients.py::TestValidateMethods"
       },
       "post_ingestion_report": {
         "status": "ready",
@@ -2978,7 +2978,7 @@
         "status": "not_ready",
         "priority": 4,
         "artifact": "MCP server for Claude integration",
-        "note": "apps/civic-mcp/ exists but needs polish before launch. Power user / developer access. Contributor onramp - developers can query Civic from Claude while building parsers."
+        "note": "apps/civicos-mcp/ exists but needs polish before launch. Power user / developer access. Contributor onramp - developers can query Civic from Claude while building parsers."
       },
       "mcp_vector_search_tools": {
         "status": "not_ready",
@@ -2988,13 +2988,13 @@
         "note": "Session 489: Current MCP tools limited to compose_public_comment, query_issues. Missing vector search exposure. With pgvector_cross_corpus_search complete, these tools become simple wrappers. Key for Claude/ChatGPT integration.",
         "depends_on": "pgvector_cross_corpus_search",
         "modified_files": [
-          "apps/civic-mcp/civic_server.py"
+          "apps/civicos-mcp/civic_server.py"
         ]
       },
       "web_frontend": {
         "status": "not_ready",
         "priority": 4,
-        "artifact": "apps/civic-workspace/ Vue frontend",
+        "artifact": "apps/civicos-workspace/ Vue frontend",
         "note": "Primary interface for general public and clerk demo. Needs polish before launch. ChatGPT/MCP drive discovery, web app provides depth."
       }
     },
@@ -3186,7 +3186,7 @@
         "status": "ready",
         "priority": 2,
         "description": "Ingest Executive Orders",
-        "notes": "1,506 EOs ingested from Federal Register API. Dedicated executive_orders table with proper schema. Trump: 446, Biden: 162, Obama: 294. Follow-up: Add incremental fetcher to civic-extraction for scheduled updates.",
+        "notes": "1,506 EOs ingested from Federal Register API. Dedicated executive_orders table with proper schema. Trump: 446, Biden: 162, Obama: 294. Follow-up: Add incremental fetcher to civicos-extraction for scheduled updates.",
         "completed": "2026-01-02"
       },
       "ca_codes_ingestion": {
@@ -3220,8 +3220,8 @@
       "executive_orders_incremental_fetcher": {
         "status": "not_ready",
         "priority": 1,
-        "description": "Add EO incremental fetcher to civic-extraction",
-        "notes": "EOs have higher velocity than codified law. Federal Register API supports date filtering. Add to civic-extraction for scheduled updates like meetings/legislation."
+        "description": "Add EO incremental fetcher to civicos-extraction",
+        "notes": "EOs have higher velocity than codified law. Federal Register API supports date filtering. Add to civicos-extraction for scheduled updates like meetings/legislation."
       },
       "federal_programs_2026_refresh": {
         "status": "ready",

@@ -512,14 +512,14 @@ class Meeting:
 
 To add support for a new civic platform:
 
-1. **Create client class** in `packages/civic-extraction/src/civic_extraction/clients/`
+1. **Create client class** in `packages/civicos-extraction/src/civic_extraction/clients/`
 2. **Extend BaseExtractor** and implement:
    - `health()` - lightweight availability check
    - `validate()` - preflight config validation
    - `get_events()` - fetch raw events
    - `normalize_event()` - convert to Meeting format
 3. **Add detection logic** to `platform_detection.py`
-4. **Add tests** in `packages/civic-extraction/tests/test_clients.py`
+4. **Add tests** in `packages/civicos-extraction/tests/test_clients.py`
 5. **Document** in this file
 
 ### Required Properties

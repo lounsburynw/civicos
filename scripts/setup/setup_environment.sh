@@ -15,11 +15,11 @@ fi
 
 # Create virtual environment
 echo "📦 Creating virtual environment..."
-python3 -m venv civic-env
+python3 -m venv civicos-env
 
 # Activate environment
 echo "🔌 Activating environment..."
-source civic-env/bin/activate
+source civicos-env/bin/activate
 
 # Upgrade pip
 echo "⬆️  Upgrading pip..."
@@ -62,7 +62,7 @@ echo ""
 echo "✅ Environment setup complete!"
 echo ""
 echo "🚀 To activate the environment:"
-echo "   source civic-env/bin/activate"
+echo "   source civicos-env/bin/activate"
 echo ""
 echo "🧪 To test core functionality:"
 echo "   python src/civic_digest.py test"

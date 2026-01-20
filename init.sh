@@ -3,19 +3,19 @@ cd /Users/nicolaslounsbury/projects/civic
 source civicos-env/bin/activate
 
 echo "=========================================="
-echo "CIVIC ENVIRONMENT CHECK"
+echo "CIVICOS ENVIRONMENT CHECK"
 echo "=========================================="
 
 # Run SMOKE tests only (fast - ~30 sec)
 # Full test suite should only run before commits
 echo ""
 echo "Running smoke tests (core API)..."
-pytest packages/civicos/tests/test_civic.py -q --tb=no
+pytest packages/civicos/tests/test_civicos.py -q --tb=no
 
 # Quick API check
 echo ""
-echo "Checking Civic API..."
-python -c "from civic import Civic; c = Civic('san-rafael'); print('Ready:', len(c.whats_next()), 'meetings')"
+echo "Checking CivicOS API..."
+python -c "from civicos import CivicOS; c = CivicOS('san-rafael'); print('Ready:', len(c.whats_next()), 'meetings')"
 
 # Show current phase
 echo ""

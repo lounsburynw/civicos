@@ -108,7 +108,7 @@ The `civic-extract` CLI manages all data extraction.
 
 ```bash
 # Activate environment
-source civic-env/bin/activate
+source civicos-env/bin/activate
 
 # Run individual pipelines
 civic-extract discover --jurisdiction city-san-rafael

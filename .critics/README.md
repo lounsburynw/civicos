@@ -35,7 +35,7 @@ For data diagnostics, use the dedicated utilities instead of ad-hoc queries:
 /critic pipeline
 
 # Run on specific files
-/critic protocol packages/civic/src/civic/storage/
+/critic protocol packages/civicos/src/civic/storage/
 ```
 
 ### Manual Review

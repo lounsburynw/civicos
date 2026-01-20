@@ -20,9 +20,9 @@
 **Strategy**: Meet users where they are (Claude, ChatGPT, web app), with linkbacks to main product.
 
 **Current State**:
-- MCP server complete: 15 tools + 5 resources + 2 prompts (`apps/civic-mcp/civic_server.py`)
-- REST API complete: FastAPI endpoints (`packages/civic-services/`)
-- Vue frontend available: `apps/civic-workspace/`
+- MCP server complete: 15 tools + 5 resources + 2 prompts (`apps/civicos-mcp/civic_server.py`)
+- REST API complete: FastAPI endpoints (`packages/civicos-services/`)
+- Vue frontend available: `apps/civicos-workspace/`
 
 **Next Steps**:
 1. Deploy MCP server remotely with OAuth for Claude.ai web access
@@ -91,7 +91,7 @@ ChatGPT plugins deprecated (March 2024). Replacement stack:
 ```
 ChatGPT Custom GPT "Civic San Rafael":
 ├── System prompt: Civic engagement assistant for San Rafael
-├── Actions: OpenAPI spec wrapping civic-services REST API
+├── Actions: OpenAPI spec wrapping civicos-services REST API
 │   ├── GET /api/meetings - whats_next()
 │   ├── GET /api/decisions - what_happened()
 │   ├── GET /api/issues - whos_with_me()
@@ -168,7 +168,7 @@ Add these 4 conversation starters (matches get_started() categories):
 
 **Schema Type**: OpenAPI 3.0
 
-**Server URL**: `https://civic-api.example.com` (replace with deployed civic-services URL)
+**Server URL**: `https://civic-api.example.com` (replace with deployed civicos-services URL)
 
 **OpenAPI Spec** (minimal example):
 ```yaml
@@ -248,7 +248,7 @@ Upload supporting documents:
 
 ```
                     ┌─────────────────────────────────┐
-                    │     civic-mcp (MCP Server)      │
+                    │     civicos-mcp (MCP Server)      │
                     │   Deploy remotely with OAuth    │
                     └───────────────┬─────────────────┘
                                     │
@@ -262,7 +262,7 @@ Upload supporting documents:
     └───────────────┘      └───────────────┘      └───────────────┘
 
                     ┌─────────────────────────────────┐
-                    │   civic-services REST API       │
+                    │   civicos-services REST API       │
                     │   (FastAPI, already deployed)   │
                     └───────────────┬─────────────────┘
                                     │
@@ -270,7 +270,7 @@ Upload supporting documents:
             │                       │                       │
             ▼                       ▼                       ▼
     ┌───────────────┐      ┌───────────────┐      ┌───────────────┐
-    │ ChatGPT       │      │ civic-workspace│     │ Future: Apps  │
+    │ ChatGPT       │      │ civicos-workspace│     │ Future: Apps  │
     │ Custom GPT    │      │ (Vue web app)  │     │ SDK / Gemini  │
     │ via Actions   │      │ Main product   │     │               │
     └───────────────┘      └───────────────┘      └───────────────┘
@@ -409,7 +409,7 @@ EXISTING (keep as-is):
 └── coordination_graph.py      # LangGraph workflows
 
 NEW WORK (MCP-native):
-├── apps/civic-mcp/
+├── apps/civicos-mcp/
 │   ├── civic_issues.py        # StateManager queries
 │   ├── civic_events.py        # Events/agendas
 │   ├── legislative.py         # Bills/programs
@@ -430,7 +430,7 @@ NEW WORK (MCP-native):
 
                           ┌─────────────────────┐
                           │   Vue Frontend      │
-                          │   (civic-workspace) │
+                          │   (civicos-workspace) │
                           └──────────┬──────────┘
                                      │ REST API
                                      ▼
@@ -461,7 +461,7 @@ NEW WORK (MCP-native):
 ├────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
 │  ┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐   │
-│  │ apps/civic-mcp/     │   │ apps/civic-mcp/     │   │ apps/civic-mcp/     │   │
+│  │ apps/civicos-mcp/     │   │ apps/civicos-mcp/     │   │ apps/civicos-mcp/     │   │
 │  │ civic_issues.py  │   │ civic_events.py  │   │ legislative.py   │   │
 │  │                  │   │                  │   │                  │   │
 │  │ Tools:           │   │ Tools:           │   │ Tools:           │   │
@@ -520,7 +520,7 @@ LangGraph ────────┘           │                  │
 
 **Goal**: Expose StateManager queries via MCP
 
-**File**: `apps/civic-mcp/civic_issues.py`
+**File**: `apps/civicos-mcp/civic_issues.py`
 
 **Tools**:
 | Tool | Description | Parameters |
@@ -535,7 +535,7 @@ LangGraph ────────┘           │                  │
 
 **Goal**: Expose event and agenda data via MCP
 
-**File**: `apps/civic-mcp/civic_events.py`
+**File**: `apps/civicos-mcp/civic_events.py`
 
 **Tools**:
 | Tool | Description | Parameters |
@@ -548,7 +548,7 @@ LangGraph ────────┘           │                  │
 
 **Goal**: Expose legislative data via MCP
 
-**File**: `apps/civic-mcp/legislative.py`
+**File**: `apps/civicos-mcp/legislative.py`
 
 **Tools**:
 | Tool | Description | Parameters |
@@ -583,7 +583,7 @@ tools = toolkit.get_tools()
 ### 5.1 Civic Issues Server
 
 ```python
-# apps/civic-mcp/civic_issues.py
+# apps/civicos-mcp/civic_issues.py
 """
 MCP Server for Civic Issues (StateManager wrapper)
 
@@ -680,7 +680,7 @@ if __name__ == "__main__":
 **Local (stdio)**:
 ```bash
 # For Claude Desktop
-python apps/civic-mcp/civic_issues.py
+python apps/civicos-mcp/civic_issues.py
 ```
 
 **Remote (SSE)**:
@@ -697,7 +697,7 @@ uvicorn mcp_servers.civic_issues:app --host 0.0.0.0 --port 8080
   "mcpServers": {
     "civic-issues": {
       "command": "python",
-      "args": ["/path/to/civic/apps/civic-mcp/civic_issues.py"]
+      "args": ["/path/to/civic/apps/civicos-mcp/civic_issues.py"]
     }
   }
 }
@@ -1168,7 +1168,7 @@ if __name__ == "__main__":
 npx @anthropic-ai/mcp-inspector
 
 # Connect to local server
-# Enter: python apps/civic-mcp/civic_issues.py
+# Enter: python apps/civicos-mcp/civic_issues.py
 
 # Test tools interactively
 ```

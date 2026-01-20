@@ -47,8 +47,8 @@ echo "$(date)" | tee -a "$LOG_FILE"
 echo "========================================" | tee -a "$LOG_FILE"
 
 # Activate virtual environment if it exists
-if [ -d "civic-env" ]; then
-    source civic-env/bin/activate
+if [ -d "civicos-env" ]; then
+    source civicos-env/bin/activate
 fi
 
 # Run discovery for all topics

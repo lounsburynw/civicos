@@ -6,7 +6,7 @@ Explored Civic codebase to understand existing R2/blob storage upload patterns f
 ## Key Files Identified
 
 ### R2 Blob Storage (Core Infrastructure)
-- **Location**: `/packages/civic/src/civic/storage/blob.py` (lines 1-677)
+- **Location**: `/packages/civicos/src/civicos/storage/blob.py` (lines 1-677)
 - **Key Classes**:
   - `R2Backend`: Cloudflare R2 S3-compatible backend
   - `LocalBlobBackend`: Filesystem fallback for development
@@ -22,15 +22,15 @@ Explored Civic codebase to understand existing R2/blob storage upload patterns f
   - `parse_pdf_to_chunks()`: PDF→chunks via PyMuPDF (lines 60-141)
 
 ### Simbli Client
-- **Location**: `/packages/civic-extraction/src/civic_extraction/clients/simbli.py` (lines 1+)
+- **Location**: `/packages/civicos-extraction/src/civic_extraction/clients/simbli.py` (lines 1+)
 - **Key Data**: SimbliMeeting dataclass with `agenda_url`, `simbli_mid`, `minutes_url` fields
 
 ### PDF Handling
-- **Chunk Extraction CLI**: `/packages/civic-extraction/src/civic_extraction/cli/chunks.py`
+- **Chunk Extraction CLI**: `/packages/civicos-extraction/src/civic_extraction/cli/chunks.py`
   - Handles PDF download, validation, extraction (lines 1+)
   - `download_and_validate_pdf()`: Full validation with degenerate case detection
   - `validate_pdf_content()`: Checks for HTML vs PDF (lines 374-428)
-- **PDF Parser**: `/packages/civic/src/civic/_internal/meetings/pdf_parser.py`
+- **PDF Parser**: `/packages/civicos/src/civic/_internal/meetings/pdf_parser.py`
   - `download_pdf()`: Simple download (lines 431-457)
   - `extract_pdf_urls_from_meeting_page()`: Scrapes HTML pages for PDF links (lines 460-586)
 

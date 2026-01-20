@@ -51,7 +51,7 @@ interface WorkspaceState {
   workspaceVisible: boolean
 }
 
-const STORAGE_KEY = 'civic-workspace-state'
+const STORAGE_KEY = 'civicos-workspace-state'
 
 export const useWorkspaceStore = defineStore('workspace', () => {
   // State

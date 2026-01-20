@@ -47,7 +47,7 @@ civic-bucket/
 ### 1. Check R2 Status
 
 ```bash
-source civic-env/bin/activate && python3 -c "
+source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv; load_dotenv()
 import os
 import boto3
@@ -69,7 +69,7 @@ for bucket in response['Buckets']:
 ### 2. List Files by Prefix
 
 ```bash
-source civic-env/bin/activate && python3 -c "
+source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv; load_dotenv()
 import os
 import boto3
@@ -114,7 +114,7 @@ aws s3 sync s3://civic/city-san-rafael data/backups/r2/city-san-rafael \
 
 ```bash
 # Compare local manifest with R2
-source civic-env/bin/activate && python3 -c "
+source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv; load_dotenv()
 import os
 import json

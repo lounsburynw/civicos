@@ -32,19 +32,19 @@ git clone https://github.com/your-org/civic.git
 cd civic
 
 # Create and activate virtual environment
-python3 -m venv civic-env
-source civic-env/bin/activate
+python3 -m venv civicos-env
+source civicos-env/bin/activate
 
 # Install dependencies
 pip install -e packages/civic
-pip install -e apps/civic-mcp
+pip install -e apps/civicos-mcp
 ```
 
 If you already have Civic installed, activate the environment:
 
 ```bash
 cd civic
-source civic-env/bin/activate
+source civicos-env/bin/activate
 ```
 
 ---
@@ -95,13 +95,13 @@ If the file doesn't exist, create it. Add the Civic MCP servers:
 {
   "mcpServers": {
     "civic-issues": {
-      "command": "/path/to/civic/civic-env/bin/python",
-      "args": ["/path/to/civic/apps/civic-mcp/civic_issues.py"],
+      "command": "/path/to/civic/civicos-env/bin/python",
+      "args": ["/path/to/civic/apps/civicos-mcp/civic_issues.py"],
       "cwd": "/path/to/civic"
     },
     "civicos-server": {
-      "command": "/path/to/civic/civic-env/bin/python",
-      "args": ["/path/to/civic/apps/civic-mcp/civic_server.py"],
+      "command": "/path/to/civic/civicos-env/bin/python",
+      "args": ["/path/to/civic/apps/civicos-mcp/civic_server.py"],
       "cwd": "/path/to/civic",
       "env": {
         "OPENAI_API_KEY": "sk-your-openai-api-key-here"
@@ -121,13 +121,13 @@ If your Civic installation is at `/Users/jane/projects/civic`:
 {
   "mcpServers": {
     "civic-issues": {
-      "command": "/Users/jane/projects/civic/civic-env/bin/python",
-      "args": ["/Users/jane/projects/civic/apps/civic-mcp/civic_issues.py"],
+      "command": "/Users/jane/projects/civic/civicos-env/bin/python",
+      "args": ["/Users/jane/projects/civic/apps/civicos-mcp/civic_issues.py"],
       "cwd": "/Users/jane/projects/civic"
     },
     "civicos-server": {
-      "command": "/Users/jane/projects/civic/civic-env/bin/python",
-      "args": ["/Users/jane/projects/civic/apps/civic-mcp/civic_server.py"],
+      "command": "/Users/jane/projects/civic/civicos-env/bin/python",
+      "args": ["/Users/jane/projects/civic/apps/civicos-mcp/civic_server.py"],
       "cwd": "/Users/jane/projects/civic",
       "env": {
         "OPENAI_API_KEY": "sk-proj-abc123..."
@@ -230,7 +230,7 @@ Here are prompts that work well with the Civic MCP servers:
 Make sure you're using the Python from your virtual environment:
 ```bash
 # Correct: full path to venv Python
-"/Users/jane/projects/civic/civic-env/bin/python"
+"/Users/jane/projects/civic/civicos-env/bin/python"
 
 # Wrong: system Python
 "python3"
@@ -255,8 +255,8 @@ Check the logs:
 ```bash
 # Test the server directly
 cd /path/to/civic
-source civic-env/bin/activate
-python apps/civic-mcp/civic_issues.py
+source civicos-env/bin/activate
+python apps/civicos-mcp/civic_issues.py
 ```
 
 If it runs without errors, the issue is in Claude's configuration.
@@ -269,10 +269,10 @@ For integration with LangGraph or other systems, run the servers in HTTP mode:
 
 ```bash
 # civic-issues on port 8080
-python apps/civic-mcp/civic_issues.py --http --port 8080
+python apps/civicos-mcp/civic_issues.py --http --port 8080
 
 # civicos-server on port 8081
-python apps/civic-mcp/civic_server.py --http --port 8081
+python apps/civicos-mcp/civic_server.py --http --port 8081
 ```
 
 Connect your MCP client to `http://localhost:8080` or `http://localhost:8081`.

@@ -216,5 +216,5 @@ data/manual/{jurisdiction_id}/
 ## References
 
 - `docs/archive/platforms/CIVICOS_DATA_INGESTION_STRATEGY.md` - Full ingestion strategy
-- `packages/civic-extraction/src/civic_extraction/clients/base.py` - Base protocols
-- `packages/civic-extraction/src/civic_extraction/manifest.py` - Provenance tracking
+- `packages/civicos-extraction/src/civic_extraction/clients/base.py` - Base protocols
+- `packages/civicos-extraction/src/civic_extraction/manifest.py` - Provenance tracking

@@ -4,7 +4,7 @@
 Download the data first:
     curl -L https://downloads.leginfo.legislature.ca.gov/pubinfo_2025.zip -o pubinfo_2025.zip
 
-Then run this script (with civic-env activated):
+Then run this script (with civicos-env activated):
     python scripts/upload_cacode_r2.py
 """
 

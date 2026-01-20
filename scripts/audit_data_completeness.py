@@ -228,8 +228,8 @@ class DataCompletenessAuditor:
 
         # what_applies_integration: Check what_applies method exists
         try:
-            from civic import Civic
-            c = Civic("san-rafael")
+            from civicos import CivicOS
+            c = CivicOS("san-rafael")
             # Just check method exists - don't actually call it
             self.check(
                 "what_applies_integration",
@@ -573,8 +573,8 @@ class DataCompletenessAuditor:
 
         # budget_query_api: Check Civic.budget() method exists
         try:
-            from civic import Civic
-            c = Civic("san-rafael")
+            from civicos import CivicOS
+            c = CivicOS("san-rafael")
             self.check(
                 "budget_query_api",
                 "budget",
@@ -708,8 +708,8 @@ class DataCompletenessAuditor:
 
         # funding_flow_api: Check Civic.funding_flow() method
         try:
-            from civic import Civic
-            c = Civic("san-rafael")
+            from civicos import CivicOS
+            c = CivicOS("san-rafael")
             self.check(
                 "funding_flow_api",
                 "intergovernmental_funding",
@@ -762,8 +762,8 @@ class DataCompletenessAuditor:
 
         # ca_state_controller_ingestion: Check API method exists
         try:
-            from civic import Civic
-            c = Civic("san-rafael")
+            from civicos import CivicOS
+            c = CivicOS("san-rafael")
             self.check(
                 "ca_state_controller_ingestion",
                 "intergovernmental_funding",

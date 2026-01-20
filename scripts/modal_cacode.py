@@ -20,7 +20,7 @@ Setup:
         R2_BUCKET_NAME="civic-pilot"
 
 Usage:
-    # Upload local ZIP to R2 first (run locally with civic-env activated)
+    # Upload local ZIP to R2 first (run locally with civicos-env activated)
     python scripts/upload_cacode_r2.py
 
     # Then ingest from R2 (runs in Modal cloud)

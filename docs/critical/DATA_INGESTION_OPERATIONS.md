@@ -17,7 +17,7 @@ Civic manages three categories of data:
 ```
 Source APIs (Legistar, CivicClerk, YouTube)
     ↓
-Extraction (civic-extraction package)
+Extraction (civicos-extraction package)
     ↓
 Storage (StateManager → SQLite)
     ↓

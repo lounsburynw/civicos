@@ -343,7 +343,7 @@
         "depends_on": [
           "federal_programs_postgres_migration"
         ],
-        "artifact": "packages/civic-extraction/src/civic_extraction/clients/hud_exchange.py"
+        "artifact": "packages/civicos-extraction/src/civic_extraction/clients/hud_exchange.py"
       },
       "sam_assistance_client": {
         "status": "ready",
@@ -353,7 +353,7 @@
         "depends_on": [
           "federal_programs_postgres_migration"
         ],
-        "artifact": "packages/civic-extraction/src/civic_extraction/clients/sam_assistance.py"
+        "artifact": "packages/civicos-extraction/src/civic_extraction/clients/sam_assistance.py"
       },
       "federal_programs_expand_catalog": {
         "status": "ready",
@@ -391,7 +391,7 @@
         "depends_on": [
           "hud_allocations_scheduled_refresh"
         ],
-        "artifact": "packages/civic-extraction/src/civic_extraction/config.py + data/extraction/*.json federal_programs section"
+        "artifact": "packages/civicos-extraction/src/civic_extraction/config.py + data/extraction/*.json federal_programs section"
       }
     },
     "vector_sql_linkage": {
@@ -808,7 +808,7 @@
         "artifact": "Modal function or script to populate elected_officials table",
         "note": "Session 527: Added fetch_elected_officials() to modal_ingest.py, integrated into scheduled_election_refresh(), added --elected-officials CLI flag. Local officials (6) populated in elected_officials table.",
         "key_files": [
-          "packages/civic-extraction/src/civic_extraction/clients/representatives.py:1188",
+          "packages/civicos-extraction/src/civic_extraction/clients/representatives.py:1188",
           "scripts/modal_ingest.py"
         ]
       }
@@ -2103,7 +2103,7 @@
         "note": "Session 522: Built comprehensive MCP server exposing full Civic API. Tools cover all query methods + prepare() action. Resources enable data discovery. Prompts guide multi-tool workflows. Created civic_input_validator.py for security.",
         "depends_on": "pgvector_cross_corpus_search",
         "modified_files": [
-          "apps/civic-mcp/civic_server.py",
+          "apps/civicos-mcp/civic_server.py",
           "apps/civic_input_validator.py"
         ]
       },
@@ -2111,7 +2111,7 @@
         "status": "not_ready",
         "priority": 1,
         "artifact": "MCP server deployed remotely with OAuth for Claude.ai web access",
-        "description": "Deploy civic-mcp as a remote MCP server accessible from Claude.ai web, Claude Desktop, and Claude Mobile. Requires public hosting + OAuth 2.0 implementation.",
+        "description": "Deploy civicos-mcp as a remote MCP server accessible from Claude.ai web, Claude Desktop, and Claude Mobile. Requires public hosting + OAuth 2.0 implementation.",
         "note": "Session 529: Claude.ai Integrations (May 2025) enables remote MCP servers for Pro/Max/Team/Enterprise users. Key for clerk demo - clerk can use via claude.ai without installing anything. OAuth callback: https://claude.ai/api/mcp/auth_callback",
         "subtasks": [
           "Choose hosting platform (Railway, Fly.io, Render)",
@@ -2133,7 +2133,7 @@
         "status": "not_ready",
         "priority": 2,
         "artifact": "Civic MCP server listed on MCP Registry and community directories",
-        "description": "Register civic-mcp on official MCP Registry and community directories (MCP.so, MCPServers.org) for discoverability.",
+        "description": "Register civicos-mcp on official MCP Registry and community directories (MCP.so, MCPServers.org) for discoverability.",
         "note": "Session 529: MCP Registry launched Sept 2025, progressing toward GA. Community directories have 17k+ servers. Registration increases discoverability for civic-minded developers.",
         "subtasks": [
           "Prepare server metadata for registry submission",
@@ -2148,8 +2148,8 @@
       "openapi_spec": {
         "status": "not_ready",
         "priority": 1,
-        "artifact": "OpenAPI 3.0 spec for civic-services REST API endpoints",
-        "description": "Generate or write OpenAPI spec covering key civic-services endpoints needed for ChatGPT Actions and API documentation.",
+        "artifact": "OpenAPI 3.0 spec for civicos-services REST API endpoints",
+        "description": "Generate or write OpenAPI spec covering key civicos-services endpoints needed for ChatGPT Actions and API documentation.",
         "note": "FastAPI auto-generates OpenAPI at /docs endpoint. May need customization for GPT Actions compatibility (simpler schemas, clear descriptions).",
         "endpoints_to_cover": [
           "GET /api/meetings - whats_next()",
@@ -2160,8 +2160,8 @@
           "GET /api/corpus/stats - data coverage"
         ],
         "key_files": [
-          "packages/civic-services/src/civic_services/servers/api.py",
-          "packages/civic-services/src/civic_services/servers/routers/"
+          "packages/civicos-services/src/civic_services/servers/api.py",
+          "packages/civicos-services/src/civic_services/servers/routers/"
         ],
         "ip_protection": "OpenAPI spec describes interface, not implementation. Endpoint signatures are public by design. Backend logic stays private."
       },
@@ -2187,7 +2187,7 @@
       "web_frontend": {
         "status": "not_ready",
         "priority": 2,
-        "artifact": "apps/civic-workspace/ Vue frontend deployed",
+        "artifact": "apps/civicos-workspace/ Vue frontend deployed",
         "description": "Deploy Vue frontend as primary web interface. ChatGPT/MCP drive discovery, web app provides depth.",
         "note": "Frontend functional locally via /launch. Needs deployment for public access. Linkback destination from all AI assistant interactions.",
         "ip_protection": "Frontend JS is visible but not core IP. Real value is in backend APIs, data enrichment, and coordination logic - all stay server-side."
@@ -2356,7 +2356,7 @@
       },
       "executive_orders_incremental_fetcher": {
         "status": "ready",
-        "description": "Add EO incremental fetcher to civic-extraction",
+        "description": "Add EO incremental fetcher to civicos-extraction",
         "notes": "Session 524: FederalRegisterClient created in civic_extraction/clients/federal_register.py. fetch_executive_orders() added to modal_ingest.py with incremental mode. Added to scheduled_low_velocity_refresh() for weekly updates. CLI: --executive-orders flag."
       },
       "state_programs_refresh": {

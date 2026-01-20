@@ -15,12 +15,12 @@ Critical invariants:
 
 ## Key Files
 
-- `packages/civic/src/civic/storage/corpus_types.py` - **CORPUS_REGISTRY** (source of truth for schema)
-- `packages/civic/src/civic/storage/postgres_backend.py` - Schema definitions, store methods
-- `packages/civic/src/civic/storage/sqlite_backend.py` - Local schema mirror
-- `packages/civic/src/civic/diagnostics.py` - DataStatus, VectorCoverage utilities
-- `packages/civic-extraction/src/civic_extraction/clients/*.py` - Platform clients with normalization
-- `packages/civic-extraction/src/civic_extraction/meeting_schema.py` - Meeting validation
+- `packages/civicos/src/civicos/storage/corpus_types.py` - **CORPUS_REGISTRY** (source of truth for schema)
+- `packages/civicos/src/civicos/storage/postgres_backend.py` - Schema definitions, store methods
+- `packages/civicos/src/civicos/storage/sqlite_backend.py` - Local schema mirror
+- `packages/civicos/src/civic/diagnostics.py` - DataStatus, VectorCoverage utilities
+- `packages/civicos-extraction/src/civic_extraction/clients/*.py` - Platform clients with normalization
+- `packages/civicos-extraction/src/civic_extraction/meeting_schema.py` - Meeting validation
 - `scripts/modal_ingest.py` - Cloud ingestion pipeline
 
 ## Schema Source of Truth

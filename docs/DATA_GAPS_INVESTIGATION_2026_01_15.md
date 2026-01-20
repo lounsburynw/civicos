@@ -195,7 +195,7 @@ WHERE valid_from <= %s AND (valid_to IS NULL OR valid_to > %s)
 | `scripts/modal_vectors.py` | Vector indexing |
 | `packages/civic/src/civic/storage/postgres_backend.py:1625` | `get_meetings()` with temporal filter |
 | `packages/civic/src/civic/storage/pgvector_backend.py:1234` | `get_stats()` for coverage calculation |
-| `packages/civic-extraction/src/civic_extraction/clients/representatives.py:1188` | Elected officials extraction |
+| `packages/civicos-extraction/src/civic_extraction/clients/representatives.py:1188` | Elected officials extraction |
 | `docs/DATA_READINESS_REPORT.md` | Original gap report |
 
 ---

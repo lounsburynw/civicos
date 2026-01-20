@@ -466,7 +466,7 @@ The vector database **complements** (not replaces) the civic-state SQLite databa
                                ▼
               ┌────────────────────────────────┐
               │     Extraction Pipeline        │
-              │  (civic-extraction package)    │
+              │  (civicos-extraction package)    │
               └───────────┬────────────────────┘
                           │
           ┌───────────────┴───────────────┐

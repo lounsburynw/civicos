@@ -165,12 +165,12 @@ The backend contains substantial data for the San Rafael pilot, with strong cove
 
 | Data Type | Source | Extraction Method |
 |-----------|--------|-------------------|
-| Meetings | Legistar API | civic-extraction |
-| Decisions | Legistar + AI | civic-extraction |
+| Meetings | Legistar API | civicos-extraction |
+| Decisions | Legistar + AI | civicos-extraction |
 | Transcripts | YouTube audio | Whisper transcription |
-| Issues | SeeClickFix API | civic-extraction |
+| Issues | SeeClickFix API | civicos-extraction |
 | Municipal Code | Municode | Web scraping |
-| Legislation | LegiScan API | civic-extraction |
+| Legislation | LegiScan API | civicos-extraction |
 | Budget | City PDF | Manual extraction |
 
 ---

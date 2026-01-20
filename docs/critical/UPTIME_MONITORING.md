@@ -226,5 +226,5 @@ Before marking `uptime_monitoring` as ready:
 
 - [UptimeRobot Documentation](https://uptimerobot.com/help/)
 - [Fly.io Health Checks](https://fly.io/docs/reference/configuration/#the-checks-section)
-- [Civic Health Endpoint](../../packages/civic-services/src/civic_services/servers/civic_api_integrated.py)
+- [Civic Health Endpoint](../../packages/civicos-services/src/civic_services/servers/civic_api_integrated.py)
 - [Hosting Decision](./HOSTING_DECISION.md)

@@ -640,8 +640,8 @@ Only output valid JSON, no other text."""
     def _get_civic(self):
         """Lazy-load Civic instance."""
         if self._civic is None:
-            from civic import Civic
-            self._civic = Civic(self.jurisdiction)
+            from civicos import CivicOS
+            self._civic = CivicOS(self.jurisdiction)
         return self._civic
 
     def _get_cache_key(self, content: str) -> str:
@@ -1115,8 +1115,8 @@ Community organizing often starts with talking to neighbors.
     def _get_civic(self):
         """Lazy-load Civic instance."""
         if self._civic is None:
-            from civic import Civic
-            self._civic = Civic(self.jurisdiction)
+            from civicos import CivicOS
+            self._civic = CivicOS(self.jurisdiction)
         return self._civic
 
     def run_what_applies(self, topic: str) -> QueryResult:
