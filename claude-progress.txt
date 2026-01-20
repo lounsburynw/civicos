@@ -14729,3 +14729,47 @@ Verified tutorial_ux implementation and added ChatGPT configuration documentatio
 
 ### Next P0
 - `remote_mcp_deployment` - Deploy civic-mcp remotely with OAuth for Claude.ai Integrations
+
+## Session 534 - 2026-01-20
+
+### Task: README Rewrite + License Change
+
+### Summary
+Rewrote README with honest positioning and switched license from MIT to PolyForm Noncommercial.
+
+### Work Done
+1. **README.md complete rewrite**:
+   - Removed marketing language ("26 Bay Area municipalities", "Enterprise-Grade Security")
+   - Focused on San Rafael pilot with actual data inventory
+   - Added realistic operating costs ($150-350/mo per jurisdiction)
+   - Updated all package references (civic → civicos)
+   - Added architecture diagram and design principles
+   - Changed "What This Isn't" to focus on optimization philosophy, not feature absence
+
+2. **License change (MIT → PolyForm Noncommercial)**:
+   - Created LICENSE.md with full PolyForm Noncommercial 1.0.0 text
+   - Free for individuals, nonprofits, academic institutions
+   - Commercial license required for for-profit companies
+   - Updated all pyproject.toml files (4 packages)
+   - Updated SUSTAINABILITY_MODEL.md to reflect actual license choice
+
+3. **pilot.json updates**:
+   - Marked `rename_to_civicos` as complete (was done in Session 531-533)
+   - Set `openapi_spec` as new P0 (dependency for ChatGPT GPT)
+
+### Files Modified
+- README.md (complete rewrite)
+- LICENSE.md (new file)
+- docs/SUSTAINABILITY_MODEL.md
+- packages/civicos/pyproject.toml
+- packages/civicos-config/pyproject.toml
+- packages/civicos-extraction/pyproject.toml
+- packages/civicos-services/pyproject.toml
+- pilot.json
+- docs/next_session_prompt.md
+
+### Commits
+- e259976: docs: Rewrite README with honest positioning, add PolyForm Noncommercial license
+
+### Next P0
+- `openapi_spec` - Generate/refine OpenAPI spec for ChatGPT Actions compatibility
