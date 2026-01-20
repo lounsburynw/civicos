@@ -1,4 +1,4 @@
-#!/Users/nicolaslounsbury/projects/civic/civic-env/bin/python
+#!/Users/nicolaslounsbury/projects/civicos/civicos-env/bin/python
 
 ##############################################################################
 #

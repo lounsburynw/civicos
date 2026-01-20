@@ -75,9 +75,9 @@ class RateLimitInfo(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
-    logger.info("startup", extra={"message": "Civic FastAPI server starting"})
+    logger.info("CivicOS FastAPI server starting")
     yield
-    logger.info("shutdown", extra={"message": "Civic FastAPI server shutting down"})
+    logger.info("CivicOS FastAPI server shutting down")
 
 
 # === Application Factory ===
