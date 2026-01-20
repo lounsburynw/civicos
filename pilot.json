@@ -2108,19 +2108,21 @@
         ]
       },
       "remote_mcp_deployment": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "MCP server deployed publicly with HTTPS for Claude.ai AND ChatGPT",
         "description": "Deploy civicos-mcp as a remote MCP server accessible from Claude.ai web, Claude Desktop, Claude Mobile, AND ChatGPT. Single server serves all platforms via HTTP transport.",
-        "note": "Session 535-536: HTTP transport added. Session 537: Deployment artifacts created (Dockerfile.mcp, fly-mcp.toml, deploy-mcp.sh). Ready for deployment - requires fly auth login.",
+        "note": "Session 537: DEPLOYED to https://civicos-mcp.fly.dev/mcp. Server running with PostgresBackend, health checks passing. Ready for ChatGPT/Claude.ai connector testing.",
         "subtasks": [
           "[DONE] Add HTTP transport support to MCP server (Session 535)",
           "[DONE] Test HTTP transport locally (Session 536)",
           "[DONE] Create Dockerfile.mcp for containerized deployment (Session 537)",
           "[DONE] Create fly-mcp.toml Fly.io configuration (Session 537)",
           "[DONE] Create scripts/deploy-mcp.sh deployment script (Session 537)",
-          "Deploy to Fly.io (requires: fly auth login, fly deploy --config fly-mcp.toml)",
-          "Set DATABASE_URL secret in Fly.io",
+          "[DONE] Deploy to Fly.io (Session 537)",
+          "[DONE] Set DATABASE_URL secret in Fly.io (Session 537)",
+          "[DONE] Fix transport security for fly.dev host (Session 537)",
+          "[DONE] Add psycopg2-binary for PostgreSQL (Session 537)",
           "Test with ChatGPT developer mode connector",
           "Test with Claude.ai web connector"
         ],
@@ -2216,14 +2218,14 @@
       },
       "linkback_integration": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Deep links from AI responses back to web app",
         "description": "All MCP tools and ChatGPT GPT responses include links to web app for detailed views, related content, and actions.",
-        "note": "Session 529: Linkback strategy is key for driving users from AI assistants to main product. Like Canva in ChatGPT - AI surfaces content, web app provides full experience.",
+        "note": "Session 537: MCP server deployed. Next step is adding deep links from MCP responses to web app. SUPERSEDED dependency on chatgpt_custom_gpt (now using MCP for ChatGPT too).",
         "depends_on": [
           "web_frontend",
           "mcp_vector_search_tools",
-          "chatgpt_custom_gpt"
+          "remote_mcp_deployment"
         ]
       },
       "tutorial_ux": {
