@@ -103,22 +103,23 @@ The key insight: people pay when they have **skin in the game**. A $500k propert
 
 ## Open Source Strategy
 
-### Code: AGPL-3.0
+### Code: PolyForm Noncommercial 1.0.0
 
-The codebase should be open source under AGPL-3.0 (copyleft):
+The codebase is source-available under PolyForm Noncommercial:
 - Full transparency builds trust (critical for civic infrastructure)
-- Prevents proprietary forks while allowing community use
-- Anyone can self-host; Civic provides the operated service
+- Individuals, nonprofits, and academic institutions can use freely
+- For-profit companies require commercial license
 - Moat is operations and data freshness, not code secrecy
+- Revenue from commercial licenses funds free tier sustainability
 
-### The WordPress Model
+### The WordPress Model (Adapted)
 
-WordPress.org is 100% GPL. Automattic (WordPress.com) is worth $7B+ because *hosting it well* is the product. The code is free; the reliable, maintained service is not.
+WordPress is GPL. We use PolyForm Noncommercial which is more restrictive—companies must license commercially. But the core dynamic is similar: code transparency builds trust, but operating the service well is the real value.
 
 ```
-Code (open source)     →  Free, forkable, transparent
-Data curation          →  Ongoing operational cost
-Hosted service         →  The paid product
+Code (source-available) →  Free for individuals/nonprofits, licensed for companies
+Data curation           →  Ongoing operational cost
+Hosted service          →  The paid product
 ```
 
 ### Contributor Model: The Scaling Strategy

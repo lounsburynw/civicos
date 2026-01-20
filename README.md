@@ -1,289 +1,188 @@
-# 🏛️ CivicOS
+# CivicOS
 
-**Conversational Operating System for Local Democracy** - Transform civic participation through AI-powered conversations with actionable engagement buttons. Event-centric architecture with multi-platform data collection across 26 Bay Area municipalities, enriched with integrated state/federal legislative context.
+**An open infrastructure for local civic intelligence.**
 
-**Core Positioning**: "We turn complaints into civic power" - bridging operational 311 systems to policy engagement
+CivicOS aggregates public civic data—meetings, decisions, municipal code, complaints, budgets, legislation—into a queryable system that helps residents, staff, and organizers understand what's happening in local government and how to participate effectively.
 
-## ✅ Production Ready + Pilot Phase
+## Status: Pilot (Jan 2026)
 
-**Status**: Production-ready with regional infrastructure + San Rafael pilot preparation
-**Strategic Focus**: Decision Awareness - coordinating residents for high-stakes decisions
-**Architecture**: Event-centric + agenda expansion + legislative context enrichment + SeeClickFix operational bridge
-**Phase 5 Complete**: San Rafael longitudinal analysis (1,340 SeeClickFix complaints) identifies key corridors + 94% accountability gap
-**Platform Coverage**: 6 Legistar API + 11 CivicClerk API + 2 Granicus + 4 CivicPlus CMS + 1 HTML parsing + more ready
-**Legislative Context**: 28 state bills + 7 federal programs across 5 topics, with city-specific CDBG allocations ($0 operational cost, 17.2% enrichment rate)
+This is an active pilot focused on **San Rafael, California**. The infrastructure is designed to be replicable to other jurisdictions, but we're validating the core thesis with one city first.
 
-### San Rafael Pilot Data (Phase 5)
+**What we're testing:** Can structured civic data + AI assistance meaningfully increase resident participation in local decisions?
 
-| Metric | Value | Implication |
-|--------|-------|-------------|
-| Total Complaints | 1,340 | Rich discovery dataset |
-| Platform Adoption | 90% from 2024-2025 | Recent, growing usage |
-| Resolution Rate | 6% closed | Massive accountability gap |
-| Key Corridors | 4th St, 3rd St, Lincoln Ave | Geographic targeting |
+## What's in the box
 
-See `docs/strategy/FOCAL_POINT_DECISION_AWARENESS.md` for pilot strategy.
-
-## 🚀 Quick Start
-
-### 1. Install Dependencies
-```bash
-pip install requests beautifulsoup4 openai schedule
+```
+civicos/
+├── packages/civicos/          # Core query API
+├── packages/civicos-extraction/  # Data parsers (Legistar, SeeClickFix, municipal code, etc.)
+├── packages/civicos-services/    # REST API, WebSocket server, LLM routing
+├── apps/civicos-workspace/       # Vue frontend
+└── apps/civicos-mcp/             # MCP server for Claude Desktop / AI assistants
 ```
 
-### 2. Set Up Environment
+## Core API
+
+```python
+from civicos import CivicOS
+
+c = CivicOS("city-san-rafael")
+
+# What's coming up?
+c.whats_next()  # Upcoming meetings with agendas
+
+# What happened?
+c.what_happened("housing")  # Past decisions on a topic
+
+# What law applies?
+c.what_applies("ADU")  # Municipal code + state/federal law
+
+# Who else cares about this?
+c.whos_with_me("traffic on 4th street")  # Neighbors with similar complaints
+
+# Prepare for a meeting
+c.prepare(meeting_id="...")  # Background, relevant context, talking points
+```
+
+## San Rafael Pilot Data
+
+| Corpus | Records | Source |
+|--------|---------|--------|
+| Meetings | 98 | Legistar API (Oct 2025 - Jan 2026) |
+| Decisions | 44 | Extracted from meeting minutes |
+| Transcripts | 29 | YouTube audio → AssemblyAI |
+| Municipal Code | 16,175 sections | Municode |
+| 311 Complaints | 1,730 | SeeClickFix API |
+| Budget Items | 58 | FY25-26 adopted budget ($180M) |
+| State Legislation | 17,719 | LegiScan API |
+| Federal Programs | 22 | HUD, EPA, DOT programs |
+| Executive Orders | 1,506 | Federal Register |
+
+All data is indexed for semantic search (~17K vector embeddings).
+
+## Example Queries
+
+**Resident:**
+> "What's happening with the downtown parking garage project?"
+
+**City Staff:**
+> "Show me all public testimony about homelessness from the last 6 months"
+
+**Organizer:**
+> "Who complained about traffic on Lincoln Ave? Are any of them near the proposed bike lane?"
+
+**Policy Researcher:**
+> "What federal housing programs is San Rafael eligible for, and what's the application deadline?"
+
+## Technical Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Query Interface                         │
+│   REST API │ MCP Server │ Vue Frontend │ CLI                │
+└─────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────┐
+│                      CivicOS Core                           │
+│   whats_next() │ what_happened() │ what_applies()           │
+│   whos_with_me() │ prepare() │ coordinate()                 │
+└─────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────┐
+│                    Storage Layer                            │
+│   PostgreSQL (Supabase) │ pgvector │ Cloudflare R2 (PDFs)   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────┐
+│                   Ingestion Pipeline                        │
+│   Modal (serverless compute) │ Scheduled refreshes          │
+│   Legistar │ SeeClickFix │ Municode │ YouTube │ LegiScan    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Running Locally
+
 ```bash
-# Copy example file and fill in your API keys
-cp .env.example .env
-
-# Edit .env with your actual API keys:
-# - OPENAI_API_KEY (required for AI features)
-# - CIVICOS_WEB_KEY=dev_key_local (for local development)
-# - GOOGLE_MAPS_API_KEY (required for location filtering)
-
-# Then activate the environment
+# Clone and setup
+git clone https://github.com/lounsburynw/civicos.git
+cd civicos
+python3 -m venv civicos-env
 source civicos-env/bin/activate
+pip install -e packages/civicos
+pip install -e packages/civicos-extraction
+pip install -e packages/civicos-services
+
+# Copy environment template
+cp .env.example .env
+# Add your API keys (OpenAI, Google Maps, etc.)
+
+# Run verification
+./init.sh
+
+# Start the development servers
+./scripts/dev.sh
 ```
 
-**Note**: Frontend `.env` is only needed for production deployment. Local dev uses defaults + Vite proxy.
+The app runs at `http://localhost:5173` (frontend) with API at `:8001`.
 
-### 3. Start the Platform
-```bash
-# Start the API server (port 8001)
-python -m civic_services.civic_api_integrated
+## Operating Costs
 
-# Start WebSocket server (port 8002) - optional, for real-time features
-python -m civic_services.civic_socketio_server
+Real operational costs for an active jurisdiction (with transcription, embeddings, and scheduled ingestion):
 
-# Start Vue frontend (port 5173)
-cd apps/civicos-workspace && npm run dev
+| Service | Monthly Cost | What It Does |
+|---------|-------------|--------------|
+| Supabase | $25-50 | PostgreSQL + pgvector |
+| AssemblyAI | $50-150 | Meeting transcription (~$0.37/min) |
+| Modal | $20-50 | Serverless compute for pipelines |
+| AI providers | $30-100 | Embeddings, extraction, LLM calls |
+| Fly.io | $5 | API hosting |
+| **Total** | **$150-350/mo** | Per active jurisdiction |
 
-# Or open the standalone conversational interface
-open apps/civicos-mcp/civic-conversational-OS.html
-```
+Costs scale sub-linearly with additional cities (shared infrastructure, bulk discounts).
 
-**Try asking**: "What housing meetings are happening in Richmond?" or "How can I comment on transportation planning in Berkeley?"
+## Design Principles
 
-## 📖 Usage
+**1. Data sovereignty** — All civic data is public record. We aggregate, we don't create walled gardens.
 
-### Core API Usage
-```python
-from civic import Civic
+**2. Jurisdictions first** — Infrastructure is designed around jurisdictions (cities, counties, school districts), not arbitrary regions.
 
-c = Civic("san-rafael")
+**3. Sustainable, not cheap** — Real infrastructure costs real money. We're transparent about costs and fund through appropriate channels (foundations, municipal partnerships), not VC.
 
-# Query methods
-c.whats_next()              # Upcoming meetings/decisions
-c.what_happened("housing")  # Historical decisions
-c.what_applies("housing")   # Relevant legislation
-c.whos_with_me("traffic")   # Community around issue
+**4. AI as leverage, not replacement** — LLMs help surface relevant information and draft responses. Humans decide what to do with it.
 
-# Action methods
-c.start_something(...)      # Create initiative
-c.add_voice(...)            # Add voice to item
-c.follow(...)               # Subscribe to updates
-c.prepare(...)              # Generate prep materials
-```
+**5. Replicable** — Adding a new city should be configuration, not code. (We're not there yet, but that's the goal.)
 
-### REST API
-```bash
-# Test conversation endpoint
-curl -X POST http://localhost:8001/api/conversation \
-  -H "Authorization: Bearer civic_web_key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "What civic opportunities are available?",
-    "city": "San Rafael",
-    "state": "California"
-  }'
-```
+## Extending to Other Cities
 
-## 🧪 Testing
+The extraction layer supports multiple platforms:
 
-```bash
-# Core functionality tests (run with API server active)
-python tests/test_all_fixes.py                   # 5 comprehensive integration tests ✅ NEW
-python tests/test_action_security.py             # XSS prevention and security validation ✅ NEW  
-python tests/test_action_buttons.py              # Action button functionality tests ✅ NEW
+| Platform | Cities Using It | Status |
+|----------|----------------|--------|
+| Legistar API | Oakland, Berkeley, SF, many more | Working |
+| CivicClerk API | Various | Working |
+| Granicus | Various | Working |
+| SeeClickFix | Any city on platform | Working |
+| Municode | Most CA cities | Working |
 
-# Legacy integration tests
-python tests/test_integration_e2e.py             # End-to-end integration tests (17 test cases)
-python tests/test_frontend_integration.py        # Frontend-backend integration validation
-python tests/test_conversation_api.py            # Conversation API endpoint tests
+To add a city, create a config in `data/extraction/{city-name}.json`. See `docs/user_guides/CITY_ONBOARDING_GUIDE.md`.
 
-# All tests are self-contained - no pytest/dependencies needed
-```
+## What This Isn't
 
-## 🎯 Key Features
+- **Not optimizing for engagement** — No feeds, likes, or algorithmic amplification. Success is measured in decisions influenced, not time-on-app.
+- **Not a replacement for showing up** — The goal is to make participation more effective, not to automate democracy away.
+- **Not complete** — This is a pilot. Things will break. Data will have gaps.
 
-### 💬 Conversational Civic Discovery
-- Ask natural questions: "What housing opportunities are available?"
-- AI responds with specific meetings, projects, and participation methods
-- Interest-based filtering matches opportunities to user preferences
+## Contributing
 
-### ⚡ Frictionless Action Buttons  
-- **Email Buttons**: Pre-filled public comment emails with officials
-- **Calendar Buttons**: Add meetings to calendar with one click (RFC 5545 compliant)
-- **Link Buttons**: Direct access to meeting agendas and project details
+We're focused on the San Rafael pilot through Q1 2026. If you're interested in contributing or replicating for another city, open an issue.
 
-### 🛡️ Enterprise-Grade Security
-- XSS prevention with regex-based input validation
-- Rate limiting and authentication for all API endpoints  
-- RFC compliant calendar integration across all email clients
+Development workflow is documented in `CLAUDE.md`.
 
-### 📊 Smart Opportunity Matching
-- 67% improved relevance scoring using word overlap algorithms
-- Data freshness warnings for stale civic information (>7 days)
-- Comprehensive error handling and graceful degradation
+## License
 
-## 💬 Example Conversation
+**Source-available under [PolyForm Noncommercial 1.0.0](LICENSE.md)**
 
-**User:** "What housing opportunities are available?"
+- **Individuals, nonprofits, academic institutions**: Free to use, modify, and share
+- **For-profit companies**: Commercial license required
 
-**AI:** "The Planning Commission will discuss the Electric Bicycle Safety Regulations at their September 2nd meeting. This regulation will establish safety standards for e-bike operation within city limits.
-
-You can participate by:
-- Attending the meeting in person at City Hall
-- Submitting written comments via email  
-- Calling in during the public comment period
-
-Would you like me to help you prepare a public comment or add this meeting to your calendar?"
-
-**Action Buttons:**
-- 📧 **Email Public Comment** → Pre-filled email to city.clerk@cityofsanrafael.org
-- 📅 **Add Meeting to Calendar** → Downloads .ics file with meeting details
-- 🔗 **View Meeting Agenda** → Direct link to city website
-
-## 📧 Newsletter Features
-
-The system also generates professional HTML newsletters with:
-- Google Calendar integration with hidden URLs
-- Responsive design for all email clients  
-- Clear participation instructions and deadlines
-- Impact summaries explaining why each issue matters
-- Color-coded sections for easy scanning
-
-## 🏗️ Architecture
-
-**Three-Package Design:**
-```
-packages/civic/           → Core API (Civic class, query methods)
-packages/civicos-extraction/ → Platform parsers (Legistar, CivicClerk, Granicus, etc.)
-packages/civicos-services/   → Application layer (REST API, WebSocket, chat routing)
-```
-
-**Client Applications:**
-```
-apps/civicos-workspace/     → Vue.js web frontend (IDE-inspired workspace)
-apps/civicos-mcp/           → MCP server for Claude Desktop and AI assistants
-```
-
-**Key Capabilities:**
-- **Multi-platform data collection**: 26 Bay Area municipalities via Legistar, CivicClerk, Granicus APIs
-- **Legislative context enrichment**: State bills + federal programs linked to local issues
-- **AI-powered conversation**: OpenAI/OpenRouter for natural language civic assistance
-- **Real-time coordination**: WebSocket server for live updates and group discussions
-
-## 💰 Cost & Performance
-
-**API Costs:**
-- ~$0.10-0.15 per conversation (OpenAI GPT-4 usage)
-- ~$0.001 per action button generation (negligible)
-- Total: ~$0.15 per engaged user conversation
-
-**Response Times:**
-- Simple queries: <500ms
-- Complex civic questions: <2000ms
-- Action button generation: <200ms additional
-- 67% improvement in opportunity matching accuracy
-
-## 🧪 Testing & Validation
-
-**Production Ready - Tested on:**
-- San Rafael Planning Commission & City Council
-- Berkeley City Council  
-- Works universally across different city websites
-- Professional HTML email format tested across Gmail, Outlook, Apple Mail
-- Google Calendar integration working seamlessly
-- Responsive design verified on mobile, desktop, tablet
-
-**Key Success Metrics to Track:**
-- **Email engagement**: Open rates, click-through rates on meeting times and source links
-- **Calendar adoption**: How many people add meetings to their calendars
-- **Actual participation**: Meeting attendance and public comment submissions from digest recipients
-- **User feedback**: Do residents find the content useful and actionable?
-
-## 📁 File Structure
-
-```
-civic/
-├── packages/                                     # Python packages
-│   ├── civic/                                   # Core API package
-│   │   └── src/civic/                          # Civic class and query methods
-│   ├── civicos-extraction/                        # Platform parsers (Legistar, CivicClerk, etc.)
-│   │   └── src/civic_extraction/
-│   └── civicos-services/                          # Application layer
-│       └── src/civic_services/
-│           ├── servers/                         # API entry points (REST, WebSocket)
-│           ├── clients/                         # External API clients
-│           ├── providers/                       # LLM providers (OpenAI, OpenRouter)
-│           ├── processing/                      # Data pipelines
-│           ├── storage/                         # Persistence layer
-│           ├── legislative/                     # Legislative enrichment
-│           ├── issues/                          # Issue handling
-│           ├── chat/                            # Chat routing
-│           ├── monitoring/                      # Operations & metrics
-│           ├── core/                            # Infrastructure
-│           └── utils/                           # Utilities
-├── apps/                                        # Client applications
-│   ├── civicos-workspace/                         # Vue.js web frontend
-│   └── civicos-mcp/                              # MCP server for AI assistants
-├── data/                                        # Extracted civic data
-│   ├── schema/                                  # Schema-compliant JSON
-│   └── pilot/                                   # San Rafael pilot data
-├── tests/                                       # Test suites
-├── docs/                                        # Documentation
-│   ├── critical/                                # Essential architecture docs
-│   └── archive/                                 # Historical docs
-└── docker-compose.yml                           # Container orchestration
-```
-
-## 🛠️ Customization
-
-**Add Different City:**
-```python
-# Edit weekly URLs in civic_digest.py main() function
-weekly_urls = [
-    "https://your-city.gov/meetings/council/",
-    "https://your-city.gov/meetings/planning/"
-]
-```
-
-**Add Beta Users:**
-```python
-# Edit recipients list in send_weekly() function
-recipients = [
-    "user1@email.com",
-    "user2@email.com"
-]
-```
-
-## 🎯 Next Steps
-
-**Immediate (Ready for Production):**
-1. **Beta User Testing:** Email format is production-ready - start sending to 5-10 residents
-2. **Multi-City Validation:** Test with 2-3 different cities to validate universal approach
-3. **Weekly Automation:** Set up cron job or cloud scheduler for automated weekly digests
-
-**Scale & Measurement:**
-4. **Track Engagement:** Monitor email opens, calendar additions, actual meeting participation
-5. **Geographic Expansion:** Add more cities/counties using same codebase
-6. **Success Validation:** Measure if digests actually increase civic participation
-
-## 🤝 Contributing
-
-See `CLAUDE.md` for development workflow and session protocol. The codebase uses a package-based architecture - start with `packages/civic/` for the core API.
-
-## 📄 License
-
-MIT License - Use for any civic good purpose.
+This structure keeps civic infrastructure accessible to residents and community organizations while ensuring companies that build on this work contribute to its sustainability. See [LICENSE.md](LICENSE.md) for details.
