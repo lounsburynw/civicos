@@ -14813,3 +14813,14 @@ Created OpenAPI 3.0 spec for ChatGPT GPT Actions compatibility.
 
 ### Next P0
 - `chatgpt_custom_gpt` - Build "Civic San Rafael" Custom GPT using the OpenAPI spec
+
+### Additional Session 535 Work
+
+**MCP HTTP Transport**: Added multi-transport support to civicos-mcp server.
+- `--transport http` for ChatGPT/Claude.ai
+- `--transport stdio` (default) for Claude Desktop
+
+**Key Discovery**: ChatGPT has native MCP client support (developer mode beta).
+Custom GPT + Actions approach is superseded - single MCP server serves both platforms.
+
+**Next P0**: Deploy MCP server with HTTP transport (ngrok or Railway/Fly.io)
