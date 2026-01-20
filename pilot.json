@@ -2112,17 +2112,17 @@
         "priority": 0,
         "artifact": "MCP server deployed publicly with HTTPS for Claude.ai AND ChatGPT",
         "description": "Deploy civicos-mcp as a remote MCP server accessible from Claude.ai web, Claude Desktop, Claude Mobile, AND ChatGPT. Single server serves all platforms via HTTP transport.",
-        "note": "Session 535-536: HTTP transport added to civicos_server.py. ChatGPT now has native MCP support (developer mode beta). This is the unified distribution channel - one deployment serves Claude AND ChatGPT. OAuth needed for Claude.ai, API key or open for ChatGPT.",
+        "note": "Session 535-536: HTTP transport added. Session 537: Deployment artifacts created (Dockerfile.mcp, fly-mcp.toml, deploy-mcp.sh). Ready for deployment - requires fly auth login.",
         "subtasks": [
           "[DONE] Add HTTP transport support to MCP server (Session 535)",
           "[DONE] Test HTTP transport locally (Session 536)",
-          "Choose hosting platform (Railway, Fly.io, Render, ngrok for dev)",
-          "Deploy with HTTPS (required by ChatGPT)",
-          "Set environment variables (DATABASE_URL, CIVICOS_JURISDICTION)",
-          "Implement OAuth 2.0 for Claude.ai (optional, can start without)",
+          "[DONE] Create Dockerfile.mcp for containerized deployment (Session 537)",
+          "[DONE] Create fly-mcp.toml Fly.io configuration (Session 537)",
+          "[DONE] Create scripts/deploy-mcp.sh deployment script (Session 537)",
+          "Deploy to Fly.io (requires: fly auth login, fly deploy --config fly-mcp.toml)",
+          "Set DATABASE_URL secret in Fly.io",
           "Test with ChatGPT developer mode connector",
-          "Test with Claude.ai web connector",
-          "Document user setup flow for both platforms"
+          "Test with Claude.ai web connector"
         ],
         "depends_on": [
           "mcp_vector_search_tools"
