@@ -14773,3 +14773,43 @@ Rewrote README with honest positioning and switched license from MIT to PolyForm
 
 ### Next P0
 - `openapi_spec` - Generate/refine OpenAPI spec for ChatGPT Actions compatibility
+
+## Session 535 - 2026-01-20
+
+### Completed: openapi_spec (P0)
+
+Created OpenAPI 3.0 spec for ChatGPT GPT Actions compatibility.
+
+**Key Deliverable**: `docs/openapi.json`
+
+**Endpoints Covered (14 paths, 24 schemas)**:
+- GET /health - Health check
+- GET /api/status - System status  
+- GET /api/jurisdictions - List jurisdictions
+- GET /api/events - List events (whats_next)
+- GET /api/events/search - Search events
+- GET /api/events/{event_id} - Event details
+- GET /api/issues - List/create issues
+- GET /api/issues/search - Search issues (whos_with_me)
+- GET /api/operational-issues/{jurisdiction_id} - SeeClickFix
+- GET /api/legislation/state/{topic} - State bills
+- GET /api/legislation/federal/{topic} - Federal bills
+- GET /api/elections/{jurisdiction_id} - Elections
+- POST /api/conversation - AI chat
+- POST /api/chat/route - Intent routing
+
+**GPT Actions Ready Features**:
+- Clear operationIds for each endpoint
+- Bearer token security scheme
+- Simple, flat response schemas (no deep nesting)
+- Descriptive summaries for GPT to understand intent
+- Error response schemas (401, 429)
+
+**Note**: Unable to run live API server due to broken venv symlinks (civicos-env references old civic-env path). Created spec manually from code analysis instead.
+
+### Files Modified
+- docs/openapi.json (NEW - 700+ lines)
+- pilot.json (openapi_spec: ready, chatgpt_custom_gpt: now P0)
+
+### Next P0
+- `chatgpt_custom_gpt` - Build "Civic San Rafael" Custom GPT using the OpenAPI spec

@@ -1,0 +1,1318 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "CivicOS API",
+    "description": "AI-enabled infrastructure for local self-organization and governance. Access city council meetings, decisions, community issues, legislation, and budget information.",
+    "version": "0.4.0",
+    "contact": {
+      "name": "CivicOS",
+      "url": "https://github.com/civicos/civicos"
+    },
+    "license": {
+      "name": "PolyForm Noncommercial 1.0.0",
+      "url": "https://polyformproject.org/licenses/noncommercial/1.0.0/"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.civicos.example.com",
+      "description": "Production API server"
+    },
+    {
+      "url": "http://localhost:8001",
+      "description": "Local development server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Core",
+      "description": "Health checks and system status"
+    },
+    {
+      "name": "Events",
+      "description": "City council meetings and civic events"
+    },
+    {
+      "name": "Issues",
+      "description": "Community issues and complaints"
+    },
+    {
+      "name": "Legislative",
+      "description": "Legislation, elections, and voting records"
+    },
+    {
+      "name": "Conversations",
+      "description": "AI-powered civic assistance"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Health check",
+        "description": "Basic health check for load balancers and monitoring. Returns healthy status if the API is operational.",
+        "tags": ["Core"],
+        "responses": {
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                },
+                "example": {
+                  "status": "healthy",
+                  "timestamp": "2026-01-20T12:00:00Z",
+                  "version": "0.4.0"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/status": {
+      "get": {
+        "operationId": "getStatus",
+        "summary": "Detailed system status",
+        "description": "Comprehensive system status including database connectivity, vector store availability, external service status, and data freshness.",
+        "tags": ["Core"],
+        "responses": {
+          "200": {
+            "description": "Detailed status information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jurisdictions": {
+      "get": {
+        "operationId": "listJurisdictions",
+        "summary": "List available jurisdictions",
+        "description": "Returns all jurisdictions (cities/counties) available in the system with their event and issue counts.",
+        "tags": ["Core"],
+        "security": [{"bearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "List of jurisdictions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JurisdictionsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/events": {
+      "get": {
+        "operationId": "listEvents",
+        "summary": "List upcoming civic events",
+        "description": "Returns upcoming city council meetings, planning sessions, and other civic events. Use this to answer 'What's happening?' or 'What's on the agenda?'",
+        "tags": ["Events"],
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "jurisdiction",
+            "in": "query",
+            "description": "Filter by jurisdiction ID (e.g., 'city-san-rafael')",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project_type",
+            "in": "query",
+            "description": "Filter by project type (e.g., 'housing', 'transportation')",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "description": "Filter events starting after this date (ISO format)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/events/search": {
+      "get": {
+        "operationId": "searchEvents",
+        "summary": "Search events with filters",
+        "description": "Search civic events by topic, date range, text query, and more. Use this to find meetings about specific topics like 'housing' or 'traffic'.",
+        "tags": ["Events"],
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "jurisdiction",
+            "in": "query",
+            "description": "Jurisdiction(s) to search - comma-separated or 'all'",
+            "schema": {
+              "type": "string",
+              "default": "all"
+            }
+          },
+          {
+            "name": "topics",
+            "in": "query",
+            "description": "Topic(s) to filter by - comma-separated",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Text search query (searches title, description, agenda items)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date_range",
+            "in": "query",
+            "description": "Date range filter: 'this week', 'next month', 'October', etc.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemCountMin",
+            "in": "query",
+            "description": "Minimum number of agenda items",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventSearchResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/events/{event_id}": {
+      "get": {
+        "operationId": "getEvent",
+        "summary": "Get event details",
+        "description": "Get full details for a specific event including agenda items and legislative context.",
+        "tags": ["Events"],
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "description": "Event ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/issues": {
+      "get": {
+        "operationId": "listIssues",
+        "summary": "List user issues",
+        "description": "List issues/complaints filed by or followed by a user. Filter by ownership and status.",
+        "tags": ["Issues"],
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "description": "Filter by user ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ownership",
+            "in": "query",
+            "description": "Filter by ownership: 'mine', 'following', or 'all'",
+            "schema": {
+              "type": "string",
+              "enum": ["mine", "following", "all"],
+              "default": "mine"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by status: 'open', 'closed', 'matched', or 'all'",
+            "schema": {
+              "type": "string",
+              "enum": ["open", "closed", "matched", "all"],
+              "default": "all"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of issues",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createIssue",
+        "summary": "Create a new issue",
+        "description": "File a new issue or complaint. The authenticated user becomes the issue owner.",
+        "tags": ["Issues"],
+        "security": [{"bearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Issue created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueCreateResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/issues/search": {
+      "get": {
+        "operationId": "searchIssues",
+        "summary": "Search issues with filters",
+        "description": "Search community issues by category, jurisdiction, text query, and more. Use this to find others with similar concerns.",
+        "tags": ["Issues"],
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": true,
+            "description": "User ID (required)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ownership",
+            "in": "query",
+            "description": "Filter by ownership",
+            "schema": {
+              "type": "string",
+              "enum": ["mine", "following", "all"],
+              "default": "mine"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "description": "Issue category filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jurisdiction",
+            "in": "query",
+            "description": "Jurisdiction filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Text search query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueSearchResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/operational-issues/{jurisdiction_id}": {
+      "get": {
+        "operationId": "getOperationalIssues",
+        "summary": "Get community-reported infrastructure issues",
+        "description": "Get operational issues (SeeClickFix complaints) for a jurisdiction. These are community-reported infrastructure problems like potholes, graffiti, streetlights, etc.",
+        "tags": ["Issues"],
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "jurisdiction_id",
+            "in": "path",
+            "required": true,
+            "description": "Jurisdiction ID (e.g., 'city-san-rafael')",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum issues to return",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by status",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of operational issues",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationalIssuesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/legislation/state/{topic}": {
+      "get": {
+        "operationId": "getStateLegislation",
+        "summary": "Get state legislation by topic",
+        "description": "Search state legislature bills by topic. Returns relevant California state bills.",
+        "tags": ["Legislative"],
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "topic",
+            "in": "path",
+            "required": true,
+            "description": "Topic to search (e.g., 'housing', 'transportation', 'environment')",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jurisdiction",
+            "in": "query",
+            "description": "Filter by jurisdiction",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by bill status",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum bills to return",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of state bills",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegislationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/legislation/federal/{topic}": {
+      "get": {
+        "operationId": "getFederalLegislation",
+        "summary": "Get federal legislation by topic",
+        "description": "Search Congressional bills by topic. Returns relevant federal legislation.",
+        "tags": ["Legislative"],
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "topic",
+            "in": "path",
+            "required": true,
+            "description": "Topic to search",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by bill status",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum bills to return",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of federal bills",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegislationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/elections/{jurisdiction_id}": {
+      "get": {
+        "operationId": "getElections",
+        "summary": "Get elections for a jurisdiction",
+        "description": "Returns upcoming or past elections for a jurisdiction.",
+        "tags": ["Legislative"],
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {
+            "name": "jurisdiction_id",
+            "in": "path",
+            "required": true,
+            "description": "Jurisdiction ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "upcoming_only",
+            "in": "query",
+            "description": "Only return upcoming elections",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of elections",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElectionsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/conversation": {
+      "post": {
+        "operationId": "chat",
+        "summary": "AI conversation",
+        "description": "Have a conversation with the civic AI assistant. Maintains context across messages and provides civic-aware responses about local government, meetings, issues, and legislation.",
+        "tags": ["Conversations"],
+        "security": [{"bearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Conversation response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/chat/route": {
+      "post": {
+        "operationId": "routeChat",
+        "summary": "Route chat message to appropriate handler",
+        "description": "Classifies user intent and extracts entities to route the message to the appropriate domain handler (events, issues, legislation, general).",
+        "tags": ["Conversations"],
+        "security": [{"bearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRouteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Routing result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatRouteResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "API key or user token for authentication"
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Authentication required",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Unauthorized",
+              "message": "Valid API key required",
+              "status": 401
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Rate limit exceeded",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/RateLimitError"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["healthy", "degraded", "unhealthy"]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": ["status", "timestamp", "version"]
+      },
+      "StatusResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "checks": {
+            "type": "object"
+          },
+          "endpoints": {
+            "type": "object"
+          },
+          "authentication": {
+            "type": "string"
+          }
+        }
+      },
+      "Jurisdiction": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Jurisdiction ID (e.g., 'city-san-rafael')"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["city", "county"]
+          },
+          "event_count": {
+            "type": "integer",
+            "description": "Number of events/meetings"
+          },
+          "issue_count": {
+            "type": "integer",
+            "description": "Number of tracked issues"
+          },
+          "population": {
+            "type": "integer"
+          },
+          "timezone": {
+            "type": "string",
+            "default": "America/Los_Angeles"
+          }
+        },
+        "required": ["id", "name", "type", "event_count", "issue_count"]
+      },
+      "JurisdictionsResponse": {
+        "type": "object",
+        "properties": {
+          "jurisdictions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Jurisdiction"
+            }
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "Event": {
+        "type": "object",
+        "description": "A civic event such as a city council meeting or planning session",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "description": "Event title (e.g., 'City Council Regular Meeting')"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Event start time"
+          },
+          "when": {
+            "type": "string",
+            "description": "Human-readable date/time"
+          },
+          "location": {
+            "type": "string",
+            "description": "Venue or meeting link"
+          },
+          "project_type": {
+            "type": "string",
+            "description": "Primary topic category"
+          },
+          "jurisdiction_id": {
+            "type": "string"
+          },
+          "agenda_items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgendaItem"
+            }
+          },
+          "legislative_context": {
+            "type": "object",
+            "description": "Related legislation and policy context"
+          }
+        },
+        "required": ["id", "title"]
+      },
+      "AgendaItem": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "action_type": {
+            "type": "string"
+          }
+        }
+      },
+      "EventListResponse": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          }
+        }
+      },
+      "EventSearchResponse": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          },
+          "count": {
+            "type": "integer"
+          },
+          "query": {
+            "type": "object",
+            "description": "Echo of search parameters"
+          },
+          "jurisdictions_searched": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Issue": {
+        "type": "object",
+        "description": "A community issue or complaint",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "description": "Issue category (e.g., 'traffic', 'housing', 'infrastructure')"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["open", "closed", "resolved", "matched"]
+          },
+          "jurisdiction_id": {
+            "type": "string"
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "address": {
+                "type": "string"
+              },
+              "lat": {
+                "type": "number"
+              },
+              "lng": {
+                "type": "number"
+              }
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "linked_events": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "IDs of related civic events"
+          }
+        },
+        "required": ["id", "title"]
+      },
+      "IssueListResponse": {
+        "type": "object",
+        "properties": {
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Issue"
+            }
+          },
+          "count": {
+            "type": "integer"
+          }
+        }
+      },
+      "IssueSearchResponse": {
+        "type": "object",
+        "properties": {
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Issue"
+            }
+          },
+          "count": {
+            "type": "integer"
+          },
+          "query": {
+            "type": "object"
+          },
+          "filters_applied": {
+            "type": "object"
+          }
+        }
+      },
+      "IssueCreateRequest": {
+        "type": "object",
+        "description": "Request to create a new community issue",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Brief title describing the issue"
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed description of the problem"
+          },
+          "category": {
+            "type": "string",
+            "description": "Issue category"
+          },
+          "jurisdiction_id": {
+            "type": "string",
+            "description": "City/county this issue is in"
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "address": {
+                "type": "string"
+              },
+              "lat": {
+                "type": "number"
+              },
+              "lng": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "required": ["title"]
+      },
+      "IssueCreateResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "issue": {
+            "$ref": "#/components/schemas/Issue"
+          }
+        }
+      },
+      "OperationalIssuesResponse": {
+        "type": "object",
+        "properties": {
+          "jurisdiction_id": {
+            "type": "string"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "address": {
+                  "type": "string"
+                },
+                "created_at": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "count": {
+            "type": "integer"
+          },
+          "source": {
+            "type": "string",
+            "description": "Data source (e.g., 'seeclickfix')"
+          }
+        }
+      },
+      "Bill": {
+        "type": "object",
+        "description": "A legislative bill",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "number": {
+            "type": "string",
+            "description": "Bill number (e.g., 'AB 1234', 'HR 5678')"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "sponsor": {
+            "type": "string"
+          },
+          "chamber": {
+            "type": "string"
+          },
+          "last_action": {
+            "type": "string"
+          },
+          "last_action_date": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "LegislationResponse": {
+        "type": "object",
+        "properties": {
+          "topic": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string",
+            "enum": ["state", "federal"]
+          },
+          "bills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Bill"
+            }
+          },
+          "count": {
+            "type": "integer"
+          }
+        }
+      },
+      "Election": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["primary", "general", "special"]
+          },
+          "jurisdiction_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "ElectionsResponse": {
+        "type": "object",
+        "properties": {
+          "jurisdiction_id": {
+            "type": "string"
+          },
+          "elections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Election"
+            }
+          },
+          "count": {
+            "type": "integer"
+          }
+        }
+      },
+      "ConversationRequest": {
+        "type": "object",
+        "description": "Request for AI conversation",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "User's message"
+          },
+          "conversation_id": {
+            "type": "string",
+            "description": "Optional conversation ID to continue existing conversation"
+          },
+          "context": {
+            "type": "object",
+            "description": "Optional context (jurisdiction, user preferences, etc.)"
+          }
+        },
+        "required": ["message"]
+      },
+      "ConversationResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "type": "string",
+            "description": "AI assistant's response"
+          },
+          "conversation_id": {
+            "type": "string",
+            "description": "ID for continuing this conversation"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "Sources referenced in the response"
+          },
+          "suggestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Suggested follow-up questions"
+          }
+        }
+      },
+      "ChatRouteRequest": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "context": {
+            "type": "object"
+          }
+        },
+        "required": ["message"]
+      },
+      "ChatRouteResponse": {
+        "type": "object",
+        "properties": {
+          "route": {
+            "type": "string",
+            "enum": ["events", "issues", "legislation", "general"],
+            "description": "Target domain for the message"
+          },
+          "intent": {
+            "type": "string",
+            "description": "Detected user intent"
+          },
+          "entities": {
+            "type": "object",
+            "description": "Extracted entities (topics, dates, jurisdictions, etc.)"
+          },
+          "response": {
+            "type": "string",
+            "description": "Optional immediate response"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          }
+        }
+      },
+      "RateLimitError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "retry_after": {
+            "type": "integer",
+            "description": "Seconds to wait before retrying"
+          }
+        }
+      }
+    }
+  }
+}
