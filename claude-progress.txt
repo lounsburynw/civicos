@@ -14893,3 +14893,86 @@ MCP approach is:
 3. Set DATABASE_URL and CIVICOS_JURISDICTION env vars
 4. Test with ChatGPT developer mode connector
 5. Test with Claude.ai web connector
+
+## Session 537: remote_mcp_deployment - Deployment Infrastructure
+
+**Date:** 2026-01-20
+**Item:** remote_mcp_deployment (pilot_validation > distribution_channels)
+**Priority:** P0
+
+### Summary
+
+Created deployment infrastructure for MCP server on Fly.io. The MCP server is ready for production deployment - just needs `fly auth login` and `fly deploy`.
+
+### Artifacts Created
+
+1. **Dockerfile.mcp** - Multi-stage Docker image for MCP server
+   - Based on python:3.11-slim
+   - Installs `mcp[cli]>=1.13.1` and civicos package
+   - Health check accepts 406 (expected without SSE headers)
+   - Runs `civicos_server.py -t http --host 0.0.0.0 -p 8000`
+
+2. **fly-mcp.toml** - Fly.io configuration
+   - App name: civicos-mcp
+   - Region: sjc (same as REST API)
+   - Port: 8000
+   - Auto-scaling with min 1 machine
+   - TCP health check (MCP returns 406 for plain HTTP)
+
+3. **scripts/deploy-mcp.sh** - Deployment script
+   - `local` mode: Test on localhost:8099
+   - `ngrok` mode: Local + HTTPS tunnel
+   - `deploy` mode: Full Fly.io deployment
+   - Handles app creation, secrets, and provides connection instructions
+
+### Local Testing
+
+Verified MCP server HTTP transport:
+```bash
+civicos-env/bin/python apps/civicos-mcp/civicos_server.py -t http -p 8099
+# Returns 406 "Not Acceptable" for GET (expected - requires SSE headers)
+# This confirms server is running and responding
+```
+
+### Deployment Steps (for next session or user)
+
+```bash
+# 1. Authenticate with Fly.io
+fly auth login
+
+# 2. Deploy
+fly deploy --config fly-mcp.toml
+
+# 3. Set DATABASE_URL secret
+fly secrets set DATABASE_URL='postgresql://...' --app civicos-mcp
+
+# 4. Verify
+curl https://civicos-mcp.fly.dev/mcp
+```
+
+### Connection URLs
+
+After deployment:
+- **MCP Endpoint:** https://civicos-mcp.fly.dev/mcp
+- **ChatGPT:** Settings > Connectors > Developer mode > Add URL
+- **Claude.ai:** Settings > Connectors > Add connector
+
+### Files Created/Modified
+
+| File | Action |
+|------|--------|
+| Dockerfile.mcp | Created |
+| fly-mcp.toml | Created |
+| scripts/deploy-mcp.sh | Created |
+| pilot.json | Updated subtasks |
+
+### Next P0
+
+Remains `remote_mcp_deployment` until actual deployment is completed.
+
+**Immediate next steps:**
+1. `fly auth login` (requires browser)
+2. `./scripts/deploy-mcp.sh` or `fly deploy --config fly-mcp.toml`
+3. Set DATABASE_URL secret in Fly.io
+4. Test ChatGPT developer mode connector
+5. Test Claude.ai web connector
