@@ -2147,7 +2147,7 @@
       },
       "openapi_spec": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "OpenAPI 3.0 spec for civicos-services REST API endpoints",
         "description": "Generate or write OpenAPI spec covering key civicos-services endpoints needed for ChatGPT Actions and API documentation.",
         "note": "FastAPI auto-generates OpenAPI at /docs endpoint. May need customization for GPT Actions compatibility (simpler schemas, clear descriptions).",
@@ -2380,8 +2380,10 @@
     },
     "post_pilot": {
       "rename_to_civicos": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 99,
+        "completed_session": "Session 531-534",
+        "completed_date": "2026-01-20",
         "artifact": "Rename Civic to CivicOS across entire codebase",
         "description": "Comprehensive rebrand from Civic to CivicOS. Affects package names, class names, imports, env vars, MCP URIs, documentation.",
         "note": "Session 531: Pre-pilot rebrand. Do after tutorial_ux is complete. Use IDE refactoring tools + full test suite.",
