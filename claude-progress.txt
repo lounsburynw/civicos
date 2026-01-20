@@ -14976,3 +14976,20 @@ Remains `remote_mcp_deployment` until actual deployment is completed.
 3. Set DATABASE_URL secret in Fly.io
 4. Test ChatGPT developer mode connector
 5. Test Claude.ai web connector
+
+### Session 537 Update: MCP Server Deployed Successfully
+
+**Status:** DEPLOYED to https://civicos-mcp.fly.dev/mcp
+
+**Fixes Applied:**
+1. Added `civicos-config` package to Dockerfile (missing dependency)
+2. Added `psycopg2-binary` for PostgreSQL connection
+3. Added `TransportSecuritySettings` to allow `civicos-mcp.fly.dev` host
+
+**Verification:**
+- Health checks passing
+- PostgresBackend connected (not SQLite)
+- HTTP 400 "Missing session ID" (correct for non-MCP clients)
+
+**Next P0:** `linkback_integration` - Add deep links from MCP responses to web app
+

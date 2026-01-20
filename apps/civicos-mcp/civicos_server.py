@@ -52,8 +52,21 @@ except Exception as e:
     civicos_client = None
     logger.warning(f"Failed to initialize Civic client: {e}")
 
-# Initialize FastMCP server
-mcp = FastMCP("CivicOS Engagement Server")
+# Initialize FastMCP server with transport security for production deployment
+# Allow fly.dev host for remote MCP connections from Claude.ai/ChatGPT
+from mcp.server.transport_security import TransportSecuritySettings
+
+transport_security = TransportSecuritySettings(
+    enable_dns_rebinding_protection=True,
+    allowed_hosts=[
+        "localhost",
+        "127.0.0.1",
+        "civicos-mcp.fly.dev",  # Fly.io deployment
+    ],
+    allowed_origins=["*"],  # Allow all origins for MCP clients
+)
+
+mcp = FastMCP("CivicOS Engagement Server", transport_security=transport_security)
 
 @mcp.tool()
 def compose_public_comment(

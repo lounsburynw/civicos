@@ -26,6 +26,14 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Install MCP dependencies (from apps/civicos-mcp/pyproject.toml)
 RUN pip install --no-cache-dir "mcp[cli]>=1.13.1" httpx
 
+# Install PostgreSQL client (required for DATABASE_URL connection)
+RUN pip install --no-cache-dir psycopg2-binary
+
+# Install civicos-config package (shared configuration, required by civicos)
+COPY packages/civicos-config/pyproject.toml /tmp/civicos-config/
+COPY packages/civicos-config/src /tmp/civicos-config/src
+RUN pip install --no-cache-dir /tmp/civicos-config
+
 # Install civicos package (required by MCP server)
 COPY packages/civicos/pyproject.toml packages/civicos/README.md /tmp/civicos/
 COPY packages/civicos/src /tmp/civicos/src
@@ -47,7 +55,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN useradd --create-home --shell /bin/bash civicos
 WORKDIR /app
 
-# Copy civicos package source (needed for imports)
+# Copy civicos packages source (needed for imports)
+COPY packages/civicos-config/src ./packages/civicos-config/src
 COPY packages/civicos/src ./packages/civicos/src
 
 # Copy MCP server and validator
