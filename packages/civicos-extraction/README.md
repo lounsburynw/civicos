@@ -1,10 +1,10 @@
-# civic-extraction
+# civicos-extraction
 
 Platform clients for extracting civic meeting data from municipal websites.
 
 ## Overview
 
-`civic-extraction` provides clients for municipal meeting platforms, extracting meetings, agendas, and related data. All clients implement a common interface and normalize to a standard format.
+`civicos-extraction` provides clients for municipal meeting platforms, extracting meetings, agendas, and related data. All clients implement a common interface and normalize to a standard format.
 
 ## Supported Platforms
 
@@ -18,10 +18,10 @@ Platform clients for extracting civic meeting data from municipal websites.
 
 ```bash
 # From source (development)
-pip install -e packages/civic-extraction
+pip install -e packages/civicos-extraction
 
 # From PyPI (future)
-pip install civic-extraction
+pip install civicos-extraction
 ```
 
 ## Quick Start

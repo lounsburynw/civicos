@@ -10,7 +10,7 @@ import json
 import os
 
 API_URL = "http://localhost:8001/api/chat/route"
-API_KEY = os.getenv("CIVIC_WEB_KEY", "dev_key_local")
+API_KEY = os.getenv("CIVICOS_WEB_KEY", "dev_key_local")
 
 def test_query(message, mode="navigation", description=""):
     """Test a single query and display results."""

@@ -20,7 +20,7 @@ class TestOperationalIssuesEndpoint(unittest.TestCase):
     def setUpClass(cls):
         """Start API server for integration tests"""
         cls.api_key = "test_api_key_123"
-        os.environ['CIVIC_WEB_KEY'] = cls.api_key
+        os.environ['CIVICOS_WEB_KEY'] = cls.api_key
         cls.base_url = "http://localhost:8001"
         cls.headers = {"Authorization": f"Bearer {cls.api_key}"}
 

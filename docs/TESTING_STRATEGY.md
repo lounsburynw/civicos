@@ -88,9 +88,9 @@ class TestRestApiE2E:
 ## Test File Organization
 
 ```
-packages/civic/tests/
+packages/civicos/tests/
 ├── conftest.py                      # Shared fixtures, marker hooks
-├── test_civic.py                    # Core API smoke tests (always run)
+├── test_civicos.py                    # Core API smoke tests (always run)
 ├── test_mcp.py                      # MCP server tests
 ├── test_e2e_verification.py         # E2E tests (skip conditions)
 ├── test_integration_san_rafael.py   # San Rafael integration (requires_real_data)
@@ -103,26 +103,26 @@ packages/civic/tests/
 
 ```bash
 # Smoke tests only (quick validation)
-pytest packages/civic/tests/test_civic.py -q
+pytest packages/civicos/tests/test_civicos.py -q
 
 # All tests (including requires_real_data)
-pytest packages/civic/tests/ -v
+pytest packages/civicos/tests/ -v
 
 # Specific test file
-pytest packages/civic/tests/test_integration_rag_san_rafael.py -v
+pytest packages/civicos/tests/test_integration_rag_san_rafael.py -v
 
 # Skip slow tests
-pytest packages/civic/tests/ -m "not slow"
+pytest packages/civicos/tests/ -m "not slow"
 ```
 
 ### Simulating CI Environment
 
 ```bash
 # Run as if in CI (skips requires_real_data tests)
-CI=true pytest packages/civic/tests/ -v
+CI=true pytest packages/civicos/tests/ -v
 
 # See what would be skipped
-CI=true pytest packages/civic/tests/ --collect-only | grep "skip"
+CI=true pytest packages/civicos/tests/ --collect-only | grep "skip"
 ```
 
 ### CI Configuration

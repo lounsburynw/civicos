@@ -111,7 +111,7 @@ The `__init__.py` exports 80+ symbols across all workflows. Only `run_coordinati
 | Package | Files | TODOs |
 |---------|-------|-------|
 | civic/src | 4 | 10 |
-| civic-services/src | 9 | 10 |
+| civicos-services/src | 9 | 10 |
 
 Notable stale TODOs:
 - `california.py`: 6 TODOs about HTML parsing (unchanged since audit)
@@ -130,7 +130,7 @@ Notable stale TODOs:
 | `_internal/jurisdiction.py` | 4 | Config data |
 | `storage/` | 5 | Examples in docstrings |
 | `civic.py` | 3 | Display name mapping |
-| `civic-services/` | 10 | Various |
+| `civicos-services/` | 10 | Various |
 
 Most are documentation/examples, but some are hardcoded logic:
 - `minutes.py:306`: `return "San Rafael City Hall"`
@@ -154,7 +154,7 @@ The granularity has grown significantly. Post-launch consolidation remains appro
 
 ### 8. civic_api_integrated.py God Class — **CRITICAL (NEW)**
 
-**Evidence:** `packages/civic-services/src/civic_services/servers/civic_api_integrated.py`
+**Evidence:** `packages/civicos-services/src/civic_services/servers/civic_api_integrated.py`
 
 | Metric | Value |
 |--------|-------|

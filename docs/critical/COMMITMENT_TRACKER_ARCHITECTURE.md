@@ -541,7 +541,7 @@ Return JSON array of commitments. If no commitments found, return [].
 ### Adapter Layer
 
 ```python
-# packages/civic/src/civic/_internal/commitments/adapter.py
+# packages/civicos/src/civicos/_internal/commitments/adapter.py
 
 class CivicCommitmentAdapter:
     """
@@ -672,7 +672,7 @@ class CivicCommitmentAdapter:
 ### Integration with Civic API
 
 ```python
-# packages/civic/src/civic/civic.py (additions to main Civic class)
+# packages/civicos/src/civicos/civic.py (additions to main Civic class)
 
 class Civic:
 
@@ -907,4 +907,4 @@ def stale(jurisdiction, days):
 
 - `docs/critical/FOUNDATION_FUNDING_THESIS.md` - Revenue considerations
 - `docs/critical/FINAL_PACKAGE_ARCHITECTURE.md` - Overall architecture
-- `packages/civic/src/civic/_internal/meetings/transcript.py` - Transcript processing
+- `packages/civicos/src/civicos/_internal/meetings/transcript.py` - Transcript processing

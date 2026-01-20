@@ -33,7 +33,7 @@ If not found, inform user:
 2. **Run audio download with cookies:**
 
 ```bash
-source civic-env/bin/activate && civic-extract audio \
+source civicos-env/bin/activate && civic-extract audio \
   --jurisdiction {jurisdiction} \
   --limit {limit} \
   --cloud \

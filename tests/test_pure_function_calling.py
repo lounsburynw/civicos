@@ -20,7 +20,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 API_URL = "http://localhost:8001/api/chat/route"
-API_KEY = os.getenv("CIVIC_WEB_KEY", "dev_key_local")
+API_KEY = os.getenv("CIVICOS_WEB_KEY", "dev_key_local")
 
 def route_message(message: str, conversation_id: str = None, mode: str = "navigation") -> dict:
     """Send a message to the chat routing endpoint."""

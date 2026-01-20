@@ -45,7 +45,7 @@ Session 490 discovered: `what_applies()` cannot use municipal_code vectors becau
 
 **Status:** Not tracked
 
-**Problem:** `packages/civic/src/civic/civic.py` is 2,073 lines containing 22 dataclasses inline with the `Civic` facade class:
+**Problem:** `packages/civicos/src/civicos/civic.py` is 2,073 lines containing 22 dataclasses inline with the `Civic` facade class:
 
 ```python
 # All defined in civic.py:
@@ -58,7 +58,7 @@ FederalExpenditure, IntergovernmentalRevenue, IntergovernmentalRevenueSummary
 
 **Impact:** Cognitive load when reading the main API file. Types are harder to import independently.
 
-**Recommendation:** Extract to `packages/civic/src/civic/types.py`. Low effort (~30 min), high clarity improvement. Good candidate for pre-pilot cleanup.
+**Recommendation:** Extract to `packages/civicos/src/civicos/types.py`. Low effort (~30 min), high clarity improvement. Good candidate for pre-pilot cleanup.
 
 ---
 
@@ -119,15 +119,15 @@ suggestion_graph.py, graph.py
 **Problem:** 18+ stale TODOs scattered through codebase:
 
 ```python
-# packages/civic/src/civic/_internal/legal/corpus/california.py
+# packages/civicos/src/civicos/_internal/legal/corpus/california.py
 # TODO: Scrape from website for dynamic discovery
 # TODO: Implement HTML parsing (appears 4 times)
 # TODO: Implement bill enumeration via search API
 
-# packages/civic/src/civic/_internal/legal/enrichment/semantic.py
+# packages/civicos/src/civicos/_internal/legal/enrichment/semantic.py
 "federal_program_refs": [],  # TODO: Add federal search
 
-# packages/civic-services/src/civic_services/
+# packages/civicos-services/src/civic_services/
 # TODO: Make configurable (timezone)
 # TODO: Track from Instructor (token usage)
 # TODO: Implement true streaming
@@ -174,13 +174,13 @@ These three items are really one thing: "parallel test infrastructure."
 
 **Priority:** P2 (post-pilot)
 
-**Problem:** Clean package separation (`civic`, `civic-extraction`, `civic-services`) but no integration tests verifying contracts between packages.
+**Problem:** Clean package separation (`civic`, `civicos-extraction`, `civicos-services`) but no integration tests verifying contracts between packages.
 
-**Risk:** If `civic-extraction` changes output format, nothing catches it until runtime.
+**Risk:** If `civicos-extraction` changes output format, nothing catches it until runtime.
 
 **Recommendation:** Add lightweight contract tests at package boundaries:
 - "extraction output parses correctly in civic"
-- "civic types serialize correctly for civic-services"
+- "civic types serialize correctly for civicos-services"
 
 ---
 

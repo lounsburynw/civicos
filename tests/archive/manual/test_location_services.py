@@ -167,7 +167,7 @@ def main():
     print("   2. Start API server: python src/civic_api_integrated.py")
     print("   3. Test POST endpoint with curl:")
     print('      curl -X POST http://localhost:8001/api/user/location \\')
-    print('        -H "Authorization: Bearer $CIVIC_WEB_KEY" \\')
+    print('        -H "Authorization: Bearer $CIVICOS_WEB_KEY" \\')
     print('        -H "Content-Type: application/json" \\')
     print('        -d \'{"user_id": "test123", "address": "1 Frank H Ogawa Plaza, Oakland, CA"}\'')
     print()

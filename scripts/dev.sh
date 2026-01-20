@@ -1,5 +1,5 @@
 #!/bin/bash
-# Civic Development Server Launcher
+# CivicOS Development Server Launcher
 # Usage: ./scripts/dev.sh [api|api-fastapi|ws|frontend|all]
 #
 # Starts the development servers with proper environment configuration.
@@ -8,7 +8,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-CIVICOS_SERVICES="$PROJECT_ROOT/packages/civic-services/src/civic_services"
+CIVICOS_SERVICES="$PROJECT_ROOT/packages/civicos-services/src/civic_services"
 
 # Load .env if it exists
 if [ -f "$PROJECT_ROOT/.env" ]; then
@@ -41,12 +41,12 @@ start_websocket() {
 
 start_frontend() {
     echo "Starting frontend on http://localhost:5173..."
-    cd "$PROJECT_ROOT/apps/civic-workspace"
+    cd "$PROJECT_ROOT/apps/civicos-workspace"
     npm run dev
 }
 
 start_all() {
-    echo "Starting all Civic services..."
+    echo "Starting all CivicOS services..."
     echo ""
 
     # Start FastAPI server in background (Session 511: Migration complete)
@@ -63,7 +63,7 @@ start_all() {
     sleep 2
 
     # Start frontend (foreground)
-    cd "$PROJECT_ROOT/apps/civic-workspace"
+    cd "$PROJECT_ROOT/apps/civicos-workspace"
     npm run dev
 
     # Cleanup on exit
@@ -71,7 +71,7 @@ start_all() {
 }
 
 show_help() {
-    echo "Civic Development Server Launcher"
+    echo "CivicOS Development Server Launcher"
     echo ""
     echo "Usage: ./scripts/dev.sh [command]"
     echo ""

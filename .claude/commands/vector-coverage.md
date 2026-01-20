@@ -49,7 +49,7 @@ Analyze vector embedding coverage across corpus types. Shows which corpora need 
 ### 1. Show All Coverage (Default)
 
 ```bash
-source civic-env/bin/activate && python3 -c "
+source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -68,7 +68,7 @@ print(format_vector_coverage(coverage.by_corpus()))
 ### 2. Show Total Summary
 
 ```bash
-source civic-env/bin/activate && python3 -c "
+source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -94,7 +94,7 @@ print(f'Corpus types:        {totals[\"corpus_count\"]:>10}')
 ### 3. Show Low Coverage Only
 
 ```bash
-source civic-env/bin/activate && python3 -c "
+source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv
 load_dotenv()
 

@@ -34,7 +34,7 @@ class FrontendIntegrationTester:
         # Use config system to get proper API endpoint
         config = CivicConfig()
         self.api_base_url = config.get_api_endpoint()
-        self.api_key = os.getenv('CIVIC_WEB_KEY', 'dev_key_local')
+        self.api_key = os.getenv('CIVICOS_WEB_KEY', 'dev_key_local')
         self.test_results = []
         
     def log_test(self, test_name: str, passed: bool, message: str = ""):

@@ -79,7 +79,7 @@ Normalized meeting data from various municipal platforms.
 
 ### JSON Schema
 
-See `packages/civic-extraction/src/civic_extraction/meeting_schema.py` for the full JSON Schema definition.
+See `packages/civicos-extraction/src/civic_extraction/meeting_schema.py` for the full JSON Schema definition.
 
 ---
 
@@ -348,6 +348,6 @@ This enables point-in-time queries and audit trails.
 ## Related Documentation
 
 - `docs/EXTRACTOR_PROTOCOL.md` - Protocol documentation
-- `packages/civic-extraction/src/civic_extraction/meeting_schema.py` - Meeting JSON Schema
+- `packages/civicos-extraction/src/civic_extraction/meeting_schema.py` - Meeting JSON Schema
 - `packages/civic/src/civic/_internal/meetings/decision_schema.py` - Decision JSON Schema
 - `docs/critical/FINAL_PACKAGE_ARCHITECTURE.md` - System architecture

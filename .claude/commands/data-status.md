@@ -52,7 +52,7 @@ Some corpus types produce multiple embeddings per document:
 ### 1. Show Data Status (Default)
 
 ```bash
-source civic-env/bin/activate && python3 -c "
+source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -70,7 +70,7 @@ print(format_data_status(report))
 ### 2. Show Gaps Only
 
 ```bash
-source civic-env/bin/activate && python3 -c "
+source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -96,7 +96,7 @@ else:
 ### 3. JSON Output
 
 ```bash
-source civic-env/bin/activate && python3 -c "
+source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv
 load_dotenv()
 import json

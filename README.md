@@ -56,10 +56,10 @@ python -m civic_services.civic_api_integrated
 python -m civic_services.civic_socketio_server
 
 # Start Vue frontend (port 5173)
-cd apps/civic-workspace && npm run dev
+cd apps/civicos-workspace && npm run dev
 
 # Or open the standalone conversational interface
-open apps/civic-mcp/civic-conversational-OS.html
+open apps/civicos-mcp/civic-conversational-OS.html
 ```
 
 **Try asking**: "What housing meetings are happening in Richmond?" or "How can I comment on transportation planning in Berkeley?"
@@ -168,14 +168,14 @@ The system also generates professional HTML newsletters with:
 **Three-Package Design:**
 ```
 packages/civic/           → Core API (Civic class, query methods)
-packages/civic-extraction/ → Platform parsers (Legistar, CivicClerk, Granicus, etc.)
-packages/civic-services/   → Application layer (REST API, WebSocket, chat routing)
+packages/civicos-extraction/ → Platform parsers (Legistar, CivicClerk, Granicus, etc.)
+packages/civicos-services/   → Application layer (REST API, WebSocket, chat routing)
 ```
 
 **Client Applications:**
 ```
-apps/civic-workspace/     → Vue.js web frontend (IDE-inspired workspace)
-apps/civic-mcp/           → MCP server for Claude Desktop and AI assistants
+apps/civicos-workspace/     → Vue.js web frontend (IDE-inspired workspace)
+apps/civicos-mcp/           → MCP server for Claude Desktop and AI assistants
 ```
 
 **Key Capabilities:**
@@ -220,9 +220,9 @@ civic/
 ├── packages/                                     # Python packages
 │   ├── civic/                                   # Core API package
 │   │   └── src/civic/                          # Civic class and query methods
-│   ├── civic-extraction/                        # Platform parsers (Legistar, CivicClerk, etc.)
+│   ├── civicos-extraction/                        # Platform parsers (Legistar, CivicClerk, etc.)
 │   │   └── src/civic_extraction/
-│   └── civic-services/                          # Application layer
+│   └── civicos-services/                          # Application layer
 │       └── src/civic_services/
 │           ├── servers/                         # API entry points (REST, WebSocket)
 │           ├── clients/                         # External API clients
@@ -236,8 +236,8 @@ civic/
 │           ├── core/                            # Infrastructure
 │           └── utils/                           # Utilities
 ├── apps/                                        # Client applications
-│   ├── civic-workspace/                         # Vue.js web frontend
-│   └── civic-mcp/                              # MCP server for AI assistants
+│   ├── civicos-workspace/                         # Vue.js web frontend
+│   └── civicos-mcp/                              # MCP server for AI assistants
 ├── data/                                        # Extracted civic data
 │   ├── schema/                                  # Schema-compliant JSON
 │   └── pilot/                                   # San Rafael pilot data

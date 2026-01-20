@@ -66,11 +66,11 @@ cd civic
 ### Step 2: Create Python Environment
 
 ```bash
-python3 -m venv civic-env
-source civic-env/bin/activate
+python3 -m venv civicos-env
+source civicos-env/bin/activate
 pip install -e packages/civic
-pip install -e packages/civic-extraction
-pip install -e packages/civic-services
+pip install -e packages/civicos-extraction
+pip install -e packages/civicos-services
 ```
 
 ### Step 3: Configure Environment Variables
@@ -373,7 +373,7 @@ python -m civic_services.civic_socketio_server
 # Server runs on http://localhost:8002
 
 # Start frontend (separate terminal)
-cd apps/civic-workspace && npm run dev
+cd apps/civicos-workspace && npm run dev
 # Frontend runs on http://localhost:5173
 ```
 

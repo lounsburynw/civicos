@@ -16,7 +16,7 @@ Based on the argument provided (or default to smoke):
 ### smoke (default)
 Run quick core API tests:
 ```bash
-source civic-env/bin/activate && pytest packages/civic/tests/test_civic.py -q --tb=short
+source civicos-env/bin/activate && pytest packages/civic/tests/test_civic.py -q --tb=short
 ```
 
 ### targeted
@@ -49,7 +49,7 @@ Then run the identified test file. If no test_file found, inform the user.
 ### full
 Run complete test suite:
 ```bash
-source civic-env/bin/activate && pytest packages/civic/tests/ -q
+source civicos-env/bin/activate && pytest packages/civic/tests/ -q
 ```
 
 Wait for completion before reporting results. Do not poll excessively - check every 30-60 seconds if running in background.
@@ -57,7 +57,7 @@ Wait for completion before reporting results. Do not poll excessively - check ev
 ### profile
 Run full suite with timing analysis:
 ```bash
-source civic-env/bin/activate && pytest packages/civic/tests/ -q --durations=20
+source civicos-env/bin/activate && pytest packages/civic/tests/ -q --durations=20
 ```
 
 Report the 20 slowest tests to help identify optimization opportunities.

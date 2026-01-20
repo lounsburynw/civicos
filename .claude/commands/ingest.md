@@ -103,7 +103,7 @@ modal run scripts/modal_vectors.py \
 ### Step 4: Verify
 
 ```bash
-source civic-env/bin/activate && python3 -c "
+source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv; load_dotenv()
 import os, psycopg2
 conn = psycopg2.connect(os.environ['DATABASE_URL'])
@@ -119,7 +119,7 @@ print(f'Transcript vectors: {cur.fetchone()[0]}')
 
 ```bash
 # Discover meetings from ProudCity/Legistar
-source civic-env/bin/activate && civic-extract discover \
+source civicos-env/bin/activate && civic-extract discover \
   --jurisdiction {jurisdiction}
 
 # Extract agenda items
@@ -140,7 +140,7 @@ civic-extract seeclickfix --jurisdiction {jurisdiction}
 All ETL operations log costs to the `etl_costs` table:
 
 ```bash
-source civic-env/bin/activate && python3 -c "
+source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv; load_dotenv()
 import os, psycopg2
 conn = psycopg2.connect(os.environ['DATABASE_URL'])

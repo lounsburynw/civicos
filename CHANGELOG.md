@@ -41,7 +41,7 @@ enabling deployment traceability and rollback capabilities for Jan 2026 launch.
 
 ### Added
 - **Package Reorganization**
-  - `src/` → `packages/civic`, `civic-services`, `civic-extraction`
+  - `src/` → `packages/civic`, `civicos-services`, `civicos-extraction`
   - `frontend/` and `mcp_servers/` → `apps/`
   - Legal index relocation: `data/vectors/legal/`
 

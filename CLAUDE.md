@@ -1,11 +1,11 @@
 # CLAUDE.md
 
-**Civic** - AI-enabled infrastructure for local self-organization and governance.
+**CivicOS** - AI-enabled infrastructure for local self-organization and governance.
 
 ## Quick Start
 
 ```bash
-source civic-env/bin/activate
+source civicos-env/bin/activate
 ./init.sh                    # Verify environment + current phase
 cat phase.json               # Current development phase
 cat claude-progress.txt      # Where we are
@@ -16,10 +16,10 @@ cat claude-progress.txt      # Where we are
 Always confirm you're using PostgreSQL with full pilot data:
 
 ```bash
-source civic-env/bin/activate && python3 -c "
+source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv; load_dotenv()
 from civicos import CivicOS
-c = CivicOSOS('city-san-rafael')
+c = CivicOS('city-san-rafael')
 print(f'Backend: {type(c._storage).__name__}')
 # Quick API test
 print(f'Decisions: {len(c.what_happened(\"test\"))}')
@@ -38,12 +38,12 @@ LSP enables faster code navigation (50ms vs 45s) and better context awareness.
 pip install pyright
 
 # TypeScript - install in frontend
-cd apps/civic-workspace && npm install
+cd apps/civicos-workspace && npm install
 ```
 
 **Configuration files:**
 - `pyrightconfig.json` - Python LSP config (includes all packages)
-- `apps/civic-workspace/tsconfig.app.json` - TypeScript config
+- `apps/civicos-workspace/tsconfig.app.json` - TypeScript config
 
 **Enable in Claude Code:**
 ```bash
@@ -88,7 +88,7 @@ P0 is reserved for critical blockers. `/start` and `init.sh` will warn if multip
 
 ```python
 from civicos import CivicOS
-c = CivicOSOS("san-rafael")
+c = CivicOS("san-rafael")
 
 # Query methods
 c.whats_next()              # Upcoming meetings/decisions
@@ -131,7 +131,7 @@ PostgresBackend/SQLite     →  SQL (you never touch this directly)
 **Examples:**
 ```python
 # RIGHT: Use CivicOS API for semantic queries
-c = CivicOSOS('city-san-rafael')
+c = CivicOS('city-san-rafael')
 decisions = c.what_happened("housing")
 
 # RIGHT: Use DataStatus for diagnostics
@@ -155,10 +155,10 @@ pilot.json                  # Pilot checklist (active)
 claude-progress.txt         # Session state (append-only)
 init.sh                     # Verification script
 packages/civicos/             # Core API package
-packages/civic-extraction/  # Platform parsers
-packages/civic-services/         # Application layer (API server, chat, websocket)
-apps/civic-workspace/       # Vue frontend
-apps/civic-mcp/             # MCP server
+packages/civicos-extraction/  # Platform parsers
+packages/civicos-services/         # Application layer (API server, chat, websocket)
+apps/civicos-workspace/       # Vue frontend
+apps/civicos-mcp/             # MCP server
 data/                       # Extracted events, issues, legislative context
 docs/critical/              # Essential architecture docs
 docs/archive/               # Historical docs (recoverable)
@@ -375,7 +375,7 @@ Use the dev launch script to start all services with proper environment configur
 The script automatically:
 - Loads `.env` (requires `GOOGLE_MAPS_API_KEY` with Geocoding API enabled)
 - Sets `CIVICOS_DEV_MODE=true` and `CIVICOS_WEB_KEY=dev_key_local`
-- Activates `civic-env` virtual environment
+- Activates `civicos-env` virtual environment
 
 Or use the `/launch` command which documents the full process.
 
@@ -443,7 +443,7 @@ from dotenv import load_dotenv
 load_dotenv()  # REQUIRED to load DATABASE_URL
 
 from civicos import CivicOS
-c = CivicOSOS('city-san-rafael')
+c = CivicOS('city-san-rafael')
 print(type(c._storage).__name__)  # Should print: PostgresBackend
 ```
 
@@ -497,7 +497,7 @@ Use the `civic.diagnostics` module for schema-aware data queries. This prevents 
 ```python
 from civicos import CivicOS, DataStatus, VectorCoverage, format_data_status
 
-c = CivicOSOS('city-san-rafael')
+c = CivicOS('city-san-rafael')
 status = DataStatus(c._storage, c._vectors, 'city-san-rafael')
 print(format_data_status(status.summary()))  # Corpus counts, gaps, coverage
 print(status.gaps())  # Only corpora with indexing gaps

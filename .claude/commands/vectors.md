@@ -56,7 +56,7 @@ modal run scripts/modal_vectors.py --stats-only
 
 Or locally (read-only, fast):
 ```bash
-source civic-env/bin/activate && civic-extract vectors \
+source civicos-env/bin/activate && civic-extract vectors \
   --jurisdiction city-san-rafael --stats
 ```
 

@@ -39,9 +39,9 @@ log "Quarterly Legislative Context Verification"
 log "=========================================="
 
 # Activate virtual environment if it exists
-if [ -d "$PROJECT_ROOT/civic-env" ]; then
+if [ -d "$PROJECT_ROOT/civicos-env" ]; then
     log "Activating virtual environment..."
-    source "$PROJECT_ROOT/civic-env/bin/activate"
+    source "$PROJECT_ROOT/civicos-env/bin/activate"
 fi
 
 # Run verification script

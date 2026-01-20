@@ -20,7 +20,7 @@ This tutorial walks you through hands-on verification of the Civic platform. You
 ## Prerequisites
 
 ```bash
-source civic-env/bin/activate
+source civicos-env/bin/activate
 ./init.sh  # Verify environment (158 tests should pass)
 ```
 
@@ -172,7 +172,7 @@ python src/civic_api_integrated.py
 python src/civic_socketio_server.py
 
 # Terminal 3 - Frontend
-cd apps/civic-workspace && npm run dev
+cd apps/civicos-workspace && npm run dev
 ```
 
 ### 4.2 Manual Testing Checklist
@@ -244,7 +244,7 @@ SELECT * FROM outcomes LIMIT 5;
 |-------|-------|----------|
 | "No meetings found" | No events extracted recently | Expected - run extraction or use test data |
 | Database locked | Multiple connections | Close other sqlite3 sessions |
-| Import errors | Virtual env not active | Run `source civic-env/bin/activate` |
+| Import errors | Virtual env not active | Run `source civicos-env/bin/activate` |
 | Port in use | Existing process | Kill processes on 8001/8002/5173 |
 | MCP import fails | Optional dependency | Install with `pip install mcp` |
 

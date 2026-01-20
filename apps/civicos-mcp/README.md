@@ -25,7 +25,7 @@ Production MCP (Model Context Protocol) server exposing the full CivicOS API for
 
 ```bash
 # Activate virtual environment
-source civic-env/bin/activate
+source civicos-env/bin/activate
 
 # Run the server
 python civicos_server.py
@@ -85,7 +85,7 @@ Build "CivicOS San Rafael" GPT with Actions calling the REST API:
 Custom GPT Structure:
 - Name: CivicOS San Rafael
 - System prompt: San Rafael civic engagement assistant
-- Actions: OpenAPI spec -> civic-services REST API
+- Actions: OpenAPI spec -> civicos-services REST API
   - /api/meetings (whats_next)
   - /api/decisions (what_happened)
   - /api/issues (whos_with_me)

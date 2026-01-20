@@ -18,7 +18,7 @@ from config import CivicConfig
 # Test configuration - use config system
 config = CivicConfig()
 API_BASE = config.get_api_endpoint()
-API_KEY = os.getenv("CIVIC_WEB_KEY", "civic_web_key")
+API_KEY = os.getenv("CIVICOS_WEB_KEY", "civic_web_key")
 
 def test_conversation_endpoint():
     """Test the conversation API endpoint"""

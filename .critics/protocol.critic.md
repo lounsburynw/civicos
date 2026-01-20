@@ -10,7 +10,7 @@ Civic uses Python Protocols for dependency injection and testability. Implementa
 
 ### DataSource Protocol
 ```python
-# packages/civic-extraction/src/civic_extraction/sources/base.py
+# packages/civicos-extraction/src/civic_extraction/sources/base.py
 class DataSource(Protocol):
     source_id: str
     jurisdiction_id: str
@@ -22,7 +22,7 @@ class DataSource(Protocol):
 
 ### StorageBackend Protocol
 ```python
-# packages/civic/src/civic/storage/backend.py
+# packages/civicos/src/civicos/storage/backend.py
 class StorageBackend(Protocol):
     backend_type: str  # 'sqlite', 'postgres'
 
@@ -35,7 +35,7 @@ class StorageBackend(Protocol):
 
 ### VectorBackend Protocol
 ```python
-# packages/civic/src/civic/storage/vector.py
+# packages/civicos/src/civicos/storage/vector.py
 class VectorBackend(Protocol):
     backend_type: str  # 'faiss', 'chromadb'
 

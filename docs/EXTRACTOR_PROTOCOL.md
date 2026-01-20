@@ -4,7 +4,7 @@ This document describes the protocols and interfaces for building platform extra
 
 ## Overview
 
-The extraction layer (`civic-extraction` package) provides a standardized way to fetch civic data from various platforms (Legistar, CivicClerk, ProudCity, etc.) and normalize it into a common format for storage and indexing.
+The extraction layer (`civicos-extraction` package) provides a standardized way to fetch civic data from various platforms (Legistar, CivicClerk, ProudCity, etc.) and normalize it into a common format for storage and indexing.
 
 ## Core Protocols
 
@@ -286,7 +286,7 @@ This method:
 Scripts in `scripts/` must follow these rules for StorageBackend usage:
 
 **ALLOWED:**
-- Import from any package (`civic`, `civic-extraction`, `civic-services`)
+- Import from any package (`civic`, `civicos-extraction`, `civicos-services`)
 - Use public protocol methods (`store_meetings`, `update_meeting`, etc.)
 - Combine multiple pipeline stages in a single script
 
@@ -360,6 +360,6 @@ backend.complete_operation(op_id, {"meetings_stored": count})
 
 - `docs/critical/FINAL_PACKAGE_ARCHITECTURE.md` - System architecture
 - `docs/TESTING_STRATEGY.md` - Testing approach
-- `packages/civic-extraction/src/civic_extraction/meeting_schema.py` - Schema validation
+- `packages/civicos-extraction/src/civic_extraction/meeting_schema.py` - Schema validation
 - `.critics/pipeline.critic.md` - Pipeline protocol compliance checks
 - `.critics/architecture.critic.md` - Architecture layer validation

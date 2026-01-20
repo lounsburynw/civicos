@@ -46,7 +46,7 @@ Checkpoints track progress for resumable ETL operations. When ingestion is inter
 ### 1. View Checkpoint Status
 
 ```bash
-source civic-env/bin/activate && python3 -c "
+source civicos-env/bin/activate && python3 -c "
 import json
 from pathlib import Path
 from datetime import datetime

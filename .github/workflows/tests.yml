@@ -54,7 +54,7 @@ jobs:
 
       - name: Run smoke tests
         run: |
-          pytest packages/civicos/tests/test_civic.py -q --override-ini="addopts="
+          pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
   # Unit tests - fast tests that don't need heavy dependencies
   unit:

@@ -18,10 +18,10 @@ def test_legistar_endpoint():
 
     # Test configuration
     base_url = "http://localhost:8001"
-    api_key = os.getenv('CIVIC_WEB_KEY')
+    api_key = os.getenv('CIVICOS_WEB_KEY')
 
     if not api_key:
-        print("❌ CIVIC_WEB_KEY not set")
+        print("❌ CIVICOS_WEB_KEY not set")
         return False
 
     print(f"🔑 Using API key: {api_key[:10]}...")
