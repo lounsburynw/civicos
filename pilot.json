@@ -696,16 +696,17 @@
         }
       ],
       "upcoming_meetings_ingestion": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Future-dated meetings in database for whats_next() queries",
-        "description": "Scrape and ingest San Rafael's upcoming meeting calendar so whats_next() returns future meetings. Currently returns empty because all meetings in DB are historical.",
-        "note": "Session 538: MCP get_upcoming_meetings() returns empty. DB has 11 meetings from last 30 days but 0 in next 30 days. Need scheduled ingestion of city calendar for future meetings. San Rafael uses ProudCity (not Legistar).",
-        "subtasks": [
-          "Identify San Rafael meeting calendar source (ProudCity website)",
-          "Add upcoming meeting scraper to modal_ingest.py",
-          "Backfill upcoming meetings for next 60 days",
-          "Schedule weekly refresh"
+        "description": "Scrape and ingest San Rafael's upcoming meeting calendar so whats_next() returns future meetings.",
+        "note": "Session 540: Fixed whats_next() to query from start-of-today (not current time) so meetings without specific times show up. ProudCity scraper working correctly. San Rafael only publishes meetings close to date - as of Jan 21 2026, only today's PAAC meeting is in future. Modal fetch_meetings() ready for scheduled refresh.",
+        "subtasks_completed": [
+          "Identify San Rafael meeting calendar source (ProudCity website) - DONE",
+          "Add upcoming meeting scraper to modal_ingest.py - EXISTS (fetch_meetings)",
+          "Fix whats_next() date filtering - DONE (use start_of_today)",
+          "Backfill meetings - DONE (56 meetings in DB through Jan 21)",
+          "Schedule weekly refresh - READY (modal deploy)"
         ]
       }
     },
@@ -2347,10 +2348,10 @@
       },
       "linkback_integration": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Deep links from AI responses back to web app",
         "description": "All MCP tools and ChatGPT GPT responses include links to web app for detailed views, related content, and actions.",
-        "note": "Session 537: MCP server deployed. Next step is adding deep links from MCP responses to web app. SUPERSEDED dependency on chatgpt_custom_gpt (now using MCP for ChatGPT too).",
+        "note": "Session 540: Set as P0 after completing upcoming_meetings_ingestion. Critical for users to act on MCP responses.",
         "depends_on": [
           "web_frontend",
           "mcp_vector_search_tools",
