@@ -1,7 +1,7 @@
 {
   "version": "2.0",
   "phase": "pilot",
-  "last_updated": "2026-01-20",
+  "last_updated": "2026-01-21",
   "target": "January 2026",
   "summary": "Consolidated pilot checklist: completed work summarized, active items tracked individually",
   "category_order": [
@@ -612,7 +612,20 @@
           "name": "minutes_extracted",
           "status": "ready"
         }
-      ]
+      ],
+      "upcoming_meetings_ingestion": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Future-dated meetings in database for whats_next() queries",
+        "description": "Scrape and ingest San Rafael's upcoming meeting calendar so whats_next() returns future meetings. Currently returns empty because all meetings in DB are historical.",
+        "note": "Session 538: MCP get_upcoming_meetings() returns empty. DB has 11 meetings from last 30 days but 0 in next 30 days. Need scheduled ingestion of city calendar for future meetings.",
+        "subtasks": [
+          "Identify San Rafael meeting calendar source (Legistar, city website, RSS)",
+          "Add upcoming meeting scraper to modal_ingest.py",
+          "Backfill upcoming meetings for next 60 days",
+          "Schedule weekly refresh"
+        ]
+      }
     },
     "county_context": {
       "_completed_items": [
@@ -1007,6 +1020,17 @@
         "description": "Fix temporal constraints so all valid meetings are returned by API",
         "artifact": "Migration or code fix to correct valid_from/valid_to filtering",
         "note": "Depends on investigate_data_discrepancy findings. If records exist but are incorrectly filtered: (a) fix code if timestamps are wrong on insert, (b) migrate data if valid_to was incorrectly set, or (c) document if behavior is intentional.",
+        "depends_on": [
+          "investigate_data_discrepancy"
+        ]
+      },
+      "fix_legislation_temporal_versioning": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "All CA legislation records visible via what_applies()",
+        "description": "Fix temporal versioning so all CA state bills are returned by search. Currently 12/14 housing bills have expired valid_to timestamps, causing what_applies() to return only 2 bills instead of 14.",
+        "note": "Session 538: CA legislation exists in PostgreSQL (2,864 bills) but most have valid_to set to past dates. Same temporal filtering issue as meetings. Need to either fix valid_to or adjust query to get latest version regardless.",
+        "db_evidence": "14 CA housing bills exist, only 2 have valid_to=NULL (CA AB2011, CA SB1123). Others expired around 2025-12-29.",
         "depends_on": [
           "investigate_data_discrepancy"
         ]
@@ -2242,7 +2266,7 @@
       },
       "linkback_integration": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Deep links from AI responses back to web app",
         "description": "All MCP tools and ChatGPT GPT responses include links to web app for detailed views, related content, and actions.",
         "note": "Session 537: MCP server deployed. Next step is adding deep links from MCP responses to web app. SUPERSEDED dependency on chatgpt_custom_gpt (now using MCP for ChatGPT too).",

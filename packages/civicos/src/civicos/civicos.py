@@ -273,7 +273,7 @@ class CivicOS:
         Get regulatory stack for a topic.
 
         Returns federal, state, and local rules that apply to the topic.
-        Uses legislative_context_cache for state bills and federal programs.
+        Queries legislation from storage backend and municipal code from vectors.
 
         Args:
             topic: The topic to search (e.g., "housing", "bike lanes")
@@ -283,7 +283,13 @@ class CivicOS:
             RegulatoryStack with federal, state, and local context
         """
         from civicos.context import get_regulatory_context
-        result = get_regulatory_context(self.jurisdiction, topic, location)
+        result = get_regulatory_context(
+            jurisdiction=self.jurisdiction,
+            topic=topic,
+            location=location,
+            storage=self._storage,
+            vectors=self._vectors,
+        )
         # Convert to this module's RegulatoryStack to ensure type consistency
         return RegulatoryStack(
             topic=result.topic,
