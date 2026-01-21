@@ -48,6 +48,19 @@ DEFAULT_JURISDICTION = os.getenv('CIVICOS_JURISDICTION', 'san-rafael')
 try:
     civicos_client = CivicOS(DEFAULT_JURISDICTION)
     logger.info(f"Civic client initialized for {DEFAULT_JURISDICTION} (storage: {type(civicos_client._storage).__name__})")
+
+    # Pre-warm embedding model at startup (not on first query)
+    # This prevents 30-60s hangs on first search request
+    if civicos_client._vectors is not None:
+        logger.info("Pre-warming embedding model...")
+        import time
+        start = time.time()
+        # Access _embedding_provider to trigger lazy load
+        provider = civicos_client._vectors._embedding_provider
+        # Run a dummy encode to fully initialize the model
+        _ = provider.encode(["warmup query"])
+        elapsed = time.time() - start
+        logger.info(f"Embedding model ready ({provider.model_name}, {elapsed:.1f}s)")
 except Exception as e:
     civicos_client = None
     logger.warning(f"Failed to initialize Civic client: {e}")
@@ -479,6 +492,7 @@ def search_meeting_history(
 def find_similar_issues(
     topic: str,
     semantic: bool = True,
+    limit: int = 20,
 ) -> str:
     """
     Find community members and issues related to a topic.
@@ -490,6 +504,7 @@ def find_similar_issues(
     Args:
         topic: Topic to search (e.g., "traffic safety", "pothole", "graffiti")
         semantic: If True, use semantic matching to find related issues beyond exact matches
+        limit: Maximum number of issues to return (default: 20)
 
     Returns:
         Summary of community engagement: issue counts, related topics, and trends
@@ -513,42 +528,65 @@ def find_similar_issues(
     sanitized_topic = sanitized_data.get('topic', topic)
 
     try:
-        # Use Civic API's whos_with_me() for semantic issue matching
-        community = civicos_client.whos_with_me(sanitized_topic, semantic=semantic)
-
         result_parts = []
-        result_parts.append(f"# Community Engagement: {community.topic}")
-        result_parts.append(f"Jurisdiction: {community.jurisdiction}")
+        result_parts.append(f"# Community Issues: {sanitized_topic}")
+        result_parts.append(f"Jurisdiction: {civicos_client.jurisdiction}")
         result_parts.append("")
 
-        result_parts.append("## Summary")
-        result_parts.append(f"- **Related issues found:** {community.follower_count}")
-        result_parts.append("")
+        # Use vector search directly for semantic matching
+        # This bypasses whos_with_me() which incorrectly uses SQLite state
+        if semantic and civicos_client._vectors is not None:
+            results = civicos_client._vectors.search(
+                sanitized_topic,
+                civicos_client.jurisdiction,
+                'issues',
+                top_k=limit,
+            )
 
-        if community.follower_count > 0:
-            result_parts.append("This indicates community interest in this topic.")
-            result_parts.append("Citizens have reported related issues through 311/SeeClickFix.")
-            if semantic:
+            result_parts.append("## Summary")
+            result_parts.append(f"- **Related issues found:** {len(results)}")
+            result_parts.append("")
+
+            if results:
+                result_parts.append("This indicates community interest in this topic.")
+                result_parts.append("Citizens have reported related issues through 311/SeeClickFix.")
                 result_parts.append("*(Using semantic matching to find related issue types)*")
+                result_parts.append("")
+
+                result_parts.append("## Similar Issues Reported")
+                for r in results:
+                    # Extract issue details from vector result
+                    content = r.content[:200] if r.content else "No description"
+                    score = r.score if hasattr(r, 'score') else None
+
+                    # Format issue entry
+                    if score is not None:
+                        result_parts.append(f"- **[{score:.0%} match]** {content}...")
+                    else:
+                        result_parts.append(f"- {content}...")
+            else:
+                result_parts.append("No related issues found via semantic search.")
+                result_parts.append("Try different search terms or broader topics.")
         else:
-            result_parts.append("No related issues found in the database.")
-            result_parts.append("This could mean:")
-            result_parts.append("- The topic hasn't been reported through 311 channels")
-            result_parts.append("- Try different search terms")
+            # Fall back to storage-based keyword search if vectors unavailable
+            result_parts.append("## Summary")
+            result_parts.append("Semantic search unavailable. Using keyword search.")
+            result_parts.append("")
 
-        result_parts.append("")
-
-        # Include any recent voices if available
-        if community.recent_voices:
-            result_parts.append("## Recent Voices")
-            for voice in community.recent_voices[:5]:
-                result_parts.append(f"- {voice}")
-
-        # Include active initiatives if available
-        if community.active_initiatives:
-            result_parts.append("## Active Initiatives")
-            for initiative in community.active_initiatives[:5]:
-                result_parts.append(f"- {initiative}")
+            # Try to get issues from storage directly
+            if civicos_client._storage is not None:
+                issues = civicos_client._storage.get_issues(
+                    civicos_client.jurisdiction,
+                    limit=limit,
+                )
+                # Filter by keyword match (basic fallback)
+                topic_lower = sanitized_topic.lower()
+                matched = [
+                    i for i in issues
+                    if topic_lower in (getattr(i, 'description', '') or '').lower()
+                    or topic_lower in (getattr(i, 'request_type', '') or '').lower()
+                ]
+                result_parts.append(f"- **Keyword matches found:** {len(matched)}")
 
         return "\n".join(result_parts)
 
