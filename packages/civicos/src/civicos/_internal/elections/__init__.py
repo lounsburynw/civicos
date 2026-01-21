@@ -238,3 +238,15 @@ class VotingRecord:
         if self.total_votes == 0:
             return 0.0
         return (self.yes_votes / self.total_votes) * 100
+
+    @property
+    def no_percentage(self) -> float:
+        if self.total_votes == 0:
+            return 0.0
+        return (self.no_votes / self.total_votes) * 100
+
+    @property
+    def abstain_percentage(self) -> float:
+        if self.total_votes == 0:
+            return 0.0
+        return (self.abstain_votes / self.total_votes) * 100

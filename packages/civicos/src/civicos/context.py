@@ -1,19 +1,16 @@
 """
 Context Module - what_applies() implementation
 
-Provides regulatory context for topics using legislative_context_cache.
+Provides regulatory context for topics using storage backends.
 """
 
-from typing import Optional, List
+from typing import Optional, List, Any, TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime
 
-# Load environment variables for DATABASE_URL
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
+if TYPE_CHECKING:
+    from civicos.storage.protocols import StorageBackend
+    from civicos.storage.protocols.vector import VectorBackend
 
 
 @dataclass
@@ -39,6 +36,19 @@ TOPIC_MAP = {
     "finance": "budget",
     "education": "education",
     "schools": "education",
+}
+
+# Map state names to database codes
+STATE_CODE_MAP = {
+    "california": "CA",
+    "ca": "CA",
+}
+
+# Map city jurisdictions to their county
+CITY_TO_COUNTY = {
+    "city-san-rafael": "county-marin",
+    "city-berkeley": "county-alameda",
+    "city-oakland": "county-alameda",
 }
 
 
@@ -71,24 +81,29 @@ def _extract_state_from_jurisdiction(jurisdiction_id: str) -> Optional[str]:
 def get_regulatory_context(
     jurisdiction: str,
     topic: str,
-    location: str = None
+    location: str = None,
+    storage: Optional["StorageBackend"] = None,
+    vectors: Optional["VectorBackend"] = None,
 ) -> RegulatoryStack:
     """
     Get regulatory stack for a topic.
 
-    Uses legislative_context_cache for state bills and federal programs.
+    Uses storage backend for legislation queries and vector backend for
+    semantic search of municipal code.
 
     Args:
         jurisdiction: City/jurisdiction ID
         topic: Topic to search
         location: Optional location for local rules
+        storage: Optional storage backend (passed from CivicOS)
+        vectors: Optional vector backend (passed from CivicOS)
 
     Returns:
         RegulatoryStack with federal, state, local context
     """
-    federal = []
-    state = []
-    local = []
+    federal: List[dict] = []
+    state: List[dict] = []
+    local: List[dict] = []
 
     # Normalize topic to state_key
     topic_lower = topic.lower()
@@ -106,60 +121,41 @@ def get_regulatory_context(
             local=[{"note": "Local ordinances not yet supported"}],
         )
 
-    try:
-        # Import the legislative cache from civicos_services
-        from civicos_services.legislative.legislative_context_cache import legislative_cache
+    state_code = STATE_CODE_MAP.get(state_name.lower(), state_name.upper())
 
-        # Load legislative data for this state/topic
-        legislative_data = legislative_cache.get(state_name, state_key)
+    # Query state legislation using storage backend
+    if storage is not None:
+        try:
+            bills = storage.get_legislation(
+                state=state_code,
+                topic=state_key,
+                status="Active",
+                limit=10,
+            )
 
-        if legislative_data:
-            # Extract state legislation
-            state_legislation = legislative_data.get("state_legislation", {})
-            for bill_id, bill_data in state_legislation.items():
+            for bill in bills:
                 state.append({
                     "type": "bill",
-                    "id": bill_id,
-                    "bill": bill_data.get("bill", bill_id),
-                    "title": bill_data.get("title", ""),
-                    "leverage_point": bill_data.get("leverage_point", ""),
-                    "keywords": bill_data.get("keywords", []),
+                    "id": bill.get("bill_id", ""),
+                    "bill_number": bill.get("bill_number", ""),
+                    "bill_name": bill.get("bill_name", ""),
+                    "status": bill.get("status", ""),
+                    "enacted_date": bill.get("enacted_date", ""),
+                    "summary": bill.get("summary", ""),
+                    "leverage_point": bill.get("leverage_point", ""),
+                    "keywords": bill.get("keywords", []),
+                    "official_url": bill.get("official_url", ""),
                 })
+        except Exception as e:
+            state = [{"note": f"Error loading state legislation: {e}"}]
 
-            # Extract federal programs
-            federal_programs = legislative_data.get("federal_programs", {})
-            for prog_id, prog_data in federal_programs.items():
-                federal.append({
-                    "type": "program",
-                    "id": prog_id,
-                    "program_name": prog_data.get("program_name", prog_id),
-                    "agency": prog_data.get("administering_agency", prog_data.get("agency", "")),
-                    "leverage_point": prog_data.get("leverage_point", ""),
-                    "keywords": prog_data.get("keywords", []),
-                })
+    if not state:
+        state = [{"note": f"No state bills for topic '{state_key}'"}]
 
-        if not state:
-            state = [{"note": f"No state bills for topic '{state_key}'"}]
-        if not federal:
-            federal = [{"note": f"No federal programs for topic '{state_key}'"}]
-
-    except ImportError:
-        state = [{"note": "legislative_context_cache not available"}]
-        federal = [{"note": "legislative_context_cache not available"}]
-    except Exception as e:
-        state = [{"note": f"Error loading state legislation: {e}"}]
-        federal = [{"note": f"Error loading federal programs: {e}"}]
-
-    # Search U.S. Code (codified federal law)
-    try:
-        import os
-        database_url = os.getenv("DATABASE_URL")
-        if database_url:
-            from civicos.storage.postgres_backend import PostgresBackend
-            db = PostgresBackend(database_url)
-
-            # Search codified law for relevant sections
-            sections = db.search_codified_law(
+    # Search U.S. Code (codified federal law) using storage backend
+    if storage is not None:
+        try:
+            sections = storage.search_codified_law(
                 jurisdiction_id="federal-US",
                 query=topic,
                 limit=5,
@@ -174,24 +170,13 @@ def get_regulatory_context(
                     "text_preview": section.get("text_preview", "")[:300],
                     "relevance": round(float(section.get("relevance", 0)), 4),
                 })
+        except Exception:
+            pass  # Codified law search not available
 
-            # Remove the "no federal" note if we found codified law
-            if sections and federal and federal[0].get("note"):
-                federal = [f for f in federal if not f.get("note")]
-
-    except Exception:
-        pass  # Codified law search not available
-
-    # Search CFR (Code of Federal Regulations)
-    try:
-        import os
-        database_url = os.getenv("DATABASE_URL")
-        if database_url:
-            from civicos.storage.postgres_backend import PostgresBackend
-            db = PostgresBackend(database_url)
-
-            # Search CFR for relevant regulatory sections
-            cfr_sections = db.search_codified_law(
+    # Search CFR (Code of Federal Regulations) using storage backend
+    if storage is not None:
+        try:
+            cfr_sections = storage.search_codified_law(
                 jurisdiction_id="federal-CFR",
                 query=topic,
                 limit=5,
@@ -206,24 +191,16 @@ def get_regulatory_context(
                     "text_preview": section.get("text_preview", "")[:300],
                     "relevance": round(float(section.get("relevance", 0)), 4),
                 })
+        except Exception:
+            pass  # CFR search not available
 
-            # Remove the "no federal" note if we found CFR
-            if cfr_sections and federal and federal[0].get("note"):
-                federal = [f for f in federal if not f.get("note")]
+    if not federal:
+        federal = [{"note": f"No federal regulations found for topic '{topic}'"}]
 
-    except Exception:
-        pass  # CFR search not available
-
-    # Search local municipal code (city ordinances) using pgvector
-    try:
-        import os
-        database_url = os.getenv("DATABASE_URL")
-        if database_url:
-            from civicos.storage.pgvector_backend import PgVectorBackend
-            pgvector = PgVectorBackend(database_url, provider_type="fastembed")
-
-            # Search municipal code vectors
-            results = pgvector.search(
+    # Search local municipal code using vector backend
+    if vectors is not None:
+        try:
+            results = vectors.search(
                 query=topic,
                 jurisdiction_id=jurisdiction,
                 corpus_type="municipal_code",
@@ -231,7 +208,6 @@ def get_regulatory_context(
             )
 
             for result in results:
-                # Only include results with reasonable relevance
                 if result.score > 0:
                     local.append({
                         "type": "ordinance",
@@ -242,51 +218,33 @@ def get_regulatory_context(
                         "text_preview": result.content[:300] if result.content else "",
                         "relevance_score": round(result.score, 3),
                     })
-
-    except ImportError:
-        pass  # PgVectorBackend not available
-    except Exception:
-        pass  # Municipal code search error, continue with county
+        except Exception:
+            pass  # Municipal code search error
 
     # Search county code (applies to cities within the county)
-    # Map city jurisdictions to their county
-    CITY_TO_COUNTY = {
-        "city-san-rafael": "county-marin",
-        "city-berkeley": "county-alameda",
-        "city-oakland": "county-alameda",
-    }
-
     county_jurisdiction = CITY_TO_COUNTY.get(jurisdiction)
-    if county_jurisdiction:
+    if county_jurisdiction and vectors is not None:
         try:
-            import os
-            database_url = os.getenv("DATABASE_URL")
-            if database_url:
-                from civicos.storage.pgvector_backend import PgVectorBackend
-                pgvector = PgVectorBackend(database_url, provider_type="fastembed")
+            results = vectors.search(
+                query=topic,
+                jurisdiction_id=county_jurisdiction,
+                corpus_type="municipal_code",
+                top_k=5,
+            )
 
-                # Search county code vectors
-                results = pgvector.search(
-                    query=topic,
-                    jurisdiction_id=county_jurisdiction,
-                    corpus_type="municipal_code",
-                    top_k=5,
-                )
-
-                for result in results:
-                    if result.score > 0:
-                        local.append({
-                            "type": "county_ordinance",
-                            "id": result.id,
-                            "section_number": result.metadata.get("section_number", ""),
-                            "section_name": result.metadata.get("section_name", ""),
-                            "chapter": result.metadata.get("chapter", ""),
-                            "text_preview": result.content[:300] if result.content else "",
-                            "relevance_score": round(result.score, 3),
-                            "jurisdiction": county_jurisdiction,
-                        })
-
-        except (ImportError, Exception):
+            for result in results:
+                if result.score > 0:
+                    local.append({
+                        "type": "county_ordinance",
+                        "id": result.id,
+                        "section_number": result.metadata.get("section_number", ""),
+                        "section_name": result.metadata.get("section_name", ""),
+                        "chapter": result.metadata.get("chapter", ""),
+                        "text_preview": result.content[:300] if result.content else "",
+                        "relevance_score": round(result.score, 3),
+                        "jurisdiction": county_jurisdiction,
+                    })
+        except Exception:
             pass  # County code search not available
 
     if not local:
