@@ -615,12 +615,12 @@
       ],
       "upcoming_meetings_ingestion": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Future-dated meetings in database for whats_next() queries",
         "description": "Scrape and ingest San Rafael's upcoming meeting calendar so whats_next() returns future meetings. Currently returns empty because all meetings in DB are historical.",
-        "note": "Session 538: MCP get_upcoming_meetings() returns empty. DB has 11 meetings from last 30 days but 0 in next 30 days. Need scheduled ingestion of city calendar for future meetings.",
+        "note": "Session 538: MCP get_upcoming_meetings() returns empty. DB has 11 meetings from last 30 days but 0 in next 30 days. Need scheduled ingestion of city calendar for future meetings. San Rafael uses ProudCity (not Legistar).",
         "subtasks": [
-          "Identify San Rafael meeting calendar source (Legistar, city website, RSS)",
+          "Identify San Rafael meeting calendar source (ProudCity website)",
           "Add upcoming meeting scraper to modal_ingest.py",
           "Backfill upcoming meetings for next 60 days",
           "Schedule weekly refresh"
@@ -1025,12 +1025,11 @@
         ]
       },
       "fix_legislation_temporal_versioning": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "All CA legislation records visible via what_applies()",
-        "description": "Fix temporal versioning so all CA state bills are returned by search. Currently 12/14 housing bills have expired valid_to timestamps, causing what_applies() to return only 2 bills instead of 14.",
-        "note": "Session 538: CA legislation exists in PostgreSQL (2,864 bills) but most have valid_to set to past dates. Same temporal filtering issue as meetings. Need to either fix valid_to or adjust query to get latest version regardless.",
-        "db_evidence": "14 CA housing bills exist, only 2 have valid_to=NULL (CA AB2011, CA SB1123). Others expired around 2025-12-29.",
+        "description": "Fix temporal versioning so all CA state bills are returned by search. Previously 9/11 housing bills had expired valid_to timestamps, causing what_applies() to return only 2 bills instead of 6 Active bills.",
+        "note": "Session 540: Fixed store_legislation() to use upsert pattern (check-before-close) matching store_meetings(). Ran one-time migration to set valid_to=NULL for latest versions. Result: what_applies('housing') now returns 6 Active CA bills (was 2). 11 unique housing bills exist, 6 are Active.",
         "depends_on": [
           "investigate_data_discrepancy"
         ]

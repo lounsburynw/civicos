@@ -15089,3 +15089,55 @@ The `modal_ingest.py` script was using old package names (`civic`, `civic_extrac
 
 ### Next P0
 `linkback_integration` - Add deep links from MCP responses back to web app
+
+## Session 540: fix_legislation_temporal_versioning - P0
+
+**Date:** 2026-01-21
+**Item:** fix_legislation_temporal_versioning (data_integrity > temporal_filtering)
+**Priority:** P0 (IMMEDIATE)
+
+### Problem
+
+CA state legislation was being filtered out by temporal versioning. `what_applies("housing")` returned only 2 bills instead of all Active bills because 9/11 housing bills had expired `valid_to` timestamps.
+
+### Root Cause
+
+`store_legislation()` in postgres_backend.py used the old pattern: close ALL old versions before inserting new ones. This caused bills not included in the current scrape to get `valid_to` set to past dates, making them invisible to queries.
+
+The `store_meetings()` function was fixed in Session 471 with the proper upsert pattern, but legislation wasn't updated.
+
+### Fixes Applied
+
+1. **Updated store_legislation() upsert pattern** (postgres_backend.py:4334-4462)
+   - Now checks if bill exists before modifying
+   - Compares key fields (bill_name, status, summary, bill_number)
+   - Only closes old version if data actually changed
+   - Updates timestamp without closing if no changes
+   - Preserves bills not in current scrape window
+
+2. **One-time data migration**
+   - Set `valid_to=NULL` for the latest version of each bill
+   - Fixed 9 CA housing bills that had expired `valid_to` dates
+   - Query: Get DISTINCT ON (bill_id) latest version, update if valid_to IS NOT NULL
+
+### Results
+
+**Before fix:**
+- `what_applies("housing")` returned 2 bills (only those with valid_to=NULL)
+
+**After fix:**
+- `what_applies("housing")` returns 6 Active bills
+- 11 unique CA housing bills exist (all now visible)
+- 6 have status='Active', 5 have status=None
+
+### Files Modified
+
+- `packages/civicos/src/civicos/storage/postgres_backend.py` - store_legislation() upsert fix
+
+### SQLite Note
+
+SQLite backend has stub implementations for legislation (Postgres-only feature). No SQLite fix needed.
+
+### Next P0
+
+`upcoming_meetings_ingestion` - Ingest future meetings so whats_next() returns data. San Rafael uses ProudCity.
