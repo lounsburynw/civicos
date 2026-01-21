@@ -120,8 +120,8 @@ civic_image = (
     )
     # Environment variables (must come before add_local_* per Modal requirements)
     .env({"CIVICOS_CONFIG_DIR": "/config/extraction"})
-    # Add local civic packages (add_local_* must be last)
-    .add_local_python_source("civic", "civic_config", "civic_extraction", "civic_services")
+    # Add local civicos packages (add_local_* must be last)
+    .add_local_python_source("civicos", "civicos_config", "civicos_extraction", "civicos_services")
     # Add jurisdiction config files for config-driven pipeline iteration
     .add_local_dir("data/extraction", remote_path="/config/extraction")
 )
@@ -161,8 +161,8 @@ def fetch_municipal_code(
     logger = logging.getLogger(__name__)
     start_time = time.time()
 
-    from civic._internal.legal.corpus.municipal import MunicipalCodeCorpus
-    from civic.storage.postgres_backend import PostgresBackend
+    from civicos._internal.legal.corpus.municipal import MunicipalCodeCorpus
+    from civicos.storage.postgres_backend import PostgresBackend
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
@@ -223,7 +223,7 @@ def fetch_municipal_code(
 
     # Log to operating_costs table
     if not dry_run:
-        from civic.cost import log_modal_cost
+        from civicos.cost import log_modal_cost
         log_modal_cost(
             function_name="fetch_municipal_code",
             elapsed_seconds=elapsed,
@@ -275,7 +275,7 @@ def fetch_legislation(
     logger = logging.getLogger(__name__)
     start_time = time.time()
 
-    from civic.storage.postgres_backend import PostgresBackend
+    from civicos.storage.postgres_backend import PostgresBackend
 
     database_url = os.environ.get("DATABASE_URL")
     legiscan_key = os.environ.get("LEGISCAN_API_KEY")
@@ -415,7 +415,7 @@ def fetch_legislation(
 
     # Log to operating_costs table
     if not dry_run:
-        from civic.cost import log_modal_cost
+        from civicos.cost import log_modal_cost
         log_modal_cost(
             function_name="fetch_legislation",
             elapsed_seconds=elapsed,
@@ -465,8 +465,8 @@ def fetch_executive_orders(
     logger = logging.getLogger(__name__)
     start_time = time.time()
 
-    from civic.storage.postgres_backend import PostgresBackend
-    from civic_extraction.clients.federal_register import FederalRegisterClient
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos_extraction.clients.federal_register import FederalRegisterClient
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
@@ -566,7 +566,7 @@ def _fetch_eo_text_batch(orders: list[dict]) -> dict:
     import time
     import requests
 
-    from civic.storage.postgres_backend import PostgresBackend
+    from civicos.storage.postgres_backend import PostgresBackend
 
     database_url = os.environ.get("DATABASE_URL")
     backend = PostgresBackend(database_url)
@@ -638,7 +638,7 @@ def backfill_executive_orders_text(
     logger = logging.getLogger(__name__)
     start_time = time.time()
 
-    from civic.storage.postgres_backend import PostgresBackend
+    from civicos.storage.postgres_backend import PostgresBackend
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
@@ -737,8 +737,8 @@ def fetch_federal_programs(
     logger = logging.getLogger(__name__)
     start_time = time.time()
 
-    from civic.storage.postgres_backend import PostgresBackend
-    from civic_extraction.clients.sam_assistance import (
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos_extraction.clients.sam_assistance import (
         SAMAssistanceClient,
         sam_program_to_storage,
     )
@@ -867,13 +867,13 @@ def fetch_hud_allocations(
     logger = logging.getLogger(__name__)
     start_time = time.time()
 
-    from civic.storage.postgres_backend import PostgresBackend
-    from civic_extraction.clients.hud_exchange import (
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos_extraction.clients.hud_exchange import (
         HUDExchangeClient,
         HUD_ALLOCATION_URLS,
         hud_allocation_to_storage,
     )
-    from civic_extraction.config import get_hud_grantee, get_hud_relationship
+    from civicos_extraction.config import get_hud_grantee, get_hud_relationship
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
@@ -1008,7 +1008,7 @@ def fetch_all_hud_allocations(dry_run: bool = False) -> dict:
     logger = logging.getLogger(__name__)
     start_time = time.time()
 
-    from civic_extraction.config import get_jurisdictions_with_hud_config
+    from civicos_extraction.config import get_jurisdictions_with_hud_config
 
     # Get all jurisdictions with HUD config
     jurisdictions = get_jurisdictions_with_hud_config()
@@ -1089,7 +1089,7 @@ def _embed_and_store_batch(
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logger = logging.getLogger(__name__)
 
-    from civic.storage.pgvector_backend import PgVectorBackend
+    from civicos.storage.pgvector_backend import PgVectorBackend
 
     database_url = os.environ.get("DATABASE_URL")
     pgvector = PgVectorBackend(connection_string=database_url, provider_type="fastembed")
@@ -1186,10 +1186,10 @@ def index_vectors(
     logger = logging.getLogger(__name__)
     start_time = time.time()
 
-    from civic.storage import get_storage_backend
-    from civic.storage.pgvector_backend import PgVectorBackend
-    from civic._internal.meetings.transcript import expand_transcripts_to_chunks
-    from civic._internal.legal.embeddings.chunker import (
+    from civicos.storage import get_storage_backend
+    from civicos.storage.pgvector_backend import PgVectorBackend
+    from civicos._internal.meetings.transcript import expand_transcripts_to_chunks
+    from civicos._internal.legal.embeddings.chunker import (
         expand_municipal_code_to_chunks,
         expand_legislation_to_chunks,
         expand_executive_orders_to_chunks,
@@ -1349,7 +1349,7 @@ def fetch_meetings(
     logger = logging.getLogger(__name__)
     start_time = time.time()
 
-    from civic.storage.postgres_backend import PostgresBackend
+    from civicos.storage.postgres_backend import PostgresBackend
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
@@ -1377,7 +1377,7 @@ def fetch_meetings(
         raise ValueError(f"Unknown jurisdiction: {jurisdiction}. Add to JURISDICTION_URLS mapping.")
 
     try:
-        from civic_extraction.clients.proudcity import ProudCityClient
+        from civicos_extraction.clients.proudcity import ProudCityClient
         client = ProudCityClient(
             base_url=base_url,
             jurisdiction_id=jurisdiction,
@@ -1483,8 +1483,8 @@ def fetch_videos(
     logger = logging.getLogger(__name__)
     start_time = time.time()
 
-    from civic.storage.postgres_backend import PostgresBackend
-    from civic_extraction.clients.youtube_boards import YouTubeBoardsSource
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos_extraction.clients.youtube_boards import YouTubeBoardsSource
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
@@ -1594,8 +1594,8 @@ def fetch_issues(
     logger = logging.getLogger(__name__)
     start_time = time.time()
 
-    from civic.storage.postgres_backend import PostgresBackend
-    from civic_services.clients.seeclickfix_client import SeeClickFixClient
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos_services.clients.seeclickfix_client import SeeClickFixClient
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
@@ -1756,8 +1756,8 @@ def fetch_elections(
     logger = logging.getLogger(__name__)
     start_time = time.time()
 
-    from civic.storage.postgres_backend import PostgresBackend
-    from civic_extraction.clients.google_civic import (
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos_extraction.clients.google_civic import (
         GoogleCivicClient,
         google_civic_to_election,
     )
@@ -1889,8 +1889,8 @@ def fetch_elected_officials(
     logger = logging.getLogger(__name__)
     start_time = time.time()
 
-    from civic.storage.postgres_backend import PostgresBackend
-    from civic_extraction.clients.representatives import (
+    from civicos.storage.postgres_backend import PostgresBackend
+    from civicos_extraction.clients.representatives import (
         RepresentativesClient,
         extract_elected_officials_to_storage,
     )
@@ -2015,7 +2015,7 @@ def extract_chunks(
     logger = logging.getLogger(__name__)
     start_time = time.time()
 
-    from civic_extraction.cli.chunks import run_chunk_extraction
+    from civicos_extraction.cli.chunks import run_chunk_extraction
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
@@ -2134,7 +2134,7 @@ def extract_agenda_items(
     logger = logging.getLogger(__name__)
     start_time = time.time()
 
-    from civic_extraction.cli.agenda import run_agenda_extraction
+    from civicos_extraction.cli.agenda import run_agenda_extraction
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
@@ -2264,7 +2264,7 @@ def extract_decisions(
     logger = logging.getLogger(__name__)
     start_time = time.time()
 
-    from civic_extraction.cli.decisions import run_decision_extraction
+    from civicos_extraction.cli.decisions import run_decision_extraction
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
@@ -2410,7 +2410,7 @@ def extract_transcripts(
     # Step 1: Download audio files (if not already in R2)
     logger.info("[TRANSCRIPTS] Step 1: Downloading audio files...")
     try:
-        from civic_extraction.cli.audio import run_audio_download
+        from civicos_extraction.cli.audio import run_audio_download
 
         audio_results = run_audio_download(
             jurisdiction_id=jurisdiction,
@@ -2441,7 +2441,7 @@ def extract_transcripts(
     # Step 2: Transcribe audio files
     logger.info("[TRANSCRIPTS] Step 2: Transcribing audio files...")
     try:
-        from civic_extraction.cli.transcribe import run_transcription
+        from civicos_extraction.cli.transcribe import run_transcription
 
         transcribe_results = run_transcription(
             jurisdiction_id=jurisdiction,
@@ -2555,7 +2555,7 @@ def scheduled_low_velocity_refresh():
     logger.info("Starting scheduled low-velocity refresh")
     start_time = time.time()
 
-    from civic_extraction.config import get_active_jurisdictions
+    from civicos_extraction.config import get_active_jurisdictions
 
     jurisdictions = get_active_jurisdictions()
     logger.info(f"Found {len(jurisdictions)} configured jurisdictions: {list(jurisdictions.keys())}")
@@ -2716,7 +2716,7 @@ def scheduled_high_velocity_refresh():
     logger.info("Starting scheduled high-velocity refresh")
     start_time = time.time()
 
-    from civic_extraction.config import get_active_jurisdictions
+    from civicos_extraction.config import get_active_jurisdictions
 
     jurisdictions = get_active_jurisdictions()
     logger.info(f"Found {len(jurisdictions)} configured jurisdictions: {list(jurisdictions.keys())}")
@@ -2860,7 +2860,7 @@ def scheduled_election_refresh():
     logger.info("Starting scheduled election refresh")
     start_time = time.time()
 
-    from civic_extraction.config import get_active_jurisdictions
+    from civicos_extraction.config import get_active_jurisdictions
 
     jurisdictions = get_active_jurisdictions()
     logger.info(f"Found {len(jurisdictions)} configured jurisdictions: {list(jurisdictions.keys())}")
@@ -2920,9 +2920,9 @@ def get_stats(jurisdiction: str = "city-san-rafael") -> dict:
     """Get current ingestion statistics."""
     import os
 
-    from civic.storage import get_storage_backend
-    from civic.storage.pgvector_backend import PgVectorBackend
-    from civic.storage.postgres_backend import PostgresBackend
+    from civicos.storage import get_storage_backend
+    from civicos.storage.pgvector_backend import PgVectorBackend
+    from civicos.storage.postgres_backend import PostgresBackend
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:

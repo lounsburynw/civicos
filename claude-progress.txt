@@ -15063,3 +15063,29 @@ results = civicos_client._vectors.search(
 **pilot.json updated:**
 - Added new item: `pipeline_automation > scheduling > meeting_agenda_scheduled_refresh`
 - Changed `linkback_integration` priority from 0 to 1
+
+## Session 539 - 2026-01-21
+
+**P0: meeting_agenda_scheduled_refresh** → COMPLETED
+
+### Root Cause Found
+The `modal_ingest.py` script was using old package names (`civic`, `civic_extraction`, etc.) after the packages were renamed to `civicos` on Jan 17. The scheduled Modal functions couldn't find the packages.
+
+### Fixes Applied
+1. Updated `add_local_python_source()` from `"civic", "civic_config", "civic_extraction", "civic_services"` to `"civicos", "civicos_config", "civicos_extraction", "civicos_services"`
+2. Changed 23 imports from `from civic.` to `from civicos.`
+3. Changed 17 imports from `from civic_extraction.` to `from civicos_extraction.`
+4. Changed 1 import from `from civic_services.` to `from civicos_services.`
+5. Redeployed Modal app with `modal deploy scripts/modal_ingest.py`
+
+### Results
+- Extracted 1,465 chunks from 8 meetings (backlog)
+- Jan 20 City Council meeting: 938 chunks
+- Total: 6,422 chunks in database
+- 42 meetings now have searchable chunks
+
+### Documentation Fix
+- Corrected `docs/next_session_prompt.md` - San Rafael uses ProudCity, not Legistar
+
+### Next P0
+`linkback_integration` - Add deep links from MCP responses back to web app

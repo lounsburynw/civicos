@@ -1709,23 +1709,23 @@
         ]
       },
       "meeting_agenda_scheduled_refresh": {
-        "status": "not_ready",
-        "priority": 0,
-        "description": "Automated daily/weekly refresh of meeting metadata and agenda PDFs from Legistar/CivicClerk",
-        "artifact": "Scheduled job that discovers new meetings, downloads agenda packets, extracts PDF text, and indexes to PostgreSQL + vectors",
-        "note": "Session 538: Data shows meetings are current but agenda PDFs are 5 days stale. City Council meeting TODAY (Jan 20) missing its agenda. Without automation, product value degrades rapidly. CRITICAL for pilot.",
-        "rationale": "Meeting extraction code exists (civicos-extraction) but runs manually. Need automated scheduling to keep data fresh. This is table-stakes for a useful civic tool.",
+        "status": "ready",
+        "priority": 1,
+        "description": "Automated daily refresh of meeting metadata and agenda PDFs via Modal scheduled functions",
+        "artifact": "modal_ingest.py scheduled_high_velocity_refresh() runs daily at 6am PT, extracting meeting PDFs and indexing chunks",
+        "note": "Session 539: Fixed package name imports (civic -> civicos) in modal_ingest.py. Redeployed Modal app. Extracted 1,465 chunks from 8 meetings including Jan 20 City Council (938 chunks). Total 6,422 chunks in DB.",
+        "rationale": "San Rafael uses ProudCity (not Legistar). The scheduled_high_velocity_refresh Modal function already handles this - it was broken due to stale package names after the civic->civicos rename on Jan 17.",
         "implementation_options": [
-          "GitHub Actions cron (simplest - daily at 6am PT)",
-          "Modal scheduled function (if heavy processing needed)",
-          "Fly.io cron or separate worker"
+          "Modal scheduled function (IMPLEMENTED - scheduled_high_velocity_refresh)",
+          "GitHub Actions cron (fallback if Modal fails)",
+          "Fly.io cron (not needed)"
         ],
         "subtasks": [
-          "Create scheduled workflow for Legistar meeting discovery",
-          "Add agenda PDF download and extraction step",
-          "Trigger vector indexing after new content",
-          "Add Slack/email alert on failure",
-          "Backfill missing agendas for this week"
+          "Fixed modal_ingest.py imports from civic.* to civicos.*",
+          "Fixed add_local_python_source package names",
+          "Redeployed Modal app with modal deploy",
+          "Extracted backlog of chunks (1,465 from 8 meetings)",
+          "Jan 20 City Council meeting has 938 searchable chunks"
         ],
         "depends_on": [
           "legistar_client",
@@ -2242,7 +2242,7 @@
       },
       "linkback_integration": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Deep links from AI responses back to web app",
         "description": "All MCP tools and ChatGPT GPT responses include links to web app for detailed views, related content, and actions.",
         "note": "Session 537: MCP server deployed. Next step is adding deep links from MCP responses to web app. SUPERSEDED dependency on chatgpt_custom_gpt (now using MCP for ChatGPT too).",
