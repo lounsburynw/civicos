@@ -15049,3 +15049,17 @@ results = civicos_client._vectors.search(
 ### Next P0
 
 `linkback_integration` - Add deep links from MCP responses to web app
+
+### Session 538 Update: Priority Change
+
+**New P0:** `meeting_agenda_scheduled_refresh`
+- Data freshness is critical - today's City Council meeting missing agenda PDFs
+- Last agenda ingested: Jan 15 (5 days stale)
+- Without automation, product value degrades within days
+
+**Demoted to P1:** `linkback_integration`
+- Deep links are valuable but secondary to having fresh data
+
+**pilot.json updated:**
+- Added new item: `pipeline_automation > scheduling > meeting_agenda_scheduled_refresh`
+- Changed `linkback_integration` priority from 0 to 1
