@@ -576,7 +576,7 @@ def find_similar_issues(
             # Try to get issues from storage directly
             if civicos_client._storage is not None:
                 issues = civicos_client._storage.get_issues(
-                    civicos_client.jurisdiction,
+                    jurisdiction_id=civicos_client.jurisdiction,
                     limit=limit,
                 )
                 # Filter by keyword match (basic fallback)
@@ -593,6 +593,1568 @@ def find_similar_issues(
     except Exception as e:
         logger.error(f"Error finding similar issues: {e}")
         return f"Error finding similar issues: {str(e)}"
+
+
+# ─────────── 311 DATA ANALYSIS TOOLS ───────────
+# These tools enable AI assistants to analyze 311/SeeClickFix issue data
+# for pattern discovery, trend analysis, and community insights
+
+@mcp.tool()
+def get_issue_analytics(
+    date_range: Optional[str] = None,
+) -> str:
+    """
+    Get aggregate statistics about 311/SeeClickFix issues for analysis.
+
+    Returns pre-computed statistics including counts by type, status, location,
+    and time. Use this for high-level understanding before drilling down.
+
+    Args:
+        date_range: Optional filter - "2024", "2024-Q4", "last_90_days", "last_year"
+
+    Returns:
+        Formatted analytics including:
+        - Total counts and resolution rates
+        - Breakdown by issue type
+        - Breakdown by status
+        - Top corridors/streets
+        - Temporal trends (by year/month)
+        - Seasonal patterns
+
+    Example:
+        >>> get_issue_analytics()
+        # Returns full analytics for all 311 issues
+        >>> get_issue_analytics(date_range="2024")
+        # Returns analytics filtered to 2024
+    """
+    logger.info(f"Getting issue analytics: date_range={date_range}")
+
+    if civicos_client is None:
+        return "Error: Civic client not initialized. Check server configuration."
+
+    try:
+        storage = civicos_client._storage
+        jurisdiction = civicos_client.jurisdiction
+
+        # Get all issues (up to reasonable limit for analysis)
+        all_issues = storage.get_issues(jurisdiction_id=jurisdiction, limit=5000)
+
+        if not all_issues:
+            return f"No 311 issues found for {jurisdiction}."
+
+        # Parse date filter
+        from datetime import datetime, timedelta
+        from collections import Counter
+
+        filtered_issues = all_issues
+        filter_description = "All time"
+
+        if date_range:
+            now = datetime.now()
+            if date_range == "last_90_days":
+                cutoff = now - timedelta(days=90)
+                filter_description = "Last 90 days"
+            elif date_range == "last_year":
+                cutoff = now - timedelta(days=365)
+                filter_description = "Last 12 months"
+            elif date_range.startswith("20") and len(date_range) == 4:
+                # Year filter like "2024"
+                year = int(date_range)
+                cutoff = datetime(year, 1, 1)
+                end = datetime(year + 1, 1, 1)
+                filter_description = f"Year {year}"
+                filtered_issues = [
+                    i for i in all_issues
+                    if i.get('created_at') and cutoff <= _parse_date(i.get('created_at')) < end
+                ]
+            elif "-Q" in date_range:
+                # Quarter filter like "2024-Q4"
+                year, q = date_range.split("-Q")
+                quarter = int(q)
+                start_month = (quarter - 1) * 3 + 1
+                cutoff = datetime(int(year), start_month, 1)
+                end_month = start_month + 3
+                if end_month > 12:
+                    end = datetime(int(year) + 1, 1, 1)
+                else:
+                    end = datetime(int(year), end_month, 1)
+                filter_description = f"{year} Q{quarter}"
+                filtered_issues = [
+                    i for i in all_issues
+                    if i.get('created_at') and cutoff <= _parse_date(i.get('created_at')) < end
+                ]
+
+            if date_range in ("last_90_days", "last_year"):
+                filtered_issues = [
+                    i for i in all_issues
+                    if i.get('created_at') and _parse_date(i.get('created_at')) >= cutoff
+                ]
+
+        issues = filtered_issues
+        total = len(issues)
+
+        if total == 0:
+            return f"No issues found for date range: {filter_description}"
+
+        # Calculate statistics
+        by_status = Counter(i.get('status', 'unknown') for i in issues)
+        by_type = Counter(i.get('request_type', 'Unknown') for i in issues)
+
+        # Extract street from address
+        def extract_street(addr):
+            if not addr:
+                return "Unknown"
+            # Simple extraction: take the street name portion
+            parts = addr.split(',')[0].split()
+            # Remove house number if present
+            if parts and parts[0].isdigit():
+                parts = parts[1:]
+            return ' '.join(parts[:3]) if parts else "Unknown"
+
+        by_street = Counter(extract_street(i.get('address')) for i in issues)
+
+        # By year
+        by_year = Counter()
+        by_month = Counter()
+        for i in issues:
+            created = i.get('created_at')
+            if created:
+                dt = _parse_date(created)
+                if dt:
+                    by_year[dt.year] += 1
+                    by_month[dt.strftime('%Y-%m')] += 1
+
+        # Resolution rate
+        closed_statuses = {'closed', 'resolved', 'archived'}
+        resolved = sum(1 for i in issues if i.get('status', '').lower() in closed_statuses)
+        resolution_rate = (resolved / total * 100) if total > 0 else 0
+
+        # Build response
+        result_parts = []
+        result_parts.append(f"# 311 Issue Analytics: {jurisdiction}")
+        result_parts.append(f"**Period:** {filter_description}")
+        result_parts.append(f"**Total Issues:** {total:,}")
+        result_parts.append(f"**Resolution Rate:** {resolution_rate:.1f}%")
+        result_parts.append("")
+
+        # By Status
+        result_parts.append("## By Status")
+        for status, count in by_status.most_common():
+            pct = count / total * 100
+            result_parts.append(f"- **{status}:** {count:,} ({pct:.1f}%)")
+        result_parts.append("")
+
+        # By Type (top 10)
+        result_parts.append("## By Issue Type (Top 10)")
+        for issue_type, count in by_type.most_common(10):
+            pct = count / total * 100
+            result_parts.append(f"- **{issue_type}:** {count:,} ({pct:.1f}%)")
+        result_parts.append("")
+
+        # By Street (top 10)
+        result_parts.append("## Top Streets/Corridors")
+        for street, count in by_street.most_common(10):
+            if street != "Unknown":
+                result_parts.append(f"- **{street}:** {count:,} issues")
+        result_parts.append("")
+
+        # By Year
+        if by_year:
+            result_parts.append("## By Year")
+            for year in sorted(by_year.keys()):
+                result_parts.append(f"- **{year}:** {by_year[year]:,}")
+            result_parts.append("")
+
+        # Recent months (last 6)
+        if by_month:
+            result_parts.append("## Recent Months")
+            recent_months = sorted(by_month.keys())[-6:]
+            for month in recent_months:
+                result_parts.append(f"- **{month}:** {by_month[month]:,}")
+            result_parts.append("")
+
+        result_parts.append("---")
+        result_parts.append("*Use `query_issue_data()` for detailed breakdowns with custom filters.*")
+        result_parts.append("*Use `get_issue_sample()` to see actual issue descriptions.*")
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error getting issue analytics: {e}")
+        return f"Error getting issue analytics: {str(e)}"
+
+
+def _parse_date(date_val) -> Optional[datetime]:
+    """Helper to parse various date formats to datetime."""
+    from datetime import datetime
+    if date_val is None:
+        return None
+    if isinstance(date_val, datetime):
+        return date_val
+    if isinstance(date_val, str):
+        # Try common formats
+        for fmt in ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%Y-%m-%dT%H:%M:%S.%f'):
+            try:
+                return datetime.strptime(date_val[:19], fmt[:len(date_val[:19])])
+            except ValueError:
+                continue
+        # Try with timezone suffix
+        try:
+            return datetime.fromisoformat(date_val.replace('Z', '+00:00'))
+        except ValueError:
+            pass
+    return None
+
+
+@mcp.tool()
+def query_issue_data(
+    group_by: str = "type",
+    filter_type: Optional[str] = None,
+    filter_status: Optional[str] = None,
+    filter_street: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    limit: int = 50,
+) -> str:
+    """
+    Query 311 issue data with flexible grouping and filtering.
+
+    Enables analysis queries like:
+    - "Issues on Lincoln Ave grouped by type"
+    - "Pothole complaints by month"
+    - "Open issues by street"
+
+    Args:
+        group_by: How to group results - "type", "status", "street", "month", "year"
+        filter_type: Filter by issue type (e.g., "pothole", "graffiti")
+        filter_status: Filter by status (e.g., "open", "closed", "acknowledged")
+        filter_street: Filter by street name (partial match)
+        date_from: Start date (YYYY-MM-DD format)
+        date_to: End date (YYYY-MM-DD format)
+        limit: Max results per group (default: 50)
+
+    Returns:
+        Grouped and filtered issue data suitable for analysis
+
+    Example:
+        >>> query_issue_data(group_by="type", filter_street="Lincoln")
+        # Issues on Lincoln Ave broken down by type
+        >>> query_issue_data(group_by="month", filter_type="pothole")
+        # Pothole complaints by month
+    """
+    logger.info(f"Querying issue data: group_by={group_by}, type={filter_type}, street={filter_street}")
+
+    if civicos_client is None:
+        return "Error: Civic client not initialized. Check server configuration."
+
+    # SECURITY: Validate inputs
+    input_data = {'group_by': group_by}
+    if filter_type:
+        input_data['filter_type'] = filter_type
+    if filter_status:
+        input_data['filter_status'] = filter_status
+    if filter_street:
+        input_data['filter_street'] = filter_street
+
+    is_valid, sanitized_data, error_message = validate_civic_input(input_data)
+    if not is_valid:
+        logger.error(f"Input validation failed: {error_message}")
+        return f"Error: Invalid input - {error_message}"
+
+    try:
+        from collections import Counter
+        from datetime import datetime
+
+        storage = civicos_client._storage
+        jurisdiction = civicos_client.jurisdiction
+
+        # Get issues with optional status filter
+        all_issues = storage.get_issues(
+            jurisdiction_id=jurisdiction,
+            status=filter_status,
+            limit=5000,
+        )
+
+        if not all_issues:
+            return f"No issues found for {jurisdiction}."
+
+        # Apply filters
+        issues = all_issues
+
+        if filter_type:
+            filter_type_lower = filter_type.lower()
+            issues = [
+                i for i in issues
+                if filter_type_lower in (i.get('request_type', '') or '').lower()
+            ]
+
+        if filter_street:
+            filter_street_lower = filter_street.lower()
+            issues = [
+                i for i in issues
+                if filter_street_lower in (i.get('address', '') or '').lower()
+            ]
+
+        if date_from:
+            try:
+                from_dt = datetime.strptime(date_from, '%Y-%m-%d')
+                issues = [
+                    i for i in issues
+                    if i.get('created_at') and _parse_date(i.get('created_at')) >= from_dt
+                ]
+            except ValueError:
+                pass
+
+        if date_to:
+            try:
+                to_dt = datetime.strptime(date_to, '%Y-%m-%d')
+                issues = [
+                    i for i in issues
+                    if i.get('created_at') and _parse_date(i.get('created_at')) <= to_dt
+                ]
+            except ValueError:
+                pass
+
+        if not issues:
+            return "No issues match the specified filters."
+
+        # Group data
+        def extract_street(addr):
+            if not addr:
+                return "Unknown"
+            parts = addr.split(',')[0].split()
+            if parts and parts[0].isdigit():
+                parts = parts[1:]
+            return ' '.join(parts[:3]) if parts else "Unknown"
+
+        grouped = Counter()
+        details = {}  # Store sample issues per group
+
+        for issue in issues:
+            if group_by == "type":
+                key = issue.get('request_type', 'Unknown')
+            elif group_by == "status":
+                key = issue.get('status', 'unknown')
+            elif group_by == "street":
+                key = extract_street(issue.get('address'))
+            elif group_by == "month":
+                created = issue.get('created_at')
+                if created:
+                    dt = _parse_date(created)
+                    key = dt.strftime('%Y-%m') if dt else 'Unknown'
+                else:
+                    key = 'Unknown'
+            elif group_by == "year":
+                created = issue.get('created_at')
+                if created:
+                    dt = _parse_date(created)
+                    key = str(dt.year) if dt else 'Unknown'
+                else:
+                    key = 'Unknown'
+            else:
+                key = issue.get('request_type', 'Unknown')
+
+            grouped[key] += 1
+
+            # Store first few examples per group
+            if key not in details:
+                details[key] = []
+            if len(details[key]) < 3:  # Keep 3 examples per group
+                details[key].append({
+                    'description': (issue.get('description') or '')[:100],
+                    'address': issue.get('address', 'N/A'),
+                    'status': issue.get('status', 'N/A'),
+                })
+
+        # Build response
+        result_parts = []
+        result_parts.append(f"# Issue Query Results")
+
+        # Describe filters
+        filter_desc = []
+        if filter_type:
+            filter_desc.append(f"Type contains '{filter_type}'")
+        if filter_status:
+            filter_desc.append(f"Status = '{filter_status}'")
+        if filter_street:
+            filter_desc.append(f"Street contains '{filter_street}'")
+        if date_from or date_to:
+            filter_desc.append(f"Date range: {date_from or 'start'} to {date_to or 'now'}")
+
+        if filter_desc:
+            result_parts.append(f"**Filters:** {', '.join(filter_desc)}")
+        result_parts.append(f"**Grouped by:** {group_by}")
+        result_parts.append(f"**Total matching issues:** {len(issues):,}")
+        result_parts.append("")
+
+        # Results table
+        result_parts.append(f"## Results by {group_by.title()}")
+        result_parts.append("")
+
+        sorted_groups = sorted(grouped.items(), key=lambda x: (-x[1], x[0]))[:limit]
+
+        for key, count in sorted_groups:
+            pct = count / len(issues) * 100
+            result_parts.append(f"### {key}: {count:,} ({pct:.1f}%)")
+
+            # Show examples
+            if details.get(key):
+                for ex in details[key]:
+                    desc = ex['description'] or 'No description'
+                    result_parts.append(f"- *{desc}...* ({ex['address']})")
+            result_parts.append("")
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error querying issue data: {e}")
+        return f"Error querying issue data: {str(e)}"
+
+
+@mcp.tool()
+def get_issue_sample(
+    sample_size: int = 30,
+    filter_type: Optional[str] = None,
+    filter_status: Optional[str] = None,
+    filter_street: Optional[str] = None,
+    random_sample: bool = True,
+) -> str:
+    """
+    Get a sample of raw 311 issues for pattern analysis.
+
+    Returns individual issue records with full descriptions. Use this when you
+    need to analyze actual content (descriptions, specific complaints) rather
+    than just aggregate statistics.
+
+    Limited to manage token usage - use filters to target specific segments.
+
+    Args:
+        sample_size: Number of issues to return (max 50, default 30)
+        filter_type: Filter by issue type (e.g., "traffic", "pothole")
+        filter_status: Filter by status (e.g., "open")
+        filter_street: Filter by street name (partial match)
+        random_sample: If True, return random sample; if False, return most recent
+
+    Returns:
+        Sample of issue records with full details for content analysis
+
+    Example:
+        >>> get_issue_sample(filter_type="traffic", sample_size=20)
+        # Get 20 random traffic-related issues to analyze
+        >>> get_issue_sample(filter_street="4th St", random_sample=False)
+        # Get most recent issues on 4th Street
+    """
+    logger.info(f"Getting issue sample: size={sample_size}, type={filter_type}")
+
+    if civicos_client is None:
+        return "Error: Civic client not initialized. Check server configuration."
+
+    # Limit sample size
+    sample_size = min(sample_size, 50)
+
+    # SECURITY: Validate inputs
+    input_data = {}
+    if filter_type:
+        input_data['filter_type'] = filter_type
+    if filter_status:
+        input_data['filter_status'] = filter_status
+    if filter_street:
+        input_data['filter_street'] = filter_street
+
+    if input_data:
+        is_valid, sanitized_data, error_message = validate_civic_input(input_data)
+        if not is_valid:
+            logger.error(f"Input validation failed: {error_message}")
+            return f"Error: Invalid input - {error_message}"
+
+    try:
+        import random
+
+        storage = civicos_client._storage
+        jurisdiction = civicos_client.jurisdiction
+
+        # Get issues
+        all_issues = storage.get_issues(
+            jurisdiction_id=jurisdiction,
+            status=filter_status,
+            limit=2000,
+        )
+
+        if not all_issues:
+            return f"No issues found for {jurisdiction}."
+
+        # Apply filters
+        issues = all_issues
+
+        if filter_type:
+            filter_type_lower = filter_type.lower()
+            issues = [
+                i for i in issues
+                if filter_type_lower in (i.get('request_type', '') or '').lower()
+                or filter_type_lower in (i.get('description', '') or '').lower()
+            ]
+
+        if filter_street:
+            filter_street_lower = filter_street.lower()
+            issues = [
+                i for i in issues
+                if filter_street_lower in (i.get('address', '') or '').lower()
+            ]
+
+        if not issues:
+            return "No issues match the specified filters."
+
+        # Sample or get most recent
+        if random_sample and len(issues) > sample_size:
+            sample = random.sample(issues, sample_size)
+        else:
+            # Sort by date (most recent first) and take top N
+            sorted_issues = sorted(
+                issues,
+                key=lambda x: x.get('created_at') or '',
+                reverse=True
+            )
+            sample = sorted_issues[:sample_size]
+
+        # Build response
+        result_parts = []
+        result_parts.append(f"# Issue Sample ({len(sample)} of {len(issues):,} matching)")
+
+        # Describe filters
+        filter_desc = []
+        if filter_type:
+            filter_desc.append(f"Type: '{filter_type}'")
+        if filter_status:
+            filter_desc.append(f"Status: '{filter_status}'")
+        if filter_street:
+            filter_desc.append(f"Street: '{filter_street}'")
+
+        if filter_desc:
+            result_parts.append(f"**Filters:** {', '.join(filter_desc)}")
+        result_parts.append(f"**Sample type:** {'Random' if random_sample else 'Most recent'}")
+        result_parts.append("")
+
+        result_parts.append("---")
+        result_parts.append("")
+
+        for i, issue in enumerate(sample, 1):
+            issue_type = issue.get('request_type', 'Unknown')
+            status = issue.get('status', 'unknown')
+            address = issue.get('address', 'N/A')
+            created = issue.get('created_at', 'N/A')
+            description = issue.get('description', 'No description provided')
+
+            # Parse date for cleaner display
+            if created and created != 'N/A':
+                dt = _parse_date(created)
+                created = dt.strftime('%Y-%m-%d') if dt else str(created)[:10]
+
+            result_parts.append(f"## {i}. {issue_type}")
+            result_parts.append(f"**Status:** {status} | **Date:** {created}")
+            result_parts.append(f"**Location:** {address}")
+            result_parts.append("")
+            result_parts.append(f"> {description[:400]}{'...' if len(description) > 400 else ''}")
+            result_parts.append("")
+
+        result_parts.append("---")
+        result_parts.append("*Analyze descriptions for themes, patterns, or specific concerns.*")
+        result_parts.append("*Use `query_issue_data()` for aggregate breakdowns.*")
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error getting issue sample: {e}")
+        return f"Error getting issue sample: {str(e)}"
+
+
+@mcp.tool()
+def get_issue_resolution_stats(
+    issue_type: Optional[str] = None,
+    zip_code: Optional[str] = None,
+) -> str:
+    """
+    Get resolution statistics for 311 issues.
+
+    Shows how responsive the city is: resolution rates, average time to close,
+    and performance by issue type. Use this for accountability analysis.
+
+    Args:
+        issue_type: Filter by issue type (e.g., "pothole", "graffiti")
+        zip_code: Filter by zip code (e.g., "94901")
+
+    Returns:
+        Resolution metrics including:
+        - Overall resolution rate
+        - Average days to resolution
+        - Resolution rate by issue type
+        - Best/worst performing categories
+
+    Example:
+        >>> get_issue_resolution_stats()
+        # Overall city responsiveness
+        >>> get_issue_resolution_stats(issue_type="pothole")
+        # How quickly are potholes fixed?
+    """
+    logger.info(f"Getting resolution stats: type={issue_type}, zip={zip_code}")
+
+    if civicos_client is None:
+        return "Error: Civic client not initialized. Check server configuration."
+
+    try:
+        from datetime import datetime
+        from collections import defaultdict
+
+        storage = civicos_client._storage
+        jurisdiction = civicos_client.jurisdiction
+
+        all_issues = storage.get_issues(jurisdiction_id=jurisdiction, limit=5000)
+
+        if not all_issues:
+            return f"No issues found for {jurisdiction}."
+
+        # Apply filters
+        issues = all_issues
+
+        if issue_type:
+            issue_type_lower = issue_type.lower()
+            issues = [
+                i for i in issues
+                if issue_type_lower in (i.get('request_type', '') or '').lower()
+            ]
+
+        if zip_code:
+            issues = [
+                i for i in issues
+                if zip_code in (i.get('address', '') or '')
+            ]
+
+        if not issues:
+            return "No issues match the specified filters."
+
+        total = len(issues)
+
+        # Calculate resolution stats
+        closed_statuses = {'closed', 'resolved', 'archived'}
+        resolved_issues = [
+            i for i in issues
+            if i.get('status', '').lower() in closed_statuses
+        ]
+        resolved_count = len(resolved_issues)
+        resolution_rate = (resolved_count / total * 100) if total > 0 else 0
+
+        # Calculate time to resolution for closed issues
+        resolution_times = []
+        for issue in resolved_issues:
+            created = issue.get('created_at')
+            updated = issue.get('updated_at') or issue.get('closed_at')
+            if created and updated:
+                created_dt = _parse_date(created)
+                updated_dt = _parse_date(updated)
+                if created_dt and updated_dt and updated_dt > created_dt:
+                    days = (updated_dt - created_dt).days
+                    if days >= 0 and days < 365 * 5:  # Sanity check
+                        resolution_times.append(days)
+
+        avg_days = sum(resolution_times) / len(resolution_times) if resolution_times else None
+        median_days = sorted(resolution_times)[len(resolution_times) // 2] if resolution_times else None
+
+        # Resolution rate by type
+        type_stats = defaultdict(lambda: {'total': 0, 'resolved': 0})
+        for issue in issues:
+            issue_t = issue.get('request_type', 'Unknown')
+            type_stats[issue_t]['total'] += 1
+            if issue.get('status', '').lower() in closed_statuses:
+                type_stats[issue_t]['resolved'] += 1
+
+        # Build response
+        result_parts = []
+        result_parts.append(f"# Issue Resolution Statistics")
+
+        filter_desc = []
+        if issue_type:
+            filter_desc.append(f"Type: '{issue_type}'")
+        if zip_code:
+            filter_desc.append(f"Zip: {zip_code}")
+        if filter_desc:
+            result_parts.append(f"**Filters:** {', '.join(filter_desc)}")
+
+        result_parts.append(f"**Total Issues:** {total:,}")
+        result_parts.append("")
+
+        result_parts.append("## Overall Resolution")
+        result_parts.append(f"- **Resolved:** {resolved_count:,} ({resolution_rate:.1f}%)")
+        result_parts.append(f"- **Still Open:** {total - resolved_count:,}")
+        if avg_days is not None:
+            result_parts.append(f"- **Avg Days to Resolution:** {avg_days:.1f}")
+        if median_days is not None:
+            result_parts.append(f"- **Median Days to Resolution:** {median_days}")
+        result_parts.append("")
+
+        # Best and worst performing types
+        type_rates = [
+            (t, stats['resolved'] / stats['total'] * 100 if stats['total'] > 0 else 0, stats['total'])
+            for t, stats in type_stats.items()
+            if stats['total'] >= 5  # Min sample size
+        ]
+
+        if type_rates:
+            sorted_types = sorted(type_rates, key=lambda x: x[1], reverse=True)
+
+            result_parts.append("## Best Resolution Rates")
+            for t, rate, count in sorted_types[:5]:
+                result_parts.append(f"- **{t}:** {rate:.1f}% resolved ({count} issues)")
+            result_parts.append("")
+
+            result_parts.append("## Lowest Resolution Rates")
+            for t, rate, count in sorted_types[-5:]:
+                result_parts.append(f"- **{t}:** {rate:.1f}% resolved ({count} issues)")
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error getting resolution stats: {e}")
+        return f"Error getting resolution stats: {str(e)}"
+
+
+@mcp.tool()
+def find_issues_near_address(
+    address: str,
+    radius_miles: float = 0.25,
+    issue_type: Optional[str] = None,
+    limit: int = 30,
+) -> str:
+    """
+    Find 311 issues near a specific address.
+
+    Geocodes the address and finds issues within the specified radius.
+    Useful for discovering neighborhood concerns around your location.
+
+    Args:
+        address: Street address to search near (e.g., "123 4th St, San Rafael, CA")
+        radius_miles: Search radius in miles (default: 0.25 = ~2 blocks)
+        issue_type: Filter by issue type (e.g., "traffic", "pothole")
+        limit: Maximum results (default: 30)
+
+    Returns:
+        Issues near the address sorted by distance
+
+    Example:
+        >>> find_issues_near_address("1400 Fifth Ave, San Rafael, CA")
+        # Issues within 2 blocks of City Hall
+        >>> find_issues_near_address("123 4th St", radius_miles=0.5, issue_type="parking")
+        # Parking issues within half mile
+    """
+    logger.info(f"Finding issues near: {address}, radius={radius_miles}mi")
+
+    if civicos_client is None:
+        return "Error: Civic client not initialized. Check server configuration."
+
+    # SECURITY: Validate input
+    input_data = {'address': address}
+    if issue_type:
+        input_data['issue_type'] = issue_type
+    is_valid, sanitized_data, error_message = validate_civic_input(input_data)
+    if not is_valid:
+        return f"Error: Invalid input - {error_message}"
+
+    try:
+        import os
+        import math
+
+        # Geocode the address using Google Maps API
+        api_key = os.getenv('GOOGLE_MAPS_API_KEY')
+        if not api_key:
+            return "Error: Geocoding not available (GOOGLE_MAPS_API_KEY not set)."
+
+        import urllib.request
+        import urllib.parse
+        import json
+
+        encoded_address = urllib.parse.quote(address)
+        geocode_url = f"https://maps.googleapis.com/maps/api/geocode/json?address={encoded_address}&key={api_key}"
+
+        with urllib.request.urlopen(geocode_url, timeout=10) as response:
+            geocode_data = json.loads(response.read().decode())
+
+        if geocode_data.get('status') != 'OK' or not geocode_data.get('results'):
+            return f"Could not geocode address: {address}. Try a more complete address."
+
+        location = geocode_data['results'][0]['geometry']['location']
+        center_lat = location['lat']
+        center_lng = location['lng']
+        formatted_address = geocode_data['results'][0]['formatted_address']
+
+        # Get all issues with coordinates
+        storage = civicos_client._storage
+        jurisdiction = civicos_client.jurisdiction
+        all_issues = storage.get_issues(jurisdiction_id=jurisdiction, limit=5000)
+
+        # Filter to issues with coordinates
+        issues_with_coords = [
+            i for i in all_issues
+            if i.get('lat') and i.get('lng')
+        ]
+
+        if issue_type:
+            issue_type_lower = issue_type.lower()
+            issues_with_coords = [
+                i for i in issues_with_coords
+                if issue_type_lower in (i.get('request_type', '') or '').lower()
+            ]
+
+        # Haversine distance calculation
+        def haversine(lat1, lon1, lat2, lon2):
+            R = 3959  # Earth radius in miles
+            lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+            dlat = lat2 - lat1
+            dlon = lon2 - lon1
+            a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+            c = 2 * math.asin(math.sqrt(a))
+            return R * c
+
+        # Calculate distance for each issue
+        issues_with_distance = []
+        for issue in issues_with_coords:
+            try:
+                issue_lat = float(issue['lat'])
+                issue_lng = float(issue['lng'])
+                distance = haversine(center_lat, center_lng, issue_lat, issue_lng)
+                if distance <= radius_miles:
+                    issues_with_distance.append((issue, distance))
+            except (ValueError, TypeError):
+                continue
+
+        # Sort by distance
+        issues_with_distance.sort(key=lambda x: x[1])
+        nearby = issues_with_distance[:limit]
+
+        # Build response
+        result_parts = []
+        result_parts.append(f"# Issues Near {formatted_address}")
+        result_parts.append(f"**Search Radius:** {radius_miles} miles")
+        if issue_type:
+            result_parts.append(f"**Filter:** {issue_type}")
+        result_parts.append(f"**Found:** {len(nearby)} issues")
+        result_parts.append("")
+
+        if not nearby:
+            result_parts.append("No issues found within the search radius.")
+            result_parts.append("Try increasing the radius or removing filters.")
+            return "\n".join(result_parts)
+
+        # Group by type for summary
+        from collections import Counter
+        type_counts = Counter(i[0].get('request_type', 'Unknown') for i in nearby)
+
+        result_parts.append("## Summary by Type")
+        for issue_t, count in type_counts.most_common(5):
+            result_parts.append(f"- **{issue_t}:** {count}")
+        result_parts.append("")
+
+        result_parts.append("## Nearby Issues")
+        for issue, distance in nearby[:20]:
+            issue_type_str = issue.get('request_type', 'Unknown')
+            status = issue.get('status', 'unknown')
+            addr = issue.get('address', 'N/A')
+            desc = (issue.get('description') or '')[:100]
+
+            result_parts.append(f"### {issue_type_str} ({distance:.2f} mi)")
+            result_parts.append(f"**Status:** {status} | **Location:** {addr}")
+            if desc:
+                result_parts.append(f"> {desc}...")
+            result_parts.append("")
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error finding nearby issues: {e}")
+        return f"Error finding nearby issues: {str(e)}"
+
+
+@mcp.tool()
+def detect_trends(
+    lookback_months: int = 6,
+    min_change_pct: float = 20.0,
+    zip_code: Optional[str] = None,
+) -> str:
+    """
+    Detect significant trends in 311 issue patterns.
+
+    Compares recent period to previous period to identify what's getting
+    better or worse. Useful for spotting emerging problems.
+
+    Args:
+        lookback_months: Compare last N months to previous N months (default: 6)
+        min_change_pct: Minimum % change to report as significant (default: 20)
+        zip_code: Filter to specific zip code
+
+    Returns:
+        Trends showing increasing and decreasing issue types
+
+    Example:
+        >>> detect_trends()
+        # What's changed in the last 6 months?
+        >>> detect_trends(lookback_months=3, zip_code="94901")
+        # Recent trends in downtown San Rafael
+    """
+    logger.info(f"Detecting trends: lookback={lookback_months}mo, zip={zip_code}")
+
+    if civicos_client is None:
+        return "Error: Civic client not initialized. Check server configuration."
+
+    try:
+        from datetime import datetime, timedelta
+        from collections import Counter
+
+        storage = civicos_client._storage
+        jurisdiction = civicos_client.jurisdiction
+
+        all_issues = storage.get_issues(jurisdiction_id=jurisdiction, limit=5000)
+
+        if zip_code:
+            all_issues = [
+                i for i in all_issues
+                if zip_code in (i.get('address', '') or '')
+            ]
+
+        if not all_issues:
+            return "No issues found for analysis."
+
+        # Define time periods
+        now = datetime.now()
+        recent_start = now - timedelta(days=lookback_months * 30)
+        previous_start = recent_start - timedelta(days=lookback_months * 30)
+
+        # Categorize issues by period
+        recent_issues = []
+        previous_issues = []
+
+        for issue in all_issues:
+            created = issue.get('created_at')
+            if not created:
+                continue
+            dt = _parse_date(created)
+            if not dt:
+                continue
+
+            if dt >= recent_start:
+                recent_issues.append(issue)
+            elif dt >= previous_start:
+                previous_issues.append(issue)
+
+        if not recent_issues and not previous_issues:
+            return "Not enough historical data to detect trends."
+
+        # Count by type
+        recent_counts = Counter(i.get('request_type', 'Unknown') for i in recent_issues)
+        previous_counts = Counter(i.get('request_type', 'Unknown') for i in previous_issues)
+
+        # Calculate changes
+        all_types = set(recent_counts.keys()) | set(previous_counts.keys())
+        changes = []
+
+        for issue_type in all_types:
+            recent = recent_counts.get(issue_type, 0)
+            previous = previous_counts.get(issue_type, 0)
+
+            if previous > 0:
+                pct_change = ((recent - previous) / previous) * 100
+            elif recent > 0:
+                pct_change = 100  # New issue type
+            else:
+                continue
+
+            if abs(pct_change) >= min_change_pct and (recent >= 3 or previous >= 3):
+                changes.append({
+                    'type': issue_type,
+                    'recent': recent,
+                    'previous': previous,
+                    'change': pct_change,
+                })
+
+        # Sort by magnitude of change
+        increasing = sorted([c for c in changes if c['change'] > 0], key=lambda x: -x['change'])
+        decreasing = sorted([c for c in changes if c['change'] < 0], key=lambda x: x['change'])
+
+        # Build response
+        result_parts = []
+        result_parts.append(f"# Issue Trends Analysis")
+        result_parts.append(f"**Period:** Last {lookback_months} months vs previous {lookback_months} months")
+        if zip_code:
+            result_parts.append(f"**Zip Code:** {zip_code}")
+        result_parts.append(f"**Threshold:** Changes >= {min_change_pct}%")
+        result_parts.append("")
+
+        result_parts.append("## Overview")
+        result_parts.append(f"- **Recent period:** {len(recent_issues):,} issues")
+        result_parts.append(f"- **Previous period:** {len(previous_issues):,} issues")
+        total_change = ((len(recent_issues) - len(previous_issues)) / len(previous_issues) * 100) if previous_issues else 0
+        trend_arrow = "↑" if total_change > 0 else "↓" if total_change < 0 else "→"
+        result_parts.append(f"- **Overall trend:** {trend_arrow} {abs(total_change):.1f}%")
+        result_parts.append("")
+
+        if increasing:
+            result_parts.append("## 📈 Increasing Issues")
+            for c in increasing[:7]:
+                result_parts.append(f"- **{c['type']}:** {c['previous']} → {c['recent']} (+{c['change']:.0f}%)")
+            result_parts.append("")
+
+        if decreasing:
+            result_parts.append("## 📉 Decreasing Issues")
+            for c in decreasing[:7]:
+                result_parts.append(f"- **{c['type']}:** {c['previous']} → {c['recent']} ({c['change']:.0f}%)")
+            result_parts.append("")
+
+        if not increasing and not decreasing:
+            result_parts.append("No significant trends detected with current thresholds.")
+            result_parts.append("Try lowering min_change_pct or increasing lookback_months.")
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error detecting trends: {e}")
+        return f"Error detecting trends: {str(e)}"
+
+
+@mcp.tool()
+def find_repeat_issues(
+    min_occurrences: int = 3,
+    zip_code: Optional[str] = None,
+    issue_type: Optional[str] = None,
+) -> str:
+    """
+    Find locations with recurring issues (same problem, multiple reports).
+
+    Identifies systemic problems that aren't being permanently fixed.
+    Useful for advocacy and accountability.
+
+    Args:
+        min_occurrences: Minimum reports at same location (default: 3)
+        zip_code: Filter to specific zip code
+        issue_type: Filter by issue type
+
+    Returns:
+        Locations with repeat issues, sorted by frequency
+
+    Example:
+        >>> find_repeat_issues()
+        # Find problem locations across the city
+        >>> find_repeat_issues(issue_type="pothole", min_occurrences=5)
+        # Streets with persistent pothole problems
+    """
+    logger.info(f"Finding repeat issues: min={min_occurrences}, zip={zip_code}")
+
+    if civicos_client is None:
+        return "Error: Civic client not initialized. Check server configuration."
+
+    try:
+        from collections import defaultdict
+
+        storage = civicos_client._storage
+        jurisdiction = civicos_client.jurisdiction
+
+        all_issues = storage.get_issues(jurisdiction_id=jurisdiction, limit=5000)
+
+        # Apply filters
+        issues = all_issues
+
+        if zip_code:
+            issues = [i for i in issues if zip_code in (i.get('address', '') or '')]
+
+        if issue_type:
+            issue_type_lower = issue_type.lower()
+            issues = [
+                i for i in issues
+                if issue_type_lower in (i.get('request_type', '') or '').lower()
+            ]
+
+        if not issues:
+            return "No issues match the specified filters."
+
+        # Group by normalized location
+        def normalize_address(addr):
+            if not addr:
+                return None
+            # Simple normalization: lowercase, remove extra spaces
+            addr = ' '.join(addr.lower().split())
+            # Remove apartment/unit numbers for grouping
+            import re
+            addr = re.sub(r'\s+(apt|unit|#|ste|suite)\s*\S*', '', addr)
+            return addr[:50]  # Truncate for grouping
+
+        location_issues = defaultdict(list)
+        for issue in issues:
+            addr = normalize_address(issue.get('address'))
+            if addr:
+                location_issues[addr].append(issue)
+
+        # Find repeat locations
+        repeats = [
+            (addr, issues_list)
+            for addr, issues_list in location_issues.items()
+            if len(issues_list) >= min_occurrences
+        ]
+
+        # Sort by count
+        repeats.sort(key=lambda x: -len(x[1]))
+
+        # Build response
+        result_parts = []
+        result_parts.append(f"# Repeat Issue Locations")
+        result_parts.append(f"**Minimum occurrences:** {min_occurrences}")
+        if zip_code:
+            result_parts.append(f"**Zip Code:** {zip_code}")
+        if issue_type:
+            result_parts.append(f"**Issue Type:** {issue_type}")
+        result_parts.append(f"**Problem locations found:** {len(repeats)}")
+        result_parts.append("")
+
+        if not repeats:
+            result_parts.append("No repeat issue locations found with current criteria.")
+            result_parts.append("Try lowering min_occurrences.")
+            return "\n".join(result_parts)
+
+        for addr, issues_list in repeats[:15]:
+            count = len(issues_list)
+            # Get original address format from first issue
+            original_addr = issues_list[0].get('address', addr)
+
+            # Summarize issue types at this location
+            from collections import Counter
+            types = Counter(i.get('request_type', 'Unknown') for i in issues_list)
+            type_summary = ', '.join(f"{t} ({c})" for t, c in types.most_common(3))
+
+            # Date range
+            dates = [_parse_date(i.get('created_at')) for i in issues_list if i.get('created_at')]
+            dates = [d for d in dates if d]
+            if dates:
+                date_range = f"{min(dates).strftime('%Y-%m')} to {max(dates).strftime('%Y-%m')}"
+            else:
+                date_range = "N/A"
+
+            result_parts.append(f"## {original_addr}")
+            result_parts.append(f"**Reports:** {count} | **Period:** {date_range}")
+            result_parts.append(f"**Types:** {type_summary}")
+
+            # Sample descriptions
+            result_parts.append("**Recent reports:**")
+            for issue in issues_list[:3]:
+                desc = (issue.get('description') or '')[:80]
+                if desc:
+                    result_parts.append(f"- {desc}...")
+            result_parts.append("")
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error finding repeat issues: {e}")
+        return f"Error finding repeat issues: {str(e)}"
+
+
+@mcp.tool()
+def get_seasonal_patterns(
+    issue_type: Optional[str] = None,
+    zip_code: Optional[str] = None,
+) -> str:
+    """
+    Analyze seasonal patterns in 311 issues.
+
+    Shows which months have more/fewer issues, helping predict and
+    prepare for seasonal spikes.
+
+    Args:
+        issue_type: Filter by issue type (e.g., "pothole")
+        zip_code: Filter to specific zip code
+
+    Returns:
+        Monthly breakdown showing seasonal patterns
+
+    Example:
+        >>> get_seasonal_patterns()
+        # Overall seasonal patterns
+        >>> get_seasonal_patterns(issue_type="pothole")
+        # When do potholes peak? (hint: after rainy season)
+    """
+    logger.info(f"Getting seasonal patterns: type={issue_type}, zip={zip_code}")
+
+    if civicos_client is None:
+        return "Error: Civic client not initialized. Check server configuration."
+
+    try:
+        from collections import Counter
+
+        storage = civicos_client._storage
+        jurisdiction = civicos_client.jurisdiction
+
+        all_issues = storage.get_issues(jurisdiction_id=jurisdiction, limit=5000)
+
+        # Apply filters
+        issues = all_issues
+
+        if zip_code:
+            issues = [i for i in issues if zip_code in (i.get('address', '') or '')]
+
+        if issue_type:
+            issue_type_lower = issue_type.lower()
+            issues = [
+                i for i in issues
+                if issue_type_lower in (i.get('request_type', '') or '').lower()
+            ]
+
+        if not issues:
+            return "No issues match the specified filters."
+
+        # Count by month
+        month_counts = Counter()
+        for issue in issues:
+            created = issue.get('created_at')
+            if created:
+                dt = _parse_date(created)
+                if dt:
+                    month_counts[dt.month] += 1
+
+        if not month_counts:
+            return "No date data available for seasonal analysis."
+
+        # Calculate statistics
+        total = sum(month_counts.values())
+        avg_monthly = total / 12
+
+        month_names = [
+            'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        ]
+
+        # Build response
+        result_parts = []
+        result_parts.append("# Seasonal Issue Patterns")
+        if issue_type:
+            result_parts.append(f"**Issue Type:** {issue_type}")
+        if zip_code:
+            result_parts.append(f"**Zip Code:** {zip_code}")
+        result_parts.append(f"**Total Issues Analyzed:** {total:,}")
+        result_parts.append(f"**Average per Month:** {avg_monthly:.1f}")
+        result_parts.append("")
+
+        # Monthly breakdown with visual bar
+        result_parts.append("## Monthly Distribution")
+        result_parts.append("")
+        max_count = max(month_counts.values()) if month_counts else 1
+
+        for month in range(1, 13):
+            count = month_counts.get(month, 0)
+            pct = (count / total * 100) if total > 0 else 0
+            bar_len = int((count / max_count) * 20) if max_count > 0 else 0
+            bar = '█' * bar_len + '░' * (20 - bar_len)
+            vs_avg = ((count - avg_monthly) / avg_monthly * 100) if avg_monthly > 0 else 0
+            trend = "↑" if vs_avg > 10 else "↓" if vs_avg < -10 else ""
+            result_parts.append(f"**{month_names[month-1]}:** {bar} {count:>4} ({pct:>5.1f}%) {trend}")
+
+        result_parts.append("")
+
+        # Identify peaks and troughs
+        sorted_months = sorted(month_counts.items(), key=lambda x: -x[1])
+        peak_months = [month_names[m-1] for m, _ in sorted_months[:3]]
+        low_months = [month_names[m-1] for m, _ in sorted_months[-3:] if month_counts.get(m, 0) > 0]
+
+        result_parts.append("## Insights")
+        result_parts.append(f"- **Peak months:** {', '.join(peak_months)}")
+        if low_months:
+            result_parts.append(f"- **Lowest months:** {', '.join(low_months)}")
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error getting seasonal patterns: {e}")
+        return f"Error getting seasonal patterns: {str(e)}"
+
+
+@mcp.tool()
+def generate_neighborhood_report(
+    zip_code: str,
+    include_trends: bool = True,
+    include_repeat_issues: bool = True,
+) -> str:
+    """
+    Generate a comprehensive 311 report for a neighborhood (by zip code).
+
+    Creates a shareable summary suitable for community meetings or advocacy.
+    Combines statistics, trends, and problem areas.
+
+    Args:
+        zip_code: Zip code to analyze (e.g., "94901")
+        include_trends: Include trend analysis (default: True)
+        include_repeat_issues: Include repeat issue locations (default: True)
+
+    Returns:
+        Comprehensive neighborhood report
+
+    Example:
+        >>> generate_neighborhood_report("94901")
+        # Full report for downtown San Rafael
+    """
+    logger.info(f"Generating neighborhood report: zip={zip_code}")
+
+    if civicos_client is None:
+        return "Error: Civic client not initialized. Check server configuration."
+
+    # SECURITY: Validate input
+    input_data = {'zip_code': zip_code}
+    is_valid, sanitized_data, error_message = validate_civic_input(input_data)
+    if not is_valid:
+        return f"Error: Invalid input - {error_message}"
+
+    try:
+        from datetime import datetime, timedelta
+        from collections import Counter
+
+        storage = civicos_client._storage
+        jurisdiction = civicos_client.jurisdiction
+
+        all_issues = storage.get_issues(jurisdiction_id=jurisdiction, limit=5000)
+
+        # Filter to zip code
+        issues = [i for i in all_issues if zip_code in (i.get('address', '') or '')]
+
+        if not issues:
+            return f"No issues found for zip code {zip_code}."
+
+        total = len(issues)
+
+        # Basic stats
+        by_status = Counter(i.get('status', 'unknown') for i in issues)
+        by_type = Counter(i.get('request_type', 'Unknown') for i in issues)
+
+        # Resolution rate
+        closed_statuses = {'closed', 'resolved', 'archived'}
+        resolved = sum(1 for i in issues if i.get('status', '').lower() in closed_statuses)
+        resolution_rate = (resolved / total * 100) if total > 0 else 0
+
+        # Date range
+        dates = [_parse_date(i.get('created_at')) for i in issues if i.get('created_at')]
+        dates = [d for d in dates if d]
+        if dates:
+            date_range = f"{min(dates).strftime('%Y-%m-%d')} to {max(dates).strftime('%Y-%m-%d')}"
+        else:
+            date_range = "N/A"
+
+        # Build report
+        result_parts = []
+        result_parts.append(f"# Neighborhood Report: {zip_code}")
+        result_parts.append(f"**Generated:** {datetime.now().strftime('%Y-%m-%d')}")
+        result_parts.append(f"**Data Period:** {date_range}")
+        result_parts.append("")
+
+        result_parts.append("---")
+        result_parts.append("")
+
+        result_parts.append("## Executive Summary")
+        result_parts.append(f"- **Total 311 Issues:** {total:,}")
+        result_parts.append(f"- **Resolution Rate:** {resolution_rate:.1f}%")
+        result_parts.append(f"- **Top Issue:** {by_type.most_common(1)[0][0] if by_type else 'N/A'}")
+        result_parts.append("")
+
+        result_parts.append("## Issues by Type")
+        for issue_type, count in by_type.most_common(10):
+            pct = count / total * 100
+            result_parts.append(f"- **{issue_type}:** {count} ({pct:.1f}%)")
+        result_parts.append("")
+
+        result_parts.append("## Issues by Status")
+        for status, count in by_status.most_common():
+            pct = count / total * 100
+            result_parts.append(f"- **{status}:** {count} ({pct:.1f}%)")
+        result_parts.append("")
+
+        # Trends section
+        if include_trends:
+            result_parts.append("## Recent Trends (6 months)")
+            now = datetime.now()
+            recent_start = now - timedelta(days=180)
+            previous_start = recent_start - timedelta(days=180)
+
+            recent = [i for i in issues if _parse_date(i.get('created_at')) and _parse_date(i.get('created_at')) >= recent_start]
+            previous = [i for i in issues if _parse_date(i.get('created_at')) and previous_start <= _parse_date(i.get('created_at')) < recent_start]
+
+            if recent and previous:
+                change = ((len(recent) - len(previous)) / len(previous) * 100) if previous else 0
+                trend_arrow = "📈" if change > 10 else "📉" if change < -10 else "➡️"
+                result_parts.append(f"- **Recent:** {len(recent)} issues (last 6 mo)")
+                result_parts.append(f"- **Previous:** {len(previous)} issues")
+                result_parts.append(f"- **Trend:** {trend_arrow} {change:+.1f}%")
+            else:
+                result_parts.append("*Insufficient data for trend analysis*")
+            result_parts.append("")
+
+        # Repeat issues section
+        if include_repeat_issues:
+            result_parts.append("## Problem Locations (3+ reports)")
+            from collections import defaultdict
+
+            def normalize_address(addr):
+                if not addr:
+                    return None
+                addr = ' '.join(addr.lower().split())
+                import re
+                addr = re.sub(r'\s+(apt|unit|#|ste|suite)\s*\S*', '', addr)
+                return addr[:50]
+
+            location_issues = defaultdict(list)
+            for issue in issues:
+                addr = normalize_address(issue.get('address'))
+                if addr:
+                    location_issues[addr].append(issue)
+
+            repeats = [(addr, issues_list) for addr, issues_list in location_issues.items() if len(issues_list) >= 3]
+            repeats.sort(key=lambda x: -len(x[1]))
+
+            if repeats:
+                for addr, issues_list in repeats[:5]:
+                    original_addr = issues_list[0].get('address', addr)
+                    result_parts.append(f"- **{original_addr}:** {len(issues_list)} reports")
+            else:
+                result_parts.append("*No locations with 3+ reports*")
+            result_parts.append("")
+
+        result_parts.append("---")
+        result_parts.append(f"*Report generated by CivicOS for {jurisdiction}*")
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error generating neighborhood report: {e}")
+        return f"Error generating neighborhood report: {str(e)}"
+
+
+@mcp.tool()
+def compare_zip_codes(
+    zip_codes: str,
+) -> str:
+    """
+    Compare 311 issue patterns across multiple zip codes.
+
+    Useful for identifying which neighborhoods have more issues or
+    different issue mixes.
+
+    Args:
+        zip_codes: Comma-separated zip codes (e.g., "94901,94903,94904")
+
+    Returns:
+        Comparative analysis across zip codes
+
+    Example:
+        >>> compare_zip_codes("94901,94903")
+        # Compare downtown vs Terra Linda
+    """
+    logger.info(f"Comparing zip codes: {zip_codes}")
+
+    if civicos_client is None:
+        return "Error: Civic client not initialized. Check server configuration."
+
+    # Parse zip codes
+    zips = [z.strip() for z in zip_codes.split(',') if z.strip()]
+
+    if len(zips) < 2:
+        return "Please provide at least 2 zip codes separated by commas."
+
+    if len(zips) > 6:
+        return "Please provide no more than 6 zip codes for comparison."
+
+    try:
+        from collections import Counter
+
+        storage = civicos_client._storage
+        jurisdiction = civicos_client.jurisdiction
+
+        all_issues = storage.get_issues(jurisdiction_id=jurisdiction, limit=5000)
+
+        # Analyze each zip code
+        zip_data = {}
+        for zc in zips:
+            issues = [i for i in all_issues if zc in (i.get('address', '') or '')]
+            if not issues:
+                zip_data[zc] = None
+                continue
+
+            by_type = Counter(i.get('request_type', 'Unknown') for i in issues)
+            closed_statuses = {'closed', 'resolved', 'archived'}
+            resolved = sum(1 for i in issues if i.get('status', '').lower() in closed_statuses)
+
+            zip_data[zc] = {
+                'total': len(issues),
+                'resolved': resolved,
+                'resolution_rate': (resolved / len(issues) * 100) if issues else 0,
+                'top_types': by_type.most_common(5),
+                'by_type': by_type,
+            }
+
+        # Build comparison
+        result_parts = []
+        result_parts.append("# Zip Code Comparison")
+        result_parts.append(f"**Comparing:** {', '.join(zips)}")
+        result_parts.append("")
+
+        # Summary table
+        result_parts.append("## Overview")
+        result_parts.append("")
+        result_parts.append("| Zip Code | Total Issues | Resolution Rate | Top Issue |")
+        result_parts.append("|----------|--------------|-----------------|-----------|")
+
+        for zc in zips:
+            data = zip_data.get(zc)
+            if data:
+                top_issue = data['top_types'][0][0] if data['top_types'] else 'N/A'
+                result_parts.append(f"| {zc} | {data['total']:,} | {data['resolution_rate']:.1f}% | {top_issue} |")
+            else:
+                result_parts.append(f"| {zc} | 0 | N/A | N/A |")
+
+        result_parts.append("")
+
+        # Detailed breakdown per zip
+        for zc in zips:
+            data = zip_data.get(zc)
+            if not data:
+                continue
+
+            result_parts.append(f"## {zc}")
+            result_parts.append(f"**Total:** {data['total']:,} | **Resolved:** {data['resolution_rate']:.1f}%")
+            result_parts.append("")
+            result_parts.append("**Top Issue Types:**")
+            for issue_type, count in data['top_types']:
+                pct = count / data['total'] * 100
+                result_parts.append(f"- {issue_type}: {count} ({pct:.1f}%)")
+            result_parts.append("")
+
+        # Find unique characteristics
+        result_parts.append("## Notable Differences")
+
+        # Which zip has highest rate of each major issue type?
+        all_types = set()
+        for data in zip_data.values():
+            if data:
+                all_types.update(data['by_type'].keys())
+
+        for issue_type in list(all_types)[:5]:  # Top 5 issue types
+            rates = []
+            for zc in zips:
+                data = zip_data.get(zc)
+                if data and data['total'] > 0:
+                    count = data['by_type'].get(issue_type, 0)
+                    rate = count / data['total'] * 100
+                    rates.append((zc, rate, count))
+
+            if rates:
+                rates.sort(key=lambda x: -x[1])
+                highest = rates[0]
+                lowest = rates[-1]
+                if highest[1] > lowest[1] + 5:  # At least 5% difference
+                    result_parts.append(f"- **{issue_type}:** Highest in {highest[0]} ({highest[1]:.1f}%), lowest in {lowest[0]} ({lowest[1]:.1f}%)")
+
+        return "\n".join(result_parts)
+
+    except Exception as e:
+        logger.error(f"Error comparing zip codes: {e}")
+        return f"Error comparing zip codes: {str(e)}"
 
 
 @mcp.tool()
@@ -1557,9 +3119,12 @@ Tools: `search_meeting_history()`, `get_public_testimony()`, `search_agenda_pack
 *Understand community concerns*
 
 - "What issues are residents reporting downtown?"
-- "How many complaints about traffic on Lincoln Ave?"
+- "Analyze 311 complaint trends in San Rafael"
+- "Compare 311 patterns across zip codes 94901 vs 94903"
+- "Which locations have repeat complaints that aren't getting fixed?"
+- "Generate a neighborhood report for zip code 94901"
 
-Tool: `find_similar_issues()`
+Tools: `get_issue_analytics()`, `query_issue_data()`, `detect_trends()`, `compare_zip_codes()`, `find_repeat_issues()`, `generate_neighborhood_report()`
 
 ## Policy Research
 *Regulations and voting history*
@@ -1595,6 +3160,20 @@ def _get_started_developer() -> str:
 | `get_public_testimony(topic)` | Public comments |
 | `find_similar_issues(topic)` | 311/SeeClickFix match |
 | `get_decision_context(query)` | Decisions + linked discussion |
+
+## 311 Data Analysis
+| Tool | Purpose |
+|------|---------|
+| `get_issue_analytics(date_range)` | Aggregate stats, trends |
+| `query_issue_data(group_by, filters)` | Drill-down analysis |
+| `get_issue_sample(filters)` | Raw records for patterns |
+| `detect_trends(lookback_months)` | What's increasing/decreasing |
+| `get_seasonal_patterns(type)` | Monthly distribution |
+| `get_issue_resolution_stats()` | Resolution rates, time to fix |
+| `find_repeat_issues(min_count)` | Recurring problem locations |
+| `find_issues_near_address(addr)` | Geo-based search |
+| `compare_zip_codes(zips)` | Neighborhood comparison |
+| `generate_neighborhood_report(zip)` | Comprehensive zip report |
 
 ## Structured Queries
 | Tool | Purpose |
@@ -1754,7 +3333,7 @@ def get_corpus_stats() -> str:
         except Exception:
             pass
         try:
-            corpus_counts['issues'] = len(storage.get_issues(jurisdiction, limit=2000))
+            corpus_counts['issues'] = len(storage.get_issues(jurisdiction_id=jurisdiction, limit=2000))
         except Exception:
             pass
 
