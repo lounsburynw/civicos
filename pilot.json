@@ -584,7 +584,28 @@
           "name": "legislative_unified_search",
           "status": "ready"
         }
-      ]
+      ],
+      "legislation_status_mapping": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Human-readable status values for all CA legislation",
+        "description": "Map Legiscan numeric status codes (1-6) to readable values (Introduced, Engrossed, Enrolled, etc.). Currently 2,828 CA bills have numeric codes while only 14 have readable 'Active' status.",
+        "note": "Session 540: Identified during CA legislation completeness audit. Cosmetic improvement - queries work but status display is confusing."
+      },
+      "legislation_topic_classification": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Topic tags for all CA legislation enabling discovery",
+        "description": "Add topic classification for 2,828 untagged CA bills. Currently only 20 bills have topics (housing: 11, budget: 6, etc.). Use LLM-based classification or keyword matching on bill titles/summaries.",
+        "note": "Session 540: 99.6% of CA bills have no topic, limiting discoverability via what_applies(topic) queries."
+      },
+      "legislation_scheduled_refresh": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Automated weekly Legiscan sync for CA legislation",
+        "description": "Set up scheduled ingestion to keep CA legislation current. All 2,839 bills were ingested on 2025-12-29 as a one-time bulk load with no ongoing updates.",
+        "note": "Session 540: Ensures new bills and status changes are captured automatically. Add to modal_ingest.py scheduled functions."
+      }
     },
     "transcript_backlog": {
       "_completed_items": [
