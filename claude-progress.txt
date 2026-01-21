@@ -14993,3 +14993,59 @@ Remains `remote_mcp_deployment` until actual deployment is completed.
 
 **Next P0:** `linkback_integration` - Add deep links from MCP responses to web app
 
+
+## Session 538: Fix find_similar_issues MCP Tool
+
+**Date:** 2026-01-20
+**Item:** Bug fix for MCP tool (related to mcp_vector_search_tools)
+**Priority:** P0 (from handoff)
+
+### Problem
+
+The `find_similar_issues` MCP tool was returning empty results despite issues existing in PostgreSQL:
+- Vector search worked directly: `c._vectors.search('pothole', 'city-san-rafael', 'issues', top_k=3)` returned results
+- Tool returned 0 results: `whos_with_me('pothole', semantic=True).follower_count == 0`
+
+### Root Cause
+
+`find_similar_issues` called `civicos_client.whos_with_me()` (civicos.py:745) which queries `self._state` (SQLite StateManager) instead of `self._storage` (PostgreSQL) where the actual 1,587 issues reside.
+
+### Fix
+
+Modified `apps/civicos-mcp/civicos_server.py:491-570` to bypass `whos_with_me()` and use vector search directly:
+
+```python
+# Before: Used broken whos_with_me()
+community = civicos_client.whos_with_me(sanitized_topic, semantic=semantic)
+
+# After: Direct vector search
+results = civicos_client._vectors.search(
+    sanitized_topic,
+    civicos_client.jurisdiction,
+    'issues',
+    top_k=limit,
+)
+```
+
+### Verification
+
+1. **Local test**: Vector search returns 5 pothole issues with 70-71% similarity scores
+2. **Smoke tests**: 42/42 passed
+3. **Deploy**: `fly deploy --config fly-mcp.toml` succeeded
+4. **SSH test**: Verified on deployed server - issues found correctly
+
+### Technical Notes
+
+- Long-term fix should update `whos_with_me()` in `civicos.py:779` to use `self._storage` instead of `self._state`
+- This session only fixed the MCP tool layer, not the underlying API method
+- Embedding model pre-warming and model name normalization (Session 537) remain in place
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| apps/civicos-mcp/civicos_server.py | Fixed find_similar_issues to use vector search directly |
+
+### Next P0
+
+`linkback_integration` - Add deep links from MCP responses to web app
