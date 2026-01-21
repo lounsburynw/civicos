@@ -4339,10 +4339,15 @@ class PostgresBackend:
         as_of: Optional[datetime] = None,
     ) -> int:
         """
-        Store state/federal legislation with temporal versioning.
+        Store state/federal legislation with temporal versioning (upsert pattern).
 
-        Atomic operation: either all bills are stored or none.
-        Uses upsert semantics based on (bill_id, state).
+        Uses upsert semantics: for each bill in the input list:
+        - If bill_id exists and data unchanged: update last_verified timestamp
+        - If bill_id exists and data changed: close old version, insert new
+        - If bill_id is new: insert as new record
+        - If bill lacks bill_id: skip (not counted in return value)
+
+        Bills NOT in the input list are preserved (not closed).
 
         Args:
             state: State code (e.g., "CA", "US" for federal)
@@ -4351,7 +4356,7 @@ class PostgresBackend:
             as_of: Timestamp for temporal versioning (default: now)
 
         Returns:
-            Number of bills successfully stored
+            Number of bills successfully stored or updated (excludes skipped)
 
         Raises:
             psycopg2.Error: If atomic store operation fails
@@ -4363,19 +4368,8 @@ class PostgresBackend:
         cursor = conn.cursor()
 
         try:
-            # Close previous versions for bills being updated
-            for bill in bills:
-                bill_id = bill.get('bill_id') or bill.get('id')
-                if bill_id:
-                    cursor.execute("""
-                        UPDATE legislation
-                        SET valid_to = %s
-                        WHERE state = %s
-                          AND bill_id = %s
-                          AND valid_to IS NULL
-                    """, (as_of.isoformat(), state, bill_id))
-
-            # Insert new versions
+            # Use upsert pattern: only close/update bills that changed
+            # This preserves historical bills not in the current scrape window
             count = 0
             for bill in bills:
                 bill_id = bill.get('bill_id') or bill.get('id')
@@ -4421,6 +4415,48 @@ class PostgresBackend:
                     ]
                 }
 
+                bill_name = bill.get('bill_name') or bill.get('bill')
+                bill_status = bill.get('status')
+                bill_summary = bill.get('summary')
+                bill_number = bill.get('bill_number') or bill_id.upper().replace('-', ' ')
+
+                # Check if bill exists (current version)
+                cursor.execute("""
+                    SELECT bill_name, status, summary, bill_number
+                    FROM legislation
+                    WHERE bill_id = %s AND state = %s AND valid_to IS NULL
+                """, (bill_id, state))
+                existing = cursor.fetchone()
+
+                if existing:
+                    # Compare key fields to detect changes
+                    (ex_name, ex_status, ex_summary, ex_number) = existing
+
+                    has_changes = (
+                        bill_name != ex_name or
+                        bill_status != ex_status or
+                        bill_summary != ex_summary or
+                        bill_number != ex_number
+                    )
+
+                    if not has_changes:
+                        # Update last_verified timestamp only (using created_at as proxy)
+                        cursor.execute("""
+                            UPDATE legislation
+                            SET created_at = %s
+                            WHERE bill_id = %s AND state = %s AND valid_to IS NULL
+                        """, (as_of.isoformat(), bill_id, state))
+                        count += 1
+                        continue
+
+                    # Close the old version (data changed)
+                    cursor.execute("""
+                        UPDATE legislation
+                        SET valid_to = %s
+                        WHERE bill_id = %s AND state = %s AND valid_to IS NULL
+                    """, (as_of.isoformat(), bill_id, state))
+
+                # Insert new version (either new bill or updated version)
                 cursor.execute("""
                     INSERT INTO legislation (
                         bill_id, state, jurisdiction_id, bill_number,
@@ -4433,11 +4469,11 @@ class PostgresBackend:
                     bill_id,
                     state,
                     bill.get('jurisdiction_id'),
-                    bill.get('bill_number') or bill_id.upper().replace('-', ' '),
-                    bill.get('bill_name') or bill.get('bill'),
-                    bill.get('status'),
+                    bill_number,
+                    bill_name,
+                    bill_status,
                     enacted_date,
-                    bill.get('summary'),
+                    bill_summary,
                     bill.get('leverage_point'),
                     bill.get('full_text'),
                     bill.get('official_url'),
