@@ -15141,3 +15141,45 @@ SQLite backend has stub implementations for legislation (Postgres-only feature).
 ### Next P0
 
 `upcoming_meetings_ingestion` - Ingest future meetings so whats_next() returns data. San Rafael uses ProudCity.
+
+---
+
+## Session 540 (2026-01-21) - upcoming_meetings_ingestion P0
+
+### Summary
+
+Fixed `whats_next()` to include today's meetings by querying from start-of-today instead of current time. This ensures meetings without specific times (stored as midnight) show up throughout the day.
+
+### Problem Analysis
+
+1. **whats_next() returned 0 meetings** despite having today's PAAC meeting in database
+2. **Root cause**: SQL query used `since=now` where `now` is current time (e.g., 10pm UTC), but meetings without times are stored as midnight (00:00:00), which is BEFORE the current time
+3. **Secondary finding**: San Rafael hasn't published their Feb+ 2026 meeting schedule on ProudCity yet - this is a data availability issue, not a code issue
+
+### Fix Applied
+
+`packages/civicos/src/civicos/civicos.py`:
+- Changed `whats_next()` to query from `start_of_today` (midnight UTC) instead of `now`
+- Updated filtering logic to use date comparison for meetings without specific times
+
+### Test Results
+
+- Smoke tests: 42 passed ✓
+- whats_next() tests: 5 passed ✓
+- `whats_next()` now returns today's PAAC meeting
+
+### Database State
+
+- 56 meetings in PostgreSQL (Oct 2025 - Jan 21 2026)
+- ProudCity scraper working correctly
+- Only 1 future meeting exists in source (today's PAAC) because San Rafael hasn't posted Feb+ schedule
+
+### Files Modified
+
+- `packages/civicos/src/civicos/civicos.py` - whats_next() date filtering fix
+- `pilot.json` - upcoming_meetings_ingestion marked ready, linkback_integration set as P0
+
+### Next P0
+
+`linkback_integration` - Add deep links from MCP responses to web app so users can take action.
+

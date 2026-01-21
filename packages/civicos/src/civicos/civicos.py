@@ -600,11 +600,15 @@ class CivicOS:
         now = datetime.now(timezone.utc)
         cutoff = now + timedelta(days=days)
 
+        # Use start of today for the query to include today's meetings
+        # even if they have no specific time (stored as midnight)
+        start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
         # Try storage backend first (PostgresBackend or SQLiteBackend)
         try:
             meetings_data = self._storage.get_meetings(
                 jurisdiction_id=self.jurisdiction,
-                since=now,
+                since=start_of_today,
                 until=cutoff,
             )
         except Exception as e:
@@ -634,8 +638,13 @@ class CivicOS:
                 meeting_date = meeting_date.replace(tzinfo=timezone.utc)
 
             # Skip meetings outside the window (in case backend doesn't filter)
-            if not (now <= meeting_date <= cutoff):
-                continue
+            # Use date comparison for meetings without specific times (stored as midnight)
+            if meeting_date.hour == 0 and meeting_date.minute == 0:
+                if not (start_of_today.date() <= meeting_date.date() <= cutoff.date()):
+                    continue
+            else:
+                if not (start_of_today <= meeting_date <= cutoff):
+                    continue
 
             # Get agenda items from storage backend
             meeting_id = m.get("id", "")
