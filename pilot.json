@@ -1707,6 +1707,30 @@
           "scripts/modal/federal_programs_refresh.py",
           ".github/workflows/federal-programs-refresh.yml"
         ]
+      },
+      "meeting_agenda_scheduled_refresh": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Automated daily/weekly refresh of meeting metadata and agenda PDFs from Legistar/CivicClerk",
+        "artifact": "Scheduled job that discovers new meetings, downloads agenda packets, extracts PDF text, and indexes to PostgreSQL + vectors",
+        "note": "Session 538: Data shows meetings are current but agenda PDFs are 5 days stale. City Council meeting TODAY (Jan 20) missing its agenda. Without automation, product value degrades rapidly. CRITICAL for pilot.",
+        "rationale": "Meeting extraction code exists (civicos-extraction) but runs manually. Need automated scheduling to keep data fresh. This is table-stakes for a useful civic tool.",
+        "implementation_options": [
+          "GitHub Actions cron (simplest - daily at 6am PT)",
+          "Modal scheduled function (if heavy processing needed)",
+          "Fly.io cron or separate worker"
+        ],
+        "subtasks": [
+          "Create scheduled workflow for Legistar meeting discovery",
+          "Add agenda PDF download and extraction step",
+          "Trigger vector indexing after new content",
+          "Add Slack/email alert on failure",
+          "Backfill missing agendas for this week"
+        ],
+        "depends_on": [
+          "legistar_client",
+          "pdf_extraction"
+        ]
       }
     },
     "incremental_processing": {
@@ -2218,7 +2242,7 @@
       },
       "linkback_integration": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Deep links from AI responses back to web app",
         "description": "All MCP tools and ChatGPT GPT responses include links to web app for detailed views, related content, and actions.",
         "note": "Session 537: MCP server deployed. Next step is adding deep links from MCP responses to web app. SUPERSEDED dependency on chatgpt_custom_gpt (now using MCP for ChatGPT too).",
