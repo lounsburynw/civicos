@@ -2,7 +2,7 @@
 
 **Created**: 2025-11-24 (Session 118)
 **Updated**: 2026-01-20 (Session 536 - HTTP transport deployment)
-**Status**: MCP Server Complete (22 primitives), HTTP Transport Ready, Deployment in Progress
+**Status**: MCP Server Complete (32 primitives), HTTP Transport Ready, Deployment in Progress
 **Priority**: Strategic - Multi-platform AI distribution for pilot demo
 
 ---
@@ -22,7 +22,8 @@
 **Strategy**: Deploy MCP server publicly with HTTPS, connect to ChatGPT and Claude.ai as connectors.
 
 **Current State**:
-- MCP server complete: 15 tools + 5 resources + 2 prompts (`apps/civicos-mcp/civicos_server.py`)
+- MCP server complete: 25 tools + 5 resources + 2 prompts (`apps/civicos-mcp/civicos_server.py`)
+- 311 analysis suite (10 tools): analytics, trends, geo-search, accountability, neighborhood reports
 - HTTP transport added (Session 535) - ready for public deployment
 - REST API complete: FastAPI endpoints (`packages/civicos-services/`)
 - Vue frontend available: `apps/civicos-workspace/`
@@ -202,7 +203,7 @@ ChatGPT MCP Integration:
 ├── Deploy MCP server with HTTPS
 ├── Enable developer mode in ChatGPT settings
 ├── Create connector pointing to MCP server URL
-└── All 15 MCP tools available automatically
+└── All 25 MCP tools available automatically
 ```
 
 **Benefits over Custom GPT**:

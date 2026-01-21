@@ -4,11 +4,12 @@ Production MCP (Model Context Protocol) server exposing the full CivicOS API for
 
 ## Overview
 
-**Current State**: 22 MCP primitives (15 tools + 5 resources + 2 prompts) covering:
+**Current State**: 32 MCP primitives (25 tools + 5 resources + 2 prompts) covering:
 - Meeting search, upcoming events, agenda packets
 - Decision history, voting records, public testimony
 - Budget queries, federal/state funding flows
-- SeeClickFix issues, municipal code, legislation
+- **311 issue analytics** - aggregate stats, drill-down analysis, pattern discovery
+- SeeClickFix semantic search, municipal code, legislation
 - Meeting preparation workflows
 
 **Distribution Channels**:
@@ -109,7 +110,7 @@ Browse all: https://civic.example.com/search?q=housing+permits
 
 ## MCP Primitives
 
-### Tools (15)
+### Tools (25)
 
 | Tool | Description |
 |------|-------------|
@@ -120,6 +121,16 @@ Browse all: https://civic.example.com/search?q=housing+permits
 | `search_regulatory_stack` | Search municipal code + legislation |
 | `search_meeting_history` | Search past decisions via `what_happened()` |
 | `find_similar_issues` | Find related SeeClickFix issues via `whos_with_me()` |
+| `get_issue_analytics` | **311 analytics**: aggregate stats by type/status/location/time |
+| `query_issue_data` | **311 drill-down**: group/filter with custom parameters |
+| `get_issue_sample` | **311 patterns**: raw issue records for content analysis |
+| `get_issue_resolution_stats` | **311 accountability**: resolution rates, time to fix |
+| `find_issues_near_address` | **311 geo**: issues within radius of address |
+| `detect_trends` | **311 trends**: what's increasing/decreasing |
+| `find_repeat_issues` | **311 accountability**: recurring problems at same location |
+| `get_seasonal_patterns` | **311 patterns**: monthly distribution analysis |
+| `generate_neighborhood_report` | **311 report**: comprehensive zip code summary |
+| `compare_zip_codes` | **311 comparison**: analyze multiple neighborhoods |
 | `search_agenda_packets` | Search PDF chunks from agenda packets |
 | `search_budget` | Query budget by department or keyword |
 | `get_upcoming_meetings` | Get meetings via `whats_next()` |
@@ -149,9 +160,10 @@ Browse all: https://civic.example.com/search?q=housing+permits
 ## Development Status
 
 ### Completed
-- Full MCP server with 22 primitives (`civicos_server.py`)
+- Full MCP server with 32 primitives (`civicos_server.py`)
 - Integration with CivicOS API (PostgreSQL + pgvector)
-- Input validation (`civic_input_validator.py`)
+- 311 analysis suite (10 tools): analytics, trends, geo-search, accountability, reports
+- Input validation (`civicos_input_validator.py`)
 - Local Claude Desktop testing
 
 ### In Progress

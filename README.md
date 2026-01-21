@@ -47,7 +47,7 @@ CivicOS works through AI assistants you already use. No app to download.
 │    agenda?"              └─────────────┘   │                   │
 │                          ┌─────────────┐   │   ┌─────────────┐ │
 │                          │ ChatGPT     │ ──┼──►│ MCP Server  │ │
-│                          └─────────────┘   │   │ (15 tools)  │ │
+│                          └─────────────┘   │   │ (25 tools)  │ │
 │                          ┌─────────────┐   │   └──────┬──────┘ │
 │                          │ Claude App  │ ──┘          │        │
 │                          └─────────────┘              ▼        │
@@ -157,12 +157,15 @@ The app runs at `http://localhost:5173` (frontend) with API at `:8001`.
 
 ### MCP Server
 
-The MCP server (`apps/civicos-mcp/`) exposes 15 tools for AI assistants:
+The MCP server (`apps/civicos-mcp/`) exposes 25 tools for AI assistants:
 
 | Category | Tools |
 |----------|-------|
 | **Search** | `search_meeting_history`, `search_regulatory_stack`, `search_agenda_packets`, `find_similar_issues` |
 | **Query** | `get_upcoming_meetings`, `get_public_testimony`, `get_voting_record`, `get_decision_context` |
+| **311 Analysis** | `get_issue_analytics`, `query_issue_data`, `get_issue_sample`, `detect_trends`, `get_seasonal_patterns` |
+| **311 Geo/Reports** | `find_issues_near_address`, `compare_zip_codes`, `generate_neighborhood_report` |
+| **311 Accountability** | `get_issue_resolution_stats`, `find_repeat_issues` |
 | **Budget** | `search_budget`, `get_funding_flow`, `get_federal_expenditures`, `get_intergovernmental_revenue` |
 | **Action** | `compose_public_comment`, `prepare_for_meeting`, `get_comment_template` |
 | **Onboarding** | `get_started` — returns example questions tailored to user type |
