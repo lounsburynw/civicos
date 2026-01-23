@@ -558,9 +558,16 @@
         "priority": 0,
         "artifact": "Budget items indexed for semantic queries like 'homeless services funding'",
         "description": "Index budget item descriptions in pgvector to enable semantic budget search. Currently budget() uses exact department/fund matching, missing cross-department discoveries.",
-        "note": "Session 540: 58 San Rafael budget items exist but are not vector-indexed. Semantic search would enable queries like 'what money is available for housing?' to find items across departments.",
+        "note": "Session 544: 58 budget items, simple rows (not chunked docs). Strategy: (1) Single embedding per item from 'department + fund + program + line_item + notes', (2) No hierarchical structure needed - items ARE atomic, (3) Generous TopK with score floor for LLM filtering, (4) Return amounts in results for context. Budget-specific: fiscal year filtering, department grouping.",
         "depends_on": [
           "legislation_vector_indexing"
+        ],
+        "subtasks": [
+          "Add budget_items to CORPUS_REGISTRY (no chunking, single embedding per item)",
+          "Create index_budget() function - embed concatenated fields",
+          "Run initial indexing of 58 San Rafael budget items",
+          "Update budget() API to use hybrid search (exact dept/fund + semantic fallback)",
+          "Include amounts and fiscal_year in search results"
         ]
       },
       "voting_record_semantic_search": {
