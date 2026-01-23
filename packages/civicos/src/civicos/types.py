@@ -238,6 +238,7 @@ class BudgetItem:
     """A municipal budget line item from budget().
 
     Amounts are in dollars (converted from internal cents representation).
+    Source URL and page enable verification against official budget documents.
     """
     id: str
     fund: str
@@ -248,6 +249,7 @@ class BudgetItem:
     program: Optional[str] = None
     revised_dollars: Optional[float] = None
     actual_dollars: Optional[float] = None
+    source_url: Optional[str] = None
     source_page: Optional[int] = None
     notes: Optional[str] = None
 

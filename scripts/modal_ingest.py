@@ -1145,6 +1145,7 @@ def _embed_and_store_batch(
                 "fund": chunk.get("fund"),
                 "department": chunk.get("department"),
                 "program": chunk.get("program"),
+                "source_url": chunk.get("source_url"),
                 "source_page": chunk.get("source_page"),
             }
         else:
