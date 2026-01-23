@@ -30,7 +30,7 @@ Architecture:
 
     Scheduled refreshes (via modal deploy):
         scheduled_low_velocity_refresh()  # Weekly: municipal code, legislation, decisions
-        scheduled_high_velocity_refresh() # Daily: meetings, issues, transcripts, chunks, vectors
+        scheduled_high_velocity_refresh() # Daily: meetings, issues, transcripts, chunks, agenda items, vectors
         scheduled_election_refresh()      # Monthly: elections from Google Civic API
 
 Setup:
@@ -2693,7 +2693,7 @@ def scheduled_low_velocity_refresh():
     schedule=modal.Cron("0 14 * * *"),  # Daily at 2 PM UTC (6 AM Pacific)
 )
 def scheduled_high_velocity_refresh():
-    """Daily scheduled refresh for high-velocity corpora (meetings, issues, transcripts, chunks).
+    """Daily scheduled refresh for high-velocity corpora (meetings, issues, transcripts, chunks, agenda items).
 
     Runs daily at 2 PM UTC = 6 AM Pacific.
     Incremental fetch for data that changes frequently.
@@ -2703,7 +2703,13 @@ def scheduled_high_velocity_refresh():
         2. fetch_issues() - Fetch new issues from SeeClickFix
         3. extract_transcripts() - Download audio + transcribe with AssemblyAI
         4. extract_chunks() - Download PDFs and extract text chunks (incremental)
-        5. index_vectors() - Index meetings, issues, transcripts, and chunks to pgvector
+        5. extract_agenda_items() - Extract actionable items from agendas (LLM-powered)
+        6. index_vectors() - Index all corpora to pgvector (via auto_index)
+
+    Note: Agenda items moved from weekly to daily (Session 540) because:
+    - New meetings are discovered daily
+    - Agenda items are key for prospective civic engagement
+    - Users need upcoming meeting details promptly
 
     Iterates all configured jurisdictions from data/extraction/*.json.
     """
@@ -2803,6 +2809,22 @@ def scheduled_high_velocity_refresh():
         except Exception as e:
             logger.exception(f"  [{jid}] Chunk extraction failed")
             results[jid]["chunks"] = {"status": "failed", "error": str(e)}
+
+        # Agenda items extraction (LLM-powered, runs daily for timely prospective engagement)
+        # Moved from weekly to daily refresh because:
+        # - New meetings are discovered daily
+        # - Agenda items are the key feature for prospective civic engagement
+        # - Users want upcoming meeting details promptly, not 7 days later
+        try:
+            logger.info(f"  [{jid}] Extracting agenda items...")
+            result = extract_agenda_items.local(jurisdiction=jid, dry_run=False, auto_index=True)
+            results[jid]["agenda_items"] = result
+            extracted = result.get('items_extracted', 0)
+            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+            logger.info(f"    Agenda items: {extracted} items ({result.get('actionable_items', 0)} actionable), {indexed} vectors indexed")
+        except Exception as e:
+            logger.exception(f"  [{jid}] Agenda items extraction failed")
+            results[jid]["agenda_items"] = {"status": "failed", "error": str(e)}
 
         # NOTE: Vector indexing now handled by auto_index=True on each fetch/extract call above.
         # This ensures vectors are indexed immediately after data is stored, closing the

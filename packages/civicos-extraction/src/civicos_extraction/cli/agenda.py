@@ -42,10 +42,15 @@ class AgendaResult:
 
     meeting_id: str
     meeting_date: str
-    status: str  # "success", "skipped", "error"
+    status: str  # "success", "skipped", "error", "no_items"
     items_count: int = 0
     actionable_count: int = 0
     error: Optional[str] = None
+    # URLs for post-hoc validation of failures
+    meeting_title: Optional[str] = None
+    meeting_page_url: Optional[str] = None
+    pdf_url: Optional[str] = None
+    parse_failure_reason: Optional[str] = None
 
 
 @dataclass
@@ -242,6 +247,56 @@ def load_checkpoint(path: Path) -> Optional[AgendaCheckpoint]:
         return None
 
 
+def save_extraction_failures(
+    failures: List[AgendaResult],
+    jurisdiction_id: str,
+    checkpoint_dir: str
+) -> None:
+    """
+    Save extraction failures/no-items to a log file for post-hoc validation.
+
+    Creates a JSON file with all meetings that failed to extract items,
+    including URLs for manual investigation.
+    """
+    if not failures:
+        return
+
+    path = Path(checkpoint_dir)
+    path.mkdir(parents=True, exist_ok=True)
+    log_file = path / f"agenda_failures_{jurisdiction_id}.json"
+
+    # Load existing failures
+    existing = []
+    if log_file.exists():
+        try:
+            with open(log_file) as f:
+                existing = json.load(f)
+        except Exception:
+            existing = []
+
+    # Add new failures (avoid duplicates by meeting_id)
+    existing_ids = {f.get('meeting_id') for f in existing}
+    for result in failures:
+        if result.meeting_id not in existing_ids:
+            existing.append({
+                'meeting_id': result.meeting_id,
+                'meeting_title': result.meeting_title,
+                'meeting_date': result.meeting_date,
+                'meeting_page_url': result.meeting_page_url,
+                'pdf_url': result.pdf_url,
+                'status': result.status,
+                'parse_failure_reason': result.parse_failure_reason,
+                'error': result.error,
+                'timestamp': datetime.now().isoformat()
+            })
+
+    # Save updated failures
+    with open(log_file, 'w') as f:
+        json.dump(existing, f, indent=2)
+
+    logger.info(f"Saved {len(failures)} extraction failures to {log_file}")
+
+
 def agenda_items_exist_in_cloud(meeting_id: str) -> bool:
     """Check if agenda items exist in cloud storage for a meeting."""
     try:
@@ -276,6 +331,8 @@ def extract_agenda_items_from_meeting(
     """
     meeting_id = meeting.get("id") or meeting.get("meeting_id", "unknown")
     meeting_date = meeting.get("meeting_date") or meeting.get("meeting_datetime", "")[:10]
+    meeting_title = meeting.get("title", "Unknown")
+    meeting_page_url = meeting.get("agenda_url")
 
     cloud_mode = cloud or os.environ.get("DATABASE_URL")
 
@@ -285,6 +342,8 @@ def extract_agenda_items_from_meeting(
         return AgendaResult(
             meeting_id=meeting_id,
             meeting_date=meeting_date,
+            meeting_title=meeting_title,
+            meeting_page_url=meeting_page_url,
             status="skipped",
         )
 
@@ -305,12 +364,12 @@ def extract_agenda_items_from_meeting(
                 error="civic_services not installed (needed for LLM provider)",
             )
 
-        meeting_page_url = meeting.get("agenda_url")
         if not meeting_page_url:
             logger.info(f"  Skipping (no agenda URL): {meeting_id}")
             return AgendaResult(
                 meeting_id=meeting_id,
                 meeting_date=meeting_date,
+                meeting_title=meeting_title,
                 status="skipped",
             )
 
@@ -338,7 +397,10 @@ def extract_agenda_items_from_meeting(
                 return AgendaResult(
                     meeting_id=meeting_id,
                     meeting_date=meeting_date,
-                    status="skipped",
+                    meeting_title=meeting_title,
+                    meeting_page_url=meeting_page_url,
+                    status="no_items",
+                    parse_failure_reason="No PDF agenda discovered from meeting page",
                 )
 
         logger.info(f"  Found PDF: {pdf_url[:80]}...")
@@ -347,13 +409,22 @@ def extract_agenda_items_from_meeting(
         agenda_items = integrator.parse_agenda_content(pdf_url, meeting)
 
         if not agenda_items:
-            logger.info(f"  No agenda items extracted")
+            # Get parse failure reason from integrator if available
+            parse_reason = getattr(integrator, '_last_parse_error', None)
+            if parse_reason:
+                logger.info(f"  No agenda items extracted: {parse_reason}")
+            else:
+                logger.info(f"  No agenda items extracted")
             return AgendaResult(
                 meeting_id=meeting_id,
                 meeting_date=meeting_date,
-                status="success",
+                meeting_title=meeting_title,
+                meeting_page_url=meeting_page_url,
+                pdf_url=pdf_url,
+                status="no_items",
                 items_count=0,
                 actionable_count=0,
+                parse_failure_reason=parse_reason or "LLM returned no actionable items",
             )
 
         # Filter out cancellation notices
@@ -364,9 +435,13 @@ def extract_agenda_items_from_meeting(
             return AgendaResult(
                 meeting_id=meeting_id,
                 meeting_date=meeting_date,
-                status="success",
+                meeting_title=meeting_title,
+                meeting_page_url=meeting_page_url,
+                pdf_url=pdf_url,
+                status="cancelled",
                 items_count=0,
                 actionable_count=0,
+                parse_failure_reason="Meeting cancelled or only cancellation notice",
             )
 
         # Convert AgendaItem objects to dictionaries for storage
@@ -399,6 +474,9 @@ def extract_agenda_items_from_meeting(
         return AgendaResult(
             meeting_id=meeting_id,
             meeting_date=meeting_date,
+            meeting_title=meeting_title,
+            meeting_page_url=meeting_page_url,
+            pdf_url=pdf_url,
             status="success",
             items_count=len(items_data),
             actionable_count=actionable_count,
@@ -409,6 +487,9 @@ def extract_agenda_items_from_meeting(
         return AgendaResult(
             meeting_id=meeting_id,
             meeting_date=meeting_date,
+            meeting_title=meeting_title,
+            meeting_page_url=meeting_page_url,
+            pdf_url=pdf_url if 'pdf_url' in dir() else None,
             status="error",
             error=str(e),
         )
@@ -534,10 +615,13 @@ def run_agenda_extraction(
 
     # Extract agenda items
     results = []
+    failures = []  # Track failures for post-hoc validation
     items_processed = start_index
     items_extracted = 0
     items_skipped = 0
     items_failed = 0
+    items_no_items = 0
+    items_cancelled = 0
     total_agenda_items = 0
 
     for i, meeting in enumerate(meetings_to_process, start=start_index + 1):
@@ -559,8 +643,14 @@ def run_agenda_extraction(
             total_agenda_items += result.items_count
         elif result.status == "skipped":
             items_skipped += 1
-        else:
+        elif result.status == "no_items":
+            items_no_items += 1
+            failures.append(result)  # Track for validation
+        elif result.status == "cancelled":
+            items_cancelled += 1
+        else:  # error
             items_failed += 1
+            failures.append(result)  # Track for validation
 
         items_processed = i
 
@@ -595,16 +685,24 @@ def run_agenda_extraction(
         )
         save_checkpoint(checkpoint, checkpoint_path)
 
+    # Save failures for post-hoc validation
+    if failures:
+        save_extraction_failures(failures, jurisdiction_id, checkpoint_dir)
+
     # Summary
     logger.info("=" * 50)
     logger.info(f"Agenda Extraction Complete for {jurisdiction_id}")
     logger.info(f"Meetings processed: {len(results)}")
     logger.info(f"Meetings with items: {items_extracted}")
     logger.info(f"Skipped (already exist): {items_skipped}")
-    logger.info(f"Failed: {items_failed}")
+    logger.info(f"No items extracted: {items_no_items}")
+    logger.info(f"Cancelled meetings: {items_cancelled}")
+    logger.info(f"Errors: {items_failed}")
     logger.info(f"Total agenda items extracted: {total_agenda_items}")
     if cloud_mode:
         logger.info("Agenda items stored in: cloud (Postgres)")
+    if failures:
+        logger.info(f"Failures logged to: {checkpoint_dir}/agenda_failures_{jurisdiction_id}.json")
     logger.info("=" * 50)
 
     return results

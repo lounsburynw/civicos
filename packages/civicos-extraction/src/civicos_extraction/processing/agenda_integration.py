@@ -1036,6 +1036,13 @@ Skip only purely procedural items (meeting minutes approval, internal appointmen
             response_text = self._call_llm(prompt, max_tokens=6000)
             result = self._safe_json_parse(response_text)
             if not result:
+                print(f"⚠️ No agenda items: JSON parsing failed")
+                if hasattr(self, '_last_parse_error') and self._last_parse_error:
+                    print(f"   Reason: {self._last_parse_error}")
+                # Show snippet of LLM response for debugging
+                if response_text:
+                    preview = response_text[:200].replace('\n', ' ')
+                    print(f"   LLM response preview: {preview}...")
                 return []
 
             agenda_items = []
@@ -1206,9 +1213,13 @@ Skip only purely procedural items (meeting minutes approval, internal appointmen
 
         except ImportError:
             # Fallback: just return a message about PDF content
+            print(f"⚠️ PyPDF2 not available for PDF extraction")
+            self._last_parse_error = "PyPDF2 not installed"
             return f"[PDF content detected but PyPDF2 not available for text extraction. Content length: {len(pdf_content)} bytes]"
         except Exception as e:
-            return f"[PDF text extraction failed: {type(e).__name__}]"
+            print(f"⚠️ PDF text extraction failed: {type(e).__name__}: {e}")
+            self._last_parse_error = f"PDF extraction failed: {type(e).__name__}: {e}"
+            return f"[PDF text extraction failed: {type(e).__name__}: {e}]"
 
     def _validate_agenda_freshness(self, text_content: str, event: Dict[str, Any]) -> Tuple[bool, str]:
         """
@@ -1370,22 +1381,55 @@ Skip only purely procedural items (meeting minutes approval, internal appointmen
             return False
 
     def _safe_json_parse(self, text: str) -> Optional[Dict[str, Any]]:
-        """Safely parse JSON with validation"""
+        """Safely parse JSON with validation.
+
+        Stores parse errors in self._last_parse_error for diagnostics.
+        """
+        self._last_parse_error = None
+        original_text = text  # Keep for error reporting
+
         try:
             # Remove any markdown formatting
             text = text.strip()
             if text.startswith('```json'):
                 text = text[7:]
+            if text.startswith('```'):
+                text = text[3:]
             if text.endswith('```'):
                 text = text[:-3]
             text = text.strip()
 
+            # Handle empty responses
+            if not text:
+                self._last_parse_error = "LLM returned empty response"
+                print(f"⚠️ JSON parse error: empty response")
+                return None
+
             # Parse JSON
-            result = json.loads(text)
+            try:
+                result = json.loads(text)
+            except json.JSONDecodeError as e:
+                self._last_parse_error = f"JSON decode error at position {e.pos}: {e.msg}"
+                # Show context around the error
+                start = max(0, e.pos - 50)
+                end = min(len(text), e.pos + 50)
+                context = text[start:end]
+                print(f"⚠️ JSON parse error: {e.msg} at position {e.pos}")
+                print(f"   Context: ...{context}...")
+                return None
 
             # Validate structure
             if not isinstance(result, dict):
+                self._last_parse_error = f"Expected dict, got {type(result).__name__}"
+                print(f"⚠️ JSON parse error: expected dict, got {type(result).__name__}")
                 return None
+
+            # Check for items array
+            if 'items' not in result:
+                self._last_parse_error = "Missing 'items' key in response"
+                print(f"⚠️ JSON parse warning: no 'items' key. Keys: {list(result.keys())}")
+                # Still return the result - might have other useful info
+                result['items'] = []
 
             # Validate expected fields have safe types
             for key, value in result.items():
@@ -1393,7 +1437,9 @@ Skip only purely procedural items (meeting minutes approval, internal appointmen
                     result[key] = value[:2000]
 
             return result
-        except Exception:
+        except Exception as e:
+            self._last_parse_error = f"Unexpected error: {type(e).__name__}: {str(e)}"
+            print(f"⚠️ JSON parse error: {type(e).__name__}: {e}")
             return None
 
 
