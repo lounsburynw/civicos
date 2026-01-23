@@ -45,6 +45,10 @@ logger = logging.getLogger(__name__)
 # Initialize Civic API client for vector search tools
 # Default jurisdiction is San Rafael (pilot city), can be overridden per-tool
 DEFAULT_JURISDICTION = os.getenv('CIVICOS_JURISDICTION', 'san-rafael')
+
+# Web app base URL for deep linking
+# Production: https://civicos.fly.dev, Local dev: http://localhost:5173
+WEB_APP_BASE_URL = os.getenv('CIVICOS_WEB_APP_URL', 'https://civicos.fly.dev')
 try:
     civicos_client = CivicOS(DEFAULT_JURISDICTION)
     logger.info(f"Civic client initialized for {DEFAULT_JURISDICTION} (storage: {type(civicos_client._storage).__name__})")
@@ -473,7 +477,12 @@ def search_meeting_history(
 
                     result_parts.append(f"### {speaker}{role}")
                     if timestamp:
-                        result_parts.append(f"*Video timestamp: {timestamp}*")
+                        # Include clickable YouTube link if video_id is available
+                        video_url = ex.video_url
+                        if video_url:
+                            result_parts.append(f"*[Watch at {timestamp}]({video_url})*")
+                        else:
+                            result_parts.append(f"*Video timestamp: {timestamp}*")
                     if ex.is_public_comment:
                         result_parts.append("*[Public Comment]*")
                     result_parts.append(f"> {ex.text[:500]}...")
@@ -554,16 +563,44 @@ def find_similar_issues(
                 result_parts.append("")
 
                 result_parts.append("## Similar Issues Reported")
+
+                # Build ID-to-URL lookup from storage for issue links
+                # URLs come from provider_metadata.html_url (populated during ingestion)
+                issue_urls = {}
+                if civicos_client._storage is not None:
+                    try:
+                        all_issues = civicos_client._storage.get_issues(
+                            jurisdiction_id=civicos_client.jurisdiction,
+                            limit=1000,
+                        )
+                        for issue in all_issues:
+                            issue_id = issue.get('id')
+                            metadata = issue.get('provider_metadata') or {}
+                            html_url = metadata.get('html_url')
+                            if issue_id and html_url:
+                                issue_urls[issue_id] = html_url
+                    except Exception as e:
+                        logger.warning(f"Could not load issue URLs: {e}")
+
                 for r in results:
                     # Extract issue details from vector result
                     content = r.content[:200] if r.content else "No description"
                     score = r.score if hasattr(r, 'score') else None
 
-                    # Format issue entry
+                    # Get external URL for this issue if available
+                    issue_url = issue_urls.get(r.id)
+
+                    # Format issue entry with link if available
                     if score is not None:
-                        result_parts.append(f"- **[{score:.0%} match]** {content}...")
+                        if issue_url:
+                            result_parts.append(f"- **[{score:.0%} match]** {content}... [View details]({issue_url})")
+                        else:
+                            result_parts.append(f"- **[{score:.0%} match]** {content}...")
                     else:
-                        result_parts.append(f"- {content}...")
+                        if issue_url:
+                            result_parts.append(f"- {content}... [View details]({issue_url})")
+                        else:
+                            result_parts.append(f"- {content}...")
             else:
                 result_parts.append("No related issues found via semantic search.")
                 result_parts.append("Try different search terms or broader topics.")
@@ -1138,18 +1175,25 @@ def get_issue_sample(
         result_parts.append("")
 
         for i, issue in enumerate(sample, 1):
-            issue_type = issue.get('request_type', 'Unknown')
+            issue_type = issue.get('issue_type', 'Unknown')
             status = issue.get('status', 'unknown')
             address = issue.get('address', 'N/A')
             created = issue.get('created_at', 'N/A')
             description = issue.get('description', 'No description provided')
+            # Get external URL from provider_metadata
+            metadata = issue.get('provider_metadata') or {}
+            html_url = metadata.get('html_url')
 
             # Parse date for cleaner display
             if created and created != 'N/A':
                 dt = _parse_date(created)
                 created = dt.strftime('%Y-%m-%d') if dt else str(created)[:10]
 
-            result_parts.append(f"## {i}. {issue_type}")
+            # Format header with link if available
+            if html_url:
+                result_parts.append(f"## {i}. [{issue_type}]({html_url})")
+            else:
+                result_parts.append(f"## {i}. {issue_type}")
             result_parts.append(f"**Status:** {status} | **Date:** {created}")
             result_parts.append(f"**Location:** {address}")
             result_parts.append("")

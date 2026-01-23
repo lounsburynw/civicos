@@ -15183,3 +15183,34 @@ Fixed `whats_next()` to include today's meetings by querying from start-of-today
 
 `linkback_integration` - Add deep links from MCP responses to web app so users can take action.
 
+
+---
+
+## Session 541 (2026-01-22)
+
+### Work Item: linkback_integration (P0)
+
+Investigated adding deep links from MCP responses back to the web app.
+
+### Progress
+
+**Implemented:**
+- Added `WEB_APP_BASE_URL` env var to MCP server for future web app deep linking
+- Added YouTube video links for transcript excerpts in `search_meeting_history()` (uses existing `video_url` property)
+- Added issue link infrastructure in `find_similar_issues()` and `get_issue_sample()` (uses `provider_metadata.html_url`)
+
+**Discovered blockers:**
+1. Frontend doesn't have URL routing - it's an artifact-based SPA with no URL representation
+2. Existing issue data lacks `html_url` in provider_metadata (needs data refresh)
+
+**Architectural decision:** Don't hard-code provider-specific URL patterns (e.g., SeeClickFix). URLs should come from provider metadata during ingestion, keeping the system provider-agnostic.
+
+### Changes Made
+
+- `apps/civicos-mcp/civicos_server.py`: Added external source links for transcripts and issues
+- `pilot.json`: Added `url_routing` item under `frontend_refinement > deep_linking`, set as P0
+- `pilot.json`: Updated `linkback_integration` to depend on `url_routing`, demoted to P1
+
+### Next P0
+
+`url_routing` - Add URL-based routing to Vue frontend for artifact deep linking. Enables sharing, bookmarks, and MCP linkback.
