@@ -4,6 +4,16 @@ import type { Jurisdiction, CivicEvent, ProjectType } from '../types/civic'
 import { isValidArtifactId, getArtifactIdFormat } from '../utils/artifactIds'
 
 /**
+ * URL Routing Types
+ * Session 542: Added URL-based artifact deep linking
+ */
+export interface UrlArtifactParams {
+  type: OpenArtifact['type']
+  id: string
+  initialTab?: string
+}
+
+/**
  * Workspace Store
  *
  * Manages workspace-level state including:
@@ -228,6 +238,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       activeArtifactIndex.value = existingIndex
       // Reveal workspace when switching to existing artifact
       revealWorkspace()
+      // Session 542: Sync URL when switching to existing artifact
+      syncUrlToState()
       return
     }
 
@@ -243,6 +255,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
     // Automatically reveal workspace when opening an artifact (in chat-first mode)
     revealWorkspace()
+
+    // Session 542: Sync URL to reflect new artifact
+    syncUrlToState()
   }
 
   function closeArtifact(index: number) {
@@ -258,17 +273,24 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     } else if (activeArtifactIndex.value > index) {
       activeArtifactIndex.value--
     }
+
+    // Session 542: Sync URL to reflect closed artifact
+    syncUrlToState()
   }
 
   function setActiveArtifact(index: number) {
     if (index >= 0 && index < openArtifacts.value.length) {
       activeArtifactIndex.value = index
+      // Session 542: Sync URL to reflect tab switch
+      syncUrlToState()
     }
   }
 
   function closeAllArtifacts() {
     openArtifacts.value = []
     activeArtifactIndex.value = -1
+    // Session 542: Clear URL when closing all artifacts
+    syncUrlToState()
   }
 
   function closeActiveArtifact() {
@@ -405,6 +427,97 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     }
   }
 
+  // Session 542: URL-based artifact routing
+
+  /**
+   * Parse URL query parameters for artifact deep linking.
+   * URL format: ?type=event&id=event_123&tab=discussion
+   * @returns Artifact params if valid URL params exist, null otherwise
+   */
+  function parseUrlParams(): UrlArtifactParams | null {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const type = params.get('type') as OpenArtifact['type'] | null
+      const id = params.get('id')
+      const initialTab = params.get('tab') || undefined
+
+      if (!type || !id) {
+        return null
+      }
+
+      // Validate artifact type
+      const validTypes: OpenArtifact['type'][] = [
+        'event', 'bill', 'program', 'issue', 'issue-form',
+        'thread', 'comment-draft', 'profile-form', 'values-explorer', 'admin-status'
+      ]
+      if (!validTypes.includes(type)) {
+        console.warn('[workspace] Invalid artifact type in URL:', type)
+        return null
+      }
+
+      return { type, id, initialTab }
+    } catch (error) {
+      console.error('[workspace] Failed to parse URL params:', error)
+      return null
+    }
+  }
+
+  /**
+   * Update browser URL to reflect current active artifact.
+   * Called after openArtifact(), closeArtifact(), setActiveArtifact().
+   * Uses replaceState to avoid polluting browser history.
+   */
+  function syncUrlToState() {
+    try {
+      const url = new URL(window.location.href)
+
+      if (activeArtifact.value) {
+        // Set artifact params
+        url.searchParams.set('type', activeArtifact.value.type)
+        url.searchParams.set('id', activeArtifact.value.id)
+        if (activeArtifact.value.initialTab) {
+          url.searchParams.set('tab', activeArtifact.value.initialTab)
+        } else {
+          url.searchParams.delete('tab')
+        }
+      } else {
+        // Clear artifact params when no artifact is active
+        url.searchParams.delete('type')
+        url.searchParams.delete('id')
+        url.searchParams.delete('tab')
+      }
+
+      // Use replaceState to update URL without adding history entry
+      window.history.replaceState({}, '', url.toString())
+    } catch (error) {
+      console.error('[workspace] Failed to sync URL:', error)
+    }
+  }
+
+  /**
+   * Check if URL contains artifact params that need to be loaded.
+   * Called from App.vue onMounted() to handle deep links.
+   * @returns URL params if present, null if not
+   */
+  function getUrlArtifactParams(): UrlArtifactParams | null {
+    return parseUrlParams()
+  }
+
+  /**
+   * Clear URL artifact params (used when artifact loading fails).
+   */
+  function clearUrlParams() {
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('type')
+      url.searchParams.delete('id')
+      url.searchParams.delete('tab')
+      window.history.replaceState({}, '', url.toString())
+    } catch (error) {
+      console.error('[workspace] Failed to clear URL params:', error)
+    }
+  }
+
   function saveToStorage() {
     try {
       const state: WorkspaceState = {
@@ -507,6 +620,11 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
     // Persistence
     loadFromStorage,
-    saveToStorage
+    saveToStorage,
+
+    // Session 542: URL Routing
+    getUrlArtifactParams,
+    clearUrlParams,
+    syncUrlToState
   }
 })
