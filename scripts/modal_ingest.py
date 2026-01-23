@@ -1077,14 +1077,11 @@ def _embed_and_store_batch(
     """Worker function to embed and store a batch of chunks.
 
     Called by index_vectors via .map() for parallel processing.
-    Each worker embeds its batch and inserts via COPY.
+    Each worker embeds its batch and inserts via public PgVectorBackend methods.
     """
     import logging
     import os
-    from io import StringIO
-    from datetime import datetime
     import hashlib
-    import json
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logger = logging.getLogger(__name__)
@@ -1097,72 +1094,82 @@ def _embed_and_store_batch(
     # Extract text content for embedding
     texts = []
     for chunk in chunks:
-        content = chunk.get("content") or chunk.get("text") or chunk.get("title", "")
+        if corpus_type == "budget_items":
+            # Budget items have special text extraction
+            parts = []
+            if chunk.get("department"):
+                parts.append(f"Department: {chunk['department']}")
+            if chunk.get("fund"):
+                parts.append(f"Fund: {chunk['fund']}")
+            if chunk.get("program"):
+                parts.append(f"Program: {chunk['program']}")
+            if chunk.get("line_item"):
+                parts.append(f"Line Item: {chunk['line_item']}")
+            if chunk.get("notes"):
+                parts.append(f"Notes: {chunk['notes']}")
+            if chunk.get("fiscal_year"):
+                parts.append(f"Fiscal Year: {chunk['fiscal_year']}")
+            content = "\n".join(parts) if parts else ""
+        else:
+            content = chunk.get("content") or chunk.get("text") or chunk.get("title", "")
         texts.append(content)
 
-    # Generate embeddings using the provider
-    embeddings = pgvector._embedding_provider.encode(texts, batch_size=len(texts))
+    # Generate embeddings using public interface
+    embeddings = pgvector.encode_texts(texts, batch_size=len(texts))
 
-    # Prepare rows for COPY
-    conn = pgvector._get_connection()
-    cursor = conn.cursor()
-    now = datetime.utcnow()
-
-    buffer = StringIO()
-    for chunk, embedding in zip(chunks, embeddings):
-        # Generate deterministic ID
-        content = chunk.get("content") or chunk.get("text") or chunk.get("title", "")
-        chunk_id = chunk.get("id") or hashlib.sha256(
-            f"{jurisdiction_id}:{corpus_type}:{content[:200]}".encode()
-        ).hexdigest()[:32]
+    # Build records for bulk insert
+    records = []
+    for idx, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
+        # Generate deterministic ID based on corpus type
+        if corpus_type == "budget_items":
+            # Budget items use item_id as the unique identifier
+            chunk_id = chunk.get("item_id") or f"budget-{chunk.get('id', idx)}"
+            content = texts[idx]  # Use pre-computed content
+        else:
+            content = chunk.get("content") or chunk.get("text") or chunk.get("title", "")
+            chunk_id = chunk.get("id") or hashlib.sha256(
+                f"{jurisdiction_id}:{corpus_type}:{content[:200]}".encode()
+            ).hexdigest()[:32]
 
         # Extract metadata
         meeting_id = chunk.get("meeting_id")
-        meeting_title = chunk.get("meeting_title")
-        meeting_datetime = chunk.get("meeting_datetime")
-        metadata = chunk.get("metadata", {})
-        if not isinstance(metadata, str):
-            metadata = json.dumps(metadata)
+        if corpus_type == "budget_items":
+            # Budget items: use department + line_item as display title
+            meeting_title = f"{chunk.get('department', '')} - {chunk.get('line_item', '')}"
+            # Include budget-specific fields in metadata for retrieval
+            metadata = {
+                "budgeted_cents": chunk.get("budgeted_cents"),
+                "revised_cents": chunk.get("revised_cents"),
+                "actual_cents": chunk.get("actual_cents"),
+                "fiscal_year": chunk.get("fiscal_year"),
+                "fund": chunk.get("fund"),
+                "department": chunk.get("department"),
+                "program": chunk.get("program"),
+                "source_page": chunk.get("source_page"),
+            }
+        else:
+            meeting_title = chunk.get("meeting_title")
+            metadata = chunk.get("metadata", {})
 
-        # Format row for COPY
-        row = [
-            chunk_id,
-            jurisdiction_id,
-            corpus_type,
-            content.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r"),
-            "[" + ",".join(str(x) for x in embedding) + "]",
-            "nomic-embed-text-v1.5",
-            meeting_id or "\\N",
-            (meeting_title or "").replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n") if meeting_title else "\\N",
-            (meeting_datetime.isoformat() if hasattr(meeting_datetime, 'isoformat') else meeting_datetime) if meeting_datetime else "\\N",
-            metadata.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n"),
-            now.isoformat(),
-            now.isoformat(),
-        ]
-        buffer.write("\t".join(str(v) for v in row) + "\n")
+        records.append({
+            "id": chunk_id,
+            "content": content,
+            "embedding": embedding.tolist() if hasattr(embedding, 'tolist') else embedding,
+            "meeting_id": meeting_id,
+            "meeting_title": meeting_title,
+            "meeting_datetime": chunk.get("meeting_datetime"),
+            "metadata": metadata,
+        })
 
-    buffer.seek(0)
-
-    # COPY to database
-    try:
-        cursor.copy_from(
-            buffer,
-            "vector_embeddings",
-            columns=(
-                "id", "jurisdiction_id", "corpus_type", "content", "embedding",
-                "embedding_model", "meeting_id", "meeting_title", "meeting_datetime",
-                "metadata", "created_at", "updated_at"
-            ),
-        )
-        conn.commit()
-        logger.info(f"Inserted {len(chunks)} embeddings")
-        return {"success": len(chunks), "failed": 0}
-    except Exception as e:
-        conn.rollback()
-        logger.error(f"COPY failed: {e}")
-        return {"success": 0, "failed": len(chunks), "error": str(e)}
-    finally:
-        conn.close()
+    # Bulk insert using public interface
+    result = pgvector.bulk_insert_embeddings(
+        records=records,
+        jurisdiction_id=jurisdiction_id,
+        corpus_type=corpus_type,
+        use_copy=True,
+    )
+    logger.info(f"Inserted {result['success']} embeddings")
+    return result
 
 
 @app.function(
@@ -1214,7 +1221,7 @@ def index_vectors(
     elif jurisdiction.startswith("federal-"):
         all_corpus_types = ["programs", "executive_orders"]  # Federal programs + EOs
     else:
-        all_corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues", "agenda_items"]
+        all_corpus_types = ["chunks", "decisions", "meetings", "transcripts", "municipal_code", "issues", "agenda_items", "budget_items"]
 
     corpus_types = all_corpus_types if corpus == "all" else [corpus]
     results = {}
@@ -1264,6 +1271,8 @@ def index_vectors(
             chunks = backend.get_agenda_items(jurisdiction_id=jurisdiction)
         elif ct == "programs":
             chunks = backend.get_programs()
+        elif ct == "budget_items":
+            chunks = backend.get_budget_items(jurisdiction)
         else:
             logger.warning(f"Unknown corpus type: {ct}")
             continue
