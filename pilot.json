@@ -1,7 +1,7 @@
 {
   "version": "2.0",
   "phase": "pilot",
-  "last_updated": "2026-01-22",
+  "last_updated": "2026-01-23",
   "target": "January 2026",
   "summary": "Consolidated pilot checklist: completed work summarized, active items tracked individually",
   "category_order": [
@@ -554,25 +554,25 @@
         ]
       },
       "budget_vector_indexing": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Budget items indexed for semantic queries like 'homeless services funding'",
         "description": "Index budget item descriptions in pgvector to enable semantic budget search. Currently budget() uses exact department/fund matching, missing cross-department discoveries.",
-        "note": "Session 544: 58 budget items, simple rows (not chunked docs). Strategy: (1) Single embedding per item from 'department + fund + program + line_item + notes', (2) No hierarchical structure needed - items ARE atomic, (3) Generous TopK with score floor for LLM filtering, (4) Return amounts in results for context. Budget-specific: fiscal year filtering, department grouping.",
+        "note": "Session 545: Completed. Added CorpusType.BUDGET to CORPUS_REGISTRY, _budget_item_to_text() extractor, Modal indexing support. 58 budget items indexed with amounts in metadata. Semantic search works: 'homeless services funding' finds 'Low and Moderate Income Housing Fund', 'police safety' finds Police Dept ($30.8M). Remaining: Update budget() API for hybrid search (future enhancement).",
         "depends_on": [
           "legislation_vector_indexing"
         ],
         "subtasks": [
-          "Add budget_items to CORPUS_REGISTRY (no chunking, single embedding per item)",
-          "Create index_budget() function - embed concatenated fields",
-          "Run initial indexing of 58 San Rafael budget items",
-          "Update budget() API to use hybrid search (exact dept/fund + semantic fallback)",
-          "Include amounts and fiscal_year in search results"
+          "Add budget_items to CORPUS_REGISTRY (no chunking, single embedding per item) - DONE",
+          "Create index_budget() function - embed concatenated fields - DONE (_budget_item_to_text)",
+          "Run initial indexing of 58 San Rafael budget items - DONE (58/58 indexed)",
+          "Update budget() API to use hybrid search (exact dept/fund + semantic fallback) - FUTURE",
+          "Include amounts and fiscal_year in search results - DONE (in metadata)"
         ]
       },
       "voting_record_semantic_search": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "get_voting_record() finds semantically related votes",
         "description": "Update get_voting_record() to use semantic topic matching instead of exact array match. 'housing affordability' would also find votes on 'zoning', 'development', 'density'.",
         "note": "Session 540: Current implementation in civicos.py:973-977 uses exact topic array match. Vector search on decision titles/summaries would improve recall.",

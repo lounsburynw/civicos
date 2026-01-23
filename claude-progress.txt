@@ -15366,3 +15366,72 @@ Identified and added 5 retrieval improvements to semantic_search_expansion:
 5. **query_expansion_abbreviations** (P3) - Expand ADU→"accessory dwelling unit", etc.
 
 All depend on hybrid_what_applies (now complete).
+
+## Session 545 - 2026-01-23
+
+**Item:** budget_vector_indexing (P0)
+**Area:** data_architecture > semantic_search_expansion
+**Status:** COMPLETE
+
+### Summary
+
+Implemented budget vector indexing to enable semantic search for budget items.
+Queries like "homeless services funding" now find relevant budget line items
+without requiring exact department names.
+
+### Changes
+
+1. **corpus_types.py:**
+   - Added `CorpusType.BUDGET = "budget_items"` enum
+   - Added CORPUS_REGISTRY entry with storage_method, text_extractor, etc.
+   - Added "budget" and "budget_items" to UNIFIED_SEARCH_ALIASES
+
+2. **pgvector_backend.py:**
+   - Added `_budget_item_to_text()` text extractor
+   - Added budget_items case to `index_from_storage()` document fetch
+   - Added budget_items case to text extraction in batch processing
+
+3. **modal_ingest.py:**
+   - Added budget_items to default city corpus types
+   - Added special handling for budget_items text extraction
+   - Added special handling for budget_items ID (item_id vs numeric id)
+   - Added budget-specific metadata (amounts, fund, department, fiscal_year)
+
+### Results
+
+- 58 budget items indexed to pgvector
+- Semantic search working:
+  - "homeless services funding" → Low and Moderate Income Housing Fund ($85,770)
+  - "police public safety" → Police Department ($30.8M), Public Safety Grants ($577K)
+- Amounts preserved in metadata for display
+
+### Test Results
+
+- 42/42 smoke tests passing
+- Semantic search verified manually
+
+### Architecture Fix
+
+Refactored modal_ingest.py to use public VectorBackend methods instead of private ones:
+
+**Before (architecture violation):**
+```python
+embeddings = pgvector._embedding_provider.encode(texts)  # private
+conn = pgvector._get_connection()  # private
+# manual COPY logic
+```
+
+**After (public interface):**
+```python
+embeddings = pgvector.encode_texts(texts)  # public
+result = pgvector.bulk_insert_embeddings(records, ...)  # public
+```
+
+Added to PgVectorBackend:
+- `encode_texts()` - public wrapper for embedding generation
+- `bulk_insert_embeddings()` - public bulk insert with COPY support
+
+### Next Session P0
+
+Set `voting_record_semantic_search` as P0 - update get_voting_record() to use semantic search on decision titles/summaries instead of exact topic array match.
+

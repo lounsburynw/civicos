@@ -626,6 +626,36 @@ class PgVectorBackend:
 
         return "\n".join(parts) if parts else ""
 
+    def _budget_item_to_text(self, item: Dict[str, Any]) -> str:
+        """
+        Convert a budget item to text for embedding.
+
+        Combines department, fund, program, line_item, and notes into
+        searchable text representation. Does NOT include amounts in
+        embedding text (amounts go in metadata for filtering/display).
+        """
+        parts = []
+
+        if item.get("department"):
+            parts.append(f"Department: {item['department']}")
+
+        if item.get("fund"):
+            parts.append(f"Fund: {item['fund']}")
+
+        if item.get("program"):
+            parts.append(f"Program: {item['program']}")
+
+        if item.get("line_item"):
+            parts.append(f"Line Item: {item['line_item']}")
+
+        if item.get("notes"):
+            parts.append(f"Notes: {item['notes']}")
+
+        if item.get("fiscal_year"):
+            parts.append(f"Fiscal Year: {item['fiscal_year']}")
+
+        return "\n".join(parts) if parts else ""
+
     def _agenda_item_to_text(self, item: Dict[str, Any]) -> str:
         """
         Convert an agenda item to text for embedding.
@@ -834,6 +864,10 @@ class PgVectorBackend:
             # State programs are per-jurisdiction (different grants per city)
             # They're atomic grant definitions, no chunking needed
             documents = storage_backend.get_state_passthrough_funds(jurisdiction_id)
+        elif corpus_type == "budget_items":
+            # Budget items are atomic (no chunking needed)
+            # Each line item is one embedding
+            documents = storage_backend.get_budget_items(jurisdiction_id)
         else:
             raise ValueError(f"Unknown corpus_type: {corpus_type}")
 
@@ -953,6 +987,12 @@ class PgVectorBackend:
                     doc_id = doc.get("passthrough_id") or doc.get("id", f"state-program-{i}-{idx}")
                     meeting_id = None  # Not meeting-related
                     meeting_title = doc.get("state_program_name")
+                    meeting_datetime = None
+                elif corpus_type == "budget_items":
+                    text = self._budget_item_to_text(doc)
+                    doc_id = doc.get("item_id") or doc.get("id", f"budget-{i}-{idx}")
+                    meeting_id = None  # Not meeting-related
+                    meeting_title = f"{doc.get('department', '')} - {doc.get('line_item', '')}"
                     meeting_datetime = None
 
                 if not text.strip():
@@ -1161,6 +1201,8 @@ class PgVectorBackend:
         # pgvector's <=> operator returns cosine distance (0-2 range)
         # Convert to similarity: 1 - distance
         # Filter by jurisdiction, corpus type, and matching model
+        # Match both full model name (nomic-ai/nomic-embed-text-v1.5) and
+        # normalized name (nomic-embed-text-v1.5) for compatibility with older indexes
         sql = f"""
             SELECT
                 id,
@@ -1173,10 +1215,10 @@ class PgVectorBackend:
             FROM {self.TABLE_NAME}
             WHERE jurisdiction_id = %s
               AND corpus_type = %s
-              AND (embedding_model = %s OR embedding_model = 'unknown')
+              AND (embedding_model = %s OR embedding_model = %s OR embedding_model = 'unknown')
         """
 
-        params: List[Any] = [query_embedding.tolist(), jurisdiction_id, corpus_type, current_model]
+        params: List[Any] = [query_embedding.tolist(), jurisdiction_id, corpus_type, current_model, normalized_current]
 
         if min_score is not None:
             # cosine distance < 1 - min_score means similarity > min_score
@@ -1367,3 +1409,207 @@ class PgVectorBackend:
             + (f" ({corpus_type})" if corpus_type else "")
         )
         return deleted
+
+    def encode_texts(
+        self,
+        texts: List[str],
+        batch_size: int = 100,
+    ) -> List[Any]:
+        """
+        Generate embeddings for a list of texts.
+
+        Public interface for embedding generation, used by parallel indexing workers.
+
+        Args:
+            texts: List of text strings to embed
+            batch_size: Number of texts to process at once
+
+        Returns:
+            List of embedding vectors (numpy arrays)
+        """
+        return self._embedding_provider.encode(texts, batch_size=batch_size)
+
+    def bulk_insert_embeddings(
+        self,
+        records: List[Dict[str, Any]],
+        jurisdiction_id: str,
+        corpus_type: str,
+        use_copy: bool = True,
+    ) -> Dict[str, int]:
+        """
+        Bulk insert pre-computed embeddings into pgvector.
+
+        Public interface for parallel indexing workers. Each record should contain:
+        - id: Unique document identifier
+        - content: Text content that was embedded
+        - embedding: The embedding vector (list of floats)
+        - meeting_id: Optional meeting reference
+        - meeting_title: Optional display title
+        - meeting_datetime: Optional datetime
+        - metadata: Optional dict of additional metadata
+
+        Args:
+            records: List of embedding records to insert
+            jurisdiction_id: Target jurisdiction
+            corpus_type: Corpus type for these embeddings
+            use_copy: If True, use PostgreSQL COPY for speed (requires no duplicates)
+
+        Returns:
+            Dict with 'success' and 'failed' counts
+        """
+        from io import StringIO
+        from datetime import datetime
+
+        if not records:
+            return {"success": 0, "failed": 0}
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        now = datetime.utcnow()
+
+        if use_copy:
+            buffer = StringIO()
+            for record in records:
+                # Escape content for COPY format
+                content = record.get("content", "")
+                content_escaped = (
+                    content.replace("\\", "\\\\")
+                    .replace("\t", "\\t")
+                    .replace("\n", "\\n")
+                    .replace("\r", "\\r")
+                )
+
+                # Format embedding as pgvector string
+                embedding = record.get("embedding", [])
+                embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
+
+                # Handle metadata
+                metadata = record.get("metadata", {})
+                if not isinstance(metadata, str):
+                    metadata = _serialize_metadata(metadata)
+                metadata_escaped = (
+                    metadata.replace("\\", "\\\\")
+                    .replace("\t", "\\t")
+                    .replace("\n", "\\n")
+                )
+
+                # Handle meeting_title
+                meeting_title = record.get("meeting_title")
+                if meeting_title:
+                    meeting_title_escaped = (
+                        meeting_title.replace("\\", "\\\\")
+                        .replace("\t", "\\t")
+                        .replace("\n", "\\n")
+                    )
+                else:
+                    meeting_title_escaped = "\\N"
+
+                # Handle meeting_datetime
+                meeting_datetime = record.get("meeting_datetime")
+                if meeting_datetime:
+                    if hasattr(meeting_datetime, 'isoformat'):
+                        meeting_datetime_str = meeting_datetime.isoformat()
+                    else:
+                        meeting_datetime_str = str(meeting_datetime)
+                else:
+                    meeting_datetime_str = "\\N"
+
+                row = [
+                    record.get("id", ""),
+                    jurisdiction_id,
+                    corpus_type,
+                    content_escaped,
+                    embedding_str,
+                    self._embedding_model,
+                    record.get("meeting_id") or "\\N",
+                    meeting_title_escaped,
+                    meeting_datetime_str,
+                    metadata_escaped,
+                    now.isoformat(),
+                    now.isoformat(),
+                ]
+                buffer.write("\t".join(str(v) for v in row) + "\n")
+
+            buffer.seek(0)
+
+            try:
+                cursor.copy_from(
+                    buffer,
+                    self.TABLE_NAME,
+                    columns=(
+                        "id", "jurisdiction_id", "corpus_type", "content", "embedding",
+                        "embedding_model", "meeting_id", "meeting_title", "meeting_datetime",
+                        "metadata", "created_at", "updated_at"
+                    ),
+                )
+                conn.commit()
+                conn.close()
+                return {"success": len(records), "failed": 0}
+            except Exception as e:
+                conn.rollback()
+                conn.close()
+                logger.error(f"Bulk insert failed: {e}")
+                return {"success": 0, "failed": len(records), "error": str(e)}
+        else:
+            # Use execute_values with upsert for incremental mode
+            from psycopg2.extras import execute_values
+
+            insert_values = []
+            for record in records:
+                metadata = record.get("metadata", {})
+                if not isinstance(metadata, str):
+                    metadata = _serialize_metadata(metadata)
+
+                meeting_datetime = record.get("meeting_datetime")
+                if isinstance(meeting_datetime, str):
+                    try:
+                        meeting_datetime = datetime.fromisoformat(
+                            meeting_datetime.replace("Z", "+00:00")
+                        )
+                    except ValueError:
+                        meeting_datetime = None
+
+                insert_values.append((
+                    record.get("id", ""),
+                    jurisdiction_id,
+                    corpus_type,
+                    record.get("content", ""),
+                    record.get("embedding", []),
+                    self._embedding_model,
+                    record.get("meeting_id"),
+                    record.get("meeting_title"),
+                    meeting_datetime,
+                    metadata,
+                ))
+
+            try:
+                execute_values(
+                    cursor,
+                    f"""
+                    INSERT INTO {self.TABLE_NAME}
+                        (id, jurisdiction_id, corpus_type, content, embedding,
+                         embedding_model, meeting_id, meeting_title, meeting_datetime,
+                         metadata, updated_at)
+                    VALUES %s
+                    ON CONFLICT (id) DO UPDATE SET
+                        content = EXCLUDED.content,
+                        embedding = EXCLUDED.embedding,
+                        embedding_model = EXCLUDED.embedding_model,
+                        meeting_id = EXCLUDED.meeting_id,
+                        meeting_title = EXCLUDED.meeting_title,
+                        meeting_datetime = EXCLUDED.meeting_datetime,
+                        metadata = EXCLUDED.metadata,
+                        updated_at = CURRENT_TIMESTAMP
+                    """,
+                    insert_values,
+                    template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)",
+                    page_size=500,
+                )
+                conn.commit()
+                conn.close()
+                return {"success": len(records), "failed": 0}
+            except Exception as e:
+                conn.rollback()
+                conn.close()
+                logger.error(f"Bulk insert failed: {e}")
+                return {"success": 0, "failed": len(records), "error": str(e)}

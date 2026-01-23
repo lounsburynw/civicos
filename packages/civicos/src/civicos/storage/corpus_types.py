@@ -42,6 +42,9 @@ class CorpusType(str, Enum):
     ISSUES = "issues"           # Community issues (aka "issue" singular)
     ELECTIONS = "elections"     # Elections, contests, ballot measures
 
+    # Budget corpora
+    BUDGET = "budget_items"       # Municipal budget line items
+
     # State/federal-level corpora
     LEGISLATION = "legislation"   # Bills (pending/historical) - parameterized by state
     PROGRAMS = "programs"         # Federal programs (grants, etc.)
@@ -175,6 +178,17 @@ CORPUS_REGISTRY: Dict[CorpusType, CorpusConfig] = {
         sql_table=None,  # Vector-only corpus
         vector_collection_suffix="elections",
         aliases=("election", "ballot", "vote"),
+        has_meeting_context=False,
+    ),
+    CorpusType.BUDGET: CorpusConfig(
+        display_name="Budget Items",
+        storage_method="get_budget_items",
+        count_method="get_budget_items_count",
+        text_extractor="_budget_item_to_text",
+        jurisdiction_type="city",
+        sql_table="budget_items",
+        vector_collection_suffix="budget_items",
+        aliases=("budget",),
         has_meeting_context=False,
     ),
     CorpusType.LEGISLATION: CorpusConfig(
@@ -337,6 +351,8 @@ UNIFIED_SEARCH_ALIASES = {
     "transcript": CorpusType.TRANSCRIPTS,
     "issue": CorpusType.ISSUES,
     "municipal_code": CorpusType.MUNICIPAL_CODE,
+    "budget": CorpusType.BUDGET,
+    "budget_items": CorpusType.BUDGET,
     "legislation": CorpusType.LEGISLATION,
     "programs": CorpusType.PROGRAMS,
     "state_programs": CorpusType.STATE_PROGRAMS,
@@ -355,6 +371,7 @@ UNIFIED_CORPUS_TYPES = frozenset({
     "transcript",
     "issue",
     "municipal_code",
+    "budget",
     "legislation",
     "programs",
     "state_programs",
