@@ -582,6 +582,56 @@
         "depends_on": [
           "hybrid_what_applies"
         ]
+      },
+      "legislation_status_filtering": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Semantic search excludes vetoed/repealed legislation",
+        "description": "Add status filtering to semantic search path in what_applies(). Currently exact topic match filters by status='Active' but semantic path returns all bills including vetoed/repealed.",
+        "note": "Session 544: Identified gap - semantic results may include dead legislation. Fix: filter by status in metadata or post-filter results.",
+        "depends_on": [
+          "hybrid_what_applies"
+        ]
+      },
+      "federal_legislation_semantic_search": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Federal bills discoverable via semantic search in what_applies()",
+        "description": "Add semantic search for federal legislation (state-US vectors, 12,355 embeddings). Currently only CA state legislation uses semantic fallback; federal bills with relevant content aren't discovered.",
+        "note": "Session 544: what_applies() searches legislation-CA but not state-US. Federal bills mentioning 'accessory dwelling units' won't surface.",
+        "depends_on": [
+          "hybrid_what_applies"
+        ]
+      },
+      "legislation_recency_ranking": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Recent legislation ranked higher in results",
+        "description": "Add recency signal to legislation ranking. A 2024 bill and 2019 bill with same similarity score currently rank equally. Recent legislation is often more relevant for civic action.",
+        "note": "Session 544: Could use enacted_date or valid_from as decay factor in ranking. Trade-off: older foundational laws (SB9, AB2011) might still be most relevant.",
+        "depends_on": [
+          "hybrid_what_applies"
+        ]
+      },
+      "local_implementation_surfacing": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Bills requiring local action prominently surfaced",
+        "description": "Surface local_implementation_required field prominently in what_applies() results. Bills that require city action are arguably most relevant for civic users but this field is currently buried.",
+        "note": "Session 544: Could boost ranking for bills with local_implementation_required=true, or add a separate 'action_required' section in results.",
+        "depends_on": [
+          "hybrid_what_applies"
+        ]
+      },
+      "query_expansion_abbreviations": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Common abbreviations expanded for better recall",
+        "description": "Expand common civic abbreviations before vector search. 'ADU' should match 'accessory dwelling unit', 'EIR' should match 'environmental impact report'. Embeddings may not reliably capture abbreviations.",
+        "note": "Session 544: Could maintain abbreviation map or use LLM to expand query before embedding. Trade-off: adds latency, may over-expand.",
+        "depends_on": [
+          "hybrid_what_applies"
+        ]
       }
     }
   },

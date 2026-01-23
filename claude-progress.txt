@@ -15354,3 +15354,15 @@ Updated `what_applies()` to use hierarchical semantic search:
 - `pilot.json` - hybrid_what_applies → ready, budget_vector_indexing → P0
 
 **Design note:** Generous retrieval (100 chunks → 30 bills) with scores lets consuming LLM filter based on user's actual question context.
+
+### Added retrieval gap items to pilot.json
+
+Identified and added 5 retrieval improvements to semantic_search_expansion:
+
+1. **legislation_status_filtering** (P2) - Exclude vetoed/repealed from semantic results
+2. **federal_legislation_semantic_search** (P2) - Search state-US vectors (12,355 embeddings)
+3. **legislation_recency_ranking** (P3) - Boost recent legislation in results
+4. **local_implementation_surfacing** (P2) - Prominently surface bills requiring city action
+5. **query_expansion_abbreviations** (P3) - Expand ADU→"accessory dwelling unit", etc.
+
+All depend on hybrid_what_applies (now complete).
