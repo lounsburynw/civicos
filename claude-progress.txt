@@ -15435,3 +15435,31 @@ Added to PgVectorBackend:
 
 Set `voting_record_semantic_search` as P0 - update get_voting_record() to use semantic search on decision titles/summaries instead of exact topic array match.
 
+
+## Session 546 (2026-01-23) - mcp_source_citations
+
+**P0 Completed:** mcp_source_citations
+
+Audited MCP tools and added source citations to 7 tools that were missing them:
+
+1. **search_budget** - Added source_url/source_page for budget items
+2. **get_public_testimony** - Added clickable YouTube video links with timestamps  
+3. **get_decision_context** - Added CivicOS deep links for decisions + video links for testimony/discussion
+4. **search_agenda_packets** - Added clickable video links for transcript excerpts
+5. **get_voting_record** - Added CivicOS deep links for each decision in voting record
+6. **get_federal_expenditures** - Added FAC source_url to federal expenditure programs (also updated federal_expenditures_summary in civicos.py)
+7. **search_regulatory_stack** - Added official_url links for state legislation, improved federal/local formatting
+
+Pattern established:
+- `item.source_url` for document sources (PDFs, budget docs, FAC)
+- `_generate_web_app_url('event', id)` for internal CivicOS deep links
+- `item.video_url` for YouTube timestamps (auto-generated property on TranscriptExcerpt/TranscriptLink/HybridSearchResult)
+
+Tools still without source citations (no source data available):
+- Issue tools (no source_url field in data model yet)
+- get_funding_flow (links budget to federal programs but no primary source)
+- compose_public_comment, get_comment_* (generates content, no source to cite)
+
+### Next Session P0
+
+Need to identify next P0. Run `/start` to see recommended item.

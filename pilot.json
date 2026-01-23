@@ -572,7 +572,7 @@
       },
       "voting_record_semantic_search": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "get_voting_record() finds semantically related votes",
         "description": "Update get_voting_record() to use semantic topic matching instead of exact array match. 'housing affordability' would also find votes on 'zoning', 'development', 'density'.",
         "note": "Session 540: Current implementation in civicos.py:973-977 uses exact topic array match. Vector search on decision titles/summaries would improve recall.",
@@ -2439,18 +2439,29 @@
         ]
       },
       "mcp_source_citations": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "All MCP tool responses include source citations for verification",
         "description": "Audit MCP tools to ensure source URLs are returned wherever underlying data has them. Budget, decisions, legislation, and other tools should include links to official source documents for trustworthiness.",
-        "note": "Session 545: Budget data has source_url/source_page fields but search_budget MCP tool doesn't output them. Some tools use _generate_web_app_url() for deep links but pattern isn't consistent. Need systematic audit.",
+        "completed_session": 546,
+        "completed_date": "2026-01-23",
+        "changes": [
+          "search_budget: Added source_url/source_page output for budget items",
+          "get_public_testimony: Added clickable YouTube video links with timestamps",
+          "get_decision_context: Added CivicOS deep links for decisions + video links for testimony",
+          "search_agenda_packets: Added clickable video links for transcript excerpts",
+          "get_voting_record: Added CivicOS deep links for each decision in voting record",
+          "get_federal_expenditures: Added FAC source_url to federal expenditure programs",
+          "search_regulatory_stack: Added official_url links for state legislation, improved federal/local formatting"
+        ],
+        "note": "7 MCP tools updated with source citations. Pattern: use item.source_url for documents, _generate_web_app_url() for internal deep links, item.video_url for YouTube timestamps.",
         "subtasks": [
-          "Audit all MCP tools for source citation gaps",
-          "Add source_url/source_page to search_budget output",
-          "Ensure what_happened includes decision source links",
-          "Ensure what_applies includes legislation source links",
-          "Verify deep links (_generate_web_app_url) used consistently",
-          "Add source citations to semantic search result formatting"
+          {"name": "Audit all MCP tools for source citation gaps", "done": true},
+          {"name": "Add source_url/source_page to search_budget output", "done": true},
+          {"name": "Ensure what_happened includes decision source links", "done": true},
+          {"name": "Ensure what_applies includes legislation source links", "done": true},
+          {"name": "Verify deep links (_generate_web_app_url) used consistently", "done": true},
+          {"name": "Add source citations to semantic search result formatting", "done": true}
         ],
         "depends_on": [
           "mcp_vector_search_tools"
