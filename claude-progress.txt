@@ -15328,3 +15328,29 @@ The pilot.json item was created in Session 540 without checking existing state.
 ### Next P0
 
 `hybrid_what_applies` - Update what_applies() to use hybrid search (exact topic + vector fallback). Enables semantic discovery of 2,839 bills vs only 20 tagged bills.
+
+### Implemented hybrid_what_applies with Hierarchical Retrieval
+
+Updated `what_applies()` to use hierarchical semantic search:
+
+**Architecture:**
+1. Exact topic match first (fast, precise for tagged bills)
+2. If < 5 results, semantic chunk search:
+   - TopK=100 chunks, score floor > 0.4
+   - Group by bill_id, keep top 3 chunks each
+   - Batch fetch bill metadata (single SQL query with ANY)
+3. Return both levels:
+   - **Bill-level**: id, name, summary, leverage_point, relevance_score
+   - **Section-level**: `relevant_sections[]` with content and scores
+
+**Test results:**
+- "accessory dwelling units" → 21 bills, top is SB543 at 0.787 with relevant sections
+- "bike lanes" → 13 bills via semantic search
+- "housing" → 6 exact matches (no semantic fallback needed)
+
+**Files modified:**
+- `packages/civicos/src/civicos/context.py` - Hierarchical retrieval logic
+- `packages/civicos/src/civicos/storage/postgres_backend.py` - Added `get_legislation_batch()`
+- `pilot.json` - hybrid_what_applies → ready, budget_vector_indexing → P0
+
+**Design note:** Generous retrieval (100 chunks → 30 bills) with scores lets consuming LLM filter based on user's actual question context.

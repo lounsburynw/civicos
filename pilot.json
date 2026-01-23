@@ -538,11 +538,11 @@
         ]
       },
       "hybrid_what_applies": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "what_applies() uses semantic search with topic fallback",
         "description": "Update what_applies() to use hybrid search: exact topic match first, then vector search on legislation summaries if few results. Dramatically improves coverage from 20 tagged bills to all 2,839 bills.",
-        "note": "Session 540: Current implementation in context.py:129-134 uses exact topic match only. Hybrid approach: (1) exact topic match, (2) if <5 results, vector search on summaries, (3) dedupe and merge.",
+        "note": "Session 544: Implemented hierarchical retrieval. (1) Exact topic match first, (2) if <5 results, semantic chunk search (TopK=100, floor=0.4), (3) group by bill, keep top 3 chunks each, (4) batch fetch bill metadata, (5) return both bill-level (summary, leverage_point) and section-level (relevant_sections with scores). Test: 'accessory dwelling units' returns 21 bills with SB543 at 0.787.",
         "depends_on": [
           "legislation_vector_indexing"
         ],
@@ -555,7 +555,7 @@
       },
       "budget_vector_indexing": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Budget items indexed for semantic queries like 'homeless services funding'",
         "description": "Index budget item descriptions in pgvector to enable semantic budget search. Currently budget() uses exact department/fund matching, missing cross-department discoveries.",
         "note": "Session 540: 58 San Rafael budget items exist but are not vector-indexed. Semantic search would enable queries like 'what money is available for housing?' to find items across departments.",
