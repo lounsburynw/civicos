@@ -525,11 +525,11 @@
     },
     "semantic_search_expansion": {
       "legislation_vector_indexing": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "2,839 CA legislation bills indexed in pgvector for semantic search",
         "description": "Index all CA state legislation (bill summaries, leverage points) in pgvector to enable semantic discovery. Currently what_applies() only finds bills with exact topic tags (20 bills), missing 2,828 untagged bills.",
-        "note": "Session 540: Identified during semantic search audit. This is prerequisite for hybrid_what_applies. Use corpus_type='legislation' with bill_id, summary, leverage_point as searchable content.",
+        "note": "Session 544: Verified already complete. 47,456 embeddings for legislation-CA indexed on 2026-01-08. 2,828/2,864 CA bills indexed (98.7% coverage). Semantic search working - test query 'affordable housing' returns relevant housing bills (SB130, AB130).",
         "subtasks": [
           "Add legislation to CORPUS_REGISTRY with chunking config",
           "Create index_legislation() function in vector indexing pipeline",
@@ -539,7 +539,7 @@
       },
       "hybrid_what_applies": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "what_applies() uses semantic search with topic fallback",
         "description": "Update what_applies() to use hybrid search: exact topic match first, then vector search on legislation summaries if few results. Dramatically improves coverage from 20 tagged bills to all 2,839 bills.",
         "note": "Session 540: Current implementation in context.py:129-134 uses exact topic match only. Hybrid approach: (1) exact topic match, (2) if <5 results, vector search on summaries, (3) dedupe and merge.",

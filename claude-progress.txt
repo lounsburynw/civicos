@@ -15306,3 +15306,25 @@ https://civicos.fly.dev?type=issue&id=scf-456&tab=discussion
 ### Next P0
 
 `legislation_vector_indexing` - Index 2,839 CA bills in pgvector for semantic search. Prerequisite for hybrid_what_applies.
+
+## Session 544 - 2026-01-22
+
+### Verified legislation_vector_indexing Already Complete
+
+Started session with `legislation_vector_indexing` as P0 but discovered it was already done:
+
+- **47,456 embeddings** for CA legislation (jurisdiction_id: `legislation-CA`)
+- **2,828/2,864 CA bills indexed** (98.7% coverage)
+- Indexed on **2026-01-08** - nearly 2 weeks before item was created
+- Semantic search working - "affordable housing" query returns SB130, AB130 housing bills
+
+The pilot.json item was created in Session 540 without checking existing state.
+
+### Changes
+
+- Updated `pilot.json`: `legislation_vector_indexing` → status: ready
+- Set `hybrid_what_applies` as new P0 (its dependency is now complete)
+
+### Next P0
+
+`hybrid_what_applies` - Update what_applies() to use hybrid search (exact topic + vector fallback). Enables semantic discovery of 2,839 bills vs only 20 tagged bills.
