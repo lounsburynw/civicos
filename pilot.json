@@ -2110,16 +2110,16 @@
     },
     "deep_linking": {
       "url_routing": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "URL-based routing for artifact deep linking",
-        "description": "Add URL routing support to the Vue frontend so artifacts can be accessed via URL. Enables deep linking from MCP responses, sharing, bookmarks, and notifications. Pattern: query params (e.g., ?artifact=event&id=xxx) or hash routing (#/events/xxx).",
-        "note": "Session 541: Required for linkback_integration. Currently the app uses internal artifact state with no URL representation. Vue Router or manual query param handling needed.",
+        "description": "Add URL routing support to the Vue frontend so artifacts can be accessed via URL. Enables deep linking from MCP responses, sharing, bookmarks, and notifications. Pattern: query params (e.g., ?type=event&id=xxx&tab=details).",
+        "note": "Session 542: Implemented using query parameters. URL syncs on openArtifact/closeArtifact/setActiveArtifact. Deep link loading in App.vue onMounted. Supports event, issue, thread, admin-status, values-explorer types. Bill support blocked on getBill API.",
         "subtasks": [
-          "Choose routing approach (Vue Router vs query params vs hash)",
-          "Implement URL-to-artifact state mapping on app load",
-          "Implement artifact-to-URL sync when opening artifacts",
-          "Handle invalid/missing artifact IDs gracefully",
+          "Choose routing approach (Vue Router vs query params vs hash) - DONE: query params",
+          "Implement URL-to-artifact state mapping on app load - DONE: parseUrlParams(), loadArtifactFromUrl()",
+          "Implement artifact-to-URL sync when opening artifacts - DONE: syncUrlToState()",
+          "Handle invalid/missing artifact IDs gracefully - DONE: clearUrlParams() on failure",
           "Update existing openArtifact() calls to also update URL"
         ]
       }
@@ -2440,10 +2440,10 @@
       },
       "linkback_integration": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Deep links from AI responses back to web app",
         "description": "All MCP tools and ChatGPT GPT responses include links to web app for detailed views, related content, and actions.",
-        "note": "Session 541: Added YouTube links for transcripts (search_meeting_history) and external source links for issues (find_similar_issues, get_issue_sample). Web app deep linking blocked on url_routing. Issue links require data refresh to populate provider_metadata.html_url.",
+        "note": "Session 541: Added YouTube links for transcripts (search_meeting_history) and external source links for issues (find_similar_issues, get_issue_sample). Session 542: url_routing complete. Remaining: wire up WEB_APP_BASE_URL in MCP tools to generate deep links using ?type=X&id=Y format.",
         "depends_on": [
           "url_routing",
           "web_frontend",

@@ -15214,3 +15214,47 @@ Investigated adding deep links from MCP responses back to the web app.
 ### Next P0
 
 `url_routing` - Add URL-based routing to Vue frontend for artifact deep linking. Enables sharing, bookmarks, and MCP linkback.
+
+---
+
+## Session 542 (2026-01-22): URL Routing for Artifact Deep Linking
+
+**Item:** url_routing (P0)
+**Area:** frontend_refinement > deep_linking
+**Status:** Completed
+
+### Summary
+
+Implemented URL-based routing for the Vue frontend using query parameters. URLs now reflect the active artifact and can be shared/bookmarked for deep linking.
+
+### Changes Made
+
+**workspace.ts:**
+- Added `UrlArtifactParams` interface for URL state
+- Added `parseUrlParams()` - parses URL query params (?type=event&id=xxx&tab=details)
+- Added `syncUrlToState()` - updates URL when artifact state changes
+- Added `getUrlArtifactParams()` - public getter for URL params
+- Added `clearUrlParams()` - clears URL when loading fails
+- Modified `openArtifact()`, `closeArtifact()`, `setActiveArtifact()`, `closeAllArtifacts()` to call `syncUrlToState()`
+
+**App.vue:**
+- Added `loadArtifactFromUrl(params)` - fetches artifact data and opens it
+- Modified `onMounted()` to check for URL params and load artifact
+- Supports: event, issue, thread, admin-status, values-explorer
+- Bill support blocked on getBill API (noted as limitation)
+
+### URL Format
+
+```
+?type=event&id=proudcity-city-san-rafael-xxx
+?type=issue&id=scf-12345&tab=details
+?type=admin-status&id=admin-status
+```
+
+### Testing Note
+
+Full E2E testing blocked by API architecture - API currently reads from JSON cache files rather than PostgreSQL. URL routing code is correct; will work when API serves real data.
+
+### Next P0
+
+`linkback_integration` - Wire up WEB_APP_BASE_URL in MCP tools to generate deep link URLs using the new ?type=X&id=Y format.

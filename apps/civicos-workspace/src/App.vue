@@ -22,7 +22,7 @@ import LocationEntry from '@/components/LocationEntry.vue';
 import CapabilitiesModal from '@/components/onboarding/CapabilitiesModal.vue';
 import ChatPanel from '@/components/chat/ChatPanel.vue';
 import TabBar from '@/components/workspace/TabBar.vue';
-import { useWorkspaceStore } from '@/stores/workspace';
+import { useWorkspaceStore, type UrlArtifactParams } from '@/stores/workspace';
 import { useUserStore } from '@/stores/user';
 import { useSidebarStore } from '@/stores/sidebar';
 import { useProfileStore } from '@/stores/profile';
@@ -85,8 +85,87 @@ onMounted(() => {
   }
 });
 
+// Session 542: Load artifact from URL deep link
+async function loadArtifactFromUrl(params: UrlArtifactParams): Promise<boolean> {
+  console.log('[App] Loading artifact from URL:', params);
+
+  try {
+    switch (params.type) {
+      case 'event': {
+        const event = await api.getEvent(params.id);
+        workspaceStore.openArtifact({
+          id: event.id,
+          type: 'event',
+          title: event.title,
+          data: event,
+          initialTab: params.initialTab
+        });
+        return true;
+      }
+
+      case 'issue': {
+        const issue = await api.getIssue(params.id);
+        const tabTitle = issue.short_name || issue.ai_title || issue.description?.substring(0, 50) + '...';
+        workspaceStore.openArtifact({
+          id: ArtifactIds.issue(issue.id),
+          type: 'issue',
+          title: tabTitle,
+          data: issue,
+          initialTab: params.initialTab
+        });
+        return true;
+      }
+
+      case 'bill': {
+        // Bills are loaded via LegislativePanel, need bill data from URL ID
+        // For now, we can't load bills from URL without a getBill API
+        console.warn('[App] Bill deep linking not yet supported - requires getBill API');
+        return false;
+      }
+
+      case 'thread': {
+        // Threads can be opened directly with just the ID
+        workspaceStore.openArtifact({
+          id: params.id,
+          type: 'thread',
+          title: 'Discussion',
+          data: { threadId: params.id }
+        });
+        return true;
+      }
+
+      case 'admin-status': {
+        workspaceStore.openArtifact({
+          id: 'admin-status',
+          type: 'admin-status',
+          title: 'Pipeline Status',
+          data: { jurisdiction: 'san-rafael' }
+        });
+        return true;
+      }
+
+      case 'values-explorer': {
+        workspaceStore.openArtifact({
+          id: 'values-explorer',
+          type: 'values-explorer',
+          title: 'Values Explorer',
+          data: {}
+        });
+        return true;
+      }
+
+      default:
+        console.warn('[App] Unsupported artifact type for URL loading:', params.type);
+        return false;
+    }
+  } catch (error) {
+    console.error('[App] Failed to load artifact from URL:', error);
+    return false;
+  }
+}
+
 // Check if user needs location entry or onboarding on mount
-onMounted(() => {
+onMounted(async () => {
   // Show location entry if not set (users can browse without a profile)
   if (!userStore.hasLocation) {
     showLocationEntry.value = true;
@@ -107,6 +186,17 @@ onMounted(() => {
   // Initialize developer mode from URL parameter (Session 68)
   // Launch with ?dev=true to enable LLM provider info
   developerStore.initFromUrl();
+
+  // Session 542: Check for URL deep link and load artifact
+  const urlParams = workspaceStore.getUrlArtifactParams();
+  if (urlParams) {
+    const success = await loadArtifactFromUrl(urlParams);
+    if (!success) {
+      // Clear invalid URL params
+      workspaceStore.clearUrlParams();
+      console.warn('[App] Failed to load artifact from URL, params cleared');
+    }
+  }
 
   // Expose reset functions for testing (browser console access)
   // @ts-ignore
