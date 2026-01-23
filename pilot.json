@@ -2438,6 +2438,24 @@
           "remote_mcp_deployment"
         ]
       },
+      "mcp_source_citations": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "All MCP tool responses include source citations for verification",
+        "description": "Audit MCP tools to ensure source URLs are returned wherever underlying data has them. Budget, decisions, legislation, and other tools should include links to official source documents for trustworthiness.",
+        "note": "Session 545: Budget data has source_url/source_page fields but search_budget MCP tool doesn't output them. Some tools use _generate_web_app_url() for deep links but pattern isn't consistent. Need systematic audit.",
+        "subtasks": [
+          "Audit all MCP tools for source citation gaps",
+          "Add source_url/source_page to search_budget output",
+          "Ensure what_happened includes decision source links",
+          "Ensure what_applies includes legislation source links",
+          "Verify deep links (_generate_web_app_url) used consistently",
+          "Add source citations to semantic search result formatting"
+        ],
+        "depends_on": [
+          "mcp_vector_search_tools"
+        ]
+      },
       "openapi_spec": {
         "status": "ready",
         "priority": 2,
