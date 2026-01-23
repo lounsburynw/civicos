@@ -17,6 +17,7 @@ Jan 2026: Pilot Execution (planned)
 
 Feb 2026+: Scale or Pivot
 ├── IF >50% empowerment: Scale to 5-10 decisions/month
+│   └── See CIVIC_DASHBOARD_VISION.md for scaling UX direction
 └── IF <50% empowerment: Pivot to alternative approach
 ```
 
