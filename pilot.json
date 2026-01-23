@@ -2108,6 +2108,22 @@
         }
       ]
     },
+    "deep_linking": {
+      "url_routing": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "URL-based routing for artifact deep linking",
+        "description": "Add URL routing support to the Vue frontend so artifacts can be accessed via URL. Enables deep linking from MCP responses, sharing, bookmarks, and notifications. Pattern: query params (e.g., ?artifact=event&id=xxx) or hash routing (#/events/xxx).",
+        "note": "Session 541: Required for linkback_integration. Currently the app uses internal artifact state with no URL representation. Vue Router or manual query param handling needed.",
+        "subtasks": [
+          "Choose routing approach (Vue Router vs query params vs hash)",
+          "Implement URL-to-artifact state mapping on app load",
+          "Implement artifact-to-URL sync when opening artifacts",
+          "Handle invalid/missing artifact IDs gracefully",
+          "Update existing openArtifact() calls to also update URL"
+        ]
+      }
+    },
     "social_features": {
       "user_identity_in_messages": {
         "status": "not_ready",
@@ -2348,11 +2364,12 @@
       },
       "linkback_integration": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Deep links from AI responses back to web app",
         "description": "All MCP tools and ChatGPT GPT responses include links to web app for detailed views, related content, and actions.",
-        "note": "Session 540: Set as P0 after completing upcoming_meetings_ingestion. Critical for users to act on MCP responses.",
+        "note": "Session 541: Added YouTube links for transcripts (search_meeting_history) and external source links for issues (find_similar_issues, get_issue_sample). Web app deep linking blocked on url_routing. Issue links require data refresh to populate provider_metadata.html_url.",
         "depends_on": [
+          "url_routing",
           "web_frontend",
           "mcp_vector_search_tools",
           "remote_mcp_deployment"
