@@ -4634,6 +4634,67 @@ class PostgresBackend:
 
         return bill
 
+    def get_legislation_batch(
+        self,
+        state: str,
+        bill_ids: List[str],
+        as_of: Optional[datetime] = None,
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Batch fetch multiple legislation bills by bill_id.
+
+        Args:
+            state: State code (e.g., "CA")
+            bill_ids: List of bill identifiers (e.g., ["ca-sb9", "ca-ab2011"])
+            as_of: Point-in-time query (for temporal versioning)
+
+        Returns:
+            Dict mapping bill_id to bill dictionary
+        """
+        if not bill_ids:
+            return {}
+
+        as_of = as_of or datetime.now()
+        conn = self._get_connection()
+        self._ensure_schema(conn)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # Use ANY for efficient batch lookup
+        cursor.execute("""
+            SELECT DISTINCT ON (bill_id) *
+            FROM legislation
+            WHERE state = %s
+              AND bill_id = ANY(%s)
+              AND valid_from <= %s
+              AND (valid_to IS NULL OR valid_to > %s)
+              AND deleted_at IS NULL
+            ORDER BY bill_id, created_at DESC
+        """, (state, bill_ids, as_of.isoformat(), as_of.isoformat()))
+
+        results = {}
+        for row in cursor.fetchall():
+            bill = dict(row)
+            # Parse JSONB fields
+            if 'keywords' in bill and isinstance(bill['keywords'], str):
+                try:
+                    bill['keywords'] = json.loads(bill['keywords'])
+                except json.JSONDecodeError:
+                    bill['keywords'] = []
+            if 'metadata' in bill and isinstance(bill['metadata'], str):
+                try:
+                    bill['metadata'] = json.loads(bill['metadata'])
+                except json.JSONDecodeError:
+                    bill['metadata'] = {}
+            # Convert datetime/date objects to ISO strings
+            for key in ['enacted_date', 'local_deadline', 'created_at', 'valid_from', 'valid_to']:
+                if key in bill and bill[key] is not None:
+                    if isinstance(bill[key], (datetime, date)):
+                        bill[key] = bill[key].isoformat()
+            results[bill['bill_id']] = bill
+
+        conn.close()
+        return results
+
     def get_legislation_count(self, state: str, topic: Optional[str] = None) -> int:
         """
         Get count of current legislation for a state.

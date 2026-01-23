@@ -4,9 +4,10 @@ Context Module - what_applies() implementation
 Provides regulatory context for topics using storage backends.
 """
 
-from typing import Optional, List, Any, TYPE_CHECKING
+from typing import Optional, List, Any, Dict, TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime
+from collections import defaultdict
 
 if TYPE_CHECKING:
     from civicos.storage.protocols import StorageBackend
@@ -123,9 +124,15 @@ def get_regulatory_context(
 
     state_code = STATE_CODE_MAP.get(state_name.lower(), state_name.upper())
 
-    # Query state legislation using storage backend
+    # Hybrid state legislation search:
+    # 1. Exact topic match first (fast, precise for tagged bills)
+    # 2. If few results, semantic vector search (discovers untagged bills)
+    # 3. Include relevance scores so consuming LLM can filter based on user's actual question
+    seen_bill_ids: set = set()
+
     if storage is not None:
         try:
+            # Phase 1: Exact topic match
             bills = storage.get_legislation(
                 state=state_code,
                 topic=state_key,
@@ -134,9 +141,11 @@ def get_regulatory_context(
             )
 
             for bill in bills:
+                bill_id = bill.get("bill_id", "")
+                seen_bill_ids.add(bill_id)
                 state.append({
                     "type": "bill",
-                    "id": bill.get("bill_id", ""),
+                    "id": bill_id,
                     "bill_number": bill.get("bill_number", ""),
                     "bill_name": bill.get("bill_name", ""),
                     "status": bill.get("status", ""),
@@ -145,12 +154,89 @@ def get_regulatory_context(
                     "leverage_point": bill.get("leverage_point", ""),
                     "keywords": bill.get("keywords", []),
                     "official_url": bill.get("official_url", ""),
+                    "match_type": "exact_topic",
+                    "relevance_score": 1.0,  # Exact matches get perfect score
                 })
         except Exception as e:
             state = [{"note": f"Error loading state legislation: {e}"}]
 
+    # Phase 2: Hierarchical semantic search if exact match found few results
+    # Returns both bill-level metadata AND relevant section excerpts
+    # Use generous TopK with score floor - let consuming LLM filter based on context
+    SEMANTIC_THRESHOLD = 5      # Trigger semantic search if < 5 exact matches
+    CHUNK_TOP_K = 100           # Generous chunk retrieval
+    CHUNKS_PER_BILL = 3         # Keep top N relevant sections per bill
+    MAX_BILLS = 30              # Max bills to return
+    SEMANTIC_SCORE_FLOOR = 0.4  # Minimum similarity to include
+
+    if vectors is not None and len(state) < SEMANTIC_THRESHOLD:
+        try:
+            # Search legislation chunks
+            legislation_jurisdiction = f"legislation-{state_code}"
+            results = vectors.search(
+                query=topic,
+                jurisdiction_id=legislation_jurisdiction,
+                corpus_type="legislation",
+                top_k=CHUNK_TOP_K,
+            )
+
+            # Group chunks by bill_id, keeping top chunks per bill
+            bill_chunks: Dict[str, List[dict]] = defaultdict(list)
+            for result in results:
+                if result.score < SEMANTIC_SCORE_FLOOR:
+                    continue
+                bill_id = result.metadata.get("bill_id", "")
+                if not bill_id or bill_id in seen_bill_ids:
+                    continue
+                if len(bill_chunks[bill_id]) < CHUNKS_PER_BILL:
+                    bill_chunks[bill_id].append({
+                        "content": result.content[:300] if result.content else "",
+                        "score": round(result.score, 3),
+                        "chunk_index": result.metadata.get("chunk_index"),
+                    })
+
+            # Batch fetch bill metadata from storage (single query)
+            bill_metadata: Dict[str, dict] = {}
+            if storage is not None and bill_chunks:
+                try:
+                    bill_ids_to_fetch = list(bill_chunks.keys())[:MAX_BILLS]
+                    bill_metadata = storage.get_legislation_batch(
+                        state=state_code,
+                        bill_ids=bill_ids_to_fetch,
+                    )
+                except Exception:
+                    pass  # Batch fetch not available, continue without metadata
+
+            # Build hierarchical results
+            for bill_id, chunks in list(bill_chunks.items())[:MAX_BILLS]:
+                seen_bill_ids.add(bill_id)
+                meta = bill_metadata.get(bill_id, {})
+                max_score = max(c["score"] for c in chunks) if chunks else 0
+
+                state.append({
+                    "type": "bill",
+                    "id": bill_id,
+                    "bill_number": meta.get("bill_number", chunks[0].get("bill_number", "") if chunks else ""),
+                    "bill_name": meta.get("bill_name", ""),
+                    "status": meta.get("status", ""),
+                    "enacted_date": meta.get("enacted_date", ""),
+                    "summary": meta.get("summary", ""),
+                    "leverage_point": meta.get("leverage_point", ""),
+                    "keywords": meta.get("keywords", []),
+                    "official_url": meta.get("official_url", ""),
+                    "match_type": "semantic",
+                    "relevance_score": max_score,
+                    # Hierarchical: include relevant sections for LLM context
+                    "relevant_sections": chunks,
+                })
+        except Exception:
+            pass  # Semantic search not available, continue with exact matches
+
+    # Sort by relevance score (exact matches first, then by semantic similarity)
+    state = sorted(state, key=lambda x: x.get("relevance_score", 0), reverse=True)
+
     if not state:
-        state = [{"note": f"No state bills for topic '{state_key}'"}]
+        state = [{"note": f"No state bills found for '{topic}' (checked exact topic match and semantic search)"}]
 
     # Search U.S. Code (codified federal law) using storage backend
     if storage is not None:
