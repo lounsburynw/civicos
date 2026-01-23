@@ -657,6 +657,7 @@ Berkeley was originally considered due to high parse rates (86%), but San Rafael
 - `docs/critical/MCP_INTEGRATION_STRATEGY.md` - MCP server design
 - `docs/critical/FOUNDATION_FUNDING_THESIS.md` - Sustainability model justification
 - `docs/critical/PILOT_ROADMAP.md` - Jan 2026 validation plan
+- `docs/critical/CIVIC_DASHBOARD_VISION.md` - Post-pilot UX vision (engagement ladder, data visualization)
 
 ---
 

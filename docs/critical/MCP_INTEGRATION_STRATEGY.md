@@ -1259,6 +1259,7 @@ def query_issues(jurisdiction: str):
 
 - `docs/critical/FINAL_PACKAGE_ARCHITECTURE.md` - Master architecture, LangGraph workflows
 - `docs/critical/PILOT_ROADMAP.md` - Pilot timeline and readiness
+- `docs/critical/CIVIC_DASHBOARD_VISION.md` - Post-pilot UX vision (visualization primitives, multi-surface rendering)
 - **External**: [MCP Documentation](https://modelcontextprotocol.io/)
 - **External**: [Vercel AI SDK MCP](https://vercel.com/docs/mcp)
 - **External**: [MCP-UI](https://mcpui.dev/)

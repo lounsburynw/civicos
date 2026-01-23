@@ -1,7 +1,7 @@
 {
   "version": "2.0",
   "phase": "pilot",
-  "last_updated": "2026-01-21",
+  "last_updated": "2026-01-22",
   "target": "January 2026",
   "summary": "Consolidated pilot checklist: completed work summarized, active items tracked individually",
   "category_order": [
@@ -2164,6 +2164,82 @@
         "artifact": "Generate action documents from retrieval context",
         "description": "Generate: appeal letters (with legal citations), FOIA/CPRA requests (with specific record references), public comment drafts (with precedent citations), initiative descriptions (with neighbor context).",
         "note": "Session 489: compose_public_comment exists but lacks retrieval-informed citations. Extend to other document types."
+      }
+    },
+    "city_status_dashboard": {
+      "_doc": "docs/critical/CIVIC_DASHBOARD_VISION.md",
+      "city_pulse_mcp_tool": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "MCP tool returning structured city status data with visualization hints",
+        "description": "Add city_pulse(jurisdiction) tool to civicos-mcp that returns: decisions_this_week (from whats_next), recent_outcomes (from what_happened), issue_density_by_area (aggregated issues), participation_metrics (comment counts per meeting), and visualization_hints for rendering. This is the data foundation for all dashboard visualizations.",
+        "note": "Session 542: Foundation for CIVIC_DASHBOARD_VISION.md. Returns structured data that can render in Claude artifacts, web app, or any MCP client.",
+        "subtasks": [
+          "Design response schema with data + visualization_hints structure",
+          "Implement decisions_this_week aggregation",
+          "Implement recent_outcomes aggregation",
+          "Implement issue_density_by_area (group by neighborhood/area)",
+          "Implement participation_metrics (public comment counts)",
+          "Add narrative_hints for LLM-friendly summaries",
+          "Test via Claude chat to validate data shape"
+        ],
+        "test_file": "packages/civicos/tests/test_mcp_city_pulse.py"
+      },
+      "participation_calendar_viz": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Calendar heatmap showing meeting participation density",
+        "description": "Visualization component showing meetings on a calendar with intensity based on public participation (comment count, testimony count). Reveals which meetings draw engagement. Implement as: (1) data shape from city_pulse, (2) Claude artifact renderer, (3) Vue component.",
+        "note": "Session 542: First visualization primitive. Calendar heatmap is simple, high-signal, and works well in both artifact and web contexts.",
+        "depends_on": "city_pulse_mcp_tool"
+      },
+      "decision_flow_viz": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Sankey-style flow showing items through civic process stages",
+        "description": "Visualization showing how agenda items flow: Introduced → Heard → Decided → Implemented. Reveals where things stall (items 'continued' multiple times, decisions pending implementation). Requires tracking item state over time.",
+        "note": "Session 542: Powerful for showing 'what's stuck' without editorial commentary. Data-forward approach.",
+        "depends_on": "city_pulse_mcp_tool"
+      },
+      "issue_geography_viz": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Dot density map showing geographic distribution of civic issues",
+        "description": "Map visualization showing where 311/SeeClickFix issues cluster. Hex bin or dot density. Reveals neighborhood-level patterns. Requires geocoded issue data (lat/lng from addresses).",
+        "note": "Session 542: High impact but requires good geocoding. San Rafael issues have addresses; need to geocode to lat/lng.",
+        "depends_on": "city_pulse_mcp_tool"
+      },
+      "budget_treemap_viz": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Treemap visualization of budget allocation by category",
+        "description": "Interactive treemap showing proportional budget allocation. Drillable: click Public Safety → Police vs Fire breakdown. Uses existing budget_items data.",
+        "note": "Session 542: Lower priority but valuable for 'where does the money go' questions.",
+        "depends_on": "city_pulse_mcp_tool"
+      },
+      "web_dashboard_route": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "New /dashboard route in civicos-workspace composing viz components",
+        "description": "Add /dashboard page to Vue frontend that displays city status at a glance. Composes: participation calendar, decision flow, issue geography, budget treemap. Serves as the 'city pulse' landing page for engaged residents.",
+        "note": "Session 542: This is where visualization components come together. May also serve as embed target for external sites.",
+        "depends_on": "participation_calendar_viz",
+        "subtasks": [
+          "Add Vue Router route for /dashboard",
+          "Create dashboard layout with responsive grid",
+          "Integrate participation calendar component",
+          "Integrate decision flow component",
+          "Integrate issue map component",
+          "Add time range selector (this week, this month, this year)",
+          "Add jurisdiction selector (for multi-city future)"
+        ]
+      },
+      "engagement_ladder_ux": {
+        "status": "not_ready",
+        "priority": 3,
+        "artifact": "Progressive engagement UX from awareness to coordination",
+        "description": "UX flow that guides users through engagement ladder: Awareness (what's happening) → Relevance (what affects me) → Participation (where I can act) → Coordination (who's with me). Each dashboard view surfaces the 'next step' without forcing it.",
+        "note": "Session 542: The engagement ladder is the conceptual spine of the dashboard. This item is about making the progression feel natural in the UX."
       }
     }
   },
