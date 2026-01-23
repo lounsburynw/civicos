@@ -2169,11 +2169,11 @@
     "city_status_dashboard": {
       "_doc": "docs/critical/CIVIC_DASHBOARD_VISION.md",
       "city_pulse_mcp_tool": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": "MCP tool returning structured city status data with visualization hints",
         "description": "Add city_pulse(jurisdiction) tool to civicos-mcp that returns: decisions_this_week (from whats_next), recent_outcomes (from what_happened), issue_density_by_area (aggregated issues), participation_metrics (comment counts per meeting), and visualization_hints for rendering. This is the data foundation for all dashboard visualizations.",
-        "note": "Session 542: Foundation for CIVIC_DASHBOARD_VISION.md. Returns structured data that can render in Claude artifacts, web app, or any MCP client.",
+        "note": "Session 542: Implemented. Integrated into get_started() so city pulse is first thing users see. Includes smart fallbacks for historical data.",
         "subtasks": [
           "Design response schema with data + visualization_hints structure",
           "Implement decisions_this_week aggregation",
