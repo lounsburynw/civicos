@@ -1087,6 +1087,7 @@ class CivicOS:
                     revised_dollars=(r.get("revised_cents") or 0) / 100 if r.get("revised_cents") else None,
                     actual_dollars=(r.get("actual_cents") or 0) / 100 if r.get("actual_cents") else None,
                     fiscal_year=r.get("fiscal_year", ""),
+                    source_url=r.get("source_url"),
                     source_page=r.get("source_page"),
                     notes=r.get("notes"),
                 )
