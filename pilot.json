@@ -572,7 +572,7 @@
       },
       "voting_record_semantic_search": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "get_voting_record() finds semantically related votes",
         "description": "Update get_voting_record() to use semantic topic matching instead of exact array match. 'housing affordability' would also find votes on 'zoning', 'development', 'density'.",
         "note": "Session 540: Current implementation in civicos.py:973-977 uses exact topic array match. Vector search on decision titles/summaries would improve recall.",
@@ -2440,7 +2440,7 @@
       },
       "mcp_source_citations": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "All MCP tool responses include source citations for verification",
         "description": "Audit MCP tools to ensure source URLs are returned wherever underlying data has them. Budget, decisions, legislation, and other tools should include links to official source documents for trustworthiness.",
         "note": "Session 545: Budget data has source_url/source_page fields but search_budget MCP tool doesn't output them. Some tools use _generate_web_app_url() for deep links but pattern isn't consistent. Need systematic audit.",
