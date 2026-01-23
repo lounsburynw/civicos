@@ -22,8 +22,10 @@ and prompt injection attacks. Critical security fix for production deployment.
 import logging
 import os
 import sys
+from datetime import datetime, timedelta
 from typing import Optional
 from pathlib import Path
+from collections import Counter
 from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
 
@@ -630,6 +632,318 @@ def find_similar_issues(
     except Exception as e:
         logger.error(f"Error finding similar issues: {e}")
         return f"Error finding similar issues: {str(e)}"
+
+
+# ─────────── CITY STATUS DASHBOARD ───────────
+# Aggregated city status for the "city pulse" dashboard experience
+# See: docs/critical/CIVIC_DASHBOARD_VISION.md
+
+@mcp.tool()
+def city_pulse(
+    jurisdiction: Optional[str] = None,
+    days_ahead: int = 7,
+    days_back: int = 30,
+) -> dict:
+    """
+    Get a comprehensive snapshot of city activity for dashboard display.
+
+    Returns structured data about what's being decided, what just happened,
+    and community activity patterns. Designed for both AI-native rendering
+    (Claude artifacts, ChatGPT canvas) and web dashboard display.
+
+    Args:
+        jurisdiction: City identifier (default: san-rafael)
+        days_ahead: Days to look ahead for upcoming decisions (default: 7)
+        days_back: Days to look back for recent outcomes (default: 30)
+
+    Returns:
+        Dictionary with:
+        - decisions_this_week: Upcoming meetings and key agenda items
+        - recent_outcomes: Decisions made in the past N days
+        - community_pulse: Issue patterns and activity levels
+        - visualization_hints: Suggestions for rendering
+        - narrative_hints: Key insights for LLM summarization
+
+    Example:
+        >>> city_pulse()
+        # Returns city status snapshot for San Rafael
+        >>> city_pulse(days_ahead=14)
+        # Looks two weeks ahead for upcoming decisions
+    """
+    logger.info(f"Getting city pulse: jurisdiction={jurisdiction}, days_ahead={days_ahead}, days_back={days_back}")
+
+    if civicos_client is None:
+        return {"error": "Civic client not initialized. Check server configuration."}
+
+    jid = jurisdiction or civicos_client.jurisdiction
+    storage = civicos_client._storage
+    now = datetime.now()
+
+    result = {
+        "jurisdiction": jid,
+        "generated_at": now.isoformat(),
+        "decisions_this_week": [],
+        "recent_outcomes": [],
+        "community_pulse": {},
+        "visualization_hints": [],
+        "narrative_hints": {
+            "notable": [],
+            "patterns": [],
+        },
+    }
+
+    try:
+        # ─── UPCOMING DECISIONS ───
+        # Get meetings in the next N days
+        meetings = storage.get_meetings(
+            jid,
+            since=now,
+            until=now + timedelta(days=days_ahead),
+            limit=20
+        )
+
+        # Fallback: if no upcoming meetings, show most recent meetings
+        # (useful for demos/testing when data isn't current)
+        show_recent_label = False
+        if not meetings:
+            meetings = storage.get_meetings(jid, limit=5)
+            show_recent_label = True
+
+        upcoming = []
+        for m in meetings:
+            meeting_datetime = m.get('meeting_datetime')
+            if meeting_datetime:
+                # Format date nicely
+                if hasattr(meeting_datetime, 'strftime'):
+                    date_str = meeting_datetime.strftime("%a, %b %d")
+                    time_str = meeting_datetime.strftime("%I:%M %p").lstrip('0')
+                else:
+                    date_str = str(meeting_datetime)[:10]
+                    time_str = ""
+
+                upcoming.append({
+                    "id": m.get('id'),
+                    "title": m.get('title') or m.get('body') or 'Meeting',
+                    "date": date_str,
+                    "time": time_str,
+                    "meeting_type": m.get('meeting_type', 'meeting'),
+                    "agenda_url": m.get('agenda_url'),
+                    "_is_historical": show_recent_label,
+                })
+
+        result["decisions_this_week"] = upcoming
+        result["_meetings_are_historical"] = show_recent_label
+
+        if upcoming:
+            if show_recent_label:
+                result["narrative_hints"]["notable"].append(
+                    f"Showing {len(upcoming)} most recent meetings (data may not be current)"
+                )
+            else:
+                result["narrative_hints"]["notable"].append(
+                    f"{len(upcoming)} meeting(s) scheduled in the next {days_ahead} days"
+                )
+
+        # ─── RECENT OUTCOMES ───
+        # Get decisions from the past N days
+        since_date = (now - timedelta(days=days_back)).strftime("%Y-%m-%d")
+        decisions = storage.get_decisions(jid, since=since_date, limit=10)
+
+        # Fallback: if no recent decisions, show most recent regardless of date
+        show_historical_decisions = False
+        if not decisions:
+            decisions = storage.get_decisions(jid, limit=5)
+            show_historical_decisions = True
+
+        outcomes = []
+        outcome_types = Counter()
+        for d in decisions:
+            outcome = d.get('outcome') or d.get('status') or 'decided'
+            outcome_types[outcome] += 1
+
+            decision_date = d.get('decision_date') or d.get('meeting_datetime')
+            if decision_date and hasattr(decision_date, 'strftime'):
+                date_str = decision_date.strftime("%b %d")
+            else:
+                date_str = str(decision_date)[:10] if decision_date else "Recent"
+
+            outcomes.append({
+                "id": d.get('id'),
+                "title": d.get('title') or d.get('item_title') or 'Decision',
+                "outcome": outcome,
+                "date": date_str,
+                "topics": d.get('topics', []),
+            })
+
+        result["recent_outcomes"] = outcomes
+        result["_decisions_are_historical"] = show_historical_decisions
+
+        if outcomes:
+            # Summarize outcomes
+            top_outcome = outcome_types.most_common(1)[0] if outcome_types else None
+            if top_outcome:
+                if show_historical_decisions:
+                    result["narrative_hints"]["notable"].append(
+                        f"Showing {len(outcomes)} most recent decisions"
+                    )
+                else:
+                    result["narrative_hints"]["notable"].append(
+                        f"{len(outcomes)} decisions in the past {days_back} days"
+                    )
+
+        # ─── COMMUNITY PULSE ───
+        # Get issue patterns (311/SeeClickFix)
+        try:
+            issues = storage.get_issues(jurisdiction_id=jid, limit=500)
+
+            if issues:
+                # Aggregate by type
+                type_counts = Counter()
+                status_counts = Counter()
+                recent_count = 0
+
+                for issue in issues:
+                    issue_type = issue.get('issue_type') or issue.get('category') or 'Other'
+                    type_counts[issue_type] += 1
+
+                    status = issue.get('status') or 'unknown'
+                    status_counts[status] += 1
+
+                    # Count issues from last 30 days
+                    created = issue.get('created_at')
+                    if created:
+                        try:
+                            if isinstance(created, str):
+                                created_dt = datetime.fromisoformat(created.replace('Z', '+00:00'))
+                            else:
+                                created_dt = created
+                            if created_dt.replace(tzinfo=None) > now - timedelta(days=30):
+                                recent_count += 1
+                        except:
+                            pass
+
+                result["community_pulse"] = {
+                    "total_issues": len(issues),
+                    "recent_30_days": recent_count,
+                    "top_types": dict(type_counts.most_common(5)),
+                    "by_status": dict(status_counts),
+                }
+
+                # Calculate resolution rate
+                resolved = status_counts.get('Closed', 0) + status_counts.get('closed', 0)
+                if len(issues) > 0:
+                    resolution_rate = round(resolved / len(issues) * 100, 1)
+                    result["community_pulse"]["resolution_rate_pct"] = resolution_rate
+
+                top_type = type_counts.most_common(1)[0] if type_counts else None
+                if top_type:
+                    result["narrative_hints"]["patterns"].append(
+                        f"Top community concern: {top_type[0]} ({top_type[1]} reports)"
+                    )
+        except Exception as e:
+            logger.warning(f"Could not get issue data for city_pulse: {e}")
+            result["community_pulse"] = {"error": str(e)}
+
+        # ─── VISUALIZATION HINTS ───
+        result["visualization_hints"] = [
+            {
+                "type": "calendar_heatmap",
+                "title": "Upcoming Participation Opportunities",
+                "data_key": "decisions_this_week",
+                "x": "date",
+            },
+            {
+                "type": "outcome_summary",
+                "title": "Recent Decisions",
+                "data_key": "recent_outcomes",
+            },
+            {
+                "type": "donut_chart",
+                "title": "Community Concerns by Type",
+                "data_key": "community_pulse.top_types",
+            },
+        ]
+
+    except Exception as e:
+        logger.error(f"Error generating city pulse: {e}")
+        result["error"] = str(e)
+
+    return result
+
+
+def _format_city_pulse_for_display(pulse: dict) -> str:
+    """Format city_pulse data as readable markdown for get_started."""
+    parts = []
+
+    jid = pulse.get('jurisdiction', 'your city')
+    jid_display = jid.replace('city-', '').replace('-', ' ').title()
+
+    # Check if data is historical (fallback mode)
+    is_historical = pulse.get('_meetings_are_historical', False)
+
+    # Header
+    if is_historical:
+        parts.append(f"# {jid_display} Overview")
+        parts.append("*Showing recent activity (live data sync pending)*")
+    else:
+        parts.append(f"# {jid_display} This Week")
+    parts.append("")
+
+    # Upcoming decisions
+    upcoming = pulse.get('decisions_this_week', [])
+    if upcoming:
+        if is_historical:
+            parts.append("## Recent Meetings")
+        else:
+            parts.append("## Deciding Soon")
+        for m in upcoming[:3]:
+            date_time = f"{m['date']}"
+            if m.get('time') and m['time'] != "12:00 AM":
+                date_time += f" at {m['time']}"
+            parts.append(f"- **{m['title']}** - {date_time}")
+        if len(upcoming) > 3:
+            parts.append(f"  *...and {len(upcoming) - 3} more meetings*")
+        parts.append("")
+    else:
+        parts.append("## Meetings")
+        parts.append("*No meeting data available*")
+        parts.append("")
+
+    # Recent outcomes
+    outcomes = pulse.get('recent_outcomes', [])
+    if outcomes:
+        if pulse.get('_decisions_are_historical', False):
+            parts.append("## Recent Decisions")
+        else:
+            parts.append("## Just Decided")
+        for d in outcomes[:3]:
+            outcome_emoji = {
+                'approved': '✓',
+                'denied': '✗',
+                'continued': '→',
+                'tabled': '⏸',
+            }.get(d['outcome'].lower(), '•')
+            parts.append(f"- {outcome_emoji} **{d['title']}** ({d['outcome']}) - {d['date']}")
+        if len(outcomes) > 3:
+            parts.append(f"  *...and {len(outcomes) - 3} more decisions*")
+        parts.append("")
+
+    # Community pulse
+    community = pulse.get('community_pulse', {})
+    if community and not community.get('error'):
+        parts.append("## Community Pulse")
+        top_types = community.get('top_types', {})
+        if top_types:
+            top_items = list(top_types.items())[:3]
+            concerns = ", ".join([f"{t} ({c})" for t, c in top_items])
+            parts.append(f"Top concerns: {concerns}")
+
+        resolution = community.get('resolution_rate_pct')
+        if resolution is not None:
+            parts.append(f"Issue resolution rate: {resolution}%")
+        parts.append("")
+
+    return "\n".join(parts)
 
 
 # ─────────── 311 DATA ANALYSIS TOOLS ───────────
@@ -3116,7 +3430,40 @@ def get_started(
 
 
 def _get_started_resident() -> str:
-    """Friendly category-based guidance for residents."""
+    """Friendly category-based guidance for residents with live city status."""
+    # Try to get live city pulse data
+    pulse_content = ""
+    try:
+        if civicos_client is not None:
+            pulse_data = city_pulse(days_ahead=7, days_back=30)
+            if not pulse_data.get('error'):
+                pulse_content = _format_city_pulse_for_display(pulse_data)
+    except Exception as e:
+        logger.warning(f"Could not get city pulse for get_started: {e}")
+
+    # If we have live data, show it first
+    if pulse_content:
+        return f"""{pulse_content}
+---
+
+## Want to Go Deeper?
+
+**Explore what's being decided:**
+- "Tell me more about [specific meeting above]"
+- "What's the background on [topic]?"
+
+**Research past decisions:**
+- "What has the council decided about housing?"
+- "What did residents say about the bike lane project?"
+
+**Take action:**
+- "Help me prepare to speak at Monday's meeting"
+- "How do I submit a public comment?"
+
+---
+*Just ask your question naturally - I'll find the answer!*"""
+
+    # Fallback to static content if no live data
     return """# Welcome to Civic
 
 What would you like to explore?
