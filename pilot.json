@@ -526,7 +526,7 @@
     "semantic_search_expansion": {
       "legislation_vector_indexing": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "2,839 CA legislation bills indexed in pgvector for semantic search",
         "description": "Index all CA state legislation (bill summaries, leverage points) in pgvector to enable semantic discovery. Currently what_applies() only finds bills with exact topic tags (20 bills), missing 2,828 untagged bills.",
         "note": "Session 540: Identified during semantic search audit. This is prerequisite for hybrid_what_applies. Use corpus_type='legislation' with bill_id, summary, leverage_point as searchable content.",
@@ -2439,11 +2439,11 @@
         "ip_protection": "Frontend JS is visible but not core IP. Real value is in backend APIs, data enrichment, and coordination logic - all stay server-side."
       },
       "linkback_integration": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Deep links from AI responses back to web app",
         "description": "All MCP tools and ChatGPT GPT responses include links to web app for detailed views, related content, and actions.",
-        "note": "Session 541: Added YouTube links for transcripts (search_meeting_history) and external source links for issues (find_similar_issues, get_issue_sample). Session 542: url_routing complete. Remaining: wire up WEB_APP_BASE_URL in MCP tools to generate deep links using ?type=X&id=Y format.",
+        "note": "Session 543: Complete. Added _generate_web_app_url() helper and integrated deep links into: search_meeting_history (decisions), find_similar_issues (issues), get_issue_sample (issues), get_upcoming_meetings (meetings), city_pulse (JSON with web_app_url fields). Links use ?type=X&id=Y format. Tests added to test_mcp_city_pulse.py.",
         "depends_on": [
           "url_routing",
           "web_frontend",

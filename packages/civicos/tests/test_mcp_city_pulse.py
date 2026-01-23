@@ -122,6 +122,40 @@ class TestCityPulseFormatting:
             pytest.skip("civicos_server not importable without full env")
 
 
+class TestWebAppUrlGeneration:
+    """Test _generate_web_app_url helper function."""
+
+    def test_generate_web_app_url_basic(self):
+        """Test basic URL generation."""
+        try:
+            from civicos_server import _generate_web_app_url
+            url = _generate_web_app_url('event', 'meeting-123')
+            assert 'type=event' in url
+            assert 'id=meeting-123' in url
+        except ImportError:
+            pytest.skip("civicos_server not importable without full env")
+
+    def test_generate_web_app_url_with_tab(self):
+        """Test URL generation with optional tab parameter."""
+        try:
+            from civicos_server import _generate_web_app_url
+            url = _generate_web_app_url('issue', 'scf-456', tab='discussion')
+            assert 'type=issue' in url
+            assert 'id=scf-456' in url
+            assert 'tab=discussion' in url
+        except ImportError:
+            pytest.skip("civicos_server not importable without full env")
+
+    def test_generate_web_app_url_empty_id(self):
+        """Test URL generation returns empty string for missing ID."""
+        try:
+            from civicos_server import _generate_web_app_url
+            assert _generate_web_app_url('event', '') == ''
+            assert _generate_web_app_url('event', None) == ''
+        except ImportError:
+            pytest.skip("civicos_server not importable without full env")
+
+
 class TestCityPulseIntegration:
     """Integration tests requiring database connection."""
 
@@ -142,6 +176,32 @@ class TestCityPulseIntegration:
         assert 'community_pulse' in result
         assert 'visualization_hints' in result
         assert isinstance(result['visualization_hints'], list)
+
+    @pytest.mark.requires_real_data
+    def test_city_pulse_includes_web_app_urls(self):
+        """Test that city_pulse includes web_app_url in meeting and decision objects."""
+        from dotenv import load_dotenv
+        load_dotenv()
+
+        from civicos_server import city_pulse
+
+        result = city_pulse('city-san-rafael')
+
+        # Check meetings have web_app_url field
+        if result['decisions_this_week']:
+            meeting = result['decisions_this_week'][0]
+            assert 'web_app_url' in meeting
+            if meeting['id']:
+                assert meeting['web_app_url'] is not None
+                assert 'type=event' in meeting['web_app_url']
+
+        # Check outcomes have web_app_url field
+        if result['recent_outcomes']:
+            outcome = result['recent_outcomes'][0]
+            assert 'web_app_url' in outcome
+            if outcome['id']:
+                assert outcome['web_app_url'] is not None
+                assert 'type=event' in outcome['web_app_url']
 
     @pytest.mark.requires_real_data
     def test_get_started_includes_pulse(self):

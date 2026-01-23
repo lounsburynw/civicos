@@ -15258,3 +15258,51 @@ Full E2E testing blocked by API architecture - API currently reads from JSON cac
 ### Next P0
 
 `linkback_integration` - Wire up WEB_APP_BASE_URL in MCP tools to generate deep link URLs using the new ?type=X&id=Y format.
+
+## Session 543: linkback_integration - MCP Deep Links to Web App
+
+**Date:** 2026-01-22
+**Item:** linkback_integration (pilot_validation > distribution_channels)
+**Priority:** P0
+
+### Summary
+
+Wired up the MCP server to generate deep links back to the CivicOS web app. Session 542 had implemented URL routing in the Vue frontend using `?type=X&id=Y` query parameters. This session connects that routing to MCP tool responses.
+
+### Changes
+
+**New Helper Function:**
+- `_generate_web_app_url(artifact_type, artifact_id, tab)` - Generates deep link URLs using `WEB_APP_BASE_URL` env var
+
+**Tools Updated with Deep Links:**
+
+1. **search_meeting_history()** - Decisions now include `[View in CivicOS](url)` links
+2. **find_similar_issues()** - Issues show both CivicOS and SeeClickFix links: `[Open in CivicOS](url) | [View on SeeClickFix](url)`
+3. **get_issue_sample()** - Issue headers link to CivicOS, with separate links line below
+4. **get_upcoming_meetings()** - Meeting headers link to CivicOS with explicit `[Open in CivicOS](url)` line
+5. **city_pulse()** - JSON response includes `web_app_url` field in both `decisions_this_week` and `recent_outcomes` arrays
+
+**Tests Added:**
+- `TestWebAppUrlGeneration` class in `test_mcp_city_pulse.py`
+  - `test_generate_web_app_url_basic`
+  - `test_generate_web_app_url_with_tab`
+  - `test_generate_web_app_url_empty_id`
+- `test_city_pulse_includes_web_app_urls` integration test
+
+### URL Format
+
+```
+https://civicos.fly.dev?type=event&id=meeting-123
+https://civicos.fly.dev?type=issue&id=scf-456
+https://civicos.fly.dev?type=issue&id=scf-456&tab=discussion
+```
+
+### Files Modified
+
+- `apps/civicos-mcp/civicos_server.py` - Added helper + integrated links in 5 tools
+- `packages/civicos/tests/test_mcp_city_pulse.py` - Added URL generation tests
+- `pilot.json` - Updated linkback_integration status to ready
+
+### Next P0
+
+`legislation_vector_indexing` - Index 2,839 CA bills in pgvector for semantic search. Prerequisite for hybrid_what_applies.

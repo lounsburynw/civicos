@@ -51,6 +51,27 @@ DEFAULT_JURISDICTION = os.getenv('CIVICOS_JURISDICTION', 'san-rafael')
 # Web app base URL for deep linking
 # Production: https://civicos.fly.dev, Local dev: http://localhost:5173
 WEB_APP_BASE_URL = os.getenv('CIVICOS_WEB_APP_URL', 'https://civicos.fly.dev')
+
+
+def _generate_web_app_url(artifact_type: str, artifact_id: str, tab: str = None) -> str:
+    """Generate a deep link URL for the CivicOS web app.
+
+    Args:
+        artifact_type: Artifact type ('event', 'issue', 'bill', etc.)
+        artifact_id: The artifact identifier
+        tab: Optional tab to open (e.g., 'discussion' for issues)
+
+    Returns:
+        Full URL with query parameters, or empty string if base URL not configured
+    """
+    if not WEB_APP_BASE_URL or not artifact_id:
+        return ""
+
+    # Build URL with query params
+    url = f"{WEB_APP_BASE_URL}?type={artifact_type}&id={artifact_id}"
+    if tab:
+        url += f"&tab={tab}"
+    return url
 try:
     civicos_client = CivicOS(DEFAULT_JURISDICTION)
     logger.info(f"Civic client initialized for {DEFAULT_JURISDICTION} (storage: {type(civicos_client._storage).__name__})")
@@ -461,6 +482,12 @@ def search_meeting_history(
                 result_parts.append(f"- Body: {d.body or 'N/A'}")
                 if d.votes:
                     result_parts.append(f"- Votes: {d.votes}")
+                # Add web app deep link if decision has an ID
+                decision_id = getattr(d, 'id', None) or getattr(d, 'meeting_id', None)
+                if decision_id:
+                    web_url = _generate_web_app_url('event', decision_id)
+                    if web_url:
+                        result_parts.append(f"- [View in CivicOS]({web_url})")
                 result_parts.append("")
         else:
             result_parts.append("No decisions found matching this query.")
@@ -592,15 +619,25 @@ def find_similar_issues(
                     # Get external URL for this issue if available
                     issue_url = issue_urls.get(r.id)
 
-                    # Format issue entry with link if available
+                    # Generate internal web app link
+                    web_app_url = _generate_web_app_url('issue', r.id) if r.id else ""
+
+                    # Format issue entry with links
+                    links = []
+                    if web_app_url:
+                        links.append(f"[Open in CivicOS]({web_app_url})")
+                    if issue_url:
+                        links.append(f"[View on SeeClickFix]({issue_url})")
+                    link_text = " | ".join(links) if links else ""
+
                     if score is not None:
-                        if issue_url:
-                            result_parts.append(f"- **[{score:.0%} match]** {content}... [View details]({issue_url})")
+                        if link_text:
+                            result_parts.append(f"- **[{score:.0%} match]** {content}... {link_text}")
                         else:
                             result_parts.append(f"- **[{score:.0%} match]** {content}...")
                     else:
-                        if issue_url:
-                            result_parts.append(f"- {content}... [View details]({issue_url})")
+                        if link_text:
+                            result_parts.append(f"- {content}... {link_text}")
                         else:
                             result_parts.append(f"- {content}...")
             else:
@@ -721,13 +758,15 @@ def city_pulse(
                     date_str = str(meeting_datetime)[:10]
                     time_str = ""
 
+                meeting_id = m.get('id')
                 upcoming.append({
-                    "id": m.get('id'),
+                    "id": meeting_id,
                     "title": m.get('title') or m.get('body') or 'Meeting',
                     "date": date_str,
                     "time": time_str,
                     "meeting_type": m.get('meeting_type', 'meeting'),
                     "agenda_url": m.get('agenda_url'),
+                    "web_app_url": _generate_web_app_url('event', meeting_id) if meeting_id else None,
                     "_is_historical": show_recent_label,
                 })
 
@@ -767,12 +806,14 @@ def city_pulse(
             else:
                 date_str = str(decision_date)[:10] if decision_date else "Recent"
 
+            decision_id = d.get('id')
             outcomes.append({
-                "id": d.get('id'),
+                "id": decision_id,
                 "title": d.get('title') or d.get('item_title') or 'Decision',
                 "outcome": outcome,
                 "date": date_str,
                 "topics": d.get('topics', []),
+                "web_app_url": _generate_web_app_url('event', decision_id) if decision_id else None,
             })
 
         result["recent_outcomes"] = outcomes
@@ -1489,6 +1530,7 @@ def get_issue_sample(
         result_parts.append("")
 
         for i, issue in enumerate(sample, 1):
+            issue_id = issue.get('id')
             issue_type = issue.get('issue_type', 'Unknown')
             status = issue.get('status', 'unknown')
             address = issue.get('address', 'N/A')
@@ -1497,19 +1539,31 @@ def get_issue_sample(
             # Get external URL from provider_metadata
             metadata = issue.get('provider_metadata') or {}
             html_url = metadata.get('html_url')
+            # Generate internal web app link
+            web_app_url = _generate_web_app_url('issue', issue_id) if issue_id else ""
 
             # Parse date for cleaner display
             if created and created != 'N/A':
                 dt = _parse_date(created)
                 created = dt.strftime('%Y-%m-%d') if dt else str(created)[:10]
 
-            # Format header with link if available
-            if html_url:
+            # Format header - prefer web app link over external
+            if web_app_url:
+                result_parts.append(f"## {i}. [{issue_type}]({web_app_url})")
+            elif html_url:
                 result_parts.append(f"## {i}. [{issue_type}]({html_url})")
             else:
                 result_parts.append(f"## {i}. {issue_type}")
             result_parts.append(f"**Status:** {status} | **Date:** {created}")
             result_parts.append(f"**Location:** {address}")
+            # Add links line if we have URLs
+            links = []
+            if web_app_url:
+                links.append(f"[Open in CivicOS]({web_app_url})")
+            if html_url:
+                links.append(f"[View on SeeClickFix]({html_url})")
+            if links:
+                result_parts.append(f"**Links:** {' | '.join(links)}")
             result_parts.append("")
             result_parts.append(f"> {description[:400]}{'...' if len(description) > 400 else ''}")
             result_parts.append("")
@@ -2778,10 +2832,22 @@ def get_upcoming_meetings(
 
         for meeting in meetings:
             date_str = meeting.date.strftime("%A, %B %d, %Y at %I:%M %p") if meeting.date else "TBD"
-            result_parts.append(f"## {meeting.title or meeting.body or 'Meeting'}")
+            meeting_title = meeting.title or meeting.body or 'Meeting'
+
+            # Generate web app deep link for meeting
+            meeting_id = getattr(meeting, 'id', None)
+            web_app_url = _generate_web_app_url('event', meeting_id) if meeting_id else ""
+
+            # Format header with link if available
+            if web_app_url:
+                result_parts.append(f"## [{meeting_title}]({web_app_url})")
+            else:
+                result_parts.append(f"## {meeting_title}")
             result_parts.append(f"**Date:** {date_str}")
             if meeting.location:
                 result_parts.append(f"**Location:** {meeting.location}")
+            if web_app_url:
+                result_parts.append(f"**[Open in CivicOS]({web_app_url})**")
             result_parts.append("")
 
             if meeting.agenda_items:
