@@ -1481,6 +1481,7 @@ class CivicOS:
                     "program_name": exp.federal_program_name,
                     "dollars": 0,
                     "is_major": exp.is_major,
+                    "source_url": exp.source_url,
                 }
             by_cfda[cfda]["dollars"] += exp.amount_expended_dollars
 

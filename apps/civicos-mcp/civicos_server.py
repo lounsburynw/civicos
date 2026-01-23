@@ -383,7 +383,15 @@ def search_regulatory_stack(
         if stack.federal:
             for item in stack.federal[:5]:  # Limit to 5 most relevant
                 if isinstance(item, dict):
-                    result_parts.append(f"- {item.get('title', item.get('program_name', str(item)))}")
+                    item_type = item.get('type', '')
+                    if item_type in ('codified_law', 'cfr'):
+                        citation = item.get('citation', '')
+                        heading = item.get('heading', '')
+                        result_parts.append(f"- **{citation}**: {heading}")
+                        if item.get('text_preview'):
+                            result_parts.append(f"  *{item.get('text_preview')[:150]}...*")
+                    else:
+                        result_parts.append(f"- {item.get('title', item.get('program_name', str(item)))}")
                 else:
                     result_parts.append(f"- {item}")
         else:
@@ -395,8 +403,14 @@ def search_regulatory_stack(
         if stack.state:
             for item in stack.state[:5]:
                 if isinstance(item, dict):
-                    title = item.get('title', item.get('bill_number', str(item)))
-                    result_parts.append(f"- {title}")
+                    bill_number = item.get('bill_number', '')
+                    bill_name = item.get('bill_name', '')
+                    title = bill_name or bill_number or str(item)
+                    result_parts.append(f"- **{bill_number}**: {title}" if bill_number else f"- {title}")
+                    if item.get('summary'):
+                        result_parts.append(f"  *{item.get('summary')[:150]}...*")
+                    if item.get('official_url'):
+                        result_parts.append(f"  [View bill text]({item.get('official_url')})")
                 else:
                     result_parts.append(f"- {item}")
         else:
@@ -408,12 +422,28 @@ def search_regulatory_stack(
         if stack.local:
             for item in stack.local[:5]:
                 if isinstance(item, dict):
-                    text = item.get('text', item.get('section', str(item)))[:200]
+                    item_type = item.get('type', '')
                     section = item.get('section_number', '')
-                    if section:
-                        result_parts.append(f"- Section {section}: {text}...")
+                    section_name = item.get('section_name', '')
+                    text_preview = item.get('text_preview', item.get('text', ''))[:200]
+
+                    if item_type == 'county_ordinance':
+                        county = item.get('jurisdiction', 'County')
+                        if section and section_name:
+                            result_parts.append(f"- **{county} § {section}** - {section_name}")
+                        elif section:
+                            result_parts.append(f"- **{county} § {section}**")
+                        else:
+                            result_parts.append(f"- {county}: {text_preview}...")
                     else:
-                        result_parts.append(f"- {text}...")
+                        if section and section_name:
+                            result_parts.append(f"- **§ {section}** - {section_name}")
+                        elif section:
+                            result_parts.append(f"- **§ {section}**: {text_preview}...")
+                        else:
+                            result_parts.append(f"- {text_preview}...")
+                    if text_preview and section_name:
+                        result_parts.append(f"  *{text_preview}...*")
                 else:
                     result_parts.append(f"- {str(item)[:200]}...")
         else:
@@ -2648,7 +2678,11 @@ def search_agenda_packets(
                 role = f" ({r.speaker_role})" if r.speaker_role else ""
                 result_parts.append(f"### {speaker}{role}")
                 if r.start_timestamp:
-                    result_parts.append(f"*Video: {r.start_timestamp}*")
+                    video_url = r.video_url
+                    if video_url:
+                        result_parts.append(f"*[Watch at {r.start_timestamp}]({video_url})*")
+                    else:
+                        result_parts.append(f"*Video: {r.start_timestamp}*")
                 if r.is_public_comment:
                     result_parts.append("*[Public Comment]*")
                 result_parts.append(f"> {r.text[:400]}...")
@@ -2759,6 +2793,10 @@ def search_budget(
                     result_parts.append(f"- Budgeted: ${item.budgeted_dollars:,.0f}")
                     if item.notes:
                         result_parts.append(f"- Notes: {item.notes[:100]}")
+                    # Add source citation for budget verification
+                    if item.source_url:
+                        page_info = f" (page {item.source_page})" if item.source_page else ""
+                        result_parts.append(f"- [View in budget document]({item.source_url}){page_info}")
                     result_parts.append("")
             else:
                 result_parts.append("No items match the filter criteria.")
@@ -2959,6 +2997,12 @@ def get_voting_record(
                 result_parts.append(f"- **Outcome:** {d.get('outcome', 'N/A')}")
                 if d.get('topics'):
                     result_parts.append(f"- **Topics:** {', '.join(d.get('topics', []))}")
+                # Add CivicOS deep link for the decision
+                decision_id = d.get('id') or d.get('meeting_id')
+                if decision_id:
+                    web_url = _generate_web_app_url('event', decision_id)
+                    if web_url:
+                        result_parts.append(f"- [View in CivicOS]({web_url})")
                 result_parts.append("")
 
         return "\n".join(result_parts)
@@ -3028,6 +3072,12 @@ def get_decision_context(
             result_parts.append(f"- **Date:** {d.date}")
             result_parts.append(f"- **Outcome:** {d.outcome or 'N/A'}")
             result_parts.append(f"- **Body:** {d.body or 'N/A'}")
+            # Add CivicOS deep link for the decision
+            decision_id = getattr(d, 'id', None) or getattr(d, 'meeting_id', None)
+            if decision_id:
+                web_url = _generate_web_app_url('event', decision_id)
+                if web_url:
+                    result_parts.append(f"- [View in CivicOS]({web_url})")
             result_parts.append("")
 
             if r.transcript_links:
@@ -3042,7 +3092,11 @@ def get_decision_context(
                         result_parts.append(f"**{speaker}:**")
                         result_parts.append(f"> {link.text[:300]}...")
                         if link.start_timestamp:
-                            result_parts.append(f"*[Video: {link.start_timestamp}]*")
+                            video_url = link.video_url
+                            if video_url:
+                                result_parts.append(f"*[Watch at {link.start_timestamp}]({video_url})*")
+                            else:
+                                result_parts.append(f"*Video: {link.start_timestamp}*")
                         result_parts.append("")
 
                 if other_discussion:
@@ -3052,6 +3106,10 @@ def get_decision_context(
                         role = f" ({link.speaker_role})" if link.speaker_role else ""
                         result_parts.append(f"**{speaker}{role}:**")
                         result_parts.append(f"> {link.text[:300]}...")
+                        if link.start_timestamp:
+                            video_url = link.video_url
+                            if video_url:
+                                result_parts.append(f"*[Watch at {link.start_timestamp}]({video_url})*")
                         result_parts.append("")
             else:
                 result_parts.append("*No transcript excerpts linked to this decision.*")
@@ -3118,7 +3176,12 @@ def get_public_testimony(
             speaker = t.speaker_name or t.speaker or "Resident"
             result_parts.append(f"## {speaker}")
             if t.start_timestamp:
-                result_parts.append(f"*Video timestamp: {t.start_timestamp}*")
+                # Include clickable YouTube link if video_url is available
+                video_url = t.video_url
+                if video_url:
+                    result_parts.append(f"*[Watch at {t.start_timestamp}]({video_url})*")
+                else:
+                    result_parts.append(f"*Video timestamp: {t.start_timestamp}*")
             result_parts.append("")
             result_parts.append(f"> {t.text[:500]}...")
             result_parts.append("")
@@ -3272,6 +3335,8 @@ def get_federal_expenditures(
                 result_parts.append(f"- **{p.get('cfda', 'N/A')}:** ${p.get('dollars', 0):,.0f}{major_flag}")
                 if p.get('program_name'):
                     result_parts.append(f"  *{p.get('program_name')}*")
+                if p.get('source_url'):
+                    result_parts.append(f"  [View in FAC]({p.get('source_url')})")
             result_parts.append("")
             result_parts.append("*⭐ = Major Program (subject to additional audit)*")
         else:
