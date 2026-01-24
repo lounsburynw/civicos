@@ -581,11 +581,11 @@
         ]
       },
       "federal_programs_semantic_search": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Funding opportunities discoverable via semantic search",
         "description": "Enable semantic search for federal programs so queries like 'money for affordable housing' find CDBG, HOME, LIHTC programs. Requires indexing program descriptions.",
-        "note": "Session 540: Federal programs exist in storage but may not be fully vectorized for semantic discovery in what_applies() federal section.",
+        "note": "Session 549: Integrated federal programs semantic search into what_applies() federal section. Programs vectorized (4,668 embeddings), ID boosting for program codes (CDBG, HOME, etc.), tiered response structure. 6 new tests added.",
         "depends_on": [
           "hybrid_what_applies"
         ]
@@ -602,7 +602,7 @@
       },
       "federal_legislation_semantic_search": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Federal bills discoverable via semantic search in what_applies()",
         "description": "Add semantic search for federal legislation (state-US vectors, 12,355 embeddings). Currently only CA state legislation uses semantic fallback; federal bills with relevant content aren't discovered.",
         "note": "Session 544: what_applies() searches legislation-CA but not state-US. Federal bills mentioning 'accessory dwelling units' won't surface.",

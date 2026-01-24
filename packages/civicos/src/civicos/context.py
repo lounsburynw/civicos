@@ -26,6 +26,15 @@ RankingMode = Literal["section_first", "bill_first", "auto"]
 # Matches: SB9, AB 123, HR1234, S. 456, HB 789
 BILL_PATTERN = re.compile(r'\b(SB|AB|HR|HB|S\.?)\s*\d+\b', re.IGNORECASE)
 
+# Pattern to detect federal program references in queries
+# Matches: CDBG, HOME, LIHTC, ESG, CoC, HUD, FEMA, etc.
+PROGRAM_PATTERN = re.compile(
+    r'\b(CDBG|HOME|LIHTC|ESG|CoC|HUD|FEMA|USDA|EPA|DOT|HHS|'
+    r'Section\s*8|SNAP|TANF|WIC|CHIP|HEAD\s*START|CDFI|'
+    r'CARES|ARP|ARPA|IIJA|BIL)\b',
+    re.IGNORECASE
+)
+
 
 def _detect_ranking_mode(topic: str) -> Literal["section_first", "bill_first"]:
     """
@@ -61,6 +70,21 @@ def _extract_bill_numbers(topic: str) -> set:
     full_matches = re.findall(r'\b((?:SB|AB|HR|HB|S\.?)\s*\d+)\b', topic, re.IGNORECASE)
     # Normalize: remove spaces, uppercase
     return {m.replace(" ", "").replace(".", "").upper() for m in full_matches}
+
+
+def _extract_program_codes(topic: str) -> set:
+    """
+    Extract federal program codes mentioned in a query for boosting.
+
+    Args:
+        topic: The search query
+
+    Returns:
+        Set of normalized program codes (e.g., {"CDBG", "HOME", "LIHTC"})
+    """
+    matches = PROGRAM_PATTERN.findall(topic)
+    # Normalize: remove spaces, uppercase
+    return {m.replace(" ", "").upper() for m in matches}
 
 
 @dataclass
@@ -352,6 +376,70 @@ def get_regulatory_context(
                 })
         except Exception:
             pass  # CFR search not available
+
+    # Search federal programs using vector backend
+    # Semantic search for relevant grant programs (CDBG, HOME, LIHTC, etc.)
+    PROGRAMS_TOP_K = 20  # Programs are flat (not chunked), smaller top_k
+    PROGRAMS_MIN_SCORE = 0.4
+
+    if vectors is not None:
+        try:
+            # Extract mentioned program codes for boosting
+            mentioned_programs = _extract_program_codes(topic)
+
+            # Search federal programs by semantic similarity
+            program_results = vectors.search(
+                query=topic,
+                jurisdiction_id="federal-US",
+                corpus_type="programs",
+                top_k=PROGRAMS_TOP_K,
+            )
+
+            # Rank programs with optional boosting for mentioned program codes
+            scored_programs = []
+            for result in program_results:
+                if result.score < PROGRAMS_MIN_SCORE:
+                    continue
+
+                base_score = result.score
+                program_name = result.metadata.get("program_name", "")
+
+                # Boost if program code is mentioned in query
+                # Check if any mentioned code appears in program name
+                boost = 0.0
+                for code in mentioned_programs:
+                    if code in program_name.upper():
+                        boost = 0.1
+                        break
+
+                scored_programs.append({
+                    "result": result,
+                    "sort_score": base_score + boost,
+                    "base_score": base_score,
+                })
+
+            # Sort by boosted score, then take top results
+            scored_programs.sort(key=lambda x: x["sort_score"], reverse=True)
+
+            for rank, item in enumerate(scored_programs[:15]):  # Limit to 15 programs
+                result = item["result"]
+                tier = "primary" if rank < 10 else "secondary"
+
+                federal.append({
+                    "type": "federal_program",
+                    "id": result.id,
+                    "program_name": result.metadata.get("program_name", ""),
+                    "administering_agency": result.metadata.get("administering_agency", ""),
+                    "cfda_number": result.metadata.get("cfda_number", ""),
+                    "topic": result.metadata.get("topic", ""),
+                    "description": result.content[:400] if result.content else "",
+                    "eligible_activities": result.metadata.get("eligible_activities", ""),
+                    "keywords": result.metadata.get("keywords", []),
+                    "relevance_score": round(item["base_score"], 3),
+                    "tier": tier,
+                })
+        except Exception:
+            pass  # Federal programs search not available
 
     if not federal:
         federal = [{"note": f"No federal regulations found for topic '{topic}'"}]
