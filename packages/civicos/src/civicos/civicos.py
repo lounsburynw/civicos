@@ -941,6 +941,23 @@ class CivicOS:
             limit=1000,  # Get more decisions for comprehensive record
         )
 
+        # 2.5. If topic specified, use semantic search to find relevant decision IDs
+        semantically_relevant_ids: Optional[set] = None
+        if topic and self._vectors:
+            try:
+                semantic_results = self._vectors.search(
+                    query=topic,
+                    jurisdiction_id=self.jurisdiction,
+                    corpus_type="decisions",
+                    top_k=100,  # Get many results to capture related decisions
+                    min_score=0.3,  # Minimum similarity threshold
+                )
+                if semantic_results:
+                    semantically_relevant_ids = {r.id for r in semantic_results}
+            except Exception:
+                # Fall back to exact matching if semantic search fails
+                pass
+
         # 3. Filter decisions where this official voted
         yes_count = 0
         no_count = 0
@@ -980,10 +997,18 @@ class CivicOS:
 
             # Apply topic filter if specified
             if topic:
-                decision_topics = d.get("topics") or []
-                topic_lower = topic.lower()
-                if not any(topic_lower in t.lower() for t in decision_topics):
-                    continue
+                decision_id = d.get("id")
+                # Use semantic matching if available, fall back to exact topic match
+                if semantically_relevant_ids is not None:
+                    # Semantic search found relevant decisions - use those
+                    if decision_id not in semantically_relevant_ids:
+                        continue
+                else:
+                    # Fall back to exact topic array matching
+                    decision_topics = d.get("topics") or []
+                    topic_lower = topic.lower()
+                    if not any(topic_lower in t.lower() for t in decision_topics):
+                        continue
 
             # Count the vote
             if official_vote == "yes":
