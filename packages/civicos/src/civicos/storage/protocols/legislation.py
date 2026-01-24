@@ -58,6 +58,15 @@ class LegislationStorage(Protocol):
         """Get specific legislation by bill_id."""
         ...
 
+    def get_legislation_batch(
+        self,
+        state: str,
+        bill_ids: List[str],
+        as_of: Optional[datetime] = None,
+    ) -> Dict[str, Dict[str, Any]]:
+        """Batch fetch multiple legislation bills by bill_id."""
+        ...
+
     def get_legislation_count(self, state: str, topic: Optional[str] = None) -> int:
         """Get count of current legislation for a state."""
         ...
