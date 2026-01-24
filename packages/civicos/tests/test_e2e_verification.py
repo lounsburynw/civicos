@@ -2101,7 +2101,7 @@ class TestEdgeCasesEmptyResults:
 
         c = CivicOS("san-rafael")
 
-        # Query for obscure topic not in TOPIC_MAP
+        # Query for obscure topic that won't match anything semantically
         context = c.what_applies("underwater_basket_weaving")
 
         assert isinstance(context, RegulatoryStack)

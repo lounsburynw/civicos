@@ -25,20 +25,6 @@ class RegulatoryStack:
     retrieved_at: datetime = field(default_factory=datetime.now)
 
 
-# Topic mapping - canonical topics to state_key
-TOPIC_MAP = {
-    "housing": "housing",
-    "zoning": "housing",
-    "transportation": "transportation",
-    "transit": "transportation",
-    "environment": "environment",
-    "climate": "environment",
-    "budget": "budget",
-    "finance": "budget",
-    "education": "education",
-    "schools": "education",
-}
-
 # Map state names to database codes
 STATE_CODE_MAP = {
     "california": "CA",
@@ -106,10 +92,6 @@ def get_regulatory_context(
     state: List[dict] = []
     local: List[dict] = []
 
-    # Normalize topic to state_key
-    topic_lower = topic.lower()
-    state_key = TOPIC_MAP.get(topic_lower, topic_lower)
-
     # Extract state from jurisdiction
     state_name = _extract_state_from_jurisdiction(jurisdiction)
 
@@ -124,54 +106,17 @@ def get_regulatory_context(
 
     state_code = STATE_CODE_MAP.get(state_name.lower(), state_name.upper())
 
-    # Hybrid state legislation search:
-    # 1. Exact topic match first (fast, precise for tagged bills)
-    # 2. If few results, semantic vector search (discovers untagged bills)
-    # 3. Include relevance scores so consuming LLM can filter based on user's actual question
-    seen_bill_ids: set = set()
-
-    if storage is not None:
-        try:
-            # Phase 1: Exact topic match
-            bills = storage.get_legislation(
-                state=state_code,
-                topic=state_key,
-                status="Active",
-                limit=10,
-            )
-
-            for bill in bills:
-                bill_id = bill.get("bill_id", "")
-                seen_bill_ids.add(bill_id)
-                state.append({
-                    "type": "bill",
-                    "id": bill_id,
-                    "bill_number": bill.get("bill_number", ""),
-                    "bill_name": bill.get("bill_name", ""),
-                    "status": bill.get("status", ""),
-                    "enacted_date": bill.get("enacted_date", ""),
-                    "summary": bill.get("summary", ""),
-                    "leverage_point": bill.get("leverage_point", ""),
-                    "keywords": bill.get("keywords", []),
-                    "official_url": bill.get("official_url", ""),
-                    "match_type": "exact_topic",
-                    "relevance_score": 1.0,  # Exact matches get perfect score
-                })
-        except Exception as e:
-            state = [{"note": f"Error loading state legislation: {e}"}]
-
-    # Phase 2: Hierarchical semantic search if exact match found few results
-    # Returns both bill-level metadata AND relevant section excerpts
-    # Use generous TopK with score floor - let consuming LLM filter based on context
-    SEMANTIC_THRESHOLD = 5      # Trigger semantic search if < 5 exact matches
+    # Semantic search for state legislation
+    # Searches vector embeddings of bill text to find relevant legislation
+    # Returns bill-level metadata AND relevant section excerpts for LLM context
     CHUNK_TOP_K = 100           # Generous chunk retrieval
     CHUNKS_PER_BILL = 3         # Keep top N relevant sections per bill
     MAX_BILLS = 30              # Max bills to return
     SEMANTIC_SCORE_FLOOR = 0.4  # Minimum similarity to include
 
-    if vectors is not None and len(state) < SEMANTIC_THRESHOLD:
+    if vectors is not None:
         try:
-            # Search legislation chunks
+            # Search legislation chunks by semantic similarity
             legislation_jurisdiction = f"legislation-{state_code}"
             results = vectors.search(
                 query=topic,
@@ -186,7 +131,7 @@ def get_regulatory_context(
                 if result.score < SEMANTIC_SCORE_FLOOR:
                     continue
                 bill_id = result.metadata.get("bill_id", "")
-                if not bill_id or bill_id in seen_bill_ids:
+                if not bill_id:
                     continue
                 if len(bill_chunks[bill_id]) < CHUNKS_PER_BILL:
                     bill_chunks[bill_id].append({
@@ -209,7 +154,6 @@ def get_regulatory_context(
 
             # Build hierarchical results
             for bill_id, chunks in list(bill_chunks.items())[:MAX_BILLS]:
-                seen_bill_ids.add(bill_id)
                 meta = bill_metadata.get(bill_id, {})
                 max_score = max(c["score"] for c in chunks) if chunks else 0
 
@@ -224,19 +168,45 @@ def get_regulatory_context(
                     "leverage_point": meta.get("leverage_point", ""),
                     "keywords": meta.get("keywords", []),
                     "official_url": meta.get("official_url", ""),
-                    "match_type": "semantic",
                     "relevance_score": max_score,
                     # Hierarchical: include relevant sections for LLM context
                     "relevant_sections": chunks,
                 })
         except Exception:
-            pass  # Semantic search not available, continue with exact matches
+            pass  # Semantic search not available
 
-    # Sort by relevance score (exact matches first, then by semantic similarity)
+    # Fallback: if no vectors available, query storage directly for legislation
+    # This provides basic functionality for local dev without vector embeddings
+    if not state and storage is not None:
+        try:
+            # Get legislation from storage (no semantic ranking)
+            bills = storage.get_legislation(
+                state=state_code,
+                status="Active",
+                limit=MAX_BILLS,
+            )
+            for bill in bills:
+                state.append({
+                    "type": "bill",
+                    "id": bill.get("bill_id", ""),
+                    "bill_number": bill.get("bill_number", ""),
+                    "bill_name": bill.get("bill_name", ""),
+                    "status": bill.get("status", ""),
+                    "enacted_date": bill.get("enacted_date", ""),
+                    "summary": bill.get("summary", ""),
+                    "leverage_point": bill.get("leverage_point", ""),
+                    "keywords": bill.get("keywords", []),
+                    "official_url": bill.get("official_url", ""),
+                    "relevance_score": 0.5,  # No semantic score available
+                })
+        except Exception:
+            pass  # Storage query failed
+
+    # Sort by relevance score (highest similarity first)
     state = sorted(state, key=lambda x: x.get("relevance_score", 0), reverse=True)
 
     if not state:
-        state = [{"note": f"No state bills found for '{topic}' (checked exact topic match and semantic search)"}]
+        state = [{"note": f"No state bills found for '{topic}'"}]
 
     # Search U.S. Code (codified federal law) using storage backend
     if storage is not None:

@@ -36,6 +36,7 @@ DB_PATH = str(PROJECT_ROOT / "data/civic_state.db")
 
 
 @pytest.mark.requires_real_data
+@pytest.mark.requires_pgvector
 class TestCivicIntegration:
     """Integration tests using real San Rafael data."""
 
@@ -67,11 +68,11 @@ class TestCivicIntegration:
         assert len(result.state) > 0
         assert len(result.federal) > 0
 
-    def test_what_applies_topic_mapping(self, civic):
-        """Test that topic aliases work (zoning -> housing)."""
+    def test_what_applies_zoning(self, civic):
+        """Test that what_applies() finds relevant legislation for zoning queries."""
         result = civic.what_applies("zoning")
 
-        # Should return housing legislation for zoning
+        # Should return relevant legislation via semantic search
         assert len(result.state) > 0
 
     def test_what_applies_unknown_topic(self, civic):
@@ -351,6 +352,7 @@ class TestWhatsNextWithRealData:
 
 
 @pytest.mark.requires_real_data
+@pytest.mark.requires_pgvector
 class TestWhatAppliesWithRealData:
     """
     Integration test: what_applies() returns real California housing/regulatory context.
@@ -359,7 +361,7 @@ class TestWhatAppliesWithRealData:
     1. what_applies('housing') returns real California housing legislation
     2. Federal housing programs are included (CDBG, HOME, Section 8, LIHTC)
     3. State bills have expected structure and known legislation
-    4. Topic mapping correctly resolves aliases
+    4. Semantic search finds relevant results for related queries
     5. Data quality meets expectations for civic advocacy use
     """
 
@@ -479,21 +481,21 @@ class TestWhatAppliesWithRealData:
                 assert len(program.get("leverage_point", "")) > 20, \
                     f"Leverage point too short for {program.get('id')}"
 
-    def test_what_applies_topic_mapping_zoning_to_housing(self, civic):
+    def test_what_applies_semantic_search_zoning_and_housing(self, civic):
         """
-        Verify topic aliases resolve correctly.
+        Verify semantic search finds relevant legislation for related topics.
 
-        'zoning' should map to 'housing' topic and return housing legislation.
+        Both 'zoning' and 'housing' should return relevant legislation
+        via semantic search over bill text.
         """
         housing_result = civic.what_applies("housing")
         zoning_result = civic.what_applies("zoning")
 
-        # Both should return housing legislation
+        # Both should return relevant legislation via semantic search
         assert len(zoning_result.state) > 0
         assert len(housing_result.state) > 0
 
-        # Should return same number of state bills
-        assert len(zoning_result.state) == len(housing_result.state)
+        # Results are semantically relevant to each query (may overlap but not identical)
 
     def test_what_applies_multiple_topics_with_real_data(self, civic):
         """
@@ -938,6 +940,7 @@ class TestWhosWithMeSemanticMatching:
 
 
 @pytest.mark.requires_real_data
+@pytest.mark.requires_pgvector
 class TestRegulatoryContextRelevant:
     """
     Integration test: what_applies() returns contextually appropriate regulations.
@@ -946,7 +949,7 @@ class TestRegulatoryContextRelevant:
     1. Regulations returned have keywords matching the queried topic
     2. Different topics return distinct regulation sets (no cross-contamination)
     3. Leverage points reference domain-appropriate concepts
-    4. Topic aliases return same regulations as canonical topics
+    4. Related topics return overlapping but semantically relevant results
     5. Federal programs are relevant to their stated topic
     """
 
@@ -1107,38 +1110,50 @@ class TestRegulatoryContextRelevant:
                 assert has_transport_keyword, \
                     f"Transport program {program.get('id')} lacks transport relevance"
 
-    def test_topic_alias_returns_same_regulations(self, civic):
+    def test_related_topics_return_overlapping_results(self, civic):
         """
-        Verify topic aliases resolve to the same regulation set.
+        Verify related topics return semantically relevant results with overlap.
 
-        'zoning' -> 'housing', 'transit' -> 'transportation', 'climate' -> 'environment'
+        Semantic search means related queries like 'zoning'/'housing' or
+        'transit'/'transportation' should find overlapping but not identical results.
         """
-        # Test housing aliases
-        housing_direct = civic.what_applies("housing")
-        zoning_alias = civic.what_applies("zoning")
+        # Test housing/zoning overlap
+        housing = civic.what_applies("housing")
+        zoning = civic.what_applies("zoning")
 
-        housing_ids = {b.get("id") for b in housing_direct.state if b.get("type") == "bill"}
-        zoning_ids = {b.get("id") for b in zoning_alias.state if b.get("type") == "bill"}
-        assert housing_ids == zoning_ids, \
-            f"zoning should map to housing: {housing_ids} != {zoning_ids}"
+        housing_ids = {b.get("id") for b in housing.state if b.get("type") == "bill"}
+        zoning_ids = {b.get("id") for b in zoning.state if b.get("type") == "bill"}
 
-        # Test transportation aliases
-        transport_direct = civic.what_applies("transportation")
-        transit_alias = civic.what_applies("transit")
+        # Both should return results
+        assert len(housing_ids) > 0, "housing query should return bills"
+        assert len(zoning_ids) > 0, "zoning query should return bills"
+        # Related topics should have some overlap via semantic similarity
+        overlap = housing_ids & zoning_ids
+        assert len(overlap) > 0, "housing and zoning should have overlapping results"
 
-        transport_ids = {b.get("id") for b in transport_direct.state if b.get("type") == "bill"}
-        transit_ids = {b.get("id") for b in transit_alias.state if b.get("type") == "bill"}
-        assert transport_ids == transit_ids, \
-            f"transit should map to transportation: {transport_ids} != {transit_ids}"
+        # Test transportation/transit overlap
+        transport = civic.what_applies("transportation")
+        transit = civic.what_applies("transit")
 
-        # Test environment aliases
-        env_direct = civic.what_applies("environment")
-        climate_alias = civic.what_applies("climate")
+        transport_ids = {b.get("id") for b in transport.state if b.get("type") == "bill"}
+        transit_ids = {b.get("id") for b in transit.state if b.get("type") == "bill"}
 
-        env_ids = {b.get("id") for b in env_direct.state if b.get("type") == "bill"}
-        climate_ids = {b.get("id") for b in climate_alias.state if b.get("type") == "bill"}
-        assert env_ids == climate_ids, \
-            f"climate should map to environment: {env_ids} != {climate_ids}"
+        assert len(transport_ids) > 0, "transportation query should return bills"
+        assert len(transit_ids) > 0, "transit query should return bills"
+        overlap = transport_ids & transit_ids
+        assert len(overlap) > 0, "transportation and transit should have overlapping results"
+
+        # Test environment/climate overlap
+        env = civic.what_applies("environment")
+        climate = civic.what_applies("climate")
+
+        env_ids = {b.get("id") for b in env.state if b.get("type") == "bill"}
+        climate_ids = {b.get("id") for b in climate.state if b.get("type") == "bill"}
+
+        assert len(env_ids) > 0, "environment query should return bills"
+        assert len(climate_ids) > 0, "climate query should return bills"
+        overlap = env_ids & climate_ids
+        assert len(overlap) > 0, "environment and climate should have overlapping results"
 
     def test_leverage_points_reference_appropriate_civic_actions(self, civic):
         """
