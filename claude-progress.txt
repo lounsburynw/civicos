@@ -15577,3 +15577,19 @@ Added filtering to exclude vetoed/failed legislation (LegiScan status codes 5 an
 - Ensures users only see actionable, active legislation
 
 **Next:** Select new P0
+
+## Session 551 (continued)
+
+**Additional work:** Added legislation_status parameter and status_label field
+
+**Changes:**
+- Added `legislation_status` parameter to `what_applies()`:
+  - `"active"` (default): Exclude vetoed/failed
+  - `"passed"`: Only enacted (status 4)
+  - `"pending"`: In progress (status 1-3)
+  - `"all"`: Include everything
+- Added `status_label` field with human-readable labels:
+  - "Introduced", "Engrossed", "Enrolled", "Passed", "Vetoed", "Failed"
+- Added 8 new tests for status features
+
+**Commit:** `feat: Add legislation_status parameter and status_label field`
