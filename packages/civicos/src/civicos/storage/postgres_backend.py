@@ -4660,6 +4660,8 @@ class PostgresBackend:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
         # Use ANY for efficient batch lookup
+        # Order by local_implementation_required DESC NULLS LAST to prefer records
+        # with local_implementation_required=true when duplicates exist
         cursor.execute("""
             SELECT DISTINCT ON (bill_id) *
             FROM legislation
@@ -4668,7 +4670,7 @@ class PostgresBackend:
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
               AND deleted_at IS NULL
-            ORDER BY bill_id, created_at DESC
+            ORDER BY bill_id, local_implementation_required DESC NULLS LAST, created_at DESC
         """, (state, bill_ids, as_of.isoformat(), as_of.isoformat()))
 
         results = {}

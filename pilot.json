@@ -620,8 +620,8 @@
         ]
       },
       "local_implementation_surfacing": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Bills requiring local action prominently surfaced",
         "description": "Surface local_implementation_required field prominently in what_applies() results. Bills that require city action are arguably most relevant for civic users but this field is currently buried.",
         "note": "Session 544: Could boost ranking for bills with local_implementation_required=true, or add a separate 'action_required' section in results.",
@@ -711,7 +711,7 @@
       },
       "legislation_topic_classification": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Topic tags for all CA legislation enabling discovery",
         "description": "Add topic classification for 2,828 untagged CA bills. Currently only 20 bills have topics (housing: 11, budget: 6, etc.). Use LLM-based classification or keyword matching on bill titles/summaries.",
         "note": "Session 540: 99.6% of CA bills have no topic, limiting discoverability via what_applies(topic) queries."

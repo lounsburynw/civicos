@@ -15593,3 +15593,28 @@ Added filtering to exclude vetoed/failed legislation (LegiScan status codes 5 an
 - Added 8 new tests for status features
 
 **Commit:** `feat: Add legislation_status parameter and status_label field`
+
+
+## Session 552
+
+**Item:** local_implementation_surfacing (P0)
+**Status:** ready
+
+**Changes:**
+1. Added `requires_local_action` and `local_deadline` fields to bill results in `what_applies()`
+2. Added +0.15 ranking boost for bills with `local_implementation_required=true`
+3. Fixed `get_legislation_batch()` to prefer records with `local_implementation_required=true` when duplicates exist
+4. Applied same changes to both state and federal legislation paths
+
+**Key files:**
+- `packages/civicos/src/civicos/context.py`: Added fields to result dicts, tracking sets, boosting logic
+- `packages/civicos/src/civicos/storage/postgres_backend.py`: Fixed ORDER BY in batch fetch
+
+**Tests:**
+- Added `TestLocalImplementationSurfacing` class with 4 tests in `test_integration_pgvector.py`
+- All tests pass, no regressions in existing tests
+
+**Note:** Many bills in DB have duplicate records where one has `local_implementation_required=true` and the other has `NULL`. The batch fetch fix ensures we prefer the `true` record when duplicates exist. However, some bills were overwritten via temporal versioning and lost the field value (the `true` record is expired). This is a data quality issue separate from the implementation.
+
+**Next:** Select new P0
+
