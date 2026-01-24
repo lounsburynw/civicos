@@ -1,10 +1,10 @@
 {
   "jurisdiction_id": "city-san-rafael",
-  "last_meeting_id": "proudcity-city-san-rafael-fire-commission-december-10-2025",
-  "items_processed": 40,
-  "items_extracted": 36,
+  "last_meeting_id": "proudcity-city-san-rafael-police-advisory-accountability-committee-january-21-2026",
+  "items_processed": 56,
+  "items_extracted": 4,
   "items_skipped": 0,
   "items_failed": 0,
-  "total_agenda_items": 101,
-  "timestamp": "2026-01-05T17:53:27.475989"
+  "total_agenda_items": 8,
+  "timestamp": "2026-01-22T14:55:39.213510"
 }

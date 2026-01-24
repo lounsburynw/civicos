@@ -592,7 +592,7 @@
       },
       "legislation_status_filtering": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Semantic search excludes vetoed/repealed legislation",
         "description": "Add status filtering to semantic search path in what_applies(). Currently exact topic match filters by status='Active' but semantic path returns all bills including vetoed/repealed.",
         "note": "Session 544: Identified gap - semantic results may include dead legislation. Fix: filter by status in metadata or post-filter results.",
@@ -601,8 +601,7 @@
         ]
       },
       "federal_legislation_semantic_search": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
         "artifact": "Federal bills discoverable via semantic search in what_applies()",
         "description": "Add semantic search for federal legislation (state-US vectors, 12,355 embeddings). Currently only CA state legislation uses semantic fallback; federal bills with relevant content aren't discovered.",
         "note": "Session 544: what_applies() searches legislation-CA but not state-US. Federal bills mentioning 'accessory dwelling units' won't surface.",

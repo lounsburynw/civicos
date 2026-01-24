@@ -31,8 +31,8 @@ primary_region = "sjc"
 
 [[vm]]
   cpu_kind = "shared"
-  cpus = 1
-  memory_mb = 1024  # Increased from 512 - fastembed/onnxruntime needs more RAM
+  cpus = 2
+  memory_mb = 4096  # 4GB for embedding model loading (~1.5GB peak)
 
 [checks]
   [checks.health]
@@ -41,4 +41,4 @@ primary_region = "sjc"
     port = 8000
     interval = "30s"
     timeout = "10s"
-    grace_period = "30s"  # Startup takes ~10-15s for embedding model init
+    grace_period = "120s"  # Embedding model init can take 60-90s on cold start
