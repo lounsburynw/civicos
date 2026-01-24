@@ -498,6 +498,153 @@ The vector database **complements** (not replaces) the civic-state SQLite databa
 | `start_something()` | SQLite (initiatives) | - |
 | `add_voice()` | SQLite (voices) | - |
 
+---
+
+## Semantic Search Patterns
+
+This section documents ranking strategies and search patterns for semantic queries across corpus types.
+
+### Corpus Structure Classification
+
+Corpus types fall into two categories that inform search behavior:
+
+| Category | Corpus Types | Structure | Ranking Consideration |
+|----------|--------------|-----------|----------------------|
+| **Hierarchical** | legislation, municipal_code, chunks, transcripts | Chunks belong to parent entity | Group by parent, limit chunks per parent |
+| **Flat** | decisions, meetings, issues | Each document standalone | Direct ranking by similarity score |
+
+### Hierarchical Search Pattern
+
+For corpus types where chunks belong to a parent entity:
+
+```
+legislation:     chunks → bills (parent_field: bill_id)
+municipal_code:  sections → chapters (parent_field: chapter)
+chunks:          pages → meetings (parent_field: meeting_id)
+transcripts:     segments → meetings (parent_field: meeting_id)
+```
+
+**Standard algorithm:**
+1. Search chunks with generous `top_k` (e.g., 100)
+2. Group chunks by parent_id
+3. Keep top N chunks per parent (e.g., 3)
+4. Rank parents by max chunk score
+5. Return top M parents (e.g., 30)
+
+**Key parameters:**
+```python
+CHUNK_TOP_K = 100      # Initial chunk retrieval
+CHUNKS_PER_PARENT = 3  # Relevant sections per parent
+MAX_PARENTS = 30       # Final result limit
+MIN_SCORE = 0.4        # Similarity floor
+```
+
+### Ranking Modes
+
+Two ranking modes are supported for hierarchical corpus types:
+
+| Mode | Behavior | Best For |
+|------|----------|----------|
+| **chunk_first** | Order by when chunks first appear (preserves semantic relevance) | Broad topic queries ("housing policy") |
+| **parent_first** | Order by max chunk score per parent, with boosting | Specific entity queries ("SB9 law") |
+
+**Auto-detection heuristic:** If query contains identifiable entity patterns (bill numbers, section numbers, dates), use `parent_first` with boosting.
+
+### ID Boosting
+
+When a query explicitly mentions an entity ID, boost that entity's ranking:
+
+| Corpus | ID Pattern | Example Query | Boost |
+|--------|------------|---------------|-------|
+| legislation | `[SAH]B\d+`, `HR\d+` | "SB9 duplex law" | +0.1 |
+| municipal_code | `Section [\d.]+` | "Section 14.12.020 parking" | +0.1 |
+| decisions | `Resolution \d+`, `Ordinance \d+` | "Resolution 14823" | +0.1 |
+| meetings | `\d{4}-\d{2}-\d{2}` | "January 15 2024 meeting" | +0.1 |
+| issues | `#\d+` | "issue #12345" | +0.1 |
+
+**Implementation (legislation example):**
+```python
+BILL_PATTERN = re.compile(r'\b(SB|AB|HR|HB|S\.?)\s*\d+\b', re.IGNORECASE)
+
+def _extract_mentioned_ids(query: str) -> set:
+    """Extract bill numbers for boosting."""
+    matches = re.findall(r'\b((?:SB|AB|HR|HB|S\.?)\s*\d+)\b', query, re.IGNORECASE)
+    return {m.replace(" ", "").replace(".", "").upper() for m in matches}
+
+# During ranking, boost mentioned entities
+if entity_id in mentioned_ids:
+    sort_score = base_score + 0.1
+```
+
+### Tiered Response Structure
+
+All semantic search results include a tier field for pagination support:
+
+```python
+{
+    "id": "ca-sb9",
+    "relevance_score": 0.673,
+    "tier": "primary",      # Top 10 results
+    # ... other fields
+}
+
+{
+    "id": "ca-sb130",
+    "relevance_score": 0.620,
+    "tier": "secondary",    # Results 11-30
+    # ... other fields
+}
+```
+
+**Tier assignment:**
+- `primary`: Rank 1-10 (high confidence, show by default)
+- `secondary`: Rank 11-30 (additional context, expandable)
+
+### Score Distribution Characteristics
+
+Empirical observations from legislation corpus (generalizes to other corpus types):
+
+| Observation | Implication |
+|-------------|-------------|
+| Scores cluster in 0.6-0.8 range | 0.4 floor rarely triggers |
+| Score gaps are small (0.003-0.015) | Gap-based cutoffs unreliable |
+| Broad queries: very flat distribution | Tiering more useful than filtering |
+| Narrow queries: slightly more variance | ID boosting essential for precision |
+
+### Configurable Parameters
+
+All semantic search methods should expose:
+
+```python
+def search_corpus(
+    query: str,
+    *,
+    ranking_mode: Literal["chunk_first", "parent_first", "auto"] = "auto",
+    max_results: int = 30,
+    min_score: float = 0.4,
+) -> List[dict]:
+```
+
+**Parameter guidelines:**
+- `ranking_mode="auto"`: Detect based on query content (recommended default)
+- `max_results`: Adjustable per use case (research: 50+, casual: 10)
+- `min_score`: Keep at 0.4 as safety floor (rarely triggers)
+
+### Implementation Status
+
+| Corpus | Hierarchical Grouping | ID Boosting | Tiered Response | Configurable Params |
+|--------|----------------------|-------------|-----------------|---------------------|
+| legislation | ✅ Implemented | ✅ Implemented | ✅ Implemented | ✅ Implemented |
+| municipal_code | ❌ Uses top_k=5 | ❌ Not implemented | ❌ Not implemented | ❌ Hardcoded |
+| decisions | N/A (flat) | ❌ Not implemented | ❌ Not implemented | ❌ Hardcoded |
+| transcripts | ❌ Not implemented | ❌ Not implemented | ❌ Not implemented | ❌ Hardcoded |
+| chunks | ❌ Not implemented | ❌ Not implemented | ❌ Not implemented | ❌ Hardcoded |
+| issues | N/A (flat) | ❌ Not implemented | ❌ Not implemented | ❌ Hardcoded |
+
+**Next corpus to implement:** decisions (Resolution number boosting is high-value)
+
+---
+
 ### Foreign Key Alignment
 
 Decision IDs in ChromaDB can be joined with SQLite:
@@ -601,6 +748,9 @@ class TestVectorSchemaCompliance:
 
 ## References
 
+- `packages/civicos/src/civicos/context.py` - Legislation semantic search implementation (ranking modes, boosting)
+- `packages/civicos/src/civicos/storage/corpus_types.py` - Corpus type registry
+- `docs/hot_session_semantic_search_critique.md` - Analysis of search patterns with empirical data
 - `packages/civic/src/civic/_internal/state/manager.py` - SQLite schema
 - `packages/civic/src/civic/_internal/meetings/embeddings.py` - Current embeddings (to refactor)
 - `integration.json` - architecture_cleanup section
@@ -610,4 +760,5 @@ class TestVectorSchemaCompliance:
 
 *Created: Session 191 (2025-12-05)*
 *Updated: Session 233 (2025-12-10) - Added SeeClickFix Issues Documents schema*
-*Schema Version: 1.2*
+*Updated: 2026-01-23 - Added Semantic Search Patterns section (ranking modes, ID boosting, tiering)*
+*Schema Version: 1.3*

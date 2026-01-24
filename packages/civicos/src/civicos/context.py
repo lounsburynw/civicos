@@ -2,9 +2,15 @@
 Context Module - what_applies() implementation
 
 Provides regulatory context for topics using storage backends.
+
+Ranking Modes:
+- section_first: Rank by individual chunk similarity (default, good for broad queries)
+- bill_first: Rank by bill-level max similarity (good for specific bill queries)
+- auto: Detect based on query content (uses bill_first if query mentions bill numbers)
 """
 
-from typing import Optional, List, Any, Dict, TYPE_CHECKING
+import re
+from typing import Optional, List, Any, Dict, Literal, TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime
 from collections import defaultdict
@@ -12,6 +18,49 @@ from collections import defaultdict
 if TYPE_CHECKING:
     from civicos.storage.protocols import StorageBackend
     from civicos.storage.protocols.vector import VectorBackend
+
+# Type alias for ranking mode
+RankingMode = Literal["section_first", "bill_first", "auto"]
+
+# Pattern to detect specific bill references in queries
+# Matches: SB9, AB 123, HR1234, S. 456, HB 789
+BILL_PATTERN = re.compile(r'\b(SB|AB|HR|HB|S\.?)\s*\d+\b', re.IGNORECASE)
+
+
+def _detect_ranking_mode(topic: str) -> Literal["section_first", "bill_first"]:
+    """
+    Detect appropriate ranking mode based on query content.
+
+    Uses bill_first mode when query mentions specific bill numbers,
+    which helps surface the exact bill the user is looking for.
+
+    Args:
+        topic: The search query
+
+    Returns:
+        "bill_first" if query contains bill numbers, else "section_first"
+    """
+    if BILL_PATTERN.search(topic):
+        return "bill_first"
+    return "section_first"
+
+
+def _extract_bill_numbers(topic: str) -> set:
+    """
+    Extract bill numbers mentioned in a query for boosting.
+
+    Args:
+        topic: The search query
+
+    Returns:
+        Set of normalized bill numbers (e.g., {"SB9", "AB123"})
+    """
+    matches = BILL_PATTERN.findall(topic)
+    # BILL_PATTERN captures groups like ('SB', '9') - we need the full match
+    # Re-run with a non-capturing pattern to get full matches
+    full_matches = re.findall(r'\b((?:SB|AB|HR|HB|S\.?)\s*\d+)\b', topic, re.IGNORECASE)
+    # Normalize: remove spaces, uppercase
+    return {m.replace(" ", "").replace(".", "").upper() for m in full_matches}
 
 
 @dataclass
@@ -71,6 +120,10 @@ def get_regulatory_context(
     location: str = None,
     storage: Optional["StorageBackend"] = None,
     vectors: Optional["VectorBackend"] = None,
+    *,
+    ranking_mode: RankingMode = "auto",
+    max_results: int = 30,
+    min_score: float = 0.4,
 ) -> RegulatoryStack:
     """
     Get regulatory stack for a topic.
@@ -84,6 +137,12 @@ def get_regulatory_context(
         location: Optional location for local rules
         storage: Optional storage backend (passed from CivicOS)
         vectors: Optional vector backend (passed from CivicOS)
+        ranking_mode: How to rank legislation results:
+            - "section_first": Rank by chunk similarity (default for broad queries)
+            - "bill_first": Rank by bill-level max score (good for specific bills)
+            - "auto": Detect based on query (uses bill_first if query has bill numbers)
+        max_results: Maximum bills to return (default 30)
+        min_score: Minimum similarity score to include (default 0.4)
 
     Returns:
         RegulatoryStack with federal, state, local context
@@ -106,13 +165,19 @@ def get_regulatory_context(
 
     state_code = STATE_CODE_MAP.get(state_name.lower(), state_name.upper())
 
+    # Resolve ranking mode
+    effective_mode: Literal["section_first", "bill_first"] = (
+        _detect_ranking_mode(topic) if ranking_mode == "auto" else ranking_mode
+    )
+
+    # Extract mentioned bill numbers for boosting (in bill_first mode)
+    mentioned_bills = _extract_bill_numbers(topic) if effective_mode == "bill_first" else set()
+
     # Semantic search for state legislation
     # Searches vector embeddings of bill text to find relevant legislation
     # Returns bill-level metadata AND relevant section excerpts for LLM context
     CHUNK_TOP_K = 100           # Generous chunk retrieval
     CHUNKS_PER_BILL = 3         # Keep top N relevant sections per bill
-    MAX_BILLS = 30              # Max bills to return
-    SEMANTIC_SCORE_FLOOR = 0.4  # Minimum similarity to include
 
     if vectors is not None:
         try:
@@ -127,12 +192,19 @@ def get_regulatory_context(
 
             # Group chunks by bill_id, keeping top chunks per bill
             bill_chunks: Dict[str, List[dict]] = defaultdict(list)
+            bill_max_scores: Dict[str, float] = {}  # Track max score per bill
+
             for result in results:
-                if result.score < SEMANTIC_SCORE_FLOOR:
+                if result.score < min_score:
                     continue
                 bill_id = result.metadata.get("bill_id", "")
                 if not bill_id:
                     continue
+
+                # Track max score for bill-first ranking
+                if bill_id not in bill_max_scores or result.score > bill_max_scores[bill_id]:
+                    bill_max_scores[bill_id] = result.score
+
                 if len(bill_chunks[bill_id]) < CHUNKS_PER_BILL:
                     bill_chunks[bill_id].append({
                         "content": result.content[:300] if result.content else "",
@@ -140,22 +212,47 @@ def get_regulatory_context(
                         "chunk_index": result.metadata.get("chunk_index"),
                     })
 
+            # Determine bill ordering based on ranking mode
+            if effective_mode == "bill_first":
+                # Sort bills by their max chunk score
+                # Boost bills explicitly mentioned in the query (add 0.1 to score)
+                def bill_sort_key(bid: str) -> float:
+                    base_score = bill_max_scores.get(bid, 0)
+                    # Extract bill number from bill_id (e.g., "ca-sb9" -> "SB9")
+                    bill_num = bid.split("-")[-1].upper() if "-" in bid else bid.upper()
+                    # Boost if this bill was mentioned in the query
+                    if bill_num in mentioned_bills:
+                        return base_score + 0.1  # Boost mentioned bills
+                    return base_score
+
+                ordered_bill_ids = sorted(
+                    bill_chunks.keys(),
+                    key=bill_sort_key,
+                    reverse=True
+                )[:max_results]
+            else:
+                # section_first: preserve insertion order (first seen = highest chunk)
+                ordered_bill_ids = list(bill_chunks.keys())[:max_results]
+
             # Batch fetch bill metadata from storage (single query)
             bill_metadata: Dict[str, dict] = {}
-            if storage is not None and bill_chunks:
+            if storage is not None and ordered_bill_ids:
                 try:
-                    bill_ids_to_fetch = list(bill_chunks.keys())[:MAX_BILLS]
                     bill_metadata = storage.get_legislation_batch(
                         state=state_code,
-                        bill_ids=bill_ids_to_fetch,
+                        bill_ids=ordered_bill_ids,
                     )
                 except Exception:
                     pass  # Batch fetch not available, continue without metadata
 
-            # Build hierarchical results
-            for bill_id, chunks in list(bill_chunks.items())[:MAX_BILLS]:
+            # Build hierarchical results with tier assignment
+            for rank, bill_id in enumerate(ordered_bill_ids):
+                chunks = bill_chunks[bill_id]
                 meta = bill_metadata.get(bill_id, {})
-                max_score = max(c["score"] for c in chunks) if chunks else 0
+                max_score = bill_max_scores.get(bill_id, 0)
+
+                # Assign tier: top 10 are primary, rest are secondary
+                tier = "primary" if rank < 10 else "secondary"
 
                 state.append({
                     "type": "bill",
@@ -168,7 +265,8 @@ def get_regulatory_context(
                     "leverage_point": meta.get("leverage_point", ""),
                     "keywords": meta.get("keywords", []),
                     "official_url": meta.get("official_url", ""),
-                    "relevance_score": max_score,
+                    "relevance_score": round(max_score, 3),
+                    "tier": tier,
                     # Hierarchical: include relevant sections for LLM context
                     "relevant_sections": chunks,
                 })
@@ -183,9 +281,10 @@ def get_regulatory_context(
             bills = storage.get_legislation(
                 state=state_code,
                 status="Active",
-                limit=MAX_BILLS,
+                limit=max_results,
             )
-            for bill in bills:
+            for rank, bill in enumerate(bills):
+                tier = "primary" if rank < 10 else "secondary"
                 state.append({
                     "type": "bill",
                     "id": bill.get("bill_id", ""),
@@ -198,12 +297,16 @@ def get_regulatory_context(
                     "keywords": bill.get("keywords", []),
                     "official_url": bill.get("official_url", ""),
                     "relevance_score": 0.5,  # No semantic score available
+                    "tier": tier,
                 })
         except Exception:
             pass  # Storage query failed
 
     # Sort by relevance score (highest similarity first)
-    state = sorted(state, key=lambda x: x.get("relevance_score", 0), reverse=True)
+    # For bill_first mode, preserve the ordering (already sorted with boost applied)
+    # For section_first mode, sort by raw relevance score
+    if effective_mode != "bill_first":
+        state = sorted(state, key=lambda x: x.get("relevance_score", 0), reverse=True)
 
     if not state:
         state = [{"note": f"No state bills found for '{topic}'"}]
