@@ -98,6 +98,12 @@ class RegulatoryStack:
     retrieved_at: datetime = field(default_factory=datetime.now)
 
 
+# LegiScan status codes that indicate inactive/dead legislation
+# 5 = Vetoed, 6 = Failed/Dead
+# Bills with these statuses are excluded from semantic search results
+INACTIVE_STATUS_CODES = {"5", "6"}
+
+
 # Map state names to database codes
 STATE_CODE_MAP = {
     "california": "CA",
@@ -223,6 +229,11 @@ def get_regulatory_context(
                     continue
                 bill_id = result.metadata.get("bill_id", "")
                 if not bill_id:
+                    continue
+
+                # Skip vetoed/failed legislation (status 5 or 6)
+                status = str(result.metadata.get("status", ""))
+                if status in INACTIVE_STATUS_CODES:
                     continue
 
                 # Track max score for bill-first ranking
@@ -361,6 +372,11 @@ def get_regulatory_context(
                     continue
                 bill_id = result.metadata.get("bill_id", "")
                 if not bill_id:
+                    continue
+
+                # Skip vetoed/failed legislation (status 5 or 6)
+                status = str(result.metadata.get("status", ""))
+                if status in INACTIVE_STATUS_CODES:
                     continue
 
                 # Track max score for bill-first ranking
