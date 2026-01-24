@@ -426,3 +426,84 @@ class TestFederalLegislationIdBoosting:
                 f"HR1769/HB1769 should be boosted to top 3 when mentioned in query, "
                 f"got: {top_bill_nums}"
             )
+
+
+class TestLegislationStatusFiltering:
+    """Tests for filtering out vetoed/failed legislation from semantic search.
+
+    LegiScan status codes:
+    - 1: Introduced (active)
+    - 2: Engrossed (active)
+    - 3: Enrolled (active)
+    - 4: Passed (active/enacted)
+    - 5: Vetoed (inactive - should be excluded)
+    - 6: Failed/Dead (inactive - should be excluded)
+    """
+
+    def test_state_bills_exclude_vetoed(self, zoning_stack):
+        """State legislation results should not include vetoed bills (status 5)."""
+        bills = [r for r in zoning_stack.state if r.get("type") == "bill"]
+
+        for bill in bills:
+            # Status in results comes from batch metadata fetch
+            status = str(bill.get("status", ""))
+            assert status != "5", (
+                f"Vetoed bill should be excluded: {bill.get('id')} "
+                f"({bill.get('bill_number')})"
+            )
+
+    def test_state_bills_exclude_failed(self, zoning_stack):
+        """State legislation results should not include failed/dead bills (status 6)."""
+        bills = [r for r in zoning_stack.state if r.get("type") == "bill"]
+
+        for bill in bills:
+            status = str(bill.get("status", ""))
+            assert status != "6", (
+                f"Failed/dead bill should be excluded: {bill.get('id')} "
+                f"({bill.get('bill_number')})"
+            )
+
+    def test_federal_bills_exclude_vetoed(self, zoning_stack):
+        """Federal legislation results should not include vetoed bills (status 5)."""
+        bills = [r for r in zoning_stack.federal if r.get("type") == "federal_bill"]
+
+        for bill in bills:
+            status = str(bill.get("status", ""))
+            assert status != "5", (
+                f"Vetoed bill should be excluded: {bill.get('id')} "
+                f"({bill.get('bill_number')})"
+            )
+
+    def test_federal_bills_exclude_failed(self, zoning_stack):
+        """Federal legislation results should not include failed/dead bills (status 6)."""
+        bills = [r for r in zoning_stack.federal if r.get("type") == "federal_bill"]
+
+        for bill in bills:
+            status = str(bill.get("status", ""))
+            assert status != "6", (
+                f"Failed/dead bill should be excluded: {bill.get('id')} "
+                f"({bill.get('bill_number')})"
+            )
+
+    def test_active_bills_are_included(self, zoning_stack):
+        """Active legislation (status 1-4) should still be included."""
+        state_bills = [r for r in zoning_stack.state if r.get("type") == "bill"]
+        federal_bills = [r for r in zoning_stack.federal if r.get("type") == "federal_bill"]
+
+        all_bills = state_bills + federal_bills
+
+        # Verify we still get results (filtering didn't remove everything)
+        assert len(all_bills) > 0, (
+            "Expected some active legislation in results after filtering"
+        )
+
+        # Check that active statuses are present
+        active_statuses = {"1", "2", "3", "4", "Active", "Pending", ""}
+        for bill in all_bills:
+            status = str(bill.get("status", ""))
+            # Allow empty status (metadata fetch may not have it)
+            # or any active status code
+            if status:
+                assert status in active_statuses or status not in {"5", "6"}, (
+                    f"Unexpected inactive status: {status} for {bill.get('id')}"
+                )

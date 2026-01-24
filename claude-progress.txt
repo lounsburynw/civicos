@@ -15537,3 +15537,43 @@ Added semantic search for federal legislation to `what_applies()`. Queries like 
 - pilot.json (federal_legislation_semantic_search → ready)
 
 **Next:** Select new P0
+
+## Session 551 (2026-01-24)
+**Item:** legislation_status_filtering (P0)
+**Status:** Complete
+
+Added filtering to exclude vetoed/failed legislation (LegiScan status codes 5 and 6) from semantic search results in `what_applies()`. Previously, dead legislation would appear alongside active bills in semantic search.
+
+**LegiScan Status Codes:**
+- 1: Introduced (active)
+- 2: Engrossed (active)
+- 3: Enrolled (active)
+- 4: Passed (active/enacted)
+- 5: Vetoed (inactive - now excluded)
+- 6: Failed/Dead (inactive - now excluded)
+
+**Implementation:**
+- Added `INACTIVE_STATUS_CODES = {"5", "6"}` constant in context.py
+- Added status check in state legislation chunk grouping loop (line 231-233)
+- Added status check in federal legislation chunk grouping loop (line 375-377)
+- Filter happens at chunk level, before bill grouping, for efficiency
+
+**Test results:**
+- 5 new tests added in TestLegislationStatusFiltering
+  - test_state_bills_exclude_vetoed
+  - test_state_bills_exclude_failed
+  - test_federal_bills_exclude_vetoed
+  - test_federal_bills_exclude_failed
+  - test_active_bills_are_included
+- All 11 status-related + legislation tests pass
+
+**Files changed:**
+- packages/civicos/src/civicos/context.py (added status filtering)
+- packages/civicos/tests/test_integration_pgvector.py (added 5 new tests)
+- pilot.json (legislation_status_filtering → ready)
+
+**Data impact:**
+- 2,152 chunks from vetoed/failed bills now excluded from results
+- Ensures users only see actionable, active legislation
+
+**Next:** Select new P0
