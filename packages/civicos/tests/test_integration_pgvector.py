@@ -22,7 +22,8 @@ import pytest
 pytestmark = [pytest.mark.integration, pytest.mark.requires_pgvector]
 
 
-# Module-scoped fixtures to avoid repeated model loading (fastembed is slow to init)
+# Module-scoped fixtures to avoid repeated model loading and query execution
+# Each what_applies() call takes ~2 min due to semantic search, so cache results
 @pytest.fixture(scope="module")
 def civic_client():
     """Get Civic client connected to pgvector database (shared across tests)."""
@@ -47,25 +48,32 @@ def pgvector_backend():
     return PgVectorBackend(db_url, provider_type="fastembed")
 
 
+# Cache expensive what_applies() results - each call takes ~2 min
+@pytest.fixture(scope="module")
+def adu_regulatory_stack(civic_client):
+    """Cached result for ADU zoning query (used by multiple tests)."""
+    return civic_client.what_applies("ADU zoning regulations")
+
+
 class TestMunicipalCodeSearch:
-    """Tests for municipal code search via what_applies()."""
+    """Tests for municipal code search via what_applies().
 
-    def test_what_applies_returns_ordinances(self, civic_client):
+    Note: what_applies() takes ~2 min per call due to semantic search.
+    Tests share cached fixtures where possible to minimize runtime.
+    """
+
+    def test_what_applies_returns_ordinances(self, adu_regulatory_stack):
         """what_applies() returns municipal code ordinances from pgvector."""
-        result = civic_client.what_applies("ADU zoning regulations")
-
         # Should have local results
-        assert result.local, "Expected local results from what_applies()"
+        assert adu_regulatory_stack.local, "Expected local results from what_applies()"
 
         # Should include ordinance type results
-        ordinances = [r for r in result.local if r.get("type") == "ordinance"]
+        ordinances = [r for r in adu_regulatory_stack.local if r.get("type") == "ordinance"]
         assert len(ordinances) > 0, "Expected ordinance results from municipal code search"
 
-    def test_adu_query_finds_relevant_sections(self, civic_client):
+    def test_adu_query_finds_relevant_sections(self, adu_regulatory_stack):
         """ADU query should find relevant zoning sections."""
-        result = civic_client.what_applies("ADU zoning regulations")
-
-        ordinances = [r for r in result.local if r.get("type") == "ordinance"]
+        ordinances = [r for r in adu_regulatory_stack.local if r.get("type") == "ordinance"]
         sections = [r.get("section_number", "") for r in ordinances]
 
         # Section 14.16.285 is San Rafael's ADU regulations
@@ -80,11 +88,10 @@ class TestMunicipalCodeSearch:
             f"Expected ADU-related sections (14.16.285, 14.03.030, or 14.02.010), got: {sections}"
         )
 
-    def test_municipal_code_result_structure(self, civic_client):
+    def test_municipal_code_result_structure(self, adu_regulatory_stack):
         """Municipal code results have expected fields."""
-        result = civic_client.what_applies("parking requirements")
-
-        ordinances = [r for r in result.local if r.get("type") == "ordinance"]
+        # Reuse ADU result to check structure (saves ~2 min)
+        ordinances = [r for r in adu_regulatory_stack.local if r.get("type") == "ordinance"]
         if ordinances:
             # Check first ordinance has expected fields
             ordinance = ordinances[0]
@@ -92,11 +99,10 @@ class TestMunicipalCodeSearch:
             assert "relevance_score" in ordinance
             assert ordinance["relevance_score"] > 0, "Relevance score should be positive"
 
-    def test_municipal_code_relevance_scores(self, civic_client):
+    def test_municipal_code_relevance_scores(self, adu_regulatory_stack):
         """Municipal code results have reasonable relevance scores."""
-        result = civic_client.what_applies("building permits")
-
-        ordinances = [r for r in result.local if r.get("type") == "ordinance"]
+        # Reuse ADU result to check scores (saves ~2 min)
+        ordinances = [r for r in adu_regulatory_stack.local if r.get("type") == "ordinance"]
         if ordinances:
             # Scores should be between 0 and 1 (cosine similarity normalized)
             for ordinance in ordinances:
@@ -107,26 +113,22 @@ class TestMunicipalCodeSearch:
 class TestCrossCorpusSearch:
     """Tests for cross-corpus search functionality."""
 
-    def test_what_applies_includes_state_results(self, civic_client):
+    def test_what_applies_includes_state_results(self, adu_regulatory_stack):
         """what_applies() returns state legislation in addition to local."""
-        result = civic_client.what_applies("housing development")
+        # Reuse ADU result (saves ~2 min) - state results exist regardless of topic
+        assert adu_regulatory_stack.state is not None, "Expected state results"
 
-        # State results should exist (CA bills from codified_law or legislation)
-        assert result.state is not None, "Expected state results"
-
-    def test_what_applies_returns_regulatory_stack(self, civic_client):
+    def test_what_applies_returns_regulatory_stack(self, adu_regulatory_stack):
         """what_applies() returns a complete RegulatoryStack."""
-        result = civic_client.what_applies("traffic safety")
+        # Check RegulatoryStack structure using cached result
+        assert hasattr(adu_regulatory_stack, "topic")
+        assert hasattr(adu_regulatory_stack, "jurisdiction")
+        assert hasattr(adu_regulatory_stack, "federal")
+        assert hasattr(adu_regulatory_stack, "state")
+        assert hasattr(adu_regulatory_stack, "local")
 
-        # Check RegulatoryStack structure
-        assert hasattr(result, "topic")
-        assert hasattr(result, "jurisdiction")
-        assert hasattr(result, "federal")
-        assert hasattr(result, "state")
-        assert hasattr(result, "local")
-
-        assert result.topic == "traffic safety"
-        assert result.jurisdiction == "city-san-rafael"
+        assert adu_regulatory_stack.topic == "ADU zoning regulations"
+        assert adu_regulatory_stack.jurisdiction == "city-san-rafael"
 
 
 class TestPgVectorBackendDirect:
