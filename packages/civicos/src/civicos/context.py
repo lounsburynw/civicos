@@ -335,6 +335,105 @@ def get_regulatory_context(
     if not state:
         state = [{"note": f"No state bills found for '{topic}'"}]
 
+    # Search federal legislation using vector backend
+    # Similar pattern to state legislation: chunk retrieval → bill grouping → ranking
+    FEDERAL_CHUNK_TOP_K = 100  # Generous chunk retrieval
+    FEDERAL_CHUNKS_PER_BILL = 3  # Keep top N relevant sections per bill
+
+    if vectors is not None:
+        try:
+            # Search federal legislation chunks by semantic similarity
+            # Federal bills use jurisdiction 'state-US' (vs 'legislation-CA' for state)
+            federal_legislation_jurisdiction = "state-US"
+            federal_results = vectors.search(
+                query=topic,
+                jurisdiction_id=federal_legislation_jurisdiction,
+                corpus_type="legislation",
+                top_k=FEDERAL_CHUNK_TOP_K,
+            )
+
+            # Group chunks by bill_id, keeping top chunks per bill
+            federal_bill_chunks: Dict[str, List[dict]] = defaultdict(list)
+            federal_bill_max_scores: Dict[str, float] = {}
+
+            for result in federal_results:
+                if result.score < min_score:
+                    continue
+                bill_id = result.metadata.get("bill_id", "")
+                if not bill_id:
+                    continue
+
+                # Track max score for bill-first ranking
+                if bill_id not in federal_bill_max_scores or result.score > federal_bill_max_scores[bill_id]:
+                    federal_bill_max_scores[bill_id] = result.score
+
+                if len(federal_bill_chunks[bill_id]) < FEDERAL_CHUNKS_PER_BILL:
+                    federal_bill_chunks[bill_id].append({
+                        "content": result.content[:300] if result.content else "",
+                        "score": round(result.score, 3),
+                        "chunk_index": result.metadata.get("chunk_index"),
+                    })
+
+            # Determine bill ordering based on ranking mode
+            # Federal bills use same ID boosting pattern (HR, S. patterns already in BILL_PATTERN)
+            if effective_mode == "bill_first":
+                def federal_bill_sort_key(bid: str) -> float:
+                    base_score = federal_bill_max_scores.get(bid, 0)
+                    # Extract bill number from bill_id (e.g., "us-hb1234" -> "HB1234")
+                    bill_num = bid.split("-")[-1].upper() if "-" in bid else bid.upper()
+                    # Boost if this bill was mentioned in the query
+                    if bill_num in mentioned_bills:
+                        return base_score + 0.1
+                    return base_score
+
+                ordered_federal_bill_ids = sorted(
+                    federal_bill_chunks.keys(),
+                    key=federal_bill_sort_key,
+                    reverse=True
+                )[:max_results]
+            else:
+                # section_first: preserve insertion order
+                ordered_federal_bill_ids = list(federal_bill_chunks.keys())[:max_results]
+
+            # Batch fetch bill metadata from storage (single query)
+            federal_bill_metadata: Dict[str, dict] = {}
+            if storage is not None and ordered_federal_bill_ids:
+                try:
+                    federal_bill_metadata = storage.get_legislation_batch(
+                        state="US",
+                        bill_ids=ordered_federal_bill_ids,
+                    )
+                except Exception:
+                    pass  # Batch fetch not available
+
+            # Build hierarchical results with tier assignment
+            for rank, bill_id in enumerate(ordered_federal_bill_ids):
+                chunks = federal_bill_chunks[bill_id]
+                meta = federal_bill_metadata.get(bill_id, {})
+                max_score = federal_bill_max_scores.get(bill_id, 0)
+
+                # Assign tier: top 10 are primary, rest are secondary
+                tier = "primary" if rank < 10 else "secondary"
+
+                federal.append({
+                    "type": "federal_bill",
+                    "id": bill_id,
+                    "bill_number": meta.get("bill_number", chunks[0].get("bill_number", "") if chunks else ""),
+                    "bill_name": meta.get("bill_name", ""),
+                    "status": meta.get("status", ""),
+                    "enacted_date": meta.get("enacted_date", ""),
+                    "summary": meta.get("summary", ""),
+                    "leverage_point": meta.get("leverage_point", ""),
+                    "keywords": meta.get("keywords", []),
+                    "official_url": meta.get("official_url", ""),
+                    "relevance_score": round(max_score, 3),
+                    "tier": tier,
+                    # Hierarchical: include relevant sections for LLM context
+                    "relevant_sections": chunks,
+                })
+        except Exception:
+            pass  # Federal legislation search not available
+
     # Search U.S. Code (codified federal law) using storage backend
     if storage is not None:
         try:

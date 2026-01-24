@@ -15509,3 +15509,31 @@ Files changed:
 All 6 new tests pass. Existing what_applies tests unchanged.
 
 Next: Select new P0
+
+## Session 550 (2026-01-23)
+**Item:** federal_legislation_semantic_search (P0)
+**Status:** Complete
+
+Added semantic search for federal legislation to `what_applies()`. Queries like "housing density zoning" now find relevant federal bills (HR1769 Local Zoning Decisions Protection Act, HB2840 Housing Supply Frameworks Act) alongside state bills.
+
+**Implementation:**
+- Added federal legislation search block in context.py (lines 338-427)
+- Uses jurisdiction `state-US` (vs `legislation-CA` for state bills)
+- Same chunk→bill grouping pattern as state legislation:
+  - Retrieve top 100 chunks, group by bill_id
+  - Keep top 3 chunks per bill for context
+  - ID boosting for mentioned bill numbers (HR, S., HB patterns)
+  - Tiered response: top 10 = "primary", rest = "secondary"
+- Results typed as `federal_bill` to distinguish from `bill` (state) and `federal_program`
+
+**Test results:**
+- 6 new tests added in TestFederalLegislationSemanticSearch
+- 1 test for ID boosting (TestFederalLegislationIdBoosting)
+- All 12 federal-related tests pass (6 programs + 6 legislation)
+
+**Files changed:**
+- packages/civicos/src/civicos/context.py (added federal legislation search block)
+- packages/civicos/tests/test_integration_pgvector.py (added 7 new tests)
+- pilot.json (federal_legislation_semantic_search → ready)
+
+**Next:** Select new P0

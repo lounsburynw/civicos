@@ -312,3 +312,117 @@ class TestFederalProgramsIdBoosting:
                 f"CDBG should be boosted to top 3 when mentioned in query, "
                 f"got: {top_names}"
             )
+
+
+# Cache expensive zoning query - takes ~2 min with semantic search
+@pytest.fixture(scope="module")
+def zoning_stack(civic_client):
+    """Cached result for zoning query (used by federal legislation tests)."""
+    return civic_client.what_applies("housing density zoning regulations")
+
+
+class TestFederalLegislationSemanticSearch:
+    """Tests for federal legislation semantic search via what_applies().
+
+    Validates that:
+    1. Federal bills are returned alongside U.S. Code and CFR
+    2. Relevant housing/zoning bills are found (e.g., Housing Supply Frameworks Act)
+    3. Result structure includes expected metadata fields
+    4. Tiered response structure is applied
+    """
+
+    def test_what_applies_returns_federal_bills(self, zoning_stack):
+        """what_applies() returns federal bills from vector search."""
+        federal = zoning_stack.federal
+        assert federal, "Expected federal results from what_applies()"
+
+        # Should have federal_bill type results
+        bills = [r for r in federal if r.get("type") == "federal_bill"]
+        assert len(bills) > 0, "Expected federal_bill results from semantic search"
+
+    def test_zoning_query_finds_relevant_bills(self, zoning_stack):
+        """Zoning/housing query finds relevant federal bills."""
+        bills = [r for r in zoning_stack.federal if r.get("type") == "federal_bill"]
+
+        # Extract bill names
+        bill_names = [b.get("bill_name", "").upper() for b in bills]
+
+        # At least one zoning/housing-related bill should be found
+        expected_keywords = ["ZONING", "HOUSING", "DENSITY", "LAND USE"]
+        found = any(
+            any(kw in name for kw in expected_keywords)
+            for name in bill_names
+        )
+
+        assert found, (
+            f"Expected zoning/housing-related bills, "
+            f"got: {[b.get('bill_name', '')[:40] for b in bills[:5]]}"
+        )
+
+    def test_federal_bills_have_required_fields(self, zoning_stack):
+        """Federal bill results include expected metadata fields."""
+        bills = [r for r in zoning_stack.federal if r.get("type") == "federal_bill"]
+
+        if bills:
+            bill = bills[0]
+
+            # Check required fields from semantic search
+            assert "id" in bill, "Federal bill should have id"
+            assert "bill_number" in bill, "Federal bill should have bill_number"
+            assert "bill_name" in bill, "Federal bill should have bill_name"
+            assert "relevance_score" in bill, "Federal bill should have relevance_score"
+            assert "tier" in bill, "Federal bill should have tier"
+
+            # Check hierarchical structure
+            assert "relevant_sections" in bill, "Federal bill should have relevant_sections"
+            if bill["relevant_sections"]:
+                section = bill["relevant_sections"][0]
+                assert "content" in section, "Section should have content"
+                assert "score" in section, "Section should have score"
+
+    def test_federal_bills_have_tiered_response(self, zoning_stack):
+        """Federal bills use tiered response structure (primary/secondary)."""
+        bills = [r for r in zoning_stack.federal if r.get("type") == "federal_bill"]
+
+        if bills:
+            # Check tier values
+            tiers = {b.get("tier") for b in bills}
+            valid_tiers = {"primary", "secondary"}
+            assert tiers.issubset(valid_tiers), f"Unexpected tiers: {tiers - valid_tiers}"
+
+            # First 10 should be primary
+            for i, b in enumerate(bills[:10]):
+                assert b.get("tier") == "primary", f"Bill {i} should be primary tier"
+
+    def test_federal_bills_relevance_scores(self, zoning_stack):
+        """Federal bills have reasonable relevance scores."""
+        bills = [r for r in zoning_stack.federal if r.get("type") == "federal_bill"]
+
+        if bills:
+            for b in bills:
+                score = b.get("relevance_score", 0)
+                # Scores should be between 0 and 1 (cosine similarity)
+                assert 0 < score <= 1, f"Score {score} outside expected range (0, 1]"
+                # Minimum threshold check
+                assert score >= 0.4, f"Score {score} below minimum threshold 0.4"
+
+
+class TestFederalLegislationIdBoosting:
+    """Tests for ID boosting in federal legislation search."""
+
+    def test_hr_query_boosts_hr_bill(self, civic_client):
+        """Query mentioning HR bill number should boost that bill to top."""
+        # Use a housing-related query with a specific bill number pattern
+        result = civic_client.what_applies("HR1769 zoning protections")
+        bills = [r for r in result.federal if r.get("type") == "federal_bill"]
+
+        if bills:
+            # HB1769 (stored as us-hb1769) should be boosted when HR1769 mentioned
+            # Note: BILL_PATTERN matches HR, HB, etc.
+            top_bill_nums = [b.get("bill_number", "").upper() for b in bills[:3]]
+            hr_in_top = any("1769" in num for num in top_bill_nums)
+
+            assert hr_in_top, (
+                f"HR1769/HB1769 should be boosted to top 3 when mentioned in query, "
+                f"got: {top_bill_nums}"
+            )

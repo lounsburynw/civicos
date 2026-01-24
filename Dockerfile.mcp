@@ -39,6 +39,10 @@ COPY packages/civicos/pyproject.toml packages/civicos/README.md /tmp/civicos/
 COPY packages/civicos/src /tmp/civicos/src
 RUN pip install --no-cache-dir /tmp/civicos[embeddings]
 
+# Pre-download embedding model during build (avoids 30-60s download at runtime)
+# Model is cached in /root/.cache/fastembed (fastembed default)
+RUN python -c "from fastembed import TextEmbedding; m = TextEmbedding('nomic-ai/nomic-embed-text-v1.5'); list(m.embed(['warmup']))"
+
 # Stage 2: Runtime image
 FROM python:3.11-slim AS runtime
 
@@ -53,6 +57,14 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Create non-root user for security
 RUN useradd --create-home --shell /bin/bash civicos
+
+# Copy pre-downloaded embedding model from builder
+# FastEmbed caches models in /tmp/fastembed_cache by default
+COPY --from=builder /tmp/fastembed_cache /tmp/fastembed_cache
+# Make cache readable by all users (civicos needs to read the model)
+RUN chmod -R a+rX /tmp/fastembed_cache
+# Also set env var to ensure civicos user can find it
+ENV FASTEMBED_CACHE_PATH=/tmp/fastembed_cache
 WORKDIR /app
 
 # Copy civicos packages source (needed for imports)
@@ -78,7 +90,8 @@ ENV PYTHONDONTWRITEBYTECODE=1
 EXPOSE 8000
 
 # Health check - verify server is listening (406 is expected without SSE headers)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+# start-period=30s to allow embedding model initialization
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/mcp | grep -qE "^(200|406)$" || exit 1
 
 # Default command: MCP server with HTTP transport
