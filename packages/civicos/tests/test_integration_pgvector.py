@@ -22,17 +22,33 @@ import pytest
 pytestmark = [pytest.mark.integration, pytest.mark.requires_pgvector]
 
 
+# Module-scoped fixtures to avoid repeated model loading (fastembed is slow to init)
+@pytest.fixture(scope="module")
+def civic_client():
+    """Get Civic client connected to pgvector database (shared across tests)."""
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    from civicos import CivicOS
+    return CivicOS("city-san-rafael")
+
+
+@pytest.fixture(scope="module")
+def pgvector_backend():
+    """Get PgVectorBackend connected to database (shared across tests)."""
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        pytest.skip("DATABASE_URL not set")
+
+    from civicos.storage.pgvector_backend import PgVectorBackend
+    return PgVectorBackend(db_url, provider_type="fastembed")
+
+
 class TestMunicipalCodeSearch:
     """Tests for municipal code search via what_applies()."""
-
-    @pytest.fixture
-    def civic_client(self):
-        """Get Civic client connected to pgvector database."""
-        from dotenv import load_dotenv
-        load_dotenv()
-
-        from civicos import CivicOS
-        return CivicOS("city-san-rafael")
 
     def test_what_applies_returns_ordinances(self, civic_client):
         """what_applies() returns municipal code ordinances from pgvector."""
@@ -91,15 +107,6 @@ class TestMunicipalCodeSearch:
 class TestCrossCorpusSearch:
     """Tests for cross-corpus search functionality."""
 
-    @pytest.fixture
-    def civic_client(self):
-        """Get Civic client connected to pgvector database."""
-        from dotenv import load_dotenv
-        load_dotenv()
-
-        from civicos import CivicOS
-        return CivicOS("city-san-rafael")
-
     def test_what_applies_includes_state_results(self, civic_client):
         """what_applies() returns state legislation in addition to local."""
         result = civic_client.what_applies("housing development")
@@ -124,19 +131,6 @@ class TestCrossCorpusSearch:
 
 class TestPgVectorBackendDirect:
     """Direct tests for PgVectorBackend.search()."""
-
-    @pytest.fixture
-    def pgvector_backend(self):
-        """Get PgVectorBackend connected to database."""
-        from dotenv import load_dotenv
-        load_dotenv()
-
-        db_url = os.getenv("DATABASE_URL")
-        if not db_url:
-            pytest.skip("DATABASE_URL not set")
-
-        from civicos.storage.pgvector_backend import PgVectorBackend
-        return PgVectorBackend(db_url, provider_type="fastembed")
 
     def test_search_municipal_code(self, pgvector_backend):
         """PgVectorBackend.search() returns municipal code results."""
@@ -193,19 +187,6 @@ class TestPgVectorBackendDirect:
 
 class TestVectorEmbeddingCounts:
     """Tests validating expected embedding counts in pgvector."""
-
-    @pytest.fixture
-    def pgvector_backend(self):
-        """Get PgVectorBackend connected to database."""
-        from dotenv import load_dotenv
-        load_dotenv()
-
-        db_url = os.getenv("DATABASE_URL")
-        if not db_url:
-            pytest.skip("DATABASE_URL not set")
-
-        from civicos.storage.pgvector_backend import PgVectorBackend
-        return PgVectorBackend(db_url, provider_type="fastembed")
 
     def test_municipal_code_has_embeddings(self, pgvector_backend):
         """San Rafael municipal code has substantial embeddings."""
