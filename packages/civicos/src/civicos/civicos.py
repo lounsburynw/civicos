@@ -276,6 +276,7 @@ class CivicOS:
         ranking_mode: Literal["section_first", "bill_first", "auto"] = "auto",
         max_results: int = 30,
         min_score: float = 0.4,
+        legislation_status: Literal["active", "passed", "pending", "all"] = "active",
     ) -> RegulatoryStack:
         """
         Get regulatory stack for a topic.
@@ -292,6 +293,11 @@ class CivicOS:
                 - "auto": Detect based on query (uses bill_first if query has bill numbers)
             max_results: Maximum bills to return (default 30)
             min_score: Minimum similarity score to include (default 0.4)
+            legislation_status: Filter legislation by status:
+                - "active": Exclude vetoed/failed (default)
+                - "passed": Only enacted legislation
+                - "pending": In progress bills (status 1-3)
+                - "all": Include everything including vetoed/failed
 
         Returns:
             RegulatoryStack with federal, state, and local context.
@@ -308,6 +314,7 @@ class CivicOS:
             ranking_mode=ranking_mode,
             max_results=max_results,
             min_score=min_score,
+            legislation_status=legislation_status,
         )
         # Convert to this module's RegulatoryStack to ensure type consistency
         return RegulatoryStack(

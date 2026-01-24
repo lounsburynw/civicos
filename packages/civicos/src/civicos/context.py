@@ -98,10 +98,31 @@ class RegulatoryStack:
     retrieved_at: datetime = field(default_factory=datetime.now)
 
 
-# LegiScan status codes that indicate inactive/dead legislation
-# 5 = Vetoed, 6 = Failed/Dead
-# Bills with these statuses are excluded from semantic search results
+# LegiScan status codes and their meanings
+STATUS_LABELS = {
+    "1": "Introduced",
+    "2": "Engrossed",
+    "3": "Enrolled",
+    "4": "Passed",
+    "5": "Vetoed",
+    "6": "Failed",
+}
+
+# Status codes that indicate inactive/dead legislation
+# Bills with these statuses are excluded by default from semantic search
 INACTIVE_STATUS_CODES = {"5", "6"}
+
+# Status filter presets for what_applies()
+# Maps filter name to allowed status codes
+STATUS_FILTER_PRESETS = {
+    "active": {"1", "2", "3", "4"},      # Exclude vetoed/failed (default)
+    "passed": {"4"},                      # Only enacted legislation
+    "pending": {"1", "2", "3"},           # In progress, not yet passed
+    "all": {"1", "2", "3", "4", "5", "6"},  # Include everything
+}
+
+# Type alias for legislation status filter
+LegislationStatusFilter = Literal["active", "passed", "pending", "all"]
 
 
 # Map state names to database codes
@@ -154,6 +175,7 @@ def get_regulatory_context(
     ranking_mode: RankingMode = "auto",
     max_results: int = 30,
     min_score: float = 0.4,
+    legislation_status: LegislationStatusFilter = "active",
 ) -> RegulatoryStack:
     """
     Get regulatory stack for a topic.
@@ -173,6 +195,11 @@ def get_regulatory_context(
             - "auto": Detect based on query (uses bill_first if query has bill numbers)
         max_results: Maximum bills to return (default 30)
         min_score: Minimum similarity score to include (default 0.4)
+        legislation_status: Filter legislation by status:
+            - "active": Exclude vetoed/failed (default)
+            - "passed": Only enacted legislation (status 4)
+            - "pending": In progress bills (status 1-3)
+            - "all": Include everything including vetoed/failed
 
     Returns:
         RegulatoryStack with federal, state, local context
@@ -203,6 +230,9 @@ def get_regulatory_context(
     # Extract mentioned bill numbers for boosting (in bill_first mode)
     mentioned_bills = _extract_bill_numbers(topic) if effective_mode == "bill_first" else set()
 
+    # Get allowed status codes based on filter
+    allowed_statuses = STATUS_FILTER_PRESETS.get(legislation_status, STATUS_FILTER_PRESETS["active"])
+
     # Semantic search for state legislation
     # Searches vector embeddings of bill text to find relevant legislation
     # Returns bill-level metadata AND relevant section excerpts for LLM context
@@ -231,9 +261,9 @@ def get_regulatory_context(
                 if not bill_id:
                     continue
 
-                # Skip vetoed/failed legislation (status 5 or 6)
+                # Filter by legislation status
                 status = str(result.metadata.get("status", ""))
-                if status in INACTIVE_STATUS_CODES:
+                if status and status not in allowed_statuses:
                     continue
 
                 # Track max score for bill-first ranking
@@ -289,12 +319,14 @@ def get_regulatory_context(
                 # Assign tier: top 10 are primary, rest are secondary
                 tier = "primary" if rank < 10 else "secondary"
 
+                bill_status = str(meta.get("status", ""))
                 state.append({
                     "type": "bill",
                     "id": bill_id,
                     "bill_number": meta.get("bill_number", chunks[0].get("bill_number", "") if chunks else ""),
                     "bill_name": meta.get("bill_name", ""),
-                    "status": meta.get("status", ""),
+                    "status": bill_status,
+                    "status_label": STATUS_LABELS.get(bill_status, "Unknown"),
                     "enacted_date": meta.get("enacted_date", ""),
                     "summary": meta.get("summary", ""),
                     "leverage_point": meta.get("leverage_point", ""),
@@ -320,12 +352,14 @@ def get_regulatory_context(
             )
             for rank, bill in enumerate(bills):
                 tier = "primary" if rank < 10 else "secondary"
+                bill_status = str(bill.get("status", ""))
                 state.append({
                     "type": "bill",
                     "id": bill.get("bill_id", ""),
                     "bill_number": bill.get("bill_number", ""),
                     "bill_name": bill.get("bill_name", ""),
-                    "status": bill.get("status", ""),
+                    "status": bill_status,
+                    "status_label": STATUS_LABELS.get(bill_status, bill_status or "Unknown"),
                     "enacted_date": bill.get("enacted_date", ""),
                     "summary": bill.get("summary", ""),
                     "leverage_point": bill.get("leverage_point", ""),
@@ -374,9 +408,9 @@ def get_regulatory_context(
                 if not bill_id:
                     continue
 
-                # Skip vetoed/failed legislation (status 5 or 6)
+                # Filter by legislation status
                 status = str(result.metadata.get("status", ""))
-                if status in INACTIVE_STATUS_CODES:
+                if status and status not in allowed_statuses:
                     continue
 
                 # Track max score for bill-first ranking
@@ -431,12 +465,14 @@ def get_regulatory_context(
                 # Assign tier: top 10 are primary, rest are secondary
                 tier = "primary" if rank < 10 else "secondary"
 
+                bill_status = str(meta.get("status", ""))
                 federal.append({
                     "type": "federal_bill",
                     "id": bill_id,
                     "bill_number": meta.get("bill_number", chunks[0].get("bill_number", "") if chunks else ""),
                     "bill_name": meta.get("bill_name", ""),
-                    "status": meta.get("status", ""),
+                    "status": bill_status,
+                    "status_label": STATUS_LABELS.get(bill_status, "Unknown"),
                     "enacted_date": meta.get("enacted_date", ""),
                     "summary": meta.get("summary", ""),
                     "leverage_point": meta.get("leverage_point", ""),

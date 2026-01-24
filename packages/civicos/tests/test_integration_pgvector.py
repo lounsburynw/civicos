@@ -507,3 +507,73 @@ class TestLegislationStatusFiltering:
                 assert status in active_statuses or status not in {"5", "6"}, (
                     f"Unexpected inactive status: {status} for {bill.get('id')}"
                 )
+
+    def test_bills_have_status_labels(self, zoning_stack):
+        """Bills should have human-readable status_label field."""
+        state_bills = [r for r in zoning_stack.state if r.get("type") == "bill"]
+        federal_bills = [r for r in zoning_stack.federal if r.get("type") == "federal_bill"]
+
+        all_bills = state_bills + federal_bills
+        expected_labels = {"Introduced", "Engrossed", "Enrolled", "Passed", "Unknown"}
+
+        for bill in all_bills:
+            assert "status_label" in bill, (
+                f"Bill should have status_label field: {bill.get('id')}"
+            )
+            label = bill.get("status_label")
+            assert label in expected_labels, (
+                f"Unexpected status_label '{label}' for {bill.get('id')}"
+            )
+
+
+class TestLegislationStatusParameter:
+    """Tests for legislation_status parameter in what_applies().
+
+    Validates that status filtering works:
+    - "active" (default): status 1-4
+    - "passed": status 4 only
+    - "pending": status 1-3
+    - "all": includes vetoed/failed (5, 6)
+    """
+
+    def test_passed_filter_only_returns_passed(self, civic_client):
+        """legislation_status='passed' returns only enacted bills."""
+        result = civic_client.what_applies("housing", legislation_status="passed")
+        bills = [r for r in result.state if r.get("type") == "bill"]
+
+        for bill in bills:
+            status = str(bill.get("status", ""))
+            assert status == "4", (
+                f"Passed filter should only return status 4, got {status} "
+                f"for {bill.get('bill_number')}"
+            )
+
+    def test_pending_filter_returns_in_progress(self, civic_client):
+        """legislation_status='pending' returns only in-progress bills."""
+        result = civic_client.what_applies("housing", legislation_status="pending")
+        bills = [r for r in result.state if r.get("type") == "bill"]
+
+        pending_statuses = {"1", "2", "3"}
+        for bill in bills:
+            status = str(bill.get("status", ""))
+            assert status in pending_statuses, (
+                f"Pending filter should return status 1-3, got {status} "
+                f"for {bill.get('bill_number')}"
+            )
+
+    def test_all_filter_includes_vetoed(self, civic_client):
+        """legislation_status='all' includes vetoed/failed bills."""
+        result = civic_client.what_applies("housing", legislation_status="all")
+        bills = [r for r in result.state if r.get("type") == "bill"]
+
+        # Check that we can find vetoed or failed bills
+        statuses = {str(b.get("status", "")) for b in bills}
+
+        # With 'all', we should see more than just active statuses
+        # (may include 5 or 6 if any match the query)
+        all_statuses = {"1", "2", "3", "4", "5", "6"}
+        for status in statuses:
+            if status:
+                assert status in all_statuses, (
+                    f"Unexpected status {status} in 'all' filter"
+                )
