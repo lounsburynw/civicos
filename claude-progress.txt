@@ -15463,3 +15463,49 @@ Tools still without source citations (no source data available):
 ### Next Session P0
 
 Need to identify next P0. Run `/start` to see recommended item.
+
+---
+Session 547 (2026-01-23)
+P0: voting_record_semantic_search → COMPLETE
+
+Implemented semantic search for get_voting_record() topic filtering:
+- When topic specified, uses vector search on decisions corpus (top_k=100, min_score=0.3)
+- "housing affordability" now finds votes on zoning, density, development  
+- Falls back to exact topic array match when vectors unavailable or empty
+- Added 2 tests: test_semantic_topic_matching, test_semantic_fallback_to_exact_match
+
+Files changed:
+- packages/civicos/src/civicos/civicos.py (lines 944-959, 998-1011)
+- packages/civicos/tests/test_voting_record_api.py (+102 lines)
+- pilot.json (voting_record_semantic_search → ready)
+
+Pattern follows search_decisions() (semantic-first with keyword fallback).
+Verified vector search works with real San Rafael data (44 decision embeddings).
+
+Next P0: federal_programs_semantic_search
+
+---
+Session 549 (2026-01-23)
+P0: federal_programs_semantic_search → COMPLETE
+
+Integrated federal programs semantic search into what_applies() federal section:
+
+- 4,668 program embeddings already existed (corpus_type='programs', jurisdiction='federal-US')
+- Added semantic search block after CFR search in context.py (lines 380-438)
+- ID boosting: queries mentioning program codes (CDBG, HOME, LIHTC, ESG, CoC, etc.) boost those programs +0.1
+- Tiered response: top 10 programs = "primary", rest = "secondary"
+- Minimum score threshold: 0.4 (consistent with other corpus types)
+
+Test results:
+- "affordable housing funding" → finds HTF, HOME, CDBG, LIHTC in top 5
+- "funding for homeless services" → finds ESG #1, CoC #4
+- "CDBG grants for infrastructure" → CDBG boosted to #1
+
+Files changed:
+- packages/civicos/src/civicos/context.py (added PROGRAM_PATTERN, _extract_program_codes(), federal programs search block)
+- packages/civicos/tests/test_integration_pgvector.py (added TestFederalProgramsSemanticSearch, TestFederalProgramsIdBoosting - 6 new tests)
+- pilot.json (federal_programs_semantic_search → ready)
+
+All 6 new tests pass. Existing what_applies tests unchanged.
+
+Next: Select new P0

@@ -204,3 +204,111 @@ class TestVectorEmbeddingCounts:
         assert len(results) > 50, (
             f"Expected many municipal code embeddings, got only {len(results)} results"
         )
+
+
+# Cache expensive housing funding query - takes ~2 min with semantic search
+@pytest.fixture(scope="module")
+def housing_funding_stack(civic_client):
+    """Cached result for housing funding query (used by federal programs tests)."""
+    return civic_client.what_applies("affordable housing funding")
+
+
+class TestFederalProgramsSemanticSearch:
+    """Tests for federal programs semantic search via what_applies().
+
+    Validates that:
+    1. Federal programs are returned alongside U.S. Code and CFR
+    2. Relevant housing programs (CDBG, HOME, HTF) are found
+    3. Result structure includes expected metadata fields
+    4. Tiered response structure is applied
+    """
+
+    def test_what_applies_returns_federal_programs(self, housing_funding_stack):
+        """what_applies() returns federal programs from vector search."""
+        federal = housing_funding_stack.federal
+        assert federal, "Expected federal results from what_applies()"
+
+        # Should have federal_program type results
+        programs = [r for r in federal if r.get("type") == "federal_program"]
+        assert len(programs) > 0, "Expected federal_program results from semantic search"
+
+    def test_housing_query_finds_relevant_programs(self, housing_funding_stack):
+        """Housing funding query finds CDBG, HOME, or HTF programs."""
+        programs = [r for r in housing_funding_stack.federal if r.get("type") == "federal_program"]
+
+        # Extract program names
+        program_names = [p.get("program_name", "").upper() for p in programs]
+
+        # At least one of these key housing programs should be found
+        expected_programs = ["CDBG", "HOME", "HOUSING TRUST", "LIHTC", "BLOCK GRANT"]
+        found = any(
+            any(exp in name for exp in expected_programs)
+            for name in program_names
+        )
+
+        assert found, (
+            f"Expected housing-related programs (CDBG, HOME, HTF, LIHTC), "
+            f"got: {program_names[:5]}"
+        )
+
+    def test_federal_programs_have_required_fields(self, housing_funding_stack):
+        """Federal program results include expected metadata fields."""
+        programs = [r for r in housing_funding_stack.federal if r.get("type") == "federal_program"]
+
+        if programs:
+            program = programs[0]
+
+            # Check required fields from semantic search
+            assert "id" in program, "Federal program should have id"
+            assert "program_name" in program, "Federal program should have program_name"
+            assert "relevance_score" in program, "Federal program should have relevance_score"
+            assert "tier" in program, "Federal program should have tier"
+
+            # Check optional metadata fields
+            assert "administering_agency" in program, "Federal program should have administering_agency"
+            assert "description" in program, "Federal program should have description"
+
+    def test_federal_programs_have_tiered_response(self, housing_funding_stack):
+        """Federal programs use tiered response structure (primary/secondary)."""
+        programs = [r for r in housing_funding_stack.federal if r.get("type") == "federal_program"]
+
+        if programs:
+            # Check tier values
+            tiers = {p.get("tier") for p in programs}
+            valid_tiers = {"primary", "secondary"}
+            assert tiers.issubset(valid_tiers), f"Unexpected tiers: {tiers - valid_tiers}"
+
+            # First 10 should be primary
+            for i, p in enumerate(programs[:10]):
+                assert p.get("tier") == "primary", f"Program {i} should be primary tier"
+
+    def test_federal_programs_relevance_scores(self, housing_funding_stack):
+        """Federal programs have reasonable relevance scores."""
+        programs = [r for r in housing_funding_stack.federal if r.get("type") == "federal_program"]
+
+        if programs:
+            for p in programs:
+                score = p.get("relevance_score", 0)
+                # Scores should be between 0 and 1 (cosine similarity)
+                assert 0 < score <= 1, f"Score {score} outside expected range (0, 1]"
+                # Minimum threshold check
+                assert score >= 0.4, f"Score {score} below minimum threshold 0.4"
+
+
+class TestFederalProgramsIdBoosting:
+    """Tests for ID boosting in federal programs search."""
+
+    def test_cdbg_query_boosts_cdbg_program(self, civic_client):
+        """Query mentioning CDBG should boost CDBG program to top."""
+        result = civic_client.what_applies("CDBG grants for infrastructure")
+        programs = [r for r in result.federal if r.get("type") == "federal_program"]
+
+        if programs:
+            # CDBG should be in top 3 when explicitly mentioned
+            top_names = [p.get("program_name", "").upper() for p in programs[:3]]
+            cdbg_in_top = any("CDBG" in name or "BLOCK GRANT" in name for name in top_names)
+
+            assert cdbg_in_top, (
+                f"CDBG should be boosted to top 3 when mentioned in query, "
+                f"got: {top_names}"
+            )
