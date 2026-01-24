@@ -2036,6 +2036,15 @@ class SQLiteBackend:
         """Get legislation by bill_id (stub for SQLite - uses Postgres in production)."""
         return None
 
+    def get_legislation_batch(
+        self,
+        state: str,
+        bill_ids: List[str],
+        as_of: Optional[datetime] = None,
+    ) -> Dict[str, Dict[str, Any]]:
+        """Batch fetch legislation (stub for SQLite - uses Postgres in production)."""
+        return {}
+
     def get_legislation_count(self, state: str, topic: Optional[str] = None) -> int:
         """Get legislation count (stub for SQLite - uses Postgres in production)."""
         return 0
