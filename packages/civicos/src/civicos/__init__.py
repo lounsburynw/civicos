@@ -55,6 +55,9 @@ from civicos.types import (
 # Cross-corpus search result type
 from civicos.history import UnifiedSearchResult, HybridSearchResult
 
+# Context types (for what_applies configuration)
+from civicos.context import RankingMode
+
 # Storage types (for dashboard/admin use)
 from civicos.storage import StorageStats
 
@@ -135,6 +138,8 @@ __all__ = [
     # Cross-corpus search result types
     "UnifiedSearchResult",
     "HybridSearchResult",
+    # Context types
+    "RankingMode",
     # Storage types
     "StorageStats",
     # Diagnostics

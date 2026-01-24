@@ -26,7 +26,7 @@ Usage:
     c.report_outcome("item_789", "passed")
 """
 
-from typing import Optional, List, Any, Dict, Union
+from typing import Optional, List, Any, Dict, Union, Literal
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -268,7 +268,15 @@ class CivicOS:
 
     # ─────────── QUERY METHODS (Learn) ───────────
 
-    def what_applies(self, topic: str, location: str = None) -> RegulatoryStack:
+    def what_applies(
+        self,
+        topic: str,
+        location: str = None,
+        *,
+        ranking_mode: Literal["section_first", "bill_first", "auto"] = "auto",
+        max_results: int = 30,
+        min_score: float = 0.4,
+    ) -> RegulatoryStack:
         """
         Get regulatory stack for a topic.
 
@@ -278,9 +286,17 @@ class CivicOS:
         Args:
             topic: The topic to search (e.g., "housing", "bike lanes")
             location: Optional location for local rules
+            ranking_mode: How to rank legislation results:
+                - "section_first": Rank by chunk similarity (good for broad queries)
+                - "bill_first": Rank by bill-level max score (good for specific bills)
+                - "auto": Detect based on query (uses bill_first if query has bill numbers)
+            max_results: Maximum bills to return (default 30)
+            min_score: Minimum similarity score to include (default 0.4)
 
         Returns:
-            RegulatoryStack with federal, state, and local context
+            RegulatoryStack with federal, state, and local context.
+            Each bill in state list includes a "tier" field ("primary" for top 10,
+            "secondary" for the rest) for pagination support.
         """
         from civicos.context import get_regulatory_context
         result = get_regulatory_context(
@@ -289,6 +305,9 @@ class CivicOS:
             location=location,
             storage=self._storage,
             vectors=self._vectors,
+            ranking_mode=ranking_mode,
+            max_results=max_results,
+            min_score=min_score,
         )
         # Convert to this module's RegulatoryStack to ensure type consistency
         return RegulatoryStack(
