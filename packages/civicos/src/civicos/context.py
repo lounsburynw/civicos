@@ -253,6 +253,7 @@ def get_regulatory_context(
             # Group chunks by bill_id, keeping top chunks per bill
             bill_chunks: Dict[str, List[dict]] = defaultdict(list)
             bill_max_scores: Dict[str, float] = {}  # Track max score per bill
+            local_impl_bills: set[str] = set()  # Bills requiring local implementation
 
             for result in results:
                 if result.score < min_score:
@@ -270,6 +271,10 @@ def get_regulatory_context(
                 if bill_id not in bill_max_scores or result.score > bill_max_scores[bill_id]:
                     bill_max_scores[bill_id] = result.score
 
+                # Track bills requiring local implementation (for boosting)
+                if result.metadata.get("local_implementation_required"):
+                    local_impl_bills.add(bill_id)
+
                 if len(bill_chunks[bill_id]) < CHUNKS_PER_BILL:
                     bill_chunks[bill_id].append({
                         "content": result.content[:300] if result.content else "",
@@ -283,11 +288,14 @@ def get_regulatory_context(
                 # Boost bills explicitly mentioned in the query (add 0.1 to score)
                 def bill_sort_key(bid: str) -> float:
                     base_score = bill_max_scores.get(bid, 0)
+                    # Boost bills requiring local implementation (most actionable)
+                    if bid in local_impl_bills:
+                        base_score += 0.15
                     # Extract bill number from bill_id (e.g., "ca-sb9" -> "SB9")
                     bill_num = bid.split("-")[-1].upper() if "-" in bid else bid.upper()
                     # Boost if this bill was mentioned in the query
                     if bill_num in mentioned_bills:
-                        return base_score + 0.1  # Boost mentioned bills
+                        base_score += 0.1  # Boost mentioned bills
                     return base_score
 
                 ordered_bill_ids = sorted(
@@ -320,6 +328,7 @@ def get_regulatory_context(
                 tier = "primary" if rank < 10 else "secondary"
 
                 bill_status = str(meta.get("status", ""))
+                requires_local = bill_id in local_impl_bills or meta.get("local_implementation_required", False)
                 state.append({
                     "type": "bill",
                     "id": bill_id,
@@ -334,6 +343,8 @@ def get_regulatory_context(
                     "official_url": meta.get("official_url", ""),
                     "relevance_score": round(max_score, 3),
                     "tier": tier,
+                    "requires_local_action": requires_local,
+                    "local_deadline": meta.get("local_deadline", "") if requires_local else "",
                     # Hierarchical: include relevant sections for LLM context
                     "relevant_sections": chunks,
                 })
@@ -353,6 +364,7 @@ def get_regulatory_context(
             for rank, bill in enumerate(bills):
                 tier = "primary" if rank < 10 else "secondary"
                 bill_status = str(bill.get("status", ""))
+                requires_local = bill.get("local_implementation_required", False)
                 state.append({
                     "type": "bill",
                     "id": bill.get("bill_id", ""),
@@ -367,6 +379,8 @@ def get_regulatory_context(
                     "official_url": bill.get("official_url", ""),
                     "relevance_score": 0.5,  # No semantic score available
                     "tier": tier,
+                    "requires_local_action": requires_local,
+                    "local_deadline": bill.get("local_deadline", "") if requires_local else "",
                 })
         except Exception:
             pass  # Storage query failed
@@ -400,6 +414,7 @@ def get_regulatory_context(
             # Group chunks by bill_id, keeping top chunks per bill
             federal_bill_chunks: Dict[str, List[dict]] = defaultdict(list)
             federal_bill_max_scores: Dict[str, float] = {}
+            federal_local_impl_bills: set[str] = set()  # Bills requiring local implementation
 
             for result in federal_results:
                 if result.score < min_score:
@@ -417,6 +432,10 @@ def get_regulatory_context(
                 if bill_id not in federal_bill_max_scores or result.score > federal_bill_max_scores[bill_id]:
                     federal_bill_max_scores[bill_id] = result.score
 
+                # Track bills requiring local implementation (for boosting)
+                if result.metadata.get("local_implementation_required"):
+                    federal_local_impl_bills.add(bill_id)
+
                 if len(federal_bill_chunks[bill_id]) < FEDERAL_CHUNKS_PER_BILL:
                     federal_bill_chunks[bill_id].append({
                         "content": result.content[:300] if result.content else "",
@@ -429,11 +448,14 @@ def get_regulatory_context(
             if effective_mode == "bill_first":
                 def federal_bill_sort_key(bid: str) -> float:
                     base_score = federal_bill_max_scores.get(bid, 0)
+                    # Boost bills requiring local implementation (most actionable)
+                    if bid in federal_local_impl_bills:
+                        base_score += 0.15
                     # Extract bill number from bill_id (e.g., "us-hb1234" -> "HB1234")
                     bill_num = bid.split("-")[-1].upper() if "-" in bid else bid.upper()
                     # Boost if this bill was mentioned in the query
                     if bill_num in mentioned_bills:
-                        return base_score + 0.1
+                        base_score += 0.1
                     return base_score
 
                 ordered_federal_bill_ids = sorted(
@@ -466,6 +488,7 @@ def get_regulatory_context(
                 tier = "primary" if rank < 10 else "secondary"
 
                 bill_status = str(meta.get("status", ""))
+                requires_local = bill_id in federal_local_impl_bills or meta.get("local_implementation_required", False)
                 federal.append({
                     "type": "federal_bill",
                     "id": bill_id,
@@ -480,6 +503,8 @@ def get_regulatory_context(
                     "official_url": meta.get("official_url", ""),
                     "relevance_score": round(max_score, 3),
                     "tier": tier,
+                    "requires_local_action": requires_local,
+                    "local_deadline": meta.get("local_deadline", "") if requires_local else "",
                     # Hierarchical: include relevant sections for LLM context
                     "relevant_sections": chunks,
                 })
