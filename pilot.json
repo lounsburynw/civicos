@@ -572,7 +572,7 @@
       },
       "voting_record_semantic_search": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "get_voting_record() finds semantically related votes",
         "description": "Update get_voting_record() to use semantic topic matching instead of exact array match. 'housing affordability' would also find votes on 'zoning', 'development', 'density'.",
         "note": "Session 540: Current implementation in civicos.py:973-977 uses exact topic array match. Vector search on decision titles/summaries would improve recall.",
