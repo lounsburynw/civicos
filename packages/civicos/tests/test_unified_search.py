@@ -32,16 +32,17 @@ class TestCorpusTypes:
     """Test corpus type constants."""
 
     def test_corpus_types_contains_all_types(self):
-        """CORPUS_TYPES includes all 8 corpus types."""
+        """CORPUS_TYPES includes all 9 corpus types."""
         assert "decision" in CORPUS_TYPES
         assert "pdf" in CORPUS_TYPES
         assert "transcript" in CORPUS_TYPES
         assert "issue" in CORPUS_TYPES
         assert "municipal_code" in CORPUS_TYPES
+        assert "budget" in CORPUS_TYPES
         assert "legislation" in CORPUS_TYPES
         assert "programs" in CORPUS_TYPES
         assert "state_programs" in CORPUS_TYPES
-        assert len(CORPUS_TYPES) == 8
+        assert len(CORPUS_TYPES) == 9
 
     def test_corpus_types_is_frozen(self):
         """CORPUS_TYPES cannot be modified."""
