@@ -148,7 +148,7 @@ jobs:
   pgvector:
     name: PgVector Integration
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     needs: smoke
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
 
