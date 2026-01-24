@@ -571,7 +571,7 @@
         ]
       },
       "voting_record_semantic_search": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "artifact": "get_voting_record() finds semantically related votes",
         "description": "Update get_voting_record() to use semantic topic matching instead of exact array match. 'housing affordability' would also find votes on 'zoning', 'development', 'density'.",
@@ -582,7 +582,7 @@
       },
       "federal_programs_semantic_search": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Funding opportunities discoverable via semantic search",
         "description": "Enable semantic search for federal programs so queries like 'money for affordable housing' find CDBG, HOME, LIHTC programs. Requires indexing program descriptions.",
         "note": "Session 540: Federal programs exist in storage but may not be fully vectorized for semantic discovery in what_applies() federal section.",
@@ -2254,7 +2254,7 @@
         "status": "not_ready",
         "priority": 2,
         "artifact": "Sankey-style flow showing items through civic process stages",
-        "description": "Visualization showing how agenda items flow: Introduced → Heard → Decided → Implemented. Reveals where things stall (items 'continued' multiple times, decisions pending implementation). Requires tracking item state over time.",
+        "description": "Visualization showing how agenda items flow: Introduced \u2192 Heard \u2192 Decided \u2192 Implemented. Reveals where things stall (items 'continued' multiple times, decisions pending implementation). Requires tracking item state over time.",
         "note": "Session 542: Powerful for showing 'what's stuck' without editorial commentary. Data-forward approach.",
         "depends_on": "city_pulse_mcp_tool"
       },
@@ -2270,7 +2270,7 @@
         "status": "not_ready",
         "priority": 3,
         "artifact": "Treemap visualization of budget allocation by category",
-        "description": "Interactive treemap showing proportional budget allocation. Drillable: click Public Safety → Police vs Fire breakdown. Uses existing budget_items data.",
+        "description": "Interactive treemap showing proportional budget allocation. Drillable: click Public Safety \u2192 Police vs Fire breakdown. Uses existing budget_items data.",
         "note": "Session 542: Lower priority but valuable for 'where does the money go' questions.",
         "depends_on": "city_pulse_mcp_tool"
       },
@@ -2295,7 +2295,7 @@
         "status": "not_ready",
         "priority": 3,
         "artifact": "Progressive engagement UX from awareness to coordination",
-        "description": "UX flow that guides users through engagement ladder: Awareness (what's happening) → Relevance (what affects me) → Participation (where I can act) → Coordination (who's with me). Each dashboard view surfaces the 'next step' without forcing it.",
+        "description": "UX flow that guides users through engagement ladder: Awareness (what's happening) \u2192 Relevance (what affects me) \u2192 Participation (where I can act) \u2192 Coordination (who's with me). Each dashboard view surfaces the 'next step' without forcing it.",
         "note": "Session 542: The engagement ladder is the conceptual spine of the dashboard. This item is about making the progression feel natural in the UX."
       }
     }
@@ -2456,12 +2456,30 @@
         ],
         "note": "7 MCP tools updated with source citations. Pattern: use item.source_url for documents, _generate_web_app_url() for internal deep links, item.video_url for YouTube timestamps.",
         "subtasks": [
-          {"name": "Audit all MCP tools for source citation gaps", "done": true},
-          {"name": "Add source_url/source_page to search_budget output", "done": true},
-          {"name": "Ensure what_happened includes decision source links", "done": true},
-          {"name": "Ensure what_applies includes legislation source links", "done": true},
-          {"name": "Verify deep links (_generate_web_app_url) used consistently", "done": true},
-          {"name": "Add source citations to semantic search result formatting", "done": true}
+          {
+            "name": "Audit all MCP tools for source citation gaps",
+            "done": true
+          },
+          {
+            "name": "Add source_url/source_page to search_budget output",
+            "done": true
+          },
+          {
+            "name": "Ensure what_happened includes decision source links",
+            "done": true
+          },
+          {
+            "name": "Ensure what_applies includes legislation source links",
+            "done": true
+          },
+          {
+            "name": "Verify deep links (_generate_web_app_url) used consistently",
+            "done": true
+          },
+          {
+            "name": "Add source citations to semantic search result formatting",
+            "done": true
+          }
         ],
         "depends_on": [
           "mcp_vector_search_tools"

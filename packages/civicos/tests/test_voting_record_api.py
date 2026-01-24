@@ -245,6 +245,108 @@ class TestGetVotingRecord:
         assert record.yes_votes == 1
         assert len(record.decisions) == 1
 
+    def test_semantic_topic_matching(self, mock_storage):
+        """Test that semantic search finds related decisions by topic."""
+        from civicos.storage.vector import SearchResult
+
+        # Set up decisions with different topics but semantically related
+        mock_storage.get_decisions.return_value = [
+            {
+                "id": "decision-1",
+                "title": "Zoning Amendment for ADUs",
+                "meeting_date": "2024-11-15",
+                "outcome": "approved",
+                "vote_json": {"Jane Smith": "yes", "Bob Jones": "yes"},
+                "topics": ["zoning", "development"],  # No "housing" in topics
+            },
+            {
+                "id": "decision-2",
+                "title": "Traffic Light Installation",
+                "meeting_date": "2024-11-01",
+                "outcome": "approved",
+                "vote_json": {"Jane Smith": "no", "Bob Jones": "yes"},
+                "topics": ["transportation", "safety"],
+            },
+            {
+                "id": "decision-3",
+                "title": "Density Bonus Program",
+                "meeting_date": "2024-10-15",
+                "outcome": "approved",
+                "vote_json": {"Jane Smith": "yes", "Bob Jones": "yes"},
+                "topics": ["development", "density"],  # No "housing" in topics
+            },
+        ]
+
+        # Create mock vector backend that returns housing-related decisions
+        mock_vectors = Mock()
+        mock_vectors.search.return_value = [
+            SearchResult(
+                id="decision-1",  # Zoning - semantically related to housing
+                content="Zoning Amendment for ADUs",
+                score=0.85,
+                jurisdiction_id="city-san-rafael",
+                corpus_type="decisions",
+            ),
+            SearchResult(
+                id="decision-3",  # Density - semantically related to housing
+                content="Density Bonus Program",
+                score=0.75,
+                jurisdiction_id="city-san-rafael",
+                corpus_type="decisions",
+            ),
+            # Note: decision-2 (traffic) NOT returned - not related to housing
+        ]
+
+        with patch('civicos.civicos.get_storage_backend') as mock_get_storage:
+            mock_get_storage.return_value = mock_storage
+            with patch('civicos.civicos.get_vector_backend') as mock_get_vector:
+                mock_get_vector.return_value = mock_vectors
+                c = CivicOS("san-rafael")
+                c._storage = mock_storage
+                c._vectors = mock_vectors
+
+                # Query for "housing affordability" - should find zoning and density
+                record = c.get_voting_record("Jane Smith", topic="housing affordability")
+
+                # Should find 2 decisions via semantic search (not traffic)
+                assert record.total_votes == 2
+                assert record.yes_votes == 2
+                assert record.no_votes == 0
+                assert len(record.decisions) == 2
+
+                # Verify semantic search was called
+                mock_vectors.search.assert_called_once()
+                call_args = mock_vectors.search.call_args
+                assert call_args.kwargs["query"] == "housing affordability"
+                assert call_args.kwargs["corpus_type"] == "decisions"
+
+                # Verify the right decisions were included
+                decision_ids = {d["decision_id"] for d in record.decisions}
+                assert "decision-1" in decision_ids  # Zoning - related to housing
+                assert "decision-3" in decision_ids  # Density - related to housing
+                assert "decision-2" not in decision_ids  # Traffic - NOT related
+
+    def test_semantic_fallback_to_exact_match(self, mock_storage):
+        """Test fallback to exact matching when semantic search returns empty."""
+        # Create mock vector backend that returns empty results
+        mock_vectors = Mock()
+        mock_vectors.search.return_value = []  # Empty semantic results
+
+        with patch('civicos.civicos.get_storage_backend') as mock_get_storage:
+            mock_get_storage.return_value = mock_storage
+            with patch('civicos.civicos.get_vector_backend') as mock_get_vector:
+                mock_get_vector.return_value = mock_vectors
+                c = CivicOS("san-rafael")
+                c._storage = mock_storage
+                c._vectors = mock_vectors
+
+                # Should fall back to exact topic matching
+                record = c.get_voting_record("Jane Smith", topic="housing")
+
+                # Should find 2 decisions with exact "housing" in topics
+                assert record.total_votes == 2
+                assert len(record.decisions) == 2
+
 
 class TestVotingRecordModel:
     """Test VotingRecord dataclass."""
