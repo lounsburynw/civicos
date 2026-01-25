@@ -3499,17 +3499,46 @@ def prepare_for_meeting(
             result_parts.append("- Request a specific action from the council")
         result_parts.append("")
 
-        # Regulatory Context
-        if prep.regulatory_context:
-            result_parts.append("## Relevant Regulations")
-            if prep.regulatory_context.get('state'):
-                for item in prep.regulatory_context['state'][:3]:
-                    if isinstance(item, dict):
-                        result_parts.append(f"- **State:** {item.get('bill', item.get('title', str(item)))}")
-            if prep.regulatory_context.get('federal'):
-                for item in prep.regulatory_context['federal'][:2]:
-                    if isinstance(item, dict):
-                        result_parts.append(f"- **Federal:** {item.get('program_name', str(item))}")
+        # Legal Citations (formatted, actionable references)
+        if prep.legal_citations:
+            result_parts.append("## Legal Citations")
+            result_parts.append("*Cite these in your comments for stronger arguments:*")
+            result_parts.append("")
+            for citation in prep.legal_citations:
+                cite_str = citation.get('citation', '')
+                title = citation.get('title', '')
+                cite_type = citation.get('type', '')
+                relevance = citation.get('relevance', 0)
+
+                # Format based on type
+                if cite_type == 'state_bill':
+                    if citation.get('requires_local_action'):
+                        deadline = citation.get('local_deadline', '')
+                        if deadline:
+                            result_parts.append(f"- **{cite_str}** - {title}")
+                            result_parts.append(f"  - ⚠️ *Requires local action by {deadline}*")
+                        else:
+                            result_parts.append(f"- **{cite_str}** - {title}")
+                            result_parts.append(f"  - *Requires local implementation*")
+                    else:
+                        result_parts.append(f"- **{cite_str}** - {title}")
+                elif cite_type in ('ordinance', 'county_ordinance'):
+                    result_parts.append(f"- **{cite_str}** - {title}")
+                    result_parts.append(f"  - *Local law - directly applicable*")
+                elif cite_type == 'federal_program':
+                    agency = citation.get('agency', '')
+                    result_parts.append(f"- **{cite_str}**")
+                    if agency:
+                        result_parts.append(f"  - *Federal funding via {agency}*")
+                elif cite_type == 'federal_bill':
+                    result_parts.append(f"- **{cite_str}** - {title}")
+                else:
+                    result_parts.append(f"- **{cite_str}** - {title}")
+
+                # Add URL if available
+                url = citation.get('url', '')
+                if url:
+                    result_parts.append(f"  - [Source]({url})")
             result_parts.append("")
 
         # Allies
