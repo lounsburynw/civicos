@@ -4,7 +4,7 @@ Modal unified ingestion script for Civic data pipeline.
 This module provides a single entrypoint for running all data ingestion tasks
 in parallel on Modal's serverless compute infrastructure. It orchestrates:
 - Municipal code fetch (Municode API)
-- Legislation text fetch (LegiScan API)
+- Legislation sync (LegiScan API) - master list + text population
 - Meeting discovery (ProudCity API) - supports incremental fetch
 - Issue fetch (SeeClickFix API) - supports incremental fetch
 - Transcript extraction (AssemblyAI) - downloads audio and transcribes with speaker diarization
@@ -17,7 +17,7 @@ Architecture:
     modal run scripts/modal_ingest.py --all
     └── spawn() parallel tasks:
         ├── fetch_municipal_code()  → Postgres
-        ├── fetch_legislation()     → Postgres
+        ├── sync_legislation()      → Postgres (master list + text)
         ├── fetch_meetings()        → Postgres (incremental)
         ├── fetch_issues()          → Postgres (incremental)
         ├── extract_transcripts()   → R2 (audio) + Postgres (transcripts), after meetings
@@ -81,7 +81,7 @@ API Quota Considerations:
 
 Cost Estimates (Modal compute):
     - Municipal code fetch: ~$0.05 (20-30 min, 4GB)
-    - Legislation fetch: ~$0.20 (1-4 hours, 4GB)
+    - Legislation sync: ~$0.20 (1-4 hours, 4GB) - includes master list + text
     - Meeting fetch: ~$0.02 (5 min, 4GB)
     - Issues fetch: ~$0.02 (5 min, 4GB)
     - Vector indexing: ~$0.10 (5-10 min, 16GB)
@@ -424,6 +424,235 @@ def fetch_legislation(
             metadata={"bills_with_text": len(updates), "api_calls": api_calls},
             storage_backend=backend,
         )
+
+    return result
+
+
+# =============================================================================
+# Legislation Sync (Master List + Text Population)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+        modal.Secret.from_name("civic-legiscan"),
+    ],
+    memory=4096,
+    timeout=14400,  # 4 hours
+    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=60.0),
+)
+def sync_legislation(
+    jurisdiction: str = "state-CA",
+    dry_run: bool = False,
+    skip_text: bool = False,
+    auto_index: bool = False,
+) -> dict:
+    """Sync legislation from LegiScan: discover new bills, update statuses, populate text.
+
+    This is the main function for scheduled legislation refresh. It performs:
+    1. Fetch master list from LegiScan (1 API call) - discovers new bills, status updates
+    2. Store/upsert bills via store_legislation() with temporal versioning
+    3. Optionally populate full_text for bills missing it (via fetch_legislation)
+    4. Auto-index vectors for new/updated bills
+
+    Args:
+        jurisdiction: Target jurisdiction (e.g., "state-CA", "federal")
+        dry_run: If True, validate only - don't store
+        skip_text: If True, skip full_text population step (faster sync)
+        auto_index: If True, trigger vector indexing after successful storage
+
+    API Quota:
+        - getMasterList: 1 API call per state (efficient!)
+        - Text population: 2 API calls per bill (only for bills missing text)
+        - Running weekly stays well within 30k/month free tier
+    """
+    import logging
+    import os
+    import time
+
+    import requests
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    from civicos.storage.postgres_backend import PostgresBackend
+
+    database_url = os.environ.get("DATABASE_URL")
+    legiscan_key = os.environ.get("LEGISCAN_API_KEY")
+
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+    if not legiscan_key:
+        raise ValueError("LEGISCAN_API_KEY not set")
+
+    # Parse jurisdiction to state code
+    if jurisdiction.startswith("state-"):
+        state_code = jurisdiction.replace("state-", "")
+    elif jurisdiction.startswith("federal"):
+        state_code = "US"
+    else:
+        state_code = jurisdiction
+
+    logger.info(f"[LEGISLATION SYNC] Starting: jurisdiction={jurisdiction}, state={state_code}")
+
+    backend = PostgresBackend(database_url)
+
+    # Get count before sync
+    count_before = backend.get_legislation_count(state_code)
+    logger.info(f"Bills in database before sync: {count_before}")
+
+    # Step 1: Fetch master list from LegiScan (1 API call)
+    logger.info("Fetching master list from LegiScan...")
+    try:
+        response = requests.get(
+            "https://api.legiscan.com/",
+            params={"key": legiscan_key, "op": "getMasterList", "state": state_code},
+            timeout=60,
+        )
+        response.raise_for_status()
+        data = response.json()
+    except Exception as e:
+        logger.error(f"LegiScan API error: {e}")
+        return {
+            "task": "sync_legislation",
+            "jurisdiction": jurisdiction,
+            "status": "failed",
+            "error": str(e),
+        }
+
+    if data.get("status") != "OK":
+        logger.error(f"LegiScan API returned status: {data.get('status')}")
+        return {
+            "task": "sync_legislation",
+            "jurisdiction": jurisdiction,
+            "status": "failed",
+            "error": f"LegiScan status: {data.get('status')}",
+        }
+
+    # Parse master list - format is {session_id: {"0": session_info, "1": bill, "2": bill, ...}}
+    master_list = data.get("masterlist", {})
+    bills_raw = []
+    for key, value in master_list.items():
+        if isinstance(value, dict) and value.get("bill_id"):
+            bills_raw.append(value)
+
+    logger.info(f"Retrieved {len(bills_raw)} bills from LegiScan master list")
+
+    if not bills_raw:
+        logger.warning("No bills returned from master list")
+        return {
+            "task": "sync_legislation",
+            "jurisdiction": jurisdiction,
+            "status": "empty",
+            "bills_fetched": 0,
+        }
+
+    # Step 2: Transform and store bills
+    bills_for_storage = []
+    for bill in bills_raw:
+        bill_number = bill.get("number", "")
+        normalized_id = f"{state_code.lower()}-{bill_number.lower().replace(' ', '')}"
+
+        bills_for_storage.append({
+            "bill_id": normalized_id,
+            "bill_number": bill_number,
+            "bill_name": bill.get("title", ""),
+            "summary": bill.get("description", ""),
+            "status": str(bill.get("status", "")),
+            "official_url": bill.get("url", ""),
+            "legiscan_id": bill.get("bill_id"),
+            "last_action": bill.get("last_action", ""),
+            "last_action_date": bill.get("last_action_date"),
+            "status_date": bill.get("status_date"),
+        })
+
+    if dry_run:
+        logger.info(f"[DRY RUN] Would sync {len(bills_for_storage)} bills")
+        return {
+            "task": "sync_legislation",
+            "jurisdiction": jurisdiction,
+            "status": "dry_run",
+            "bills_fetched": len(bills_for_storage),
+        }
+
+    # Store in batches
+    batch_size = 500
+    total_stored = 0
+    for i in range(0, len(bills_for_storage), batch_size):
+        batch = bills_for_storage[i:i + batch_size]
+        try:
+            stored = backend.store_legislation(state=state_code, bills=batch)
+            total_stored += stored
+            logger.info(f"Stored batch {i // batch_size + 1}: {stored} bills updated/inserted")
+        except Exception as e:
+            logger.error(f"Error storing batch: {e}")
+
+    count_after = backend.get_legislation_count(state_code)
+    new_bills = count_after - count_before
+    logger.info(f"Sync complete: {total_stored} bills processed, {new_bills} new bills added")
+
+    # Step 3: Populate text for bills missing it (unless skip_text)
+    text_result = None
+    if not skip_text:
+        logger.info("Populating full_text for bills missing it...")
+        text_result = fetch_legislation.local(
+            jurisdiction=jurisdiction,
+            dry_run=False,
+            auto_index=False,  # We'll index once at the end
+        )
+        logger.info(f"Text population: {text_result.get('bills_with_text', 0)} bills updated")
+
+    # Step 4: Auto-index vectors if requested
+    vector_result = None
+    if auto_index:
+        logger.info(f"[LEGISLATION SYNC] Auto-indexing vectors for {jurisdiction}...")
+        vector_jurisdiction = f"legislation-{state_code}"
+        vector_result = index_vectors.local(
+            jurisdiction=vector_jurisdiction,
+            corpus="legislation",
+            reindex=False,
+        )
+        logger.info(f"Vectors indexed: {vector_result.get('total_indexed', 0)}")
+
+    elapsed = time.time() - start_time
+    cost_usd = 4 * elapsed * 0.000463  # 4GB Modal pricing
+
+    result = {
+        "task": "sync_legislation",
+        "jurisdiction": jurisdiction,
+        "status": "success",
+        "bills_fetched": len(bills_for_storage),
+        "bills_stored": total_stored,
+        "new_bills": new_bills,
+        "count_before": count_before,
+        "count_after": count_after,
+        "api_calls_master_list": 1,
+        "skip_text": skip_text,
+        "auto_index": auto_index,
+        "elapsed_seconds": elapsed,
+        "cost_usd": cost_usd,
+    }
+    if text_result:
+        result["text_result"] = text_result
+    if vector_result:
+        result["vector_result"] = vector_result
+
+    # Log to operating_costs table
+    from civicos.cost import log_modal_cost
+    log_modal_cost(
+        function_name="sync_legislation",
+        elapsed_seconds=elapsed,
+        memory_gb=4,
+        jurisdiction_id=jurisdiction,
+        metadata={
+            "bills_fetched": len(bills_for_storage),
+            "bills_stored": total_stored,
+            "new_bills": new_bills,
+        },
+        storage_backend=backend,
+    )
 
     return result
 
@@ -2554,6 +2783,12 @@ def scheduled_low_velocity_refresh():
     Full refresh for static reference data that rarely changes.
     Also runs decision extraction (weekly because minutes PDFs lag behind meetings).
 
+    Legislation sync (via sync_legislation):
+    - Fetches master list to discover new bills and status updates
+    - Stores/upserts bills with temporal versioning
+    - Populates full_text for bills missing it
+    - Auto-indexes vectors
+
     Iterates all configured jurisdictions from data/extraction/*.json.
     """
     import logging
@@ -2577,15 +2812,22 @@ def scheduled_low_velocity_refresh():
     # =========================================================================
 
     # Legislation CA (run weekly to avoid quota issues, auto-index vectors)
+    # Uses sync_legislation() which:
+    #   1. Fetches master list to discover new bills and status updates (1 API call)
+    #   2. Stores/upserts bills with temporal versioning
+    #   3. Populates full_text for bills missing it
+    #   4. Auto-indexes vectors
     try:
-        logger.info("Fetching CA legislation...")
-        result = fetch_legislation.local(jurisdiction="state-CA", dry_run=False, auto_index=True)
+        logger.info("Syncing CA legislation...")
+        result = sync_legislation.local(jurisdiction="state-CA", dry_run=False, auto_index=True)
         results["legislation_CA"] = result
-        updated = result.get('bills_with_text', 0)
+        new_bills = result.get('new_bills', 0)
+        stored = result.get('bills_stored', 0)
+        text_updated = result.get('text_result', {}).get('bills_with_text', 0)
         indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
-        logger.info(f"  CA Legislation: {updated} bills updated, {indexed} vectors indexed")
+        logger.info(f"  CA Legislation: {new_bills} new bills, {stored} total stored, {text_updated} texts populated, {indexed} vectors indexed")
     except Exception as e:
-        logger.exception("CA legislation fetch failed")
+        logger.exception("CA legislation sync failed")
         results["legislation_CA"] = {"status": "failed", "error": str(e)}
 
     # Executive Orders from Federal Register (incremental, auto-index vectors)
@@ -3237,10 +3479,9 @@ def main(
         handles.append(("municipal_code", handle))
 
     if run_legislation:
-        print("Spawning legislation text fetch...")
-        handle = fetch_legislation.spawn(
+        print("Spawning legislation sync (master list + text population)...")
+        handle = sync_legislation.spawn(
             jurisdiction=legislation_jurisdiction,
-            limit=legislation_limit,
             dry_run=dry_run,
             auto_index=auto_index,
         )

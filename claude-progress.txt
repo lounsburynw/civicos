@@ -15661,3 +15661,43 @@ Added filtering to exclude vetoed/failed legislation (LegiScan status codes 5 an
 **Cost:** ~$2 OpenAI API (gpt-4o-mini for 2,848 bills)
 
 **Next:** Select new P0
+
+## Session 541: legislation_scheduled_refresh - Automated Weekly Legiscan Sync
+
+**Date:** 2026-01-25
+**Item:** legislation_scheduled_refresh (data_readiness > legislative_context)
+**Priority:** P0
+
+### Summary
+
+Implemented automated weekly legislation sync to keep CA bills current. The existing bulk load from 2025-12-29 had no mechanism for discovering new bills or status updates.
+
+### Implementation
+
+**New Function: `sync_legislation()`** (scripts/modal_ingest.py)
+- Fetches master list from LegiScan API (1 API call per state)
+- Upserts bills via `store_legislation()` with temporal versioning
+- Populates full_text for bills missing it (via existing `fetch_legislation()`)
+- Auto-indexes vectors for new/updated bills
+
+**Pipeline:**
+1. `getMasterList` API → get all ~2,800 CA bills (1 API call)
+2. `store_legislation()` → upsert with change detection
+3. `fetch_legislation()` → populate text for new bills (2 API calls each)
+4. `index_vectors()` → update pgvector embeddings
+
+**Integration:**
+- Updated `scheduled_low_velocity_refresh()` to call `sync_legislation()` instead of `fetch_legislation()`
+- Runs weekly Sunday 3 AM UTC (Saturday 7 PM Pacific)
+- API quota: ~1 call for master list + 2 per new bill (well within 30k/month)
+
+### Key Files Modified
+- `scripts/modal_ingest.py`: Added `sync_legislation()` function, updated scheduled refresh and CLI
+
+### Tests
+- Syntax validation: ✓
+- Smoke tests (42): ✓
+- Function structure validated via AST
+
+### Next P0
+- `entity_type_definitions`: Define dataclasses for remaining untyped entities
