@@ -327,7 +327,7 @@
       },
       "entity_type_definitions": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "description": "Define dataclasses for remaining untyped entities: ExecutiveOrder, Legislation, ElectedOfficial, MunicipalCodeSection",
         "notes": "Follow-on to civic_type_extraction. These entities are currently raw dicts from storage. Proper types improve IDE support, validation, and API consistency. Do incrementally as each area is touched.",
         "depends_on": [
@@ -717,11 +717,11 @@
         "note": "Session 540: 99.6% of CA bills have no topic, limiting discoverability via what_applies(topic) queries."
       },
       "legislation_scheduled_refresh": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Automated weekly Legiscan sync for CA legislation",
         "description": "Set up scheduled ingestion to keep CA legislation current. All 2,839 bills were ingested on 2025-12-29 as a one-time bulk load with no ongoing updates.",
-        "note": "Session 540: Ensures new bills and status changes are captured automatically. Add to modal_ingest.py scheduled functions."
+        "note": "Session 541: Added sync_legislation() Modal function that fetches master list, upserts bills, populates text, and auto-indexes vectors. Integrated into scheduled_low_velocity_refresh() running weekly."
       }
     },
     "transcript_backlog": {
