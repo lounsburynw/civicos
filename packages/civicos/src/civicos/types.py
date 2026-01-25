@@ -201,6 +201,7 @@ class Preparation:
     talking_points: List[str]
     allies: List[dict]
     logistics: dict
+    legal_citations: List[dict] = field(default_factory=list)
 
 
 @dataclass

@@ -2200,16 +2200,16 @@
     },
     "retrieval_informed_actions": {
       "prepare_with_citations": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 99,
         "artifact": "prepare() method includes legal citations and precedents from vector search",
         "description": "When user prepares for a meeting, automatically search relevant: municipal code sections, state legislation, past decisions, similar issues. Include in preparation materials with proper citations.",
-        "note": "Session 489: Currently prepare() exists but doesn't leverage vector search. User should get 'Cite Cal. Gov. Code \u00a7 66314 for ADU rights' not just agenda context.",
+        "note": "Session implemented. prepare() now returns legal_citations list with formatted citations (Cal. Gov. Code, Municipal Code \u00a7, etc.) and talking points reference them.",
         "depends_on": "pgvector_cross_corpus_search"
       },
       "action_leverage_points": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Surface specific action opportunities based on retrieval context",
         "description": "After retrieval, suggest concrete actions: 'State law preempts this denial - file appeal citing SB9', 'ESG grant deadline in 30 days - contact councilmember', '8 neighbors reported similar issue - start initiative'.",
         "note": "Session 489: Retrieval without action guidance is just research. Transform what_applies() results into actionable next steps."

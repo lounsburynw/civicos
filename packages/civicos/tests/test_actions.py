@@ -531,3 +531,195 @@ class TestPreparationModule:
 
         # Falls back to general
         assert _extract_topic_from_item({"title": "Miscellaneous Business"}) == "general"
+
+    def test_prepare_includes_legal_citations_field(self):
+        """prepare_for_meeting returns Preparation with legal_citations field."""
+        from civicos.actions.preparation import prepare_for_meeting, Preparation
+        from civicos._internal.state import StateManager
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "test.db")
+            state = StateManager(db_path)
+
+            state.update_meetings("san-rafael-ca", [{
+                "id": "mtg_cit_001",
+                "title": "City Council Meeting",
+                "meeting_datetime": "2025-12-15T18:00:00",
+                "meeting_type": "City Council",
+                "source_platform": "test",
+                "full_data": {
+                    "agenda_items": [{
+                        "id": "item_cit_001",
+                        "title": "ADU Ordinance Amendment",
+                        "project_type": "housing",
+                    }]
+                }
+            }])
+
+            result = prepare_for_meeting("item_cit_001", "san-rafael-ca", db_path=db_path)
+
+            assert isinstance(result, Preparation)
+            assert hasattr(result, "legal_citations")
+            assert isinstance(result.legal_citations, list)
+
+    def test_format_legal_citation_state_bill(self):
+        """_format_legal_citation formats state bills correctly."""
+        from civicos.actions.preparation import _format_legal_citation
+
+        # Enacted state bill
+        bill = {
+            "type": "bill",
+            "bill_number": "SB9",
+            "bill_name": "California Housing Opportunity and More Efficiency Act",
+            "status_label": "Passed",
+            "relevance_score": 0.85,
+            "official_url": "https://legiscan.com/CA/bill/SB9",
+            "requires_local_action": True,
+            "local_deadline": "2024-01-01",
+            "relevant_sections": [{"content": "This bill allows lot splits..."}],
+        }
+
+        result = _format_legal_citation(bill, "state")
+
+        assert result is not None
+        assert result["type"] == "state_bill"
+        assert result["citation"] == "Cal. Gov. Code (SB9)"
+        assert "Housing Opportunity" in result["title"]
+        assert result["relevance"] == 0.85
+        assert result["requires_local_action"] is True
+        assert result["local_deadline"] == "2024-01-01"
+
+    def test_format_legal_citation_municipal_code(self):
+        """_format_legal_citation formats municipal code sections correctly."""
+        from civicos.actions.preparation import _format_legal_citation
+
+        ordinance = {
+            "type": "ordinance",
+            "section_number": "14.06.030",
+            "section_name": "Accessory Dwelling Units",
+            "relevance_score": 0.92,
+            "text_preview": "Accessory dwelling units may be permitted in residential zones...",
+        }
+
+        result = _format_legal_citation(ordinance, "local")
+
+        assert result is not None
+        assert result["type"] == "ordinance"
+        assert result["citation"] == "Municipal Code § 14.06.030"
+        assert result["title"] == "Accessory Dwelling Units"
+        assert result["relevance"] == 0.92
+
+    def test_format_legal_citation_federal_program(self):
+        """_format_legal_citation formats federal programs correctly."""
+        from civicos.actions.preparation import _format_legal_citation
+
+        program = {
+            "type": "federal_program",
+            "program_name": "Community Development Block Grant",
+            "cfda_number": "14.218",
+            "administering_agency": "HUD",
+            "relevance_score": 0.75,
+            "description": "Formula grant program for community development...",
+        }
+
+        result = _format_legal_citation(program, "federal")
+
+        assert result is not None
+        assert result["type"] == "federal_program"
+        assert "CFDA 14.218" in result["citation"]
+        assert result["agency"] == "HUD"
+
+    def test_format_legal_citation_skips_low_relevance(self):
+        """_format_legal_citation returns None for low-relevance entries."""
+        from civicos.actions.preparation import _format_legal_citation
+
+        bill = {
+            "type": "bill",
+            "bill_number": "SB123",
+            "bill_name": "Some Bill",
+            "status_label": "Passed",
+            "relevance_score": 0.3,  # Below 0.5 threshold
+        }
+
+        result = _format_legal_citation(bill, "state")
+        assert result is None
+
+    def test_extract_legal_citations_prioritizes_local(self):
+        """_extract_legal_citations prioritizes local ordinances over state/federal."""
+        from civicos.actions.preparation import _extract_legal_citations
+
+        regulatory_context = {
+            "local": [{
+                "type": "ordinance",
+                "section_number": "14.06",
+                "section_name": "ADU Requirements",
+                "relevance_score": 0.8,
+            }],
+            "state": [{
+                "type": "bill",
+                "bill_number": "SB9",
+                "bill_name": "Housing Bill",
+                "status_label": "Passed",
+                "relevance_score": 0.9,  # Higher relevance but lower priority
+            }],
+            "federal": [],
+        }
+
+        citations = _extract_legal_citations(regulatory_context)
+
+        # Local should come first despite lower relevance score
+        assert len(citations) >= 2
+        assert citations[0]["type"] == "ordinance"
+
+    def test_talking_points_reference_legal_citations(self):
+        """_generate_talking_points includes legal citation references."""
+        from civicos.actions.preparation import _generate_talking_points
+
+        item = {"title": "ADU Development Standards"}
+        regulatory_context = {"state": [], "federal": [], "local": []}
+        legal_citations = [
+            {
+                "type": "state_bill",
+                "citation": "Cal. Gov. Code (SB9)",
+                "title": "Housing Opportunity Act",
+                "relevance": 0.9,
+                "requires_local_action": True,
+                "local_deadline": "2024-01-01",
+            },
+            {
+                "type": "ordinance",
+                "citation": "Municipal Code § 14.06.030",
+                "title": "ADU Regulations",
+                "relevance": 0.85,
+            },
+        ]
+
+        points = _generate_talking_points(item, regulatory_context, legal_citations)
+
+        # Should reference the legal citations
+        all_points = " ".join(points)
+        assert "Cal. Gov. Code" in all_points or "SB9" in all_points
+        assert "Municipal Code" in all_points or "§ 14.06" in all_points
+
+    def test_talking_points_mention_local_action_deadline(self):
+        """_generate_talking_points mentions local action deadlines."""
+        from civicos.actions.preparation import _generate_talking_points
+
+        item = {"title": "Zoning Update"}
+        regulatory_context = {"state": [], "federal": [], "local": []}
+        legal_citations = [
+            {
+                "type": "state_bill",
+                "citation": "Cal. Gov. Code (SB35)",
+                "title": "Streamlined Approval",
+                "relevance": 0.88,
+                "requires_local_action": True,
+                "local_deadline": "2026-06-30",
+            },
+        ]
+
+        points = _generate_talking_points(item, regulatory_context, legal_citations)
+
+        # Should mention the deadline
+        all_points = " ".join(points)
+        assert "2026-06-30" in all_points or "local action" in all_points.lower()
