@@ -1113,6 +1113,23 @@ class StorageBackend(
         """
         ...
 
+    def update_legislation_topics(
+        self,
+        state: str,
+        updates: List[Dict[str, Any]],
+    ) -> int:
+        """
+        Update topic field for legislation bills.
+
+        Args:
+            state: State code (e.g., "CA", "US")
+            updates: List of dicts with 'bill_id' and 'topic'
+
+        Returns:
+            Number of bills updated
+        """
+        ...
+
     # ========== Codified Law Methods ==========
     #
     # Codified law includes U.S. Code and state codes (e.g., California Codes).

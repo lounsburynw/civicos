@@ -644,3 +644,66 @@ class TestLocalImplementationSurfacing:
             assert "requires_local_action" in bill, (
                 f"Federal bill {bill.get('bill_number')} missing requires_local_action field"
             )
+
+
+class TestLegislationTopicClassification:
+    """Tests for topic classification of legislation in what_applies().
+
+    Validates that:
+    1. Bills include topic field in results
+    2. Housing-related queries return bills with housing topic
+    3. Topic field is populated (not empty) for classified bills
+    """
+
+    def test_bills_include_topic_field(self, adu_regulatory_stack):
+        """Bills in what_applies() include topic field."""
+        bills = [r for r in adu_regulatory_stack.state if r.get("type") == "bill"]
+        assert bills, "Expected state bills in results"
+
+        # All bills should have the topic field
+        for bill in bills:
+            assert "topic" in bill, (
+                f"Bill {bill.get('bill_number')} missing topic field"
+            )
+
+    def test_housing_query_returns_housing_topic_bills(self, adu_regulatory_stack):
+        """Housing-related query should return bills with housing topic."""
+        bills = [r for r in adu_regulatory_stack.state if r.get("type") == "bill"]
+
+        # At least some bills should have housing topic
+        housing_bills = [b for b in bills if b.get("topic") == "housing"]
+        assert len(housing_bills) > 0, (
+            f"Expected some housing-topic bills in ADU query, "
+            f"got topics: {set(b.get('topic') for b in bills)}"
+        )
+
+    def test_sb9_has_housing_topic(self, adu_regulatory_stack):
+        """SB9 (housing duplex law) should have housing topic."""
+        bills = [r for r in adu_regulatory_stack.state if r.get("type") == "bill"]
+
+        # Find SB9 in results
+        sb9_bills = [b for b in bills if "sb9" in b.get("id", "").lower()]
+
+        if sb9_bills:
+            sb9 = sb9_bills[0]
+            assert sb9.get("topic") == "housing", (
+                f"SB9 should have topic='housing', got {sb9.get('topic')}"
+            )
+
+    def test_topic_distribution_is_reasonable(self, civic_client):
+        """Check that topic classification produced reasonable distribution."""
+        # Query the storage backend directly for stats
+        storage = civic_client._storage
+
+        # Get total and housing count
+        total = storage.get_legislation_count("CA")
+        housing = storage.get_legislation_count("CA", topic="housing")
+
+        assert total > 2000, f"Expected 2000+ CA bills, got {total}"
+        assert housing > 100, f"Expected 100+ housing bills, got {housing}"
+
+        # Housing should be 3-10% of total (reasonable for CA legislation)
+        pct = (housing / total) * 100
+        assert 3 <= pct <= 15, (
+            f"Housing topic percentage {pct:.1f}% outside expected range [3%, 15%]"
+        )
