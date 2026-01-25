@@ -326,14 +326,14 @@
         "artifact": "Vector embeddings for federal_programs corpus type"
       },
       "entity_type_definitions": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 99,
         "description": "Define dataclasses for remaining untyped entities: ExecutiveOrder, Legislation, ElectedOfficial, MunicipalCodeSection",
-        "notes": "Follow-on to civic_type_extraction. These entities are currently raw dicts from storage. Proper types improve IDE support, validation, and API consistency. Do incrementally as each area is touched.",
+        "notes": "Completed: Added 4 dataclasses (Legislation, MunicipalCodeSection, ElectedOfficial, ExecutiveOrder) to types.py with proper field definitions matching database schema. Exported via __init__.py.",
         "depends_on": [
           "civic_type_extraction"
         ],
-        "artifact": "packages/civic/src/civic/types.py additions"
+        "artifact": "packages/civicos/src/civicos/types.py additions"
       },
       "hud_exchange_parser": {
         "status": "ready",
@@ -2201,7 +2201,7 @@
     "retrieval_informed_actions": {
       "prepare_with_citations": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "prepare() method includes legal citations and precedents from vector search",
         "description": "When user prepares for a meeting, automatically search relevant: municipal code sections, state legislation, past decisions, similar issues. Include in preparation materials with proper citations.",
         "note": "Session 489: Currently prepare() exists but doesn't leverage vector search. User should get 'Cite Cal. Gov. Code \u00a7 66314 for ADU rights' not just agenda context.",

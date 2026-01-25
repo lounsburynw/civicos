@@ -401,6 +401,162 @@ class IntergovernmentalRevenueSummary:
     details: List[IntergovernmentalRevenue] = field(default_factory=list)
 
 
+# ─────────── ENTITY TYPES (from Storage) ───────────
+# These types represent entities returned from StorageBackend methods.
+# Previously returned as untyped List[Dict[str, Any]], now formalized as dataclasses.
+
+
+@dataclass
+class Legislation:
+    """A legislative bill (state or federal) from get_legislation().
+
+    Represents bills tracked in the legislation table, used for:
+    - what_applies() regulatory context (state and federal bills)
+    - Vector search for relevant legislation
+
+    The bill_id is the unique identifier (e.g., 'ca-ab1234', 'us-hr5678').
+    Status codes are LegiScan numeric codes (1=Introduced, 2=Engrossed, etc.).
+    """
+    id: str  # Database row ID
+    bill_id: str  # Unique bill identifier (e.g., 'ca-ab1234')
+    state: str  # State code ('CA', 'US', etc.)
+
+    # Core bill information
+    bill_number: Optional[str] = None  # 'AB1234', 'HR5678'
+    bill_name: Optional[str] = None  # Full bill title
+    status: Optional[str] = None  # LegiScan status code
+    status_label: Optional[str] = None  # Human-readable status
+
+    # Content
+    summary: Optional[str] = None
+    full_text: Optional[str] = None
+    leverage_point: Optional[str] = None  # Key advocacy point
+
+    # Classification
+    keywords: List[str] = field(default_factory=list)
+    topic: Optional[str] = None  # LLM-classified topic
+
+    # Dates and URLs
+    enacted_date: Optional[str] = None
+    official_url: Optional[str] = None
+
+    # Local implementation tracking
+    local_implementation_required: bool = False
+    local_deadline: Optional[str] = None
+
+    # Jurisdiction context
+    jurisdiction_id: Optional[str] = None  # 'city-san-rafael' for local relevance
+
+    # External IDs
+    legiscan_id: Optional[int] = None
+
+    # Metadata
+    metadata: Optional[dict] = None
+
+
+@dataclass
+class MunicipalCodeSection:
+    """A local ordinance section from get_municipal_code().
+
+    Represents sections of municipal/county code stored in the municipal_code table.
+    Used for:
+    - what_applies() local regulatory context
+    - Vector search for relevant local laws
+
+    Hierarchical structure: Title > Chapter > Section
+    """
+    id: str  # Unique section ID
+    jurisdiction_id: str  # 'city-san-rafael', 'county-marin'
+    section_number: str  # '14.06.030'
+    section_title: str  # 'Accessory Dwelling Units'
+    full_text: str  # Complete section text
+    chapter: str  # Chapter number
+
+    # Hierarchy
+    chapter_title: Optional[str] = None
+    title_number: Optional[str] = None
+    title_name: Optional[str] = None
+
+    # Source tracking
+    node_id: Optional[str] = None  # Original code platform node ID
+    ordinance_history: Optional[str] = None  # Amendment history
+    source: Optional[str] = None  # 'municode', 'qcode', etc.
+
+    # Versioning
+    extraction_version: Optional[str] = None
+
+
+@dataclass
+class ElectedOfficial:
+    """An elected official from get_elected_officials().
+
+    Represents current and former elected officials for a jurisdiction.
+    Used for:
+    - Voting record lookups
+    - Meeting attendance tracking
+    - Official contact information
+
+    The name_variations field supports fuzzy matching across different
+    name formats in meeting minutes and transcripts.
+    """
+    id: str
+    name: str  # Primary display name
+    seat: str  # 'Mayor', 'Council Member', 'Supervisor'
+    jurisdiction_id: str  # 'city-san-rafael'
+
+    # Term dates (stored as text for flexibility)
+    term_start: str
+    term_end: Optional[str] = None  # None = currently serving
+
+    # Name matching
+    name_variations: List[str] = field(default_factory=list)  # ['K. Mullen', 'Councilmember Mullen']
+
+    # Cross-references
+    candidate_id: Optional[str] = None  # Link to election candidate records
+
+
+@dataclass
+class ExecutiveOrder:
+    """A presidential executive order from get_executive_orders().
+
+    Represents executive orders tracked from the Federal Register.
+    Used for:
+    - what_applies() federal regulatory context
+    - Vector search for relevant executive actions
+
+    The document_number is the Federal Register document number.
+    The eo_number is the traditional EO number (when available).
+    """
+    id: int  # Database row ID
+    document_number: str  # Federal Register document number
+    title: str  # Official title
+    president: str  # 'Biden', 'Trump', etc.
+
+    # EO identification
+    eo_number: Optional[int] = None  # Traditional EO number (e.g., 14008)
+    president_id: Optional[str] = None  # Standardized president identifier
+
+    # Content
+    abstract: Optional[str] = None  # Brief summary
+    full_text: Optional[str] = None  # Complete text
+
+    # Dates
+    signing_date: Optional[str] = None
+    publication_date: Optional[str] = None
+
+    # URLs
+    html_url: Optional[str] = None
+    pdf_url: Optional[str] = None
+    raw_text_url: Optional[str] = None
+
+    # Status tracking
+    status: Optional[str] = None  # 'active', 'revoked', etc.
+    revoked_by_eo: Optional[int] = None  # EO number that revoked this one
+
+    # Metadata
+    metadata: Optional[dict] = None
+
+
 # ─────────── FEDERAL PROGRAM TYPE ───────────
 
 @dataclass
