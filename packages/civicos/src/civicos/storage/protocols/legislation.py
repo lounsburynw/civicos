@@ -79,6 +79,23 @@ class LegislationStorage(Protocol):
         """Update full_text for legislation bills."""
         ...
 
+    def update_legislation_topics(
+        self,
+        state: str,
+        updates: List[Dict[str, Any]],
+    ) -> int:
+        """
+        Update topic field for legislation bills.
+
+        Args:
+            state: State code (e.g., "CA", "US")
+            updates: List of dicts with 'bill_id' and 'topic'
+
+        Returns:
+            Number of bills updated
+        """
+        ...
+
     # ========== Municipal Code Methods ==========
 
     def store_municipal_code(

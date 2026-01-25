@@ -2057,6 +2057,14 @@ class SQLiteBackend:
         """Update legislation text (stub for SQLite - uses Postgres in production)."""
         return 0
 
+    def update_legislation_topics(
+        self,
+        state: str,
+        updates: List[Dict[str, Any]],
+    ) -> int:
+        """Update legislation topics (stub for SQLite - uses Postgres in production)."""
+        return 0
+
     # ========== Codified Law Methods (Postgres-only) ==========
 
     def store_codified_law(

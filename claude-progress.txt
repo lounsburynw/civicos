@@ -15618,3 +15618,46 @@ Added filtering to exclude vetoed/failed legislation (LegiScan status codes 5 an
 
 **Next:** Select new P0
 
+
+## Session 552: legislation_topic_classification - LLM-based Topic Classification
+
+**Date:** 2026-01-24
+**Item:** legislation_topic_classification (data_readiness > legislative_context)
+**Priority:** P0
+
+**Status:** ready
+
+**Changes:**
+1. Added `update_legislation_topics()` method to PostgresBackend, SQLiteBackend, and protocol
+2. Created `classify-topics` CLI command in civicos-extraction package
+3. Classified 2,847 CA bills using gpt-4o-mini (57 API calls, ~30 minutes)
+4. Added `topic` field to state and federal bill results in `what_applies()`
+5. Added 4 integration tests for topic classification
+
+**Topic Distribution (CA):**
+- other: 562 (19.7%)
+- budget: 362 (12.7%)
+- healthcare: 352 (12.4%)
+- environment: 352 (12.4%)
+- public_safety: 277 (9.7%)
+- education: 271 (9.5%)
+- governance: 256 (9.0%)
+- housing: 185 (6.5%)
+- labor: 120 (4.2%)
+- transportation: 110 (3.9%)
+
+**Key Files:**
+- `packages/civicos/src/civicos/storage/postgres_backend.py`: Added `update_legislation_topics()`
+- `packages/civicos-extraction/src/civicos_extraction/cli/classify_topics.py`: New CLI command
+- `packages/civicos/src/civicos/context.py`: Added `topic` field to bill results
+- `packages/civicos/tests/test_integration_pgvector.py`: Added `TestLegislationTopicClassification`
+
+**Tests:**
+- `test_bills_include_topic_field` - Bills have topic field in results
+- `test_housing_query_returns_housing_topic_bills` - Housing queries return housing topics
+- `test_sb9_has_housing_topic` - Known housing bill has correct topic
+- `test_topic_distribution_is_reasonable` - Topic distribution is sensible
+
+**Cost:** ~$2 OpenAI API (gpt-4o-mini for 2,848 bills)
+
+**Next:** Select new P0

@@ -340,6 +340,7 @@ def get_regulatory_context(
                     "summary": meta.get("summary", ""),
                     "leverage_point": meta.get("leverage_point", ""),
                     "keywords": meta.get("keywords", []),
+                    "topic": meta.get("topic", ""),
                     "official_url": meta.get("official_url", ""),
                     "relevance_score": round(max_score, 3),
                     "tier": tier,
@@ -376,6 +377,7 @@ def get_regulatory_context(
                     "summary": bill.get("summary", ""),
                     "leverage_point": bill.get("leverage_point", ""),
                     "keywords": bill.get("keywords", []),
+                    "topic": bill.get("topic", ""),
                     "official_url": bill.get("official_url", ""),
                     "relevance_score": 0.5,  # No semantic score available
                     "tier": tier,
@@ -500,6 +502,7 @@ def get_regulatory_context(
                     "summary": meta.get("summary", ""),
                     "leverage_point": meta.get("leverage_point", ""),
                     "keywords": meta.get("keywords", []),
+                    "topic": meta.get("topic", ""),
                     "official_url": meta.get("official_url", ""),
                     "relevance_score": round(max_score, 3),
                     "tier": tier,
