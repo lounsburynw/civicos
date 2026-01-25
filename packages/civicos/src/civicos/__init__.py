@@ -50,6 +50,11 @@ from civicos.types import (
     IntergovernmentalRevenue,
     IntergovernmentalRevenueSummary,
     FederalProgram,
+    # Entity types (from storage)
+    Legislation,
+    MunicipalCodeSection,
+    ElectedOfficial,
+    ExecutiveOrder,
 )
 
 # Cross-corpus search result type
@@ -135,6 +140,11 @@ __all__ = [
     "IntergovernmentalRevenue",
     "IntergovernmentalRevenueSummary",
     "FederalProgram",
+    # Entity types (from storage)
+    "Legislation",
+    "MunicipalCodeSection",
+    "ElectedOfficial",
+    "ExecutiveOrder",
     # Cross-corpus search result types
     "UnifiedSearchResult",
     "HybridSearchResult",

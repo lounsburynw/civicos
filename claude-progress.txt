@@ -15701,3 +15701,46 @@ Implemented automated weekly legislation sync to keep CA bills current. The exis
 
 ### Next P0
 - `entity_type_definitions`: Define dataclasses for remaining untyped entities
+
+## Session 523: entity_type_definitions - Formal Type Definitions
+
+**Date:** 2026-01-25
+**Item:** entity_type_definitions (data_architecture > data_source_unification)
+**Priority:** P0
+
+### Summary
+
+Defined formal dataclasses for the four remaining untyped entities returned from StorageBackend methods. Previously these were raw `List[Dict[str, Any]]`; now they have proper type definitions for IDE support, validation, and API consistency.
+
+### Types Added to types.py
+
+1. **Legislation** (19 fields)
+   - Required: id, bill_id, state
+   - Represents state/federal bills from get_legislation()
+   - Fields match database schema: bill_number, bill_name, status, summary, leverage_point, keywords, topic, enacted_date, official_url, local_implementation_required, local_deadline, etc.
+
+2. **MunicipalCodeSection** (13 fields)
+   - Required: id, jurisdiction_id, section_number, section_title, full_text, chapter
+   - Represents local ordinances from get_municipal_code()
+   - Hierarchical structure: Title > Chapter > Section
+
+3. **ElectedOfficial** (8 fields)
+   - Required: id, name, seat, jurisdiction_id, term_start
+   - Represents officials from get_elected_officials()
+   - Includes name_variations for fuzzy matching
+
+4. **ExecutiveOrder** (16 fields)
+   - Required: id, document_number, title, president
+   - Represents presidential EOs from get_executive_orders()
+   - Tracks eo_number, signing_date, status, revoked_by_eo
+
+### Files Modified
+- `packages/civicos/src/civicos/types.py`: Added 4 dataclasses (~150 lines)
+- `packages/civicos/src/civicos/__init__.py`: Exported new types
+
+### Tests
+- Smoke tests: 42 passed
+- Import/instantiation verification: All types work correctly
+
+### Next P0
+- `prepare_with_citations`: Enhance prepare() method to include legal citations from vector search
