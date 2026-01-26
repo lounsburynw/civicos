@@ -64,6 +64,10 @@ class PostgresBackend:
         meetings = backend.get_meetings("city-san-rafael")
     """
 
+    # Class-level: track which connection strings have had schema verified.
+    # Survives across multiple PostgresBackend instances in the same process.
+    _schemas_verified: set = set()
+
     def __init__(self, connection_string: str):
         """
         Initialize PostgreSQL storage backend.
@@ -78,7 +82,7 @@ class PostgresBackend:
                 "Install with: pip install psycopg2-binary"
             )
         self._conn_string = connection_string
-        self._schema_ensured = False
+        self._schema_ensured = connection_string in self._schemas_verified
 
     def _get_connection(self):
         """Get a database connection with dict cursor factory."""
@@ -1464,6 +1468,7 @@ class PostgresBackend:
 
         conn.commit()
         self._schema_ensured = True
+        PostgresBackend._schemas_verified.add(self._conn_string)
 
     def store_meetings(
         self,
