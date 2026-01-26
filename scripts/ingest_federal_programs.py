@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 # Add packages to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "packages" / "civic" / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "packages" / "civicos" / "src"))
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dotenv import load_dotenv
@@ -179,7 +179,7 @@ def ingest_federal_programs(
         sys.exit(1)
 
     # Import PostgresBackend
-    from civic.storage.postgres_backend import PostgresBackend
+    from civicos.storage.postgres_backend import PostgresBackend
 
     backend = PostgresBackend(database_url)
 

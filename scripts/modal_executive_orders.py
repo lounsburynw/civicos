@@ -49,7 +49,7 @@ civic_image = (
         "langgraph>=0.2.0",
         "langchain-core>=0.3.0",
     )
-    .add_local_python_source("civic")
+    .add_local_python_source("civicos")
 )
 
 # Federal Register API configuration
@@ -96,7 +96,7 @@ def ingest_executive_orders(
     if not database_url:
         return {"error": "DATABASE_URL not set"}
 
-    from civic.storage.postgres_backend import PostgresBackend
+    from civicos.storage.postgres_backend import PostgresBackend
     backend = PostgresBackend(database_url)
 
     # Stats only mode

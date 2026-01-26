@@ -46,7 +46,7 @@ civic_image = (
         "langgraph>=0.2.0",
     )
     # Add local civic packages
-    .add_local_python_source("civic", "civic_extraction")
+    .add_local_python_source("civicos", "civicos_extraction")
 )
 
 
@@ -90,8 +90,8 @@ def fetch_municipal_code(
 
     start_time = time.time()
 
-    from civic._internal.legal.corpus.municipal import MunicipalCodeCorpus
-    from civic.storage.postgres_backend import PostgresBackend
+    from civicos._internal.legal.corpus.municipal import MunicipalCodeCorpus
+    from civicos.storage.postgres_backend import PostgresBackend
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
@@ -192,7 +192,7 @@ def get_stats(jurisdiction: str = "city-san-rafael") -> dict:
     """
     import os
 
-    from civic.storage.postgres_backend import PostgresBackend
+    from civicos.storage.postgres_backend import PostgresBackend
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:

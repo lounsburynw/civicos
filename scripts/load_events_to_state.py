@@ -18,10 +18,10 @@ from datetime import datetime
 from typing import Optional
 
 # Add packages to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "packages/civic/src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "packages/civicos/src"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from civic._internal.state import StateManager
+from civicos._internal.state import StateManager
 
 
 def load_events_json(json_path: Path) -> dict:

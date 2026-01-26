@@ -59,8 +59,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install -q -e packages/civic
-          pip install -q -e packages/civicos-services
+          pip install -q -e packages/civicos
+          pip install -q -e packages/civicosos-services
           pip install python-dotenv psycopg2-binary
 
       - name: Preview Digest (if requested)

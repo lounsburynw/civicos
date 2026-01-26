@@ -200,7 +200,7 @@ def ingest_meetings(
         logger.error("DATABASE_URL not set. Cannot store meetings.")
         return meetings
 
-    from civic.storage.postgres_backend import PostgresBackend
+    from civicos.storage.postgres_backend import PostgresBackend
 
     backend = PostgresBackend(database_url)
     stored = backend.store_meetings(JURISDICTION_ID, meetings)
@@ -254,14 +254,14 @@ def ingest_pdfs(
             logger.info(f"  - {m['id']} (MID: {mid}) -> {r2_key}")
         return 0
 
-    from civic.storage.postgres_backend import PostgresBackend
+    from civicos.storage.postgres_backend import PostgresBackend
 
     backend = PostgresBackend(database_url)
 
     # Initialize blob storage for R2 uploads
     blob_storage = None
     if not skip_r2:
-        from civic.storage.blob import get_blob_storage
+        from civicos.storage.blob import get_blob_storage
         try:
             blob_storage = get_blob_storage()
             validation = blob_storage.validate()
@@ -393,8 +393,8 @@ def index_vectors(dry_run: bool = False) -> int:
         logger.info("DRY RUN: Would index chunks in pgvector")
         return 0
 
-    from civic.storage import get_storage_backend
-    from civic.storage.pgvector_backend import PgVectorBackend
+    from civicos.storage import get_storage_backend
+    from civicos.storage.pgvector_backend import PgVectorBackend
 
     logger.info("Indexing chunks in pgvector...")
 
@@ -444,7 +444,7 @@ def backfill_r2_agenda_urls(
         logger.error("DATABASE_URL not set. Cannot backfill.")
         return 0
 
-    from civic.storage import get_storage_backend
+    from civicos.storage import get_storage_backend
 
     # Use StorageBackend protocol to get all meetings
     backend = get_storage_backend()
@@ -495,7 +495,7 @@ def backfill_r2_agenda_urls(
         return 0
 
     from civic_extraction.clients.simbli import create_srcs_simbli_client
-    from civic.storage.blob import get_blob_storage
+    from civicos.storage.blob import get_blob_storage
 
     # backend already created above via get_storage_backend()
 

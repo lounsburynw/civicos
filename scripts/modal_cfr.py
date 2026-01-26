@@ -56,9 +56,9 @@ civic_image = (
         "beautifulsoup4>=4.12.0",  # Required by civic_extraction
         "requests>=2.28.0",  # Required by civic_extraction
     )
-    .add_local_python_source("civic_config")  # Required by civic package
-    .add_local_python_source("civic")
-    .add_local_python_source("civic_extraction")
+    .add_local_python_source("civicos_config")
+    .add_local_python_source("civicos")
+    .add_local_python_source("civicos_extraction")
 )
 
 # eCFR API configuration (GovInfo bulk data is unreliable)
@@ -268,7 +268,7 @@ def ingest_cfr(
 
     # Stats only mode
     if stats_only:
-        from civic.storage.postgres_backend import PostgresBackend
+        from civicos.storage.postgres_backend import PostgresBackend
         db = PostgresBackend(database_url)
 
         # Get counts for federal-CFR jurisdiction
@@ -349,7 +349,7 @@ def ingest_cfr(
                 # Store to PostgreSQL
                 if sections:
                     print(f"  Storing to PostgreSQL...")
-                    from civic.storage.postgres_backend import PostgresBackend
+                    from civicos.storage.postgres_backend import PostgresBackend
                     db = PostgresBackend(database_url)
 
                     try:
@@ -380,7 +380,7 @@ def ingest_cfr(
 
     # Get final count
     if not dry_run:
-        from civic.storage.postgres_backend import PostgresBackend
+        from civicos.storage.postgres_backend import PostgresBackend
         db = PostgresBackend(database_url)
         results["total_in_db"] = db.get_codified_law_count(
             "federal-CFR", include_inactive=False

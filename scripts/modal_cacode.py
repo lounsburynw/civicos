@@ -57,7 +57,7 @@ civic_image = (
         "langgraph>=0.2.0",
         "langchain-core>=0.3.0",
     )
-    .add_local_python_source("civic")
+    .add_local_python_source("civicos")
 )
 
 # R2 path for California codes
@@ -410,7 +410,7 @@ def ingest_cacode(
 
     # Stats only mode
     if stats_only:
-        from civic.storage.postgres_backend import PostgresBackend
+        from civicos.storage.postgres_backend import PostgresBackend
         db = PostgresBackend(database_url)
         count = db.get_codified_law_count(jurisdiction_id)
         return {
@@ -497,7 +497,7 @@ def ingest_cacode(
 
     # Store to PostgreSQL
     print("Storing to PostgreSQL...")
-    from civic.storage.postgres_backend import PostgresBackend
+    from civicos.storage.postgres_backend import PostgresBackend
     db = PostgresBackend(database_url)
 
     start = time.time()

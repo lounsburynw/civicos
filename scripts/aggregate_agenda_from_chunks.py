@@ -305,7 +305,7 @@ def get_meeting_title(meeting_id: str) -> str:
 
 def store_agenda_items(meeting_id: str, items: List[Dict]) -> int:
     """Store agenda items to database."""
-    from civic.storage.postgres_backend import PostgresBackend
+    from civicos.storage.postgres_backend import PostgresBackend
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:

@@ -60,7 +60,7 @@ civic_image = (
         "langgraph>=0.2.0",
     )
     # Add local civic packages
-    .add_local_python_source("civic", "civic_extraction", "civic_services")
+    .add_local_python_source("civicos", "civicos_extraction", "civicos_services")
 )
 
 
@@ -111,7 +111,7 @@ def fetch_legislation_text(
 
     start_time = time.time()
 
-    from civic.storage.postgres_backend import PostgresBackend
+    from civicos.storage.postgres_backend import PostgresBackend
 
     database_url = os.environ.get("DATABASE_URL")
     legiscan_key = os.environ.get("LEGISCAN_API_KEY")
@@ -333,7 +333,7 @@ def get_stats(jurisdiction: str | None = None) -> dict:
     """
     import os
 
-    from civic.storage.postgres_backend import PostgresBackend
+    from civicos.storage.postgres_backend import PostgresBackend
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
