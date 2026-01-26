@@ -1893,6 +1893,37 @@
           "legistar_client",
           "pdf_extraction"
         ]
+      },
+      "high_velocity_refresh_e2e": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Solidify the high velocity refresh workflow and verify it works correctly end-to-end. Validate scheduled_high_velocity_refresh() runs daily, fetches new meetings, extracts agenda PDFs, indexes chunks/vectors, and surfaces fresh data through the API. Includes testing the full chain: Modal scheduled trigger -> fetch_meetings -> extract_chunks -> vector indexing -> API query returns new data.",
+        "artifact": "Verified e2e high velocity refresh pipeline: Modal cron -> data extraction -> vector indexing -> API freshness",
+        "subtasks": [
+          {
+            "name": "verify_modal_schedule",
+            "status": "not_ready",
+            "description": "Confirm scheduled_high_velocity_refresh() Modal cron is deployed and triggering daily at 6am PT"
+          },
+          {
+            "name": "verify_data_freshness",
+            "status": "not_ready",
+            "description": "Run the pipeline manually and verify new meetings/chunks/vectors appear in Postgres and pgvector"
+          },
+          {
+            "name": "verify_api_freshness",
+            "status": "not_ready",
+            "description": "Confirm whats_next() and search queries return data from the latest refresh cycle"
+          },
+          {
+            "name": "error_handling_validation",
+            "status": "not_ready",
+            "description": "Verify pipeline handles failures gracefully (network errors, missing PDFs, partial extractions) without corrupting existing data"
+          }
+        ],
+        "depends_on": [
+          "meeting_agenda_scheduled_refresh"
+        ]
       }
     },
     "incremental_processing": {
@@ -2024,6 +2055,32 @@
       }
     },
     "modal_remote_compute": {
+      "speaker_diarization_optimization": {
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Transcription pipeline uses per-meeting speaker estimation instead of hardcoded min=5/max=10",
+        "description": "Integrate speaker estimation into the transcription pipeline. Sessions 108-109 proved that hardcoded min_speakers=5, max_speakers=10 causes fatal under-segmentation (only 5 speakers detected in 40-50 speaker meetings). Exact-count approach (min=N, max=N) validated: recovered all speakers. Three estimation scripts exist but are disconnected: estimate_speakers_from_youtube.py, estimate_speakers_llm.py, extract_all_speakers.py. Wire estimation into transcribe.py and modal_ingest.py extract_transcripts(). Over-segmentation is recoverable; under-segmentation is not.",
+        "depends_on": [],
+        "subtasks": [
+          {
+            "name": "update_cli_defaults",
+            "status": "ready",
+            "description": "Raise transcribe.py defaults from min=5/max=10 to min=15/max=50 as a safe conservative range"
+          },
+          {
+            "name": "integrate_speaker_estimation",
+            "status": "ready",
+            "description": "Wire estimate_speakers_llm.py into transcription pipeline: fetch YouTube captions, run LLM estimation, pass count to AssemblyAI as min=N/max=N"
+          },
+          {
+            "name": "modal_pipeline_integration",
+            "status": "ready",
+            "description": "Update extract_transcripts() in modal_ingest.py to call speaker estimation before AssemblyAI, using YouTube cookies for caption access"
+          }
+        ],
+        "test_file": "packages/civicos/tests/test_civicos.py",
+        "note": "Session 109 validated exact-count hypothesis: min=50/max=50 achieved 100% speaker separation vs 5 speakers with defaults. See data/pilot/exact_count_experiment_results.md, data/pilot/diarization_strategy_comparison.md, data/pilot/assemblyai_speaker_parameter_experiment.md."
+      },
       "_completed_items": [
         {
           "name": "modal_municipal_code_fetch",
@@ -2209,7 +2266,7 @@
       },
       "action_leverage_points": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Surface specific action opportunities based on retrieval context",
         "description": "After retrieval, suggest concrete actions: 'State law preempts this denial - file appeal citing SB9', 'ESG grant deadline in 30 days - contact councilmember', '8 neighbors reported similar issue - start initiative'.",
         "note": "Session 489: Retrieval without action guidance is just research. Transform what_applies() results into actionable next steps."

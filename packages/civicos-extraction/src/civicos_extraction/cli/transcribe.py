@@ -139,14 +139,14 @@ def add_transcribe_parser(subparsers: argparse._SubParsersAction) -> None:
     parser.add_argument(
         "--min-speakers",
         type=int,
-        default=5,
-        help="Minimum expected speakers for diarization (default: 5)",
+        default=15,
+        help="Minimum expected speakers for diarization (default: 15)",
     )
     parser.add_argument(
         "--max-speakers",
         type=int,
-        default=10,
-        help="Maximum expected speakers for diarization (default: 10)",
+        default=50,
+        help="Maximum expected speakers for diarization (default: 50)",
     )
     parser.add_argument(
         "--cloud",
@@ -157,6 +157,12 @@ def add_transcribe_parser(subparsers: argparse._SubParsersAction) -> None:
         "--batch",
         action="store_true",
         help="Use batch mode for parallel transcription (faster, submits all at once)",
+    )
+    parser.add_argument(
+        "--auto-estimate-speakers",
+        action="store_true",
+        help="Estimate speaker count per-video from YouTube captions before transcription. "
+        "Uses exact-count diarization (min=N, max=N) to prevent under-segmentation.",
     )
 
 
@@ -188,6 +194,7 @@ def run_transcribe(args: argparse.Namespace) -> int:
             max_speakers=args.max_speakers,
             cloud=args.cloud,
             batch=args.batch,
+            auto_estimate_speakers=args.auto_estimate_speakers,
         )
 
         if results is None and not args.dry_run:
@@ -228,6 +235,7 @@ def find_audio_files(
     input_dir: str,
     cloud: bool = False,
     meeting_type: Optional[str] = None,
+    since_days: Optional[int] = None,
 ) -> Optional[List]:
     """
     Find audio files for a jurisdiction from local storage or cloud.
@@ -240,6 +248,7 @@ def find_audio_files(
         input_dir: Directory containing audio files (local mode)
         cloud: If True, try cloud storage first
         meeting_type: Filter by meeting type (e.g., "planning_commission")
+        since_days: Only return videos discovered within this many days
 
     Returns:
         List of audio file paths (local) or video dicts (cloud), or None if none found
@@ -254,7 +263,7 @@ def find_audio_files(
 
             # First try: get videos from Postgres and check for audio in R2
             if backend.backend_type == "postgres":
-                videos = backend.get_videos(jurisdiction_id, meeting_type=meeting_type)
+                videos = backend.get_videos(jurisdiction_id, meeting_type=meeting_type, since_days=since_days)
                 if videos:
                     # Filter to videos that have audio in R2
                     audio_videos = []
@@ -490,8 +499,8 @@ def validate_transcript_duration(
 def transcribe_audio_file(
     audio_source,
     output_dir: str,
-    min_speakers: int = 5,
-    max_speakers: int = 10,
+    min_speakers: int = 15,
+    max_speakers: int = 50,
     jurisdiction_id: Optional[str] = None,
     cloud: bool = False,
 ) -> TranscribeResult:
@@ -774,8 +783,8 @@ def transcribe_batch(
     audio_files: List,
     jurisdiction_id: str,
     output_dir: str,
-    min_speakers: int = 5,
-    max_speakers: int = 10,
+    min_speakers: int = 15,
+    max_speakers: int = 50,
     cloud: bool = False,
 ) -> List[TranscribeResult]:
     """
@@ -1000,11 +1009,13 @@ def run_transcription(
     checkpoint_dir: str = "data/checkpoints",
     dry_run: bool = False,
     limit: int = 0,
-    min_speakers: int = 5,
-    max_speakers: int = 10,
+    min_speakers: int = 15,
+    max_speakers: int = 50,
     cloud: bool = False,
     batch: bool = False,
     meeting_type: Optional[str] = None,
+    since_days: Optional[int] = None,
+    auto_estimate_speakers: bool = False,
 ) -> Optional[List[TranscribeResult]]:
     """
     Run transcription for audio files from a jurisdiction.
@@ -1021,6 +1032,10 @@ def run_transcription(
         cloud: If True, use cloud storage (R2 for audio, Postgres for transcripts)
         batch: If True, use batch mode for parallel transcription
         meeting_type: Filter by meeting type (e.g., "planning_commission")
+        since_days: Only process videos discovered within this many days
+        auto_estimate_speakers: If True, estimate speaker count per-video from
+            YouTube captions before transcription. Uses exact-count diarization
+            (min=N, max=N) which prevents fatal under-segmentation.
 
     Returns:
         List of TranscribeResult if successful, None if failed
@@ -1039,7 +1054,7 @@ def run_transcription(
             return None
 
     # Find audio files (local or cloud)
-    audio_files = find_audio_files(jurisdiction_id, input_dir, cloud=cloud_mode, meeting_type=meeting_type)
+    audio_files = find_audio_files(jurisdiction_id, input_dir, cloud=cloud_mode, meeting_type=meeting_type, since_days=since_days)
     if not audio_files:
         return None
 
@@ -1104,12 +1119,36 @@ def run_transcription(
         import time
         batch_start = time.time()
 
+        # Pre-estimate speakers for batch (use max across all videos)
+        batch_min = min_speakers
+        batch_max = max_speakers
+        if auto_estimate_speakers:
+            try:
+                from civicos_extraction.speaker_estimation import estimate_speakers_for_video
+
+                max_count = 0
+                for af in files_to_process:
+                    vid = af.stem if isinstance(af, Path) else af.get("video_id")
+                    if vid:
+                        est = estimate_speakers_for_video(vid, use_llm=True)
+                        logger.info(
+                            f"  Speaker estimate for {vid}: {est.speaker_count} "
+                            f"({est.method}, {est.confidence})"
+                        )
+                        max_count = max(max_count, est.speaker_count)
+                if max_count > 0:
+                    batch_min = max_count
+                    batch_max = max_count
+                    logger.info(f"  Batch speaker count (max across videos): {max_count}")
+            except Exception as e:
+                logger.warning(f"  Batch speaker estimation failed, using defaults: {e}")
+
         results = transcribe_batch(
             files_to_process,
             jurisdiction_id,
             output_dir,
-            min_speakers=min_speakers,
-            max_speakers=max_speakers,
+            min_speakers=batch_min,
+            max_speakers=batch_max,
             cloud=cloud_mode,
         )
 
@@ -1170,11 +1209,27 @@ def run_transcription(
         video_id = audio_file.stem if isinstance(audio_file, Path) else audio_file.get("video_id")
         logger.info(f"[{i}/{len(audio_files)}] {video_id}")
 
+        # Per-video speaker estimation (exact-count diarization)
+        file_min = min_speakers
+        file_max = max_speakers
+        if auto_estimate_speakers and video_id:
+            try:
+                from civicos_extraction.speaker_estimation import estimate_speakers_for_video
+
+                est = estimate_speakers_for_video(video_id, use_llm=True)
+                logger.info(
+                    f"  Speaker estimate: {est.speaker_count} ({est.method}, {est.confidence})"
+                )
+                file_min = est.speaker_count
+                file_max = est.speaker_count
+            except Exception as e:
+                logger.warning(f"  Speaker estimation failed, using defaults: {e}")
+
         result = transcribe_audio_file(
             audio_file,
             output_dir,
-            min_speakers=min_speakers,
-            max_speakers=max_speakers,
+            min_speakers=file_min,
+            max_speakers=file_max,
             jurisdiction_id=jurisdiction_id,
             cloud=cloud_mode,
         )

@@ -1303,11 +1303,15 @@ def _embed_and_store_batch(
     chunks: list[dict],
     jurisdiction_id: str,
     corpus_type: str,
+    reindex: bool = False,
 ) -> dict:
     """Worker function to embed and store a batch of chunks.
 
     Called by index_vectors via .map() for parallel processing.
     Each worker embeds its batch and inserts via public PgVectorBackend methods.
+
+    When reindex=False, uses upsert (ON CONFLICT) to handle existing vectors.
+    When reindex=True, uses COPY for speed (caller must delete existing vectors first).
     """
     import logging
     import os
@@ -1393,11 +1397,13 @@ def _embed_and_store_batch(
         })
 
     # Bulk insert using public interface
+    # COPY is faster but requires no duplicate IDs (safe only when reindexing).
+    # Upsert (ON CONFLICT) is needed for incremental indexing.
     result = pgvector.bulk_insert_embeddings(
         records=records,
         jurisdiction_id=jurisdiction_id,
         corpus_type=corpus_type,
-        use_copy=True,
+        use_copy=reindex,
     )
     logger.info(f"Inserted {result['success']} embeddings")
     return result
@@ -1518,7 +1524,7 @@ def index_vectors(
         # Split into batches for parallel processing
         batch_size = max(1, len(chunks) // num_workers)
         batches = [
-            (chunks[i:i + batch_size], jurisdiction, ct)
+            (chunks[i:i + batch_size], jurisdiction, ct, reindex)
             for i in range(0, len(chunks), batch_size)
         ]
 
@@ -1790,6 +1796,82 @@ def fetch_videos(
         "jurisdiction": jurisdiction,
         "videos_discovered": len(youtube_videos),
         "videos_stored": videos_stored,
+        "dry_run": dry_run,
+        "elapsed_seconds": elapsed,
+        "cost_usd": 2 * elapsed * 0.000463,
+    }
+
+
+# =============================================================================
+# YouTube Video Discovery (ProudCity jurisdictions)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[modal.Secret.from_name("civic-db")],
+    memory=2048,
+    timeout=600,  # 10 minutes
+    retries=modal.Retries(max_retries=2, backoff_coefficient=2.0, initial_delay=10.0),
+)
+def discover_videos(
+    jurisdiction: str = "city-san-rafael",
+    days_past: int = 7,
+    days_ahead: int = 30,
+    dry_run: bool = False,
+) -> dict:
+    """Discover YouTube videos by scraping meeting pages for ProudCity jurisdictions.
+
+    Scrapes each meeting page's HTML for embedded YouTube video IDs.
+    Stores discovered videos to the 'videos' table so extract_transcripts()
+    can find them for audio download and transcription.
+
+    Pipeline Integration:
+        Runs AFTER fetch_meetings() (which discovers meeting pages) and
+        BEFORE extract_transcripts() (which needs video records to download audio).
+
+    Args:
+        jurisdiction: Target jurisdiction (e.g., "city-san-rafael")
+        days_past: Days to look back for meetings (default 7 for daily refresh)
+        days_ahead: Days to look ahead for meetings (default 30)
+        dry_run: If True, discover but don't store
+    """
+    import logging
+    import os
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+    start_time = time.time()
+
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise ValueError("DATABASE_URL not set")
+
+    logger.info(f"[VIDEOS] Starting YouTube discovery: jurisdiction={jurisdiction}, days_past={days_past}, days_ahead={days_ahead}")
+
+    from civicos_extraction.cli.youtube import run_youtube_discovery
+
+    results = run_youtube_discovery(
+        jurisdiction_id=jurisdiction,
+        days_past=days_past,
+        days_ahead=days_ahead,
+        output_dir="data",
+        checkpoint_dir="data/checkpoints",
+        timeout=10,
+        dry_run=dry_run,
+        cloud=True,
+    )
+
+    videos_discovered = len(results) if results else 0
+    elapsed = time.time() - start_time
+    logger.info(f"[VIDEOS] Complete in {elapsed:.1f}s: {videos_discovered} videos discovered")
+
+    return {
+        "task": "discover_videos",
+        "jurisdiction": jurisdiction,
+        "videos_discovered": videos_discovered,
+        "days_past": days_past,
+        "days_ahead": days_ahead,
         "dry_run": dry_run,
         "elapsed_seconds": elapsed,
         "cost_usd": 2 * elapsed * 0.000463,
@@ -2591,6 +2673,8 @@ def extract_decisions(
         modal.Secret.from_name("civic-assemblyai"),  # ASSEMBLYAI_API_KEY
         modal.Secret.from_name("civic-google"),  # GOOGLE_API_KEY for YouTube duration validation
         modal.Secret.from_name("civic-r2"),  # R2 blob storage for audio files
+        modal.Secret.from_name("civic-youtube-cookies"),  # YouTube cookies to bypass bot detection (base64-encoded)
+        modal.Secret.from_name("civic-openai"),  # For LLM speaker estimation
     ],
     memory=8192,  # 8GB for concurrent audio processing
     timeout=7200,  # 2 hours (multi-meeting transcription batch)
@@ -2603,6 +2687,7 @@ def extract_transcripts(
     batch: bool = True,
     auto_index: bool = False,
     meeting_type: str = "",
+    since_days: int = 0,
 ) -> dict:
     """Extract transcripts from meeting audio using AssemblyAI.
 
@@ -2625,6 +2710,7 @@ def extract_transcripts(
         batch: If True, use AssemblyAI batch mode for parallel transcription
         auto_index: If True, trigger vector indexing after successful extraction
         meeting_type: Filter by meeting type (e.g., "planning_commission")
+        since_days: Only process videos discovered within this many days (0 = no filter)
 
     Cost: ~$0.02/minute audio (~$2.40 per 2-hour meeting)
     """
@@ -2645,7 +2731,25 @@ def extract_transcripts(
         raise ValueError("ASSEMBLYAI_API_KEY not set. Create Modal secret: modal secret create civic-assemblyai ASSEMBLYAI_API_KEY='...'")
 
     meeting_type_filter = meeting_type if meeting_type else None
-    logger.info(f"[TRANSCRIPTS] Starting extraction: jurisdiction={jurisdiction}, limit={limit}, batch={batch}, meeting_type={meeting_type_filter}")
+    since_days_filter = since_days if since_days > 0 else None
+    logger.info(f"[TRANSCRIPTS] Starting extraction: jurisdiction={jurisdiction}, limit={limit}, batch={batch}, meeting_type={meeting_type_filter}, since_days={since_days_filter}")
+
+    # Decode YouTube cookies from Modal secret (base64-encoded)
+    # Bypasses YouTube bot detection from datacenter IPs.
+    # Fallback: run `civic-extract audio --cloud` locally (residential IP) to upload audio to R2.
+    import base64
+    import tempfile
+
+    cookies_b64 = os.environ.get("YOUTUBE_COOKIES_B64", "")
+    cookies_path = ""
+    if cookies_b64:
+        cookies_bytes = base64.b64decode(cookies_b64)
+        cookies_fd, cookies_path = tempfile.mkstemp(suffix=".txt", prefix="yt_cookies_")
+        with os.fdopen(cookies_fd, "wb") as f:
+            f.write(cookies_bytes)
+        logger.info("[TRANSCRIPTS] YouTube cookies loaded from secret")
+    else:
+        logger.info("[TRANSCRIPTS] No YouTube cookies available (downloads may fail from cloud IPs)")
 
     # Step 1: Download audio files (if not already in R2)
     logger.info("[TRANSCRIPTS] Step 1: Downloading audio files...")
@@ -2656,13 +2760,14 @@ def extract_transcripts(
             jurisdiction_id=jurisdiction,
             input_dir="data",
             output_dir="data/youtube_audio",
-            cookies_path="",  # No cookies in cloud
+            cookies_path=cookies_path,
             checkpoint_dir="data/checkpoints",
             dry_run=dry_run,
             limit=limit,
             quality="128",
             cloud=True,  # Store in R2
             meeting_type=meeting_type_filter,
+            since_days=since_days_filter,
         )
 
         if audio_results is None and not dry_run:
@@ -2672,11 +2777,21 @@ def extract_transcripts(
         else:
             audio_downloaded = sum(1 for r in (audio_results or []) if r.status == "success")
             audio_skipped = sum(1 for r in (audio_results or []) if r.status == "skipped")
+            audio_failed = sum(1 for r in (audio_results or []) if r.status == "error")
             logger.info(f"[TRANSCRIPTS] Audio: {audio_downloaded} downloaded, {audio_skipped} already in R2")
+            if audio_failed > 0 and audio_downloaded == 0 and cookies_b64:
+                logger.warning("[TRANSCRIPTS] All audio downloads failed with cookies present - cookies may be expired")
+                logger.warning("[TRANSCRIPTS] Refresh: modal secret create civic-youtube-cookies YOUTUBE_COOKIES_B64=\"$(base64 < cookies.txt)\"")
     except Exception as e:
         logger.exception("[TRANSCRIPTS] Audio download failed")
         audio_downloaded = 0
         audio_skipped = 0
+    finally:
+        if cookies_path:
+            try:
+                os.unlink(cookies_path)
+            except OSError:
+                pass
 
     # Step 2: Transcribe audio files
     logger.info("[TRANSCRIPTS] Step 2: Transcribing audio files...")
@@ -2690,11 +2805,13 @@ def extract_transcripts(
             checkpoint_dir="data/checkpoints",
             dry_run=dry_run,
             limit=limit,
-            min_speakers=5,
-            max_speakers=10,
+            min_speakers=15,
+            max_speakers=50,
             cloud=True,  # Read audio from R2, store transcripts in Postgres
             batch=batch,  # Use batch mode for parallel processing
             meeting_type=meeting_type_filter,
+            since_days=since_days_filter,
+            auto_estimate_speakers=True,  # Estimate per-video from YouTube captions
         )
 
         if transcribe_results is None and not dry_run:
@@ -2954,10 +3071,11 @@ def scheduled_high_velocity_refresh():
     Pipeline (per jurisdiction):
         1. fetch_meetings() - Scrape new meetings from ProudCity
         2. fetch_issues() - Fetch new issues from SeeClickFix
-        3. extract_transcripts() - Download audio + transcribe with AssemblyAI
-        4. extract_chunks() - Download PDFs and extract text chunks (incremental)
-        5. extract_agenda_items() - Extract actionable items from agendas (LLM-powered)
-        6. index_vectors() - Index all corpora to pgvector (via auto_index)
+        3. discover_videos() - Scrape meeting pages for YouTube video IDs
+        4. extract_transcripts() - Download audio + transcribe with AssemblyAI
+        5. extract_chunks() - Download PDFs and extract text chunks (incremental)
+        6. extract_agenda_items() - Extract actionable items from agendas (LLM-powered)
+        7. index_vectors() - Index all corpora to pgvector (via auto_index)
 
     Note: Agenda items moved from weekly to daily (Session 540) because:
     - New meetings are discovered daily
@@ -2984,6 +3102,13 @@ def scheduled_high_velocity_refresh():
     total_transcription_cost = 0.0
 
     for jid, config in jurisdictions.items():
+        # Skip jurisdictions without high-velocity data sources
+        # (e.g., county-marin is financial context only, no meetings/issues/videos)
+        source_type = config.get("source_type", "")
+        if source_type in ("county", "financial"):
+            logger.info(f"Skipping {jid} (source_type={source_type}, no high-velocity data)")
+            continue
+
         logger.info(f"Processing jurisdiction: {jid}")
         results[jid] = {}
 
@@ -3021,12 +3146,31 @@ def scheduled_high_velocity_refresh():
             logger.exception(f"  [{jid}] Issues fetch failed")
             results[jid]["issues"] = {"status": "failed", "error": str(e)}
 
+        # Video discovery (scrape meeting pages for YouTube IDs)
+        # Runs AFTER fetch_meetings so new meeting pages exist,
+        # and BEFORE extract_transcripts so video records are available for audio download.
+        try:
+            logger.info(f"  [{jid}] Discovering videos from meeting pages...")
+            result = discover_videos.local(
+                jurisdiction=jid,
+                days_past=7,
+                days_ahead=30,
+                dry_run=False,
+            )
+            results[jid]["videos"] = result
+            discovered = result.get('videos_discovered', 0)
+            logger.info(f"    Videos: {discovered} discovered")
+        except Exception as e:
+            logger.exception(f"  [{jid}] Video discovery failed")
+            results[jid]["videos"] = {"status": "failed", "error": str(e)}
+
         # Transcript extraction (audio download + transcription, auto-index vectors)
         # Runs BEFORE chunk extraction since transcript text needs to be indexed
         try:
             logger.info(f"  [{jid}] Extracting transcripts (audio + transcription)...")
             result = extract_transcripts.local(
                 jurisdiction=jid,
+                since_days=7,  # Only videos discovered in last 7 days
                 dry_run=False,
                 batch=True,  # Use batch mode for parallel transcription
                 auto_index=True,
