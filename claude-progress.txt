@@ -1,3 +1,50 @@
+## Session 523: speaker_diarization_optimization - Pipeline Integration
+
+**Date:** 2026-01-26
+**Item:** speaker_diarization_optimization (pipeline_automation > modal_remote_compute)
+**Priority:** P0
+**Status:** COMPLETE
+
+### Summary
+Integrated speaker estimation into the transcription pipeline to prevent fatal
+under-segmentation. Sessions 108-109 proved hardcoded min=5/max=10 only detected
+5 speakers in 40-50 speaker council meetings. Exact-count (min=N, max=N) approach
+validated to recover all speakers.
+
+### Changes Made
+
+1. **Updated defaults** (min=5/max=10 → min=15/max=50):
+   - `transcribe.py`: CLI args, `transcribe_audio_file()`, `transcribe_batch()`, `run_transcription()`
+   - `modal_ingest.py`: `extract_transcripts()` hardcoded values
+
+2. **Created `civicos_extraction.speaker_estimation` module**:
+   - `__init__.py`: Public API — `estimate_speakers()` orchestrator with fallback chain (LLM → pattern → defaults), `estimate_speakers_for_video()` convenience function
+   - `llm_estimator.py`: OpenAI gpt-4o-mini structured outputs, fixed `le=15` → `le=100` for large meetings
+   - `pattern_estimator.py`: Regex-based free estimation from "thank you" / ">>" markers
+   - `transcript_loader.py`: Shared YouTube JSON3 loading logic
+
+3. **Wired estimation into pipeline**:
+   - `run_transcription()`: New `auto_estimate_speakers` parameter
+   - Sequential mode: Per-video estimation before each AssemblyAI call (exact-count)
+   - Batch mode: Pre-estimates max across all videos (single config for batch)
+   - CLI: `--auto-estimate-speakers` flag
+   - Modal: `extract_transcripts()` passes `auto_estimate_speakers=True`
+   - Added `civic-openai` secret to `extract_transcripts()` Modal function
+
+### Files Modified
+- `packages/civicos-extraction/src/civicos_extraction/cli/transcribe.py` (defaults, CLI arg, pipeline wiring)
+- `scripts/modal_ingest.py` (defaults, auto_estimate_speakers=True, OpenAI secret)
+- `pilot.json` (status: ready)
+
+### Files Created
+- `packages/civicos-extraction/src/civicos_extraction/speaker_estimation/__init__.py`
+- `packages/civicos-extraction/src/civicos_extraction/speaker_estimation/llm_estimator.py`
+- `packages/civicos-extraction/src/civicos_extraction/speaker_estimation/pattern_estimator.py`
+- `packages/civicos-extraction/src/civicos_extraction/speaker_estimation/transcript_loader.py`
+
+### Next P0
+- `high_velocity_refresh_e2e`: Solidify the high velocity refresh workflow and verify it works correctly end-to-end. Validate the full chain: Modal scheduled trigger -> fetch_meetings -> extract_chunks -> vector indexing -> API query returns fresh data.
+
 ## Session 522: mcp_vector_search_tools - Full MCP Server Build
 
 **Date:** 2026-01-15
