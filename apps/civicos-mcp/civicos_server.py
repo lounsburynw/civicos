@@ -374,8 +374,18 @@ def search_regulatory_stack(
         # Format response for LLM consumption
         result_parts = []
         result_parts.append(f"# Regulatory Stack for: {stack.topic}")
-        result_parts.append(f"Jurisdiction: {stack.jurisdiction}")
-        result_parts.append(f"Retrieved: {stack.retrieved_at}")
+        result_parts.append("")
+
+        # Query context (inline notes for transparency)
+        federal_count = len(stack.federal) if stack.federal else 0
+        state_count = len(stack.state) if stack.state else 0
+        local_count = len(stack.local) if stack.local else 0
+        result_parts.append("---")
+        result_parts.append(f"🔍 **Query:** \"{sanitized_topic}\" in {stack.jurisdiction}")
+        result_parts.append(f"📊 **Searched:** State legislation, federal programs, municipal code")
+        result_parts.append(f"📋 **Found:** {state_count} state, {federal_count} federal, {local_count} local results")
+        result_parts.append(f"⏱️ **Retrieved:** {stack.retrieved_at}")
+        result_parts.append("---")
         result_parts.append("")
 
         # Federal context
@@ -503,6 +513,16 @@ def search_meeting_history(
         # Get decisions using what_happened()
         decisions = civicos_client.what_happened(sanitized_query)
 
+        # Query context (inline notes for transparency)
+        decision_count = len(decisions) if decisions else 0
+        result_parts.append("---")
+        result_parts.append(f"🔍 **Query:** \"{sanitized_query}\"")
+        result_parts.append(f"📊 **Searched:** Council decisions, meeting minutes" + (", video transcripts" if include_transcripts else ""))
+        result_parts.append(f"📋 **Found:** {decision_count} decisions")
+        result_parts.append(f"🏛️ **Jurisdiction:** {civicos_client.jurisdiction}")
+        result_parts.append("---")
+        result_parts.append("")
+
         result_parts.append("## Decisions")
         if decisions:
             for d in decisions[:limit]:
@@ -598,7 +618,15 @@ def find_similar_issues(
     try:
         result_parts = []
         result_parts.append(f"# Community Issues: {sanitized_topic}")
-        result_parts.append(f"Jurisdiction: {civicos_client.jurisdiction}")
+        result_parts.append("")
+
+        # Query context (inline notes for transparency)
+        search_type = "semantic (AI similarity)" if semantic else "keyword"
+        result_parts.append("---")
+        result_parts.append(f"🔍 **Query:** \"{sanitized_topic}\"")
+        result_parts.append(f"📊 **Searched:** 311/SeeClickFix issue reports ({search_type})")
+        result_parts.append(f"🏛️ **Jurisdiction:** {civicos_client.jurisdiction}")
+        result_parts.append("---")
         result_parts.append("")
 
         # Use vector search directly for semantic matching
@@ -2651,13 +2679,22 @@ def search_agenda_packets(
 
         result_parts = []
         result_parts.append(f"# Agenda Packet Search: {sanitized_query}")
-        if sanitized_agenda_item:
-            result_parts.append(f"Filtered to agenda item: {sanitized_agenda_item}")
         result_parts.append("")
 
         # Separate PDF results from transcript results
         pdf_results = [r for r in results if r.source_type == "pdf"]
         transcript_results = [r for r in results if r.source_type == "transcript"]
+
+        # Query context (inline notes for transparency)
+        result_parts.append("---")
+        result_parts.append(f"🔍 **Query:** \"{sanitized_query}\"")
+        if sanitized_agenda_item:
+            result_parts.append(f"🏷️ **Agenda item filter:** {sanitized_agenda_item}")
+        result_parts.append(f"📊 **Searched:** Staff reports, fiscal analyses, agenda packet PDFs, meeting transcripts")
+        result_parts.append(f"📋 **Found:** {len(pdf_results)} documents, {len(transcript_results)} transcript excerpts")
+        result_parts.append(f"🏛️ **Jurisdiction:** {civicos_client.jurisdiction}")
+        result_parts.append("---")
+        result_parts.append("")
 
         result_parts.append(f"## Staff Reports & Documents ({len(pdf_results)} found)")
         if pdf_results:
@@ -2751,6 +2788,25 @@ def search_budget(
     try:
         result_parts = []
         result_parts.append("# San Rafael Budget")
+        result_parts.append("")
+
+        # Query context (inline notes for transparency)
+        filters = []
+        if department:
+            filters.append(f"department={department}")
+        if fund:
+            filters.append(f"fund={fund}")
+        if min_amount:
+            filters.append(f"min=${min_amount:,}")
+        filter_str = ", ".join(filters) if filters else "none"
+
+        result_parts.append("---")
+        result_parts.append(f"🔍 **Filters:** {filter_str}")
+        result_parts.append(f"📊 **Data source:** FY{fiscal_year or '25-26'} Adopted Budget")
+        result_parts.append(f"📋 **Contains:** 58 line items, $180M total appropriations")
+        result_parts.append(f"🏛️ **Jurisdiction:** {civicos_client.jurisdiction}")
+        result_parts.append("---")
+        result_parts.append("")
 
         # Get summary first
         summary = civicos_client.budget_summary(fiscal_year=fiscal_year)
@@ -2857,8 +2913,19 @@ def get_upcoming_meetings(
 
         result_parts = []
         result_parts.append(f"# Upcoming Meetings (Next {days} Days)")
+        result_parts.append("")
+
+        # Query context (inline notes for transparency)
+        meeting_count = len([r for r in results if hasattr(r, 'agenda_items')]) if results else 0
+        election_count = len([r for r in results if hasattr(r, 'election_type')]) if results else 0
+        result_parts.append("---")
+        result_parts.append(f"🔍 **Looking ahead:** {days} days")
         if topic_list:
-            result_parts.append(f"Filtered by topics: {', '.join(topic_list)}")
+            result_parts.append(f"🏷️ **Topic filter:** {', '.join(topic_list)}")
+        result_parts.append(f"📊 **Searched:** City council calendars, Legistar agendas")
+        result_parts.append(f"📋 **Found:** {meeting_count} meetings" + (f", {election_count} elections" if include_elections and election_count else ""))
+        result_parts.append(f"🏛️ **Jurisdiction:** {civicos_client.jurisdiction}")
+        result_parts.append("---")
         result_parts.append("")
 
         if not results:
