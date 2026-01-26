@@ -117,6 +117,7 @@ civic_image = (
         "boto3>=1.34.0",  # For R2 blob storage access
         "openai>=1.0.0",  # For agenda/decision extraction (LLM calls)
         "google-generativeai>=0.8.0",  # For Gemini-based extraction
+        "PyPDF2>=3.0.0",  # For agenda PDF text extraction (decision/agenda pipelines)
     )
     # Environment variables (must come before add_local_* per Modal requirements)
     .env({"CIVICOS_CONFIG_DIR": "/config/extraction"})

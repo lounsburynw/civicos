@@ -1406,17 +1406,25 @@ Skip only purely procedural items (meeting minutes approval, internal appointmen
                 return None
 
             # Parse JSON
+            result = None
             try:
                 result = json.loads(text)
             except json.JSONDecodeError as e:
-                self._last_parse_error = f"JSON decode error at position {e.pos}: {e.msg}"
-                # Show context around the error
-                start = max(0, e.pos - 50)
-                end = min(len(text), e.pos + 50)
-                context = text[start:end]
-                print(f"⚠️ JSON parse error: {e.msg} at position {e.pos}")
-                print(f"   Context: ...{context}...")
-                return None
+                # LLM often returns valid JSON followed by explanatory text.
+                # If "Extra data" error, try parsing just the JSON portion.
+                if e.msg == "Extra data" and e.pos > 0:
+                    try:
+                        result = json.loads(text[:e.pos])
+                    except json.JSONDecodeError:
+                        pass
+                if result is None:
+                    self._last_parse_error = f"JSON decode error at position {e.pos}: {e.msg}"
+                    start = max(0, e.pos - 50)
+                    end = min(len(text), e.pos + 50)
+                    context = text[start:end]
+                    print(f"⚠️ JSON parse error: {e.msg} at position {e.pos}")
+                    print(f"   Context: ...{context}...")
+                    return None
 
             # Validate structure
             if not isinstance(result, dict):
