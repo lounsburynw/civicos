@@ -2943,7 +2943,7 @@ def scheduled_low_velocity_refresh():
     ],
     memory=4096,
     timeout=10800,  # 3 hours (transcription can take time)
-    schedule=modal.Cron("0 14 * * *"),  # Daily at 2 PM UTC (6 AM Pacific)
+    schedule=modal.Cron("5 20 * * *"),  # TEMP: testing at 20:05 UTC - revert to "0 14 * * *"
 )
 def scheduled_high_velocity_refresh():
     """Daily scheduled refresh for high-velocity corpora (meetings, issues, transcripts, chunks, agenda items).
