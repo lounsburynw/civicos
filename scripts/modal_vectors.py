@@ -49,9 +49,9 @@ civic_image = (
     .run_commands(
         "python -c \"from fastembed import TextEmbedding; TextEmbedding('nomic-ai/nomic-embed-text-v1.5')\""
     )
-    # Add local packages (civic_extraction not needed for vector indexing)
-    .add_local_python_source("civic")
-    .add_local_python_source("civic_config")
+    # Add local packages (civicos_extraction not needed for vector indexing)
+    .add_local_python_source("civicos")
+    .add_local_python_source("civicos_config")
 )
 
 
@@ -105,10 +105,10 @@ def index_corpus(
     )
     logger = logging.getLogger(__name__)
 
-    from civic.storage import get_storage_backend
-    from civic.storage.pgvector_backend import PgVectorBackend
-    from civic._internal.meetings.transcript import expand_transcripts_to_chunks
-    from civic._internal.legal.embeddings.chunker import (
+    from civicos.storage import get_storage_backend
+    from civicos.storage.pgvector_backend import PgVectorBackend
+    from civicos._internal.meetings.transcript import expand_transcripts_to_chunks
+    from civicos._internal.legal.embeddings.chunker import (
         expand_municipal_code_to_chunks,
         expand_legislation_to_chunks,
         expand_codified_law_to_chunks,
@@ -250,7 +250,7 @@ def index_corpus(
     }
 
     # Log to operating_costs table
-    from civic.cost import log_modal_cost
+    from civicos.cost import log_modal_cost
     log_modal_cost(
         function_name="index_corpus",
         elapsed_seconds=elapsed_seconds,
@@ -287,10 +287,10 @@ def get_stats(jurisdiction: str = "city-san-rafael") -> dict:
     """
     import os
 
-    from civic.storage import get_storage_backend
-    from civic.storage.pgvector_backend import PgVectorBackend
-    from civic._internal.meetings.transcript import expand_transcripts_to_chunks
-    from civic._internal.legal.embeddings.chunker import (
+    from civicos.storage import get_storage_backend
+    from civicos.storage.pgvector_backend import PgVectorBackend
+    from civicos._internal.meetings.transcript import expand_transcripts_to_chunks
+    from civicos._internal.legal.embeddings.chunker import (
         expand_municipal_code_to_chunks,
         expand_legislation_to_chunks,
         expand_codified_law_to_chunks,
@@ -411,7 +411,7 @@ def scheduled_refresh():
 def delete_vectors(jurisdiction: str, corpus: str) -> int:
     """Delete all vectors for a jurisdiction/corpus. Returns count deleted."""
     import os
-    from civic.storage.pgvector_backend import PgVectorBackend
+    from civicos.storage.pgvector_backend import PgVectorBackend
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
@@ -459,10 +459,10 @@ def index_batch(
     )
     logger = logging.getLogger(__name__)
 
-    from civic.storage import get_storage_backend
-    from civic.storage.pgvector_backend import PgVectorBackend
-    from civic._internal.meetings.transcript import expand_transcripts_to_chunks
-    from civic._internal.legal.embeddings.chunker import (
+    from civicos.storage import get_storage_backend
+    from civicos.storage.pgvector_backend import PgVectorBackend
+    from civicos._internal.meetings.transcript import expand_transcripts_to_chunks
+    from civicos._internal.legal.embeddings.chunker import (
         expand_municipal_code_to_chunks,
         expand_legislation_to_chunks,
         expand_codified_law_to_chunks,
