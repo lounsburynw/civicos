@@ -24,10 +24,10 @@ from pathlib import Path
 from typing import Optional
 
 # Add project root to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "packages" / "civic" / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "packages" / "civicos" / "src"))
 
 import chromadb
-from civic._internal.meetings.embeddings import CivicEmbeddings
+from civicos._internal.meetings.embeddings import CivicEmbeddings
 
 
 def get_collection_stats(client: chromadb.PersistentClient, collection_name: str) -> dict:

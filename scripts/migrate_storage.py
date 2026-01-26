@@ -43,10 +43,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 # Add packages to path for development
-sys.path.insert(0, str(Path(__file__).parent.parent / "packages" / "civic" / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "packages" / "civicos" / "src"))
 
-from civic.storage.sqlite_backend import SQLiteBackend
-from civic.storage.blob import LocalBlobBackend, get_blob_storage, BlobStorage
+from civicos.storage.sqlite_backend import SQLiteBackend
+from civicos.storage.blob import LocalBlobBackend, get_blob_storage, BlobStorage
 
 
 @dataclass
@@ -214,7 +214,7 @@ class StorageMigration:
             if not self.target_postgres_url:
                 raise ValueError("target_postgres_url required for database migration")
 
-            from civic.storage.postgres_backend import PostgresBackend
+            from civicos.storage.postgres_backend import PostgresBackend
             self._target_db = PostgresBackend(self.target_postgres_url)
 
         return self._target_db

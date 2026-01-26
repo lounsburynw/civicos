@@ -26,8 +26,8 @@ from pathlib import Path
 from typing import Any
 
 # Add packages to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "packages/civic/src"))
-sys.path.insert(0, str(Path(__file__).parent.parent / "packages/civic-services/src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "packages/civicos/src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "packages/civicos-services/src"))
 
 
 @dataclass
@@ -195,7 +195,7 @@ class DataCompletenessAuditor:
 
         # municode_corpus_class: Check MunicodeCorpus module exists
         # Use path check instead of internal import (respects layer boundaries)
-        module_path = self.project_root / "packages/civic/src/civic/_internal/legal/corpus/municipal.py"
+        module_path = self.project_root / "packages/civicos/src/civicos/_internal/legal/corpus/municipal.py"
         self.check(
             "municode_corpus_class",
             "municipal_code",
@@ -326,7 +326,7 @@ class DataCompletenessAuditor:
 
         # legislative_unified_search: Check UnifiedSearch module exists
         # Use path check instead of internal import (respects layer boundaries)
-        module_path = self.project_root / "packages/civic/src/civic/_internal/search/unified.py"
+        module_path = self.project_root / "packages/civicos/src/civicos/_internal/search/unified.py"
         self.check(
             "legislative_unified_search",
             "legislative_context",
@@ -509,7 +509,7 @@ class DataCompletenessAuditor:
 
         # research_abstraction: Check research module exists
         # Use path check instead of import (respects layer boundaries)
-        research_dir = self.project_root / "packages/civic-extraction/src/civic_extraction/research"
+        research_dir = self.project_root / "packages/civicos-extraction/src/civicos_extraction/research"
         self.check(
             "research_abstraction",
             "municipal_context",
@@ -541,7 +541,7 @@ class DataCompletenessAuditor:
             self.check("budget_schema", "budget", False, "≥50 budget items", "No cloud connection", "")
 
         # budget_etl_template: Check extraction prompt exists
-        prompt_file = self.project_root / "packages/civic-extraction/src/civic_extraction/prompts/budget_extraction.py"
+        prompt_file = self.project_root / "packages/civicos-extraction/src/civicos_extraction/prompts/budget_extraction.py"
         self.check(
             "budget_etl_template",
             "budget",
@@ -697,7 +697,7 @@ class DataCompletenessAuditor:
 
         # funding_reconciliation: Check FundingReconciler module exists
         # Use path check instead of internal import (respects layer boundaries)
-        module_path = self.project_root / "packages/civic/src/civic/_internal/funding/reconciler.py"
+        module_path = self.project_root / "packages/civicos/src/civicos/_internal/funding/reconciler.py"
         self.check(
             "funding_reconciliation",
             "intergovernmental_funding",

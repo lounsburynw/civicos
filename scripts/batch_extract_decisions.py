@@ -27,8 +27,8 @@ import requests
 import time
 
 # Add packages to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "packages" / "civic" / "src"))
-sys.path.insert(0, str(Path(__file__).parent.parent / "packages" / "civic-extraction" / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "packages" / "civicos" / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "packages" / "civicos-extraction" / "src"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 try:
@@ -36,7 +36,7 @@ try:
 except ImportError:
     fitz = None
 
-from civic._internal.meetings.minutes import extract_meeting_minutes
+from civicos._internal.meetings.minutes import extract_meeting_minutes
 
 
 # Directories

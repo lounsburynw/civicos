@@ -280,8 +280,8 @@ if env_path.exists():
                 os.environ.setdefault(key, val)
 
 # Add packages to path
-sys.path.insert(0, "packages/civic/src")
-sys.path.insert(0, "packages/civic-services/src")
+sys.path.insert(0, "packages/civicos/src")
+sys.path.insert(0, "packages/civicos-services/src")
 
 
 # =============================================================================

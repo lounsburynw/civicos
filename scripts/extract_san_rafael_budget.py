@@ -20,8 +20,8 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 # Add packages to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "packages" / "civic-extraction" / "src"))
-sys.path.insert(0, str(Path(__file__).parent.parent / "packages" / "civic" / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "packages" / "civicos-extraction" / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "packages" / "civicos" / "src"))
 
 from civic_extraction.prompts.budget_extraction import (
     BudgetExtractionResult,
@@ -302,7 +302,7 @@ def main():
 
     # Store in database if we have postgres connection
     try:
-        from civic.storage.postgres_backend import PostgresBackend
+        from civicos.storage.postgres_backend import PostgresBackend
         import os
 
         database_url = os.environ.get("DATABASE_URL")

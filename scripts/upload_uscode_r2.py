@@ -9,7 +9,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
-from civic.storage.blob import R2Backend
+from civicos.storage.blob import R2Backend
 
 def main():
     # Initialize R2 backend

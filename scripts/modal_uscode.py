@@ -47,7 +47,7 @@ civic_image = (
         "langgraph>=0.2.0",  # Required by civic package init
         "langchain-core>=0.3.0",  # Required by langgraph
     )
-    .add_local_python_source("civic")
+    .add_local_python_source("civicos")
 )
 
 # Release point metadata (for provenance tracking)
@@ -264,7 +264,7 @@ def ingest_uscode(
 
     # Stats only mode
     if stats_only:
-        from civic.storage.postgres_backend import PostgresBackend
+        from civicos.storage.postgres_backend import PostgresBackend
         db = PostgresBackend(database_url)
         count = db.get_codified_law_count(jurisdiction_id)
         return {
@@ -350,7 +350,7 @@ def ingest_uscode(
 
     # Store to PostgreSQL
     print("Storing to PostgreSQL using COPY...")
-    from civic.storage.postgres_backend import PostgresBackend
+    from civicos.storage.postgres_backend import PostgresBackend
     db = PostgresBackend(database_url)
 
     start = time.time()
