@@ -105,6 +105,10 @@ class PgVectorBackend:
     # Table name for vector storage
     TABLE_NAME = "vector_embeddings"
 
+    # Class-level: track which connection strings have had schema verified.
+    # Survives across multiple PgVectorBackend instances in the same process.
+    _schemas_verified: set = set()
+
     def __init__(
         self,
         connection_string: str,
@@ -131,6 +135,7 @@ class PgVectorBackend:
             )
 
         self._conn_string = connection_string
+        self._schema_ensured = connection_string in self._schemas_verified
         self._provider = embedding_provider
         self._provider_type = provider_type
 
@@ -213,10 +218,16 @@ class PgVectorBackend:
         Includes embedding_model tracking for data integrity - vectors from
         different models cannot be compared even if dimensions match.
 
+        Runs at most once per connection string across all PgVectorBackend
+        instances in the same process. This prevents 40 parallel vector workers
+        from all running schema checks simultaneously.
+
         Args:
             conn: Database connection
             allow_dimension_change: If True, drop and recreate table if dimension differs
         """
+        if self._schema_ensured and not allow_dimension_change:
+            return
         cursor = conn.cursor()
 
         # Check if table exists and verify dimension compatibility
@@ -322,6 +333,8 @@ class PgVectorBackend:
                 logger.warning(f"Could not create IVFFlat index: {e}")
 
         conn.commit()
+        self._schema_ensured = True
+        PgVectorBackend._schemas_verified.add(self._conn_string)
 
     def validate(self) -> VectorValidationResult:
         """
