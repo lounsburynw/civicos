@@ -78,6 +78,7 @@ class PostgresBackend:
                 "Install with: pip install psycopg2-binary"
             )
         self._conn_string = connection_string
+        self._schema_ensured = False
 
     def _get_connection(self):
         """Get a database connection with dict cursor factory."""
@@ -163,7 +164,16 @@ class PostgresBackend:
         )
 
     def _ensure_schema(self, conn) -> None:
-        """Create database schema if it doesn't exist."""
+        """Create database schema if it doesn't exist.
+
+        Runs at most once per PostgresBackend instance. The schema uses
+        IF NOT EXISTS / ADD COLUMN IF NOT EXISTS throughout, so repeated
+        calls are safe but wasteful. On Supabase with statement timeouts,
+        running 137 DDL statements on every store operation causes timeouts
+        that prevent any data from being written.
+        """
+        if self._schema_ensured:
+            return
         cursor = conn.cursor()
 
         # City states table
@@ -1453,6 +1463,7 @@ class PostgresBackend:
         """)
 
         conn.commit()
+        self._schema_ensured = True
 
     def store_meetings(
         self,
