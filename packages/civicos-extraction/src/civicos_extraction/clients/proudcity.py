@@ -19,7 +19,7 @@ from bs4 import BeautifulSoup
 import time
 import re
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Dict, List, Optional, Any
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from civicos_extraction.clients.base import BaseExtractor, Meeting, HealthStatus, ValidationResult
 
@@ -542,7 +542,10 @@ class ProudCityClient(BaseExtractor):
 
         for meeting_type, path in self.archives.items():
             archive_url = f"{self.base_url}{path}"
-            events = self._scrape_archive_page(archive_url, meeting_type)
+            events = self._scrape_archive_page(
+                archive_url, meeting_type,
+                date_range=(start_date, end_date),
+            )
             filtered = self._filter_by_date_range(events, start_date, end_date)
             all_events.extend(filtered)
 
@@ -579,7 +582,8 @@ class ProudCityClient(BaseExtractor):
         self,
         archive_url: str,
         meeting_type: str,
-        fetch_individual_pages: bool = True
+        fetch_individual_pages: bool = True,
+        date_range: Optional[Tuple[str, str]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Scrape a meeting archive page.
@@ -590,6 +594,10 @@ class ProudCityClient(BaseExtractor):
             fetch_individual_pages: If True, fetch each meeting page to get
                 accurate date/time (slower but more accurate). If False, only
                 parse dates from URL slugs.
+            date_range: Optional (start_date, end_date) as YYYY-MM-DD strings.
+                When provided, meetings outside this range (based on slug date)
+                are skipped without fetching individual pages, avoiding hundreds
+                of unnecessary HTTP requests during incremental refreshes.
 
         Returns:
             List of meeting dictionaries
@@ -628,6 +636,12 @@ class ProudCityClient(BaseExtractor):
             slug_date = self._extract_date_from_slug(meeting_slug, text)
 
             if slug_date:
+                # Skip meetings outside date range early (before expensive page fetch)
+                if date_range:
+                    start_dt, end_dt = date_range
+                    if slug_date < start_dt or slug_date > end_dt:
+                        continue
+
                 # Fetch individual page to get accurate date/time
                 actual_date = slug_date
                 meeting_time = None
