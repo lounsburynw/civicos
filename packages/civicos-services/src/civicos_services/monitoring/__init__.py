@@ -8,6 +8,7 @@ Modules:
 - multi_platform_monitor: Multi-platform meeting monitoring
 - unified_data_source_manager: Data source management
 - daily_cost_digest: Daily operating cost email digest
+- pipeline_run_summary: Pipeline completion notifications
 """
 
 from .error_alerting import (
@@ -21,6 +22,7 @@ from .daily_cost_digest import (
     CostDigestData,
     send_daily_digest,
 )
+from .pipeline_run_summary import send_pipeline_summary
 
 __all__ = [
     "ErrorAlertManager",
@@ -30,4 +32,5 @@ __all__ = [
     "DailyCostDigest",
     "CostDigestData",
     "send_daily_digest",
+    "send_pipeline_summary",
 ]

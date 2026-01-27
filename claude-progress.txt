@@ -15885,3 +15885,138 @@ preparation.talking_points = [
 
 ### Next P0
 - `action_leverage_points`: Surface specific action opportunities based on retrieval context. After retrieval, suggest concrete actions: 'State law preempts this denial - file appeal citing SB9'.
+
+## Session 524: high_velocity_refresh_e2e - E2E Pipeline Validation
+
+**Date:** 2026-01-26
+**Item:** high_velocity_refresh_e2e (pipeline_automation > scheduling)
+**Priority:** P0
+**Status:** COMPLETE
+
+### Problem
+`scheduled_high_velocity_refresh()` was missing 2 secrets (`civic-openai`, `civic-youtube-cookies`) needed by stages 4 (transcript extraction with speaker estimation) and 6 (LLM agenda extraction). Also had a temporary cron schedule (`5 20 * * *`) instead of production (`0 14 * * *`).
+
+### Changes
+1. Added `civic-openai` and `civic-youtube-cookies` secrets to `scheduled_high_velocity_refresh` decorator (now matches `extract_transcripts`)
+2. Reverted cron schedule from temporary `"5 20 * * *"` to production `"0 14 * * *"` (6 AM Pacific daily)
+3. Deployed to Modal (`modal deploy scripts/modal_ingest.py`)
+4. Ran manual E2E validation (`modal run scripts/modal_ingest.py::scheduled_high_velocity_refresh`)
+
+### E2E Results (568.6s total)
+| Stage | Result |
+|-------|--------|
+| 1. Meetings | 5 stored, 57 vectors indexed |
+| 2. Issues | 100 stored, 1,670 vectors indexed |
+| 3. Videos | 0 discovered (all already scraped) |
+| 4. Transcripts | 0 new (31 skipped - all done), no auth errors |
+| 5. Chunks | 189 extracted from 2 meetings, 6,460 vectors indexed |
+| 6. Agenda items | 46 skipped (already extracted), 9 cancelled detected |
+| 7. Vectors | Handled inline via auto_index=True |
+
+No stage failures. Pipeline handled errors gracefully: request retries, NUL characters in PDFs, oversized agendas, cancelled meetings.
+
+### Files Modified
+- `scripts/modal_ingest.py` (secrets + cron schedule fix, lines 3055-3065)
+- `pilot.json` (high_velocity_refresh_e2e: ready, all 4 subtasks: ready)
+
+### Next P0
+- TBD (need to assign before session end)
+
+## Session 525: UTC Timezone Fix + Transcript Straggler Sweep
+
+**Date:** 2026-01-26
+**Item:** modal_youtube_download_fix (pipeline_automation > modal_remote_compute)
+**Priority:** P0
+**Status:** COMPLETE
+
+### Context
+Continued from previous session which configured DataImpulse residential proxy and ran video ingestion. That session transcribed 3 of 4 Jan 20-22 videos (Police Advisory kept failing), then ran out of context.
+
+### Discovery: All 4 Transcripts Already In Postgres
+Investigation revealed all 4 transcripts (including Police Advisory lopEM9hTRaQ) were successfully stored to Postgres by the previous session. They were invisible due to a timezone bug:
+- `valid_from` stored as UTC (Supabase `CURRENT_TIMESTAMP`)
+- Temporal queries used `datetime.now()` (local Pacific time)
+- Records stored during Pacific evening had UTC timestamps that appeared "in the future" to local queries
+- Example: `valid_from=2026-01-27T02:14` (UTC) vs `datetime.now()=2026-01-26T18:34` (Pacific)
+
+### Fix 1: UTC Timezone in Temporal Queries
+- `postgres_backend.py`: Changed all 45 instances of `as_of = as_of or datetime.now()` to `as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)`
+- Also fixed `since_days` cutoff calculation (line 2929) to use UTC
+- `timezone` was already imported, no new dependencies
+- Note: Modal runs in UTC so the scheduled pipeline was unaffected, but local queries (dev, MCP server) needed this fix
+
+### Fix 2: Straggler Sweep for Failed Transcriptions
+- `transcribe.py` `find_audio_files()`: After querying recent videos (since_days=7), now also scans for any video with audio in R2 but no transcript in Postgres
+- Catches videos where download succeeded but transcription failed and the since_days window elapsed
+- Cost is minimal: one extra get_videos() query + transcript_exists_in_cloud() check per un-transcribed video
+
+### Transcript Status (Jan 20-22 Meetings)
+| Video | Meeting | Speakers | Utterances | Cost |
+|-------|---------|----------|------------|------|
+| wm33kueyz1Y | City Council Jan 20 | 50 | 1,021 | $2.46 |
+| dbK1i5MkgDU | Closed Session Jan 20 | 1 | 1 | $0.01 |
+| lhItNHSGQm4 | Finance Subcommittee Jan 20 | 50 | 928 | $1.15 |
+| lopEM9hTRaQ | Police Advisory Jan 21 | 50 | 1,033 | $2.81 |
+
+Total: 35 transcripts visible (was 31 before UTC fix), 7,534 transcript vectors (reindexed)
+
+### Deployment
+- Modal app redeployed with both fixes
+- Scheduled high-velocity refresh (daily 6 AM Pacific) now includes straggler sweep
+
+### Files Modified
+- `packages/civicos/src/civicos/storage/postgres_backend.py` (45x UTC fix + since_days cutoff)
+- `packages/civicos-extraction/src/civicos_extraction/cli/transcribe.py` (straggler sweep)
+- `pilot.json` (modal_youtube_download_fix: ready, new P0: pipeline_run_summary_webhook)
+
+### Next P0
+- `pipeline_run_summary_webhook`: Add webhook notification at end of scheduled pipelines reporting success/failure per stage, transcription costs, straggler retries, anomalies
+
+## Session 526: pipeline_run_summary_webhook - Pipeline Notification Webhooks
+
+**Date:** 2026-01-26
+**Item:** pipeline_run_summary_webhook (monitoring_observability > alerting)
+**Priority:** P0
+**Status:** COMPLETE
+
+### What Was Done
+Implemented Slack webhook notifications at the end of scheduled pipeline runs. Both `scheduled_high_velocity_refresh` and `scheduled_low_velocity_refresh` now send a summary notification reporting:
+
+- Per-stage success/failure counts
+- Transcription costs (high-velocity only)
+- Per-jurisdiction stage breakdown
+- Anomaly detection (0 meetings discovered, all stages failed, duration validation issues, etc.)
+- Elapsed time
+
+### Implementation
+1. **New module**: `packages/civicos-services/src/civicos_services/monitoring/pipeline_run_summary.py`
+   - `send_pipeline_summary()` - main entry point
+   - `_analyze_results()` - extracts metrics from results dict
+   - `_build_slack_blocks()` - Slack Block Kit message formatting
+   - `_send_slack()` - HTTP webhook delivery (reuses pattern from error_alerting.py)
+
+2. **Integration**: Added try/except webhook call at end of both scheduled functions in `scripts/modal_ingest.py` (lines ~3060, ~3265). Failures don't break the pipeline.
+
+3. **Modal secret**: Added `civic-slack` secret to both scheduled function decorators. Contains `CIVICOS_SLACK_WEBHOOK_URL`.
+
+4. **Exports**: Updated `monitoring/__init__.py` to export `send_pipeline_summary`.
+
+### Anomaly Detection
+- High-velocity: flags 0 meetings/videos discovered, transcript duration issues
+- Low-velocity: flags 0 CA bills stored
+- Universal: flags all-stages-failed scenario
+
+### Manual Step Required
+Create Modal secret before deploying:
+```bash
+modal secret create civic-slack CIVICOS_SLACK_WEBHOOK_URL="https://hooks.slack.com/services/..."
+```
+
+### Files Modified
+- `packages/civicos-services/src/civicos_services/monitoring/pipeline_run_summary.py` (NEW)
+- `packages/civicos-services/src/civicos_services/monitoring/__init__.py` (export)
+- `scripts/modal_ingest.py` (webhook calls + civic-slack secret in decorators + setup docs)
+- `pilot.json` (pipeline_run_summary_webhook: ready, new P0: action_leverage_points)
+
+### Next P0
+- `action_leverage_points`: After retrieval, suggest concrete actions (state law preemptions, grant deadlines, etc.)

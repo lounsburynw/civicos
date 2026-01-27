@@ -41,6 +41,7 @@ Setup:
        modal secret create civic-legiscan LEGISCAN_API_KEY="..."
        modal secret create civic-assemblyai ASSEMBLYAI_API_KEY="..."
        modal secret create civic-google GOOGLE_API_KEY="..."  # For YouTube, elections, geocoding
+       modal secret create civic-slack CIVICOS_SLACK_WEBHOOK_URL="https://hooks.slack.com/services/..."  # Pipeline notifications
     4. Run: modal run scripts/modal_ingest.py --all
     5. Deploy for scheduled runs: modal deploy scripts/modal_ingest.py
 
@@ -112,6 +113,7 @@ civic_image = (
         "pymupdf>=1.24.0",  # For PDF parsing (chunk extraction)
         "assemblyai>=0.35.0",  # For transcription
         "yt-dlp>=2024.1.0",  # For audio download
+        "pysocks>=1.7.0",  # SOCKS5 proxy support for yt-dlp
         "google-api-python-client>=2.0.0",  # For YouTube duration validation
         "python-dotenv>=1.0.0",  # For environment variable loading
         "boto3>=1.34.0",  # For R2 blob storage access
@@ -2674,6 +2676,7 @@ def extract_decisions(
         modal.Secret.from_name("civic-google"),  # GOOGLE_API_KEY for YouTube duration validation
         modal.Secret.from_name("civic-r2"),  # R2 blob storage for audio files
         modal.Secret.from_name("civic-youtube-cookies"),  # YouTube cookies to bypass bot detection (base64-encoded)
+        modal.Secret.from_name("civic-youtube-proxy"),  # Residential proxy for YouTube downloads (PROXY_URL)
         modal.Secret.from_name("civic-openai"),  # For LLM speaker estimation
     ],
     memory=8192,  # 8GB for concurrent audio processing
@@ -2751,6 +2754,16 @@ def extract_transcripts(
     else:
         logger.info("[TRANSCRIPTS] No YouTube cookies available (downloads may fail from cloud IPs)")
 
+    # Residential proxy for YouTube downloads from datacenter IPs
+    proxy_url = os.environ.get("PROXY_URL", "")
+    if proxy_url:
+        has_scheme = "://" in proxy_url
+        has_auth = "@" in proxy_url
+        proxy_display = proxy_url.split("@")[-1] if has_auth else proxy_url
+        logger.info(f"[TRANSCRIPTS] Residential proxy configured: {proxy_display} (scheme={has_scheme}, auth={has_auth}, len={len(proxy_url)})")
+    else:
+        logger.info("[TRANSCRIPTS] No proxy configured (downloads from datacenter IPs may fail)")
+
     # Step 1: Download audio files (if not already in R2)
     logger.info("[TRANSCRIPTS] Step 1: Downloading audio files...")
     try:
@@ -2768,6 +2781,7 @@ def extract_transcripts(
             cloud=True,  # Store in R2
             meeting_type=meeting_type_filter,
             since_days=since_days_filter,
+            proxy=proxy_url or None,
         )
 
         if audio_results is None and not dry_run:
@@ -2889,6 +2903,7 @@ def extract_transcripts(
         modal.Secret.from_name("civic-db"),
         modal.Secret.from_name("civic-legiscan"),
         modal.Secret.from_name("civic-openai"),  # For LLM extraction (agenda, decisions)
+        modal.Secret.from_name("civic-slack"),  # Pipeline summary webhook
     ],
     memory=4096,
     timeout=14400,  # 4 hours
@@ -3042,6 +3057,18 @@ def scheduled_low_velocity_refresh():
     elapsed = time.time() - start_time
     logger.info(f"Low-velocity refresh complete in {elapsed:.1f}s for {len(jurisdictions)} jurisdictions")
 
+    # Send pipeline summary notification
+    try:
+        from civicos_services.monitoring.pipeline_run_summary import send_pipeline_summary
+        summary = send_pipeline_summary(
+            results=results,
+            schedule="low_velocity_weekly",
+            elapsed_seconds=elapsed,
+        )
+        logger.info(f"Pipeline summary: {summary['stages_succeeded']}/{summary['stages_succeeded'] + summary['stages_failed']} passed, sent={summary['notification_sent']}")
+    except Exception as e:
+        logger.warning(f"Failed to send pipeline summary notification: {e}")
+
     return {
         "schedule": "low_velocity_weekly",
         "jurisdictions_processed": len(jurisdictions),
@@ -3057,10 +3084,14 @@ def scheduled_low_velocity_refresh():
         modal.Secret.from_name("civic-assemblyai"),  # For transcript extraction
         modal.Secret.from_name("civic-google"),  # For YouTube duration validation
         modal.Secret.from_name("civic-r2"),  # R2 blob storage for audio files
+        modal.Secret.from_name("civic-youtube-cookies"),  # For YouTube audio download
+        modal.Secret.from_name("civic-youtube-proxy"),  # Residential proxy for YouTube downloads
+        modal.Secret.from_name("civic-openai"),  # For speaker estimation + agenda extraction
+        modal.Secret.from_name("civic-slack"),  # Pipeline summary webhook
     ],
     memory=4096,
     timeout=10800,  # 3 hours (transcription can take time)
-    schedule=modal.Cron("5 20 * * *"),  # TEMP: testing at 20:05 UTC - revert to "0 14 * * *"
+    schedule=modal.Cron("0 14 * * *"),  # Daily at 2 PM UTC = 6 AM Pacific
 )
 def scheduled_high_velocity_refresh():
     """Daily scheduled refresh for high-velocity corpora (meetings, issues, transcripts, chunks, agenda items).
@@ -3230,6 +3261,19 @@ def scheduled_high_velocity_refresh():
     elapsed = time.time() - start_time
     logger.info(f"High-velocity refresh complete in {elapsed:.1f}s for {len(jurisdictions)} jurisdictions")
     logger.info(f"Total transcription cost: ${total_transcription_cost:.2f}")
+
+    # Send pipeline summary notification
+    try:
+        from civicos_services.monitoring.pipeline_run_summary import send_pipeline_summary
+        summary = send_pipeline_summary(
+            results=results,
+            schedule="high_velocity_daily",
+            elapsed_seconds=elapsed,
+            total_transcription_cost=total_transcription_cost,
+        )
+        logger.info(f"Pipeline summary: {summary['stages_succeeded']}/{summary['stages_succeeded'] + summary['stages_failed']} passed, sent={summary['notification_sent']}")
+    except Exception as e:
+        logger.warning(f"Failed to send pipeline summary notification: {e}")
 
     return {
         "schedule": "high_velocity_daily",
