@@ -34,8 +34,6 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from urllib.request import urlopen, Request
-from urllib.error import URLError, HTTPError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -238,8 +236,8 @@ class ErrorAlertManager:
         self.smtp_username = os.environ.get('CIVICOS_SMTP_USERNAME', '')
         self.smtp_password = os.environ.get('CIVICOS_SMTP_PASSWORD', '')
 
-        # Slack configuration from environment
-        self.slack_webhook_url = os.environ.get('CIVICOS_SLACK_WEBHOOK_URL', '')
+        # Push notification via notify abstraction (ntfy or legacy Slack)
+        # No Slack-specific config needed here; notify.py reads env vars directly
 
     def get_error_metrics(self) -> Dict[str, Any]:
         """
@@ -305,9 +303,9 @@ class ErrorAlertManager:
         if self._send_email_alert(alert, metrics):
             channels_sent.append("email")
 
-        # Attempt to send Slack notification
-        if self._send_slack_alert(alert, metrics):
-            channels_sent.append("slack")
+        # Attempt to send push notification (ntfy or legacy Slack)
+        if self._send_push_alert(alert, metrics):
+            channels_sent.append("push")
 
         # Update alert with notification status
         if channels_sent:
@@ -445,108 +443,43 @@ Alert type: {alert.alert_type}
             logger.error(f"Failed to send email alert: {e}")
             return False
 
-    def _send_slack_alert(self, alert: AlertEvent, metrics: ErrorMetrics) -> bool:
+    def _send_push_alert(self, alert: AlertEvent, metrics: ErrorMetrics) -> bool:
         """
-        Send Slack webhook alert notification.
+        Send push notification alert via notify abstraction (ntfy or legacy Slack).
 
         Returns:
-            True if Slack message sent successfully, False otherwise
+            True if notification sent successfully, False otherwise
         """
-        if not self.slack_webhook_url:
-            logger.debug("Slack alerting not configured (missing webhook URL)")
-            return False
+        from .notify import Priority, send_notification
 
-        # Format severity
         severity = "CRITICAL" if alert.alert_type == "error_rate_critical" else "WARNING"
-        emoji = ":rotating_light:" if severity == "CRITICAL" else ":warning:"
 
-        # Build Slack Block Kit message
-        # See: https://api.slack.com/block-kit
-        blocks = [
-            {
-                "type": "header",
-                "text": {
-                    "type": "plain_text",
-                    "text": f"{emoji} Civic Error Rate Alert",
-                    "emoji": True
-                }
-            },
-            {
-                "type": "section",
-                "fields": [
-                    {
-                        "type": "mrkdwn",
-                        "text": f"*Severity:*\n{severity}"
-                    },
-                    {
-                        "type": "mrkdwn",
-                        "text": f"*Error Rate:*\n{alert.error_rate}% (threshold: {alert.threshold}%)"
-                    },
-                    {
-                        "type": "mrkdwn",
-                        "text": f"*Total Requests:*\n{alert.total_requests} (last {self.window_minutes}min)"
-                    },
-                    {
-                        "type": "mrkdwn",
-                        "text": f"*Server Errors (5xx):*\n{alert.error_count}"
-                    }
-                ]
-            }
+        # Build plain text body
+        lines = [
+            f"Severity: {severity}",
+            f"Error Rate: {alert.error_rate}% (threshold: {alert.threshold}%)",
+            f"Total Requests: {alert.total_requests} (last {self.window_minutes}min)",
+            f"Server Errors (5xx): {alert.error_count}",
         ]
 
-        # Add top error endpoints if any
         if metrics.top_error_endpoints:
-            endpoint_lines = [
-                f"• `{ep['path']}`: {ep['count']} errors"
-                for ep in metrics.top_error_endpoints[:3]
-            ]
-            blocks.append({
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"*Top Error Endpoints:*\n" + "\n".join(endpoint_lines)
-                }
-            })
+            lines.append("")
+            lines.append("Top Error Endpoints:")
+            for ep in metrics.top_error_endpoints[:3]:
+                lines.append(f"  {ep['path']}: {ep['count']} errors")
 
-        # Add action links
-        blocks.append({
-            "type": "context",
-            "elements": [
-                {
-                    "type": "mrkdwn",
-                    "text": f"<https://civic-api.fly.dev/health|View Health> | Alert type: `{alert.alert_type}`"
-                }
-            ]
-        })
+        body = "\n".join(lines)
 
-        payload = {
-            "blocks": blocks,
-            "text": f"{severity}: Civic error rate at {alert.error_rate}%"  # Fallback text
-        }
+        priority = Priority.URGENT if severity == "CRITICAL" else Priority.HIGH
+        tags = ["rotating_light", "error"] if severity == "CRITICAL" else ["warning", "error"]
 
-        try:
-            req = Request(
-                self.slack_webhook_url,
-                data=json.dumps(payload).encode('utf-8'),
-                headers={'Content-Type': 'application/json'}
-            )
-            with urlopen(req, timeout=10) as response:
-                if response.status == 200:
-                    logger.info("Slack alert sent successfully")
-                    return True
-                else:
-                    logger.warning(f"Slack webhook returned status {response.status}")
-                    return False
-
-        except HTTPError as e:
-            logger.error(f"Slack webhook HTTP error: {e.code} - {e.reason}")
-            return False
-        except URLError as e:
-            logger.error(f"Slack webhook URL error: {e.reason}")
-            return False
-        except Exception as e:
-            logger.error(f"Failed to send Slack alert: {e}")
-            return False
+        return send_notification(
+            title=f"Error Rate Alert: {severity}",
+            body=body,
+            priority=priority,
+            tags=tags,
+            click_url="https://civic-api.fly.dev/health",
+        )
 
     def _format_endpoints(self, endpoints: List[Dict[str, Any]]) -> str:
         """Format endpoint list for email body."""
@@ -637,6 +570,7 @@ if __name__ == "__main__":
         print("  CIVICOS_SMTP_USERNAME   - SMTP username")
         print("  CIVICOS_SMTP_PASSWORD   - SMTP password/app password")
         print()
-        print("Environment variables for Slack alerts:")
-        print("  CIVICOS_SLACK_WEBHOOK_URL - Slack incoming webhook URL")
-        print("                            Create at: https://api.slack.com/messaging/webhooks")
+        print("Environment variables for push notifications (ntfy or Slack):")
+        print("  CIVICOS_NTFY_TOPIC        - ntfy topic name (recommended)")
+        print("  CIVICOS_NTFY_URL          - ntfy server URL (default: https://ntfy.sh)")
+        print("  CIVICOS_SLACK_WEBHOOK_URL - Legacy Slack incoming webhook")
