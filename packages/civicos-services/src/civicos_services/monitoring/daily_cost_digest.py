@@ -9,7 +9,7 @@ Features:
 - Trend comparison (vs yesterday, 7-day average)
 - Budget threshold warnings ($5/day, $50/month)
 - HTML and plaintext email support
-- Slack webhook fallback
+- Push notification fallback (ntfy or legacy Slack)
 
 Usage:
     from civicos_services.monitoring.daily_cost_digest import (
@@ -30,7 +30,9 @@ Environment variables:
     CIVICOS_SMTP_PORT         - SMTP port (default: 587)
     CIVICOS_SMTP_USERNAME     - SMTP username
     CIVICOS_SMTP_PASSWORD     - SMTP password
-    CIVICOS_SLACK_WEBHOOK_URL - Slack webhook for fallback
+    CIVICOS_NTFY_TOPIC        - ntfy topic for push notifications (recommended)
+    CIVICOS_NTFY_URL          - ntfy server URL (default: https://ntfy.sh)
+    CIVICOS_SLACK_WEBHOOK_URL - Legacy Slack webhook (still supported)
     CIVICOS_COST_DIGEST_ENABLED - Set to "false" to disable (default: true)
     CIVICOS_DAILY_BUDGET      - Daily budget threshold (default: 5.0)
     CIVICOS_MONTHLY_BUDGET    - Monthly budget threshold (default: 50.0)
@@ -48,9 +50,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
-
 logger = logging.getLogger(__name__)
 
 
@@ -106,8 +105,8 @@ class DailyCostDigest:
         self.smtp_username = os.getenv("CIVICOS_SMTP_USERNAME", "")
         self.smtp_password = os.getenv("CIVICOS_SMTP_PASSWORD", "")
 
-        # Slack configuration
-        self.slack_webhook_url = os.getenv("CIVICOS_SLACK_WEBHOOK_URL", "")
+        # Push notification via notify abstraction (ntfy or legacy Slack)
+        # No Slack-specific config needed; notify.py reads env vars directly
 
         # Enabled check
         self.enabled = os.getenv("CIVICOS_COST_DIGEST_ENABLED", "true").lower() != "false"
@@ -457,120 +456,58 @@ Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC
             logger.error(f"Failed to send cost digest email: {e}")
             return False
 
-    def send_slack(self, data: CostDigestData) -> bool:
+    def send_push(self, data: CostDigestData) -> bool:
         """
-        Send digest via Slack webhook.
+        Send digest via push notification (ntfy or legacy Slack).
 
         Returns:
             True if sent successfully, False otherwise
         """
-        if not self.slack_webhook_url:
-            logger.debug("Slack not configured (missing webhook URL)")
-            return False
+        from .notify import Priority, send_notification
 
-        # Status emoji
-        status_emoji = {
-            "healthy": ":white_check_mark:",
-            "warning": ":warning:",
-            "critical": ":rotating_light:",
-        }.get(data.budget_status, ":chart_with_upwards_trend:")
-
-        # Trend emoji
-        trend_emoji = {
-            "up": ":arrow_up:",
-            "down": ":arrow_down:",
-            "flat": ":arrow_right:",
-        }.get(data.trend, ":arrow_right:")
-
-        # Build service breakdown
-        service_text = "\n".join(
-            f"  `{svc}`: ${cost:.4f}"
-            for svc, cost in sorted(data.by_service.items(), key=lambda x: -x[1])[:3]
-        ) or "  (no data)"
+        # Trend indicator
+        trend_arrow = {"up": "^", "down": "v", "flat": "-"}.get(data.trend, "-")
 
         daily_pct = (data.total_cost_usd / data.daily_budget * 100) if self.daily_budget > 0 else 0
         monthly_pct = (data.monthly_total_usd / self.monthly_budget * 100) if self.monthly_budget > 0 else 0
 
-        blocks = [
-            {
-                "type": "header",
-                "text": {
-                    "type": "plain_text",
-                    "text": f"{status_emoji} Civic Daily Cost Digest",
-                    "emoji": True,
-                },
-            },
-            {
-                "type": "section",
-                "fields": [
-                    {"type": "mrkdwn", "text": f"*Date:*\n{data.date}"},
-                    {"type": "mrkdwn", "text": f"*Status:*\n{data.budget_status.upper()}"},
-                    {"type": "mrkdwn", "text": f"*Today:*\n${data.total_cost_usd:.4f}"},
-                    {"type": "mrkdwn", "text": f"*Budget:*\n{daily_pct:.1f}% of ${data.daily_budget:.2f}/day"},
-                ],
-            },
-            {
-                "type": "section",
-                "fields": [
-                    {"type": "mrkdwn", "text": f"*Yesterday:*\n${data.yesterday_cost_usd:.4f}"},
-                    {"type": "mrkdwn", "text": f"*Trend:*\n{trend_emoji} {abs(data.trend_percent):.1f}%"},
-                    {"type": "mrkdwn", "text": f"*7-Day Avg:*\n${data.weekly_avg_usd:.4f}"},
-                    {"type": "mrkdwn", "text": f"*Operations:*\n{data.record_count}"},
-                ],
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"*Top Services:*\n{service_text}",
-                },
-            },
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"*Monthly:* ${data.monthly_total_usd:.4f} / ${data.monthly_budget:.2f} ({monthly_pct:.1f}%)",
-                },
-            },
-            {
-                "type": "context",
-                "elements": [
-                    {
-                        "type": "mrkdwn",
-                        "text": f"<https://civic-api.fly.dev/admin/cost-status|View Dashboard>",
-                    }
-                ],
-            },
+        # Build service breakdown
+        service_lines = [
+            f"  {svc}: ${cost:.4f}"
+            for svc, cost in sorted(data.by_service.items(), key=lambda x: -x[1])[:3]
         ]
 
-        payload = {
-            "blocks": blocks,
-            "text": f"Civic Cost Digest: ${data.total_cost_usd:.4f} ({data.date})",
-        }
+        lines = [
+            f"Today: ${data.total_cost_usd:.4f} ({daily_pct:.1f}% of ${data.daily_budget:.2f}/day)",
+            f"Yesterday: ${data.yesterday_cost_usd:.4f} ({trend_arrow} {abs(data.trend_percent):.1f}%)",
+            f"7-day avg: ${data.weekly_avg_usd:.4f}",
+            f"Operations: {data.record_count}",
+            "",
+            "Top services:",
+            *(service_lines or ["  (no data)"]),
+            "",
+            f"Monthly: ${data.monthly_total_usd:.4f} / ${data.monthly_budget:.2f} ({monthly_pct:.1f}%)",
+        ]
 
-        try:
-            req = Request(
-                self.slack_webhook_url,
-                data=json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json"},
-            )
-            with urlopen(req, timeout=10) as response:
-                if response.status == 200:
-                    logger.info("Cost digest sent to Slack")
-                    return True
-                else:
-                    logger.warning(f"Slack webhook returned status {response.status}")
-                    return False
+        priority = {
+            "healthy": Priority.DEFAULT,
+            "warning": Priority.HIGH,
+            "critical": Priority.URGENT,
+        }.get(data.budget_status, Priority.DEFAULT)
 
-        except HTTPError as e:
-            logger.error(f"Slack webhook HTTP error: {e.code} - {e.reason}")
-            return False
-        except URLError as e:
-            logger.error(f"Slack webhook URL error: {e.reason}")
-            return False
-        except Exception as e:
-            logger.error(f"Failed to send Slack digest: {e}")
-            return False
+        tags = {
+            "healthy": ["white_check_mark", "cost"],
+            "warning": ["warning", "cost"],
+            "critical": ["rotating_light", "cost"],
+        }.get(data.budget_status, ["chart_with_upwards_trend", "cost"])
+
+        return send_notification(
+            title=f"Cost Digest: ${data.total_cost_usd:.4f} ({data.date}) - {data.budget_status.upper()}",
+            body="\n".join(lines),
+            priority=priority,
+            tags=tags,
+            click_url="https://civic-api.fly.dev/admin/cost-status",
+        )
 
     def send(self) -> Dict[str, Any]:
         """
@@ -604,8 +541,8 @@ Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC
         if self.send_email(data):
             channels_sent.append("email")
 
-        if self.send_slack(data):
-            channels_sent.append("slack")
+        if self.send_push(data):
+            channels_sent.append("push")
 
         if not channels_sent:
             # Log-only fallback
@@ -686,7 +623,9 @@ if __name__ == "__main__":
         print("  CIVICOS_SMTP_PORT           - SMTP port")
         print("  CIVICOS_SMTP_USERNAME       - SMTP username")
         print("  CIVICOS_SMTP_PASSWORD       - SMTP password")
-        print("  CIVICOS_SLACK_WEBHOOK_URL   - Slack webhook URL")
+        print("  CIVICOS_NTFY_TOPIC          - ntfy topic (recommended)")
+        print("  CIVICOS_NTFY_URL            - ntfy server URL (default: https://ntfy.sh)")
+        print("  CIVICOS_SLACK_WEBHOOK_URL   - Legacy Slack webhook")
         print("  CIVICOS_COST_DIGEST_ENABLED - Set 'false' to disable")
         print("  CIVICOS_DAILY_BUDGET        - Daily budget (default: 5.0)")
         print("  CIVICOS_MONTHLY_BUDGET      - Monthly budget (default: 50.0)")

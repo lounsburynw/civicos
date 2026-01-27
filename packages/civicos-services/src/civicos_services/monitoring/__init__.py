@@ -2,6 +2,7 @@
 Civic platform monitoring and alerting.
 
 Modules:
+- notify: Push notification dispatch (ntfy or legacy Slack)
 - error_alerting: Error rate monitoring and alerts
 - monitoring_dashboard: Production monitoring dashboard
 - automated_civic_refresh: Automated data refresh
@@ -11,6 +12,7 @@ Modules:
 - pipeline_run_summary: Pipeline completion notifications
 """
 
+from .notify import Priority, send_notification
 from .error_alerting import (
     ErrorAlertManager,
     ErrorMetricsCollector,
@@ -25,6 +27,8 @@ from .daily_cost_digest import (
 from .pipeline_run_summary import send_pipeline_summary
 
 __all__ = [
+    "Priority",
+    "send_notification",
     "ErrorAlertManager",
     "ErrorMetricsCollector",
     "ErrorMetrics",

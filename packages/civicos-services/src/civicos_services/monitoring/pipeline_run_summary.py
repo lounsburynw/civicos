@@ -1,7 +1,7 @@
 """
 Pipeline run summary notifications for scheduled ingestion pipelines.
 
-Sends a Slack webhook notification at the end of each pipeline run with:
+Sends a push notification at the end of each pipeline run with:
 - Per-stage success/failure counts
 - Transcription costs
 - Straggler retries and anomalies
@@ -22,16 +22,15 @@ Usage:
     )
 
 Environment variables:
-    CIVICOS_SLACK_WEBHOOK_URL - Slack incoming webhook URL
+    CIVICOS_NTFY_TOPIC - ntfy topic for push notifications (recommended)
+    CIVICOS_SLACK_WEBHOOK_URL - Legacy Slack webhook (still supported)
 """
 
-import json
 import logging
-import os
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from typing import Any, Dict, List, Optional
+
+from .notify import Priority, send_notification
 
 logger = logging.getLogger(__name__)
 
@@ -130,154 +129,6 @@ def _analyze_results(
     }
 
 
-def _build_slack_blocks(
-    analysis: Dict[str, Any],
-    schedule: str,
-    elapsed_seconds: float,
-    total_transcription_cost: float,
-) -> Tuple[List[Dict[str, Any]], str]:
-    """Build Slack Block Kit message from analysis.
-
-    Returns:
-        Tuple of (blocks list, fallback text string).
-    """
-    succeeded = analysis["stages_succeeded"]
-    failed = analysis["stages_failed"]
-    total = succeeded + failed
-    failed_stages = analysis["failed_stages"]
-    anomalies = analysis["anomalies"]
-
-    # Overall status
-    if failed == 0 and not anomalies:
-        status_emoji = ":white_check_mark:"
-        status_text = "All stages passed"
-    elif failed > 0 and succeeded == 0:
-        status_emoji = ":red_circle:"
-        status_text = "ALL STAGES FAILED"
-    elif failed > 0:
-        status_emoji = ":warning:"
-        status_text = f"{failed} stage(s) failed"
-    else:
-        status_emoji = ":large_yellow_circle:"
-        status_text = "Passed with anomalies"
-
-    schedule_label = {
-        "high_velocity_daily": "Daily High-Velocity Refresh",
-        "low_velocity_weekly": "Weekly Low-Velocity Refresh",
-    }.get(schedule, schedule)
-
-    elapsed_min = elapsed_seconds / 60
-
-    blocks: List[Dict[str, Any]] = [
-        {
-            "type": "header",
-            "text": {
-                "type": "plain_text",
-                "text": f"{status_emoji} Pipeline: {schedule_label}",
-                "emoji": True,
-            },
-        },
-        {
-            "type": "section",
-            "fields": [
-                {"type": "mrkdwn", "text": f"*Status:*\n{status_text}"},
-                {"type": "mrkdwn", "text": f"*Stages:*\n{succeeded}/{total} passed"},
-                {"type": "mrkdwn", "text": f"*Duration:*\n{elapsed_min:.1f} min"},
-                {"type": "mrkdwn", "text": f"*Time:*\n{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC"},
-            ],
-        },
-    ]
-
-    # Transcription cost (high-velocity only)
-    if schedule == "high_velocity_daily" and total_transcription_cost > 0:
-        blocks.append({
-            "type": "section",
-            "fields": [
-                {"type": "mrkdwn", "text": f"*Transcription Cost:*\n${total_transcription_cost:.2f}"},
-            ],
-        })
-
-    # Per-jurisdiction summary for high-velocity
-    if schedule == "high_velocity_daily" and analysis["per_jurisdiction"]:
-        jid_lines = []
-        for jid, stages in analysis["per_jurisdiction"].items():
-            stage_statuses = []
-            for stage_name, stage_result in stages.items():
-                if stage_result.get("status") == "failed":
-                    stage_statuses.append(f"`{stage_name}` :x:")
-                else:
-                    # Extract key metric
-                    metric = _stage_metric(stage_name, stage_result)
-                    stage_statuses.append(f"`{stage_name}` {metric}")
-            jid_lines.append(f"*{jid}:* " + ", ".join(stage_statuses))
-
-        if jid_lines:
-            blocks.append({
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": "\n".join(jid_lines[:5]),  # Limit to 5 jurisdictions
-                },
-            })
-
-    # Global stages for low-velocity
-    if schedule == "low_velocity_weekly" and analysis["global_stages"]:
-        global_lines = []
-        for stage_name, result in analysis["global_stages"].items():
-            if result.get("status") == "failed":
-                global_lines.append(f"`{stage_name}` :x: {result.get('error', '')[:60]}")
-            else:
-                metric = _global_stage_metric(stage_name, result)
-                global_lines.append(f"`{stage_name}` :white_check_mark: {metric}")
-        if global_lines:
-            blocks.append({
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": "*Global stages:*\n" + "\n".join(global_lines),
-                },
-            })
-
-    # Failed stages detail
-    if failed_stages:
-        error_lines = [
-            f":x: `{fs['stage']}`: {fs['error'][:80]}"
-            for fs in failed_stages[:5]
-        ]
-        blocks.append({
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": "*Failed stages:*\n" + "\n".join(error_lines),
-            },
-        })
-
-    # Anomalies
-    if anomalies:
-        anomaly_lines = [f":warning: {a}" for a in anomalies[:5]]
-        blocks.append({
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": "*Anomalies:*\n" + "\n".join(anomaly_lines),
-            },
-        })
-
-    # Footer
-    blocks.append({
-        "type": "context",
-        "elements": [
-            {
-                "type": "mrkdwn",
-                "text": "CivicOS Pipeline | <https://modal.com/apps|Modal Dashboard>",
-            }
-        ],
-    })
-
-    fallback = f"Pipeline {schedule_label}: {status_text} ({succeeded}/{total} stages, {elapsed_min:.1f}min)"
-    return blocks, fallback
-
-
 def _stage_metric(stage_name: str, result: Dict[str, Any]) -> str:
     """Extract a concise metric string from a stage result."""
     metrics = {
@@ -293,7 +144,7 @@ def _stage_metric(stage_name: str, result: Dict[str, Any]) -> str:
     key, label = metrics.get(stage_name, (None, None))
     if key and key in result:
         return f"{result[key]} {label}"
-    return ":white_check_mark:"
+    return "ok"
 
 
 def _global_stage_metric(stage_name: str, result: Dict[str, Any]) -> str:
@@ -311,36 +162,69 @@ def _global_stage_metric(stage_name: str, result: Dict[str, Any]) -> str:
     return ""
 
 
-def _send_slack(webhook_url: str, blocks: List[Dict], fallback_text: str) -> bool:
-    """Send Slack Block Kit message via webhook.
+def _build_summary_text(
+    analysis: Dict[str, Any],
+    schedule: str,
+    elapsed_seconds: float,
+    total_transcription_cost: float,
+) -> str:
+    """Build plain text notification body from analysis."""
+    succeeded = analysis["stages_succeeded"]
+    failed = analysis["stages_failed"]
+    total = succeeded + failed
+    failed_stages = analysis["failed_stages"]
+    anomalies = analysis["anomalies"]
 
-    Returns:
-        True if sent successfully, False otherwise.
-    """
-    payload = {"blocks": blocks, "text": fallback_text}
+    elapsed_min = elapsed_seconds / 60
+    now_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
-    try:
-        req = Request(
-            webhook_url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-        )
-        with urlopen(req, timeout=10) as response:
-            if response.status == 200:
-                logger.info("Pipeline summary sent to Slack")
-                return True
+    lines = [
+        f"Stages: {succeeded}/{total} passed",
+        f"Duration: {elapsed_min:.1f} min",
+        f"Time: {now_utc}",
+    ]
+
+    if schedule == "high_velocity_daily" and total_transcription_cost > 0:
+        lines.append(f"Transcription cost: ${total_transcription_cost:.2f}")
+
+    # Per-jurisdiction summary for high-velocity
+    if schedule == "high_velocity_daily" and analysis["per_jurisdiction"]:
+        lines.append("")
+        for jid, stages in list(analysis["per_jurisdiction"].items())[:5]:
+            stage_parts = []
+            for stage_name, stage_result in stages.items():
+                if stage_result.get("status") == "failed":
+                    stage_parts.append(f"{stage_name}: FAILED")
+                else:
+                    metric = _stage_metric(stage_name, stage_result)
+                    stage_parts.append(f"{stage_name}: {metric}")
+            lines.append(f"{jid}: {', '.join(stage_parts)}")
+
+    # Global stages for low-velocity
+    if schedule == "low_velocity_weekly" and analysis["global_stages"]:
+        lines.append("")
+        for stage_name, result in analysis["global_stages"].items():
+            if result.get("status") == "failed":
+                lines.append(f"{stage_name}: FAILED - {result.get('error', '')[:60]}")
             else:
-                logger.warning(f"Slack webhook returned status {response.status}")
-                return False
-    except HTTPError as e:
-        logger.error(f"Slack webhook HTTP error: {e.code} - {e.reason}")
-        return False
-    except URLError as e:
-        logger.error(f"Slack webhook URL error: {e.reason}")
-        return False
-    except Exception as e:
-        logger.error(f"Failed to send pipeline summary to Slack: {e}")
-        return False
+                metric = _global_stage_metric(stage_name, result)
+                lines.append(f"{stage_name}: {metric}")
+
+    # Failed stages detail
+    if failed_stages:
+        lines.append("")
+        lines.append("FAILURES:")
+        for fs in failed_stages[:5]:
+            lines.append(f"  {fs['stage']}: {fs['error'][:80]}")
+
+    # Anomalies
+    if anomalies:
+        lines.append("")
+        lines.append("ANOMALIES:")
+        for a in anomalies[:5]:
+            lines.append(f"  {a}")
+
+    return "\n".join(lines)
 
 
 def send_pipeline_summary(
@@ -357,27 +241,53 @@ def send_pipeline_summary(
         schedule: "high_velocity_daily" or "low_velocity_weekly".
         elapsed_seconds: Total pipeline runtime in seconds.
         total_transcription_cost: Total transcription cost in USD (high-velocity).
-        webhook_url: Slack webhook URL override (default: from env).
+        webhook_url: Deprecated. Use CIVICOS_NTFY_TOPIC or CIVICOS_SLACK_WEBHOOK_URL env vars.
 
     Returns:
         Dictionary with success status and analysis summary.
     """
-    url = webhook_url or os.environ.get("CIVICOS_SLACK_WEBHOOK_URL", "")
-
     analysis = _analyze_results(results, schedule)
-    blocks, fallback = _build_slack_blocks(
-        analysis, schedule, elapsed_seconds, total_transcription_cost,
-    )
 
-    sent = False
-    if url:
-        sent = _send_slack(url, blocks, fallback)
+    succeeded = analysis["stages_succeeded"]
+    failed = analysis["stages_failed"]
+    total = succeeded + failed
+    anomalies = analysis["anomalies"]
+
+    # Determine status and notification priority
+    if failed == 0 and not anomalies:
+        status_text = "All stages passed"
+        priority = Priority.DEFAULT
+        tags = ["white_check_mark", "pipeline"]
+    elif failed > 0 and succeeded == 0:
+        status_text = "ALL STAGES FAILED"
+        priority = Priority.URGENT
+        tags = ["red_circle", "pipeline"]
+    elif failed > 0:
+        status_text = f"{failed} stage(s) failed"
+        priority = Priority.HIGH
+        tags = ["warning", "pipeline"]
     else:
-        logger.warning(
-            f"Pipeline summary (no webhook configured): "
-            f"{analysis['stages_succeeded']}/{analysis['stages_succeeded'] + analysis['stages_failed']} "
-            f"stages passed, {len(analysis['anomalies'])} anomalies"
-        )
+        status_text = "Passed with anomalies"
+        priority = Priority.HIGH
+        tags = ["large_yellow_circle", "pipeline"]
+
+    schedule_label = {
+        "high_velocity_daily": "Daily High-Velocity",
+        "low_velocity_weekly": "Weekly Low-Velocity",
+    }.get(schedule, schedule)
+
+    title = f"Pipeline: {schedule_label} - {status_text}"
+    body = _build_summary_text(analysis, schedule, elapsed_seconds, total_transcription_cost)
+
+    # Send via generic notification dispatch
+    # Legacy webhook_url param is ignored - use env vars instead
+    sent = send_notification(
+        title=title,
+        body=body,
+        priority=priority,
+        tags=tags,
+        click_url="https://modal.com/apps",
+    )
 
     return {
         "notification_sent": sent,

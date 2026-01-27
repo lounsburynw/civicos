@@ -41,7 +41,7 @@ Setup:
        modal secret create civic-legiscan LEGISCAN_API_KEY="..."
        modal secret create civic-assemblyai ASSEMBLYAI_API_KEY="..."
        modal secret create civic-google GOOGLE_API_KEY="..."  # For YouTube, elections, geocoding
-       modal secret create civic-slack CIVICOS_SLACK_WEBHOOK_URL="https://hooks.slack.com/services/..."  # Pipeline notifications
+       modal secret create civic-notify CIVICOS_NTFY_TOPIC="civicos-admin-XXXX"  # Push notifications (ntfy)
     4. Run: modal run scripts/modal_ingest.py --all
     5. Deploy for scheduled runs: modal deploy scripts/modal_ingest.py
 
@@ -2903,7 +2903,7 @@ def extract_transcripts(
         modal.Secret.from_name("civic-db"),
         modal.Secret.from_name("civic-legiscan"),
         modal.Secret.from_name("civic-openai"),  # For LLM extraction (agenda, decisions)
-        modal.Secret.from_name("civic-slack"),  # Pipeline summary webhook
+        modal.Secret.from_name("civic-notify"),  # Push notifications (ntfy or legacy Slack)
     ],
     memory=4096,
     timeout=14400,  # 4 hours
@@ -3087,7 +3087,7 @@ def scheduled_low_velocity_refresh():
         modal.Secret.from_name("civic-youtube-cookies"),  # For YouTube audio download
         modal.Secret.from_name("civic-youtube-proxy"),  # Residential proxy for YouTube downloads
         modal.Secret.from_name("civic-openai"),  # For speaker estimation + agenda extraction
-        modal.Secret.from_name("civic-slack"),  # Pipeline summary webhook
+        modal.Secret.from_name("civic-notify"),  # Push notifications (ntfy or legacy Slack)
     ],
     memory=4096,
     timeout=10800,  # 3 hours (transcription can take time)
