@@ -177,7 +177,7 @@ class SeeclickfixProvider:
             return issues
 
         try:
-            from civicos.issues.classify import classify_issue_types_batch
+            from civicos_services.issues.classifier import classify_issue_types_batch
 
             batch_input = [
                 {

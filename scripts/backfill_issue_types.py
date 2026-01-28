@@ -46,7 +46,8 @@ def backfill_issue_types(
     Classify and update issue_type for all issues with unclassified types.
     """
     import psycopg2
-    from civicos.issues.classify import classify_issue_types_batch, ISSUE_TYPE_TAXONOMY
+    from civicos.issues.classify import ISSUE_TYPE_TAXONOMY
+    from civicos_services.issues.classifier import classify_issue_types_batch
 
     conn = psycopg2.connect(os.environ["DATABASE_URL"])
     cur = conn.cursor()
