@@ -571,11 +571,11 @@
         ]
       },
       "voting_record_semantic_search": {
-        "status": "ready",
+        "status": "not_ready",
         "priority": 1,
         "artifact": "get_voting_record() finds semantically related votes",
         "description": "Update get_voting_record() to use semantic topic matching instead of exact array match. 'housing affordability' would also find votes on 'zoning', 'development', 'density'.",
-        "note": "Session 540: Current implementation in civicos.py:973-977 uses exact topic array match. Vector search on decision titles/summaries would improve recall.",
+        "note": "Session 540: Current implementation in civicos.py:973-977 uses exact topic array match. Vector search on decision titles/summaries would improve recall. | REOPENED Session 529: MCP audit shows 0 votes for Kate Colin. Roll call data not ingested or search not finding it.",
         "depends_on": [
           "hybrid_what_applies"
         ]
@@ -759,11 +759,11 @@
         }
       ],
       "upcoming_meetings_ingestion": {
-        "status": "ready",
-        "priority": 2,
+        "status": "not_ready",
+        "priority": 1,
         "artifact": "Future-dated meetings in database for whats_next() queries",
         "description": "Scrape and ingest San Rafael's upcoming meeting calendar so whats_next() returns future meetings.",
-        "note": "Session 540: Fixed whats_next() to query from start-of-today (not current time) so meetings without specific times show up. ProudCity scraper working correctly. San Rafael only publishes meetings close to date - as of Jan 21 2026, only today's PAAC meeting is in future. Modal fetch_meetings() ready for scheduled refresh.",
+        "note": "Session 540: Fixed whats_next() to query from start-of-today (not current time) so meetings without specific times show up. ProudCity scraper working correctly. San Rafael only publishes meetings close to date - as of Jan 21 2026, only today's PAAC meeting is in future. Modal fetch_meetings() ready for scheduled refresh. | REOPENED Session 529: MCP audit shows 0 upcoming meetings. _meetings_are_historical flag confirms staleness. Pipeline not producing current data.",
         "subtasks_completed": [
           "Identify San Rafael meeting calendar source (ProudCity website) - DONE",
           "Add upcoming meeting scraper to modal_ingest.py - EXISTS (fetch_meetings)",
@@ -1820,6 +1820,13 @@
         "priority": 2,
         "artifact": "GET /api/admin/assemblyai-usage endpoint",
         "note": "Shows transcript count, total minutes, and estimated cost ($0.02/min) for current month or last 30 days. Results cached 1 hour. Session 515."
+      },
+      "geocoding_production_config": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "GOOGLE_MAPS_API_KEY set as Fly.io secret for production MCP server",
+        "description": "find_issues_near_address() fails in production: GOOGLE_MAPS_API_KEY not set. Key works locally but is not configured as a Fly.io secret.",
+        "note": "Session 529: MCP audit flagged geolocation as 0/10. Fix: fly secrets set GOOGLE_MAPS_API_KEY=xxx --app civicos-mcp"
       }
     },
     "developer_tooling": {
@@ -2075,7 +2082,7 @@
         "description": "YouTube blocks audio downloads from Modal's datacenter IPs (ERROR: The downloaded file is empty). Cookies alone don't fix it. Explore residential proxy or alternative IP solutions: (1) Modal proxy egress or residential IP add-on, (2) third-party residential proxy (e.g. Bright Data, Oxylabs) routed via yt-dlp --proxy, (3) yt-dlp PO token / OAuth approach, (4) alternative download methods (youtube-po-token, Piped API). Goal: extract_transcripts() downloads audio reliably on Modal without manual local download step. SOLUTION: DataImpulse residential proxy ($5/GB trial) configured as civic-youtube-proxy Modal secret. yt-dlp --proxy routes through rotating residential IPs. All 4 Jan 20-22 videos downloaded and transcribed. Also added straggler sweep for failed transcriptions outside the since_days window."
       },
       "speaker_diarization_optimization": {
-        "status": "ready",
+        "status": "not_ready",
         "priority": 1,
         "artifact": "Transcription pipeline uses per-meeting speaker estimation instead of hardcoded min=5/max=10",
         "description": "Integrate speaker estimation into the transcription pipeline. Sessions 108-109 proved that hardcoded min_speakers=5, max_speakers=10 causes fatal under-segmentation (only 5 speakers detected in 40-50 speaker meetings). Exact-count approach (min=N, max=N) validated: recovered all speakers. Three estimation scripts exist but are disconnected: estimate_speakers_from_youtube.py, estimate_speakers_llm.py, extract_all_speakers.py. Wire estimation into transcribe.py and modal_ingest.py extract_transcripts(). Over-segmentation is recoverable; under-segmentation is not.",
@@ -2098,7 +2105,7 @@
           }
         ],
         "test_file": "packages/civicos/tests/test_civicos.py",
-        "note": "Session 109 validated exact-count hypothesis: min=50/max=50 achieved 100% speaker separation vs 5 speakers with defaults. See data/pilot/exact_count_experiment_results.md, data/pilot/diarization_strategy_comparison.md, data/pilot/assemblyai_speaker_parameter_experiment.md."
+        "note": "Session 109 validated exact-count hypothesis: min=50/max=50 achieved 100% speaker separation vs 5 speakers with defaults. See data/pilot/exact_count_experiment_results.md, data/pilot/diarization_strategy_comparison.md, data/pilot/assemblyai_speaker_parameter_experiment.md. | REOPENED Session 529: MCP audit shows speakers labeled as single letters (A, B, AF) and None. Parameter tuning validated but production transcripts still lack real names."
       },
       "_completed_items": [
         {
@@ -2296,6 +2303,13 @@
         "artifact": "Generate action documents from retrieval context",
         "description": "Generate: appeal letters (with legal citations), FOIA/CPRA requests (with specific record references), public comment drafts (with precedent citations), initiative descriptions (with neighbor context).",
         "note": "Session 489: compose_public_comment exists but lacks retrieval-informed citations. Extend to other document types."
+      },
+      "regulatory_result_dedup": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "search_regulatory_stack() deduplicates local code results",
+        "description": "MCP audit shows same municipal code section (e.g. 14.03.030) appearing 5x in local regulatory results. Need dedup logic in search_regulatory_stack() local section formatting.",
+        "note": "Session 529: MCP audit flagged regulatory stack at 7/10 due to duplicate local results."
       }
     },
     "city_status_dashboard": {
