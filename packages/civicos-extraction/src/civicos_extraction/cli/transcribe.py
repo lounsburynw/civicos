@@ -267,6 +267,7 @@ def find_audio_files(
                 if videos:
                     # Filter to videos that have audio in R2
                     audio_videos = []
+                    seen_ids = set()
                     for video in videos:
                         video_id = video.get("id") or video.get("video_id")
                         if video_id:
@@ -275,6 +276,26 @@ def find_audio_files(
                                 # Add video_id to the dict for consistency
                                 video["video_id"] = video_id
                                 audio_videos.append(video)
+                                seen_ids.add(video_id)
+
+                    # Also include un-transcribed videos from any time period.
+                    # This catches videos where download succeeded but transcription
+                    # failed and the since_days window has elapsed (e.g., proxy
+                    # timeouts that persisted beyond the retry window).
+                    if since_days is not None:
+                        all_videos = backend.get_videos(jurisdiction_id, meeting_type=meeting_type)
+                        stragglers = 0
+                        for video in all_videos:
+                            video_id = video.get("id") or video.get("video_id")
+                            if video_id and video_id not in seen_ids:
+                                r2_key = f"audio/{jurisdiction_id}/{video_id}.mp3"
+                                if blob.exists(r2_key) and not transcript_exists_in_cloud(video_id):
+                                    video["video_id"] = video_id
+                                    audio_videos.append(video)
+                                    seen_ids.add(video_id)
+                                    stragglers += 1
+                        if stragglers > 0:
+                            logger.info(f"  Found {stragglers} un-transcribed videos outside since_days window")
 
                     if audio_videos:
                         logger.info(

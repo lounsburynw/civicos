@@ -122,6 +122,11 @@ def add_audio_parser(subparsers: argparse._SubParsersAction) -> None:
         action="store_true",
         help="Store audio in cloud storage (requires BLOB_STORAGE_URL)",
     )
+    parser.add_argument(
+        "--proxy",
+        default=None,
+        help="Proxy URL for yt-dlp (e.g., http://user:pass@host:port)",
+    )
 
 
 def run_audio(args: argparse.Namespace) -> int:
@@ -151,6 +156,7 @@ def run_audio(args: argparse.Namespace) -> int:
             limit=args.limit,
             quality=args.quality,
             cloud=args.cloud,
+            proxy=args.proxy,
         )
 
         if results is None and not args.dry_run:
@@ -164,6 +170,7 @@ def load_videos(
     input_dir: str,
     cloud: bool = False,
     meeting_type: Optional[str] = None,
+    since_days: Optional[int] = None,
 ) -> Optional[List[Dict]]:
     """
     Load videos from cloud storage or local JSON file.
@@ -173,6 +180,7 @@ def load_videos(
         input_dir: Directory containing the videos JSON (fallback)
         cloud: If True, try cloud storage first
         meeting_type: Filter by meeting type (e.g., "planning_commission")
+        since_days: Only return videos discovered within this many days
 
     Returns:
         List of video dicts or None if not found
@@ -184,11 +192,12 @@ def load_videos(
 
             backend = get_storage_backend()
             if backend.backend_type == "postgres":
-                videos = backend.get_videos(jurisdiction_id, meeting_type=meeting_type)
+                videos = backend.get_videos(jurisdiction_id, meeting_type=meeting_type, since_days=since_days)
                 if videos:
                     type_msg = f" (meeting_type={meeting_type})" if meeting_type else ""
+                    since_msg = f", since_days={since_days}" if since_days else ""
                     logger.info(
-                        f"Loaded {len(videos)} videos from cloud storage ({backend.backend_type}){type_msg}"
+                        f"Loaded {len(videos)} videos from cloud storage ({backend.backend_type}){type_msg}{since_msg}"
                     )
                     return videos
                 else:
@@ -250,6 +259,7 @@ def download_audio(
     quality: str = "128",
     cloud: bool = False,
     jurisdiction_id: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> DownloadResult:
     """
     Download audio from a YouTube video using yt-dlp.
@@ -261,6 +271,7 @@ def download_audio(
         quality: Audio quality in kbps
         cloud: If True, upload to R2 cloud storage
         jurisdiction_id: Jurisdiction ID for cloud storage key
+        proxy: Proxy URL for yt-dlp (e.g., "http://user:pass@host:port")
 
     Returns:
         DownloadResult with status and details
@@ -330,6 +341,11 @@ def download_audio(
             ydl_opts["cookiefile"] = cookies_file
             logger.debug(f"  Using cookies from: {cookies_file}")
 
+        # Add proxy if provided (residential proxy to bypass datacenter IP blocks)
+        if proxy:
+            ydl_opts["proxy"] = proxy
+            logger.debug(f"  Using proxy: {proxy.split('@')[-1]}")
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             duration_mins = info.get("duration", 0) // 60
@@ -391,6 +407,8 @@ def run_audio_download(
     quality: str = "128",
     cloud: bool = False,
     meeting_type: Optional[str] = None,
+    since_days: Optional[int] = None,
+    proxy: Optional[str] = None,
 ) -> Optional[List[DownloadResult]]:
     """
     Run audio download for videos from a jurisdiction.
@@ -406,6 +424,8 @@ def run_audio_download(
         quality: Audio quality in kbps
         cloud: If True, upload audio to R2 cloud storage
         meeting_type: Filter by meeting type (e.g., "planning_commission")
+        since_days: Only process videos discovered within this many days
+        proxy: Proxy URL for yt-dlp (e.g., "http://user:pass@host:port")
 
     Returns:
         List of DownloadResult if successful, None if failed
@@ -417,8 +437,13 @@ def run_audio_download(
     if cloud or os.environ.get("BLOB_STORAGE_URL"):
         logger.info("Cloud storage mode enabled")
 
+    if proxy:
+        # Log proxy host without credentials
+        proxy_display = proxy.split("@")[-1] if "@" in proxy else proxy
+        logger.info(f"Using proxy: {proxy_display}")
+
     # Load videos (tries cloud first if enabled)
-    videos = load_videos(jurisdiction_id, input_dir, cloud=cloud, meeting_type=meeting_type)
+    videos = load_videos(jurisdiction_id, input_dir, cloud=cloud, meeting_type=meeting_type, since_days=since_days)
     if not videos:
         return None
 
@@ -503,6 +528,7 @@ def run_audio_download(
             quality,
             cloud=cloud,
             jurisdiction_id=jurisdiction_id,
+            proxy=proxy,
         )
         results.append(result)
 

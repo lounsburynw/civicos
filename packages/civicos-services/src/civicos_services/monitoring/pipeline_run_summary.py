@@ -115,6 +115,15 @@ def _analyze_results(
         if leg and leg.get("bills_stored", 0) == 0 and leg.get("status") != "failed":
             anomalies.append("CA legislation: 0 bills stored (possible API issue)")
 
+        fed = global_stages.get("federal_programs", {})
+        if fed and fed.get("programs_stored", 0) == 0 and fed.get("status") != "failed":
+            anomalies.append("Federal programs: 0 programs stored (possible SAM.gov API issue)")
+
+        for jid, stages in per_jurisdiction.items():
+            muni = stages.get("municipal_code", {})
+            if muni and muni.get("sections_stored", 0) == 0 and muni.get("status") != "failed":
+                anomalies.append(f"{jid}: 0 municipal code sections (possible Municode API issue)")
+
     # All stages failed is itself an anomaly
     if stages_succeeded == 0 and stages_failed > 0:
         anomalies.append("ALL stages failed - investigate immediately")
@@ -209,6 +218,19 @@ def _build_summary_text(
             else:
                 metric = _global_stage_metric(stage_name, result)
                 lines.append(f"{stage_name}: {metric}")
+
+    # Per-jurisdiction summary for low-velocity
+    if schedule == "low_velocity_weekly" and analysis["per_jurisdiction"]:
+        lines.append("")
+        for jid, stages in list(analysis["per_jurisdiction"].items())[:5]:
+            stage_parts = []
+            for stage_name, stage_result in stages.items():
+                if stage_result.get("status") == "failed":
+                    stage_parts.append(f"{stage_name}: FAILED")
+                else:
+                    metric = _stage_metric(stage_name, stage_result)
+                    stage_parts.append(f"{stage_name}: {metric}")
+            lines.append(f"{jid}: {', '.join(stage_parts)}")
 
     # Failed stages detail
     if failed_stages:

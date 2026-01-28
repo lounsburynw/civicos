@@ -8,7 +8,7 @@ Part of the 4-stage pipeline: discover -> ingest -> store -> index.
 
 import json
 import time
-from datetime import datetime, date, timezone
+from datetime import datetime, date, timedelta, timezone
 from io import StringIO
 from typing import Any, Dict, List, Optional
 
@@ -1498,7 +1498,7 @@ class PostgresBackend:
         Raises:
             psycopg2.Error: If atomic store operation fails
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
 
         conn = self._get_connection()
         self._ensure_schema(conn)
@@ -1660,7 +1660,7 @@ class PostgresBackend:
         Returns:
             List of meeting dictionaries ready for indexing
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         # Use RealDictCursor for dict-like row access
@@ -2216,7 +2216,7 @@ class PostgresBackend:
         Raises:
             psycopg2.Error: If atomic store operation fails
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
 
         conn = self._get_connection()
         self._ensure_schema(conn)
@@ -2302,7 +2302,7 @@ class PostgresBackend:
         Returns:
             List of decision dictionaries
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -2404,7 +2404,7 @@ class PostgresBackend:
         Raises:
             psycopg2.Error: If atomic store operation fails
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
 
         conn = self._get_connection()
         self._ensure_schema(conn)
@@ -2481,7 +2481,7 @@ class PostgresBackend:
         Returns:
             List of agenda item dictionaries
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -2601,7 +2601,7 @@ class PostgresBackend:
         Raises:
             psycopg2.Error: If atomic store operation fails
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
 
         conn = self._get_connection()
         self._ensure_schema(conn)
@@ -2699,7 +2699,7 @@ class PostgresBackend:
         Returns:
             List of chunk dictionaries
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -2801,7 +2801,7 @@ class PostgresBackend:
         Raises:
             psycopg2.Error: If atomic store operation fails
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
 
         conn = self._get_connection()
         self._ensure_schema(conn)
@@ -2891,6 +2891,7 @@ class PostgresBackend:
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
         meeting_type: Optional[str] = None,
+        since_days: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve videos with temporal filtering.
@@ -2900,11 +2901,12 @@ class PostgresBackend:
             as_of: Point-in-time query (for temporal versioning)
             limit: Maximum number of videos to return
             meeting_type: Filter by meeting type (uses videos.meeting_type column)
+            since_days: Only return videos discovered within this many days
 
         Returns:
             List of video dictionaries
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -2922,6 +2924,11 @@ class PostgresBackend:
         if meeting_type:
             query += " AND meeting_type = %s"
             params.append(meeting_type)
+
+        if since_days is not None:
+            cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=since_days)
+            query += " AND discovered_at >= %s"
+            params.append(cutoff.isoformat())
 
         query += " ORDER BY discovered_at DESC"
 
@@ -3026,7 +3033,7 @@ class PostgresBackend:
         Raises:
             psycopg2.Error: If atomic store operation fails
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
 
         conn = self._get_connection()
         self._ensure_schema(conn)
@@ -3144,7 +3151,7 @@ class PostgresBackend:
         Returns:
             List of transcript dictionaries
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -3199,7 +3206,7 @@ class PostgresBackend:
         Returns:
             Transcript dictionary or None if not found
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -3336,7 +3343,7 @@ class PostgresBackend:
         Raises:
             psycopg2.Error: If atomic store operation fails
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
 
         conn = self._get_connection()
         self._ensure_schema(conn)
@@ -3427,7 +3434,7 @@ class PostgresBackend:
         Returns:
             List of section dictionaries
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -3486,7 +3493,7 @@ class PostgresBackend:
         Returns:
             Section dictionary or None if not found
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -3565,7 +3572,7 @@ class PostgresBackend:
         Raises:
             psycopg2.Error: If atomic store operation fails
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
 
         conn = self._get_connection()
         self._ensure_schema(conn)
@@ -3696,7 +3703,7 @@ class PostgresBackend:
         Returns:
             List of issue dictionaries
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -4377,7 +4384,7 @@ class PostgresBackend:
         Raises:
             psycopg2.Error: If atomic store operation fails
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
 
         conn = self._get_connection()
         self._ensure_schema(conn)
@@ -4534,7 +4541,7 @@ class PostgresBackend:
         Returns:
             List of bill dictionaries
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -4608,7 +4615,7 @@ class PostgresBackend:
         Returns:
             Bill dictionary or None if not found
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -4670,7 +4677,7 @@ class PostgresBackend:
         if not bill_ids:
             return {}
 
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -4861,7 +4868,7 @@ class PostgresBackend:
         Raises:
             psycopg2.Error: If store operation fails
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         as_of_str = as_of.isoformat()
 
         conn = self._get_connection()
@@ -4917,6 +4924,7 @@ class PostgresBackend:
                                 line_parts.append("\\N")
                             else:
                                 s = str(val)
+                                s = s.replace("\x00", "")  # Remove null bytes (PostgreSQL rejects them)
                                 s = s.replace("\\", "\\\\")
                                 s = s.replace("\t", "\\t")
                                 s = s.replace("\n", "\\n")
@@ -5026,7 +5034,7 @@ class PostgresBackend:
         Returns:
             List of section dictionaries
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -5279,6 +5287,7 @@ class PostgresBackend:
                                 line_parts.append("\\N")
                             else:
                                 s = str(val)
+                                s = s.replace("\x00", "")  # Remove null bytes (PostgreSQL rejects them)
                                 s = s.replace("\\", "\\\\")
                                 s = s.replace("\t", "\\t")
                                 s = s.replace("\n", "\\n")
@@ -5669,7 +5678,7 @@ class PostgresBackend:
         # Normalize jurisdiction to canonical form (e.g., "san-rafael" -> "city-san-rafael")
         jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
 
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         as_of_str = as_of.isoformat()
 
         conn = self._get_connection()
@@ -5731,6 +5740,7 @@ class PostgresBackend:
                                 line_parts.append("\\N")
                             else:
                                 s = str(val)
+                                s = s.replace("\x00", "")  # Remove null bytes (PostgreSQL rejects them)
                                 s = s.replace("\\", "\\\\")
                                 s = s.replace("\t", "\\t")
                                 s = s.replace("\n", "\\n")
@@ -5851,7 +5861,7 @@ class PostgresBackend:
         # Normalize jurisdiction to canonical form
         jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
 
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -5926,7 +5936,7 @@ class PostgresBackend:
         Returns:
             List of summary dictionaries with group name and totals
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -6023,7 +6033,7 @@ class PostgresBackend:
         # Normalize jurisdiction to canonical form (e.g., "san-rafael" -> "city-san-rafael")
         jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
 
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         as_of_str = as_of.isoformat()
 
         conn = self._get_connection()
@@ -6132,7 +6142,7 @@ class PostgresBackend:
         # Normalize jurisdiction to canonical form
         jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
 
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -6237,7 +6247,7 @@ class PostgresBackend:
         # Normalize jurisdiction to canonical form
         jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
 
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         as_of_str = as_of.isoformat()
 
         conn = self._get_connection()
@@ -6366,7 +6376,7 @@ class PostgresBackend:
         # Normalize jurisdiction to canonical form
         jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
 
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -6497,7 +6507,7 @@ class PostgresBackend:
         # Normalize jurisdiction to canonical form (e.g., "san-rafael" -> "city-san-rafael")
         jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
 
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         as_of_str = as_of.isoformat()
 
         conn = self._get_connection()
@@ -6618,7 +6628,7 @@ class PostgresBackend:
         # Normalize jurisdiction to canonical form
         jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
 
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -6729,7 +6739,7 @@ class PostgresBackend:
         # Normalize jurisdiction to canonical form (e.g., "san-rafael" -> "city-san-rafael")
         jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
 
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         as_of_str = as_of.isoformat()
 
         conn = self._get_connection()
@@ -6840,7 +6850,7 @@ class PostgresBackend:
         # Normalize jurisdiction to canonical form
         jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
 
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -6980,7 +6990,7 @@ class PostgresBackend:
 
         # Normalize jurisdiction to canonical form
         jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
 
         conn = self._get_connection()
         self._ensure_schema(conn)
@@ -7060,7 +7070,7 @@ class PostgresBackend:
         """
         # Normalize jurisdiction to canonical form
         jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
 
         conn = self._get_connection()
         self._ensure_schema(conn)
@@ -7135,7 +7145,7 @@ class PostgresBackend:
         if not deadlines:
             return 0
 
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
 
         conn = self._get_connection()
         self._ensure_schema(conn)
@@ -7185,7 +7195,7 @@ class PostgresBackend:
         """
         Retrieve deadlines for an election.
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
 
         conn = self._get_connection()
         self._ensure_schema(conn)
@@ -7220,7 +7230,7 @@ class PostgresBackend:
         if not contests:
             return 0
 
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
 
         conn = self._get_connection()
         self._ensure_schema(conn)
@@ -7283,7 +7293,7 @@ class PostgresBackend:
         """
         Retrieve contests for an election.
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
 
         conn = self._get_connection()
         self._ensure_schema(conn)
@@ -7533,7 +7543,7 @@ class PostgresBackend:
         if not programs:
             return 0
 
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         as_of_str = as_of.isoformat()
 
         conn = self._get_connection()
@@ -7631,7 +7641,7 @@ class PostgresBackend:
         Returns:
             List of program dictionaries
         """
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         conn = self._get_connection()
         self._ensure_schema(conn)
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -7785,7 +7795,7 @@ class PostgresBackend:
 
         # Normalize jurisdiction to canonical form
         jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
         as_of_str = as_of.isoformat()
 
         conn = self._get_connection()
@@ -7893,7 +7903,7 @@ class PostgresBackend:
         """
         # Normalize jurisdiction
         jurisdiction_id = normalize_jurisdiction(jurisdiction_id)
-        as_of = as_of or datetime.now()
+        as_of = as_of or datetime.now(timezone.utc).replace(tzinfo=None)
 
         conn = self._get_connection()
         self._ensure_schema(conn)
