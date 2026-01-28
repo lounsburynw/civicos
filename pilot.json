@@ -1297,11 +1297,11 @@
         ]
       },
       "video_meeting_schema_alignment": {
-        "status": "ready",
+        "status": "not_ready",
         "priority": 1,
         "description": "Align video-meeting schema: populate meetings.video_url, videos.meeting_url, add video_id to transcript vectors",
         "artifact": "PgVectorBackend.index_from_storage video\u2192meeting lookup for transcripts",
-        "note": "Session 525 COMPLETE: Modified index_from_storage to build video_id\u2192meeting_id lookup from videos table when indexing transcripts. Now uses actual meeting_id instead of video_id (falls back to video_id for unlinked videos). Also ran youtube discovery to populate videos.meeting_url for 31 videos (26 now have meeting_id). Re-indexing transcripts will apply the fix.",
+        "note": "Session 525 COMPLETE: Modified index_from_storage to build video_id\u2192meeting_id lookup from videos table when indexing transcripts. Now uses actual meeting_id instead of video_id (falls back to video_id for unlinked videos). Also ran youtube discovery to populate videos.meeting_url for 31 videos (26 now have meeting_id). Re-indexing transcripts will apply the fix. MCP audit (Jan 2026): YouTube URLs in MCP tool responses still use meeting slugs (proudcity-city-san-rafael-...) instead of actual YouTube video IDs (wm33kueyz1Y). The video_id\u2192meeting_id fix addressed internal indexing but video_id metadata in transcript embeddings may still contain slugs, not YouTube IDs. Needs: (1) verify what video_id is stored in transcript vector metadata, (2) ensure HybridSearchResult.video_url generates correct YouTube URLs, (3) may need transcript re-indexing.",
         "key_files": [
           "packages/civic/src/civic/storage/pgvector_backend.py:772-785"
         ]
