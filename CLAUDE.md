@@ -174,6 +174,7 @@ Read only when needed. Organized by purpose:
 |-----|---------|
 | `FINAL_PACKAGE_ARCHITECTURE.md` | **Master architecture** - API, LangGraph, coordination, error handling |
 | `FOCAL_POINT_DECISION_AWARENESS.md` | Core hypothesis - why civic coordination works |
+| `COORDINATION_PROTOCOL.md` | Permissionless coordination - relay, voice, edge intelligence |
 | `MCP_INTEGRATION_STRATEGY.md` | MCP server + multi-platform distribution (Claude.ai, ChatGPT, web) |
 | `CIVIC_DASHBOARD_VISION.md` | Post-pilot UX vision - engagement ladder, data visualization, multi-surface rendering |
 | `VECTOR_RAG_SCHEMA.md` | Vector storage schema, corpus types |
