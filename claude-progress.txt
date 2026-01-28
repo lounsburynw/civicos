@@ -1,3 +1,42 @@
+## Session 525: MCP Audit Fix — Agenda Packet Search + HNSW Vector Index
+
+**Date:** 2026-01-28
+**Item:** MCP audit response (search_agenda_packets fix, vector index optimization)
+**Priority:** P0 (user-driven from MCP audit)
+
+### What Was Done
+
+1. **Fixed search_agenda_packets() returning empty results**
+   - Root cause: `_search_hybrid()` in history.py only queried local ChromaDB, never pgvector
+   - PostgreSQL had 5,084 chunk embeddings that were unreachable
+   - Added `_search_hybrid_pgvector()` helper following `_search_transcripts_pgvector()` pattern
+   - Threaded `vector_backend` parameter through `search_hybrid()` → `_search_hybrid()` with ChromaDB fallback
+   - Wired `self._vectors` in `what_happened_with_discussion()` (civicos.py:575)
+
+2. **Rebuilt pgvector index from IVFFlat to HNSW**
+   - Diagnosed: IVFFlat had lists=12 for 643K vectors (should have been 802)
+   - This caused Supabase Disk IO budget exhaustion (full table scans)
+   - Switched to HNSW (m=16, ef_construction=64) — self-maintaining, no rebuilds needed
+   - Updated `_ensure_schema()` and `search()` in pgvector_backend.py
+   - Temporarily upgraded Supabase to 8XL for index build, then back to Small
+
+3. **Added operational tooling**
+   - `scripts/diagnose_vector_index.py`: diagnose/rebuild pgvector indexes
+   - `scripts/modal_ingest.py`: added `--meetings-days-past` CLI param for backfills
+
+4. **Verified meeting coverage**: 57 meetings Oct 2025 – Jan 2026, no gaps
+
+### Files Modified
+- `packages/civicos/src/civicos/history.py` — `_search_hybrid_pgvector()`, vector_backend threading
+- `packages/civicos/src/civicos/civicos.py` — pass `self._vectors` in `what_happened_with_discussion()`
+- `packages/civicos/src/civicos/storage/pgvector_backend.py` — IVFFlat → HNSW
+- `scripts/diagnose_vector_index.py` (NEW)
+- `scripts/modal_ingest.py` — `--meetings-days-past` param
+- `pilot.json` — P0: city_pulse_mcp_tool
+
+### Next P0
+- `city_pulse_mcp_tool`: Fix city_pulse() display logic (shows stale meetings), blank decision titles, zero timestamps, malformed YouTube URLs per MCP audit
+
 ## Session 523: speaker_diarization_optimization - Pipeline Integration
 
 **Date:** 2026-01-26

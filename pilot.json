@@ -1640,7 +1640,7 @@
       ],
       "pipeline_run_summary_webhook": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Add a webhook notification (Slack/Discord/email) at the end of scheduled_high_velocity_refresh and scheduled_low_velocity_refresh reporting: stages that succeeded/failed, transcription costs, straggler retries, and anomalies (e.g., 0 meetings discovered, all downloads failed). Prevents silent failures from going unnoticed during pilot.",
         "artifact": "Pipeline runs send summary notification after completion with success/failure counts per stage"
       }
@@ -2278,7 +2278,7 @@
       },
       "action_leverage_points": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Surface specific action opportunities based on retrieval context",
         "description": "After retrieval, suggest concrete actions: 'State law preempts this denial - file appeal citing SB9', 'ESG grant deadline in 30 days - contact councilmember', '8 neighbors reported similar issue - start initiative'.",
         "note": "Session 489: Retrieval without action guidance is just research. Transform what_applies() results into actionable next steps."
@@ -2294,11 +2294,11 @@
     "city_status_dashboard": {
       "_doc": "docs/critical/CIVIC_DASHBOARD_VISION.md",
       "city_pulse_mcp_tool": {
-        "status": "ready",
-        "priority": 1,
+        "status": "not_ready",
+        "priority": 0,
         "artifact": "MCP tool returning structured city status data with visualization hints",
         "description": "Add city_pulse(jurisdiction) tool to civicos-mcp that returns: decisions_this_week (from whats_next), recent_outcomes (from what_happened), issue_density_by_area (aggregated issues), participation_metrics (comment counts per meeting), and visualization_hints for rendering. This is the data foundation for all dashboard visualizations.",
-        "note": "Session 542: Implemented. Integrated into get_started() so city pulse is first thing users see. Includes smart fallbacks for historical data.",
+        "note": "Session 542: Implemented. Integrated into get_started() so city pulse is first thing users see. Includes smart fallbacks for historical data. MCP audit (Jan 2026): city_pulse() shows stale Oct 2025 meetings as fallback when upcoming window is sparse. Also: meeting history search returns blank titles/dates, transcript timestamps all 00:00:00, YouTube links use meeting IDs not video IDs.",
         "subtasks": [
           "Design response schema with data + visualization_hints structure",
           "Implement decisions_this_week aggregation",
