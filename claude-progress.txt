@@ -1,3 +1,23 @@
+## Session 529 (2026-01-28) - Action Leverage Points: Surface Bill Status in MCP Tools
+
+**Item:** action_leverage_points (P0)
+**Status:** COMPLETE → ready
+
+### Changes
+1. **search_regulatory_stack()** — Added `status_label` display to state bill formatting (e.g., "SB543: Accessory dwelling units (Passed)"). Also added conditional `requires_local_action` / `local_deadline` rendering for when curated data is restored.
+2. **find_similar_issues()** — Added issue type breakdown to summary (e.g., "Issue types: 19 pothole, 1 sidewalk"). Extended issue storage lookup from 1000→2000 to cover full corpus.
+
+### Architectural Decision (continued from Session 528)
+Adopted **Option D**: Surface only LegiScan-native fields (`status_label`) rather than LLM-generated `leverage_point` text. The `leverage_point` field exists on the schema but current rows have `None` due to the temporal versioning bug (LegiScan re-ingestion superseded curated rows). The formatting code is ready to display `requires_local_action` and `local_deadline` when curated data is eventually restored.
+
+### Key Insight
+The library/librarian separation works: the MCP server now provides bill status context, and the LLM agent can synthesize action guidance from that. No stored advocacy text needed.
+
+### P0 Assignment
+web_dashboard_route (frontend_refinement > city_status_dashboard) — Vue /dashboard page composing city pulse visualizations.
+
+---
+
 ## Session 526: MCP Data Quality — Metadata Backfill + city_pulse Fix
 
 **Date:** 2026-01-28
@@ -16167,3 +16187,24 @@ Implemented LLM-based issue type classification using Claude 3.5 Haiku:
 
 ### Next P0
 - `action_leverage_points`: Surface concrete action opportunities from retrieval context
+
+## Session 528 (2026-01-28) - Action Leverage Points Investigation
+
+**Item:** action_leverage_points (P0)
+**Status:** IN PROGRESS - data fix needed before formatting changes
+
+### Architectural Decision
+Evaluated 4 implementation approaches with 2 independent Plan agents. Both unanimously recommended Option 1: "Surface data only" — no new modules, no new MCP tools, no LLM calls. ~35 lines of formatting changes in civicos_server.py. Aligns with Coordination Protocol's "intelligence at the edges" vision (Library provides data, Librarian agent reasons about actions).
+
+### Key Finding: Temporal Versioning Bug
+The `leverage_point` field exists on 36 curated legislation bills in PostgreSQL, with pre-written action guidance like "Residents can cite SB9 to challenge local denials of lot splits." BUT a LegiScan re-ingestion on 2026-01-27 created new temporal versions of these bill_ids WITHOUT the curated fields, superseding the curated rows.
+
+### Remaining Work (for next session)
+1. Backfill curated leverage_point/local_implementation_required/local_deadline from JSON files into current PostgreSQL rows
+2. Fix upsert_legislation() to preserve curated fields during re-ingestion
+3. Update search_regulatory_stack() formatting to surface leverage fields
+4. Update find_similar_issues() to show issue type breakdown
+5. Mark action_leverage_points as ready
+
+### P0 Assignment
+action_leverage_points remains P0 (already set in pilot.json)
