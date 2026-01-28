@@ -311,26 +311,21 @@ class PgVectorBackend:
             ON {self.TABLE_NAME} (embedding_model)
         """)
 
-        # Create IVFFlat index for fast similarity search
-        # Only create if there are enough rows (IVFFlat needs training data)
-        cursor.execute(f"""
-            SELECT COUNT(*) FROM {self.TABLE_NAME}
-        """)
-        count = cursor.fetchone()[0]
-
-        if count >= 100:
-            # Create IVFFlat index with appropriate list count
-            # Rule of thumb: lists = sqrt(n) for n < 1M, or n/1000 for larger
-            lists = max(10, min(100, int(count ** 0.5)))
-            try:
-                cursor.execute(f"""
-                    CREATE INDEX IF NOT EXISTS idx_{self.TABLE_NAME}_embedding
-                    ON {self.TABLE_NAME} USING ivfflat (embedding vector_cosine_ops)
-                    WITH (lists = {lists})
-                """)
-            except Exception as e:
-                # Index may already exist or fail for other reasons
-                logger.warning(f"Could not create IVFFlat index: {e}")
+        # Create HNSW index for fast similarity search
+        # HNSW is preferred over IVFFlat because:
+        # - Self-maintaining: new inserts are automatically indexed
+        # - No retraining needed as data grows (critical for incremental ingestion)
+        # - Better recall at equivalent speed
+        # - No periodic rebuilds needed when adding cities
+        try:
+            cursor.execute(f"""
+                CREATE INDEX IF NOT EXISTS idx_{self.TABLE_NAME}_embedding_hnsw
+                ON {self.TABLE_NAME} USING hnsw (embedding vector_cosine_ops)
+                WITH (m = 16, ef_construction = 64)
+            """)
+        except Exception as e:
+            # Index may already exist or fail for other reasons
+            logger.warning(f"Could not create HNSW index: {e}")
 
         conn.commit()
         self._schema_ensured = True
@@ -1178,10 +1173,9 @@ class PgVectorBackend:
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        # Configure ivfflat probes for approximate search
-        # Higher probes = better recall at cost of speed
-        # With lists=12, probes=10 ensures good coverage
-        cursor.execute("SET ivfflat.probes = 10")
+        # HNSW search uses ef_search to control recall/speed tradeoff
+        # Default (40) is good for most queries; increase for higher recall
+        cursor.execute("SET hnsw.ef_search = 40")
 
         # Validate model compatibility - vectors from different models can't be compared
         cursor.execute(f"""
