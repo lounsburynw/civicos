@@ -770,18 +770,161 @@ Each question goes one layer deeper. The default experience never requires going
 
 ---
 
+## Agent Ecosystem
+
+The protocol supports multiple agent types beyond individual residents. Different agents participate differently — residents voice and subscribe, journalists monitor and investigate, organizations coordinate and amplify. The protocol doesn't distinguish agent types at the protocol level; the distinction is behavioral.
+
+### Agent Types
+
+**Resident agents** — the primary participant. Subscribe to local relays, voice on initiatives, receive filtered notifications. Intelligence optimized for personal civic relevance.
+
+**Journalist agents** — accountability monitors. Subscribe across multiple jurisdictions, detect anomalies, cross-reference patterns. They observe but do not voice — journalistic neutrality applies to automated agents as much as to reporters.
+
+```
+Journalist agent monitors 20 Bay Area city relays
+
+Detects:
+  "initiative:san-rafael:affordable-housing crossed 45 voices
+   but 30 appeared in a 2-hour window, all first-time keys,
+   no attestations"
+
+Agent calls CivicOS MCP:
+  search_meeting_history("affordable housing")
+  get_voting_record("all", topic="housing")
+  search_agenda_packets("affordable housing developer")
+
+Agent alerts journalist:
+  "Possible astroturfing on San Rafael housing initiative.
+   30 of 45 voices are suspicious (burst pattern, no history).
+   The council votes Monday. Same developer submitted the
+   fiscal impact report. Worth investigating."
+```
+
+No human journalist can monitor 20 cities for patterns like that. Local journalism is dying because individual reporters can't cover the volume. Agentic journalists covering 20 cities through the protocol are an accountability force multiplier.
+
+**Organization agents** — civic organizations, advocacy groups, neighborhood associations. Subscribe to topic-specific events across jurisdictions, coordinate member voices, amplify community concerns. These agents voice on behalf of the organization (with a distinct organizational key).
+
+**City staff agents** — government-side participants. Monitor voice counts and community sentiment on upcoming agenda items. Surface emerging concerns before they reach the council chamber. Do not voice — government observes community coordination, doesn't participate in it.
+
+### Symbiotic Relationships
+
+Agent types benefit from each other's participation:
+
+- **Journalist agents detecting astroturfing** protect residents whose voices would otherwise be diluted by fake participation.
+- **Resident voice counts** give journalists signal about which issues have genuine community energy.
+- **Organization agents amplifying concerns** help residents who care about an issue but wouldn't discover it independently.
+- **City staff agents monitoring sentiment** create a feedback loop where community coordination visibly reaches decision-makers.
+
+The protocol becomes more valuable as the agent ecosystem diversifies. This is a network effect, but one driven by complementary roles rather than homogeneous users.
+
+---
+
+## Economic Model
+
+The protocol is open and permissionless. Resident civic participation is never paywalled. But relay infrastructure costs money to operate, and sustainability requires a revenue model beyond foundation grants.
+
+### Tiered Access
+
+The protocol is free. The *service* — uptime, speed, multi-jurisdiction coverage, real-time feeds, bulk data — can be priced. This is the Red Hat model: Linux is free, enterprise support costs money.
+
+```
+Free (residents):
+  Subscribe to events in your jurisdiction
+  Voice on entities
+  Basic provenance queries
+  Email/SMS notifications
+
+Pro (journalists, civic organizations):
+  Multi-jurisdiction subscriptions (10+ cities)
+  Real-time event feeds (sub-second delivery)
+  Bulk provenance queries
+  Historical voice data and trend analysis
+  Anomaly detection alerts
+  API access with higher rate limits
+
+Enterprise (media organizations, civic tech companies):
+  Full firehose across all hosted jurisdictions
+  Custom federation endpoints
+  SLA guarantees
+  Bulk data export
+  Dedicated support
+```
+
+### Why This Doesn't Compromise Permissionless Properties
+
+- **The protocol is open.** Anyone can run their own relay and access everything for free.
+- **Resident participation is never gated.** Subscribing, voicing, and receiving notifications are free at every relay.
+- **Events, voices, and provenance are public data.** You cannot paywall public civic information.
+- **What's priced is service quality.** Uptime, speed, coverage breadth, bulk access, and convenience — not the underlying data or protocol participation.
+
+Analogy: Gmail charges enterprises while SMTP remains an open protocol. Charging for a well-run email service doesn't make email less open.
+
+### Revenue Potential by Agent Type
+
+| Agent Type | What They Pay For | Value Proposition |
+|-----------|-------------------|-------------------|
+| Journalists | Multi-city monitoring, anomaly detection | Replaces reporter headcount for local coverage |
+| Media orgs | Full firehose, bulk export, SLA | Investigative infrastructure at scale |
+| Civic orgs | Multi-jurisdiction alerts, member coordination | Issue tracking across government levels |
+| Civic tech companies | API access, federation endpoints | Build products on open civic data |
+| Government agencies | Sentiment monitoring, cross-jurisdiction visibility | Community engagement intelligence |
+
+### Sustainability Model
+
+```
+Phase 1 (pilot):
+  Foundation funding → builds protocol, funds initial relays
+  Cost: < $7/month per city
+
+Phase 2 (multi-city):
+  Foundation funding → expansion to new jurisdictions
+  Resident usage → free, proves civic value
+  Early journalist/org users → validates commercial tier
+
+Phase 3 (sustainability):
+  Commercial tier revenue → sustains relay infrastructure
+  Foundation funding → reduced dependency, targeted expansion
+  Revenue reinvested → new jurisdictions, protocol development
+
+Phase 4 (ecosystem):
+  Multiple relay operators → CivicOS runs reference relay
+  Third-party relays → own pricing and service models
+  Protocol is infrastructure → CivicOS is one provider among many
+```
+
+The goal is not to be the only relay operator. The goal is to prove the protocol, run the reference implementation, and let the ecosystem develop. If other organizations run relays — including free ones — that strengthens the protocol, even if it competes with CivicOS's commercial offering.
+
+### Partnership Model
+
+CivicOS provides the coordination protocol (relay, voice, edge intelligence). Civic data backends provide structured government data at scale. This separation enables faster geographic expansion:
+
+```
+CivicOS alone:
+  Protocol + data integration per city
+  Scaling bottleneck: 6 months of data work per jurisdiction
+
+CivicOS + data partner:
+  CivicOS provides: coordination protocol, edge intelligence, MCP server
+  Partner provides: structured civic data across jurisdictions
+  Scaling bottleneck: removed
+```
+
+The protocol is the novel contribution. Civic data extraction is valuable but not unique to CivicOS. Partnerships that leverage existing data infrastructure let CivicOS focus on the coordination layer — the piece nobody else is building.
+
+---
+
 ## Open Questions
 
 - **Voice revocation.** Can you un-voice? If so, does the threshold event un-fire? Recommend: revocation allowed, thresholds only fire upward (no "un-threshold" event).
 
 - **Initiative governance.** Anyone can create initiatives. How do you handle spam, duplicate, or misleading initiatives? Provenance helps (low-provenance creator = less credible initiative) but may not be sufficient.
 
-- **Agent ecosystem.** Who builds and hosts agents for users who don't run Claude Code? This is the accessibility gap — the protocol is permissionless but the tooling needs to meet users where they are.
-
-- **Economic model.** Who pays for relay infrastructure? CivicOS as foundation-funded infrastructure? Cities run their own relays? Community cooperatives? The operational cost is low (< $7/month for a city-scale relay) but the governance matters.
+- **Agent accessibility.** Who builds and hosts agents for users who don't run Claude Code or ChatGPT? The web app and email surfaces address basic access, but full edge intelligence requires an AI agent. As AI assistants become more common, this gap closes — but it's real today.
 
 - **Peering discovery.** How do relays find each other? Manual configuration works at small scale. A lightweight registry (DNS-based? well-known URI?) may be needed for broader federation.
 
 - **Conflict resolution.** If two relays disagree on voice counts for the same entity (due to sync lag or a misbehaving relay), who is authoritative? Recommend: voices are self-verifying (signed), so any relay can independently validate. Disagreements resolve through re-verification, not authority.
 
 - **Special districts.** School districts, water districts, transit authorities don't fit the city/county/state hierarchy cleanly. How do their entities and relays integrate? Likely: they operate relays like any other jurisdiction and peer with relevant geographic relays.
+
+- **Commercial agent ethics.** Should lobbyist or corporate agents be allowed to voice? They can subscribe (public data), but voicing implies civic standing. Provenance transparency helps — a corporate key is identifiable — but the protocol may need norms or guidance on commercial participation beyond transparency.
