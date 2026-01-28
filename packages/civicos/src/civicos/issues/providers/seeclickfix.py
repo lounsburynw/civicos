@@ -125,10 +125,11 @@ class SeeclickfixProvider:
             if raw["media"].get("image_full"):
                 images.append(raw["media"]["image_full"])
 
-        # Extract category/issue type
-        issue_type = ""
+        # Extract raw category name from SeeClickFix (stored in provider_metadata
+        # for traceability; issue_type is set by LLM classifier in _classify_issues)
+        request_type_title = ""
         if raw.get("request_type"):
-            issue_type = raw["request_type"].get("title", "")
+            request_type_title = raw["request_type"].get("title", "")
 
         # Extract reporter name
         reporter_name = None
@@ -142,7 +143,7 @@ class SeeclickfixProvider:
             external_id=str(raw.get("id", "")),
             title=raw.get("summary", ""),
             description=raw.get("description", ""),
-            issue_type=issue_type,
+            issue_type="",  # Set by _classify_issues() after batch fetch
             status=raw.get("status", "open").lower(),
             address=raw.get("address", ""),
             latitude=raw.get("lat"),
@@ -155,6 +156,7 @@ class SeeclickfixProvider:
             provider_metadata={
                 "category_id": raw.get("request_type", {}).get("id"),
                 "organization": raw.get("request_type", {}).get("organization", ""),
+                "request_type": request_type_title,
                 "rating": raw.get("rating", 0),
                 "comment_count": raw.get("comment_count", 0),
                 "html_url": raw.get("html_url"),
@@ -162,6 +164,43 @@ class SeeclickfixProvider:
                 "reopened_at": raw.get("reopened_at"),
             },
         )
+
+    @staticmethod
+    def _classify_issues(issues: List[NormalizedIssue]) -> List[NormalizedIssue]:
+        """
+        Classify issue types using LLM batch classification.
+
+        Mutates issue_type on each NormalizedIssue in-place and returns the list.
+        Falls back gracefully if the classifier is unavailable.
+        """
+        if not issues:
+            return issues
+
+        try:
+            from civicos.issues.classify import classify_issue_types_batch
+
+            batch_input = [
+                {
+                    "id": issue.external_id,
+                    "title": issue.title,
+                    "description": issue.description,
+                }
+                for issue in issues
+            ]
+            classifications = classify_issue_types_batch(batch_input)
+
+            for issue in issues:
+                issue.issue_type = classifications.get(issue.external_id, "other")
+
+            classified = sum(1 for i in issues if i.issue_type != "other")
+            logger.info(f"Classified {classified}/{len(issues)} issues ({len(issues) - classified} as 'other')")
+
+        except ImportError:
+            logger.warning("Issue classifier not available, issue_type will be empty")
+        except Exception as e:
+            logger.error(f"Issue classification failed: {e}")
+
+        return issues
 
     def get_issues(
         self,
@@ -212,7 +251,8 @@ class SeeclickfixProvider:
         else:
             raw_issues = response.get("issues", [])
 
-        return [self._normalize_issue(raw) for raw in raw_issues]
+        issues = [self._normalize_issue(raw) for raw in raw_issues]
+        return self._classify_issues(issues)
 
     def get_issue(self, issue_id: str) -> Optional[NormalizedIssue]:
         """
@@ -227,7 +267,9 @@ class SeeclickfixProvider:
         response = self._make_request(f"issues/{issue_id}")
         if not response:
             return None
-        return self._normalize_issue(response)
+        issue = self._normalize_issue(response)
+        self._classify_issues([issue])
+        return issue
 
     def get_all_issues(
         self,
@@ -238,7 +280,7 @@ class SeeclickfixProvider:
         **kwargs,
     ) -> List[NormalizedIssue]:
         """
-        Fetch all issues with pagination.
+        Fetch all issues with pagination, classifying as a single batch at the end.
 
         Args:
             place_url: City identifier (e.g., "san-rafael")
@@ -248,34 +290,55 @@ class SeeclickfixProvider:
             **kwargs: Additional filters
 
         Returns:
-            List of all NormalizedIssue objects
+            List of all NormalizedIssue objects with classified issue_type
         """
         all_issues: List[NormalizedIssue] = []
         page = 1
 
         while page <= max_pages:
             logger.info(f"Fetching page {page}/{max_pages}...")
-            issues = self.get_issues(
-                place_url=place_url,
-                status=status,
-                per_page=per_page,
-                page=page,
-                **kwargs,
-            )
+            # Fetch raw issues without per-page classification
+            params = {
+                "place_url": place_url,
+                "per_page": min(per_page, 100),
+                "page": page,
+            }
+            if status:
+                params["status"] = status
+            if kwargs.get("lat") and kwargs.get("lng"):
+                params["lat"] = kwargs["lat"]
+                params["lng"] = kwargs["lng"]
+                if kwargs.get("radius"):
+                    params["zoom"] = self._radius_to_zoom(kwargs["radius"])
 
-            if not issues:
+            response = self._make_request("issues", params)
+            if not response:
                 logger.info("No more issues to fetch")
                 break
 
+            if isinstance(response, list):
+                raw_issues = response
+            else:
+                raw_issues = response.get("issues", [])
+
+            if not raw_issues:
+                logger.info("No more issues to fetch")
+                break
+
+            issues = [self._normalize_issue(raw) for raw in raw_issues]
             all_issues.extend(issues)
             logger.info(f"  Fetched {len(issues)} issues (total: {len(all_issues)})")
 
-            # Check if we got a full page (more might exist)
-            if len(issues) < per_page:
+            if len(raw_issues) < per_page:
                 logger.info("Reached last page")
                 break
 
             page += 1
+
+        # Classify all issues in one batch (more efficient than per-page)
+        if all_issues:
+            logger.info(f"Classifying {len(all_issues)} issues...")
+            self._classify_issues(all_issues)
 
         return all_issues
 

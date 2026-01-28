@@ -1,7 +1,7 @@
 {
   "version": "2.0",
   "phase": "pilot",
-  "last_updated": "2026-01-26",
+  "last_updated": "2026-01-28",
   "target": "January 2026",
   "summary": "Consolidated pilot checklist: completed work summarized, active items tracked individually",
   "category_order": [
@@ -663,10 +663,10 @@
         }
       ],
       "issue_type_classification": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "artifact": "LLM-based classification pipeline for 311 issue types",
-        "note": "MCP audit (Jan 2026): 100% of 1,672 SeeClickFix issues classified as Unknown despite clear semantic signals in descriptions (missing cover, no bike lane paint, streetlight bright, parking meter, traffic speed). Breaks find_similar_issues(), trend detection, and neighborhood reports. Options: (1) LLM classification on ingest via Haiku/GPT-4o-mini, (2) backfill existing issues with scripts/backfill_issue_types.py, (3) map SeeClickFix request_type.title field if available in stored data.",
+        "note": "Session 527: Implemented LLM-based issue type classification using Claude Haiku. Created civicos.issues.classify module with 18-type jurisdiction-agnostic taxonomy. Backfilled all 1,678 San Rafael issues. Updated SeeclickfixProvider to auto-classify on ingest. Fixed MCP server to use issue_type field. Distribution: traffic_signal 24%, parking 13%, illegal_dumping 10%, trees 8%, stormwater 7%, etc.",
         "test_file": "packages/civicos/tests/test_civicos.py"
       }
     },
@@ -2285,7 +2285,7 @@
       },
       "action_leverage_points": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Surface specific action opportunities based on retrieval context",
         "description": "After retrieval, suggest concrete actions: 'State law preempts this denial - file appeal citing SB9', 'ESG grant deadline in 30 days - contact councilmember', '8 neighbors reported similar issue - start initiative'.",
         "note": "Session 489: Retrieval without action guidance is just research. Transform what_applies() results into actionable next steps."
