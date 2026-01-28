@@ -16106,3 +16106,64 @@ modal secret create civic-slack CIVICOS_SLACK_WEBHOOK_URL="https://hooks.slack.c
 
 ### Next P0
 - `action_leverage_points`: After retrieval, suggest concrete actions (state law preemptions, grant deadlines, etc.)
+
+## Session 527: Issue Type Classification — LLM-Based Taxonomy
+
+**Date:** 2026-01-28
+**Item:** issue_type_classification (P0)
+**Status:** COMPLETE → ready
+
+### Problem
+All 1,678 SeeClickFix issues had `issue_type = "operational"` (hardcoded in SeeClickFix client). This broke MCP analytics tools (`get_issue_analytics()`, `query_issue_data()`, `detect_trends()`, etc.) which all showed "Unknown: 100%".
+
+### Solution
+Implemented LLM-based issue type classification using Claude 3.5 Haiku:
+
+1. **Created `packages/civicos/src/civicos/issues/classify.py`**
+   - 18-type jurisdiction-agnostic taxonomy (pothole, traffic_signal, parking, graffiti, etc.)
+   - `classify_issue_type()` for single issues
+   - `classify_issue_types_batch()` for efficient batch classification (50 issues/API call)
+   - Total cost for 1,678 issues: ~$0.10
+
+2. **Updated `SeeclickfixProvider` ingestion pipeline**
+   - `_normalize_issue()` stores raw SeeClickFix `request_type.title` in `provider_metadata.request_type` for traceability
+   - `_classify_issues()` runs batch LLM classification after fetch
+   - `get_all_issues()` classifies entire fetch as single batch (more efficient)
+   - Single `get_issue()` also classifies
+
+3. **Rewrote `scripts/backfill_issue_types.py`**
+   - Replaced legacy SQLite-based script with PostgreSQL + LLM classifier
+   - Supports `--dry-run`, `--limit`, `--batch-size`, `--jurisdiction`
+   - Backfilled all 1,678 issues (including 26 legacy `scf-` prefix duplicates)
+
+4. **Fixed MCP server field name bug**
+   - `civicos_server.py` was reading `request_type` instead of `issue_type` throughout (~20 references)
+   - Fixed all `.get('request_type', ...)` → `.get('issue_type', ...)`
+
+### Classification Distribution
+- traffic_signal: 24.3% (408)
+- parking: 12.7% (213)
+- illegal_dumping: 10.1% (170)
+- trees_vegetation: 8.3% (140)
+- stormwater: 7.0% (117)
+- other: 6.9% (116)
+- pothole: 6.5% (109)
+- graffiti: 6.0% (100)
+- parks: 5.2% (88)
+- streetlight: 4.4% (74)
+- sidewalk: 3.8% (64)
+- street_cleaning: 2.5% (42)
+- fire_hazard: 1.0% (16)
+- public_safety: 0.9% (15)
+- water_sewer: 0.2% (4)
+- noise + animal_control: 0.2% (2)
+
+### Files Modified
+- `packages/civicos/src/civicos/issues/classify.py` (NEW)
+- `packages/civicos/src/civicos/issues/providers/seeclickfix.py` (classify on ingest)
+- `apps/civicos-mcp/civicos_server.py` (request_type → issue_type)
+- `scripts/backfill_issue_types.py` (rewritten for PostgreSQL + LLM)
+- `pilot.json` (issue_type_classification: ready, new P0: action_leverage_points)
+
+### Next P0
+- `action_leverage_points`: Surface concrete action opportunities from retrieval context

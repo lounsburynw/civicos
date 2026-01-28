@@ -718,7 +718,7 @@ def find_similar_issues(
                 matched = [
                     i for i in issues
                     if topic_lower in (getattr(i, 'description', '') or '').lower()
-                    or topic_lower in (getattr(i, 'request_type', '') or '').lower()
+                    or topic_lower in (getattr(i, 'issue_type', '') or '').lower()
                 ]
                 result_parts.append(f"- **Keyword matches found:** {len(matched)}")
 
@@ -1172,7 +1172,7 @@ def get_issue_analytics(
 
         # Calculate statistics
         by_status = Counter(i.get('status', 'unknown') for i in issues)
-        by_type = Counter(i.get('request_type', 'Unknown') for i in issues)
+        by_type = Counter(i.get('issue_type', 'Unknown') for i in issues)
 
         # Extract street from address
         def extract_street(addr):
@@ -1359,7 +1359,7 @@ def query_issue_data(
             filter_type_lower = filter_type.lower()
             issues = [
                 i for i in issues
-                if filter_type_lower in (i.get('request_type', '') or '').lower()
+                if filter_type_lower in (i.get('issue_type', '') or '').lower()
             ]
 
         if filter_street:
@@ -1406,7 +1406,7 @@ def query_issue_data(
 
         for issue in issues:
             if group_by == "type":
-                key = issue.get('request_type', 'Unknown')
+                key = issue.get('issue_type', 'Unknown')
             elif group_by == "status":
                 key = issue.get('status', 'unknown')
             elif group_by == "street":
@@ -1426,7 +1426,7 @@ def query_issue_data(
                 else:
                     key = 'Unknown'
             else:
-                key = issue.get('request_type', 'Unknown')
+                key = issue.get('issue_type', 'Unknown')
 
             grouped[key] += 1
 
@@ -1564,7 +1564,7 @@ def get_issue_sample(
             filter_type_lower = filter_type.lower()
             issues = [
                 i for i in issues
-                if filter_type_lower in (i.get('request_type', '') or '').lower()
+                if filter_type_lower in (i.get('issue_type', '') or '').lower()
                 or filter_type_lower in (i.get('description', '') or '').lower()
             ]
 
@@ -1713,7 +1713,7 @@ def get_issue_resolution_stats(
             issue_type_lower = issue_type.lower()
             issues = [
                 i for i in issues
-                if issue_type_lower in (i.get('request_type', '') or '').lower()
+                if issue_type_lower in (i.get('issue_type', '') or '').lower()
             ]
 
         if zip_code:
@@ -1755,7 +1755,7 @@ def get_issue_resolution_stats(
         # Resolution rate by type
         type_stats = defaultdict(lambda: {'total': 0, 'resolved': 0})
         for issue in issues:
-            issue_t = issue.get('request_type', 'Unknown')
+            issue_t = issue.get('issue_type', 'Unknown')
             type_stats[issue_t]['total'] += 1
             if issue.get('status', '').lower() in closed_statuses:
                 type_stats[issue_t]['resolved'] += 1
@@ -1893,7 +1893,7 @@ def find_issues_near_address(
             issue_type_lower = issue_type.lower()
             issues_with_coords = [
                 i for i in issues_with_coords
-                if issue_type_lower in (i.get('request_type', '') or '').lower()
+                if issue_type_lower in (i.get('issue_type', '') or '').lower()
             ]
 
         # Haversine distance calculation
@@ -1938,7 +1938,7 @@ def find_issues_near_address(
 
         # Group by type for summary
         from collections import Counter
-        type_counts = Counter(i[0].get('request_type', 'Unknown') for i in nearby)
+        type_counts = Counter(i[0].get('issue_type', 'Unknown') for i in nearby)
 
         result_parts.append("## Summary by Type")
         for issue_t, count in type_counts.most_common(5):
@@ -1947,7 +1947,7 @@ def find_issues_near_address(
 
         result_parts.append("## Nearby Issues")
         for issue, distance in nearby[:20]:
-            issue_type_str = issue.get('request_type', 'Unknown')
+            issue_type_str = issue.get('issue_type', 'Unknown')
             status = issue.get('status', 'unknown')
             addr = issue.get('address', 'N/A')
             desc = (issue.get('description') or '')[:100]
@@ -2040,8 +2040,8 @@ def detect_trends(
             return "Not enough historical data to detect trends."
 
         # Count by type
-        recent_counts = Counter(i.get('request_type', 'Unknown') for i in recent_issues)
-        previous_counts = Counter(i.get('request_type', 'Unknown') for i in previous_issues)
+        recent_counts = Counter(i.get('issue_type', 'Unknown') for i in recent_issues)
+        previous_counts = Counter(i.get('issue_type', 'Unknown') for i in previous_issues)
 
         # Calculate changes
         all_types = set(recent_counts.keys()) | set(previous_counts.keys())
@@ -2159,7 +2159,7 @@ def find_repeat_issues(
             issue_type_lower = issue_type.lower()
             issues = [
                 i for i in issues
-                if issue_type_lower in (i.get('request_type', '') or '').lower()
+                if issue_type_lower in (i.get('issue_type', '') or '').lower()
             ]
 
         if not issues:
@@ -2215,7 +2215,7 @@ def find_repeat_issues(
 
             # Summarize issue types at this location
             from collections import Counter
-            types = Counter(i.get('request_type', 'Unknown') for i in issues_list)
+            types = Counter(i.get('issue_type', 'Unknown') for i in issues_list)
             type_summary = ', '.join(f"{t} ({c})" for t, c in types.most_common(3))
 
             # Date range
@@ -2292,7 +2292,7 @@ def get_seasonal_patterns(
             issue_type_lower = issue_type.lower()
             issues = [
                 i for i in issues
-                if issue_type_lower in (i.get('request_type', '') or '').lower()
+                if issue_type_lower in (i.get('issue_type', '') or '').lower()
             ]
 
         if not issues:
@@ -2417,7 +2417,7 @@ def generate_neighborhood_report(
 
         # Basic stats
         by_status = Counter(i.get('status', 'unknown') for i in issues)
-        by_type = Counter(i.get('request_type', 'Unknown') for i in issues)
+        by_type = Counter(i.get('issue_type', 'Unknown') for i in issues)
 
         # Resolution rate
         closed_statuses = {'closed', 'resolved', 'archived'}
@@ -2570,7 +2570,7 @@ def compare_zip_codes(
                 zip_data[zc] = None
                 continue
 
-            by_type = Counter(i.get('request_type', 'Unknown') for i in issues)
+            by_type = Counter(i.get('issue_type', 'Unknown') for i in issues)
             closed_statuses = {'closed', 'resolved', 'archived'}
             resolved = sum(1 for i in issues if i.get('status', '').lower() in closed_statuses)
 
