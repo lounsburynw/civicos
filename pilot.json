@@ -664,7 +664,7 @@
       ],
       "issue_type_classification": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "LLM-based classification pipeline for 311 issue types",
         "note": "MCP audit (Jan 2026): 100% of 1,672 SeeClickFix issues classified as Unknown despite clear semantic signals in descriptions (missing cover, no bike lane paint, streetlight bright, parking meter, traffic speed). Breaks find_similar_issues(), trend detection, and neighborhood reports. Options: (1) LLM classification on ingest via Haiku/GPT-4o-mini, (2) backfill existing issues with scripts/backfill_issue_types.py, (3) map SeeClickFix request_type.title field if available in stored data.",
         "test_file": "packages/civicos/tests/test_civicos.py"
@@ -1297,11 +1297,11 @@
         ]
       },
       "video_meeting_schema_alignment": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "description": "Align video-meeting schema: populate meetings.video_url, videos.meeting_url, add video_id to transcript vectors",
         "artifact": "PgVectorBackend.index_from_storage video\u2192meeting lookup for transcripts",
-        "note": "Session 525 COMPLETE: Modified index_from_storage to build video_id\u2192meeting_id lookup from videos table when indexing transcripts. Now uses actual meeting_id instead of video_id (falls back to video_id for unlinked videos). Also ran youtube discovery to populate videos.meeting_url for 31 videos (26 now have meeting_id). Re-indexing transcripts will apply the fix. MCP audit (Jan 2026): YouTube URLs in MCP tool responses still use meeting slugs (proudcity-city-san-rafael-...) instead of actual YouTube video IDs (wm33kueyz1Y). The video_id\u2192meeting_id fix addressed internal indexing but video_id metadata in transcript embeddings may still contain slugs, not YouTube IDs. Needs: (1) verify what video_id is stored in transcript vector metadata, (2) ensure HybridSearchResult.video_url generates correct YouTube URLs, (3) may need transcript re-indexing.",
+        "note": "Session 526: Metadata backfill resolved all YouTube URL issues. Transcript embeddings now have real YouTube video_ids in metadata (e.g., k5ZUhxHn5pE). URLs correctly generate as youtube.com/watch?v=k5ZUhxHn5pE&t=70s. Read-time fallback also extracts video_id from embedding ID pattern.",
         "key_files": [
           "packages/civic/src/civic/storage/pgvector_backend.py:772-785"
         ]
@@ -2301,11 +2301,11 @@
     "city_status_dashboard": {
       "_doc": "docs/critical/CIVIC_DASHBOARD_VISION.md",
       "city_pulse_mcp_tool": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "MCP tool returning structured city status data with visualization hints",
         "description": "Add city_pulse(jurisdiction) tool to civicos-mcp that returns: decisions_this_week (from whats_next), recent_outcomes (from what_happened), issue_density_by_area (aggregated issues), participation_metrics (comment counts per meeting), and visualization_hints for rendering. This is the data foundation for all dashboard visualizations.",
-        "note": "Session 542: Implemented. Integrated into get_started() so city pulse is first thing users see. Includes smart fallbacks for historical data. MCP audit (Jan 2026): city_pulse() shows stale Oct 2025 meetings as fallback when upcoming window is sparse. Also: meeting history search returns blank titles/dates, transcript timestamps all 00:00:00, YouTube links use meeting IDs not video IDs.",
+        "note": "Session 543: Fixed all MCP audit issues. Backfilled metadata for 6,222 transcript + 44 decision + 57 meeting embeddings. Decisions now show titles/dates/outcomes. Transcripts show real timestamps and YouTube video IDs. city_pulse() improved with 3-tier fallback (upcoming/recent/historical). Added read-time video_id extraction as safety net.",
         "subtasks": [
           "Design response schema with data + visualization_hints structure",
           "Implement decisions_this_week aggregation",

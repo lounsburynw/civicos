@@ -1,3 +1,50 @@
+## Session 526: MCP Data Quality — Metadata Backfill + city_pulse Fix
+
+**Date:** 2026-01-28
+**Item:** city_pulse_mcp_tool (P0)
+**Status:** COMPLETE → ready
+
+### Problem
+All MCP tools returning degraded data due to empty metadata in pgvector:
+- `what_happened()`: Blank decision titles, dates showing `datetime.now()`
+- `what_was_said()` / `get_public_testimony()`: Timestamps all `00:00:00`, YouTube URLs using meeting slugs instead of real video IDs
+- `city_pulse()`: Showing Oct 2025 meetings due to fallback showing earliest meetings (ASC order bug)
+
+### Root Cause
+Vector embeddings (6,222 transcripts, 44 decisions, 57 meetings) were indexed before metadata storage was implemented. The `metadata` JSONB column was `{}` for all affected corpus types. The indexing code now correctly stores metadata, but existing data was never backfilled.
+
+### Solution
+
+1. **Metadata backfill script** (`scripts/backfill_vector_metadata.py`):
+   - Re-ran transcript chunker on 44 source transcripts → matched all 6,222 existing chunks by ID → updated metadata (speaker, timestamps, video_id, etc.)
+   - Joined 44 decision embeddings against decisions table → populated title, outcome, meeting_date
+   - Updated 57 meeting embeddings with title and datetime
+
+2. **Read-time enrichment** (safety net in `history.py`):
+   - `_search_transcripts_pgvector()`: Extracts video_id from embedding ID pattern `transcript-{VIDEO_ID}-{chunk_index}` when metadata is empty
+   - `_search_with_vector_backend()`: Falls back to parsing date from decision ID pattern `YYYY-MM-DD-item`, and uses `r.content` as title (decisions embed their title as content)
+
+3. **city_pulse() display logic** (`civicos_server.py`):
+   - 3-tier meeting display: upcoming (next N days) → recent (past 14 days) → historical (past 90 days)
+   - Fixed ASC ordering bug: past meetings now shown in reverse chronological order
+   - Proper narrative hints for each tier ("recent meetings" vs "data may not be current")
+
+### Verification
+All success criteria pass:
+- ✓ Decision titles: "Real Property Negotiation: 519 Fourth Street"
+- ✓ Decision dates: 2025-12-15 (not datetime.now())
+- ✓ Timestamps: 00:38:55, 00:17:13, 00:26:06 (not 00:00:00)
+- ✓ YouTube URLs: youtube.com/watch?v=k5ZUhxHn5pE&t=70s (real video IDs)
+- ✓ 42 core API tests pass
+
+### Files Modified
+- `packages/civicos/src/civicos/history.py` (read-time enrichment for transcripts + decisions)
+- `apps/civicos-mcp/civicos_server.py` (city_pulse 3-tier fallback)
+- `scripts/backfill_vector_metadata.py` (NEW — reusable backfill script)
+- `pilot.json` (city_pulse_mcp_tool: ready)
+
+---
+
 ## Session 525: MCP Audit Fix — Agenda Packet Search + HNSW Vector Index
 
 **Date:** 2026-01-28

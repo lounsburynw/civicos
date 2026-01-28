@@ -751,13 +751,26 @@ def _search_transcripts_pgvector(
         # Extract metadata from SearchResult
         metadata = r.metadata or {}
 
+        # Fallback: extract video_id from embedding ID if not in metadata.
+        # Transcript IDs follow pattern: "transcript-{VIDEO_ID}-{chunk_index}"
+        video_id = metadata.get("video_id", "")
+        if not video_id and r.id and r.id.startswith("transcript-"):
+            parts = r.id.split("-")
+            # video_id is everything between first and last dash segments
+            # e.g. "transcript-k5ZUhxHn5pE-7" -> "k5ZUhxHn5pE"
+            # e.g. "transcript--6jDc6NAKPc-0" -> "-6jDc6NAKPc" (starts with dash)
+            if len(parts) >= 3:
+                video_id = "-".join(parts[1:-1])
+        if not video_id:
+            video_id = r.meeting_id or ""
+
         transcript_results.append(TranscriptSearchResult(
             id=r.id,
             text=r.content,
             speaker=metadata.get("speaker", "?"),
             speaker_role=metadata.get("speaker_role"),
             speaker_name=metadata.get("speaker_name"),
-            video_id=metadata.get("video_id", r.meeting_id or ""),
+            video_id=video_id,
             start_timestamp=metadata.get("start_timestamp", "00:00:00"),
             end_timestamp=metadata.get("end_timestamp", ""),
             start_ms=metadata.get("start_ms", 0),
@@ -873,6 +886,14 @@ def _search_hybrid_pgvector(
         )
         for r in transcript_results:
             metadata = r.metadata or {}
+            # Fallback: extract video_id from embedding ID if not in metadata
+            video_id = metadata.get("video_id", "")
+            if not video_id and r.id and r.id.startswith("transcript-"):
+                parts = r.id.split("-")
+                if len(parts) >= 3:
+                    video_id = "-".join(parts[1:-1])
+            if not video_id:
+                video_id = r.meeting_id or ""
             hybrid_results.append(HybridSearchResult(
                 id=r.id,
                 text=r.content,
@@ -881,7 +902,7 @@ def _search_hybrid_pgvector(
                 speaker=metadata.get("speaker", "?"),
                 speaker_role=metadata.get("speaker_role"),
                 speaker_name=metadata.get("speaker_name"),
-                video_id=metadata.get("video_id", r.meeting_id or ""),
+                video_id=video_id,
                 start_timestamp=metadata.get("start_timestamp", "00:00:00"),
                 end_timestamp=metadata.get("end_timestamp", ""),
                 start_ms=metadata.get("start_ms", 0),
@@ -1060,17 +1081,36 @@ def _search_with_vector_backend(
 
     decisions = []
     for r in results:
-        # Parse meeting date
+        metadata = r.metadata or {}
+
+        # Parse meeting date from metadata, structured field, or ID
         meeting_date = r.meeting_datetime
+        if meeting_date is None and metadata.get("meeting_date"):
+            try:
+                meeting_date = datetime.strptime(metadata["meeting_date"], "%Y-%m-%d")
+            except (ValueError, TypeError):
+                pass
+        if meeting_date is None and r.id:
+            # Decision IDs follow "YYYY-MM-DD-item" format
+            try:
+                date_part = "-".join(r.id.split("-")[:3])
+                meeting_date = datetime.strptime(date_part, "%Y-%m-%d")
+            except (ValueError, IndexError):
+                pass
         if meeting_date is None:
             meeting_date = datetime.now()
 
-        # Extract metadata
-        metadata = r.metadata or {}
+        # Extract title: prefer metadata, fall back to content (which IS the title for decisions)
+        title = metadata.get("title", "")
+        if not title:
+            title = r.meeting_title or ""
+        if not title and r.content:
+            # Decision embeddings store the title as content text
+            title = r.content.strip()
 
         decisions.append(Decision(
             id=r.id,
-            title=metadata.get("title", r.meeting_title or ""),
+            title=title,
             date=meeting_date,
             outcome=metadata.get("outcome", "unknown"),
             body="City Council",
