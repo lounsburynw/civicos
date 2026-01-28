@@ -789,7 +789,8 @@ def city_pulse(
 
     try:
         # ─── UPCOMING DECISIONS ───
-        # Get meetings in the next N days
+        # Show meetings in a window around now: recent past + upcoming future.
+        # This gives a "what's happening" view even between meeting weeks.
         meetings = storage.get_meetings(
             jid,
             since=now,
@@ -797,12 +798,30 @@ def city_pulse(
             limit=20
         )
 
-        # Fallback: if no upcoming meetings, show most recent meetings
-        # (useful for demos/testing when data isn't current)
-        show_recent_label = False
+        # Determine meeting status for labeling
+        meetings_label = "upcoming"  # "upcoming", "recent", "historical"
         if not meetings:
-            meetings = storage.get_meetings(jid, limit=5)
-            show_recent_label = True
+            # No future meetings — show recent past (last 14 days)
+            meetings = storage.get_meetings(
+                jid,
+                since=now - timedelta(days=14),
+                until=now,
+                limit=10
+            )
+            if meetings:
+                meetings_label = "recent"
+                # Show most recent first for past meetings
+                meetings = list(reversed(meetings))
+            else:
+                # No meetings in last 14 days — show most recent from last 90 days
+                meetings = storage.get_meetings(
+                    jid,
+                    since=now - timedelta(days=90),
+                    until=now,
+                    limit=10
+                )
+                meetings_label = "historical"
+                meetings = list(reversed(meetings))
 
         upcoming = []
         for m in meetings:
@@ -825,20 +844,25 @@ def city_pulse(
                     "meeting_type": m.get('meeting_type', 'meeting'),
                     "agenda_url": m.get('agenda_url'),
                     "web_app_url": _generate_web_app_url('event', meeting_id) if meeting_id else None,
-                    "_is_historical": show_recent_label,
+                    "_is_historical": meetings_label == "historical",
                 })
 
         result["decisions_this_week"] = upcoming
-        result["_meetings_are_historical"] = show_recent_label
+        result["_meetings_are_historical"] = meetings_label == "historical"
+        result["_meetings_label"] = meetings_label
 
         if upcoming:
-            if show_recent_label:
+            if meetings_label == "upcoming":
                 result["narrative_hints"]["notable"].append(
-                    f"Showing {len(upcoming)} most recent meetings (data may not be current)"
+                    f"{len(upcoming)} meeting(s) scheduled in the next {days_ahead} days"
+                )
+            elif meetings_label == "recent":
+                result["narrative_hints"]["notable"].append(
+                    f"{len(upcoming)} recent meeting(s) in the past 2 weeks (no upcoming meetings scheduled)"
                 )
             else:
                 result["narrative_hints"]["notable"].append(
-                    f"{len(upcoming)} meeting(s) scheduled in the next {days_ahead} days"
+                    f"Showing {len(upcoming)} most recent meetings (data may not be current)"
                 )
 
         # ─── RECENT OUTCOMES ───
