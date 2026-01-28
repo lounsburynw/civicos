@@ -218,7 +218,7 @@ class ExtractionConfig:
     @classmethod
     def from_jurisdiction(cls, jurisdiction_id: str) -> "ExtractionConfig":
         """Load configuration for a jurisdiction from the standard config directory."""
-        import os
+        from civicos_extraction.config import get_config_dir
 
         # Map jurisdiction_id to config file name
         # e.g., "city-san-rafael" -> "san-rafael.json"
@@ -230,19 +230,13 @@ class ExtractionConfig:
         else:
             # Cities use "name.json" format
             config_name = jurisdiction_id.replace("city-", "")
-        config_dir = os.path.join(
-            os.path.dirname(__file__),
-            "..", "..", "..", "..", "..",  # Up to project root
-            "data", "extraction"
-        )
-        config_path = os.path.join(config_dir, f"{config_name}.json")
-        config_path = os.path.normpath(config_path)
+        config_path = get_config_dir() / f"{config_name}.json"
 
-        if not os.path.exists(config_path):
+        if not config_path.exists():
             raise FileNotFoundError(
                 f"No extraction config found for {jurisdiction_id} at {config_path}"
             )
-        return cls.from_file(config_path)
+        return cls.from_file(str(config_path))
 
 
 @runtime_checkable

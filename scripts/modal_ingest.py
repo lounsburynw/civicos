@@ -120,6 +120,7 @@ civic_image = (
         "openai>=1.0.0",  # For agenda/decision extraction (LLM calls)
         "google-generativeai>=0.8.0",  # For Gemini-based extraction
         "PyPDF2>=3.0.0",  # For agenda PDF text extraction (decision/agenda pipelines)
+        "openpyxl>=3.0.0",  # For HUD allocation Excel parsing
     )
     # Environment variables (must come before add_local_* per Modal requirements)
     .env({"CIVICOS_CONFIG_DIR": "/config/extraction"})
@@ -1299,7 +1300,7 @@ def fetch_all_hud_allocations(dry_run: bool = False) -> dict:
     secrets=[modal.Secret.from_name("civic-db")],
     memory=65536,  # 64GB per worker
     gpu="A10G",  # Faster GPU (24GB VRAM)
-    timeout=300,  # 5 min per batch
+    timeout=600,  # 10 min per batch (federal programs produce large batches)
 )
 def _embed_and_store_batch(
     chunks: list[dict],
@@ -3011,6 +3012,13 @@ def scheduled_low_velocity_refresh():
     # =========================================================================
 
     for jid, config in jurisdictions.items():
+        # Skip jurisdictions without per-jurisdiction low-velocity data sources
+        # (e.g., county-marin is financial context only, no municipal code/meetings/minutes)
+        source_type = config.get("source_type", "")
+        if source_type in ("county", "financial"):
+            logger.info(f"Skipping {jid} (source_type={source_type}, no per-jurisdiction low-velocity data)")
+            continue
+
         logger.info(f"Processing jurisdiction: {jid}")
         results[jid] = {}
 
