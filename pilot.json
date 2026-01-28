@@ -661,7 +661,14 @@
           "name": "vector_indexing",
           "status": "ready"
         }
-      ]
+      ],
+      "issue_type_classification": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "LLM-based classification pipeline for 311 issue types",
+        "note": "MCP audit (Jan 2026): 100% of 1,672 SeeClickFix issues classified as Unknown despite clear semantic signals in descriptions (missing cover, no bike lane paint, streetlight bright, parking meter, traffic speed). Breaks find_similar_issues(), trend detection, and neighborhood reports. Options: (1) LLM classification on ingest via Haiku/GPT-4o-mini, (2) backfill existing issues with scripts/backfill_issue_types.py, (3) map SeeClickFix request_type.title field if available in stored data.",
+        "test_file": "packages/civicos/tests/test_civicos.py"
+      }
     },
     "municipal_code": {
       "_completed_items": [
