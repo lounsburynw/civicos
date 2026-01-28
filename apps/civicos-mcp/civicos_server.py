@@ -416,9 +416,19 @@ def search_regulatory_stack(
                     bill_number = item.get('bill_number', '')
                     bill_name = item.get('bill_name', '')
                     title = bill_name or bill_number or str(item)
-                    result_parts.append(f"- **{bill_number}**: {title}" if bill_number else f"- {title}")
+                    # Bill header with status
+                    status_label = item.get('status_label', '')
+                    status_suffix = f" ({status_label})" if status_label else ""
+                    result_parts.append(f"- **{bill_number}**: {title}{status_suffix}" if bill_number else f"- {title}{status_suffix}")
                     if item.get('summary'):
                         result_parts.append(f"  *{item.get('summary')[:150]}...*")
+                    # Local action requirements
+                    if item.get('requires_local_action') or item.get('local_implementation_required'):
+                        deadline = item.get('local_deadline')
+                        if deadline:
+                            result_parts.append(f"  - Requires local implementation by {deadline}")
+                        else:
+                            result_parts.append(f"  - Requires local implementation")
                     if item.get('official_url'):
                         result_parts.append(f"  [View bill text]({item.get('official_url')})")
                 else:
@@ -651,23 +661,40 @@ def find_similar_issues(
 
                 result_parts.append("## Similar Issues Reported")
 
-                # Build ID-to-URL lookup from storage for issue links
+                # Build ID-to-URL and ID-to-type lookups from storage
                 # URLs come from provider_metadata.html_url (populated during ingestion)
                 issue_urls = {}
+                issue_types = {}
                 if civicos_client._storage is not None:
                     try:
                         all_issues = civicos_client._storage.get_issues(
                             jurisdiction_id=civicos_client.jurisdiction,
-                            limit=1000,
+                            limit=2000,
                         )
                         for issue in all_issues:
                             issue_id = issue.get('id')
                             metadata = issue.get('provider_metadata') or {}
                             html_url = metadata.get('html_url')
-                            if issue_id and html_url:
-                                issue_urls[issue_id] = html_url
+                            if issue_id:
+                                if html_url:
+                                    issue_urls[issue_id] = html_url
+                                if issue.get('issue_type'):
+                                    issue_types[issue_id] = issue['issue_type']
                     except Exception as e:
-                        logger.warning(f"Could not load issue URLs: {e}")
+                        logger.warning(f"Could not load issue data: {e}")
+
+                # Issue type breakdown for matched results
+                matched_ids = {r.id for r in results if r.id}
+                type_counts = Counter(
+                    issue_types[rid] for rid in matched_ids if rid in issue_types
+                )
+                if type_counts:
+                    breakdown = ", ".join(
+                        f"{count} {itype.replace('_', ' ')}"
+                        for itype, count in type_counts.most_common()
+                    )
+                    result_parts.append(f"- **Issue types:** {breakdown}")
+                    result_parts.append("")
 
                 for r in results:
                     # Extract issue details from vector result
