@@ -1298,9 +1298,8 @@ def fetch_all_hud_allocations(dry_run: bool = False) -> dict:
 @app.function(
     image=civic_image,
     secrets=[modal.Secret.from_name("civic-db")],
-    memory=65536,  # 64GB per worker
-    gpu="A10G",  # Faster GPU (24GB VRAM)
-    timeout=600,  # 10 min per batch (federal programs produce large batches)
+    memory=65536,  # 64GB per worker (fastembed uses CPU, memory is the bottleneck)
+    timeout=900,  # 15 min per batch (CPU-only, increased from 10 min for safety)
 )
 def _embed_and_store_batch(
     chunks: list[dict],
@@ -1422,7 +1421,7 @@ def index_vectors(
     jurisdiction: str = "city-san-rafael",
     corpus: str = "all",
     reindex: bool = False,
-    num_workers: int = 40,
+    num_workers: int = 40,  # CPU-only workers (no GPU concurrency limit applies)
 ) -> dict:
     """Generate embeddings and store to pgvector using parallel workers."""
     import logging
@@ -3491,6 +3490,7 @@ def main(
     chunks_limit: int = 0,
     agenda_limit: int = 0,
     decisions_limit: int = 0,
+    meetings_days_past: int = 30,
     incremental: bool = False,
     reindex: bool = False,
     dry_run: bool = False,
@@ -3515,6 +3515,9 @@ def main(
         modal run scripts/modal_ingest.py --transcripts
         modal run scripts/modal_ingest.py --chunks
         modal run scripts/modal_ingest.py --vectors
+
+        # Backfill meetings with extended lookback (120 days = ~4 months)
+        modal run scripts/modal_ingest.py --meetings --meetings-days-past 120
 
         # Incremental mode (only fetch since last refresh)
         modal run scripts/modal_ingest.py --meetings --incremental
@@ -3697,6 +3700,7 @@ def main(
         print("Spawning meetings fetch...")
         handle = fetch_meetings.spawn(
             jurisdiction=jurisdiction,
+            days_past=meetings_days_past,
             incremental=incremental,
             dry_run=dry_run,
             auto_index=auto_index,
