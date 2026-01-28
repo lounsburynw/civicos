@@ -575,6 +575,7 @@ class CivicOS:
             query=query,
             top_k=top_k,
             agenda_item=agenda_item,
+            vector_backend=self._vectors,
         )
 
         return [

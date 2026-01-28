@@ -812,12 +812,97 @@ def search_transcripts(
     )
 
 
+def _search_hybrid_pgvector(
+    vector_backend: "VectorBackend",
+    jurisdiction: str,
+    query: str,
+    top_k: int = 10,
+    agenda_item: Optional[str] = None,
+) -> List[HybridSearchResult]:
+    """
+    Search both PDF chunks and video transcripts using PgVectorBackend.
+
+    Internal helper for _search_hybrid when a vector backend is available.
+    Converts SearchResult objects from VectorBackend to HybridSearchResult.
+
+    Args:
+        vector_backend: PgVectorBackend instance
+        jurisdiction: Jurisdiction ID
+        query: Search query
+        top_k: Maximum total results to return
+        agenda_item: Optional agenda item filter (e.g., "6.a")
+
+    Returns:
+        List of HybridSearchResult objects
+    """
+    per_source_k = max(top_k, 5)
+    hybrid_results = []
+
+    # Search PDF chunks (agenda packets, staff reports)
+    try:
+        chunk_results = vector_backend.search(
+            query=query,
+            jurisdiction_id=jurisdiction,
+            corpus_type="chunks",
+            top_k=per_source_k,
+        )
+        for r in chunk_results:
+            metadata = r.metadata or {}
+            # Filter by agenda_item if specified
+            if agenda_item and metadata.get("agenda_item") != agenda_item:
+                continue
+            hybrid_results.append(HybridSearchResult(
+                id=r.id,
+                text=r.content,
+                source_type="pdf",
+                score=r.score,
+                agenda_item=metadata.get("agenda_item"),
+                page_start=metadata.get("page_start"),
+                page_end=metadata.get("page_end"),
+            ))
+    except Exception as e:
+        logger.warning(f"_search_hybrid_pgvector: chunk search failed: {e}")
+
+    # Search video transcripts
+    try:
+        transcript_results = vector_backend.search(
+            query=query,
+            jurisdiction_id=jurisdiction,
+            corpus_type="transcripts",
+            top_k=per_source_k,
+        )
+        for r in transcript_results:
+            metadata = r.metadata or {}
+            hybrid_results.append(HybridSearchResult(
+                id=r.id,
+                text=r.content,
+                source_type="transcript",
+                score=r.score,
+                speaker=metadata.get("speaker", "?"),
+                speaker_role=metadata.get("speaker_role"),
+                speaker_name=metadata.get("speaker_name"),
+                video_id=metadata.get("video_id", r.meeting_id or ""),
+                start_timestamp=metadata.get("start_timestamp", "00:00:00"),
+                end_timestamp=metadata.get("end_timestamp", ""),
+                start_ms=metadata.get("start_ms", 0),
+                end_ms=metadata.get("end_ms", 0),
+                is_public_comment=metadata.get("is_public_comment", False),
+            ))
+    except Exception as e:
+        logger.warning(f"_search_hybrid_pgvector: transcript search failed: {e}")
+
+    # Sort by score descending and truncate
+    hybrid_results.sort(key=lambda r: r.score, reverse=True)
+    return hybrid_results[:top_k]
+
+
 def _search_hybrid(
     jurisdiction: str,
     query: str,
     top_k: int = 10,
     agenda_item: Optional[str] = None,
     interleave: bool = True,
+    vector_backend: Optional["VectorBackend"] = None,
 ) -> List[HybridSearchResult]:
     """
     Search both PDF chunks and video transcripts for a jurisdiction.
@@ -835,6 +920,20 @@ def _search_hybrid(
     Returns:
         List of HybridSearchResult objects
     """
+    # Try explicit vector backend first (production pgvector path)
+    if vector_backend is not None:
+        try:
+            results = _search_hybrid_pgvector(
+                vector_backend, jurisdiction, query,
+                top_k=top_k, agenda_item=agenda_item,
+            )
+            if results:
+                return results
+            logger.debug("_search_hybrid: pgvector returned empty, falling back to ChromaDB")
+        except Exception as e:
+            logger.warning(f"_search_hybrid: pgvector search failed: {e}, falling back to ChromaDB")
+
+    # Fall back to local ChromaDB path
     try:
         from civicos._internal.meetings.embeddings import CivicEmbeddings
     except ImportError:
@@ -893,6 +992,7 @@ def search_hybrid(
     top_k: int = 10,
     agenda_item: Optional[str] = None,
     interleave: bool = True,
+    vector_backend: Optional["VectorBackend"] = None,
 ) -> List[HybridSearchResult]:
     """
     Search both PDF documents and video transcripts for a jurisdiction.
@@ -909,6 +1009,8 @@ def search_hybrid(
                     related content from both PDFs and transcripts
         interleave: If True (default), interleave PDF and transcript results
                    by relevance score. If False, group by source type.
+        vector_backend: Explicit vector backend (pgvector). Falls back to
+                       ChromaDB if None.
 
     Returns:
         List of HybridSearchResult objects with source attribution
@@ -928,6 +1030,7 @@ def search_hybrid(
         top_k=top_k,
         agenda_item=agenda_item,
         interleave=interleave,
+        vector_backend=vector_backend,
     )
 
 
