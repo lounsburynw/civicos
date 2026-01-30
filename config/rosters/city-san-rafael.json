@@ -1,0 +1,73 @@
+{
+  "jurisdiction_id": "city-san-rafael",
+  "last_updated": "2026-01-29",
+  "notes": "San Rafael City officials roster for speaker detection enhancement",
+
+  "officials": [
+    {
+      "name": "Kate Colin",
+      "role": "council",
+      "title": "Mayor",
+      "aliases": ["Kate", "Mayor Colin", "Mayor Kate"]
+    },
+    {
+      "name": "Maribeth Bushey",
+      "role": "council",
+      "title": "Vice Mayor",
+      "aliases": ["Bushey", "Bushy", "Vice Mayor Bushey", "Maribeth"]
+    },
+    {
+      "name": "Eli Hill",
+      "role": "council",
+      "title": "Council Member",
+      "aliases": ["Hill", "Eli", "Council Member Hill"]
+    },
+    {
+      "name": "Rachel Kertz",
+      "role": "council",
+      "title": "Council Member",
+      "aliases": ["Kertz", "Kurtz", "Rachel", "Council Member Kertz"]
+    },
+    {
+      "name": "Omar Carrera",
+      "role": "council",
+      "title": "Council Member",
+      "aliases": ["Carrera", "Omar", "Council Member Carrera"]
+    },
+    {
+      "name": "Cristine Alilovich",
+      "role": "staff",
+      "title": "City Manager",
+      "aliases": ["Alilovich", "Lilovich", "City Manager", "Cristine"]
+    },
+    {
+      "name": "Lindsay Lara",
+      "role": "staff",
+      "title": "City Clerk",
+      "aliases": ["Lindsay", "Lara", "City Clerk", "Clerk Lara", "Becky"]
+    },
+    {
+      "name": "Robert Epstein",
+      "role": "staff",
+      "title": "City Attorney",
+      "aliases": ["Epstein", "Robert", "City Attorney"]
+    },
+    {
+      "name": "Cory Bytof",
+      "role": "staff",
+      "title": "Sustainability Program Manager",
+      "aliases": ["Bytof", "Cory"]
+    },
+    {
+      "name": "Micah Hinkle",
+      "role": "staff",
+      "title": "Community and Economic Development Director",
+      "aliases": ["Hinkle", "Micah"]
+    }
+  ],
+
+  "overrides": {
+    "_comment": "Manual corrections. Key = detected name, value = correct name (null to remove)",
+    "Yidan": null
+  }
+}

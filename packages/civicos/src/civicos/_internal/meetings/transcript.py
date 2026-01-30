@@ -237,10 +237,12 @@ class SpeakerRoleDetector:
         roll_call_window_ms: int = 600_000,  # First 10 minutes (meetings often start with delays)
         min_utterances_for_staff: int = 10,  # Staff typically speak a lot
         llm_provider: "LLMProvider | None" = None,  # Optional LLM for enhanced detection
+        roster: "Roster | None" = None,  # Optional roster for known officials
     ):
         self.roll_call_window_ms = roll_call_window_ms
         self.min_utterances_for_staff = min_utterances_for_staff
         self.llm_provider = llm_provider
+        self.roster = roster
 
         # Compile patterns
         self._council_re = [re.compile(p, re.IGNORECASE) for p in self.COUNCIL_PATTERNS]
@@ -383,8 +385,25 @@ class SpeakerRoleDetector:
             for u in sample_utterances
         )
 
-        prompt = f"""Analyze this city council meeting transcript excerpt and identify the speaker roles.
+        # Build roster context if available
+        roster_context = ""
+        if self.roster and self.roster.officials:
+            officials_list = []
+            for official in self.roster.officials:
+                title_str = f" ({official.title})" if official.title else ""
+                officials_list.append(f"- {official.name}{title_str} [{official.role}]")
+            roster_context = f"""
+KNOWN OFFICIALS FOR THIS JURISDICTION:
+{chr(10).join(officials_list)}
 
+IMPORTANT: Match speakers to these known officials when possible. Use their FULL NAMES as listed above.
+For example, if someone calls roll or reads names during public comment, they are likely the City Clerk.
+If someone is addressed as "Mayor" or responds to roll call, match them to the Mayor listed above.
+
+"""
+
+        prompt = f"""Analyze this city council meeting transcript excerpt and identify the speaker roles.
+{roster_context}
 TRANSCRIPT:
 {transcript_text}
 
@@ -395,6 +414,7 @@ Look for:
 2. Staff introductions - "I'll turn to the City Manager", "City Attorney to report"
 3. Titles mentioned - Mayor, Vice Mayor, Council Member, City Manager, City Attorney, City Clerk
 4. Speech patterns - staff often greet "Mayor, Council members and the community"
+5. Behavior patterns - who calls roll (Clerk), who presides (Mayor), who gives legal advice (Attorney)
 
 Return a JSON object with this structure:
 {{
@@ -403,7 +423,7 @@ Return a JSON object with this structure:
             "speaker_id": "A",
             "role": "council" | "staff" | "public" | "unknown",
             "title": "Mayor" | "Vice Mayor" | "Council Member" | "City Manager" | "City Attorney" | "City Clerk" | null,
-            "name": "detected name or null",
+            "name": "full name from roster if matched, or detected name, or null",
             "confidence": 0.0-1.0,
             "evidence": "brief explanation"
         }}
