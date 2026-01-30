@@ -1334,6 +1334,7 @@ class CivicOS:
             jurisdiction_id=self.jurisdiction,
             budget_item_id=budget_item_id,
             federal_cfda_number=cfda_number,
+            fiscal_year=fiscal_year,
         )
 
         # Get federal awards and state passthroughs
