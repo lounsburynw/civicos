@@ -449,6 +449,80 @@ coordination_events_log (
 )
 ```
 
+### Relay Database Setup
+
+The relay uses a **separate database** from the main CivicOS backend. This architectural separation enables federation where each municipality runs their own relay with their own database, avoiding data coupling.
+
+**Why separate databases:**
+- **Architectural separation:** Relay stores voices/subscriptions/provenance independently
+- **Federation pattern:** Each jurisdiction can run their own relay instance
+- **No accidental coupling:** CivicOS backend data and relay coordination data stay separate
+- **Clear boundaries:** Contributors understand which database handles what
+
+**Setup steps:**
+
+1. **Create a new Supabase project** (or PostgreSQL instance)
+   - Go to [supabase.com](https://supabase.com) and create a new project
+   - Free tier is sufficient for development and small deployments
+   - Name it distinctly (e.g., "civicos-relay-sanrafael")
+
+2. **Get the connection string**
+   - In Supabase: Settings → Database → Connection string (URI format)
+   - Format: `postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres`
+
+3. **Run the coordination schema**
+   ```bash
+   # Using psql
+   psql $RELAY_DATABASE_URL -f packages/civicos-relay/schema.sql
+
+   # Or via Supabase SQL Editor:
+   # Copy contents of packages/civicos-relay/schema.sql and execute
+   ```
+
+4. **Configure the environment**
+   ```bash
+   # In .env (separate from DATABASE_URL which is for CivicOS backend)
+   RELAY_DATABASE_URL=postgresql://postgres.xxxxx:password@...
+   ```
+
+5. **Verify the setup**
+   ```bash
+   # Export first (use single quotes to handle special chars in password)
+   export RELAY_DATABASE_URL='postgresql://postgres:password@db.xxx.supabase.co:5432/postgres'
+   python -m pytest packages/civicos-relay/tests/test_postgres_integration.py -v --override-ini="addopts="
+   ```
+
+**For federation deployments:**
+
+When multiple jurisdictions run their own relays:
+
+```
+San Rafael relay:
+  RELAY_DATABASE_URL=postgresql://...sanrafael-relay...
+  Hosts: city-san-rafael entities
+
+Novato relay:
+  RELAY_DATABASE_URL=postgresql://...novato-relay...
+  Hosts: city-novato entities
+
+Marin County relay:
+  RELAY_DATABASE_URL=postgresql://...marin-relay...
+  Hosts: marin-county entities
+  Peers with: San Rafael, Novato relays for voice deduplication
+```
+
+Each relay is completely independent. Peering (voice synchronization across relays) is optional and configured separately.
+
+**Troubleshooting:**
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| Tests skip with "RELAY_DATABASE_URL not set" | Variable set but not exported | Use `export RELAY_DATABASE_URL='...'` (child processes need exported vars) |
+| Password with `!` breaks URL | Bash history expansion | Use single quotes: `export VAR='postgres://...p!ass...'` or escape: `\!` |
+| `.env` variable expansion fails | `${VAR}` syntax unreliable | Set full URL directly, don't reference other vars |
+| `psql` not installed | macOS doesn't include psql | Use Supabase SQL Editor instead (paste schema.sql contents) |
+| JSON decode errors in tests | psycopg2 version differences | Fixed in code - `_parse_jsonb()` handles both string and dict |
+
 ### Phase 2: Full Relay (Post-Pilot)
 
 If pilot validates coordination hypothesis, expand relay:

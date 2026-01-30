@@ -2963,7 +2963,7 @@
     },
     "backend_integration": {
       "relay_database_setup": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "description": "Create separate Supabase project for relay database. Architectural separation: relay stores voices/subscriptions/provenance independently from CivicOS backend. Pattern for federation where each municipality runs their own relay.",
         "test_file": "packages/civicos-relay/tests/test_voice.py",
