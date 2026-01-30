@@ -51,6 +51,7 @@ from .routers import (
     legislative_router,
     conversations_router,
     drafts_router,
+    coordination_router,
 )
 
 
@@ -117,6 +118,7 @@ def create_app() -> FastAPI:
     app.include_router(legislative_router, prefix="/api", tags=["Legislative"])
     app.include_router(conversations_router, prefix="/api", tags=["Conversations"])
     app.include_router(drafts_router, prefix="/api", tags=["Drafts"])
+    app.include_router(coordination_router, prefix="/api", tags=["Coordination"])
 
     return app
 

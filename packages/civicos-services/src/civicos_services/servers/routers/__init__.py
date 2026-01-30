@@ -15,6 +15,7 @@ from .threads import router as threads_router
 from .legislative import router as legislative_router
 from .conversations import router as conversations_router
 from .drafts import router as drafts_router
+from .coordination import router as coordination_router
 
 __all__ = [
     "core_router",
@@ -27,4 +28,5 @@ __all__ = [
     "legislative_router",
     "conversations_router",
     "drafts_router",
+    "coordination_router",
 ]
