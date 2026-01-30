@@ -79,12 +79,17 @@ curl -s http://localhost:8080/mcp \
 
 ### Deployment Options
 
-| Option | Use Case | Cost | Setup Complexity |
-|--------|----------|------|------------------|
-| **ngrok** | Development/Demo | Free tier available | Lowest |
-| **Railway** | Production | ~$5/month | Low |
-| **Fly.io** | Production | ~$5/month | Medium |
-| **Render** | Production | Free tier + $7/month | Low |
+| Option | Use Case | Cost | Setup Complexity | Notes |
+|--------|----------|------|------------------|-------|
+| **Fly.io** | Production (current) | ~$2/month | Medium | Already deployed at `civicos-mcp.fly.dev` |
+| **Modal** | Alternative | ~$2-5/month | Low | Same platform as relay worker, vector indexer |
+| **ngrok** | Development/Demo | Free tier available | Lowest | Temporary URLs |
+| **Railway** | Alternative | ~$5/month | Low | Good alternative |
+| **Render** | Alternative | Free tier + $7/month | Low | |
+
+**Current State (Jan 2026):** MCP server is deployed on **Fly.io** at `https://civicos-mcp.fly.dev/mcp`. This keeps it consistent with the web tier (civic-api, civic-websocket).
+
+The relay worker (event emission, subscription matching) will run on **Modal** for cron support.
 
 ### Environment Variables (Required for Deployment)
 
@@ -119,7 +124,49 @@ Claude.ai supports remote MCP servers for Pro/Max/Team/Enterprise:
 **References**:
 - [Building Custom Connectors](https://support.claude.com/en/articles/11503834-building-custom-connectors-via-remote-mcp-servers)
 
-### Railway Deployment Example
+### Fly.io Deployment (Current)
+
+The MCP server is deployed on Fly.io alongside the REST API and WebSocket server.
+
+**Deployed at:** `https://civicos-mcp.fly.dev/mcp`
+
+**Deployment script:** `scripts/deploy-mcp.sh`
+
+```bash
+# Deploy MCP server to Fly.io
+./scripts/deploy-mcp.sh
+
+# Or manually:
+fly deploy -c fly-mcp.toml
+```
+
+**Configuration:** See `fly-mcp.toml` and `Dockerfile.mcp`
+
+### Modal Deployment (Alternative)
+
+Modal can be used as an alternative hosting platform, especially useful if consolidating with the relay worker.
+
+```bash
+# Install Modal CLI
+pip install modal
+
+# Authenticate
+modal token new
+
+# Create secrets
+modal secret create civicos-env \
+    DATABASE_URL="postgresql://..." \
+    RELAY_DATABASE_URL="postgresql://..." \
+    CIVICOS_JURISDICTION="city-san-rafael"
+
+# Deploy MCP server
+modal deploy apps/civicos-mcp/modal_server.py
+
+# Get the public URL (shown in Modal dashboard)
+# Example: https://civicos--mcp-server.modal.run
+```
+
+### Railway Deployment (Alternative)
 
 ```bash
 # Install Railway CLI

@@ -523,6 +523,144 @@ Each relay is completely independent. Peering (voice synchronization across rela
 | `psql` not installed | macOS doesn't include psql | Use Supabase SQL Editor instead (paste schema.sql contents) |
 | JSON decode errors in tests | psycopg2 version differences | Fixed in code - `_parse_jsonb()` handles both string and dict |
 
+### Compute Layer (Modal)
+
+The relay is more than a database — it needs compute for event routing, delivery, and AI enhancement. This section clarifies what runs where.
+
+**Architecture:**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              STORAGE LAYER                                   │
+│  ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐       │
+│  │ Main Supabase   │     │ Relay Supabase  │     │ Cloudflare R2   │       │
+│  │ (civic data)    │     │ (coordination)  │     │ (blobs/audio)   │       │
+│  └────────┬────────┘     └────────┬────────┘     └─────────────────┘       │
+└───────────┼────────────────────────┼────────────────────────────────────────┘
+            │                        │
+            │  Triggers/webhooks     │
+            ▼                        ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          COMPUTE LAYER (Modal)                               │
+│                                                                              │
+│  ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐       │
+│  │ Relay Worker    │     │ MCP Server      │     │ Vector Indexer  │       │
+│  │ (event routing) │     │ (AI queries)    │     │ (embeddings)    │       │
+│  │                 │     │                 │     │                 │       │
+│  │ • Emit events   │     │ • Claude.ai     │     │ • GPU for embed │       │
+│  │ • Match subs    │     │ • ChatGPT       │     │ • Batch process │       │
+│  │ • AI summarize  │     │ • Tool serving  │     │                 │       │
+│  │ • Deliver       │     │                 │     │                 │       │
+│  └─────────────────┘     └─────────────────┘     └─────────────────┘       │
+│           │                       │                                         │
+│           ▼                       ▼                                         │
+│  ┌─────────────────────────────────────────┐                               │
+│  │           Claude API (AI calls)          │                               │
+│  │  • Summarization for notifications       │                               │
+│  │  • Semantic subscription matching        │                               │
+│  └─────────────────────────────────────────┘                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │                       │
+            ▼                       ▼
+┌───────────────────────┐  ┌───────────────────────┐
+│ Delivery              │  │ AI Clients            │
+│ • Resend (email)      │  │ • Claude.ai           │
+│ • Webhooks            │  │ • ChatGPT             │
+└───────────────────────┘  └───────────────────────┘
+```
+
+**Why Modal:**
+- Already used for vector indexing (GPU access)
+- Serverless, pay-per-use (~$2-5/month for pilot volume)
+- Supports cron triggers and web endpoints
+- Python-native (same codebase)
+
+**What runs where:**
+
+| Component | Platform | Trigger | Purpose |
+|-----------|----------|---------|---------|
+| **MCP Server** | Fly.io | HTTP endpoint | Serve AI queries (deployed: `civicos-mcp.fly.dev`) |
+| **Relay Worker** | Modal | Cron (every 5 min) | Emit events, match subscriptions, deliver |
+| **Vector Indexer** | Modal | On-demand | Generate embeddings (existing) |
+
+**Relay Worker implementation:**
+
+```python
+# packages/civicos-relay/modal_worker.py (conceptual)
+import modal
+
+app = modal.App("civicos-relay")
+
+@app.function(schedule=modal.Cron("*/5 * * * *"))
+async def relay_tick():
+    """Check for civic events and route to subscribers."""
+
+    # 1. Query for unprocessed events (new decisions, agendas)
+    new_events = check_for_new_civic_events()
+
+    # 2. For each event, match against subscriptions
+    for event in new_events:
+        matches = match_subscriptions(event)
+
+        # 3. Optional: AI enhancement
+        if matches and should_summarize(event):
+            summary = await claude_summarize(event)
+
+        # 4. Deliver to matching subscribers
+        for sub in matches:
+            await deliver(event, sub, summary)
+
+        # 5. Log delivery
+        log_event_delivery(event, len(matches))
+```
+
+**API endpoints (Session 535):**
+
+REST API endpoints for relay operations are now available in `civicos-services`:
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/coordination/voice` | POST | Cast a signed voice |
+| `/api/coordination/voice/counts/{entity}` | GET | Get voice counts |
+| `/api/coordination/voice/{entity}` | GET | List voices for entity |
+| `/api/coordination/subscribe` | POST | Create subscription |
+| `/api/coordination/subscribe/{id}` | DELETE | Deactivate subscription |
+| `/api/coordination/provenance/{key}` | GET | Get key provenance |
+
+**Implementation sequence:**
+
+1. **Phase 1 (Complete):** Storage + API
+   - PostgreSQL storage classes ✓
+   - REST API endpoints ✓
+   - Frontend can display voice counts ✓
+
+2. **Phase 2 (Next):** MCP Server on Modal
+   - Deploy `civicos-mcp` to Modal as web endpoint
+   - Connect to Claude.ai and ChatGPT
+   - Enables AI queries against civic data
+
+3. **Phase 3:** Relay Worker on Modal
+   - Event emission from civic data changes
+   - Subscription matching and delivery
+   - Resend integration for email
+
+4. **Phase 4:** AI Enhancement
+   - Claude API for notification summaries
+   - Semantic subscription matching
+   - Personalized digests
+
+**Cost estimate (pilot):**
+
+| Component | Provider | Est. Cost/mo |
+|-----------|----------|--------------|
+| Relay Worker | Modal | ~$2-5 |
+| MCP Server | Modal | ~$2-5 |
+| Email delivery | Resend Free | $0 |
+| Claude API | Anthropic | ~$5-10 |
+| **Total compute** | | **~$10-20/mo** |
+
+This is in addition to storage costs (~$0 on Supabase free tier) and hosting (~$5/mo on Fly.io for main app).
+
 ### Phase 2: Full Relay (Post-Pilot)
 
 If pilot validates coordination hypothesis, expand relay:
