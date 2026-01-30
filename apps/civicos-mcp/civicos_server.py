@@ -826,6 +826,9 @@ def city_pulse(
     and community activity patterns. Designed for both AI-native rendering
     (Claude artifacts, ChatGPT canvas) and web dashboard display.
 
+    IMPORTANT: Meeting dates include the day of week (e.g., "Mon, Feb 02").
+    Always use the day of week exactly as provided - do not recalculate it.
+
     Args:
         jurisdiction: City identifier (default: san-rafael)
         days_ahead: Days to look ahead for upcoming decisions (default: 7)
@@ -2980,6 +2983,10 @@ def get_upcoming_meetings(
     Returns scheduled meetings with their agenda items for the next N days.
     Use this to see what decisions are coming up that residents might want
     to participate in.
+
+    IMPORTANT: Meeting dates are pre-formatted with the correct day of week
+    (e.g., "Monday, February 2, 2026"). Always use the day of week exactly
+    as provided in the response - do not attempt to recalculate it.
 
     Args:
         topics: Comma-separated topics to filter by (e.g., "housing,transportation")
