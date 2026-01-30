@@ -137,6 +137,7 @@ class FinancialStorage(Protocol):
         jurisdiction_id: str,
         budget_item_id: Optional[str] = None,
         federal_cfda_number: Optional[str] = None,
+        fiscal_year: Optional[str] = None,
         match_type: Optional[str] = None,
         confirmed_only: bool = False,
         as_of: Optional[datetime] = None,

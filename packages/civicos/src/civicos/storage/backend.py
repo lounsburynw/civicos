@@ -1622,6 +1622,7 @@ class StorageBackend(
         jurisdiction_id: str,
         budget_item_id: Optional[str] = None,
         federal_cfda_number: Optional[str] = None,
+        fiscal_year: Optional[str] = None,
         match_type: Optional[str] = None,
         confirmed_only: bool = False,
         as_of: Optional[datetime] = None,
@@ -1634,6 +1635,7 @@ class StorageBackend(
             jurisdiction_id: Source jurisdiction
             budget_item_id: Filter by specific budget item
             federal_cfda_number: Filter by CFDA number
+            fiscal_year: Filter by fiscal year (joins with budget_items)
             match_type: Filter by match type
             confirmed_only: If True, only return confirmed links
             as_of: Point-in-time query (for temporal versioning)

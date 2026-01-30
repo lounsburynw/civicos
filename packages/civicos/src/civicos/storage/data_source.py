@@ -252,6 +252,7 @@ class DataSource(Protocol):
         jurisdiction_id: str,
         budget_item_id: Optional[str] = None,
         federal_cfda_number: Optional[str] = None,
+        fiscal_year: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """
@@ -261,6 +262,7 @@ class DataSource(Protocol):
             jurisdiction_id: CivicOS jurisdiction
             budget_item_id: Filter by specific budget item
             federal_cfda_number: Filter by CFDA number
+            fiscal_year: Filter by fiscal year (joins with budget_items)
             limit: Maximum number of results
 
         Returns:
@@ -557,6 +559,7 @@ class LocalDataSource:
         jurisdiction_id: str,
         budget_item_id: Optional[str] = None,
         federal_cfda_number: Optional[str] = None,
+        fiscal_year: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """Delegate to StorageBackend.get_budget_funding_links()."""
@@ -564,6 +567,7 @@ class LocalDataSource:
             jurisdiction_id=jurisdiction_id,
             budget_item_id=budget_item_id,
             federal_cfda_number=federal_cfda_number,
+            fiscal_year=fiscal_year,
             limit=limit,
         )
 

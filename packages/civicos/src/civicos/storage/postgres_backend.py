@@ -6838,6 +6838,7 @@ class PostgresBackend:
         jurisdiction_id: str,
         budget_item_id: Optional[str] = None,
         federal_cfda_number: Optional[str] = None,
+        fiscal_year: Optional[str] = None,
         match_type: Optional[str] = None,
         confirmed_only: bool = False,
         as_of: Optional[datetime] = None,
@@ -6850,6 +6851,7 @@ class PostgresBackend:
             jurisdiction_id: Source jurisdiction
             budget_item_id: Filter by specific budget item
             federal_cfda_number: Filter by CFDA number
+            fiscal_year: Filter by fiscal year (joins with budget_items)
             match_type: Filter by match type
             confirmed_only: If True, only return confirmed links
             as_of: Point-in-time query (for temporal versioning)
@@ -6867,31 +6869,45 @@ class PostgresBackend:
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
         # Build query with temporal filtering
-        query = """
-            SELECT * FROM budget_funding_source_links
-            WHERE jurisdiction_id = %s
-              AND valid_from <= %s
-              AND (valid_to IS NULL OR valid_to > %s)
-              AND deleted_at IS NULL
-        """
-        params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+        # Use JOIN with budget_items when filtering by fiscal_year
+        if fiscal_year is not None:
+            query = """
+                SELECT bfsl.* FROM budget_funding_source_links bfsl
+                INNER JOIN budget_items bi ON bfsl.budget_item_id = bi.item_id
+                    AND bi.jurisdiction_id = bfsl.jurisdiction_id
+                WHERE bfsl.jurisdiction_id = %s
+                  AND bfsl.valid_from <= %s
+                  AND (bfsl.valid_to IS NULL OR bfsl.valid_to > %s)
+                  AND bfsl.deleted_at IS NULL
+                  AND bi.fiscal_year = %s
+            """
+            params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat(), fiscal_year]
+        else:
+            query = """
+                SELECT * FROM budget_funding_source_links
+                WHERE jurisdiction_id = %s
+                  AND valid_from <= %s
+                  AND (valid_to IS NULL OR valid_to > %s)
+                  AND deleted_at IS NULL
+            """
+            params = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
 
         if budget_item_id is not None:
-            query += " AND budget_item_id = %s"
+            query += " AND budget_item_id = %s" if fiscal_year is None else " AND bfsl.budget_item_id = %s"
             params.append(budget_item_id)
 
         if federal_cfda_number is not None:
-            query += " AND federal_cfda_number = %s"
+            query += " AND federal_cfda_number = %s" if fiscal_year is None else " AND bfsl.federal_cfda_number = %s"
             params.append(federal_cfda_number)
 
         if match_type is not None:
-            query += " AND match_type = %s"
+            query += " AND match_type = %s" if fiscal_year is None else " AND bfsl.match_type = %s"
             params.append(match_type)
 
         if confirmed_only:
-            query += " AND confirmed_at IS NOT NULL"
+            query += " AND confirmed_at IS NOT NULL" if fiscal_year is None else " AND bfsl.confirmed_at IS NOT NULL"
 
-        query += " ORDER BY match_confidence DESC, created_at DESC"
+        query += " ORDER BY match_confidence DESC, created_at DESC" if fiscal_year is None else " ORDER BY bfsl.match_confidence DESC, bfsl.created_at DESC"
 
         if limit is not None:
             query += " LIMIT %s"
