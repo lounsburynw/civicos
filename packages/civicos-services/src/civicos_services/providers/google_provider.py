@@ -98,7 +98,11 @@ class GoogleProvider(LLMProvider):
             if response_format == "json_object":
                 generation_config['response_mime_type'] = 'application/json'
                 expects_json = True
-            # Handle dict format: response_format={'type': 'json_schema', ...}
+            # Handle dict format: response_format={'type': 'json_object'} (no schema)
+            elif isinstance(response_format, dict) and response_format.get('type') == 'json_object':
+                generation_config['response_mime_type'] = 'application/json'
+                expects_json = True
+            # Handle dict format: response_format={'type': 'json_schema', ...} (with schema)
             elif isinstance(response_format, dict) and response_format.get('type') == 'json_schema':
                 json_schema = response_format.get('json_schema', {})
                 schema = json_schema.get('schema', {})
@@ -216,7 +220,10 @@ class GoogleProvider(LLMProvider):
             # Handle simple string format: response_format="json_object"
             if response_format == "json_object":
                 generation_config['response_mime_type'] = 'application/json'
-            # Handle dict format: response_format={'type': 'json_schema', ...}
+            # Handle dict format: response_format={'type': 'json_object'} (no schema)
+            elif isinstance(response_format, dict) and response_format.get('type') == 'json_object':
+                generation_config['response_mime_type'] = 'application/json'
+            # Handle dict format: response_format={'type': 'json_schema', ...} (with schema)
             elif isinstance(response_format, dict) and response_format.get('type') == 'json_schema':
                 json_schema = response_format.get('json_schema', {})
                 schema = json_schema.get('schema', {})
