@@ -111,8 +111,24 @@ class TranscriptChunk:
         }
 
     def to_embedding_text(self) -> str:
-        """Generate text for embedding (includes speaker context)."""
-        speaker_label = f"[Speaker {self.speaker}]" if self.speaker != "multiple" else "[Multiple speakers]"
+        """Generate text for embedding (includes speaker context).
+
+        Uses speaker name from metadata when available (roster-matched speakers),
+        otherwise falls back to generic speaker ID (Speaker A, B, etc.).
+        """
+        if self.speaker == "multiple":
+            speaker_label = "[Multiple speakers]"
+        else:
+            # Use speaker name from metadata if available (roster-matched)
+            speaker_name = self.metadata.get("speaker_name")
+            speaker_title = self.metadata.get("speaker_title")
+            if speaker_name:
+                if speaker_title:
+                    speaker_label = f"[{speaker_name} ({speaker_title})]"
+                else:
+                    speaker_label = f"[{speaker_name}]"
+            else:
+                speaker_label = f"[Speaker {self.speaker}]"
         return f"{speaker_label} {self.text}"
 
 

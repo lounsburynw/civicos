@@ -71,16 +71,25 @@ DURATION_TOLERANCE_PERCENT = 0.10  # Allow 10% variance for encoding overhead/pa
 MIN_DURATION_FOR_VALIDATION = 60  # Don't validate very short clips (<1 min)
 
 
-def _detect_speaker_roles(utterances: List[Dict], use_llm: bool = True) -> Dict[str, Dict]:
+def _detect_speaker_roles(
+    utterances: List[Dict],
+    use_llm: bool = True,
+    jurisdiction_id: Optional[str] = None,
+) -> Dict[str, Dict]:
     """
     Detect speaker roles and names from transcript utterances.
 
     Uses the SpeakerRoleDetector from civicos with optional LLM enhancement
     for robust detection across different meeting types and municipalities.
 
+    Option D approach: LLM with roster context + roster post-processing
+    - Roster provides known officials to the LLM prompt
+    - Roster post-processing expands partial names and corrects typos
+
     Args:
         utterances: List of utterance dicts with speaker, text, start, end
         use_llm: If True, use LLM for enhanced detection (costs ~$0.0003/transcript)
+        jurisdiction_id: Jurisdiction ID for roster lookup (e.g., "city-san-rafael")
 
     Returns:
         Dict mapping speaker ID to metadata:
@@ -98,6 +107,14 @@ def _detect_speaker_roles(utterances: List[Dict], use_llm: bool = True) -> Dict[
             SpeakerRoleDetector,
             TranscriptUtterance,
         )
+        from civicos.roster import Roster, enhance_with_roster
+
+        # Load roster for jurisdiction (if available)
+        roster = None
+        if jurisdiction_id:
+            roster = Roster.load(jurisdiction_id)
+            if roster:
+                logger.debug(f"Loaded roster with {len(roster.officials)} officials for {jurisdiction_id}")
 
         # Convert dict utterances to TranscriptUtterance objects
         transcript_utts = []
@@ -114,8 +131,8 @@ def _detect_speaker_roles(utterances: List[Dict], use_llm: bool = True) -> Dict[
         if use_llm:
             llm_provider = _get_llm_provider_for_speaker_detection()
 
-        # Run role detection
-        detector = SpeakerRoleDetector(llm_provider=llm_provider)
+        # Run role detection with roster context (Option D: LLM with roster)
+        detector = SpeakerRoleDetector(llm_provider=llm_provider, roster=roster)
         speaker_infos = detector.detect_roles(transcript_utts)
 
         # Convert SpeakerInfo objects to serializable dicts
@@ -146,6 +163,14 @@ def _detect_speaker_roles(utterances: List[Dict], use_llm: bool = True) -> Dict[
                 "title": info.title,
                 "confidence": info.confidence,
             }
+
+        # Apply roster post-processing (Option D: expand partial names, correct typos)
+        if jurisdiction_id:
+            result = enhance_with_roster(jurisdiction_id, result)
+            roster_matched = sum(1 for s in result.values() if s.get("roster_matched"))
+            if roster_matched:
+                logger.debug(f"Roster matched {roster_matched} speakers")
+
         return result
 
     except ImportError as e:
@@ -765,10 +790,12 @@ def transcribe_audio_file(
                 })
 
         # SESSION 530: Run speaker role detection to extract names from roll call
-        speakers_metadata = _detect_speaker_roles(utterances)
+        # Option D: LLM with roster context + roster post-processing
+        speakers_metadata = _detect_speaker_roles(utterances, jurisdiction_id=jurisdiction_id)
         if speakers_metadata:
             named_count = sum(1 for s in speakers_metadata.values() if s.get("name"))
-            logger.info(f"  Speaker detection: {named_count}/{len(speakers_metadata)} speakers identified by name")
+            roster_count = sum(1 for s in speakers_metadata.values() if s.get("roster_matched"))
+            logger.info(f"  Speaker detection: {named_count}/{len(speakers_metadata)} speakers identified ({roster_count} from roster)")
 
         # Build result in expected format
         result_data = {
@@ -1087,10 +1114,12 @@ def transcribe_batch(
                     })
 
             # SESSION 530: Run speaker role detection to extract names from roll call
-            speakers_metadata = _detect_speaker_roles(utterances)
+            # Option D: LLM with roster context + roster post-processing
+            speakers_metadata = _detect_speaker_roles(utterances, jurisdiction_id=jurisdiction_id)
             if speakers_metadata:
                 named_count = sum(1 for s in speakers_metadata.values() if s.get("name"))
-                logger.info(f"    Speaker detection: {named_count}/{len(speakers_metadata)} identified by name")
+                roster_count = sum(1 for s in speakers_metadata.values() if s.get("roster_matched"))
+                logger.info(f"    Speaker detection: {named_count}/{len(speakers_metadata)} identified ({roster_count} from roster)")
 
             # Build result data
             result_data = {
