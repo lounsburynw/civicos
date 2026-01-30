@@ -96,6 +96,10 @@ import modal
 # Define the Modal app
 app = modal.App("civic-ingest")
 
+# Persistent volume for model caching (fastembed downloads ~500MB models)
+# This prevents re-downloading on every cold start and avoids cache corruption
+model_cache = modal.Volume.from_name("civic-model-cache", create_if_missing=True)
+
 # Build unified image with all dependencies
 civic_image = (
     modal.Image.debian_slim(python_version="3.11")
@@ -1300,6 +1304,7 @@ def fetch_all_hud_allocations(dry_run: bool = False) -> dict:
     secrets=[modal.Secret.from_name("civic-db")],
     memory=65536,  # 64GB per worker (fastembed uses CPU, memory is the bottleneck)
     timeout=900,  # 15 min per batch (CPU-only, increased from 10 min for safety)
+    volumes={"/cache": model_cache},  # Persistent model cache
 )
 def _embed_and_store_batch(
     chunks: list[dict],
@@ -1321,6 +1326,10 @@ def _embed_and_store_batch(
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logger = logging.getLogger(__name__)
+
+    # Use persistent volume for fastembed model cache
+    # Must be set before PgVectorBackend loads the embedding model
+    os.environ["FASTEMBED_CACHE_PATH"] = "/cache/fastembed"
 
     from civicos.storage.pgvector_backend import PgVectorBackend
 
@@ -3128,6 +3137,36 @@ def scheduled_high_velocity_refresh():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logger = logging.getLogger(__name__)
 
+    def run_with_retry(func, stage_name: str, max_retries: int = 2, initial_delay: float = 30.0, **kwargs):
+        """Run a Modal .local() function with retry logic for transient failures.
+
+        Args:
+            func: Modal function to call with .local()
+            stage_name: Human-readable name for logging
+            max_retries: Maximum retry attempts (default 2)
+            initial_delay: Initial delay in seconds, doubles each retry
+            **kwargs: Arguments to pass to the function
+
+        Returns:
+            Function result on success, or dict with status="failed" on exhausted retries
+        """
+        delay = initial_delay
+        last_error = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                return func.local(**kwargs)
+            except Exception as e:
+                last_error = e
+                if attempt < max_retries:
+                    logger.warning(f"  {stage_name} failed (attempt {attempt + 1}/{max_retries + 1}), retrying in {delay}s: {e}")
+                    time.sleep(delay)
+                    delay *= 2  # Exponential backoff
+                else:
+                    logger.exception(f"  {stage_name} failed after {max_retries + 1} attempts")
+
+        return {"status": "failed", "error": str(last_error)}
+
     logger.info("Starting scheduled high-velocity refresh")
     start_time = time.time()
 
@@ -3151,69 +3190,69 @@ def scheduled_high_velocity_refresh():
         results[jid] = {}
 
         # Meetings (incremental, auto-index vectors after store)
-        try:
-            logger.info(f"  [{jid}] Fetching meetings (incremental)...")
-            result = fetch_meetings.local(
-                jurisdiction=jid,
-                incremental=True,
-                dry_run=False,
-                auto_index=True,
-            )
-            results[jid]["meetings"] = result
+        logger.info(f"  [{jid}] Fetching meetings (incremental)...")
+        result = run_with_retry(
+            fetch_meetings,
+            f"[{jid}] Meetings fetch",
+            jurisdiction=jid,
+            incremental=True,
+            dry_run=False,
+            auto_index=True,
+        )
+        results[jid]["meetings"] = result
+        if result.get("status") != "failed":
             stored = result.get('meetings_stored', 0)
             indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
             logger.info(f"    Meetings: {stored} stored, {indexed} vectors indexed")
-        except Exception as e:
-            logger.exception(f"  [{jid}] Meetings fetch failed")
-            results[jid]["meetings"] = {"status": "failed", "error": str(e)}
 
         # Issues (incremental, auto-index vectors after store)
-        try:
-            logger.info(f"  [{jid}] Fetching issues (incremental)...")
-            result = fetch_issues.local(
-                jurisdiction=jid,
-                incremental=True,
-                dry_run=False,
-                auto_index=True,
-            )
-            results[jid]["issues"] = result
+        logger.info(f"  [{jid}] Fetching issues (incremental)...")
+        result = run_with_retry(
+            fetch_issues,
+            f"[{jid}] Issues fetch",
+            jurisdiction=jid,
+            incremental=True,
+            dry_run=False,
+            auto_index=True,
+        )
+        results[jid]["issues"] = result
+        if result.get("status") != "failed":
             stored = result.get('issues_stored', 0)
             indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
             logger.info(f"    Issues: {stored} stored, {indexed} vectors indexed")
-        except Exception as e:
-            logger.exception(f"  [{jid}] Issues fetch failed")
-            results[jid]["issues"] = {"status": "failed", "error": str(e)}
 
         # Video discovery (scrape meeting pages for YouTube IDs)
         # Runs AFTER fetch_meetings so new meeting pages exist,
         # and BEFORE extract_transcripts so video records are available for audio download.
-        try:
-            logger.info(f"  [{jid}] Discovering videos from meeting pages...")
-            result = discover_videos.local(
-                jurisdiction=jid,
-                days_past=7,
-                days_ahead=30,
-                dry_run=False,
-            )
-            results[jid]["videos"] = result
+        logger.info(f"  [{jid}] Discovering videos from meeting pages...")
+        result = run_with_retry(
+            discover_videos,
+            f"[{jid}] Video discovery",
+            jurisdiction=jid,
+            days_past=7,
+            days_ahead=30,
+            dry_run=False,
+        )
+        results[jid]["videos"] = result
+        if result.get("status") != "failed":
             discovered = result.get('videos_discovered', 0)
             logger.info(f"    Videos: {discovered} discovered")
-        except Exception as e:
-            logger.exception(f"  [{jid}] Video discovery failed")
-            results[jid]["videos"] = {"status": "failed", "error": str(e)}
 
         # Transcript extraction (audio download + transcription, auto-index vectors)
         # Runs BEFORE chunk extraction since transcript text needs to be indexed
-        try:
-            logger.info(f"  [{jid}] Extracting transcripts (audio + transcription)...")
-            result = extract_transcripts.local(
-                jurisdiction=jid,
-                since_days=7,  # Only videos discovered in last 7 days
-                dry_run=False,
-                batch=True,  # Use batch mode for parallel transcription
-                auto_index=True,
-            )
-            results[jid]["transcripts"] = result
+        logger.info(f"  [{jid}] Extracting transcripts (audio + transcription)...")
+        result = run_with_retry(
+            extract_transcripts,
+            f"[{jid}] Transcript extraction",
+            max_retries=1,  # Transcription is expensive, limit retries
+            jurisdiction=jid,
+            since_days=7,  # Only videos discovered in last 7 days
+            dry_run=False,
+            batch=True,  # Use batch mode for parallel transcription
+            auto_index=True,
+        )
+        results[jid]["transcripts"] = result
+        if result.get("status") != "failed":
             cost = result.get("transcription_cost_usd", 0)
             total_transcription_cost += cost
             extracted = result.get('transcripts_extracted', 0)
@@ -3225,41 +3264,41 @@ def scheduled_high_velocity_refresh():
             )
             if result.get("duration_validation_issues", 0) > 0:
                 logger.warning(f"    Duration validation issues: {result.get('duration_validation_issues')}")
-        except Exception as e:
-            logger.exception(f"  [{jid}] Transcript extraction failed")
-            results[jid]["transcripts"] = {"status": "failed", "error": str(e)}
 
         # Chunk extraction (incremental - skips already-chunked meetings, auto-index vectors)
-        try:
-            logger.info(f"  [{jid}] Extracting chunks from new meetings...")
-            result = extract_chunks.local(
-                jurisdiction=jid,
-                dry_run=False,
-                auto_index=True,
-            )
-            results[jid]["chunks"] = result
+        logger.info(f"  [{jid}] Extracting chunks from new meetings...")
+        result = run_with_retry(
+            extract_chunks,
+            f"[{jid}] Chunk extraction",
+            jurisdiction=jid,
+            dry_run=False,
+            auto_index=True,
+        )
+        results[jid]["chunks"] = result
+        if result.get("status") != "failed":
             extracted = result.get('chunks_extracted', 0)
             indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
             logger.info(f"    Chunks: {extracted} extracted from {result.get('meetings_extracted', 0)} meetings, {indexed} vectors indexed")
-        except Exception as e:
-            logger.exception(f"  [{jid}] Chunk extraction failed")
-            results[jid]["chunks"] = {"status": "failed", "error": str(e)}
 
         # Agenda items extraction (LLM-powered, runs daily for timely prospective engagement)
         # Moved from weekly to daily refresh because:
         # - New meetings are discovered daily
         # - Agenda items are the key feature for prospective civic engagement
         # - Users want upcoming meeting details promptly, not 7 days later
-        try:
-            logger.info(f"  [{jid}] Extracting agenda items...")
-            result = extract_agenda_items.local(jurisdiction=jid, dry_run=False, auto_index=True)
-            results[jid]["agenda_items"] = result
+        logger.info(f"  [{jid}] Extracting agenda items...")
+        result = run_with_retry(
+            extract_agenda_items,
+            f"[{jid}] Agenda items extraction",
+            max_retries=1,  # LLM calls are expensive, limit retries
+            jurisdiction=jid,
+            dry_run=False,
+            auto_index=True,
+        )
+        results[jid]["agenda_items"] = result
+        if result.get("status") != "failed":
             extracted = result.get('items_extracted', 0)
             indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
             logger.info(f"    Agenda items: {extracted} items ({result.get('actionable_items', 0)} actionable), {indexed} vectors indexed")
-        except Exception as e:
-            logger.exception(f"  [{jid}] Agenda items extraction failed")
-            results[jid]["agenda_items"] = {"status": "failed", "error": str(e)}
 
         # NOTE: Vector indexing now handled by auto_index=True on each fetch/extract call above.
         # This ensures vectors are indexed immediately after data is stored, closing the
