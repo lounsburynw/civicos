@@ -624,6 +624,10 @@ def get_regulatory_context(
         federal = [{"note": f"No federal regulations found for topic '{topic}'"}]
 
     # Search local municipal code using vector backend
+    # Deduplicate by section_number — vector search returns multiple chunks per
+    # section, but we only want the highest-scored chunk for each unique section.
+    seen_sections: set[str] = set()
+
     if vectors is not None:
         try:
             results = vectors.search(
@@ -634,11 +638,16 @@ def get_regulatory_context(
             )
 
             for result in results:
+                section_num = result.metadata.get("section_number", "")
+                if section_num and section_num in seen_sections:
+                    continue
                 if result.score > 0:
+                    if section_num:
+                        seen_sections.add(section_num)
                     local.append({
                         "type": "ordinance",
                         "id": result.id,
-                        "section_number": result.metadata.get("section_number", ""),
+                        "section_number": section_num,
                         "section_name": result.metadata.get("section_name", ""),
                         "chapter": result.metadata.get("chapter", ""),
                         "text_preview": result.content[:300] if result.content else "",
@@ -659,11 +668,16 @@ def get_regulatory_context(
             )
 
             for result in results:
+                section_num = result.metadata.get("section_number", "")
+                if section_num and section_num in seen_sections:
+                    continue
                 if result.score > 0:
+                    if section_num:
+                        seen_sections.add(section_num)
                     local.append({
                         "type": "county_ordinance",
                         "id": result.id,
-                        "section_number": result.metadata.get("section_number", ""),
+                        "section_number": section_num,
                         "section_name": result.metadata.get("section_name", ""),
                         "chapter": result.metadata.get("chapter", ""),
                         "text_preview": result.content[:300] if result.content else "",

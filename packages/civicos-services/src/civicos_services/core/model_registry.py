@@ -38,13 +38,23 @@ MODEL_REGISTRY: Dict[str, dict] = {
         'speed': 'medium',
         'description': 'Premium model with best structured output reliability'
     },
+    'models/gemini-2.0-flash': {
+        'provider': 'google',
+        'capabilities': ['structured_outputs', 'function_calling'],
+        'cost_per_1m_tokens': 0.075,
+        'context_window': 1000000,
+        'speed': 'very_fast',
+        'description': 'Fast and cheap, good for simple tasks'
+    },
+    # Alias for backward compatibility (Session 530)
     'gemini-2.0-flash-exp': {
         'provider': 'google',
         'capabilities': ['structured_outputs', 'function_calling'],
         'cost_per_1m_tokens': 0.075,
         'context_window': 1000000,
         'speed': 'very_fast',
-        'description': 'Fast and cheap, good for simple tasks but less reliable structured outputs'
+        'description': 'DEPRECATED: Use models/gemini-2.0-flash instead',
+        'alias_for': 'models/gemini-2.0-flash'
     },
     'gemini-2.5-pro': {
         'provider': 'google',
@@ -185,7 +195,31 @@ def get_model_info(model_name: str) -> Optional[dict]:
         >>> print(info['provider'])  # 'openai'
         >>> print(info['cost_per_1m_tokens'])  # 0.60
     """
-    return MODEL_REGISTRY.get(model_name)
+    info = MODEL_REGISTRY.get(model_name)
+    # Resolve alias if present (Session 530)
+    if info and 'alias_for' in info:
+        return MODEL_REGISTRY.get(info['alias_for'])
+    return info
+
+
+def resolve_model_name(model_name: str) -> str:
+    """
+    Resolve model name, following aliases if present.
+
+    Args:
+        model_name: Name of the model (may be an alias)
+
+    Returns:
+        Canonical model name (resolved from alias if applicable)
+
+    Example:
+        >>> resolve_model_name('gemini-2.0-flash-exp')
+        'models/gemini-2.0-flash'
+    """
+    info = MODEL_REGISTRY.get(model_name)
+    if info and 'alias_for' in info:
+        return info['alias_for']
+    return model_name
 
 
 def find_models_by_capabilities(

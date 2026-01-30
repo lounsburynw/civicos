@@ -1,3 +1,45 @@
+## Session 530 (2026-01-29) - Speaker Diarization + Regulatory Dedup
+
+**Items Completed:**
+1. `regulatory_result_dedup` (P0) → ready
+2. `voting_record_semantic_search` (P1) → ready (already implemented)
+3. `upcoming_meetings_ingestion` (P1) → ready (no upcoming meetings to ingest)
+4. `speaker_diarization_optimization` (P1) → ready
+
+### Changes
+
+**1. Regulatory Result Dedup (context.py)**
+Fixed duplicate municipal code sections in `search_regulatory_stack()`. Added `seen_sections` set to deduplicate by `section_number`. Verified: "housing" query reduced from 10 results (6 duplicates) to 4 unique sections.
+
+**2. LLM-Based Speaker Name Detection**
+Full integration of LLM-based speaker detection into transcription pipeline:
+
+- **Provider Integration**: Uses `civicos-services` LLM abstraction with Gemini 2.0 Flash (~$0.0003/transcript)
+- **Model Registry**: Added alias system (`gemini-2.0-flash-exp` → `models/gemini-2.0-flash`) for backward compatibility
+- **Configurable**: Set `SPEAKER_DETECTION_MODEL` env var to change model
+- **Markdown Fence Fix**: Strip ```json fences from Google provider responses
+- **Anonymous Names**: Unnamed speakers get friendly IDs ("Public Speaker 1", "Staff Member 2", etc.)
+
+**Tested on real data:**
+- PAAC meeting: 9/50 speakers named (Chair Davidi, Vice Chair Ruiz, Council Members, Staff)
+- City Council: 6/50 speakers named (Mayor Kate, Vice Mayor Kurtz, Council Members, City Attorney)
+
+**3. Voting Record Semantic Search**
+Discovered semantic search was ALREADY IMPLEMENTED (civicos.py:971-986). The "0 votes" issue is a DATA gap — `vote_json` is NULL for all 44 decisions because they were extracted from agendas (pre-meeting), not minutes (post-meeting).
+
+### Files Modified
+- `packages/civicos/src/civicos/context.py` (dedup logic)
+- `packages/civicos-extraction/src/civicos_extraction/cli/transcribe.py` (speaker detection + anonymous naming)
+- `packages/civicos/src/civicos/_internal/meetings/transcript.py` (chunker update + markdown fence strip)
+- `packages/civicos-services/src/civicos_services/core/model_registry.py` (model alias system)
+- `packages/civicos-services/src/civicos_services/core/llm_provider.py` (resolve alias in get_model)
+- `pilot.json` (4 items marked ready)
+
+### Backfill Note
+Existing 35 transcripts can be backfilled by running `_detect_speaker_roles()` on their utterances — no re-transcription needed ($0 cost). New transcripts will automatically have `speakers_metadata` populated.
+
+---
+
 ## Session 529 (2026-01-28) - Action Leverage Points: Surface Bill Status in MCP Tools
 
 **Item:** action_leverage_points (P0)
