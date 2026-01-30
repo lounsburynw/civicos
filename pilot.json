@@ -18,6 +18,7 @@
     "pipeline_automation",
     "rollback_procedures",
     "user_documentation",
+    "relay",
     "frontend_refinement",
     "pilot_validation"
   ],
@@ -571,11 +572,11 @@
         ]
       },
       "voting_record_semantic_search": {
-        "status": "not_ready",
-        "priority": 1,
+        "status": "ready",
+        "priority": 2,
         "artifact": "get_voting_record() finds semantically related votes",
         "description": "Update get_voting_record() to use semantic topic matching instead of exact array match. 'housing affordability' would also find votes on 'zoning', 'development', 'density'.",
-        "note": "Session 540: Current implementation in civicos.py:973-977 uses exact topic array match. Vector search on decision titles/summaries would improve recall. | REOPENED Session 529: MCP audit shows 0 votes for Kate Colin. Roll call data not ingested or search not finding it.",
+        "note": "Session 530: ALREADY IMPLEMENTED. Semantic search on decisions corpus exists at civicos.py:971-986, tested working (10 results for 'housing affordability'). The '0 votes' issue is a DATA gap not code \u2014 vote_json is NULL for all 44 decisions. Decisions extracted from agendas (pre-meeting) don't have votes. Need to extract votes from minutes or transcripts in a separate data_readiness item.",
         "depends_on": [
           "hybrid_what_applies"
         ]
@@ -759,8 +760,8 @@
         }
       ],
       "upcoming_meetings_ingestion": {
-        "status": "not_ready",
-        "priority": 1,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Future-dated meetings in database for whats_next() queries",
         "description": "Scrape and ingest San Rafael's upcoming meeting calendar so whats_next() returns future meetings.",
         "note": "Session 540: Fixed whats_next() to query from start-of-today (not current time) so meetings without specific times show up. ProudCity scraper working correctly. San Rafael only publishes meetings close to date - as of Jan 21 2026, only today's PAAC meeting is in future. Modal fetch_meetings() ready for scheduled refresh. | REOPENED Session 529: MCP audit shows 0 upcoming meetings. _meetings_are_historical flag confirms staleness. Pipeline not producing current data.",
@@ -1784,7 +1785,7 @@
       ],
       "update_legislative_button": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Button: Update Legislative Context"
       }
     },
@@ -1822,11 +1823,11 @@
         "note": "Shows transcript count, total minutes, and estimated cost ($0.02/min) for current month or last 30 days. Results cached 1 hour. Session 515."
       },
       "geocoding_production_config": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": "GOOGLE_MAPS_API_KEY set as Fly.io secret for production MCP server",
         "description": "find_issues_near_address() fails in production: GOOGLE_MAPS_API_KEY not set. Key works locally but is not configured as a Fly.io secret.",
-        "note": "Session 529: MCP audit flagged geolocation as 0/10. Fix: fly secrets set GOOGLE_MAPS_API_KEY=xxx --app civicos-mcp"
+        "note": "Session 529: MCP audit flagged geolocation as 0/10. Fix: fly secrets set GOOGLE_MAPS_API_KEY=xxx --app civicos-mcp | RESOLVED Session 529: fly secrets set completed, machines restarted healthy."
       }
     },
     "developer_tooling": {
@@ -2082,8 +2083,8 @@
         "description": "YouTube blocks audio downloads from Modal's datacenter IPs (ERROR: The downloaded file is empty). Cookies alone don't fix it. Explore residential proxy or alternative IP solutions: (1) Modal proxy egress or residential IP add-on, (2) third-party residential proxy (e.g. Bright Data, Oxylabs) routed via yt-dlp --proxy, (3) yt-dlp PO token / OAuth approach, (4) alternative download methods (youtube-po-token, Piped API). Goal: extract_transcripts() downloads audio reliably on Modal without manual local download step. SOLUTION: DataImpulse residential proxy ($5/GB trial) configured as civic-youtube-proxy Modal secret. yt-dlp --proxy routes through rotating residential IPs. All 4 Jan 20-22 videos downloaded and transcribed. Also added straggler sweep for failed transcriptions outside the since_days window."
       },
       "speaker_diarization_optimization": {
-        "status": "not_ready",
-        "priority": 1,
+        "status": "ready",
+        "priority": 2,
         "artifact": "Transcription pipeline uses per-meeting speaker estimation instead of hardcoded min=5/max=10",
         "description": "Integrate speaker estimation into the transcription pipeline. Sessions 108-109 proved that hardcoded min_speakers=5, max_speakers=10 causes fatal under-segmentation (only 5 speakers detected in 40-50 speaker meetings). Exact-count approach (min=N, max=N) validated: recovered all speakers. Three estimation scripts exist but are disconnected: estimate_speakers_from_youtube.py, estimate_speakers_llm.py, extract_all_speakers.py. Wire estimation into transcribe.py and modal_ingest.py extract_transcripts(). Over-segmentation is recoverable; under-segmentation is not.",
         "depends_on": [],
@@ -2102,10 +2103,15 @@
             "name": "modal_pipeline_integration",
             "status": "ready",
             "description": "Update extract_transcripts() in modal_ingest.py to call speaker estimation before AssemblyAI, using YouTube cookies for caption access"
+          },
+          {
+            "name": "speaker_name_detection",
+            "status": "ready",
+            "description": "SESSION 530: Added _detect_speaker_roles() to transcribe.py that runs SpeakerRoleDetector after AssemblyAI returns utterances. Stores speakers_metadata in transcript JSONB with name/role/title for each speaker. Also updated TranscriptChunker to use pre-computed metadata during indexing."
           }
         ],
         "test_file": "packages/civicos/tests/test_civicos.py",
-        "note": "Session 109 validated exact-count hypothesis: min=50/max=50 achieved 100% speaker separation vs 5 speakers with defaults. See data/pilot/exact_count_experiment_results.md, data/pilot/diarization_strategy_comparison.md, data/pilot/assemblyai_speaker_parameter_experiment.md. | REOPENED Session 529: MCP audit shows speakers labeled as single letters (A, B, AF) and None. Parameter tuning validated but production transcripts still lack real names."
+        "note": "Session 530: COMPLETE. LLM-based speaker detection integrated via civicos-services provider abstraction. Tested on real transcripts: PAAC meeting (9/50 named), City Council (6/50 named). Uses Gemini 2.0 Flash (~$0.0003/transcript). Configurable via SPEAKER_DETECTION_MODEL env var. Anonymous speakers get friendly names (Public Speaker 1, Staff Member 2, etc.). Added model alias system to registry for backward compatibility. Existing transcripts can be backfilled without re-transcription."
       },
       "_completed_items": [
         {
@@ -2305,11 +2311,11 @@
         "note": "Session 489: compose_public_comment exists but lacks retrieval-informed citations. Extend to other document types."
       },
       "regulatory_result_dedup": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 2,
         "artifact": "search_regulatory_stack() deduplicates local code results",
         "description": "MCP audit shows same municipal code section (e.g. 14.03.030) appearing 5x in local regulatory results. Need dedup logic in search_regulatory_stack() local section formatting.",
-        "note": "Session 529: MCP audit flagged regulatory stack at 7/10 due to duplicate local results."
+        "note": "Session 530: Fixed in context.py \u2014 deduplicate local/county results by section_number using seen_sections set. Verified 0 duplicates across housing, traffic safety, parking queries."
       }
     },
     "city_status_dashboard": {
@@ -2365,7 +2371,7 @@
       },
       "web_dashboard_route": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 2,
         "artifact": "New /dashboard route in civicos-workspace composing viz components",
         "description": "Add /dashboard page to Vue frontend that displays city status at a glance. Composes: participation calendar, decision flow, issue geography, budget treemap. Serves as the 'city pulse' landing page for engaged residents.",
         "note": "Session 542: This is where visualization components come together. May also serve as embed target for external sites.",
@@ -2844,6 +2850,142 @@
           "Run full test suite",
           "Update deployment configs"
         ]
+      }
+    }
+  },
+  "relay": {
+    "description": "Federation-ready relay - voice, sync, subscriptions for pilot",
+    "package_setup": {
+      "_completed_items": [
+        {
+          "name": "package_scaffold",
+          "status": "ready",
+          "note": "Session 559: Created packages/civicos-relay/ with voice, relay, provenance modules. 13 tests passing."
+        },
+        {
+          "name": "database_schema",
+          "status": "ready",
+          "note": "Session 559: Created schema.sql with coordination_voices, coordination_subscriptions, coordination_provenance, coordination_events_log tables."
+        },
+        {
+          "name": "postgres_storage",
+          "status": "ready",
+          "note": "Session 559: PostgresVoiceStorage, PostgresSubscriptionStorage, PostgresProvenanceStorage implementations."
+        }
+      ]
+    },
+    "backend_integration": {
+      "schema_migration": {
+        "status": "pending",
+        "priority": 1,
+        "description": "Run coordination schema migration on Supabase PostgreSQL. Tables: coordination_voices, coordination_subscriptions, coordination_provenance, coordination_events_log.",
+        "test_file": "packages/civicos-relay/tests/test_voice.py",
+        "artifact": "packages/civicos-coordination/schema.sql"
+      },
+      "api_endpoints": {
+        "status": "pending",
+        "priority": 1,
+        "description": "Add REST API endpoints for voice operations: POST /voice (cast), GET /voice/counts/:entity, POST /subscribe, DELETE /subscribe/:id. Add to civicos-services.",
+        "test_file": "packages/civicos-services/tests/test_coordination_api.py",
+        "subtasks": [
+          "POST /api/voice - cast voice (requires keypair)",
+          "GET /api/voice/counts/:entity - get voice counts",
+          "POST /api/subscribe - create subscription",
+          "DELETE /api/subscribe/:id - unsubscribe",
+          "GET /api/provenance/:key - get key provenance"
+        ]
+      },
+      "email_delivery": {
+        "status": "pending",
+        "priority": 2,
+        "description": "Implement email delivery service for relay events. Use existing email infrastructure or simple SMTP. Include unsubscribe links.",
+        "test_file": "packages/civicos-relay/tests/test_email_delivery.py"
+      },
+      "event_emission": {
+        "status": "pending",
+        "priority": 2,
+        "description": "Hook event emission into data ingestion pipeline. Emit events when: agenda published, decision made, meeting scheduled. Store in coordination_events_log.",
+        "test_file": "packages/civicos-relay/tests/test_event_emission.py"
+      }
+    },
+    "mcp_integration": {
+      "voice_tools": {
+        "status": "pending",
+        "priority": 1,
+        "description": "Add MCP tools for coordination: get_voice_counts(entity), subscribe_to_topic(topics, email), cast_voice(entity, stance). Enables AI agents to participate in coordination.",
+        "test_file": "apps/civicos-mcp/tests/test_coordination_tools.py",
+        "subtasks": [
+          "get_voice_counts(entity) - returns support/oppose/watching counts",
+          "subscribe_to_topic(jurisdiction, topics, email) - creates subscription",
+          "cast_voice(entity, stance) - requires keypair management"
+        ]
+      }
+    },
+    "frontend_integration": {
+      "voice_display": {
+        "status": "pending",
+        "priority": 1,
+        "description": "Display voice counts on agenda items and decisions in the Vue frontend. Show support/oppose/watching breakdown. Simple badge/indicator UI.",
+        "test_file": "apps/civicos-workspace/tests/e2e/voice-display.spec.ts",
+        "subtasks": [
+          "VoiceCount component (support/oppose/watching badges)",
+          "Integrate into EventCard and artifact detail views",
+          "Fetch counts via API on mount"
+        ]
+      },
+      "voice_button": {
+        "status": "pending",
+        "priority": 2,
+        "description": "Add voice button to cast support/oppose/watching. Requires keypair generation and storage in browser. Show confirmation and updated count.",
+        "test_file": "apps/civicos-workspace/tests/e2e/voice-button.spec.ts",
+        "subtasks": [
+          "Keypair generation on first voice (stored in localStorage)",
+          "Voice button UI (support/oppose/watching options)",
+          "Optimistic update + error handling",
+          "Show own voice state (already voiced)"
+        ]
+      },
+      "subscribe_ui": {
+        "status": "pending",
+        "priority": 2,
+        "description": "Add subscription UI for email notifications. Topic picker, email input, geography filter (optional). Manage existing subscriptions.",
+        "test_file": "apps/civicos-workspace/tests/e2e/subscribe.spec.ts",
+        "subtasks": [
+          "SubscribeDialog component",
+          "Topic/event type selection",
+          "Email input with validation",
+          "Subscription management (view/delete)"
+        ]
+      }
+    },
+    "federation": {
+      "_completed_items": [
+        {
+          "name": "relay_identity",
+          "status": "ready",
+          "note": "Session 559: RelayIdentity with ECDSA keypair, signing, verification. 8 tests passing."
+        },
+        {
+          "name": "sync_protocol",
+          "status": "ready",
+          "note": "Session 559: SyncProtocol, SyncService, voice export/import. 7 tests passing."
+        },
+        {
+          "name": "multi_relay_tests",
+          "status": "ready",
+          "note": "Session 559: Tests for voice propagation between relays, consistency verification."
+        },
+        {
+          "name": "in_memory_storage",
+          "status": "ready",
+          "note": "Session 559: InMemoryStorage for testing, InMemorySyncStorage for federation tests."
+        }
+      ],
+      "peer_config": {
+        "status": "pending",
+        "priority": 3,
+        "description": "YAML-based peer configuration, peer health checks, auto-disable unhealthy peers.",
+        "test_file": "packages/civicos-relay/tests/test_peering.py"
       }
     }
   }

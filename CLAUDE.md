@@ -155,8 +155,9 @@ pilot.json                  # Pilot checklist (active)
 claude-progress.txt         # Session state (append-only)
 init.sh                     # Verification script
 packages/civicos/             # Core API package
+packages/civicos-relay/       # Federation-ready relay (voice, sync, subscriptions)
 packages/civicos-extraction/  # Platform parsers
-packages/civicos-services/         # Application layer (API server, chat, websocket)
+packages/civicos-services/    # Application layer (API server, chat, websocket)
 apps/civicos-workspace/       # Vue frontend
 apps/civicos-mcp/             # MCP server
 data/                       # Extracted events, issues, legislative context
@@ -174,7 +175,7 @@ Read only when needed. Organized by purpose:
 |-----|---------|
 | `FINAL_PACKAGE_ARCHITECTURE.md` | **Master architecture** - API, LangGraph, coordination, error handling |
 | `FOCAL_POINT_DECISION_AWARENESS.md` | Core hypothesis - why civic coordination works |
-| `COORDINATION_PROTOCOL.md` | Permissionless coordination - relay, voice, edge intelligence |
+| `COORDINATION_PROTOCOL.md` | Coordination protocol - relay, voice, provenance (MVP in pilot) |
 | `MCP_INTEGRATION_STRATEGY.md` | MCP server + multi-platform distribution (Claude.ai, ChatGPT, web) |
 | `CIVIC_DASHBOARD_VISION.md` | Post-pilot UX vision - engagement ladder, data visualization, multi-surface rendering |
 | `VECTOR_RAG_SCHEMA.md` | Vector storage schema, corpus types |
