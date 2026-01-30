@@ -35,6 +35,7 @@ import logging
 
 from civicos._internal.state import StateManager
 from civicos.storage import StorageBackend, StorageStats, SQLiteBackend, get_storage_backend, get_vector_backend
+from civicos.storage.data_source import DataSource, LocalDataSource
 from civicos.storage.vector import VectorBackend
 from civicos.paths import get_state_db_path
 
@@ -109,6 +110,7 @@ class CivicOS:
     _state: StateManager = field(default=None, repr=False)
     _search: Any = field(default=None, repr=False)  # LegalSearch if available
     _storage: StorageBackend = field(default=None, repr=False)  # StorageBackend for stats
+    _data_source: DataSource = field(default=None, repr=False)  # DataSource for query abstraction
     _vectors: Optional[VectorBackend] = field(default=None, repr=False)  # VectorBackend for semantic search
 
     def __post_init__(self):
@@ -136,17 +138,20 @@ class CivicOS:
         else:
             self._storage = SQLiteBackend(self.db_path)
 
+        # DataSource wraps StorageBackend for read queries (enables future federation)
+        self._data_source = LocalDataSource(self._storage)
+
         # Vector backend for semantic search (pgvector or None for ChromaDB fallback)
         self._vectors = get_vector_backend(database_url)
         if self._vectors:
             logger.debug(
                 f"CivicOS({self.jurisdiction}): storage={type(self._storage).__name__}, "
-                f"vectors={self._vectors.backend_type}"
+                f"data_source={self._data_source.source_type}, vectors={self._vectors.backend_type}"
             )
         else:
             logger.debug(
                 f"CivicOS({self.jurisdiction}): storage={type(self._storage).__name__}, "
-                f"vectors=ChromaDB (local fallback)"
+                f"data_source={self._data_source.source_type}, vectors=ChromaDB (local fallback)"
             )
 
         # LegalSearch requires embeddings - make optional
@@ -173,7 +178,7 @@ class CivicOS:
             StorageStats with counts, temporal info, and metadata
         """
         jurisdiction_id = jurisdiction_id or self.jurisdiction
-        return self._storage.get_stats(jurisdiction_id)
+        return self._data_source.get_stats(jurisdiction_id)
 
     def get_operating_cost_dashboard(
         self,
@@ -213,8 +218,8 @@ class CivicOS:
 
         until = now.isoformat()
 
-        # Get summary using backend method
-        summary = self._storage.get_operating_cost_summary(
+        # Get summary using data source method
+        summary = self._data_source.get_operating_cost_summary(
             service=service,
             jurisdiction_id=jurisdiction_id,
             since=since,
@@ -222,7 +227,7 @@ class CivicOS:
         )
 
         # Get raw records for time-series aggregation
-        records = self._storage.get_operating_costs(
+        records = self._data_source.get_operating_costs(
             service=service,
             jurisdiction_id=jurisdiction_id,
             since=since,
@@ -631,9 +636,9 @@ class CivicOS:
         # even if they have no specific time (stored as midnight)
         start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
-        # Try storage backend first (PostgresBackend or SQLiteBackend)
+        # Try data source first (abstracts local vs federated)
         try:
-            meetings_data = self._storage.get_meetings(
+            meetings_data = self._data_source.get_meetings(
                 jurisdiction_id=self.jurisdiction,
                 since=start_of_today,
                 until=cutoff,
@@ -673,12 +678,12 @@ class CivicOS:
                 if not (start_of_today <= meeting_date <= cutoff):
                     continue
 
-            # Get agenda items from storage backend
+            # Get agenda items from data source
             meeting_id = m.get("id", "")
             agenda_items = []
             if meeting_id:
                 try:
-                    agenda_items = self._storage.get_agenda_items(meeting_id=meeting_id)
+                    agenda_items = self._data_source.get_agenda_items(meeting_id=meeting_id)
                 except Exception:
                     pass
 
@@ -725,7 +730,7 @@ class CivicOS:
         # Fetch upcoming elections
         elections: List[UpcomingElection] = []
         try:
-            elections_data = self._storage.get_elections(
+            elections_data = self._data_source.get_elections(
                 jurisdiction_id=self.jurisdiction,
                 include_past=False,
             )
@@ -754,7 +759,7 @@ class CivicOS:
                 # Fetch deadlines for this election
                 deadlines = []
                 try:
-                    deadline_data = self._storage.get_election_deadlines(
+                    deadline_data = self._data_source.get_election_deadlines(
                         election_id=e.get("id")
                     )
                     for d in deadline_data:
@@ -930,14 +935,14 @@ class CivicOS:
         from civicos._internal.elections import VotingRecord, ElectedOfficial
 
         # 1. Find official by name
-        official = self._storage.get_official_by_name(
+        official = self._data_source.get_official_by_name(
             jurisdiction_id=self.jurisdiction,
             name=official_name,
         )
 
         if not official:
             # Try loading elected officials and fuzzy matching
-            officials = self._storage.get_elected_officials(
+            officials = self._data_source.get_elected_officials(
                 jurisdiction_id=self.jurisdiction,
                 current_only=True,
             )
@@ -961,7 +966,7 @@ class CivicOS:
             raise ValueError(f"Official not found: {official_name}")
 
         # 2. Get all decisions for this jurisdiction
-        decisions = self._storage.get_decisions(
+        decisions = self._data_source.get_decisions(
             jurisdiction_id=self.jurisdiction,
             since=since,
             until=until,
@@ -1107,14 +1112,17 @@ class CivicOS:
             >>> c.budget(fund="General Fund", min_amount=10_000_000)
             [BudgetItem(department='Police', ...), BudgetItem(department='Fire', ...)]
         """
-        # Query storage backend
-        results = self._storage.get_budget_items(
+        # Query data source
+        results = self._data_source.get_budget_items(
             jurisdiction_id=self.jurisdiction,
             fiscal_year=fiscal_year,
-            fund=fund,
             department=department,
             limit=limit,
         )
+
+        # Additional client-side filtering by fund (DataSource interface is simpler)
+        if fund:
+            results = [r for r in results if r.get("fund", "").lower() == fund.lower()]
 
         # Convert to BudgetItem dataclass with amount filtering
         items = []
@@ -1170,7 +1178,7 @@ class CivicOS:
         # Get fiscal year if not specified (use most recent available)
         if fiscal_year is None:
             # Query for any budget item to get the fiscal year
-            items = self._storage.get_budget_items(
+            items = self._data_source.get_budget_items(
                 jurisdiction_id=self.jurisdiction,
                 limit=1,
             )
@@ -1179,11 +1187,28 @@ class CivicOS:
             else:
                 fiscal_year = "2025-2026"
 
-        results = self._storage.get_budget_summary(
+        results = self._data_source.get_budget_summary(
             jurisdiction_id=self.jurisdiction,
             fiscal_year=fiscal_year,
-            group_by=group_by,
         )
+
+        # Client-side grouping if needed (DataSource returns flat summary)
+        if group_by != "department":
+            # Re-query raw items and group client-side
+            items = self._data_source.get_budget_items(
+                jurisdiction_id=self.jurisdiction,
+                fiscal_year=fiscal_year,
+            )
+            grouped = {}
+            for item in items:
+                key = item.get(group_by, "Unknown")
+                if key not in grouped:
+                    grouped[key] = {"budgeted_cents": 0, "revised_cents": 0, "actual_cents": 0, "item_count": 0}
+                grouped[key]["budgeted_cents"] += item.get("budgeted_cents", 0) or 0
+                grouped[key]["revised_cents"] += item.get("revised_cents", 0) or 0
+                grouped[key]["actual_cents"] += item.get("actual_cents", 0) or 0
+                grouped[key]["item_count"] += 1
+            results = [{group_by: k, **v} for k, v in grouped.items()]
 
         return [
             BudgetSummary(
@@ -1249,32 +1274,39 @@ class CivicOS:
             ...         print(f"  State ({flow.state_agency}): ${flow.state_dollars:,.0f}")
         """
         # Get budget items
-        budget_items = self._storage.get_budget_items(
+        budget_items = self._data_source.get_budget_items(
             jurisdiction_id=self.jurisdiction,
             fiscal_year=fiscal_year,
             limit=None,
         )
 
         # Get funding links (connections between budget & sources)
-        funding_links = self._storage.get_budget_funding_links(
+        funding_links = self._data_source.get_budget_funding_links(
             jurisdiction_id=self.jurisdiction,
-            budget_item_id=budget_item_id,
-            federal_cfda_number=cfda_number,
-            limit=None,
+            fiscal_year=fiscal_year,
         )
+        # Filter by budget_item_id or cfda_number client-side
+        if budget_item_id:
+            funding_links = [fl for fl in funding_links if fl.get("budget_item_id") == budget_item_id]
+        if cfda_number:
+            funding_links = [fl for fl in funding_links if fl.get("federal_cfda_number") == cfda_number]
 
         # Get federal awards and state passthroughs
-        federal_awards = self._storage.get_federal_awards(
+        federal_awards = self._data_source.get_federal_awards(
             jurisdiction_id=self.jurisdiction,
-            cfda_number=cfda_number,
             limit=None,
         )
+        # Filter by cfda_number client-side if needed
+        if cfda_number:
+            federal_awards = [fa for fa in federal_awards if fa.get("cfda_number") == cfda_number]
 
-        passthroughs = self._storage.get_state_passthrough_funds(
+        passthroughs = self._data_source.get_state_passthrough_funds(
             jurisdiction_id=self.jurisdiction,
-            federal_cfda_number=cfda_number,
             limit=None,
         )
+        # Filter by cfda_number client-side if needed
+        if cfda_number:
+            passthroughs = [p for p in passthroughs if p.get("federal_cfda_number") == cfda_number]
 
         # Build lookup maps
         budget_by_id = {b.get("item_id"): b for b in budget_items}
@@ -1454,14 +1486,17 @@ class CivicOS:
             20.205: $637,452
               Program: HIGHWAY PLANNING AND CONSTRUCTION
         """
-        # Try postgres backend first (has federal_audit_expenditures table)
-        if hasattr(self._storage, 'get_federal_audit_expenditures'):
-            records = self._storage.get_federal_audit_expenditures(
-                jurisdiction_id=self.jurisdiction,
-                cfda_number=cfda_number,
-                audit_year=audit_year,
-                limit=limit,
-            )
+        # Try data source (has federal_audit_expenditures via StorageBackend)
+        records = self._data_source.get_federal_audit_expenditures(
+            jurisdiction_id=self.jurisdiction,
+            audit_year=str(audit_year) if audit_year else None,
+            limit=limit,
+        )
+        # Filter by cfda_number client-side if needed
+        if cfda_number:
+            records = [r for r in records if r.get("cfda_number") == cfda_number]
+
+        if records:
 
             expenditures = []
             for r in records:

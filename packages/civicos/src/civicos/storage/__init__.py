@@ -51,6 +51,11 @@ from .backend import (
     StorageStats,
     StorageValidationResult,
 )
+from .data_source import (
+    DataSource,
+    LocalDataSource,
+    get_data_source,
+)
 from .blob import (
     BlobStats,
     BlobStorage,
@@ -160,6 +165,10 @@ __all__ = [
     "StorageBackend",
     "StorageStats",
     "StorageValidationResult",
+    # Data source (abstraction layer)
+    "DataSource",
+    "LocalDataSource",
+    "get_data_source",
     # Factory functions
     "get_storage_backend",
     "get_vector_backend",

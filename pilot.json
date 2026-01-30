@@ -514,7 +514,7 @@
         "test_file": "packages/civicos/tests/test_entity_ids.py"
       },
       "data_source_protocol": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "description": "Define DataSource protocol abstracting local vs federated data access. Implement LocalDataSource only for pilot. FederatedDataSource deferred to post-pilot.",
         "rationale": "Abstraction is valuable now (clarifies boundaries). Implementation can wait until second city.",
@@ -550,7 +550,9 @@
           "Freshness: How often does reference data change?",
           "Cost: Storage duplication vs bandwidth"
         ],
-        "depends_on": ["data_source_protocol"],
+        "depends_on": [
+          "data_source_protocol"
+        ],
         "timeline": "Post-pilot, pre-second-city"
       },
       "municipal_data_isolation": {
@@ -565,7 +567,9 @@
           "Document data isolation guarantees",
           "Create per-jurisdiction export script (for city data portability)"
         ],
-        "depends_on": ["entity_id_namespacing"],
+        "depends_on": [
+          "entity_id_namespacing"
+        ],
         "timeline": "Post-pilot"
       }
     },
@@ -2454,7 +2458,7 @@
       },
       "web_dashboard_route": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "New /dashboard route in civicos-workspace composing viz components",
         "description": "Add /dashboard page to Vue frontend that displays city status at a glance. Composes: participation calendar, decision flow, issue geography, budget treemap. Serves as the 'city pulse' landing page for engaged residents.",
         "note": "Session 542: This is where visualization components come together. May also serve as embed target for external sites.",

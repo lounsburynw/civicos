@@ -16298,3 +16298,48 @@ The `leverage_point` field exists on 36 curated legislation bills in PostgreSQL,
 
 ### P0 Assignment
 action_leverage_points remains P0 (already set in pilot.json)
+
+## Session 532 (2026-01-29) - DataSource Protocol for Federation
+
+**Item:** `data_source_protocol` (P0 → ready)
+**Status:** COMPLETE
+
+### Summary
+Created `DataSource` protocol that abstracts local vs federated data access. Implemented `LocalDataSource` wrapping `StorageBackend` with zero behavior change. This enables future federation without changing CivicOS API callers.
+
+### Changes Made
+
+**1. DataSource Protocol**
+- Created `packages/civicos/src/civicos/storage/data_source.py`
+- Defined `DataSource` protocol with 20 read-only query methods
+- Implemented `LocalDataSource` wrapping `StorageBackend`
+- Added `get_data_source()` factory function
+
+**2. CivicOS Integration**
+- Added `_data_source` field to CivicOS class
+- Migrated key query methods from `_storage` to `_data_source`:
+  - `get_storage_stats()`, `whats_next()`, `get_voting_record()`
+  - `budget()`, `budget_summary()`, `funding_flow()`
+  - `federal_expenditures()`, `get_operating_cost_dashboard()`
+
+**3. ADR Documentation**
+- Created `docs/decisions/data_source_federation.md`
+- Documents protocol design, rationale, and federation roadmap
+
+**4. Test Coverage**
+- Created `packages/civicos/tests/test_data_source.py`
+- 16 tests covering protocol compliance and delegation
+
+### Tests Run
+- 16/16 DataSource tests pass
+- 42/42 CivicOS smoke tests pass
+- 85+ storage protocol tests pass
+
+### Architecture Notes
+- DataSource is READ-ONLY (queries). Write ops stay on StorageBackend.
+- Returns Dict/List for JSON serialization (MCP compatibility).
+- LocalDataSource is pure delegation (zero behavior change).
+- FederatedDataSource will be added post-pilot with MCP relay.
+
+### P0 Assignment
+Set `data_relay_protocol` to P0 for next session (federation relay implementation).
