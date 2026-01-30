@@ -36,12 +36,23 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "packages/civicos-services
 from dotenv import load_dotenv
 load_dotenv()
 
+from civicos.roster import Roster, enhance_with_roster
 
-def detect_speaker_roles(utterances: List[Dict], use_llm: bool = True) -> Dict[str, Dict]:
+
+def detect_speaker_roles(
+    utterances: List[Dict],
+    use_llm: bool = True,
+    roster: Optional["Roster"] = None,
+) -> Dict[str, Dict]:
     """
     Detect speaker roles and names from transcript utterances.
 
     Adapted from civicos_extraction.cli.transcribe._detect_speaker_roles
+
+    Args:
+        utterances: List of utterance dicts with speaker, text, start, end
+        use_llm: If True, use LLM for enhanced detection
+        roster: Optional roster of known officials for this jurisdiction
     """
     if not utterances:
         return {}
@@ -67,8 +78,8 @@ def detect_speaker_roles(utterances: List[Dict], use_llm: bool = True) -> Dict[s
         if use_llm:
             llm_provider = get_llm_provider()
 
-        # Run role detection
-        detector = SpeakerRoleDetector(llm_provider=llm_provider)
+        # Run role detection with roster context
+        detector = SpeakerRoleDetector(llm_provider=llm_provider, roster=roster)
         speaker_infos = detector.detect_roles(transcript_utts)
 
         # Convert SpeakerInfo objects to serializable dicts
@@ -129,6 +140,7 @@ def backfill_speaker_metadata(
     dry_run: bool = False,
     limit: Optional[int] = None,
     use_llm: bool = True,
+    force: bool = False,
 ):
     """
     Backfill speaker metadata for transcripts.
@@ -147,6 +159,13 @@ def backfill_speaker_metadata(
     print(f"Loading transcripts for {jurisdiction}...")
     c = CivicOS(jurisdiction)
 
+    # Load roster for this jurisdiction (if available)
+    roster = Roster.load(jurisdiction)
+    if roster:
+        print(f"Loaded roster: {len(roster.officials)} known officials")
+    else:
+        print("No roster found - LLM will detect without official context")
+
     # Verify we're using PostgreSQL
     backend_name = type(c._storage).__name__
     if backend_name != "PostgresBackend":
@@ -156,14 +175,17 @@ def backfill_speaker_metadata(
     transcripts = c._storage.get_transcripts(jurisdiction)
     print(f"Found {len(transcripts)} total transcripts")
 
-    # Filter to transcripts without speakers_metadata
+    # Filter to transcripts without speakers_metadata (unless --force)
     to_process = []
     for t in transcripts:
         transcript_data = t.get("transcript", {})
-        if not transcript_data.get("speakers_metadata"):
+        if force or not transcript_data.get("speakers_metadata"):
             to_process.append(t)
 
-    print(f"Transcripts needing backfill: {len(to_process)}")
+    if force:
+        print(f"Force mode: re-processing all {len(to_process)} transcripts")
+    else:
+        print(f"Transcripts needing backfill: {len(to_process)}")
 
     if limit:
         to_process = to_process[:limit]
@@ -208,20 +230,24 @@ def backfill_speaker_metadata(
             print("  Skipping: No utterances")
             continue
 
-        # Run speaker detection
-        print(f"  Running speaker detection (LLM={use_llm})...")
-        speakers_metadata = detect_speaker_roles(utterances, use_llm=use_llm)
+        # Run speaker detection with roster context
+        print(f"  Running speaker detection (LLM={use_llm}, roster={'yes' if roster else 'no'})...")
+        speakers_metadata = detect_speaker_roles(utterances, use_llm=use_llm, roster=roster)
 
         if not speakers_metadata:
             print("  Warning: No speaker metadata returned")
             error_count += 1
             continue
 
+        # Enhance with roster (correct known officials' names)
+        speakers_metadata = enhance_with_roster(jurisdiction, speakers_metadata)
+
         named_count = sum(
             1 for s in speakers_metadata.values()
             if s.get("name") and not s["name"].startswith(("Public Speaker", "Staff Member", "Speaker "))
         )
-        print(f"  Detected: {len(speakers_metadata)} speakers, {named_count} named")
+        roster_matched = sum(1 for s in speakers_metadata.values() if s.get("roster_matched"))
+        print(f"  Detected: {len(speakers_metadata)} speakers, {named_count} named ({roster_matched} from roster)")
 
         # Update transcript data
         transcript_data["speakers_metadata"] = speakers_metadata
@@ -282,6 +308,11 @@ def main():
         action="store_true",
         help="Use pattern-only detection (free but less accurate)"
     )
+    parser.add_argument(
+        "--force", "-f",
+        action="store_true",
+        help="Re-process all transcripts (even those with existing metadata)"
+    )
 
     args = parser.parse_args()
 
@@ -290,6 +321,7 @@ def main():
         dry_run=args.dry_run,
         limit=args.limit,
         use_llm=not args.no_llm,
+        force=args.force,
     )
 
 
