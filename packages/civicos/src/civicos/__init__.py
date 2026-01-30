@@ -80,6 +80,9 @@ from civicos.diagnostics import (
 # Jurisdiction registry (centralized config)
 from civicos.jurisdiction import JurisdictionRegistry, JurisdictionConfig, CITY_CONFIGS
 
+# Runtime configuration (turnkey deployment)
+from civicos.config import CivicOSConfig, PeerConfig, ExtractorConfig, load_config
+
 # Path resolution (centralized data paths)
 from civicos.paths import (
     DataPathResolver,
@@ -164,6 +167,11 @@ __all__ = [
     "JurisdictionRegistry",
     "JurisdictionConfig",
     "CITY_CONFIGS",
+    # Runtime configuration
+    "CivicOSConfig",
+    "PeerConfig",
+    "ExtractorConfig",
+    "load_config",
     # Path resolution
     "DataPathResolver",
     "get_resolver",

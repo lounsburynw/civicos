@@ -26,7 +26,7 @@ Usage:
     c.report_outcome("item_789", "passed")
 """
 
-from typing import Optional, List, Any, Dict, Union, Literal
+from typing import Optional, List, Any, Dict, Union, Literal, TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -38,6 +38,9 @@ from civicos.storage import StorageBackend, StorageStats, SQLiteBackend, get_sto
 from civicos.storage.data_source import DataSource, LocalDataSource
 from civicos.storage.vector import VectorBackend
 from civicos.paths import get_state_db_path
+
+if TYPE_CHECKING:
+    from civicos.config import CivicOSConfig
 
 logger = logging.getLogger(__name__)
 
@@ -101,26 +104,44 @@ class CivicOS:
     into a unified, query-centric API.
 
     Usage:
+        # String (backward compatible)
         c = CivicOS("san-rafael-ca")
+
+        # Config-driven (turnkey deployment)
+        from civicos.config import CivicOSConfig
+        config = CivicOSConfig.from_yaml("civicos.yaml")
+        c = CivicOS(config)
+
+        # Query and act
         c.what_applies("housing")
         c.whats_next(["transportation"])
     """
-    jurisdiction: str
+    jurisdiction: str  # Accepts str or CivicOSConfig (normalized to str in __post_init__)
     db_path: str = field(default=None)  # Defaults to get_state_db_path() in __post_init__
     _state: StateManager = field(default=None, repr=False)
     _search: Any = field(default=None, repr=False)  # LegalSearch if available
     _storage: StorageBackend = field(default=None, repr=False)  # StorageBackend for stats
     _data_source: DataSource = field(default=None, repr=False)  # DataSource for query abstraction
     _vectors: Optional[VectorBackend] = field(default=None, repr=False)  # VectorBackend for semantic search
+    _config: Optional["CivicOSConfig"] = field(default=None, repr=False)  # Config object (if provided)
 
     def __post_init__(self):
         """Initialize internal services."""
         import os
 
-        # Normalize jurisdiction ID to canonical format (e.g., "san-rafael" -> "city-san-rafael")
-        # Use strict=False to allow unknown jurisdictions (returns empty results instead of raising)
-        from civicos._internal.jurisdiction import normalize_jurisdiction
-        self.jurisdiction = normalize_jurisdiction(self.jurisdiction, strict=False)
+        # Handle CivicOSConfig input (backward compatible with string)
+        from civicos.config import CivicOSConfig
+        if isinstance(self.jurisdiction, CivicOSConfig):
+            self._config = self.jurisdiction
+            self.jurisdiction = self._config.jurisdiction_id
+            # Use db_path from config if not explicitly provided
+            if self.db_path is None and self._config.db_path:
+                self.db_path = self._config.db_path
+        else:
+            # Normalize jurisdiction ID to canonical format (e.g., "san-rafael" -> "city-san-rafael")
+            # Use strict=False to allow unknown jurisdictions (returns empty results instead of raising)
+            from civicos._internal.jurisdiction import normalize_jurisdiction
+            self.jurisdiction = normalize_jurisdiction(self.jurisdiction, strict=False)
 
         # Check for DATABASE_URL environment variable for cloud storage
         database_url = os.getenv("DATABASE_URL")
@@ -160,6 +181,34 @@ class CivicOS:
                 self._search = LegalSearch()
             except Exception:
                 self._search = None
+
+    @property
+    def config(self) -> Optional["CivicOSConfig"]:
+        """Get the CivicOSConfig if one was provided, or create one from current state."""
+        if self._config is not None:
+            return self._config
+        # Create a config from current state (for introspection)
+        from civicos.config import CivicOSConfig
+        return CivicOSConfig(
+            jurisdiction_id=self.jurisdiction,
+            db_path=self.db_path,
+        )
+
+    @property
+    def display_name(self) -> str:
+        """Get human-readable display name for this jurisdiction."""
+        if self._config and self._config.display_name:
+            return self._config.display_name
+        from civicos.jurisdiction import JurisdictionRegistry
+        return JurisdictionRegistry.get_display_name(self.jurisdiction, default=self.jurisdiction)
+
+    @property
+    def timezone(self) -> str:
+        """Get timezone for this jurisdiction."""
+        if self._config and self._config.timezone:
+            return self._config.timezone
+        from civicos.jurisdiction import JurisdictionRegistry
+        return JurisdictionRegistry.get_timezone(self.jurisdiction, default="UTC")
 
     # ─────────── STORAGE METHODS ───────────
 

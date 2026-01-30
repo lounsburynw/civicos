@@ -16446,3 +16446,40 @@ Implemented federated query routing for MCP tools. When `federate=True`, queries
 
 ### P0 Assignment
 **P0 Assignment:** `jurisdiction_config` set to P0 for next session (config-driven jurisdiction setup for turnkey deployment)
+
+## Session 535 (2026-01-30): jurisdiction_config - Config-driven CivicOS setup
+
+### Completed: `jurisdiction_config` (P0)
+
+Created turnkey configuration system for CivicOS deployment:
+
+**New Files:**
+- `packages/civicos/src/civicos/config.py` - CivicOSConfig dataclass with YAML/env loading
+- `packages/civicos/tests/test_config.py` - 31 comprehensive tests
+- `civicos.example.yaml` - Example YAML configuration for new deployments
+
+**Modified Files:**
+- `packages/civicos/src/civicos/civicos.py` - CivicOS accepts string OR CivicOSConfig (backward compatible)
+- `packages/civicos/src/civicos/__init__.py` - Export CivicOSConfig, PeerConfig, ExtractorConfig, load_config
+- `.env.example` - Document CIVICOS_JURISDICTION, CIVICOS_CONFIG env vars
+- `pilot.json` - Mark jurisdiction_config as ready
+
+**Key Features:**
+- `CivicOSConfig.from_yaml("civicos.yaml")` - Load from YAML file
+- `CivicOSConfig.from_env()` - Load from CIVICOS_* environment variables
+- `load_config()` - Auto-detect config from file or env (fallback chain)
+- `PeerConfig` - Federation peer configuration
+- `ExtractorConfig` - Data extractor configuration
+- Backward compatible: `CivicOS("san-rafael")` still works
+
+**Environment Variables:**
+- `CIVICOS_JURISDICTION` - Default jurisdiction ID
+- `CIVICOS_DISPLAY_NAME` - Display name override
+- `CIVICOS_TIMEZONE` - Timezone override
+- `CIVICOS_CONFIG` - Path to YAML config file
+- `CIVICOS_FEDERATION_ENABLED` - Enable federated queries
+
+**Tests:** 31 passing (test_config.py), 42 smoke tests passing
+
+### P0 Assignment
+**P0 Assignment:** `schema_migration` set to P0 for next session (coordination schema on PostgreSQL - foundation for relay voice/subscription features)
