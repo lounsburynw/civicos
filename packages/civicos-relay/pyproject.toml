@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "civicos-relay"
+version = "0.1.0"
+description = "Federation-ready civic coordination relay - voice, subscriptions, event routing"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0",
+    "cryptography>=41.0",
+    "httpx>=0.24.0",
+]
+
+[project.optional-dependencies]
+server = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.22.0",
+]
+postgres = [
+    "psycopg2-binary>=2.9",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "pytest-httpx>=0.21",
+]
+
+[project.scripts]
+civicos-relay = "civicos_relay.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

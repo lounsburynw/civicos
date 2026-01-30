@@ -2,8 +2,8 @@
 
 Infrastructure for permissionless civic coordination. Defines how residents discover shared interests, express civic voice, and receive timely, relevant notifications — without centralized platforms controlling the experience.
 
-**Status:** Design (post-pilot phase)
-**Prerequisite:** Pilot validation of Decision Awareness hypothesis (see `FOCAL_POINT_DECISION_AWARENESS.md`)
+**Status:** MVP Implementation (pilot phase)
+**Package:** `packages/civicos-relay/` — federation-ready relay with voice, sync, provenance
 **Enables:** Coordination and Focal Points stages of engagement ladder (see `CIVIC_DASHBOARD_VISION.md`)
 **Distributed via:** CivicOS MCP server (see `MCP_INTEGRATION_STRATEGY.md`)
 
@@ -377,36 +377,47 @@ This creates a commons of filtering intelligence. Community-maintained lenses fo
 
 ## Development Sequence
 
-### Phase 1: Pilot (Current)
+### Phase 1: MVP (Current — Pilot)
 
-CivicOS MCP as pull-based query layer. Users ask questions, get civic intelligence. No relay, no subscriptions, no voice protocol.
+Building MVP coordination protocol for Jan 2026 pilot. Combines relay + voice + basic provenance in single phase.
 
-**What exists:** MCP server, backend data (meetings, decisions, transcripts, issues, budget, legislation), vector search, all query primitives.
+**Package:** `packages/civicos-coordination/`
 
-### Phase 2: Relay
+**MVP Scope:**
+- Single relay (no federation)
+- Email delivery only (webhook for API clients)
+- ECDSA keypairs (not full DID — simpler)
+- Basic provenance (key age, voice count — no vouching or attestation)
+- Voice counts displayed in frontend and MCP
 
-Add public event feed and subscription infrastructure.
+**What's deferred:**
+- Federation between relays
+- Physical attestation at civic centers
+- Vouching system
+- SMS/ntfy delivery methods
+- DID:key standard (using simpler ECDSA keypairs)
 
-- CivicOS backend emits events when agendas publish, decisions happen, issues are reported
-- Relay accepts subscriptions, routes events to delivery endpoints
-- Initial delivery methods: webhook, ntfy, email
-- No voice protocol yet — relay is notification-only
+**Implementation items tracked in:** `pilot.json` under `coordination_protocol` category
 
-**Key decision:** Relay as part of CivicOS backend vs. standalone service. Recommend starting integrated, extract later if multi-jurisdiction federation requires it.
+### Phase 2: Full Relay (Post-Pilot)
 
-### Phase 3: Voice + Provenance
+If pilot validates coordination hypothesis, expand relay:
 
-Add voice protocol and provenance tracking.
+- Multiple delivery methods (ntfy, SMS)
+- Event hooks into ingestion pipeline
+- Subscription management API
+- Rate limiting and abuse prevention
 
-- Keypair generation in client
-- Voice attestation and counting on relay
-- Provenance records (key age, history, vouching)
-- Threshold events based on voice counts
-- Physical attestation infrastructure (if cities opt in)
+### Phase 3: Full Voice + Provenance (Post-Pilot)
 
-**Key decision:** Key/identity standard (DID, keypair, other). Recommend DID:key for simplicity — self-issued, no registry needed.
+If coordination shows value, expand voice system:
 
-### Phase 4: Edge Intelligence
+- DID:key migration for standards compliance
+- Vouching system (existing keys vouch for new keys)
+- Physical attestation infrastructure (optional, city-provided)
+- Threshold event triggers
+
+### Phase 4: Edge Intelligence (Future)
 
 Agent-side filtering using CivicOS MCP for context enrichment.
 
