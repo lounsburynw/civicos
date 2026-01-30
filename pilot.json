@@ -2343,7 +2343,7 @@
     "deep_linking": {
       "url_routing": {
         "status": "ready",
-        "priority": 2,
+        "priority": 3,
         "artifact": "URL-based routing for artifact deep linking",
         "description": "Add URL routing support to the Vue frontend so artifacts can be accessed via URL. Enables deep linking from MCP responses, sharing, bookmarks, and notifications. Pattern: query params (e.g., ?type=event&id=xxx&tab=details).",
         "note": "Session 542: Implemented using query parameters. URL syncs on openArtifact/closeArtifact/setActiveArtifact. Deep link loading in App.vue onMounted. Supports event, issue, thread, admin-status, values-explorer types. Bill support blocked on getBill API.",
@@ -2385,7 +2385,7 @@
       },
       "action_leverage_points": {
         "status": "ready",
-        "priority": 2,
+        "priority": 3,
         "artifact": "Surface specific action opportunities based on retrieval context",
         "description": "After retrieval, suggest concrete actions: 'State law preempts this denial - file appeal citing SB9', 'ESG grant deadline in 30 days - contact councilmember', '8 neighbors reported similar issue - start initiative'.",
         "note": "Session 489: Retrieval without action guidance is just research. Transform what_applies() results into actionable next steps."
@@ -2399,7 +2399,7 @@
       },
       "regulatory_result_dedup": {
         "status": "ready",
-        "priority": 2,
+        "priority": 3,
         "artifact": "search_regulatory_stack() deduplicates local code results",
         "description": "MCP audit shows same municipal code section (e.g. 14.03.030) appearing 5x in local regulatory results. Need dedup logic in search_regulatory_stack() local section formatting.",
         "note": "Session 530: Fixed in context.py \u2014 deduplicate local/county results by section_number using seen_sections set. Verified 0 duplicates across housing, traffic safety, parking queries."
@@ -2409,7 +2409,7 @@
       "_doc": "docs/critical/CIVIC_DASHBOARD_VISION.md",
       "city_pulse_mcp_tool": {
         "status": "ready",
-        "priority": 1,
+        "priority": 3,
         "artifact": "MCP tool returning structured city status data with visualization hints",
         "description": "Add city_pulse(jurisdiction) tool to civicos-mcp that returns: decisions_this_week (from whats_next), recent_outcomes (from what_happened), issue_density_by_area (aggregated issues), participation_metrics (comment counts per meeting), and visualization_hints for rendering. This is the data foundation for all dashboard visualizations.",
         "note": "Session 543: Fixed all MCP audit issues. Backfilled metadata for 6,222 transcript + 44 decision + 57 meeting embeddings. Decisions now show titles/dates/outcomes. Transcripts show real timestamps and YouTube video IDs. city_pulse() improved with 3-tier fallback (upcoming/recent/historical). Added read-time video_id extraction as safety net.",
@@ -2426,7 +2426,7 @@
       },
       "participation_calendar_viz": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 3,
         "artifact": "Calendar heatmap showing meeting participation density",
         "description": "Visualization component showing meetings on a calendar with intensity based on public participation (comment count, testimony count). Reveals which meetings draw engagement. Implement as: (1) data shape from city_pulse, (2) Claude artifact renderer, (3) Vue component.",
         "note": "Session 542: First visualization primitive. Calendar heatmap is simple, high-signal, and works well in both artifact and web contexts.",
@@ -2434,7 +2434,7 @@
       },
       "decision_flow_viz": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 3,
         "artifact": "Sankey-style flow showing items through civic process stages",
         "description": "Visualization showing how agenda items flow: Introduced \u2192 Heard \u2192 Decided \u2192 Implemented. Reveals where things stall (items 'continued' multiple times, decisions pending implementation). Requires tracking item state over time.",
         "note": "Session 542: Powerful for showing 'what's stuck' without editorial commentary. Data-forward approach.",
@@ -2442,7 +2442,7 @@
       },
       "issue_geography_viz": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 3,
         "artifact": "Dot density map showing geographic distribution of civic issues",
         "description": "Map visualization showing where 311/SeeClickFix issues cluster. Hex bin or dot density. Reveals neighborhood-level patterns. Requires geocoded issue data (lat/lng from addresses).",
         "note": "Session 542: High impact but requires good geocoding. San Rafael issues have addresses; need to geocode to lat/lng.",
@@ -2458,7 +2458,7 @@
       },
       "web_dashboard_route": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 3,
         "artifact": "New /dashboard route in civicos-workspace composing viz components",
         "description": "Add /dashboard page to Vue frontend that displays city status at a glance. Composes: participation calendar, decision flow, issue geography, budget treemap. Serves as the 'city pulse' landing page for engaged residents.",
         "note": "Session 542: This is where visualization components come together. May also serve as embed target for external sites.",
@@ -3124,7 +3124,7 @@
     "mcp_federation": {
       "peer_registry": {
         "status": "pending",
-        "priority": 2,
+        "priority": 0,
         "description": "MCP peer discovery and registry. List of peer MCP servers by jurisdiction with health checks.",
         "test_file": "apps/civicos-mcp/tests/test_federation.py"
       },
