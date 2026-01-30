@@ -1,11 +1,21 @@
 """PostgreSQL storage implementations for coordination protocol."""
 
+import json
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
 from civicos_relay.voice.models import Voice, Stance
 from civicos_relay.relay.models import Subscription, MatchCriteria, DeliveryConfig, DeliveryMethod
 from civicos_relay.provenance.models import KeyProvenance
+
+
+def _parse_jsonb(value: Union[str, dict, list, None]) -> Union[dict, list, None]:
+    """Parse JSONB value that may already be deserialized by psycopg2."""
+    if value is None:
+        return None
+    if isinstance(value, (dict, list)):
+        return value
+    return json.loads(value)
 
 
 class PostgresVoiceStorage:
@@ -187,7 +197,6 @@ class PostgresSubscriptionStorage:
 
     def get_subscription(self, subscription_id: str) -> Optional[Subscription]:
         """Get a subscription by ID."""
-        import json
         conn = self._get_connection()
         try:
             with conn.cursor() as cur:
@@ -205,7 +214,7 @@ class PostgresSubscriptionStorage:
                     return Subscription(
                         id=row[0],
                         jurisdiction=row[1],
-                        match=MatchCriteria(**json.loads(row[2])),
+                        match=MatchCriteria(**_parse_jsonb(row[2])),
                         delivery=DeliveryConfig(
                             method=DeliveryMethod(row[3]), address=row[4]
                         ),
@@ -221,7 +230,6 @@ class PostgresSubscriptionStorage:
         self, jurisdiction: str
     ) -> list[Subscription]:
         """Get all active subscriptions for a jurisdiction."""
-        import json
         conn = self._get_connection()
         try:
             with conn.cursor() as cur:
@@ -238,7 +246,7 @@ class PostgresSubscriptionStorage:
                     Subscription(
                         id=row[0],
                         jurisdiction=row[1],
-                        match=MatchCriteria(**json.loads(row[2])),
+                        match=MatchCriteria(**_parse_jsonb(row[2])),
                         delivery=DeliveryConfig(
                             method=DeliveryMethod(row[3]), address=row[4]
                         ),
@@ -291,7 +299,6 @@ class PostgresProvenanceStorage:
 
     def get_provenance(self, public_key: str) -> Optional[KeyProvenance]:
         """Get provenance record for a key."""
-        import json
         conn = self._get_connection()
         try:
             with conn.cursor() as cur:
@@ -313,7 +320,7 @@ class PostgresProvenanceStorage:
                         entities_touched=row[3],
                         first_voice_at=row[4],
                         last_voice_at=row[5],
-                        jurisdictions=json.loads(row[6]) if row[6] else [],
+                        jurisdictions=_parse_jsonb(row[6]) or [],
                     )
                 return None
         finally:
@@ -356,7 +363,6 @@ class PostgresProvenanceStorage:
 
     def get_provenance_for_entity(self, entity: str) -> list[KeyProvenance]:
         """Get provenance for all keys that voiced on an entity."""
-        import json
         conn = self._get_connection()
         try:
             with conn.cursor() as cur:
@@ -378,7 +384,7 @@ class PostgresProvenanceStorage:
                         entities_touched=row[3],
                         first_voice_at=row[4],
                         last_voice_at=row[5],
-                        jurisdictions=json.loads(row[6]) if row[6] else [],
+                        jurisdictions=_parse_jsonb(row[6]) or [],
                     )
                     for row in cur.fetchall()
                 ]
