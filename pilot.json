@@ -2963,11 +2963,12 @@
     },
     "backend_integration": {
       "schema_migration": {
-        "status": "pending",
-        "priority": 1,
+        "status": "not_ready",
+        "priority": 0,
         "description": "Run coordination schema migration on Supabase PostgreSQL. Tables: coordination_voices, coordination_subscriptions, coordination_provenance, coordination_events_log.",
         "test_file": "packages/civicos-relay/tests/test_voice.py",
-        "artifact": "packages/civicos-coordination/schema.sql"
+        "artifact": "packages/civicos-coordination/schema.sql",
+        "note": "P0: Foundation for relay voice/subscription features. Unblocks api_endpoints and voice_display."
       },
       "api_endpoints": {
         "status": "pending",
@@ -3108,19 +3109,12 @@
     "description": "Turnkey federation infrastructure for other municipalities",
     "configuration": {
       "jurisdiction_config": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "description": "Config-driven jurisdiction setup. Remove hardcoded san-rafael references. Single YAML configures jurisdiction, extractors, peers, display settings.",
         "test_file": "packages/civicos/tests/test_config.py",
         "artifact": "packages/civicos/src/civicos/config.py",
-        "subtasks": [
-          "Audit codebase for hardcoded jurisdiction references",
-          "Create CivicOSConfig model with jurisdiction, timezone, display_name",
-          "Create civicos.yaml schema and loader",
-          "Refactor CivicOS() to accept config instead of jurisdiction string",
-          "Update tests to use config-driven setup"
-        ],
-        "note": "P0: Next step after query_routing - foundational for turnkey deployment"
+        "notes": "Session 535: Created CivicOSConfig dataclass with YAML/env loading (from_yaml, from_env, load_config). CivicOS accepts string OR CivicOSConfig (backward compatible). Added PeerConfig for federation, ExtractorConfig for data sources. 31 tests passing. Example config at civicos.example.yaml. Env vars: CIVICOS_JURISDICTION, CIVICOS_DISPLAY_NAME, CIVICOS_TIMEZONE, CIVICOS_CONFIG, CIVICOS_FEDERATION_ENABLED."
       }
     },
     "mcp_federation": {

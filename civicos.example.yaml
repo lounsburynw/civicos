@@ -1,0 +1,57 @@
+# CivicOS Configuration Example
+#
+# Copy this file to civicos.yaml and customize for your jurisdiction.
+# CivicOS will auto-detect this file at startup.
+#
+# Configuration sources (in priority order):
+# 1. Explicit path passed to CivicOSConfig.from_yaml()
+# 2. CIVICOS_CONFIG environment variable
+# 3. ./civicos.yaml (this file)
+# 4. ./config/civicos.yaml
+# 5. ~/.civicos/config.yaml
+# 6. Environment variables (CIVICOS_JURISDICTION, etc.)
+
+# Required: The canonical jurisdiction ID
+# Format: {type}-{name} where type is city, county, school, or district
+# Examples: city-san-rafael, county-marin, school-san-rafael
+jurisdiction_id: city-san-rafael
+
+# Optional: Human-readable name (derived from registry if not set)
+display_name: "San Rafael, CA"
+
+# Optional: IANA timezone (derived from registry if not set)
+timezone: America/Los_Angeles
+
+# Optional: Path to SQLite database (uses default if not set)
+# db_path: /path/to/civic_state.db
+
+# Optional: Enable federated queries across multiple CivicOS instances
+federation_enabled: false
+
+# Optional: Federation peers (other CivicOS instances to query)
+# peers:
+#   - jurisdiction_id: city-berkeley
+#     mcp_endpoint: https://berkeley.civicos.org/mcp
+#     display_name: "Berkeley, CA"
+#     enabled: true
+#
+#   - jurisdiction_id: city-oakland
+#     mcp_endpoint: https://oakland.civicos.org/mcp
+#     display_name: "Oakland, CA"
+#     enabled: true
+
+# Optional: Extractor configuration (for data ingestion)
+# extractors:
+#   legistar:
+#     enabled: false  # San Rafael uses ProudCity, not Legistar
+#   proudcity:
+#     enabled: true
+#     config:
+#       base_url: https://www.cityofsanrafael.org
+#       auto_discover: true
+
+# Optional: Custom metadata
+# metadata:
+#   region: "Bay Area"
+#   population: 61000
+#   founded: 1874
