@@ -2964,7 +2964,7 @@
     "backend_integration": {
       "relay_database_setup": {
         "status": "ready",
-        "priority": 0,
+        "priority": 2,
         "description": "Create separate Supabase project for relay database. Architectural separation: relay stores voices/subscriptions/provenance independently from CivicOS backend. Pattern for federation where each municipality runs their own relay.",
         "test_file": "packages/civicos-relay/tests/test_voice.py",
         "artifact": "packages/civicos-relay/schema.sql",
@@ -2978,8 +2978,8 @@
         "note": "P0: Clean separation enables federation - each municipality runs their own relay with their own database."
       },
       "api_endpoints": {
-        "status": "pending",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Add REST API endpoints for voice operations: POST /voice (cast), GET /voice/counts/:entity, POST /subscribe, DELETE /subscribe/:id. Add to civicos-services.",
         "test_file": "packages/civicos-services/tests/test_coordination_api.py",
         "subtasks": [
@@ -3021,7 +3021,7 @@
     "frontend_integration": {
       "voice_display": {
         "status": "pending",
-        "priority": 1,
+        "priority": 0,
         "description": "Display voice counts on agenda items and decisions in the Vue frontend. Show support/oppose/watching breakdown. Simple badge/indicator UI.",
         "test_file": "apps/civicos-workspace/tests/e2e/voice-display.spec.ts",
         "subtasks": [

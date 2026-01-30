@@ -16503,3 +16503,19 @@ Created turnkey configuration system for CivicOS deployment:
 - Added RELAY_DATABASE_URL to .env.example with special char handling notes
 - Committed: 3a3ce15 feat: Complete relay database setup with separate Supabase
 - Next P0: api_endpoints (expose relay via REST API)
+
+---
+**Session 535** (2026-01-30)
+- Completed `api_endpoints` - REST API for relay coordination protocol
+- Created `packages/civicos-services/src/civicos_services/servers/routers/coordination.py`
+  - POST /api/coordination/voice - Cast signed voice
+  - GET /api/coordination/voice/counts/{entity} - Get voice counts
+  - GET /api/coordination/voice/{entity} - List voices
+  - POST /api/coordination/subscribe - Create subscription
+  - DELETE /api/coordination/subscribe/{subscription_id} - Unsubscribe
+  - GET /api/coordination/provenance/{public_key} - Get key provenance
+- Wired coordination router into main API (api.py, routers/__init__.py)
+- Created integration tests in `packages/civicos-services/tests/test_coordination_api.py`
+- Note: Relay database connection was timing out during testing (Supabase may be paused)
+- Updated `pilot.json`: api_endpoints marked ready
+- Next P0: voice_display (show voice counts in Vue frontend)
