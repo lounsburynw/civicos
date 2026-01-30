@@ -847,8 +847,9 @@ class ProudCityClient(BaseExtractor):
             except ValueError:
                 pass
 
-        # Generate ID from slug
-        meeting_id = f"proudcity-{self.jurisdiction_id}-{event.get('meeting_slug', 'unknown')}"
+        # Generate namespaced ID from slug
+        slug = event.get('meeting_slug', 'unknown')
+        meeting_id = f"meeting:{self.jurisdiction_id}:proudcity:{slug}"
 
         return Meeting(
             id=meeting_id,

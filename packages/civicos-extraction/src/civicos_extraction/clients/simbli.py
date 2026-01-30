@@ -581,7 +581,7 @@ class SimbliClient:
             title = self._generate_meeting_title(meeting_type, meeting_date)
 
             meeting = SimbliMeeting(
-                id=f"{self.jurisdiction_id}-{meeting_date.isoformat()}",
+                id=f"meeting:{self.jurisdiction_id}:simbli:{meeting_date.isoformat()}",
                 title=title,
                 meeting_datetime=datetime.combine(meeting_date, datetime.min.time()),
                 meeting_type=meeting_type,
@@ -681,7 +681,7 @@ class SimbliClient:
             title = self._generate_meeting_title(meeting_type, meeting_date)
 
             meeting = SimbliMeeting(
-                id=f"{self.jurisdiction_id}-{meeting_date.isoformat()}",
+                id=f"meeting:{self.jurisdiction_id}:simbli:{meeting_date.isoformat()}",
                 title=title,
                 meeting_datetime=datetime.combine(meeting_date, datetime.min.time()),
                 meeting_type=meeting_type,

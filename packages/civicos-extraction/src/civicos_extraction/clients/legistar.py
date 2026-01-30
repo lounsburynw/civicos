@@ -397,7 +397,7 @@ class LegistarClient(BaseExtractor):
         meeting_type = self._infer_meeting_type(body_name)
 
         return Meeting(
-            id=f"legistar-{self.client_name}-{event_id}",
+            id=f"meeting:{self.jurisdiction_id}:legistar:{event_id}",
             title=body_name or "Meeting",
             meeting_datetime=meeting_datetime or datetime.now(),
             jurisdiction_id=self.jurisdiction_id,
