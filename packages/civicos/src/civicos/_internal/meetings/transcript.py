@@ -423,9 +423,15 @@ Return ONLY valid JSON, no additional text."""
             response_format="json_object",
         )
 
-        # Parse response
+        # Parse response (strip markdown fences if present - some providers wrap JSON)
         try:
-            result = json.loads(response)
+            response_text = response.strip()
+            if response_text.startswith("```"):
+                # Remove markdown code fences
+                lines = response_text.split("\n")
+                # Skip first line (```json) and last line (```)
+                response_text = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+            result = json.loads(response_text)
             detected_speakers = result.get("speakers", [])
 
             for detected in detected_speakers:
@@ -1128,6 +1134,7 @@ class TranscriptChunker:
         detect_speaker_roles: bool = True,
         detect_agenda_items: bool = True,
         llm_provider: "LLMProvider | None" = None,
+        precomputed_speaker_info: dict | None = None,
     ) -> list[TranscriptChunk]:
         """
         Convert utterances into semantic chunks.
@@ -1138,6 +1145,8 @@ class TranscriptChunker:
             detect_speaker_roles: If True, detect and include speaker roles
             detect_agenda_items: If True, detect and include agenda item alignment
             llm_provider: Optional LLM provider for enhanced speaker/name detection
+            precomputed_speaker_info: Optional pre-computed speaker metadata from
+                transcription time (SESSION 530). Format: {"A": {"name": "...", "role": "..."}}
 
         Returns:
             List of TranscriptChunk objects
@@ -1145,10 +1154,21 @@ class TranscriptChunker:
         if not utterances:
             return []
 
-        # Detect speaker roles if requested
+        # Use pre-computed speaker info if available, otherwise detect
         speaker_info: dict[str, SpeakerInfo] = {}
         public_comment_sections: list[tuple[int, int, str]] = []
-        if detect_speaker_roles:
+
+        if precomputed_speaker_info:
+            # SESSION 530: Convert pre-computed dict format to SpeakerInfo objects
+            for speaker_id, info in precomputed_speaker_info.items():
+                speaker_info[speaker_id] = SpeakerInfo(
+                    speaker_id=speaker_id,
+                    role=info.get("role", "unknown"),
+                    name=info.get("name"),
+                    title=info.get("title"),
+                    confidence=info.get("confidence", 0.8),
+                )
+        elif detect_speaker_roles:
             detector = SpeakerRoleDetector(llm_provider=llm_provider)
             speaker_info = detector.detect_roles(utterances)
             public_comment_sections = detector.public_comment_sections
@@ -1733,16 +1753,21 @@ def expand_transcripts_to_chunks(
             logger.warning(f"No utterances found in transcript {video_id}")
             continue
 
+        # SESSION 530: Check for pre-computed speakers_metadata (from transcription time)
+        speakers_metadata = transcript_data.get("speakers_metadata", {})
+
         # Parse utterances and chunk
         utterances = chunker.parse_utterances({"utterances": utterances_data})
         if not utterances:
             continue
 
-        # Chunk with speaker role detection (skip agenda detection for speed)
+        # Chunk with speaker role detection
+        # Skip detection if we have pre-computed speakers_metadata
         chunks = chunker.chunk(
             utterances,
-            detect_speaker_roles=True,
+            detect_speaker_roles=not speakers_metadata,  # Skip if pre-computed
             detect_agenda_items=False,
+            precomputed_speaker_info=speakers_metadata,  # Pass pre-computed data
         )
 
         # Convert to indexable format matching ChromaDB/pgvector schema

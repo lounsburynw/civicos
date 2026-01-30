@@ -71,6 +71,121 @@ DURATION_TOLERANCE_PERCENT = 0.10  # Allow 10% variance for encoding overhead/pa
 MIN_DURATION_FOR_VALIDATION = 60  # Don't validate very short clips (<1 min)
 
 
+def _detect_speaker_roles(utterances: List[Dict], use_llm: bool = True) -> Dict[str, Dict]:
+    """
+    Detect speaker roles and names from transcript utterances.
+
+    Uses the SpeakerRoleDetector from civicos with optional LLM enhancement
+    for robust detection across different meeting types and municipalities.
+
+    Args:
+        utterances: List of utterance dicts with speaker, text, start, end
+        use_llm: If True, use LLM for enhanced detection (costs ~$0.0003/transcript)
+
+    Returns:
+        Dict mapping speaker ID to metadata:
+        {
+            "A": {"name": "Kate Colin", "role": "council", "title": "Mayor"},
+            "B": {"name": None, "role": "public", "title": None},
+            ...
+        }
+    """
+    if not utterances:
+        return {}
+
+    try:
+        from civicos._internal.meetings.transcript import (
+            SpeakerRoleDetector,
+            TranscriptUtterance,
+        )
+
+        # Convert dict utterances to TranscriptUtterance objects
+        transcript_utts = []
+        for utt in utterances:
+            transcript_utts.append(TranscriptUtterance(
+                speaker=utt["speaker"],
+                text=utt["text"],
+                start_ms=utt["start"],
+                end_ms=utt["end"],
+            ))
+
+        # SESSION 530: Use LLM for robust detection across meeting types
+        llm_provider = None
+        if use_llm:
+            llm_provider = _get_llm_provider_for_speaker_detection()
+
+        # Run role detection
+        detector = SpeakerRoleDetector(llm_provider=llm_provider)
+        speaker_infos = detector.detect_roles(transcript_utts)
+
+        # Convert SpeakerInfo objects to serializable dicts
+        # Assign friendly names to unnamed speakers by role
+        public_counter = 0
+        staff_counter = 0
+        unknown_counter = 0
+
+        result = {}
+        for speaker_id, info in sorted(speaker_infos.items()):
+            name = info.name
+            # Assign friendly anonymous identifier if no name detected
+            if not name:
+                if info.role == "public":
+                    public_counter += 1
+                    name = f"Public Speaker {public_counter}"
+                elif info.role == "staff":
+                    staff_counter += 1
+                    name = f"Staff Member {staff_counter}"
+                elif info.role == "unknown":
+                    unknown_counter += 1
+                    name = f"Speaker {unknown_counter}"
+                # Council members without names keep None (shouldn't happen)
+
+            result[speaker_id] = {
+                "name": name,
+                "role": info.role,
+                "title": info.title,
+                "confidence": info.confidence,
+            }
+        return result
+
+    except ImportError as e:
+        logger.warning(f"Speaker detection unavailable: {e}")
+        return {}
+    except Exception as e:
+        logger.warning(f"Speaker detection failed: {e}")
+        return {}
+
+
+def _get_llm_provider_for_speaker_detection():
+    """
+    Get an LLM provider for speaker detection.
+
+    Configurable via SPEAKER_DETECTION_MODEL env var.
+    Falls back to pattern-only detection if no providers available.
+
+    Environment:
+        SPEAKER_DETECTION_MODEL: Model to use (default: gemini-2.0-flash-exp)
+            Examples: gemini-2.0-flash-exp, gpt-4o-mini, llama-3.1-8b-instant
+
+    Cost: ~$0.0003/transcript with Gemini Flash
+    """
+    try:
+        import os
+        from civicos_services.core.llm_provider import get_model
+
+        # Default to gemini-2.0-flash-exp (alias resolves to models/gemini-2.0-flash)
+        model = os.environ.get("SPEAKER_DETECTION_MODEL", "gemini-2.0-flash-exp")
+        logger.debug(f"Using {model} for speaker detection")
+        return get_model(model)
+
+    except ImportError:
+        logger.debug("civicos_services not available, using pattern-only speaker detection")
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to initialize LLM provider for speaker detection: {e}")
+        return None
+
+
 @dataclass
 class TranscribeCheckpoint:
     """Checkpoint for transcription progress."""
@@ -649,6 +764,12 @@ def transcribe_audio_file(
                     "end": utt.end,
                 })
 
+        # SESSION 530: Run speaker role detection to extract names from roll call
+        speakers_metadata = _detect_speaker_roles(utterances)
+        if speakers_metadata:
+            named_count = sum(1 for s in speakers_metadata.values() if s.get("name"))
+            logger.info(f"  Speaker detection: {named_count}/{len(speakers_metadata)} speakers identified by name")
+
         # Build result in expected format
         result_data = {
             "video_id": video_id,
@@ -667,6 +788,8 @@ def transcribe_audio_file(
             "youtube_duration_seconds": youtube_duration,
             "duration_valid": duration_valid,
             "duration_validation_error": validation_error,
+            # SESSION 530: Speaker metadata from roll call detection
+            "speakers_metadata": speakers_metadata,
         }
 
         # Store transcript (cloud or local)
@@ -963,6 +1086,12 @@ def transcribe_batch(
                         "end": utt.end,
                     })
 
+            # SESSION 530: Run speaker role detection to extract names from roll call
+            speakers_metadata = _detect_speaker_roles(utterances)
+            if speakers_metadata:
+                named_count = sum(1 for s in speakers_metadata.values() if s.get("name"))
+                logger.info(f"    Speaker detection: {named_count}/{len(speakers_metadata)} identified by name")
+
             # Build result data
             result_data = {
                 "video_id": video_id,
@@ -976,6 +1105,8 @@ def transcribe_batch(
                 "assemblyai_id": transcript.id,
                 "cost_usd": round(cost_usd, 2),
                 "processing_time_seconds": round(total_processing_time / len(files_to_transcribe), 2),
+                # SESSION 530: Speaker metadata from roll call detection
+                "speakers_metadata": speakers_metadata,
             }
 
             # Store transcript

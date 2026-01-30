@@ -52,7 +52,8 @@ from .model_registry import (
     get_model_info,
     find_models_by_capabilities,
     is_model_available as is_model_available_in_registry,
-    get_cheapest_model
+    get_cheapest_model,
+    resolve_model_name,
 )
 
 
@@ -351,7 +352,9 @@ def get_model(model_name: str) -> LLMProvider:
         )
 
     provider_name = info['provider']
-    return get_provider_with_model(provider_name, model_name)
+    # Resolve alias to get canonical model name for the provider (Session 530)
+    canonical_model = resolve_model_name(model_name)
+    return get_provider_with_model(provider_name, canonical_model)
 
 
 def get_model_for_task(task_type: str, use_model_config: bool = True) -> LLMProvider:
