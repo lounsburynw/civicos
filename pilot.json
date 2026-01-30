@@ -515,7 +515,7 @@
       },
       "data_source_protocol": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Define DataSource protocol abstracting local vs federated data access. Implement LocalDataSource only for pilot. FederatedDataSource deferred to post-pilot.",
         "rationale": "Abstraction is valuable now (clarifies boundaries). Implementation can wait until second city.",
         "artifact": "packages/civicos/src/civicos/storage/data_source.py",
@@ -3123,14 +3123,14 @@
     },
     "mcp_federation": {
       "peer_registry": {
-        "status": "pending",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "description": "MCP peer discovery and registry. List of peer MCP servers by jurisdiction with health checks.",
         "test_file": "apps/civicos-mcp/tests/test_federation.py"
       },
       "query_routing": {
         "status": "pending",
-        "priority": 2,
+        "priority": 0,
         "description": "Fan-out queries to relevant peer backends based on jurisdiction scope. Aggregate and dedupe results.",
         "test_file": "apps/civicos-mcp/tests/test_federation.py",
         "subtasks": [
