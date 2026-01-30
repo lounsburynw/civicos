@@ -2979,7 +2979,7 @@
       },
       "api_endpoints": {
         "status": "pending",
-        "priority": 1,
+        "priority": 0,
         "description": "Add REST API endpoints for voice operations: POST /voice (cast), GET /voice/counts/:entity, POST /subscribe, DELETE /subscribe/:id. Add to civicos-services.",
         "test_file": "packages/civicos-services/tests/test_coordination_api.py",
         "subtasks": [
