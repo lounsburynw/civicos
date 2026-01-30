@@ -1,8 +1,8 @@
 # Final Package Architecture
 
 **Status**: Approved
-**Date**: 2025-11-29
-**Version**: 2.2 (timeline shifted to Jan 2026 pilot)
+**Date**: 2026-01-29
+**Version**: 2.3 (added civicos-relay package, federation architecture)
 
 ---
 
@@ -254,97 +254,113 @@ OutcomeEvent:
 
 ## Package Structure
 
+The project is organized as a monorepo with multiple packages:
+
 ```
-civic/
-├── pyproject.toml
-├── src/civic/
+civicos/
+├── packages/
+│   ├── civicos/                    # Core API package
+│   │   ├── src/civicos/
+│   │   │   ├── __init__.py         # Public API: CivicOS class
+│   │   │   ├── context.py          # what_applies()
+│   │   │   ├── _internal/          # Internal modules (state, legal, meetings)
+│   │   │   └── storage/            # StorageBackend protocol + implementations
+│   │   └── tests/
 │   │
-│   ├── __init__.py                 # Public API exports
-│   ├── civic.py                    # Civic class - main entry point
+│   ├── civicos-relay/              # Federation-ready coordination relay
+│   │   ├── src/civicos_relay/
+│   │   │   ├── voice/              # Keypairs, signing, voice casting
+│   │   │   ├── relay/              # Events, subscriptions, delivery
+│   │   │   ├── provenance/         # Key age, history, trust signals
+│   │   │   ├── identity/           # Relay keypair, peering config
+│   │   │   ├── sync/               # Voice sync protocol (federation)
+│   │   │   ├── storage/            # Postgres + in-memory backends
+│   │   │   └── server/             # Standalone FastAPI server
+│   │   ├── schema.sql              # PostgreSQL tables
+│   │   └── tests/                  # 30 tests including multi-relay sync
 │   │
-│   ├── # ─────────── QUERY MODULES ───────────
-│   ├── context.py                  # what_applies()
-│   ├── history.py                  # what_happened()
-│   ├── calendar.py                 # whats_next()
-│   ├── community.py                # whos_with_me()
+│   ├── civicos-extraction/         # Platform parsers
+│   │   └── src/civicos_extraction/
+│   │       ├── platforms/          # Legistar, CivicClerk, Granicus
+│   │       ├── cli/                # Transcription, ingestion CLI
+│   │       └── pipeline/           # ETL orchestration
 │   │
-│   ├── # ─────────── ACTION MODULES ───────────
-│   ├── actions/
-│   │   ├── __init__.py
-│   │   ├── initiatives.py          # start_something()
-│   │   ├── voices.py               # add_voice()
-│   │   ├── subscriptions.py        # follow()
-│   │   └── preparation.py          # prepare()
+│   ├── civicos-services/           # Application layer
+│   │   └── src/civicos_services/
+│   │       ├── api/                # FastAPI REST server
+│   │       ├── chat/               # Chat interface
+│   │       └── websocket/          # Real-time coordination
 │   │
-│   ├── # ─────────── AI ORCHESTRATION (LangGraph) ───────────
-│   ├── orchestrator/
-│   │   ├── __init__.py
-│   │   ├── graphs/                 # LangGraph workflow definitions
-│   │   │   ├── __init__.py
-│   │   │   ├── coordination.py     # Main coordination workflow
-│   │   │   ├── suggestion.py       # Suggestion generation workflow
-│   │   │   └── preparation.py      # Meeting prep workflow
-│   │   ├── nodes/                  # Individual LangGraph nodes
-│   │   │   ├── __init__.py
-│   │   │   ├── detect.py           # Score decision importance
-│   │   │   ├── discover.py         # Find affected residents
-│   │   │   ├── suggest.py          # Generate suggestions
-│   │   │   ├── plan.py             # Create coordination plans
-│   │   │   └── learn.py            # Extract patterns from outcomes
-│   │   ├── state.py                # Shared state schemas (TypedDict)
-│   │   └── checkpointer.py         # PostgreSQL checkpointer for production
-│   │
-│   ├── # ─────────── FEEDBACK SYSTEM ───────────
-│   ├── feedback/
-│   │   ├── __init__.py
-│   │   ├── events.py               # Event capture
-│   │   ├── store.py                # Event storage
-│   │   └── analyzer.py             # Pattern analysis
-│   │
-│   ├── # ─────────── JURISDICTION MODEL ───────────
-│   ├── jurisdiction/
-│   │   ├── __init__.py
-│   │   ├── base.py
-│   │   ├── simple.py
-│   │   ├── complex.py
-│   │   ├── resolver.py
-│   │   └── loader.py
-│   │
-│   ├── # ─────────── DATA LAYER (internal) ───────────
-│   ├── _corpus/
-│   │   ├── __init__.py
-│   │   ├── search.py
-│   │   ├── providers/
-│   │   │   ├── base.py
-│   │   │   ├── municode.py
-│   │   │   ├── american_legal.py
-│   │   │   └── leginfo.py
-│   │   ├── state/
-│   │   │   └── california.py
-│   │   └── municipal/
-│   │       └── generic.py
-│   │
-│   ├── _decisions/
-│   │   ├── __init__.py
-│   │   ├── store.py
-│   │   ├── extractor.py
-│   │   └── classifier.py
-│   │
-│   ├── _activity/
-│   │   ├── __init__.py
-│   │   ├── meetings.py
-│   │   ├── initiatives.py          # User-created initiatives
-│   │   ├── voices.py               # Comments, support, opposition
-│   │   └── subscriptions.py        # What users follow
-│   │
-│   └── # ─────────── MCP SERVER ───────────
-│       mcp.py                      # Unified MCP server
+│   └── civicos-config/             # Shared configuration
+│       └── src/civicos_config/
+│           └── jurisdictions/      # Per-jurisdiction config
 │
-├── config/
-│   ├── states/
-│   └── jurisdictions/
+├── apps/
+│   ├── civicos-mcp/                # MCP server (Claude.ai, ChatGPT)
+│   │   ├── src/civicos_mcp/
+│   │   │   ├── server.py           # FastMCP server
+│   │   │   └── tools/              # MCP tool definitions
+│   │   └── fly.toml                # Fly.io deployment
+│   │
+│   └── civicos-workspace/          # Vue frontend
+│       ├── src/
+│       │   ├── components/         # Vue components
+│       │   ├── composables/        # State management
+│       │   └── services/           # API clients
+│       └── vite.config.ts
 │
-└── tests/
+├── data/                           # Local data (gitignored in production)
+├── docs/critical/                  # Architecture documentation
+├── scripts/                        # Dev and deployment scripts
+└── deploy/                         # Deployment artifacts (Docker, Fly, etc.)
+```
+
+### Package Responsibilities
+
+| Package | Responsibility |
+|---------|----------------|
+| `civicos` | Core API (`CivicOS` class), query methods, storage protocol |
+| `civicos-relay` | Voice casting, subscriptions, federation sync, standalone server |
+| `civicos-extraction` | Platform-specific parsers, transcription, ETL pipeline |
+| `civicos-services` | REST API, WebSocket, chat interface |
+| `civicos-config` | Shared jurisdiction configuration |
+| `civicos-mcp` | MCP server for AI assistants |
+| `civicos-workspace` | Vue frontend |
+
+### Data Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              USER INTERFACES                                 │
+│   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐    │
+│   │ Vue Frontend│   │ MCP (Claude)│   │ MCP (ChatGPT)│  │   REST API  │    │
+│   └──────┬──────┘   └──────┬──────┘   └──────┬──────┘   └──────┬──────┘    │
+└──────────┼─────────────────┼─────────────────┼─────────────────┼────────────┘
+           │                 │                 │                 │
+           ▼                 ▼                 ▼                 ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           APPLICATION LAYER                                  │
+│         civicos-services (API) + civicos-mcp (AI interface)                 │
+└─────────────────────────────────────┬───────────────────────────────────────┘
+                                      │
+           ┌──────────────────────────┼──────────────────────────┐
+           ▼                          ▼                          ▼
+┌─────────────────────┐   ┌─────────────────────┐   ┌─────────────────────┐
+│    civicos (core)   │   │   civicos-relay     │   │ civicos-extraction  │
+│  • Query methods    │   │  • Voice/subscribe  │   │  • Platform parsers │
+│  • CivicOS class    │   │  • Federation sync  │   │  • Transcription    │
+│  • Storage protocol │   │  • Event routing    │   │  • ETL pipeline     │
+└──────────┬──────────┘   └──────────┬──────────┘   └──────────┬──────────┘
+           │                         │                         │
+           └─────────────────────────┼─────────────────────────┘
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              STORAGE LAYER                                   │
+│   ┌─────────────────────┐   ┌─────────────────────┐   ┌─────────────────┐  │
+│   │    PostgreSQL       │   │     pgvector        │   │  Cloudflare R2  │  │
+│   │  (civic data)       │   │  (embeddings)       │   │  (blobs/audio)  │  │
+│   └─────────────────────┘   └─────────────────────┘   └─────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -474,6 +490,112 @@ def report_outcome(
     """
     return CivicOS(jurisdiction).report_outcome(item_id, outcome, notes)
 ```
+
+---
+
+## Relay Architecture (Federation)
+
+The `civicos-relay` package provides federation-ready coordination infrastructure. It can run integrated with the main backend or as a standalone service.
+
+### Core Components
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              RELAY                                           │
+│                                                                             │
+│   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐   │
+│   │   Voice     │   │   Relay     │   │ Provenance  │   │    Sync     │   │
+│   │  Service    │   │  Service    │   │  Service    │   │  Service    │   │
+│   │             │   │             │   │             │   │             │   │
+│   │ • Cast      │   │ • Subscribe │   │ • Key age   │   │ • Export    │   │
+│   │ • Verify    │   │ • Emit      │   │ • History   │   │ • Import    │   │
+│   │ • Count     │   │ • Route     │   │ • Quality   │   │ • Dedupe    │   │
+│   └──────┬──────┘   └──────┬──────┘   └──────┬──────┘   └──────┬──────┘   │
+│          │                 │                 │                 │           │
+│          └─────────────────┴─────────────────┴─────────────────┘           │
+│                                     │                                       │
+│                          ┌──────────┴──────────┐                           │
+│                          │   Storage Backend   │                           │
+│                          │  (Postgres / Memory)│                           │
+│                          └─────────────────────┘                           │
+│                                     │                                       │
+│   ┌─────────────────────────────────┴─────────────────────────────────┐   │
+│   │                      Relay Identity                                │   │
+│   │  • ECDSA keypair for signing events and sync responses            │   │
+│   │  • Peer configuration (URLs, namespaces, sync intervals)          │   │
+│   └───────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Voice Model
+
+Voices are cryptographically signed expressions of civic interest:
+
+```python
+Voice(
+    entity="agenda:2026-02-03:item-6a",  # What they're voicing on
+    stance=Stance.SUPPORT,                # support | oppose | watching
+    public_key="02ab3f...",               # ECDSA public key
+    signature="3045...",                  # Signature of entity+stance
+    timestamp=datetime.utcnow(),
+)
+```
+
+Key properties:
+- **Self-verifying**: Any relay can verify a voice independently
+- **Portable**: Voices can sync between relays
+- **One voice per key per entity**: Deduplication by `(public_key, entity)`
+
+### Federation Model
+
+```
+┌─────────────────┐     sync     ┌─────────────────┐     sync     ┌─────────────────┐
+│  San Rafael     │◄────────────►│  Marin County   │◄────────────►│   California    │
+│  Relay          │              │  Relay          │              │   Relay         │
+│                 │              │                 │              │                 │
+│ city-san-rafael │              │ marin-county    │              │ state-california│
+│ namespaces      │              │ namespaces      │              │ namespaces      │
+└────────┬────────┘              └────────┬────────┘              └────────┬────────┘
+         │                                │                                │
+         ▼                                ▼                                ▼
+    PostgreSQL                       PostgreSQL                       PostgreSQL
+```
+
+**What federates:**
+- Voices (signed, portable, deduplicated)
+- Events (agenda published, decision made)
+
+**What stays local:**
+- Subscriptions (private to each relay)
+- Delivery preferences
+
+### Sync Protocol
+
+```
+# Export voices for peer sync
+GET /sync/voices?since={timestamp}&namespace={prefix}
+Response: {
+    voices: [Voice...],
+    cursor: "next_page",
+    relay_id: "relay.civicos.org/san-rafael",
+    relay_signature: "..."  # Signed for verification
+}
+
+# Import voices from peer
+POST /sync/voices
+Body: {voices: [...], source_relay: "...", signature: "..."}
+Response: {accepted: 42, rejected: 3, duplicates: 12}
+```
+
+### Deployment Modes
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| **Integrated** | Relay runs within civicos-services | Pilot (single jurisdiction) |
+| **Standalone** | Relay runs as separate service | Multi-jurisdiction federation |
+| **Federated** | Multiple relays sync with each other | Cross-city coordination |
+
+For pilot: integrated mode. Post-pilot: standalone with federation enabled.
 
 ---
 
@@ -1219,36 +1341,51 @@ def generate_foundation_report(quarter: str) -> dict:
 
 ---
 
-## Migration from Current Packages
+## Current Package Structure
 
-| Current | New Location | Notes |
-|---------|--------------|-------|
-| `civic-state` StateManager | `_activity/` | Becomes internal |
-| `civic-state` issues | `_activity/initiatives.py` + `actions/initiatives.py` | Split read/write |
-| `civic-state` follows | `_activity/subscriptions.py` + `actions/subscriptions.py` | Split read/write |
-| `civic-legal` | `_corpus/state/california.py` | CA-specific |
-| `civic-enrichment` | `_corpus/search.py` | Merge into search |
-| `civic-coordination` | `orchestrator/` | Expand significantly |
-| `src/coordination_graph.py` | `orchestrator/graphs/coordination.py` | LangGraph prototype → production |
+The codebase has been refactored from a monolithic structure to a multi-package monorepo:
 
-### LangGraph Migration
+| Package | Purpose | Status |
+|---------|---------|--------|
+| `packages/civicos/` | Core API (`CivicOS` class), query methods, storage protocol | Active |
+| `packages/civicos-relay/` | Voice casting, subscriptions, federation sync | Active (new) |
+| `packages/civicos-extraction/` | Platform parsers, transcription, ETL | Active |
+| `packages/civicos-services/` | REST API, WebSocket, chat | Active |
+| `packages/civicos-config/` | Shared jurisdiction configuration | Active |
+| `apps/civicos-mcp/` | MCP server for AI assistants | Active |
+| `apps/civicos-workspace/` | Vue frontend | Active |
 
-The existing `src/coordination_graph.py` (280 lines) becomes the foundation:
+### Coordination Layer Split
+
+The coordination functionality is now split between two packages:
+
+| Concern | Package | Rationale |
+|---------|---------|-----------|
+| **Civic queries** (`what_happened`, `whats_next`) | `civicos` | Core API stays lean |
+| **Voice casting, signatures** | `civicos-relay` | Federation-ready, standalone deployable |
+| **Subscriptions, events** | `civicos-relay` | Can run as separate service |
+| **LangGraph orchestration** | `civicos` | Tightly coupled to query/action cycle |
+
+### Relay Package Architecture
+
+The `civicos-relay` package is designed for federation from day one:
 
 ```
-src/coordination_graph.py
-├── CoordinationState        → orchestrator/state.py
-├── detect_decision()        → orchestrator/nodes/detect.py
-├── discover_residents()     → orchestrator/nodes/discover.py
-├── create_coordination_workflow() → orchestrator/graphs/coordination.py
-└── MemorySaver              → orchestrator/checkpointer.py (PostgresSaver)
+packages/civicos-relay/src/civicos_relay/
+├── voice/          # Keypairs, signing, voice casting
+├── relay/          # Events, subscriptions, delivery
+├── provenance/     # Key age, history, trust signals
+├── identity/       # Relay keypair, peering config
+├── sync/           # Voice sync protocol (federation)
+├── storage/        # Postgres + in-memory backends
+└── server/         # Standalone FastAPI server
 ```
 
-Key upgrades:
-1. **MemorySaver → PostgresSaver** for persistence across restarts
-2. **Add human-in-the-loop** for coordination approval
-3. **Add more workflows** (suggestion, preparation)
-4. **Integrate with public API** (`c.coordinate()` triggers workflow)
+Key design decisions:
+1. **Voices are self-verifying** — Enables federation without trust hierarchy
+2. **Relay can run standalone** — Other municipalities can deploy their own
+3. **Sync protocol is versioned** — `civicos:voice:v1:...` for future compatibility
+4. **Storage is pluggable** — Postgres for production, in-memory for tests
 
 ---
 

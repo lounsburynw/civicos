@@ -1,7 +1,7 @@
 # MCP Integration Strategy
 
 **Created**: 2025-11-24 (Session 118)
-**Updated**: 2026-01-20 (Session 536 - HTTP transport deployment)
+**Updated**: 2026-01-29 (Session 559 - Relay + MCP federation architecture)
 **Status**: MCP Server Complete (32 primitives), HTTP Transport Ready, Deployment in Progress
 **Priority**: Strategic - Multi-platform AI distribution for pilot demo
 
@@ -991,6 +991,54 @@ Mode 4: MCP FEDERATION (Future)
 ├── Maximum decentralization
 └── Use for: Statewide/national scale
 ```
+
+### 9.2.1 Relay + MCP Integration
+
+The `civicos-relay` package provides coordination infrastructure (voices, subscriptions) that integrates with MCP:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              FEDERATION TOPOLOGY                             │
+│                                                                             │
+│  ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐       │
+│  │  San Rafael     │     │  Novato         │     │  Marin County   │       │
+│  │  ┌───────────┐  │     │  ┌───────────┐  │     │  ┌───────────┐  │       │
+│  │  │   Relay   │◄─┼─────┼─►│   Relay   │◄─┼─────┼─►│   Relay   │  │       │
+│  │  └─────┬─────┘  │     │  └─────┬─────┘  │     │  └─────┬─────┘  │       │
+│  │        │        │     │        │        │     │        │        │       │
+│  │  ┌─────┴─────┐  │     │  ┌─────┴─────┐  │     │  ┌─────┴─────┐  │       │
+│  │  │MCP Server │  │     │  │MCP Server │  │     │  │MCP Server │  │       │
+│  │  └───────────┘  │     │  └───────────┘  │     │  └───────────┘  │       │
+│  └─────────────────┘     └─────────────────┘     └─────────────────┘       │
+│           │                       │                       │                 │
+│           └───────────────────────┼───────────────────────┘                 │
+│                                   ▼                                         │
+│                        ┌─────────────────────┐                              │
+│                        │   User's AI Agent   │                              │
+│                        │  (Claude, ChatGPT)  │                              │
+│                        └─────────────────────┘                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Two federation layers:**
+
+| Layer | What Federates | Protocol |
+|-------|----------------|----------|
+| **Relay** | Voices, events | `civicos-relay` sync protocol |
+| **MCP** | Queries | Fan-out to peer MCP servers |
+
+**Relay provides MCP with:**
+- Voice counts per entity (`get_voice_counts`)
+- Subscription management (`subscribe_to_topic`)
+- Provenance data (`get_key_provenance`)
+
+**MCP federation options:**
+
+1. **Single MCP, federated relay**: One MCP server connects to a relay that syncs with peers
+2. **Federated MCP**: Multiple MCP servers, each with local relay, query fan-out at MCP layer
+3. **Agent-side federation**: Agent connects to multiple MCP servers directly
+
+For pilot: Option 1 (single MCP). Post-pilot: Option 2 for turnkey city deployments.
 
 ### 9.3 Ingestion API for Adopted Cities
 

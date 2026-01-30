@@ -397,7 +397,57 @@ Building MVP coordination protocol for Jan 2026 pilot. Combines relay + voice + 
 - SMS/ntfy delivery methods
 - DID:key standard (using simpler ECDSA keypairs)
 
-**Implementation items tracked in:** `pilot.json` under `coordination_protocol` category
+**Implementation items tracked in:** `pilot.json` under `relay` category
+
+### MVP Storage Schema
+
+The relay uses PostgreSQL with the following tables (see `packages/civicos-relay/schema.sql`):
+
+```sql
+-- Voices: signed expressions of civic interest
+coordination_voices (
+    entity VARCHAR(255),           -- "agenda:2026-02-03:item-6a"
+    stance VARCHAR(20),            -- support | oppose | watching
+    public_key VARCHAR(255),       -- ECDSA public key (hex)
+    signature TEXT,                -- Signature of entity+stance
+    timestamp TIMESTAMPTZ,
+    revoked BOOLEAN,
+    UNIQUE (public_key, entity)    -- One voice per key per entity
+)
+
+-- Subscriptions: event routing preferences
+coordination_subscriptions (
+    id VARCHAR(50) PRIMARY KEY,    -- "sub_abc123"
+    jurisdiction VARCHAR(100),     -- "city-san-rafael"
+    match_criteria JSONB,          -- {topics, event_types, geography}
+    delivery_method VARCHAR(20),   -- email | webhook
+    delivery_address VARCHAR(255),
+    active BOOLEAN,
+    public_key VARCHAR(255)        -- Optional link to voice key
+)
+
+-- Provenance: trust signals for keys
+coordination_provenance (
+    public_key VARCHAR(255) PRIMARY KEY,
+    created_at TIMESTAMPTZ,
+    total_voices INTEGER,
+    entities_touched INTEGER,
+    first_voice_at TIMESTAMPTZ,
+    last_voice_at TIMESTAMPTZ,
+    jurisdictions JSONB            -- ["city-san-rafael", "marin-county"]
+)
+
+-- Events log: audit trail
+coordination_events_log (
+    event_type VARCHAR(50),        -- agenda_published, decision_made
+    jurisdiction VARCHAR(100),
+    entity VARCHAR(255),
+    timestamp TIMESTAMPTZ,
+    data JSONB,
+    deliveries_attempted INTEGER,
+    deliveries_succeeded INTEGER
+)
+```
 
 ### Phase 2: Full Relay (Post-Pilot)
 
