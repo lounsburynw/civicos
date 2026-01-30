@@ -19,6 +19,7 @@
     "rollback_procedures",
     "user_documentation",
     "relay",
+    "federation_infrastructure",
     "frontend_refinement",
     "pilot_validation"
   ],
@@ -2986,6 +2987,92 @@
         "priority": 3,
         "description": "YAML-based peer configuration, peer health checks, auto-disable unhealthy peers.",
         "test_file": "packages/civicos-relay/tests/test_peering.py"
+      }
+    }
+  },
+  "federation_infrastructure": {
+    "description": "Turnkey federation infrastructure for other municipalities",
+    "configuration": {
+      "jurisdiction_config": {
+        "status": "pending",
+        "priority": 2,
+        "description": "Config-driven jurisdiction setup. Remove hardcoded san-rafael references. Single YAML configures jurisdiction, extractors, peers, display settings.",
+        "subtasks": [
+          "Audit codebase for hardcoded jurisdiction references",
+          "Create CivicOSConfig model with jurisdiction, timezone, display_name",
+          "Create civicos.yaml schema and loader",
+          "Refactor CivicOS() to accept config instead of jurisdiction string",
+          "Update tests to use config-driven setup"
+        ]
+      }
+    },
+    "mcp_federation": {
+      "peer_registry": {
+        "status": "pending",
+        "priority": 2,
+        "description": "MCP peer discovery and registry. List of peer MCP servers by jurisdiction with health checks.",
+        "test_file": "apps/civicos-mcp/tests/test_federation.py"
+      },
+      "query_routing": {
+        "status": "pending",
+        "priority": 2,
+        "description": "Fan-out queries to relevant peer backends based on jurisdiction scope. Aggregate and dedupe results.",
+        "test_file": "apps/civicos-mcp/tests/test_federation.py",
+        "subtasks": [
+          "Add federate parameter to search tools",
+          "Implement parallel peer queries with httpx",
+          "Result deduplication and ranking",
+          "Timeout and error handling for peer failures"
+        ]
+      }
+    },
+    "deployment": {
+      "docker_artifacts": {
+        "status": "pending",
+        "priority": 2,
+        "description": "Dockerfiles for relay and MCP server. Docker-compose for full stack. Example configs.",
+        "artifact": "deploy/docker/",
+        "subtasks": [
+          "Dockerfile.relay - standalone relay server",
+          "Dockerfile.mcp - MCP server",
+          "docker-compose.yml - full stack (postgres, relay, mcp, frontend)",
+          "civicos.example.yaml - example configuration",
+          ".env.example - environment variables"
+        ]
+      },
+      "fly_deployment": {
+        "status": "pending",
+        "priority": 3,
+        "description": "Fly.io deployment configs for relay. Extend existing MCP fly.toml pattern.",
+        "artifact": "deploy/fly/"
+      }
+    },
+    "documentation": {
+      "operator_guide": {
+        "status": "pending",
+        "priority": 3,
+        "description": "Documentation for running your own CivicOS instance. Prerequisites, configuration, deployment, monitoring.",
+        "artifact": "docs/critical/OPERATOR_GUIDE.md"
+      },
+      "federation_setup": {
+        "status": "pending",
+        "priority": 3,
+        "description": "How to peer with other CivicOS instances. Relay peering, MCP peering, namespace coordination.",
+        "artifact": "docs/critical/FEDERATION_SETUP.md"
+      }
+    },
+    "extractors": {
+      "extractor_registry": {
+        "status": "pending",
+        "priority": 3,
+        "description": "Registry of platform extractors (Legistar, Granicus, CivicPlus) with config-driven selection. Enables cities with different platforms to join.",
+        "test_file": "packages/civicos-extraction/tests/test_registry.py",
+        "subtasks": [
+          "Define ExtractorProtocol interface",
+          "Create EXTRACTOR_REGISTRY mapping",
+          "Implement LegistarExtractor (common platform)",
+          "Config-driven extractor selection"
+        ]
       }
     }
   }
