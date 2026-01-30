@@ -14,6 +14,7 @@ from unittest.mock import Mock, patch
 
 from civicos import CivicOS
 from civicos.civicos import UpcomingElection
+from civicos.storage.data_source import LocalDataSource
 
 
 class TestElectionEndpoints:
@@ -87,6 +88,7 @@ class TestElectionEndpoints:
                 mock_get_vector.return_value = Mock()
                 c = CivicOS("san-rafael")
                 c._storage = mock_storage
+                c._data_source = LocalDataSource(mock_storage)
                 return c
 
     def test_whats_next_includes_elections(self, civic_with_mock, mock_storage):
@@ -203,6 +205,7 @@ class TestVotingRecordEndpoint:
                 mock_get_vector.return_value = Mock()
                 c = CivicOS("san-rafael")
                 c._storage = mock_storage
+                c._data_source = LocalDataSource(mock_storage)
                 return c
 
     def test_voting_record_returns_correct_structure(self, civic_with_mock, mock_storage):

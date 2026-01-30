@@ -250,14 +250,18 @@ class DataSource(Protocol):
     def get_budget_funding_links(
         self,
         jurisdiction_id: str,
-        fiscal_year: Optional[str] = None,
+        budget_item_id: Optional[str] = None,
+        federal_cfda_number: Optional[str] = None,
+        limit: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """
         Get links between budget items and funding sources.
 
         Args:
             jurisdiction_id: CivicOS jurisdiction
-            fiscal_year: Filter by fiscal year
+            budget_item_id: Filter by specific budget item
+            federal_cfda_number: Filter by CFDA number
+            limit: Maximum number of results
 
         Returns:
             List of funding link dicts
@@ -269,7 +273,7 @@ class DataSource(Protocol):
     def get_federal_awards(
         self,
         jurisdiction_id: str,
-        program: Optional[str] = None,
+        cfda_number: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """
@@ -277,7 +281,7 @@ class DataSource(Protocol):
 
         Args:
             jurisdiction_id: CivicOS jurisdiction
-            program: Filter by program name
+            cfda_number: Filter by CFDA number
             limit: Maximum number of results
 
         Returns:
@@ -551,12 +555,16 @@ class LocalDataSource:
     def get_budget_funding_links(
         self,
         jurisdiction_id: str,
-        fiscal_year: Optional[str] = None,
+        budget_item_id: Optional[str] = None,
+        federal_cfda_number: Optional[str] = None,
+        limit: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """Delegate to StorageBackend.get_budget_funding_links()."""
         return self._storage.get_budget_funding_links(
             jurisdiction_id=jurisdiction_id,
-            fiscal_year=fiscal_year,
+            budget_item_id=budget_item_id,
+            federal_cfda_number=federal_cfda_number,
+            limit=limit,
         )
 
     # ========== Federal Funding Queries ==========
@@ -564,13 +572,13 @@ class LocalDataSource:
     def get_federal_awards(
         self,
         jurisdiction_id: str,
-        program: Optional[str] = None,
+        cfda_number: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """Delegate to StorageBackend.get_federal_awards()."""
         return self._storage.get_federal_awards(
             jurisdiction_id=jurisdiction_id,
-            program=program,
+            cfda_number=cfda_number,
             limit=limit,
         )
 

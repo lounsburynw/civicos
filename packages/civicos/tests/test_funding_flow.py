@@ -8,6 +8,7 @@ import pytest
 from unittest.mock import Mock, patch
 
 from civicos import CivicOS, FundingFlow, FundingFlowImpact
+from civicos.storage.data_source import LocalDataSource
 
 
 class TestFundingFlowDataclass:
@@ -237,6 +238,7 @@ class TestFundingFlowWithMockedData:
         """Create Civic instance with mocked storage."""
         c = CivicOS("san-rafael-ca")
         c._storage = Mock()
+        c._data_source = LocalDataSource(c._storage)
         return c
 
     def test_funding_flow_builds_from_links(self, mock_civic):

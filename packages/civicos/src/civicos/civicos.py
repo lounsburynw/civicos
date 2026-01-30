@@ -1332,28 +1332,22 @@ class CivicOS:
         # Get funding links (connections between budget & sources)
         funding_links = self._data_source.get_budget_funding_links(
             jurisdiction_id=self.jurisdiction,
-            fiscal_year=fiscal_year,
+            budget_item_id=budget_item_id,
+            federal_cfda_number=cfda_number,
         )
-        # Filter by budget_item_id or cfda_number client-side
-        if budget_item_id:
-            funding_links = [fl for fl in funding_links if fl.get("budget_item_id") == budget_item_id]
-        if cfda_number:
-            funding_links = [fl for fl in funding_links if fl.get("federal_cfda_number") == cfda_number]
 
         # Get federal awards and state passthroughs
         federal_awards = self._data_source.get_federal_awards(
             jurisdiction_id=self.jurisdiction,
+            cfda_number=cfda_number,
             limit=None,
         )
-        # Filter by cfda_number client-side if needed
-        if cfda_number:
-            federal_awards = [fa for fa in federal_awards if fa.get("cfda_number") == cfda_number]
 
         passthroughs = self._data_source.get_state_passthrough_funds(
             jurisdiction_id=self.jurisdiction,
             limit=None,
         )
-        # Filter by cfda_number client-side if needed
+        # Filter by cfda_number client-side (StorageBackend uses federal_cfda_number param)
         if cfda_number:
             passthroughs = [p for p in passthroughs if p.get("federal_cfda_number") == cfda_number]
 
