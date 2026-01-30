@@ -71,8 +71,9 @@ WORKDIR /app
 COPY packages/civicos-config/src ./packages/civicos-config/src
 COPY packages/civicos/src ./packages/civicos/src
 
-# Copy MCP server and validator
+# Copy MCP server, federation module, and validator
 COPY apps/civicos-mcp/civicos_server.py ./apps/civicos-mcp/
+COPY apps/civicos-mcp/federation.py ./apps/civicos-mcp/
 COPY apps/civicos_input_validator.py ./apps/
 
 # Set ownership
