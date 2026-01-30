@@ -1,3 +1,51 @@
+## Session 531 (2026-01-29) - Entity ID Namespacing
+
+**Item:** `entity_id_namespacing` (P0 → ready)
+**Status:** COMPLETE
+
+### Summary
+Implemented namespaced entity IDs for federation readiness. All new records will use globally unique IDs in the format `{type}:{jurisdiction}:{source}:{identifier}`.
+
+### Changes Made
+
+**1. ADR Documentation**
+- Created `docs/decisions/entity_id_namespace.md` with canonical schema
+
+**2. Extraction Pipeline Updates**
+- `legistar.py:400`: `meeting:{jurisdiction}:legistar:{event_id}`
+- `proudcity.py:851`: `meeting:{jurisdiction}:proudcity:{slug}`
+- `simbli.py:584,684`: `meeting:{jurisdiction}:simbli:{date}`
+
+**3. Storage Layer Updates**
+- `postgres_backend.py:store_issues()`: `issue:{jurisdiction}:{provider}:{external_id}`
+- `postgres_backend.py:store_decisions()`: `decision:{jurisdiction}:{date}:{item}`
+- `postgres_backend.py:store_chunks()`: `chunk:{jurisdiction}:{meeting_id}:{index:04d}`
+- `sqlite_backend.py`: Same patterns for local dev consistency
+
+**4. Relay Model Updates**
+- `voice/models.py`: Updated entity field description to show namespaced format
+
+**5. Test Coverage**
+- Created `test_entity_ids.py` with format validation tests
+- All 13 unit tests pass
+
+### ID Format Examples
+| Entity | Old Format | New Format |
+|--------|-----------|------------|
+| Meeting | `legistar-san-rafael-12345` | `meeting:city-san-rafael:legistar:12345` |
+| Decision | `20260115-item-6a` | `decision:city-san-rafael:2026-01-15:item-6a` |
+| Issue | `seeclickfix-12345678` | `issue:city-san-rafael:seeclickfix:12345678` |
+| Chunk | `chunk-42` | `chunk:city-san-rafael:meeting-id:0042` |
+
+### Backwards Compatibility
+- Existing records with old IDs remain queryable (junction_id filtering)
+- Migration script deferred to post-pilot (documented in ADR)
+
+### P0 Assignment
+`data_source_protocol` set as next P0 (federation abstraction layer)
+
+---
+
 ## Session 530 (2026-01-29) - Speaker Diarization + Regulatory Dedup
 
 **Items Completed:**

@@ -1,7 +1,7 @@
 {
   "version": "2.0",
   "phase": "pilot",
-  "last_updated": "2026-01-28",
+  "last_updated": "2026-01-29",
   "target": "January 2026",
   "summary": "Consolidated pilot checklist: completed work summarized, active items tracked individually",
   "category_order": [
@@ -487,6 +487,87 @@
           "note": "Reduced pilot.json from 183KB to 57KB (69% reduction), preserving all tracking capability"
         }
       ]
+    },
+    "data_federation": {
+      "_doc": "Data federation architecture for multi-jurisdiction deployment. See conversation 2026-01-29.",
+      "entity_id_namespacing": {
+        "status": "ready",
+        "priority": 2,
+        "description": "Namespace all entity IDs for global uniqueness across federated instances. Format: {type}:{jurisdiction}:{identifier}. Backwards-compatible - new format coexists with old during migration.",
+        "rationale": "High value, low risk. Prevents painful data migration when second city joins. Start now so all new data gets namespaced IDs.",
+        "artifact": "Canonical entity ID schema + updated ingestion pipelines",
+        "subtasks": [
+          "Audit current entity ID formats in database (meetings, decisions, issues, transcripts, etc.)",
+          "Define canonical entity ID schema in docs/decisions/entity_id_namespace.md",
+          "Update ingestion pipelines to emit namespaced IDs for new records",
+          "Update relay to expect namespaced entity references",
+          "Add backwards-compatible ID resolution (old IDs still work)",
+          "Create migration script for existing records (run post-pilot)"
+        ],
+        "examples": {
+          "old": "mtg-2026-01-15-council",
+          "new": "meeting:city-san-rafael:2026-01-15:council",
+          "bill": "bill:state-california:sb-1234",
+          "federal": "bill:federal:hr-5678",
+          "decision": "decision:city-san-rafael:2026-01-15:homeless-encampment"
+        },
+        "test_file": "packages/civicos/tests/test_entity_ids.py"
+      },
+      "data_source_protocol": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Define DataSource protocol abstracting local vs federated data access. Implement LocalDataSource only for pilot. FederatedDataSource deferred to post-pilot.",
+        "rationale": "Abstraction is valuable now (clarifies boundaries). Implementation can wait until second city.",
+        "artifact": "packages/civicos/src/civicos/storage/data_source.py",
+        "subtasks": [
+          "Define DataSource protocol with search_legislation(), get_meetings(), etc.",
+          "Implement LocalDataSource wrapping current StorageBackend",
+          "Wire CivicOS to use DataSource instead of direct StorageBackend calls",
+          "Document interface in docs/decisions/data_source_federation.md"
+        ],
+        "scope": {
+          "pilot": "LocalDataSource only (current behavior, cleaner interface)",
+          "post_pilot": "FederatedDataSource with MCP fan-out queries"
+        },
+        "test_file": "packages/civicos/tests/test_data_source.py"
+      },
+      "reference_data_strategy": {
+        "status": "not_ready",
+        "priority": 3,
+        "description": "Define strategy for federal/state reference data in federated architecture. Options: centralized CivicOS instance, replication to city instances, or pure query federation.",
+        "rationale": "Post-pilot. Don't split the database until there's a second city.",
+        "artifact": "docs/decisions/reference_data_federation.md",
+        "subtasks": [
+          "Document data ownership model (federal=central, state=central, municipal=city)",
+          "Choose federation vs replication for reference data",
+          "Design central reference data service (if federation chosen)",
+          "Define sync protocol for replication (if replication chosen)",
+          "Create reference data API endpoints"
+        ],
+        "decision_factors": [
+          "Availability: What happens if central is down?",
+          "Latency: Network round-trips for federated queries",
+          "Freshness: How often does reference data change?",
+          "Cost: Storage duplication vs bandwidth"
+        ],
+        "depends_on": ["data_source_protocol"],
+        "timeline": "Post-pilot, pre-second-city"
+      },
+      "municipal_data_isolation": {
+        "status": "not_ready",
+        "priority": 3,
+        "description": "Ensure municipal data (meetings, decisions, issues, transcripts) is cleanly isolatable per jurisdiction for city-owned instances.",
+        "rationale": "Current schema already has jurisdiction_id. Verify no cross-jurisdiction dependencies exist.",
+        "artifact": "Verification report + any necessary schema fixes",
+        "subtasks": [
+          "Audit foreign key relationships across jurisdiction boundaries",
+          "Verify all municipal tables have jurisdiction_id",
+          "Document data isolation guarantees",
+          "Create per-jurisdiction export script (for city data portability)"
+        ],
+        "depends_on": ["entity_id_namespacing"],
+        "timeline": "Post-pilot"
+      }
     },
     "query_utilities": {
       "diagnostics_module": {
@@ -1786,8 +1867,9 @@
       ],
       "update_legislative_button": {
         "status": "not_ready",
-        "priority": 0,
-        "artifact": "Button: Update Legislative Context"
+        "priority": 3,
+        "artifact": "Button: Update Legislative Context",
+        "note": "Demoted to P3 (2026-01-29) - admin convenience feature, not pilot-critical. Legislative refresh already works via Modal scheduled pipeline."
       }
     },
     "operation_status": {
@@ -2913,14 +2995,15 @@
     "mcp_integration": {
       "voice_tools": {
         "status": "pending",
-        "priority": 1,
+        "priority": 2,
         "description": "Add MCP tools for coordination: get_voice_counts(entity), subscribe_to_topic(topics, email), cast_voice(entity, stance). Enables AI agents to participate in coordination.",
         "test_file": "apps/civicos-mcp/tests/test_coordination_tools.py",
         "subtasks": [
           "get_voice_counts(entity) - returns support/oppose/watching counts",
           "subscribe_to_topic(jurisdiction, topics, email) - creates subscription",
           "cast_voice(entity, stance) - requires keypair management"
-        ]
+        ],
+        "note": "Demoted from P1 to P2 (2026-01-29) - AI agent coordination is nice-to-have, not blocking pilot"
       }
     },
     "frontend_integration": {
@@ -3057,7 +3140,7 @@
     "deployment": {
       "docker_artifacts": {
         "status": "pending",
-        "priority": 2,
+        "priority": 3,
         "description": "Dockerfiles for relay and MCP server. Docker-compose for full stack. Example configs.",
         "artifact": "deploy/docker/",
         "subtasks": [
@@ -3066,7 +3149,8 @@
           "docker-compose.yml - full stack (postgres, relay, mcp, frontend)",
           "civicos.example.yaml - example configuration",
           ".env.example - environment variables"
-        ]
+        ],
+        "note": "Demoted from P2 to P3 (2026-01-29) - second city deployment artifacts, not needed for pilot"
       },
       "fly_deployment": {
         "status": "pending",

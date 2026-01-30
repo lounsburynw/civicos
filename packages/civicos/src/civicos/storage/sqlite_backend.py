@@ -1108,6 +1108,14 @@ class SQLiteBackend:
 
             # Insert new versions
             for decision in decisions:
+                # Generate namespaced decision ID
+                # Format: decision:{jurisdiction}:{meeting_date}:{item}
+                meeting_date = decision.get('meeting_date', '')
+                agenda_item = decision.get('agenda_item', decision.get('decision_id') or 'unknown')
+                # Normalize item identifier (remove dots, lowercase)
+                item_part = agenda_item.replace(".", "-").lower() if agenda_item else 'unknown'
+                decision_id = f"decision:{jurisdiction_id}:{meeting_date}:{item_part}"
+
                 cursor.execute("""
                     INSERT INTO decisions (
                         id, jurisdiction_id, meeting_date, agenda_item,
@@ -1118,7 +1126,7 @@ class SQLiteBackend:
                         extracted_at, valid_from, valid_to
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
                 """, (
-                    decision.get('decision_id'),
+                    decision_id,
                     jurisdiction_id,
                     decision.get('meeting_date'),
                     decision.get('agenda_item'),
@@ -1282,8 +1290,11 @@ class SQLiteBackend:
 
             # Insert new versions
             for i, chunk in enumerate(chunks):
-                # Generate chunk ID if not present
-                chunk_id = chunk.get('id') or f"chunk-{i}"
+                # Generate namespaced chunk ID
+                # Format: chunk:{jurisdiction}:{meeting_id}:{index}
+                meeting_id_ref = chunk.get('meeting_id', 'unknown')
+                chunk_index = chunk.get('chunk_index', i)
+                chunk_id = f"chunk:{jurisdiction_id}:{meeting_id_ref}:{chunk_index:04d}"
 
                 cursor.execute("""
                     INSERT INTO chunks (

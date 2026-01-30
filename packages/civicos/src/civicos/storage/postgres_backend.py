@@ -2226,7 +2226,14 @@ class PostgresBackend:
             # Insert new versions (close previous versions only for matching IDs)
             for decision in decisions:
                 # Support both 'id' and 'decision_id' field names
-                decision_id = decision.get('id') or decision.get('decision_id')
+                raw_id = decision.get('id') or decision.get('decision_id')
+                # Generate namespaced decision ID
+                # Format: decision:{jurisdiction}:{meeting_date}:{item}
+                meeting_date = decision.get('meeting_date', '')
+                agenda_item = decision.get('agenda_item', raw_id or 'unknown')
+                # Normalize item identifier (remove dots, lowercase)
+                item_part = agenda_item.replace(".", "-").lower() if agenda_item else 'unknown'
+                decision_id = f"decision:{jurisdiction_id}:{meeting_date}:{item_part}"
 
                 # Close previous version of this specific decision only
                 cursor.execute("""
@@ -2629,8 +2636,11 @@ class PostgresBackend:
 
             # Insert new versions
             for i, chunk in enumerate(chunks):
-                # Generate chunk ID if not present
-                chunk_id = chunk.get('id') or f"chunk-{i}"
+                # Generate namespaced chunk ID
+                # Format: chunk:{jurisdiction}:{meeting_id}:{index}
+                meeting_id_ref = chunk.get('meeting_id', 'unknown')
+                chunk_index = chunk.get('chunk_index', i)
+                chunk_id = f"chunk:{jurisdiction_id}:{meeting_id_ref}:{chunk_index:04d}"
 
                 # Compute content hash for data integrity verification
                 text = chunk.get('text', '')
@@ -3613,8 +3623,9 @@ class PostgresBackend:
                 if not provider or not external_id:
                     continue  # Skip issues without required fields
 
-                # Generate issue ID if not present
-                issue_id = issue.get('id') or f"{provider}-{external_id}"
+                # Generate namespaced issue ID
+                # Format: issue:{jurisdiction}:{provider}:{external_id}
+                issue_id = f"issue:{jurisdiction_id}:{provider}:{external_id}"
 
                 # Parse datetime strings if needed
                 created_at = issue.get('created_at')

@@ -24,7 +24,7 @@ class Voice(BaseModel):
     """
 
     entity: str = Field(
-        description="Entity identifier (e.g., 'agenda:2026-02-03:item-6a')"
+        description="Namespaced entity identifier (e.g., 'decision:city-san-rafael:2026-02-03:item-6a')"
     )
     stance: Stance = Field(description="Position on the entity")
     public_key: str = Field(description="Public key (hex-encoded)")
