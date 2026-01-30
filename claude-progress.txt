@@ -16397,3 +16397,52 @@ Implemented MCP peer discovery and registry for federation. This enables one Civ
 
 ### P0 Assignment
 **P0 Assignment:** `query_routing` set to P0 for next session (routes queries to appropriate peer based on jurisdiction).
+
+## Session 534 (2026-01-29) - Query Routing for Federation
+
+**Item:** `query_routing` (P0 → ready)
+**Status:** COMPLETE
+
+### Summary
+Implemented federated query routing for MCP tools. When `federate=True`, queries are fanned out to all healthy peer MCP servers in parallel, and results are aggregated with deduplication.
+
+### Changes Made
+
+**1. Query Routing Infrastructure** (`apps/civicos-mcp/federation.py`)
+- Added `PeerQueryResult` dataclass: Stores per-peer query results with success/failure, data, latency
+- Added `FederatedQueryResult` dataclass: Aggregates local + peer results with statistics
+- Added `query_peer()`: Async function to query a single peer via HTTP POST
+- Added `query_peers_parallel()`: Fans out queries to all healthy peers using asyncio.gather
+- Added `deduplicate_by_id()`: Removes duplicate items by ID field, keeping first occurrence
+- Added `format_federation_summary()`: Generates human-readable summary of federation results
+
+**2. MCP Tool Updates** (`apps/civicos-mcp/civicos_server.py`)
+- Added `federate: bool = False` parameter to `search_meeting_history()` tool
+- When `federate=True`:
+  - Queries local CivicOS instance
+  - Queries all healthy peers in parallel via `query_peers_parallel()`
+  - Combines results with jurisdiction labels
+  - Shows federation summary in output
+
+**3. Test Coverage**
+- Added 24 new tests for query routing to `test_federation.py`:
+  - `TestPeerQueryResult`: Success/failure result dataclass
+  - `TestFederatedQueryResult`: Result aggregation and `all_results()`
+  - `TestQueryPeer`: JSON/text responses, HTTP errors, timeouts, connection errors
+  - `TestQueryPeersParallel`: Multi-peer queries, healthy-only filtering, empty registry
+  - `TestDeduplicateById`: ID-based deduplication
+  - `TestFormatFederationSummary`: Summary formatting
+
+### Key Design Decisions
+- Federation endpoint: `POST {peer_endpoint}/federation/query` with JSON body
+- Per-peer timeout: 10 seconds (configurable)
+- `federate=False` passed to peer queries to prevent infinite recursion
+- Graceful degradation: If federation fails, local results still returned
+- Results clearly labeled with source jurisdiction
+
+### Tests
+- 54/54 federation tests passing
+- Syntax validation passing for civicos_server.py and federation.py
+
+### P0 Assignment
+**P0 Assignment:** `jurisdiction_config` set to P0 for next session (config-driven jurisdiction setup for turnkey deployment)

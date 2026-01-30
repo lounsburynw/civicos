@@ -382,3 +382,271 @@ async def shutdown_registry() -> None:
     if _registry:
         await _registry.stop_background_checks()
         _registry = None
+
+
+# Query Routing Functions
+
+
+@dataclass
+class PeerQueryResult:
+    """Result from a single peer query."""
+
+    jurisdiction_id: str
+    success: bool
+    data: Optional[dict] = None  # Parsed JSON response
+    raw_response: Optional[str] = None  # Raw text if not JSON
+    error: Optional[str] = None
+    latency_ms: float = 0.0
+
+
+@dataclass
+class FederatedQueryResult:
+    """Aggregated results from federated query across peers."""
+
+    local_jurisdiction: str
+    local_results: list  # Results from local CivicOS
+    peer_results: Dict[str, PeerQueryResult]  # jurisdiction_id -> result
+    total_peers_queried: int
+    successful_peers: int
+    failed_peers: int
+    total_latency_ms: float
+
+    def all_results(self) -> list:
+        """Get all results (local + successful peers) as flat list."""
+        results = []
+
+        # Local results first (highest priority)
+        for item in self.local_results:
+            if isinstance(item, dict):
+                item["_source_jurisdiction"] = self.local_jurisdiction
+            results.append(item)
+
+        # Peer results
+        for jurisdiction_id, peer_result in self.peer_results.items():
+            if peer_result.success and peer_result.data:
+                items = peer_result.data if isinstance(peer_result.data, list) else [peer_result.data]
+                for item in items:
+                    if isinstance(item, dict):
+                        item["_source_jurisdiction"] = jurisdiction_id
+                    results.append(item)
+
+        return results
+
+
+async def query_peer(
+    peer: PeerInfo,
+    tool_name: str,
+    tool_args: dict,
+    timeout: float = 10.0,
+) -> PeerQueryResult:
+    """
+    Query a single peer MCP server.
+
+    Sends an HTTP POST to the peer's MCP endpoint to invoke a tool.
+    This simulates an MCP tool call via HTTP (for peer-to-peer communication).
+
+    Args:
+        peer: PeerInfo for the target peer
+        tool_name: Name of the tool to invoke
+        tool_args: Arguments to pass to the tool
+        timeout: Request timeout in seconds
+
+    Returns:
+        PeerQueryResult with success/failure and data
+    """
+    import time
+
+    start_time = time.time()
+
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            # POST to peer's federation query endpoint
+            # Format: POST /federation/query with JSON body
+            response = await client.post(
+                f"{peer.mcp_endpoint}/federation/query",
+                json={
+                    "tool": tool_name,
+                    "args": tool_args,
+                },
+            )
+
+            latency = (time.time() - start_time) * 1000
+
+            if response.status_code >= 400:
+                return PeerQueryResult(
+                    jurisdiction_id=peer.jurisdiction_id,
+                    success=False,
+                    error=f"HTTP {response.status_code}",
+                    latency_ms=latency,
+                )
+
+            # Try to parse JSON response
+            try:
+                data = response.json()
+                return PeerQueryResult(
+                    jurisdiction_id=peer.jurisdiction_id,
+                    success=True,
+                    data=data,
+                    latency_ms=latency,
+                )
+            except Exception:
+                # Return raw text if not JSON
+                return PeerQueryResult(
+                    jurisdiction_id=peer.jurisdiction_id,
+                    success=True,
+                    raw_response=response.text,
+                    latency_ms=latency,
+                )
+
+    except httpx.TimeoutException:
+        latency = (time.time() - start_time) * 1000
+        return PeerQueryResult(
+            jurisdiction_id=peer.jurisdiction_id,
+            success=False,
+            error="Timeout",
+            latency_ms=latency,
+        )
+    except httpx.ConnectError as e:
+        latency = (time.time() - start_time) * 1000
+        return PeerQueryResult(
+            jurisdiction_id=peer.jurisdiction_id,
+            success=False,
+            error=f"Connection error: {str(e)[:50]}",
+            latency_ms=latency,
+        )
+    except Exception as e:
+        latency = (time.time() - start_time) * 1000
+        logger.warning(f"Peer query failed for {peer.jurisdiction_id}: {e}")
+        return PeerQueryResult(
+            jurisdiction_id=peer.jurisdiction_id,
+            success=False,
+            error=f"Error: {str(e)[:50]}",
+            latency_ms=latency,
+        )
+
+
+async def query_peers_parallel(
+    tool_name: str,
+    tool_args: dict,
+    registry: Optional[PeerRegistry] = None,
+    timeout: float = 10.0,
+    healthy_only: bool = True,
+) -> Dict[str, PeerQueryResult]:
+    """
+    Query all peers in parallel.
+
+    Sends the same tool call to all (healthy) peers concurrently and
+    collects results. Failed peers are logged but don't fail the operation.
+
+    Args:
+        tool_name: Name of the tool to invoke on peers
+        tool_args: Arguments to pass to the tool
+        registry: PeerRegistry instance (uses global if not provided)
+        timeout: Per-peer timeout in seconds
+        healthy_only: If True, only query healthy peers
+
+    Returns:
+        Dict mapping jurisdiction_id -> PeerQueryResult
+    """
+    if registry is None:
+        registry = get_registry()
+
+    if registry is None:
+        logger.debug("No peer registry configured, skipping federated query")
+        return {}
+
+    peers = registry.list_peers(healthy_only=healthy_only)
+    if not peers:
+        logger.debug("No peers available for federated query")
+        return {}
+
+    logger.info(f"Querying {len(peers)} peers for {tool_name}")
+
+    # Query all peers concurrently
+    tasks = [
+        query_peer(peer, tool_name, tool_args, timeout)
+        for peer in peers
+    ]
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Build results dict
+    peer_results: Dict[str, PeerQueryResult] = {}
+    for peer, result in zip(peers, results):
+        if isinstance(result, Exception):
+            peer_results[peer.jurisdiction_id] = PeerQueryResult(
+                jurisdiction_id=peer.jurisdiction_id,
+                success=False,
+                error=f"Exception: {str(result)[:50]}",
+            )
+        else:
+            peer_results[peer.jurisdiction_id] = result
+
+    successful = sum(1 for r in peer_results.values() if r.success)
+    logger.info(f"Federated query complete: {successful}/{len(peers)} peers succeeded")
+
+    return peer_results
+
+
+def deduplicate_by_id(
+    items: list,
+    id_field: str = "id",
+) -> list:
+    """
+    Deduplicate items by ID, keeping first occurrence.
+
+    Items are expected to be dicts with an ID field.
+    Items without the ID field are kept as-is.
+
+    Args:
+        items: List of items (dicts)
+        id_field: Field name to use for deduplication
+
+    Returns:
+        Deduplicated list preserving order
+    """
+    seen_ids = set()
+    result = []
+
+    for item in items:
+        if not isinstance(item, dict):
+            result.append(item)
+            continue
+
+        item_id = item.get(id_field)
+        if item_id is None:
+            # No ID, keep it
+            result.append(item)
+        elif item_id not in seen_ids:
+            seen_ids.add(item_id)
+            result.append(item)
+        # else: duplicate, skip
+
+    return result
+
+
+def format_federation_summary(
+    local_jurisdiction: str,
+    peer_results: Dict[str, PeerQueryResult],
+) -> str:
+    """
+    Format a summary line for federated query results.
+
+    Returns a string like:
+    "🏛️ **Jurisdictions:** san-rafael (local) + berkeley, oakland (2 peers)"
+    """
+    if not peer_results:
+        return f"🏛️ **Jurisdiction:** {local_jurisdiction}"
+
+    successful = [jid for jid, r in peer_results.items() if r.success]
+    failed = [jid for jid, r in peer_results.items() if not r.success]
+
+    parts = [f"🏛️ **Jurisdictions:** {local_jurisdiction} (local)"]
+
+    if successful:
+        parts.append(f" + {', '.join(successful)} ({len(successful)} peers)")
+
+    if failed:
+        parts.append(f" ⚠️ {len(failed)} peers failed: {', '.join(failed)}")
+
+    return "".join(parts)
