@@ -1,12 +1,71 @@
-# Hosting Decision: Fly.io
+# Hosting Decision: Fly.io + Modal
 
-**Decision Date:** 2025-12-11
+**Decision Date:** 2025-12-11 (Fly.io), 2026-01-30 (Modal addition)
 **Status:** APPROVED
-**Budget Constraint:** <$7/month operational
+**Budget Constraint:** <$25/month total operational
 
 ## Summary
 
-Civic will be deployed on **Fly.io** for the Jan 2026 San Rafael pilot. This platform provides the best balance of cost efficiency, ease of deployment, and technical fit for our containerized architecture.
+CivicOS uses a **two-tier hosting strategy**:
+
+1. **Fly.io** (~$5/mo) — Web services: REST API, WebSocket server, Vue frontend
+2. **Modal** (~$5-15/mo) — Compute: Relay worker, MCP server, vector indexing
+
+This separation reflects the different workload patterns:
+- Web services need always-on, low-latency response
+- Compute workloads are bursty, benefit from serverless scaling, may need GPU
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           FLY.IO (Web Tier)                                  │
+│                           ~$7/month                                          │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  ┌────────┐ │
+│  │   civic-api     │  │ civic-websocket │  │  civicos-mcp    │  │  Vue   │ │
+│  │   (FastAPI)     │  │   (Socket.IO)   │  │   (MCP HTTP)    │  │Frontend│ │
+│  │   Port 8001     │  │   Port 8002     │  │   Port 8080     │  │        │ │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  └────────┘ │
+│                                                     │                       │
+│                               Serves Claude.ai + ChatGPT                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    │ Queries
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           SUPABASE (Storage)                                 │
+│                           Free tier                                          │
+│  ┌─────────────────┐    ┌─────────────────┐                                │
+│  │  Main Database  │    │ Relay Database  │                                │
+│  │  (civic data)   │    │ (coordination)  │                                │
+│  └─────────────────┘    └─────────────────┘                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    │ Cron triggers
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           MODAL (Compute Tier)                               │
+│                           ~$5-15/month                                       │
+│  ┌─────────────────┐                        ┌─────────────────┐            │
+│  │  Relay Worker   │                        │ Vector Indexer  │            │
+│  │  (cron: 5min)   │                        │    (GPU)        │            │
+│  │  • Event emit   │                        │  • Embeddings   │            │
+│  │  • Match subs   │                        │  • Re-indexing  │            │
+│  │  • Deliver      │                        │                 │            │
+│  └─────────────────┘                        └─────────────────┘            │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Current deployment (Jan 2026):**
+- MCP server: Fly.io (`https://civicos-mcp.fly.dev/mcp`) - already deployed
+- Relay worker: Modal (to be deployed)
+- Vector indexing: Modal (existing)
+
+---
+
+## Fly.io (Web Tier)
+
+Fly.io hosts the always-on web services for the Jan 2026 San Rafael pilot.
 
 ## Why Fly.io
 
@@ -297,6 +356,82 @@ fly certs create civic.example.com -a civic-api
 # CNAME civic.example.com -> civic-api.fly.dev
 ```
 
+---
+
+## Modal (Compute Tier)
+
+Modal handles compute workloads that are bursty, need GPU, or require cron scheduling.
+
+**Note:** MCP server is on Fly.io (already deployed). Modal is used for relay worker and vector indexing.
+
+### Why Modal
+
+| Feature | Benefit |
+|---------|---------|
+| **Serverless** | Pay only when running, ~$0.10/hr for CPU |
+| **GPU access** | Vector indexing with embeddings |
+| **Cron support** | Relay worker runs every 5 minutes |
+| **Python-native** | Same codebase, no Docker needed |
+
+### Cost Estimate
+
+| Workload | Usage | Est. Cost/mo |
+|----------|-------|--------------|
+| Relay Worker | 5-min cron, ~10s/run | ~$1-2 |
+| Vector Indexer | Weekly batch | ~$2-5 |
+| Claude API | Summaries, matching | ~$5-10 |
+| **Total** | | **~$8-17** |
+
+### Deployment
+
+```bash
+# Install Modal CLI
+pip install modal
+
+# Authenticate
+modal token new
+
+# Deploy relay worker
+modal deploy packages/civicos-relay/modal_worker.py
+
+# Deploy vector indexer (if not already)
+modal deploy scripts/modal_vectors.py
+```
+
+### Modal Configuration
+
+**Relay Worker** (cron):
+
+```python
+# packages/civicos-relay/modal_worker.py
+import modal
+
+app = modal.App("civicos-relay")
+
+@app.function(
+    secrets=[modal.Secret.from_name("civicos-env")],
+    schedule=modal.Cron("*/5 * * * *"),  # Every 5 minutes
+)
+async def relay_tick():
+    """Check for events and route to subscribers."""
+    from civicos_relay.worker import process_events
+    await process_events()
+```
+
+### Environment Variables (Modal Secrets)
+
+Create a secret named `civicos-env` with:
+
+```bash
+modal secret create civicos-env \
+    DATABASE_URL="postgresql://..." \
+    RELAY_DATABASE_URL="postgresql://..." \
+    ANTHROPIC_API_KEY="..." \
+    RESEND_API_KEY="..."
+```
+
+---
+
 ## Decision Log
 
 | Date | Decision | Rationale |
@@ -306,11 +441,15 @@ fly certs create civic.example.com -a civic-api
 | 2025-12-11 | Shared CPU | Sufficient for pilot scale traffic |
 | 2025-12-11 | 3GB volume | Enough for SQLite + ChromaDB + growth |
 | 2025-12-17 | Use .fly.dev subdomains | Zero cost, already working, custom domain can be added later |
+| 2026-01-30 | Added Modal for compute | Serverless for relay worker, MCP server, vector indexing |
 
 ## References
 
 - [Fly.io Pricing](https://fly.io/docs/about/pricing/)
 - [Fly.io SQLite Guide](https://fly.io/docs/litefs/)
+- [Modal Pricing](https://modal.com/pricing)
+- [Modal Cron Functions](https://modal.com/docs/guide/cron)
 - [Civic Dockerfile](../../Dockerfile)
 - [Civic Docker Compose](../../docker-compose.yml)
 - [Foundation Funding Thesis](./FOUNDATION_FUNDING_THESIS.md)
+- [Coordination Protocol](./COORDINATION_PROTOCOL.md)
