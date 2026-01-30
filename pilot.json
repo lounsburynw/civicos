@@ -2889,6 +2889,7 @@
         "description": "Add REST API endpoints for voice operations: POST /voice (cast), GET /voice/counts/:entity, POST /subscribe, DELETE /subscribe/:id. Add to civicos-services.",
         "test_file": "packages/civicos-services/tests/test_coordination_api.py",
         "subtasks": [
+          "Wire civicos-relay services (VoiceService, RelayService) into civicos-services FastAPI app",
           "POST /api/voice - cast voice (requires keypair)",
           "GET /api/voice/counts/:entity - get voice counts",
           "POST /api/subscribe - create subscription",
@@ -2957,6 +2958,18 @@
           "Email input with validation",
           "Subscription management (view/delete)"
         ]
+      },
+      "keypair_management": {
+        "status": "pending",
+        "priority": 2,
+        "description": "Frontend keypair generation and storage in localStorage. Required for voice_button to work. Generate on first voice, persist across sessions.",
+        "test_file": "apps/civicos-workspace/tests/e2e/keypair.spec.ts",
+        "subtasks": [
+          "KeypairService composable (generate, store, retrieve)",
+          "Persist private key securely in localStorage",
+          "Show public key fingerprint in UI (optional)",
+          "Handle key recovery/reset flow"
+        ]
       }
     },
     "federation": {
@@ -2988,6 +3001,20 @@
         "description": "YAML-based peer configuration, peer health checks, auto-disable unhealthy peers.",
         "test_file": "packages/civicos-relay/tests/test_peering.py"
       }
+    },
+    "test_coverage": {
+      "relay_integration_tests": {
+        "status": "pending",
+        "priority": 2,
+        "description": "Integration tests for relay \u2192 API \u2192 MCP flow. Verify voice casting through full stack, subscription delivery, provenance updates.",
+        "test_file": "packages/civicos-services/tests/test_relay_integration.py",
+        "subtasks": [
+          "Test voice cast via API updates database and provenance",
+          "Test voice counts exposed through MCP tools",
+          "Test subscription creation and event matching",
+          "Test multi-relay sync (using in-memory storage)"
+        ]
+      }
     }
   },
   "federation_infrastructure": {
@@ -2995,7 +3022,7 @@
     "configuration": {
       "jurisdiction_config": {
         "status": "pending",
-        "priority": 2,
+        "priority": 1,
         "description": "Config-driven jurisdiction setup. Remove hardcoded san-rafael references. Single YAML configures jurisdiction, extractors, peers, display settings.",
         "subtasks": [
           "Audit codebase for hardcoded jurisdiction references",
@@ -3003,7 +3030,8 @@
           "Create civicos.yaml schema and loader",
           "Refactor CivicOS() to accept config instead of jurisdiction string",
           "Update tests to use config-driven setup"
-        ]
+        ],
+        "note": "Promoted to P1: foundational for turnkey deployment, parallelizable with relay P1 work"
       }
     },
     "mcp_federation": {
