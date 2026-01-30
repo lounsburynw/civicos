@@ -11,6 +11,7 @@ from unittest.mock import Mock, patch
 
 from civicos import CivicOS
 from civicos._internal.elections import VotingRecord, ElectedOfficial
+from civicos.storage.data_source import LocalDataSource
 
 
 class TestGetVotingRecord:
@@ -94,6 +95,7 @@ class TestGetVotingRecord:
                 mock_get_vector.return_value = Mock()
                 c = CivicOS("san-rafael")
                 c._storage = mock_storage
+                c._data_source = LocalDataSource(mock_storage)
                 return c
 
     def test_basic_voting_record(self, civic_with_mock, mock_storage):
@@ -303,6 +305,7 @@ class TestGetVotingRecord:
                 mock_get_vector.return_value = mock_vectors
                 c = CivicOS("san-rafael")
                 c._storage = mock_storage
+                c._data_source = LocalDataSource(mock_storage)
                 c._vectors = mock_vectors
 
                 # Query for "housing affordability" - should find zoning and density
@@ -338,6 +341,7 @@ class TestGetVotingRecord:
                 mock_get_vector.return_value = mock_vectors
                 c = CivicOS("san-rafael")
                 c._storage = mock_storage
+                c._data_source = LocalDataSource(mock_storage)
                 c._vectors = mock_vectors
 
                 # Should fall back to exact topic matching
