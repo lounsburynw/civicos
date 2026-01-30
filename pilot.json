@@ -2962,13 +2962,20 @@
       ]
     },
     "backend_integration": {
-      "schema_migration": {
+      "relay_database_setup": {
         "status": "not_ready",
         "priority": 0,
-        "description": "Run coordination schema migration on Supabase PostgreSQL. Tables: coordination_voices, coordination_subscriptions, coordination_provenance, coordination_events_log.",
+        "description": "Create separate Supabase project for relay database. Architectural separation: relay stores voices/subscriptions/provenance independently from CivicOS backend. Pattern for federation where each municipality runs their own relay.",
         "test_file": "packages/civicos-relay/tests/test_voice.py",
-        "artifact": "packages/civicos-coordination/schema.sql",
-        "note": "P0: Foundation for relay voice/subscription features. Unblocks api_endpoints and voice_display."
+        "artifact": "packages/civicos-relay/schema.sql",
+        "subtasks": [
+          "Create new Supabase project (civicos-relay or similar)",
+          "Add RELAY_DATABASE_URL to .env.example and document",
+          "Run coordination schema on new database",
+          "Verify relay storage classes work with new connection",
+          "Document federation pattern in docs/critical/"
+        ],
+        "note": "P0: Clean separation enables federation - each municipality runs their own relay with their own database."
       },
       "api_endpoints": {
         "status": "pending",

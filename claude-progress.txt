@@ -16482,4 +16482,13 @@ Created turnkey configuration system for CivicOS deployment:
 **Tests:** 31 passing (test_config.py), 42 smoke tests passing
 
 ### P0 Assignment
-**P0 Assignment:** `schema_migration` set to P0 for next session (coordination schema on PostgreSQL - foundation for relay voice/subscription features)
+**P0 Assignment:** `relay_database_setup` - Create separate Supabase project for relay (clean architectural separation, pattern for federation where each municipality runs their own relay)
+
+---
+**Session 533** (2026-01-30)
+- Continued roster-aware speaker detection work from Session 532
+- Fixed to_embedding_text() to include speaker names in embedding text
+- Re-indexed 6,222 transcript vectors with proper speaker names
+- Verified semantic search now returns "[Kate Colin (Mayor)]" vs "[Speaker A]"
+- Committed: a040179 feat: Include roster-matched speaker names in transcript embeddings
+- Next P0: relay/backend_integration/schema_migration (not_ready)
