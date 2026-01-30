@@ -423,15 +423,9 @@ Return ONLY valid JSON, no additional text."""
             response_format="json_object",
         )
 
-        # Parse response (strip markdown fences if present - some providers wrap JSON)
+        # Parse response (provider handles markdown fence stripping)
         try:
-            response_text = response.strip()
-            if response_text.startswith("```"):
-                # Remove markdown code fences
-                lines = response_text.split("\n")
-                # Skip first line (```json) and last line (```)
-                response_text = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
-            result = json.loads(response_text)
+            result = json.loads(response.strip())
             detected_speakers = result.get("speakers", [])
 
             for detected in detected_speakers:

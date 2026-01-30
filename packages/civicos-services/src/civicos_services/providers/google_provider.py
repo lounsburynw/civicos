@@ -26,11 +26,11 @@ class GoogleProvider(LLMProvider):
 
         Args:
             api_key: Google API key (defaults to GOOGLE_API_KEY env var)
-            model: Model to use (defaults to gemini-2.0-flash-exp)
+            model: Model to use (defaults to models/gemini-2.0-flash)
         """
         super().__init__(api_key or os.getenv('GOOGLE_API_KEY'))
         genai.configure(api_key=self.api_key)
-        self._default_model = model or "gemini-2.0-flash-exp"
+        self._default_model = model or "models/gemini-2.0-flash"
 
     @property
     def name(self) -> str:
@@ -59,7 +59,7 @@ class GoogleProvider(LLMProvider):
         Args:
             messages: List of message dicts with 'role' and 'content'
             tools: Optional list of tool definitions (provider-agnostic format)
-            model: Model to use (defaults to gemini-2.0-flash-exp)
+            model: Model to use (defaults to models/gemini-2.0-flash)
             temperature: Sampling temperature (0-1)
             max_tokens: Maximum tokens to generate
             **kwargs: Additional Google-specific parameters
@@ -90,16 +90,23 @@ class GoogleProvider(LLMProvider):
         }
 
         # Handle OpenAI response_format parameter (convert to Gemini format)
+        # Track if JSON response is expected for post-processing
+        expects_json = False
         if 'response_format' in kwargs:
             response_format = kwargs['response_format']
-            if response_format.get('type') == 'json_schema':
-                # Convert OpenAI format to Gemini format
+            # Handle simple string format: response_format="json_object"
+            if response_format == "json_object":
+                generation_config['response_mime_type'] = 'application/json'
+                expects_json = True
+            # Handle dict format: response_format={'type': 'json_schema', ...}
+            elif isinstance(response_format, dict) and response_format.get('type') == 'json_schema':
                 json_schema = response_format.get('json_schema', {})
                 schema = json_schema.get('schema', {})
                 # Normalize schema for Gemini (convert array types to single types)
                 schema = self._normalize_schema_for_gemini(schema)
                 generation_config['response_mime_type'] = 'application/json'
                 generation_config['response_schema'] = schema
+                expects_json = True
 
         # Build model configuration
         model_kwargs = {
@@ -134,6 +141,10 @@ class GoogleProvider(LLMProvider):
         try:
             if response.text:
                 content = response.text
+                # Strip markdown fences if JSON response expected
+                # Gemini sometimes wraps JSON in ```json ... ``` even with response_mime_type set
+                if expects_json and content.strip().startswith("```"):
+                    content = self._strip_markdown_fences(content)
         except ValueError:
             # When function calls are returned, .text raises ValueError
             # This is expected - content will be empty and tool_calls will be populated
@@ -170,7 +181,7 @@ class GoogleProvider(LLMProvider):
         Args:
             messages: List of message dicts with 'role' and 'content'
             tools: Optional list of tool definitions
-            model: Model to use (defaults to gemini-2.0-flash-exp)
+            model: Model to use (defaults to models/gemini-2.0-flash)
             temperature: Sampling temperature (0-1)
             max_tokens: Maximum tokens to generate
             **kwargs: Additional Google-specific parameters
@@ -202,8 +213,11 @@ class GoogleProvider(LLMProvider):
         # Handle OpenAI response_format parameter (convert to Gemini format)
         if 'response_format' in kwargs:
             response_format = kwargs['response_format']
-            if response_format.get('type') == 'json_schema':
-                # Convert OpenAI format to Gemini format
+            # Handle simple string format: response_format="json_object"
+            if response_format == "json_object":
+                generation_config['response_mime_type'] = 'application/json'
+            # Handle dict format: response_format={'type': 'json_schema', ...}
+            elif isinstance(response_format, dict) and response_format.get('type') == 'json_schema':
                 json_schema = response_format.get('json_schema', {})
                 schema = json_schema.get('schema', {})
                 # Normalize schema for Gemini (convert array types to single types)
@@ -366,3 +380,29 @@ class GoogleProvider(LLMProvider):
 
         normalize_recursive(schema)
         return schema
+
+    def _strip_markdown_fences(self, content: str) -> str:
+        """
+        Strip markdown code fences from content.
+
+        Gemini sometimes wraps JSON responses in ```json ... ``` even when
+        response_mime_type is set to 'application/json'. This method removes
+        those fences to return clean JSON.
+
+        Args:
+            content: Response content that may be wrapped in markdown fences
+
+        Returns:
+            Content with markdown fences removed
+        """
+        content = content.strip()
+        if not content.startswith("```"):
+            return content
+
+        lines = content.split("\n")
+        # Skip first line (```json or ```) and last line (```)
+        if lines[-1].strip() == "```":
+            return "\n".join(lines[1:-1])
+        else:
+            # Fence not properly closed, just skip first line
+            return "\n".join(lines[1:])
