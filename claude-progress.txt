@@ -16492,3 +16492,14 @@ Created turnkey configuration system for CivicOS deployment:
 - Verified semantic search now returns "[Kate Colin (Mayor)]" vs "[Speaker A]"
 - Committed: a040179 feat: Include roster-matched speaker names in transcript embeddings
 - Next P0: relay/backend_integration/schema_migration (not_ready)
+
+---
+**Session 534** (2026-01-30)
+- Completed `relay_database_setup` - separate Supabase project for relay
+- Created Supabase project "civicos-relay" with coordination schema
+- Fixed JSONB parsing in postgres.py for psycopg2/Supabase compatibility
+- Added integration tests (7 tests, all passing against live database)
+- Documented setup in COORDINATION_PROTOCOL.md with troubleshooting table
+- Added RELAY_DATABASE_URL to .env.example with special char handling notes
+- Committed: 3a3ce15 feat: Complete relay database setup with separate Supabase
+- Next P0: api_endpoints (expose relay via REST API)
