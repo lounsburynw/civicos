@@ -3108,9 +3108,11 @@
     "description": "Turnkey federation infrastructure for other municipalities",
     "configuration": {
       "jurisdiction_config": {
-        "status": "pending",
-        "priority": 1,
+        "status": "not_ready",
+        "priority": 0,
         "description": "Config-driven jurisdiction setup. Remove hardcoded san-rafael references. Single YAML configures jurisdiction, extractors, peers, display settings.",
+        "test_file": "packages/civicos/tests/test_config.py",
+        "artifact": "packages/civicos/src/civicos/config.py",
         "subtasks": [
           "Audit codebase for hardcoded jurisdiction references",
           "Create CivicOSConfig model with jurisdiction, timezone, display_name",
@@ -3118,7 +3120,7 @@
           "Refactor CivicOS() to accept config instead of jurisdiction string",
           "Update tests to use config-driven setup"
         ],
-        "note": "Promoted to P1: foundational for turnkey deployment, parallelizable with relay P1 work"
+        "note": "P0: Next step after query_routing - foundational for turnkey deployment"
       }
     },
     "mcp_federation": {
@@ -3129,8 +3131,8 @@
         "test_file": "apps/civicos-mcp/tests/test_federation.py"
       },
       "query_routing": {
-        "status": "pending",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "description": "Fan-out queries to relevant peer backends based on jurisdiction scope. Aggregate and dedupe results.",
         "test_file": "apps/civicos-mcp/tests/test_federation.py",
         "subtasks": [

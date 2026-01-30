@@ -19,11 +19,12 @@ SECURITY: Input validation added to prevent XSS, SQL injection, command injectio
 and prompt injection attacks. Critical security fix for production deployment.
 """
 
+import asyncio
 import logging
 import os
 import sys
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Dict
 from pathlib import Path
 from collections import Counter
 from mcp.server.fastmcp import FastMCP
@@ -32,9 +33,15 @@ from dotenv import load_dotenv
 # Load environment variables (for DATABASE_URL, etc.)
 load_dotenv()
 
-# Add parent directory to path for validator import
+# Add parent directory to path for validator and federation imports
 sys.path.append(str(Path(__file__).parent.parent))
 from civicos_input_validator import validate_civic_input
+from federation import (
+    get_registry,
+    query_peers_parallel,
+    format_federation_summary,
+    PeerQueryResult,
+)
 
 # Add packages to path for Civic import
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "packages" / "civicos" / "src"))
@@ -481,6 +488,7 @@ def search_meeting_history(
     query: str,
     include_transcripts: bool = True,
     limit: int = 10,
+    federate: bool = False,
 ) -> str:
     """
     Search past city council meetings and decisions on a topic.
@@ -493,6 +501,7 @@ def search_meeting_history(
         query: Search query (e.g., "homeless shelter", "bike lane", "housing")
         include_transcripts: If True, also search video transcripts for spoken content
         limit: Maximum number of results per category (default: 10)
+        federate: If True, also search peer jurisdictions and aggregate results
 
     Returns:
         Formatted text with decisions and transcript excerpts
@@ -500,8 +509,11 @@ def search_meeting_history(
     Example:
         >>> search_meeting_history("homeless services")
         # Returns past decisions and what was discussed about homeless services
+
+        >>> search_meeting_history("housing policy", federate=True)
+        # Returns decisions from local + peer jurisdictions
     """
-    logger.info(f"Searching meeting history for: {query}")
+    logger.info(f"Searching meeting history for: {query} (federate={federate})")
 
     if civicos_client is None:
         return "Error: Civic client not initialized. Check server configuration."
@@ -520,20 +532,47 @@ def search_meeting_history(
         result_parts.append(f"# Meeting History: {sanitized_query}")
         result_parts.append("")
 
-        # Get decisions using what_happened()
+        # Get local decisions using what_happened()
         decisions = civicos_client.what_happened(sanitized_query)
+
+        # Query peer jurisdictions if federate=True
+        peer_results: Dict[str, PeerQueryResult] = {}
+        if federate:
+            try:
+                peer_results = asyncio.run(
+                    query_peers_parallel(
+                        tool_name="search_meeting_history",
+                        tool_args={
+                            "query": sanitized_query,
+                            "include_transcripts": include_transcripts,
+                            "limit": limit,
+                            "federate": False,  # Prevent infinite recursion
+                        },
+                        timeout=10.0,
+                    )
+                )
+            except Exception as e:
+                logger.warning(f"Federated query failed: {e}")
+                # Continue with local results only
 
         # Query context (inline notes for transparency)
         decision_count = len(decisions) if decisions else 0
         result_parts.append("---")
         result_parts.append(f"🔍 **Query:** \"{sanitized_query}\"")
         result_parts.append(f"📊 **Searched:** Council decisions, meeting minutes" + (", video transcripts" if include_transcripts else ""))
-        result_parts.append(f"📋 **Found:** {decision_count} decisions")
-        result_parts.append(f"🏛️ **Jurisdiction:** {civicos_client.jurisdiction}")
+        result_parts.append(f"📋 **Found:** {decision_count} decisions (local)")
+
+        # Show federation summary
+        if federate:
+            result_parts.append(format_federation_summary(civicos_client.jurisdiction, peer_results))
+        else:
+            result_parts.append(f"🏛️ **Jurisdiction:** {civicos_client.jurisdiction}")
+
         result_parts.append("---")
         result_parts.append("")
 
-        result_parts.append("## Decisions")
+        # Format local decisions
+        result_parts.append(f"## Decisions ({civicos_client.jurisdiction})")
         if decisions:
             for d in decisions[:limit]:
                 result_parts.append(f"### {d.title}")
@@ -553,7 +592,21 @@ def search_meeting_history(
             result_parts.append("No decisions found matching this query.")
         result_parts.append("")
 
-        # Get transcript excerpts if requested
+        # Format peer decisions if federated
+        if federate and peer_results:
+            for jurisdiction_id, peer_result in peer_results.items():
+                if peer_result.success and peer_result.raw_response:
+                    result_parts.append(f"## Decisions ({jurisdiction_id})")
+                    # Peer responses are already formatted markdown
+                    # Extract just the decisions section if possible
+                    result_parts.append(peer_result.raw_response)
+                    result_parts.append("")
+                elif not peer_result.success:
+                    result_parts.append(f"## Decisions ({jurisdiction_id})")
+                    result_parts.append(f"⚠️ Query failed: {peer_result.error}")
+                    result_parts.append("")
+
+        # Get transcript excerpts if requested (local only for now)
         if include_transcripts:
             result_parts.append("## What Was Said (Transcript Excerpts)")
             excerpts = civicos_client.what_was_said(sanitized_query, top_k=limit)
