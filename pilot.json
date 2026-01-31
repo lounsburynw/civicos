@@ -3014,16 +3014,18 @@
     },
     "mcp_integration": {
       "voice_tools": {
-        "status": "not_ready",
-        "priority": 0,
-        "description": "Add MCP tools for coordination: get_voice_counts(entity), subscribe_to_topic(topics, email), cast_voice(entity, stance). Enables AI agents to participate in coordination.",
+        "status": "ready",
+        "priority": 1,
+        "description": "MCP tools for permissionless coordination protocol. Users can specify their own relay or use the default. Two-step voice flow preserves self-sovereign identity.",
         "test_file": "apps/civicos-mcp/tests/test_coordination_tools.py",
-        "subtasks": [
-          "get_voice_counts(entity) - returns support/oppose/watching counts",
-          "subscribe_to_topic(jurisdiction, topics, email) - creates subscription",
-          "cast_voice(entity, stance) - requires keypair management"
+        "tools": [
+          "get_voice_counts(entity, relay_url?) - query voice counts from any relay",
+          "subscribe_to_topic(topics, email, relay_url?) - register subscription at chosen relay",
+          "prepare_voice(entity, stance) - get payload to sign (offline, no network)",
+          "broadcast_voice(entity, stance, public_key, signature, relay_urls?) - submit signed voice",
+          "list_relays() - discover known relays in the network"
         ],
-        "note": "Promoted to P0 (2026-01-30) - Backend must be complete before frontend voice_display."
+        "note": "Completed 2026-01-30. Permissionless design: relay selection, two-step signing flow. 35 total MCP tools."
       }
     },
     "frontend_integration": {

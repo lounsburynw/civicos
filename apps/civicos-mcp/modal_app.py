@@ -198,6 +198,12 @@ class MCPServer:
             # Action Tools
             "get_comment_template": handlers.get_comment_template,
             "prepare_for_meeting": handlers.prepare_for_meeting,
+            # Coordination Tools
+            "get_voice_counts": handlers.get_voice_counts,
+            "subscribe_to_topic": handlers.subscribe_to_topic,
+            "prepare_voice": handlers.prepare_voice,
+            "broadcast_voice": handlers.broadcast_voice,
+            "list_relays": handlers.list_relays,
         }
 
         # Wrap handlers with context (civic, jurisdiction, validate_input, logger)

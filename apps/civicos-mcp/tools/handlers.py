@@ -1401,3 +1401,422 @@ def prepare_for_meeting(
         return f"Agenda item not found: {agenda_item_id}. Use get_upcoming_meetings() to find valid agenda item IDs."
     except Exception as e:
         return f"Error preparing for meeting: {str(e)}"
+
+
+# ─────────── Coordination Handlers ───────────
+#
+# These handlers implement a permissionless coordination protocol.
+# Key principles:
+# - Users can specify their own relay (relay_url parameter)
+# - Default relay is provided for convenience, not lock-in
+# - Voices are cryptographically signed - signatures are the authority
+# - Two-step voice flow: prepare_voice -> sign locally -> broadcast_voice
+
+# Known relays in the CivicOS network
+KNOWN_RELAYS = [
+    {
+        "name": "CivicOS Primary",
+        "url": "https://api.civicosproject.org",
+        "description": "Official CivicOS relay. Operated by the CivicOS project.",
+        "default": True,
+    },
+    # Future: community relays can be added here
+    # {
+    #     "name": "Community Relay",
+    #     "url": "https://relay.example.org",
+    #     "description": "Community-operated relay.",
+    #     "default": False,
+    # },
+]
+
+
+def _get_default_relay_url() -> str:
+    """Get the default relay URL."""
+    import os
+    # Allow override via environment for development
+    env_url = os.environ.get("CIVICOS_RELAY_URL")
+    if env_url:
+        return env_url
+    # Fall back to API URL for backwards compatibility
+    api_url = os.environ.get("CIVICOS_API_URL")
+    if api_url:
+        return api_url
+    # Default to localhost for local dev
+    return "http://localhost:8001"
+
+
+def _resolve_relay_url(relay_url: str | None) -> str:
+    """Resolve relay URL, using default if not specified."""
+    if relay_url:
+        # Normalize URL (remove trailing slash)
+        return relay_url.rstrip("/")
+    return _get_default_relay_url()
+
+
+def get_voice_counts(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """Get community voice counts for a civic entity from a relay."""
+    import httpx
+
+    entity = args.get("entity", "")
+    relay_url = _resolve_relay_url(args.get("relay_url"))
+
+    is_valid, sanitized, error = validate_input({"entity": entity})
+    if not is_valid:
+        return f"Error: Invalid input - {error}"
+    entity = sanitized.get("entity", entity)
+
+    try:
+        url = f"{relay_url}/coordination/voice/counts/{entity}"
+
+        with httpx.Client(timeout=10.0) as client:
+            response = client.get(url)
+
+            if response.status_code == 503:
+                return f"Relay at {relay_url} is not available. Try a different relay or check if the service is running."
+
+            if response.status_code != 200:
+                logger.warning(f"Voice counts from {relay_url} returned {response.status_code}: {response.text}")
+                return f"Unable to get voice counts from relay: {response.text}"
+
+            data = response.json()
+
+        result_parts = [
+            f"# Voice Counts: {entity}",
+            f"**Relay:** {relay_url}",
+            "",
+            f"**Support:** {data.get('support', 0)}",
+            f"**Oppose:** {data.get('oppose', 0)}",
+            f"**Watching:** {data.get('watching', 0)}",
+            f"**Total voices:** {data.get('total', 0)}",
+            "",
+            "_Voices are cryptographically signed. Counts can be verified by any relay with the same data._",
+        ]
+
+        return "\n".join(result_parts)
+
+    except httpx.ConnectError:
+        return f"Unable to connect to relay at {relay_url}. The relay may be offline or the URL may be incorrect."
+    except Exception as e:
+        logger.error(f"Error getting voice counts: {e}")
+        return f"Error getting voice counts: {str(e)}"
+
+
+def subscribe_to_topic(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """Subscribe to email notifications about civic topics via a relay."""
+    import httpx
+
+    topics = args.get("topics", [])
+    email = args.get("email", "")
+    relay_url = _resolve_relay_url(args.get("relay_url"))
+
+    # Validate email format
+    if not email or "@" not in email:
+        return "Error: Invalid email address"
+
+    if not topics:
+        return "Error: Must provide at least one topic to subscribe to"
+
+    is_valid, sanitized, error = validate_input({"email": email})
+    if not is_valid:
+        return f"Error: Invalid input - {error}"
+
+    try:
+        url = f"{relay_url}/coordination/subscribe"
+
+        payload = {
+            "jurisdiction": jurisdiction,
+            "topics": topics,
+            "email": email,
+        }
+
+        with httpx.Client(timeout=10.0) as client:
+            response = client.post(url, json=payload)
+
+            if response.status_code == 503:
+                return f"Relay at {relay_url} is not available. Try a different relay."
+
+            if response.status_code != 200:
+                logger.warning(f"Subscribe to {relay_url} returned {response.status_code}: {response.text}")
+                return f"Unable to create subscription: {response.text}"
+
+            data = response.json()
+
+        result_parts = [
+            "# Subscription Created",
+            f"**Relay:** {relay_url}",
+            "",
+            f"**Subscription ID:** {data.get('id', 'N/A')}",
+            f"**Jurisdiction:** {data.get('jurisdiction', jurisdiction)}",
+            f"**Topics:** {', '.join(topics)}",
+            f"**Email:** {email}",
+            "",
+            "You will receive notifications from this relay when there are updates related to these topics.",
+            "",
+            "_Your subscription is stored at this relay. You can switch relays or run your own._",
+            f"_To unsubscribe, contact the relay with subscription ID: {data.get('id', 'N/A')}_",
+        ]
+
+        return "\n".join(result_parts)
+
+    except httpx.ConnectError:
+        return f"Unable to connect to relay at {relay_url}. The relay may be offline or the URL may be incorrect."
+    except Exception as e:
+        logger.error(f"Error creating subscription: {e}")
+        return f"Error creating subscription: {str(e)}"
+
+
+def prepare_voice(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """
+    Prepare a voice payload for signing.
+
+    Returns the exact message to sign with your private key.
+    This is step 1 of the two-step voice casting process.
+    """
+    entity = args.get("entity", "")
+    stance = args.get("stance", "")
+
+    is_valid, sanitized, error = validate_input({"entity": entity, "stance": stance})
+    if not is_valid:
+        return f"Error: Invalid input - {error}"
+    entity = sanitized.get("entity", entity)
+    stance = sanitized.get("stance", stance)
+
+    # Validate stance
+    valid_stances = ["support", "oppose", "watching"]
+    if stance not in valid_stances:
+        return f"Error: Invalid stance '{stance}'. Must be one of: {', '.join(valid_stances)}"
+
+    # Generate timestamp (UTC, timezone-aware)
+    from datetime import timezone
+    timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    # Construct the canonical message to sign
+    # Format: civicos:voice:v1:{entity}:{stance}:{timestamp}
+    message = f"civicos:voice:v1:{entity}:{stance}:{timestamp}"
+
+    result_parts = [
+        "# Voice Payload Ready for Signing",
+        "",
+        "## What You're Signing",
+        f"**Entity:** {entity}",
+        f"**Stance:** {stance}",
+        f"**Timestamp:** {timestamp}",
+        "",
+        "## Message to Sign",
+        "Sign this exact string with your ECDSA P-256 private key:",
+        "",
+        "```",
+        message,
+        "```",
+        "",
+        "## How to Sign",
+        "",
+        "**Using OpenSSL (command line):**",
+        "```bash",
+        f'echo -n "{message}" | openssl dgst -sha256 -sign your_private_key.pem | xxd -p -c 256',
+        "```",
+        "",
+        "**Using Python:**",
+        "```python",
+        "from cryptography.hazmat.primitives import hashes",
+        "from cryptography.hazmat.primitives.asymmetric import ec",
+        f'message = b"{message}"',
+        "signature = private_key.sign(message, ec.ECDSA(hashes.SHA256()))",
+        "print(signature.hex())",
+        "```",
+        "",
+        "## Next Step",
+        "After signing, use `broadcast_voice` with:",
+        f"- entity: {entity}",
+        f"- stance: {stance}",
+        "- public_key: (your public key, hex-encoded)",
+        "- signature: (the signature you just created, hex-encoded)",
+        "",
+        "_Your private key never leaves your device. Only the signature is broadcast._",
+    ]
+
+    return "\n".join(result_parts)
+
+
+def broadcast_voice(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """
+    Broadcast a signed voice to relay node(s).
+
+    This is step 2 of the two-step voice casting process.
+    The signature proves you authorized this voice without revealing your private key.
+    """
+    import httpx
+
+    entity = args.get("entity", "")
+    stance = args.get("stance", "")
+    public_key = args.get("public_key", "")
+    signature = args.get("signature", "")
+    relay_urls = args.get("relay_urls", [])
+
+    # Validate required fields
+    if not entity:
+        return "Error: entity is required"
+    if not stance:
+        return "Error: stance is required"
+    if not public_key:
+        return "Error: public_key is required"
+    if not signature:
+        return "Error: signature is required"
+
+    is_valid, sanitized, error = validate_input({
+        "entity": entity,
+        "stance": stance,
+        "public_key": public_key,
+    })
+    if not is_valid:
+        return f"Error: Invalid input - {error}"
+
+    # Validate stance
+    valid_stances = ["support", "oppose", "watching"]
+    if stance not in valid_stances:
+        return f"Error: Invalid stance '{stance}'. Must be one of: {', '.join(valid_stances)}"
+
+    # Use default relay if none specified
+    if not relay_urls:
+        relay_urls = [_get_default_relay_url()]
+
+    # Broadcast to all specified relays
+    results = []
+    payload = {
+        "entity": entity,
+        "stance": stance,
+        "public_key": public_key,
+        "signature": signature,
+    }
+
+    for relay_url in relay_urls:
+        relay_url = relay_url.rstrip("/")
+        try:
+            url = f"{relay_url}/coordination/voice"
+
+            with httpx.Client(timeout=10.0) as client:
+                response = client.post(url, json=payload)
+
+                if response.status_code == 200:
+                    results.append({"relay": relay_url, "status": "success"})
+                elif response.status_code == 400:
+                    error_detail = response.json().get("detail", response.text)
+                    results.append({"relay": relay_url, "status": "rejected", "error": error_detail})
+                elif response.status_code == 503:
+                    results.append({"relay": relay_url, "status": "unavailable"})
+                else:
+                    results.append({"relay": relay_url, "status": "error", "error": response.text})
+
+        except httpx.ConnectError:
+            results.append({"relay": relay_url, "status": "unreachable"})
+        except Exception as e:
+            logger.error(f"Error broadcasting to {relay_url}: {e}")
+            results.append({"relay": relay_url, "status": "error", "error": str(e)})
+
+    # Format results
+    successes = [r for r in results if r["status"] == "success"]
+    failures = [r for r in results if r["status"] != "success"]
+
+    result_parts = [
+        "# Voice Broadcast Results",
+        "",
+        f"**Entity:** {entity}",
+        f"**Stance:** {stance}",
+        f"**Public Key:** {public_key[:16]}...{public_key[-8:]}",
+        "",
+    ]
+
+    if successes:
+        result_parts.append(f"## Accepted by {len(successes)} relay(s)")
+        for r in successes:
+            result_parts.append(f"- {r['relay']}")
+        result_parts.append("")
+
+    if failures:
+        result_parts.append(f"## Failed on {len(failures)} relay(s)")
+        for r in failures:
+            error_msg = r.get("error", r["status"])
+            result_parts.append(f"- {r['relay']}: {error_msg}")
+        result_parts.append("")
+
+    if successes:
+        result_parts.extend([
+            "_Your voice is now recorded. The cryptographic signature proves you authorized it._",
+            "_Other relays can verify the signature and replicate your voice._",
+        ])
+    else:
+        result_parts.extend([
+            "**No relays accepted the voice.** Check the error messages above.",
+            "Common issues:",
+            "- Invalid signature (message didn't match what you signed)",
+            "- Malformed public key or signature (should be hex-encoded)",
+            "- Relay is offline or unreachable",
+        ])
+
+    return "\n".join(result_parts)
+
+
+def list_relays(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """List known relay nodes in the CivicOS network."""
+    result_parts = [
+        "# Known CivicOS Relays",
+        "",
+        "These are relay nodes that participate in the CivicOS coordination network.",
+        "You can use any of these, or run your own relay.",
+        "",
+    ]
+
+    for relay in KNOWN_RELAYS:
+        default_marker = " **(default)**" if relay.get("default") else ""
+        result_parts.extend([
+            f"## {relay['name']}{default_marker}",
+            f"**URL:** {relay['url']}",
+            f"**Description:** {relay['description']}",
+            "",
+        ])
+
+    result_parts.extend([
+        "## Running Your Own Relay",
+        "",
+        "The relay protocol is open. To run your own:",
+        "1. Deploy the civicos-relay package",
+        "2. Configure your database (PostgreSQL with pgvector)",
+        "3. Announce your relay URL to peers",
+        "",
+        "Your relay will validate signatures and can replicate voices from other relays.",
+        "",
+        "_In a permissionless network, no single relay is authoritative._",
+        "_Cryptographic signatures are the source of truth._",
+    ])
+
+    return "\n".join(result_parts)
