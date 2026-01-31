@@ -46,12 +46,57 @@ python civicos_server.py
 }
 ```
 
+### Production (Modal - Recommended)
+
+Modal provides serverless deployment with automatic scaling and no cold starts.
+
+**Production URL**: `https://san-rafael.civicosproject.org/mcp`
+
+```bash
+# Install Modal CLI
+pip install modal
+
+# Authenticate
+modal token new
+
+# Create secrets
+modal secret create civicos-env \
+    DATABASE_URL="postgresql://..." \
+    RELAY_DATABASE_URL="postgresql://..." \
+    CIVICOS_JURISDICTION="city-san-rafael"
+
+# Deploy
+modal deploy apps/civicos-mcp/modal_app.py
+
+# Test locally first
+modal serve apps/civicos-mcp/modal_app.py
+```
+
+### Docker Container
+
+For self-hosted deployments on Docker, Fly.io, or any container platform.
+
+```bash
+# Build (from repo root)
+docker build -f apps/civicos-mcp/Dockerfile.mcp -t civicos-mcp .
+
+# Run
+docker run -p 8080:8080 \
+  -e DATABASE_URL="postgresql://..." \
+  -e CIVICOS_JURISDICTION="city-san-rafael" \
+  civicos-mcp
+```
+
+**Endpoints**:
+- MCP: `http://localhost:8080/mcp`
+- Health: `http://localhost:8080/health`
+
 ### Remote (Claude.ai Web + Mobile)
 
 Deploy the MCP server remotely to enable Claude.ai web and mobile access.
 
 **Requirements**:
-1. Host publicly (Railway, Fly.io, Render, Vercel)
+1. Host publicly (Modal, Docker, or container platform)
 2. Implement OAuth 2.0 authentication
 3. Support SSE or Streamable HTTP transport
 4. Configure Claude.ai connector URL
@@ -65,6 +110,28 @@ Deploy the MCP server remotely to enable Claude.ai web and mobile access.
 4. Tools appear in Claude conversations
 
 See [Building Custom Connectors](https://support.claude.com/en/articles/11503834-building-custom-connectors-via-remote-mcp-servers) for details.
+
+## Architecture
+
+The MCP server uses a modular architecture with shared tool definitions:
+
+```
+apps/civicos-mcp/
+├── tools/                   # Shared tool definitions
+│   ├── __init__.py
+│   ├── registry.py         # Tool metadata and registry
+│   └── handlers.py         # Tool handler implementations
+├── modal_app.py            # Modal deployment (~300 lines)
+├── server.py               # Container deployment (FastAPI)
+├── civicos_server.py       # Local FastMCP server
+├── Dockerfile.mcp          # Container build file
+└── requirements-mcp.txt    # Dependencies
+```
+
+This design enables:
+- **Single source of truth**: Tool definitions in `tools/registry.py`
+- **Portable handlers**: Same logic works across all deployment methods
+- **Easy extension**: Add tools once, available everywhere
 
 ## Distribution Strategy
 

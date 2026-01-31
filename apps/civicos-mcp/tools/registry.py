@@ -1,0 +1,412 @@
+"""
+Tool registry for CivicOS MCP server.
+
+Provides tool definitions in a format usable by both FastMCP (decorators)
+and Modal (dictionary registry).
+"""
+
+from typing import TypedDict, Callable, Any
+
+
+class ToolDefinition(TypedDict, total=False):
+    """MCP tool definition schema."""
+    description: str
+    inputSchema: dict
+    handler: Callable[[dict], str]  # Optional - set at runtime
+
+
+# ─────────── Tool Definitions ───────────
+# These define the metadata for all 30+ tools.
+# Handlers are bound at runtime by the server implementation.
+
+TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
+    # ─────────── Core Civic Tools ───────────
+    "search_meeting_history": {
+        "description": "Search past city council meetings and decisions on a topic",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query (e.g., 'homeless shelter', 'bike lane')"},
+                "include_transcripts": {"type": "boolean", "default": True, "description": "Include video transcript excerpts"},
+                "limit": {"type": "integer", "default": 10, "description": "Maximum results per category"},
+            },
+            "required": ["query"],
+        },
+    },
+    "get_upcoming_meetings": {
+        "description": "Get upcoming city council meetings and agenda items",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "days": {"type": "integer", "default": 30, "description": "Days to look ahead"},
+            },
+        },
+    },
+    "find_similar_issues": {
+        "description": "Find community issues related to a topic via 311/SeeClickFix",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "topic": {"type": "string", "description": "Topic to search (e.g., 'traffic safety', 'pothole')"},
+                "semantic": {"type": "boolean", "default": True, "description": "Use semantic matching"},
+                "limit": {"type": "integer", "default": 20, "description": "Maximum results"},
+            },
+            "required": ["topic"],
+        },
+    },
+    "search_regulatory_stack": {
+        "description": "Search relevant laws and regulations across local, state, and federal levels",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "topic": {"type": "string", "description": "Topic to search (e.g., 'accessory dwelling units')"},
+                "jurisdiction": {"type": "string", "default": "san-rafael"},
+            },
+            "required": ["topic"],
+        },
+    },
+    "compose_public_comment": {
+        "description": "Get context for writing a public comment on a civic agenda item",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "item_title": {"type": "string", "description": "Title/description of the agenda item"},
+                "topic": {"type": "string", "description": "Optional topic for finding related context"},
+            },
+            "required": ["item_title"],
+        },
+    },
+    "city_pulse": {
+        "description": "Get a comprehensive snapshot of city activity (meetings, decisions, issues)",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "days_ahead": {"type": "integer", "default": 7, "description": "Days to look ahead"},
+                "days_back": {"type": "integer", "default": 30, "description": "Days to look back"},
+            },
+        },
+    },
+    "get_issue_analytics": {
+        "description": "Get aggregate statistics about 311/SeeClickFix issues",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "date_range": {"type": "string", "description": "Filter: '2024', '2024-Q4', 'last_90_days', 'last_year'"},
+            },
+        },
+    },
+    "get_issue_trends": {
+        "description": "Analyze trends in 311 issues over time",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "issue_type": {"type": "string", "description": "Filter by issue type"},
+                "granularity": {"type": "string", "default": "month", "description": "Time grouping: week, month, quarter, year"},
+            },
+        },
+    },
+    "geo_search_issues": {
+        "description": "Search 311 issues by geographic area (street, neighborhood)",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "area": {"type": "string", "description": "Street name, corridor, or neighborhood"},
+                "radius_blocks": {"type": "integer", "default": 2, "description": "Search radius in blocks"},
+                "issue_types": {"type": "array", "items": {"type": "string"}, "description": "Filter by types"},
+            },
+            "required": ["area"],
+        },
+    },
+    "search_budget": {
+        "description": "Search city budget data by department or category",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Department or category to search"},
+                "fiscal_year": {"type": "string", "description": "Filter by fiscal year (e.g., 'FY25-26')"},
+            },
+        },
+    },
+    "get_public_testimony": {
+        "description": "Get public testimony excerpts on a topic from meeting transcripts",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "topic": {"type": "string", "description": "Topic to search"},
+                "limit": {"type": "integer", "default": 5, "description": "Maximum excerpts to return"},
+            },
+            "required": ["topic"],
+        },
+    },
+    "search_agenda_packets": {
+        "description": "Search agenda packets and staff reports",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query"},
+                "limit": {"type": "integer", "default": 10},
+            },
+            "required": ["query"],
+        },
+    },
+    "get_comment_guidelines": {
+        "description": "Get public comment guidelines and submission information",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "jurisdiction": {"type": "string", "default": "san-rafael"},
+            },
+        },
+    },
+    "get_started": {
+        "description": "Get an overview of what's happening in local government",
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+        },
+    },
+
+    # ─────────── 311 Analysis Tools ───────────
+    "query_issue_data": {
+        "description": "Query 311 issue data with flexible grouping and filtering",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "group_by": {"type": "string", "default": "type", "description": "Group by: type, status, street, month, year"},
+                "filter_type": {"type": "string", "description": "Filter by issue type"},
+                "filter_status": {"type": "string", "description": "Filter by status"},
+                "filter_street": {"type": "string", "description": "Filter by street name"},
+                "date_from": {"type": "string", "description": "Start date (YYYY-MM-DD)"},
+                "date_to": {"type": "string", "description": "End date (YYYY-MM-DD)"},
+                "limit": {"type": "integer", "default": 50},
+            },
+        },
+    },
+    "get_issue_resolution_stats": {
+        "description": "Get resolution statistics for 311 issues (response time, rates)",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "issue_type": {"type": "string", "description": "Filter by issue type"},
+                "zip_code": {"type": "string", "description": "Filter by zip code"},
+            },
+        },
+    },
+    "detect_trends": {
+        "description": "Detect significant trends in 311 issue patterns",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "lookback_months": {"type": "integer", "default": 6, "description": "Compare last N months to previous N months"},
+                "min_change_pct": {"type": "number", "default": 20.0, "description": "Minimum % change to report"},
+                "zip_code": {"type": "string", "description": "Filter to specific zip code"},
+            },
+        },
+    },
+    "get_issue_sample": {
+        "description": "Get a sample of raw 311 issues for pattern analysis",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "sample_size": {"type": "integer", "default": 30, "description": "Number of issues to return (max 50)"},
+                "filter_type": {"type": "string", "description": "Filter by issue type"},
+                "filter_status": {"type": "string", "description": "Filter by status"},
+                "filter_street": {"type": "string", "description": "Filter by street name"},
+                "random_sample": {"type": "boolean", "default": True, "description": "Random sample or most recent"},
+            },
+        },
+    },
+    "find_issues_near_address": {
+        "description": "Find 311 issues near a specific address or intersection",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "address": {"type": "string", "description": "Address or intersection to search near"},
+                "radius_blocks": {"type": "integer", "default": 2, "description": "Search radius in blocks"},
+                "issue_type": {"type": "string", "description": "Filter by issue type"},
+            },
+            "required": ["address"],
+        },
+    },
+    "find_repeat_issues": {
+        "description": "Find locations with repeated issues of the same type",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "issue_type": {"type": "string", "description": "Filter by issue type"},
+                "min_occurrences": {"type": "integer", "default": 3, "description": "Minimum repeats to flag"},
+            },
+        },
+    },
+    "get_seasonal_patterns": {
+        "description": "Analyze seasonal patterns in 311 issues",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "issue_type": {"type": "string", "description": "Filter by issue type"},
+            },
+        },
+    },
+    "compare_zip_codes": {
+        "description": "Compare 311 issue patterns between zip codes",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "zip_codes": {"type": "array", "items": {"type": "string"}, "description": "Zip codes to compare"},
+            },
+            "required": ["zip_codes"],
+        },
+    },
+    "neighborhood_report": {
+        "description": "Generate a comprehensive report for a neighborhood",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "neighborhood": {"type": "string", "description": "Neighborhood name or area"},
+            },
+            "required": ["neighborhood"],
+        },
+    },
+
+    # ─────────── Council/Voting Tools ───────────
+    "get_voting_record": {
+        "description": "Get an elected official's voting record",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "official_name": {"type": "string", "description": "Name of the official"},
+                "topic": {"type": "string", "description": "Optional topic filter"},
+                "since": {"type": "string", "description": "Start date filter (YYYY-MM-DD)"},
+            },
+            "required": ["official_name"],
+        },
+    },
+    "get_decision_context": {
+        "description": "Get decisions with linked transcript excerpts showing what was discussed",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query"},
+                "limit": {"type": "integer", "default": 5},
+            },
+            "required": ["query"],
+        },
+    },
+
+    # ─────────── Financial Tools ───────────
+    "get_funding_flow": {
+        "description": "Trace intergovernmental funding from federal to state to city budget",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "program": {"type": "string", "description": "Program name (e.g., CDBG, HOME)"},
+                "cfda_number": {"type": "string", "description": "Federal CFDA number"},
+            },
+        },
+    },
+    "get_federal_expenditures": {
+        "description": "Get audited federal expenditures from Single Audit (FAC) data",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "cfda_number": {"type": "string", "description": "Filter by CFDA/ALN number"},
+                "audit_year": {"type": "integer", "description": "Audit fiscal year"},
+            },
+        },
+    },
+    "get_intergovernmental_revenue": {
+        "description": "Get intergovernmental revenue from CA State Controller data",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "fiscal_year": {"type": "integer", "description": "Fiscal year"},
+                "source": {"type": "string", "description": "Filter by source (federal, state, county)"},
+            },
+        },
+    },
+
+    # ─────────── Action Tools ───────────
+    "get_comment_template": {
+        "description": "Get a fill-in-the-blank public comment template",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "item_title": {"type": "string", "description": "Title of the agenda item"},
+                "stance": {"type": "string", "description": "Stance: support, oppose, question, neutral"},
+                "key_points": {"type": "string", "description": "Newline-separated points to include"},
+            },
+            "required": ["item_title"],
+        },
+    },
+    "prepare_for_meeting": {
+        "description": "Get preparation materials for participating in a city council meeting",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "agenda_item_id": {"type": "string", "description": "ID of the agenda item to prepare for"},
+            },
+            "required": ["agenda_item_id"],
+        },
+    },
+}
+
+
+class ToolRegistry:
+    """
+    Registry of MCP tools with their definitions and handlers.
+
+    Used by both FastMCP (civicos_server.py) and Modal (modal_app.py)
+    to maintain a single source of truth for tool metadata.
+    """
+
+    def __init__(self):
+        self.tools: dict[str, ToolDefinition] = {}
+        for name, definition in TOOL_DEFINITIONS.items():
+            self.tools[name] = definition.copy()
+
+    def bind_handler(self, name: str, handler: Callable[[dict], str]) -> None:
+        """Bind a handler function to a tool."""
+        if name not in self.tools:
+            raise ValueError(f"Unknown tool: {name}")
+        self.tools[name]["handler"] = handler
+
+    def bind_handlers(self, handlers: dict[str, Callable[[dict], str]]) -> None:
+        """Bind multiple handlers at once."""
+        for name, handler in handlers.items():
+            self.bind_handler(name, handler)
+
+    def get_tool(self, name: str) -> ToolDefinition | None:
+        """Get a tool definition by name."""
+        return self.tools.get(name)
+
+    def list_tools(self) -> list[dict]:
+        """Get tool list in MCP format (for tools/list response)."""
+        return [
+            {
+                "name": name,
+                "description": info["description"],
+                "inputSchema": info["inputSchema"],
+            }
+            for name, info in self.tools.items()
+        ]
+
+    def call_tool(self, name: str, args: dict) -> str:
+        """Call a tool by name with the given arguments."""
+        tool = self.tools.get(name)
+        if not tool:
+            raise ValueError(f"Unknown tool: {name}")
+        handler = tool.get("handler")
+        if not handler:
+            raise ValueError(f"No handler bound for tool: {name}")
+        return handler(args)
+
+    def __len__(self) -> int:
+        return len(self.tools)
+
+    def __iter__(self):
+        return iter(self.tools.items())
+
+
+def get_all_tools() -> dict[str, ToolDefinition]:
+    """Get a copy of all tool definitions (without handlers)."""
+    return {name: def_.copy() for name, def_ in TOOL_DEFINITIONS.items()}
