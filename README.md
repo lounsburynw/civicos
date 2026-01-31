@@ -4,9 +4,9 @@
 
 # CivicOS
 
-**Ask questions about your local government in plain English.**
+**Ask questions about your local government—and find others who care.**
 
-CivicOS indexes public meetings, decisions, municipal code, 311 complaints, and budgets—then exposes them through AI assistants you already use. No app to download.
+CivicOS indexes civic data and exposes it through AI assistants you already use. Query meetings and decisions, find neighbors with shared concerns, coordinate on local issues. No app to download.
 
 ## Contents
 
