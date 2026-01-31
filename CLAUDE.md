@@ -198,16 +198,14 @@ Read only when needed. Organized by purpose:
 | `DATA_INGESTION_OPERATIONS.md` | ETL operations |
 | `VERSIONING_STRATEGY.md` | Release versioning |
 
-### Development Guides (docs/)
+### Development Guides (docs/critical/)
 | Doc | Purpose |
 |-----|---------|
 | `TESTING_STRATEGY.md` | Test tiers, markers, fixtures, CI |
-| `VERIFICATION_TUTORIAL.md` | Hands-on platform verification |
 | `DATA_DICTIONARY.md` | Data schemas, field definitions |
 | `EXTRACTOR_PROTOCOL.md` | Platform parser patterns |
 | `BUDGET_EXTRACTION.md` | Budget PDF extraction |
-| `ARCHITECTURE_AUDIT_2026_01.md` | Pre-pilot architecture review |
-| `critical/SQLITE_CHROMADB_JOIN_PATTERNS.md` | Local dev storage patterns |
+| `SQLITE_CHROMADB_JOIN_PATTERNS.md` | Local dev storage patterns |
 
 ### Decisions (docs/decisions/)
 Architecture Decision Records (ADRs):
@@ -216,17 +214,18 @@ Architecture Decision Records (ADRs):
 
 ### Operations Runbooks (docs/operations/)
 - `VECTOR_INDEXING.md` - Re-indexing vectors
+- `OPERATING_COSTS.md` - Monthly costs per jurisdiction
 
-### Strategy & Business (docs/)
+### Strategy & Business (docs/funding/)
 - `SUSTAINABILITY_MODEL.md` - Business model, pricing, open source
-- `critical/FOUNDATION_FUNDING_THESIS.md` - Grant funding strategy
+- `docs/critical/FOUNDATION_FUNDING_THESIS.md` - Grant funding strategy
 
 ### User Guides (docs/user_guides/)
 For end users and city admins:
 - `GETTING_STARTED.md`, `FEATURE_GUIDE.md`, `FAQ.md`
 - `ADMIN_SETUP_GUIDE.md`, `ADMIN_DATA_MANAGEMENT.md`, `ADMIN_TROUBLESHOOTING.md`
 - `CITY_ONBOARDING_GUIDE.md`, `MCP_SETUP_GUIDE.md`
-- `PLATFORM_SPECIFIC_NOTES.md`, `PILOT_USER_IDENTIFICATION.md`
+- `PLATFORM_SPECIFIC_NOTES.md`, `PILOT_USER_IDENTIFICATION.md`, `VERIFICATION_TUTORIAL.md`
 
 ### Archive (docs/archive/)
 Historical docs from completed phases. Recoverable if needed.
@@ -337,6 +336,8 @@ LLM-based code review prompts in `.critics/` catch architectural issues before c
 | `protocol.critic.md` | Protocol conformance (StorageBackend, VectorBackend) |
 | `architecture.critic.md` | Layer boundaries (cross-package imports) |
 | `session.critic.md` | Session hygiene (P0 assignment) |
+| `data.critic.md` | ETL data quality (schema violations, type mismatches) |
+| `docs.critic.md` | Documentation accuracy (stale paths, orphaned docs, bloat) |
 
 **Usage:**
 ```bash
