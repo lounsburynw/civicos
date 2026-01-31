@@ -437,7 +437,7 @@
       ],
       "manual_input_fallback_schema": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Schema for manually-curated financial mappings when automation fails",
         "note": "Some mappings (e.g., grant-to-program, CFDA enrichment) require human input. Define data/manual/*.json schema with source attribution and last_updated tracking. Prioritize automation but plan for manual fallback.",
         "pattern": "Manual input should be structured, versioned, and clearly marked as human-curated"
