@@ -142,9 +142,15 @@ fly deploy -c fly-mcp.toml
 
 **Configuration:** See `fly-mcp.toml` and `Dockerfile.mcp`
 
-### Modal Deployment (Alternative)
+### Modal Deployment (Alternative - Full Parity)
 
-Modal can be used as an alternative hosting platform, especially useful if consolidating with the relay worker.
+Modal provides a serverless alternative to Fly.io with full feature parity (17+ tools, input validation, federation support).
+
+**Key Features:**
+- **Serverless scaling**: 0 to N instances based on traffic
+- **`keep_warm=1`**: Prevents cold starts by maintaining one warm instance
+- **Singleton initialization**: CivicOS and embedding model initialized once per container
+- **Same platform**: Consolidates with relay worker and vector indexer
 
 ```bash
 # Install Modal CLI
@@ -159,11 +165,37 @@ modal secret create civicos-env \
     RELAY_DATABASE_URL="postgresql://..." \
     CIVICOS_JURISDICTION="city-san-rafael"
 
-# Deploy MCP server
-modal deploy apps/civicos-mcp/modal_server.py
+# Deploy MCP server (full parity with Fly.io)
+modal deploy apps/civicos-mcp/modal_app.py
 
-# Get the public URL (shown in Modal dashboard)
-# Example: https://civicos--mcp-server.modal.run
+# Test locally first
+modal serve apps/civicos-mcp/modal_app.py
+
+# Endpoints after deployment:
+# MCP:    https://civicos--civicos-mcp-mcp-endpoint.modal.run
+# Health: https://civicos--civicos-mcp-health.modal.run
+```
+
+**Architecture:**
+```
+Claude.ai/ChatGPT
+        │
+        ▼
+┌─────────────────────────────┐
+│  Modal (civicos-mcp app)    │
+│  ┌───────────────────────┐  │
+│  │   MCPServer class     │  │
+│  │   @modal.enter()      │  │  ← CivicOS + embeddings initialized once
+│  │   - CivicOS singleton │  │
+│  │   - 17+ tools         │  │
+│  │   - Input validation  │  │
+│  │   - Federation        │  │
+│  └───────────────────────┘  │
+│  keep_warm=1 (no cold start)│
+└─────────────────────────────┘
+        │
+        ▼
+    Supabase (PostgreSQL + pgvector)
 ```
 
 ### Railway Deployment (Alternative)

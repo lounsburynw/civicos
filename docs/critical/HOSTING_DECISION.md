@@ -57,9 +57,20 @@ This separation reflects the different workload patterns:
 ```
 
 **Current deployment (Jan 2026):**
-- MCP server: Fly.io (`https://civicos-mcp.fly.dev/mcp`) - already deployed
+- MCP server: Fly.io (`https://civicos-mcp.fly.dev/mcp`) - primary
+- MCP server: Modal (`apps/civicos-mcp/modal_app.py`) - alternative with full parity
 - Relay worker: Modal (to be deployed)
 - Vector indexing: Modal (existing)
+
+**MCP Server Deployment Options:**
+
+| Platform | URL | Pros | Cons |
+|----------|-----|------|------|
+| **Fly.io** (primary) | `civicos-mcp.fly.dev/mcp` | Always-on, consistent with web tier | ~$2/mo fixed cost |
+| **Modal** (alternative) | Deploy via `modal deploy` | Serverless scaling, consolidation | Cold starts without keep_warm |
+
+Both deployments have full feature parity (17+ tools, input validation, federation support).
+To switch to Modal as primary, deploy with `modal deploy apps/civicos-mcp/modal_app.py`.
 
 ---
 
