@@ -50,6 +50,12 @@ from .handlers import (
     # Action handlers
     get_comment_template,
     prepare_for_meeting,
+    # Coordination handlers
+    get_voice_counts,
+    subscribe_to_topic,
+    prepare_voice,
+    broadcast_voice,
+    list_relays,
 )
 
 __all__ = [
@@ -89,4 +95,9 @@ __all__ = [
     "get_intergovernmental_revenue",
     "get_comment_template",
     "prepare_for_meeting",
+    "get_voice_counts",
+    "subscribe_to_topic",
+    "prepare_voice",
+    "broadcast_voice",
+    "list_relays",
 ]

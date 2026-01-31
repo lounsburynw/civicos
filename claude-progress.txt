@@ -16535,3 +16535,26 @@ Created turnkey configuration system for CivicOS deployment:
 - Updated README with deployment guides (Modal, Docker)
 - Updated `pilot.json`: mcp_deployment_abstraction marked ready
 - Next P0: voice_tools (MCP tools for coordination - backend before frontend)
+
+---
+**Session 537** (2026-01-30)
+- Completed `voice_tools` with permissionless architecture
+- Added 5 MCP coordination tools (30 → 35 total):
+  - `get_voice_counts(entity, relay_url?)` - query any relay
+  - `subscribe_to_topic(topics, email, relay_url?)` - user chooses relay
+  - `prepare_voice(entity, stance)` - offline, returns payload to sign
+  - `broadcast_voice(entity, stance, public_key, signature, relay_urls?)` - submit signed voice
+  - `list_relays()` - discover network relays
+- Key design decisions:
+  - Relay selection: users can specify any relay URL or use default
+  - Two-step voice flow: prepare → sign locally → broadcast
+  - Self-sovereign identity: private keys never leave user's device
+  - Permissionless: no gatekeepers, signatures are the authority
+- Files modified:
+  - `apps/civicos-mcp/tools/registry.py` - 5 new tool definitions
+  - `apps/civicos-mcp/tools/handlers.py` - 5 handlers + KNOWN_RELAYS
+  - `apps/civicos-mcp/tools/__init__.py` - exports
+  - `apps/civicos-mcp/modal_app.py` - handler bindings
+- Tests: 31 passing in `test_coordination_tools.py`
+- Updated `pilot.json`: voice_tools marked ready
+- Next: Need to assign P0 for next session

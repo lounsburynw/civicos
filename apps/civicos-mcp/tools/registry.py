@@ -348,6 +348,106 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
             "required": ["agenda_item_id"],
         },
     },
+
+    # ─────────── Coordination Tools ───────────
+    # These tools implement a permissionless coordination protocol.
+    # Users can specify their own relay, or use the default CivicOS relay.
+    # Voices are cryptographically signed - the signature is the authority, not the relay.
+    "get_voice_counts": {
+        "description": "Get community voice counts (support/oppose/watching) for a civic entity. Queries a relay node.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "entity": {
+                    "type": "string",
+                    "description": "Entity identifier (e.g., 'decision:city-san-rafael:2026-01-15:item-5a')",
+                },
+                "relay_url": {
+                    "type": "string",
+                    "description": "Relay node URL to query. Defaults to CivicOS relay if not specified.",
+                },
+            },
+            "required": ["entity"],
+        },
+    },
+    "subscribe_to_topic": {
+        "description": "Subscribe to notifications about civic topics via a relay node. You choose which relay to trust with your subscription.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "topics": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of topics to subscribe to (e.g., ['housing', 'traffic'])",
+                },
+                "email": {
+                    "type": "string",
+                    "description": "Email address for notifications",
+                },
+                "relay_url": {
+                    "type": "string",
+                    "description": "Relay node URL to register subscription. Defaults to CivicOS relay if not specified.",
+                },
+            },
+            "required": ["topics", "email"],
+        },
+    },
+    "prepare_voice": {
+        "description": "Prepare a voice payload for signing. Returns the exact message you need to sign with your private key. This is step 1 of casting a voice - you sign the payload locally, then use broadcast_voice to submit it.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "entity": {
+                    "type": "string",
+                    "description": "Entity identifier (e.g., 'decision:city-san-rafael:2026-01-15:item-5a')",
+                },
+                "stance": {
+                    "type": "string",
+                    "enum": ["support", "oppose", "watching"],
+                    "description": "Your position: support, oppose, or watching",
+                },
+            },
+            "required": ["entity", "stance"],
+        },
+    },
+    "broadcast_voice": {
+        "description": "Broadcast a signed voice to relay node(s). This is step 2 of casting a voice - after signing the payload from prepare_voice with your private key, submit the signature here.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "entity": {
+                    "type": "string",
+                    "description": "Entity identifier (must match what you signed)",
+                },
+                "stance": {
+                    "type": "string",
+                    "enum": ["support", "oppose", "watching"],
+                    "description": "Your position (must match what you signed)",
+                },
+                "public_key": {
+                    "type": "string",
+                    "description": "Your public key (hex-encoded, compressed ECDSA P-256)",
+                },
+                "signature": {
+                    "type": "string",
+                    "description": "Signature of the voice payload (hex-encoded)",
+                },
+                "relay_urls": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Relay node URLs to broadcast to. Defaults to CivicOS relay if not specified.",
+                },
+            },
+            "required": ["entity", "stance", "public_key", "signature"],
+        },
+    },
+    "list_relays": {
+        "description": "List known relay nodes in the CivicOS network. You can use any of these relays, or run your own.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+        },
+    },
 }
 
 
