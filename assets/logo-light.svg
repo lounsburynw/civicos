@@ -1,7 +1,5 @@
-<svg viewBox="0 0 220 70" width="440" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 120 44" width="240" xmlns="http://www.w3.org/2000/svg">
   <!-- CivicOS Logo - Solarized Light variant -->
-  <!-- Background: #fdf6e3 (cream) -->
   <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#586e75" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
   <text x="22" y="32" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="600" fill="#002b36" letter-spacing="-1">ivicOS</text>
-  <text x="110" y="56" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#93a1a1" letter-spacing="2" text-anchor="middle">PERMISSIONLESS DEMOCRACY</text>
 </svg>
