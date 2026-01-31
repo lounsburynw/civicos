@@ -1,16 +1,20 @@
 """
-Modal deployment for CivicOS MCP Server - Full Parity with Fly.io.
+Modal deployment for CivicOS MCP Server.
 
-Deploys the complete MCP server (32 tools, 5 resources, 2 prompts) as a
-serverless web endpoint on Modal. This is an alternative to Fly.io deployment.
+Deploys the complete MCP server (30 tools) as a serverless web endpoint on Modal,
+proxied through Cloudflare for the production domain.
+
+Production URL:
+    https://san-rafael.civicosproject.org/mcp
 
 Architecture:
-    Claude.ai/ChatGPT -> Modal (MCP endpoint) -> Supabase (civic data)
+    Claude.ai/ChatGPT -> Cloudflare Worker -> Modal -> Supabase
 
-Key differences from Fly.io:
+Key features:
     - Serverless scaling (0 to N instances based on traffic)
-    - keep_warm=1 prevents cold starts for first request
+    - min_containers=1 prevents cold starts
     - Same platform as relay worker and vector indexer (consolidation)
+    - Cloudflare proxy provides custom domain without Modal Team plan
 
 Setup:
     1. Install Modal CLI: pip install modal
@@ -29,10 +33,10 @@ Usage:
     # Deploy to production
     modal deploy apps/civicos-mcp/modal_app.py
 
-    # Get the endpoint URL from Modal dashboard
-    # Example: https://civicos--civicos-mcp-serve.modal.run/mcp
-
-    # Connect from Claude.ai or ChatGPT using the URL
+Endpoints:
+    Production: https://san-rafael.civicosproject.org/mcp
+    Health:     https://san-rafael.civicosproject.org/health
+    Modal direct: https://lounsburynw--civicos-mcp-mcpserver-mcp-endpoint.modal.run
 """
 
 import modal
@@ -58,6 +62,7 @@ mcp_image = (
         "fastembed>=0.3.0",
         "numpy<2",
         # HTTP/async
+        "fastapi[standard]>=0.100.0",  # Must be Pydantic v2 compatible
         "httpx>=0.24.0",
         "uvicorn>=0.30.0",
         "starlette>=0.38.0",
@@ -65,6 +70,10 @@ mcp_image = (
         "python-dotenv>=1.0.0",
         "pydantic>=2.0.0",
         "pyyaml>=6.0.0",
+        # LangGraph (for coordination workflows)
+        "langgraph>=0.2.0",
+        "langchain-core>=0.3.0",
+        "langchain-anthropic>=0.3.0",
     )
     # Pre-download embedding model during image build (avoids 30-60s download at runtime)
     .run_commands(
@@ -74,18 +83,9 @@ mcp_image = (
     .add_local_python_source("civicos")
     .add_local_python_source("civicos_config")
     .add_local_python_source("civicos_relay")
-)
-
-# Mount the apps directory for MCP server code
-# This includes civicos_server.py, federation.py, and civicos_input_validator.py
-apps_mount = modal.Mount.from_local_dir(
-    "apps/civicos-mcp",
-    remote_path="/app/civicos-mcp",
-)
-
-validator_mount = modal.Mount.from_local_file(
-    "apps/civicos_input_validator.py",
-    remote_path="/app/civicos_input_validator.py",
+    # Add MCP server code (replaces deprecated modal.Mount)
+    .add_local_dir("apps/civicos-mcp", remote_path="/app/civicos-mcp")
+    .add_local_file("apps/civicos_input_validator.py", remote_path="/app/civicos_input_validator.py")
 )
 
 
@@ -95,13 +95,12 @@ validator_mount = modal.Mount.from_local_file(
 
 @app.cls(
     image=mcp_image,
-    mounts=[apps_mount, validator_mount],
     secrets=[modal.Secret.from_name("civicos-env")],
     memory=4096,  # 4GB for embedding model
     timeout=300,  # 5 min timeout for complex queries
-    keep_warm=1,  # Always keep 1 instance ready (no cold starts)
-    allow_concurrent_inputs=20,  # Handle multiple concurrent requests
+    min_containers=1,  # Always keep 1 instance ready (no cold starts)
 )
+@modal.concurrent(max_inputs=20)
 class MCPServer:
     """
     Modal-deployed MCP server with full parity to Fly.io deployment.
@@ -1775,7 +1774,7 @@ CONTACT INFO:
 
     # ─────────── MCP Protocol Handler ───────────
 
-    @modal.web_endpoint(method="POST", docs=True)
+    @modal.fastapi_endpoint(method="POST", docs=True)
     def mcp_endpoint(self, request: dict) -> dict:
         """
         MCP JSON-RPC endpoint.
@@ -1920,7 +1919,7 @@ CONTACT INFO:
                 "id": request.get("id", 1),
             }
 
-    @modal.web_endpoint(method="GET", docs=True)
+    @modal.fastapi_endpoint(method="GET", docs=True)
     def health(self) -> dict:
         """Health check endpoint."""
         return {

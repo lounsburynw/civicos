@@ -87,12 +87,20 @@ curl -s http://localhost:8080/mcp \
 | **Railway** | Alternative | ~$5/month | Low | Good alternative |
 | **Render** | Alternative | Free tier + $7/month | Low | |
 
-**Current State (Jan 2026):** MCP server is deployed on **Modal** at `https://civicos--civicos-mcp-mcp-endpoint.modal.run`. This consolidates all serverless compute (MCP server, relay worker, vector indexer) on one platform.
+**Current State (Jan 2026):** MCP server is deployed on **Modal** with Cloudflare proxy:
+
+| Environment | URL |
+|-------------|-----|
+| **Production** | `https://san-rafael.civicosproject.org/mcp` |
+| Health check | `https://san-rafael.civicosproject.org/health` |
+| Modal (direct) | `https://lounsburynw--civicos-mcp-mcpserver-mcp-endpoint.modal.run` |
+
+See `docs/decisions/federation_domain_architecture.md` for the domain strategy.
 
 Benefits of Modal consolidation:
 - Single platform for all compute
 - Serverless scaling (0 to N instances)
-- `keep_warm=1` prevents cold starts
+- `min_containers=1` prevents cold starts
 - GPU access for embeddings
 - Cron triggers for relay worker
 

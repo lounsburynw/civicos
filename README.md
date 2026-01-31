@@ -20,12 +20,12 @@ CivicOS works through AI assistants you already use. No app to download.
 
 **Claude (claude.ai or Claude Desktop):**
 1. Go to Settings → Connectors → Add Connector
-2. Enter: `https://civicos--civicos-mcp-mcp-endpoint.modal.run`
+2. Enter: `https://san-rafael.civicosproject.org/mcp`
 3. Ask: *"What's on the San Rafael city council agenda?"*
 
 **ChatGPT (Plus/Team with developer mode):**
 1. Settings → Connectors → Enable developer mode
-2. Add connector: `https://civicos--civicos-mcp-mcp-endpoint.modal.run`
+2. Add connector: `https://san-rafael.civicosproject.org/mcp`
 3. Ask: *"What has San Rafael decided about housing?"*
 
 **New to this?** Once connected, just say **"get started"** and the assistant will walk you through what you can ask.
@@ -52,7 +52,7 @@ CivicOS works through AI assistants you already use. No app to download.
 │                          ┌─────────────┐   │   ┌─────────────────┐ │
 │   "Who else cares        │ ChatGPT     │ ──┼──►│ MCP Server      │ │
 │    about this?"          └─────────────┘   │   │ (Modal)         │ │
-│                          ┌─────────────┐   │   │ 25 tools        │ │
+│                          ┌─────────────┐   │   │ 30 tools        │ │
 │                          │ Claude App  │ ──┘   └────────┬────────┘ │
 │                          └─────────────┘                │          │
 │                                                         ▼          │
@@ -188,7 +188,7 @@ The app runs at `http://localhost:5173` (frontend) with API at `:8001`.
 
 ### MCP Server
 
-The MCP server (`apps/civicos-mcp/`) exposes 25 tools for AI assistants:
+The MCP server (`apps/civicos-mcp/`) exposes 30 tools for AI assistants:
 
 | Category | Tools |
 |----------|-------|
@@ -323,11 +323,11 @@ All serverless compute runs on [Modal](https://modal.com):
 # Deploy MCP server
 modal deploy apps/civicos-mcp/modal_app.py
 
-# Endpoint after deployment:
-# https://civicos--civicos-mcp-mcp-endpoint.modal.run
+# Production endpoint (via Cloudflare proxy):
+# https://san-rafael.civicosproject.org/mcp
 ```
 
-Modal provides serverless scaling (0 to N instances), GPU access for embeddings, and consolidates all compute on one platform.
+Modal provides serverless scaling (0 to N instances), GPU access for embeddings, and consolidates all compute on one platform. Cloudflare Workers proxy the custom domain to Modal.
 
 ### Extending to Other Cities
 
