@@ -1,9 +1,0 @@
-<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <!-- Dark mode favicon - black icon for light backgrounds -->
-
-    <!-- '<' prompt -->
-    <polygon points="12,2 6,8 12,14 10,14 4,8 10,2" fill="#333333"/>
-
-    <!-- '_' cursor -->
-    <rect x="13" y="14.5" width="3" height="0.8" fill="#666666"/>
-</svg>
