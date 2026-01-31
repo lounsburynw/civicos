@@ -16649,3 +16649,44 @@ Exposed relay sync HTTP endpoints in FastAPI for relay-to-relay federation. The 
 Set `peer_config` as P0 - enables actual peer discovery and health checks.
 
 ---
+
+## Session: 2026-01-31 - peer_config (P0)
+
+### Completed: peer_config
+Implemented YAML-based peer configuration with health checks and auto-disable for unhealthy peers.
+
+**Changes Made:**
+1. **Extended PeerConfig** (`packages/civicos-relay/src/civicos_relay/identity/config.py`)
+   - Added health tracking fields: `healthy`, `consecutive_failures`, `last_health_check`, `last_successful_sync`
+
+2. **Extended RelayConfig** (`config.py`)
+   - Added health check settings: `health_check_timeout`, `health_check_interval`, `max_consecutive_failures`
+
+3. **Enhanced SyncService** (`packages/civicos-relay/src/civicos_relay/sync/service.py`)
+   - Added health check client with configurable timeout
+   - Added `check_peer_health()` - checks peer /health endpoint
+   - Added `_record_peer_failure()` - tracks failures, marks unhealthy after threshold
+   - Added `check_all_peers_health()` - batch health check
+   - Added `get_healthy_peers()` / `get_unhealthy_peers()` - filter peers by health
+   - Added `reset_peer_health()` - manual recovery
+   - Updated `_sync_loop()` to skip unhealthy peers and recover on success
+
+4. **Created test_peering.py** (`packages/civicos-relay/tests/test_peering.py`)
+   - 20 tests covering:
+     - PeerConfig defaults and health state
+     - RelayConfig health settings and YAML loading
+     - Health check success/failure/recovery
+     - Auto-disable after consecutive failures
+     - HTTP status handling (500, timeout, non-healthy status)
+     - Peer filtering by health status
+
+### Tests Passing
+- 20 peer_config tests (test_peering.py)
+- 9 sync tests (test_sync.py)
+- 8 identity tests (test_identity.py)
+- 42 smoke tests (test_civicos.py)
+
+### Next P0
+Set `event_sync_endpoints` as P0 - adds event synchronization to complement voice sync.
+
+---

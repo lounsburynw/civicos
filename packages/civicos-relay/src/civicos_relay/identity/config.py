@@ -1,5 +1,6 @@
 """Relay configuration models."""
 
+from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field
 
@@ -18,6 +19,18 @@ class PeerConfig(BaseModel):
         default=None, description="Peer's public key for signature verification"
     )
     enabled: bool = Field(default=True)
+
+    # Health tracking (runtime state, not persisted in YAML)
+    healthy: bool = Field(default=True, description="Current health status")
+    consecutive_failures: int = Field(
+        default=0, description="Consecutive failed health checks"
+    )
+    last_health_check: Optional[datetime] = Field(
+        default=None, description="Timestamp of last health check"
+    )
+    last_successful_sync: Optional[datetime] = Field(
+        default=None, description="Timestamp of last successful sync"
+    )
 
 
 class RelayConfig(BaseModel):
@@ -47,6 +60,17 @@ class RelayConfig(BaseModel):
     # Sync settings
     sync_enabled: bool = Field(default=True)
     sync_batch_size: int = Field(default=100)
+
+    # Health check settings
+    health_check_timeout: int = Field(
+        default=10, description="Timeout in seconds for health checks"
+    )
+    health_check_interval: int = Field(
+        default=60, description="Seconds between health checks"
+    )
+    max_consecutive_failures: int = Field(
+        default=3, description="Failures before marking peer unhealthy"
+    )
 
     @classmethod
     def from_env(cls) -> "RelayConfig":
