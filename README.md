@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo-light.svg" alt="CivicOS" width="340">
+</p>
+
 # CivicOS
 
 **An open infrastructure for local civic intelligence.**
@@ -16,12 +20,12 @@ CivicOS works through AI assistants you already use. No app to download.
 
 **Claude (claude.ai or Claude Desktop):**
 1. Go to Settings → Connectors → Add Connector
-2. Enter: `https://civicos-mcp.fly.dev/mcp`
+2. Enter: `https://civicos--civicos-mcp-mcp-endpoint.modal.run`
 3. Ask: *"What's on the San Rafael city council agenda?"*
 
 **ChatGPT (Plus/Team with developer mode):**
 1. Settings → Connectors → Enable developer mode
-2. Add connector: `https://civicos-mcp.fly.dev/mcp`
+2. Add connector: `https://civicos--civicos-mcp-mcp-endpoint.modal.run`
 3. Ask: *"What has San Rafael decided about housing?"*
 
 **New to this?** Once connected, just say **"get started"** and the assistant will walk you through what you can ask.
@@ -39,33 +43,37 @@ CivicOS works through AI assistants you already use. No app to download.
 ## How It Works
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│              How People Access CivicOS                          │
-│                                                                 │
-│   "What's on the         ┌─────────────┐                       │
-│    city council    ────► │ Claude.ai   │ ──┐                   │
-│    agenda?"              └─────────────┘   │                   │
-│                          ┌─────────────┐   │   ┌─────────────┐ │
-│                          │ ChatGPT     │ ──┼──►│ MCP Server  │ │
-│                          └─────────────┘   │   │ (25 tools)  │ │
-│                          ┌─────────────┐   │   └──────┬──────┘ │
-│                          │ Claude App  │ ──┘          │        │
-│                          └─────────────┘              ▼        │
-│                                              ┌─────────────┐   │
-│                          ┌─────────────┐     │ CivicOS     │   │
-│   civicos.app      ────► │ Web App     │ ───►│ Core        │   │
-│                          └─────────────┘     └──────┬──────┘   │
-│                                                     │          │
-│                                                     ▼          │
-│                                              ┌─────────────┐   │
-│                                              │ Civic Data  │   │
-│                                              │ (PostgreSQL │   │
-│                                              │  + vectors) │   │
-│                                              └─────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                  How People Access CivicOS                          │
+│                                                                     │
+│   "What's on the         ┌─────────────┐                           │
+│    city council    ────► │ Claude.ai   │ ──┐                       │
+│    agenda?"              └─────────────┘   │                       │
+│                          ┌─────────────┐   │   ┌─────────────────┐ │
+│   "Who else cares        │ ChatGPT     │ ──┼──►│ MCP Server      │ │
+│    about this?"          └─────────────┘   │   │ (Modal)         │ │
+│                          ┌─────────────┐   │   │ 25 tools        │ │
+│                          │ Claude App  │ ──┘   └────────┬────────┘ │
+│                          └─────────────┘                │          │
+│                                                         ▼          │
+│                                              ┌─────────────────┐   │
+│                          ┌─────────────┐     │   CivicOS Core  │   │
+│   civicos.app      ────► │ Web App     │ ───►│   + Relay       │   │
+│                          │ (+ voices)  │     │   (federation)  │   │
+│                          └─────────────┘     └────────┬────────┘   │
+│                                                       │            │
+│                                                       ▼            │
+│                                              ┌─────────────────┐   │
+│                                              │   Civic Data    │   │
+│                                              │   PostgreSQL    │   │
+│                                              │   + pgvector    │   │
+│                                              └─────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 **Why AI assistants?** Most people won't download a civic engagement app. But millions already use Claude and ChatGPT daily. CivicOS meets people where they are.
+
+**Why federation?** No single platform should control civic participation. The relay routes events without filtering. Your AI agent reasons about what matters to you. Voice counts are public and portable across relays.
 
 ## San Rafael Pilot Data
 
@@ -110,11 +118,34 @@ All data is indexed for semantic search (~17K vector embeddings).
 ```
 civicos/
 ├── packages/civicos/             # Core query API
+├── packages/civicos-relay/       # Federation relay (voice, sync, subscriptions)
 ├── packages/civicos-extraction/  # Data parsers (Legistar, SeeClickFix, municipal code, etc.)
 ├── packages/civicos-services/    # REST API, WebSocket server, LLM routing
 ├── apps/civicos-workspace/       # Vue frontend
 └── apps/civicos-mcp/             # MCP server (primary distribution)
 ```
+
+### Coordination Protocol
+
+The relay package (`packages/civicos-relay/`) enables permissionless civic coordination:
+
+| Component | Purpose |
+|-----------|---------|
+| **Voice** | Cryptographically signed expression of civic interest (support/oppose/watching) |
+| **Subscription** | Event routing preferences (topics, geography, thresholds) |
+| **Provenance** | Trust signals for keys (age, history, attestations) |
+
+```python
+# REST API endpoints (civicos-services)
+POST /api/coordination/voice           # Cast a signed voice
+GET  /api/coordination/voice/counts/{entity}  # Get voice counts
+POST /api/coordination/subscribe       # Create subscription
+GET  /api/coordination/provenance/{key}  # Get key provenance
+```
+
+**Why this matters:** Residents can express civic interest without centralized platforms. Voice counts are public and federate across relays. Intelligence lives at the edges (your AI agent), not in a recommendation algorithm.
+
+See `docs/critical/COORDINATION_PROTOCOL.md` for the full protocol specification.
 
 ### Core API
 
@@ -181,28 +212,87 @@ python apps/civicos-mcp/civicos_server.py -t http -p 8080
 ### Technical Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                   Distribution Layer                        │
-│   MCP Server (Claude, ChatGPT) │ REST API │ Vue Frontend    │
-└─────────────────────────────────────────────────────────────┘
-                              │
-┌─────────────────────────────────────────────────────────────┐
-│                      CivicOS Core                           │
-│   whats_next() │ what_happened() │ what_applies()           │
-│   whos_with_me() │ prepare() │ coordinate()                 │
-└─────────────────────────────────────────────────────────────┘
-                              │
-┌─────────────────────────────────────────────────────────────┐
-│                    Storage Layer                            │
-│   PostgreSQL (Supabase) │ pgvector │ Cloudflare R2 (PDFs)   │
-└─────────────────────────────────────────────────────────────┘
-                              │
-┌─────────────────────────────────────────────────────────────┐
-│                   Ingestion Pipeline                        │
-│   Modal (serverless compute) │ Scheduled refreshes          │
-│   Legistar │ SeeClickFix │ Municode │ YouTube │ LegiScan    │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           DISTRIBUTION LAYER                                 │
+│  ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐           │
+│  │  MCP Server     │   │  REST API       │   │  Vue Frontend   │           │
+│  │  (Modal)        │   │  (civicos-svc)  │   │  (workspace)    │           │
+│  │  Claude/ChatGPT │   │  FastAPI        │   │  + Voice UI     │           │
+│  └────────┬────────┘   └────────┬────────┘   └────────┬────────┘           │
+└───────────┼────────────────────┼────────────────────┼───────────────────────┘
+            │                    │                    │
+┌───────────┼────────────────────┼────────────────────┼───────────────────────┐
+│           └────────────────────┼────────────────────┘                       │
+│                                ▼                                            │
+│                      ┌─────────────────────┐                                │
+│                      │    CivicOS Core     │                                │
+│                      │ whats_next()        │                                │
+│                      │ what_happened()     │                                │
+│                      │ what_applies()      │                                │
+│                      │ whos_with_me()      │                                │
+│                      └─────────┬───────────┘                                │
+│                                │                                            │
+│  ┌─────────────────────────────┴─────────────────────────────┐              │
+│  │                     STORAGE LAYER                         │              │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │              │
+│  │  │   Supabase   │  │    Relay     │  │ Cloudflare   │    │              │
+│  │  │  PostgreSQL  │  │   Database   │  │     R2       │    │              │
+│  │  │  + pgvector  │  │ (federation) │  │ (PDFs/audio) │    │              │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘    │              │
+│  └───────────────────────────────────────────────────────────┘              │
+│                                                                CIVICOS CORE │
+└─────────────────────────────────────────────────────────────────────────────┘
+            ▲                                    ▲
+            │                                    │
+┌───────────┴────────────────────────────────────┴───────────────────────────┐
+│                         INGESTION PIPELINE                                  │
+│  Modal (serverless compute) │ Scheduled refreshes │ GPU embeddings          │
+│  Legistar │ SeeClickFix │ Municode │ YouTube │ LegiScan                     │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Federation Architecture
+
+CivicOS is designed for multi-jurisdiction federation. Each city can run its own infrastructure while federating with others.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           FEDERATION TOPOLOGY                                │
+│                                                                             │
+│  ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐       │
+│  │  San Rafael     │     │  Novato         │     │  Marin County   │       │
+│  │  ┌───────────┐  │     │  ┌───────────┐  │     │  ┌───────────┐  │       │
+│  │  │   Relay   │◄─┼─────┼─►│   Relay   │◄─┼─────┼─►│   Relay   │  │       │
+│  │  │  (voices) │  │     │  │  (voices) │  │     │  │  (voices) │  │       │
+│  │  └─────┬─────┘  │     │  └─────┬─────┘  │     │  └─────┬─────┘  │       │
+│  │        │        │     │        │        │     │        │        │       │
+│  │  ┌─────┴─────┐  │     │  ┌─────┴─────┐  │     │  ┌─────┴─────┐  │       │
+│  │  │MCP Server │  │     │  │MCP Server │  │     │  │MCP Server │  │       │
+│  │  └───────────┘  │     │  └───────────┘  │     │  └───────────┘  │       │
+│  └─────────────────┘     └─────────────────┘     └─────────────────┘       │
+│           │                       │                       │                 │
+│           └───────────────────────┼───────────────────────┘                 │
+│                                   ▼                                         │
+│                        ┌─────────────────────┐                              │
+│                        │   User's AI Agent   │                              │
+│                        │  (Claude, ChatGPT)  │  ← Edge Intelligence         │
+│                        └─────────────────────┘                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Key concepts:**
+
+- **Relay**: Routes civic events (agendas, decisions) to subscribers. Stores voice counts.
+- **Voice**: Public expression of civic interest (support/oppose/watching). Cryptographically signed.
+- **Edge Intelligence**: User's AI agent filters and contextualizes events using CivicOS MCP for enrichment.
+- **No central authority**: Each jurisdiction runs independently. Voices federate across relays.
+
+The separation means:
+- CivicOS provides public civic knowledge (meetings, decisions, regulations)
+- The relay provides coordination signals (who cares about what)
+- Your AI agent reasons about what matters to *you*
+
+See `docs/critical/COORDINATION_PROTOCOL.md` for full protocol documentation.
 
 ### Operating Costs
 
@@ -210,14 +300,34 @@ Real operational costs for an active jurisdiction:
 
 | Service | Monthly Cost | What It Does |
 |---------|-------------|--------------|
-| Supabase | $25-50 | PostgreSQL + pgvector |
+| Supabase (main) | $25-50 | PostgreSQL + pgvector for civic data |
+| Supabase (relay) | $0-25 | Federation database (voices, subscriptions) |
 | AssemblyAI | $50-150 | Meeting transcription (~$0.37/min) |
-| Modal | $20-50 | Serverless compute for pipelines |
+| Modal | $25-75 | Serverless compute (MCP server, relay worker, embeddings) |
 | AI providers | $30-100 | Embeddings, extraction, LLM calls |
-| Fly.io | $5 | MCP + API hosting |
-| **Total** | **$150-350/mo** | Per active jurisdiction |
+| **Total** | **$130-400/mo** | Per active jurisdiction |
 
 Costs scale sub-linearly with additional cities (shared infrastructure, bulk discounts).
+
+### Compute Layer (Modal)
+
+All serverless compute runs on [Modal](https://modal.com):
+
+| Component | Function | Trigger |
+|-----------|----------|---------|
+| **MCP Server** | AI queries (Claude, ChatGPT) | HTTP endpoint |
+| **Relay Worker** | Event routing, subscription matching | Cron (every 5 min) |
+| **Vector Indexer** | GPU-accelerated embeddings | On-demand |
+
+```bash
+# Deploy MCP server
+modal deploy apps/civicos-mcp/modal_app.py
+
+# Endpoint after deployment:
+# https://civicos--civicos-mcp-mcp-endpoint.modal.run
+```
+
+Modal provides serverless scaling (0 to N instances), GPU access for embeddings, and consolidates all compute on one platform.
 
 ### Extending to Other Cities
 

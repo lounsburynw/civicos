@@ -108,7 +108,8 @@ transport_security = TransportSecuritySettings(
     allowed_hosts=[
         "localhost",
         "127.0.0.1",
-        "civicos-mcp.fly.dev",  # Fly.io deployment
+        "civicos-mcp.fly.dev",  # Fly.io (legacy)
+        "civicos--civicos-mcp-mcp-endpoint.modal.run",  # Modal (production)
     ],
     allowed_origins=["*"],  # Allow all origins for MCP clients
 )

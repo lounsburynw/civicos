@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CivicOS — Color Scheme Options</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #1a1a1a;
+      color: #999;
+      padding: 40px;
+      margin: 0;
+    }
+    h1 {
+      text-align: center;
+      font-weight: 300;
+      color: #fff;
+      margin-bottom: 48px;
+    }
+    .section-title {
+      text-align: center;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: #666;
+      margin-bottom: 24px;
+      margin-top: 64px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #333;
+    }
+    .logo-row {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      flex-wrap: wrap;
+      margin-bottom: 32px;
+    }
+    .logo-card {
+      background: #2a2a2a;
+      border-radius: 12px;
+      padding: 32px;
+      text-align: center;
+      min-width: 260px;
+    }
+    .logo-card.light {
+      background: #ffffff;
+    }
+    .logo-card.cream {
+      background: #fdf6e3;
+    }
+    .logo-card.warm {
+      background: #faf8f5;
+    }
+    .logo-card.cool {
+      background: #f5f7fa;
+    }
+    .logo-card .label {
+      font-size: 10px;
+      color: #666;
+      margin-top: 16px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Color Scheme Exploration</h1>
+
+  <!-- OPTION 1: MONOCHROME -->
+  <div class="section-title">Option 1: Pure Monochrome</div>
+  <p style="text-align: center; color: #888; margin-bottom: 24px;">Single color throughout. Clean, serious, no Citibank.</p>
+  
+  <div class="logo-row">
+    <!-- Dark: white on dark -->
+    <div class="logo-card">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#ffffff" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#888888" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">White on Dark</div>
+    </div>
+
+    <!-- Light: black on white -->
+    <div class="logo-card light">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#1a1a1a" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#1a1a1a" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#666666" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Black on White</div>
+    </div>
+
+    <!-- Cream: dark on cream -->
+    <div class="logo-card cream">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#073642" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#073642" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#586e75" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Solarized Dark on Cream</div>
+    </div>
+  </div>
+
+  <!-- OPTION 2: ORANGE ONLY (No Blue) -->
+  <div class="section-title">Option 2: Orange Only</div>
+  <p style="text-align: center; color: #888; margin-bottom: 24px;">Keep the orange mark, drop the blue accent entirely.</p>
+  
+  <div class="logo-row">
+    <div class="logo-card">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#cb4b16" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#ffffff" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#888888" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Dark</div>
+    </div>
+
+    <div class="logo-card light">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#cb4b16" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#1a1a1a" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#666666" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Light</div>
+    </div>
+
+    <div class="logo-card cream">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#cb4b16" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#073642" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#586e75" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Solarized Cream</div>
+    </div>
+  </div>
+
+  <!-- OPTION 3: CYAN/TEAL -->
+  <div class="section-title">Option 3: Solarized Cyan</div>
+  <p style="text-align: center; color: #888; margin-bottom: 24px;">Swap orange for cyan. Calmer, more "infrastructure."</p>
+  
+  <div class="logo-row">
+    <div class="logo-card">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#2aa198" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#ffffff" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#888888" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Dark</div>
+    </div>
+
+    <div class="logo-card light">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#2aa198" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#1a1a1a" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#666666" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Light</div>
+    </div>
+
+    <div class="logo-card cream">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#2aa198" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#073642" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#586e75" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Solarized Cream</div>
+    </div>
+  </div>
+
+  <!-- OPTION 4: GREEN -->
+  <div class="section-title">Option 4: Solarized Green</div>
+  <p style="text-align: center; color: #888; margin-bottom: 24px;">Earthy, civic, sustainable feel.</p>
+  
+  <div class="logo-row">
+    <div class="logo-card">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#859900" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#ffffff" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#888888" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Dark</div>
+    </div>
+
+    <div class="logo-card light">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#859900" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#1a1a1a" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#666666" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Light</div>
+    </div>
+
+    <div class="logo-card cream">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#859900" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#073642" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#586e75" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Solarized Cream</div>
+    </div>
+  </div>
+
+  <!-- OPTION 5: VIOLET -->
+  <div class="section-title">Option 5: Solarized Violet</div>
+  <p style="text-align: center; color: #888; margin-bottom: 24px;">Distinctive, less corporate, slightly unexpected.</p>
+  
+  <div class="logo-row">
+    <div class="logo-card">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#6c71c4" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#ffffff" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#888888" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Dark</div>
+    </div>
+
+    <div class="logo-card light">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#6c71c4" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#1a1a1a" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#666666" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Light</div>
+    </div>
+
+    <div class="logo-card cream">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#6c71c4" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#073642" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#586e75" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Solarized Cream</div>
+    </div>
+  </div>
+
+  <!-- OPTION 6: RED -->
+  <div class="section-title">Option 6: Solarized Red</div>
+  <p style="text-align: center; color: #888; margin-bottom: 24px;">Urgent, attention-grabbing, political.</p>
+  
+  <div class="logo-row">
+    <div class="logo-card">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#dc322f" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#ffffff" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#888888" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Dark</div>
+    </div>
+
+    <div class="logo-card light">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#dc322f" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#1a1a1a" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#666666" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Light</div>
+    </div>
+
+    <div class="logo-card cream">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#dc322f" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#073642" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#586e75" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Solarized Cream</div>
+    </div>
+  </div>
+
+  <!-- OPTION 7: PURE SOLARIZED (base colors only) -->
+  <div class="section-title">Option 7: Pure Solarized Base Colors</div>
+  <p style="text-align: center; color: #888; margin-bottom: 24px;">No accent colors. Just the base palette. Maximum developer cred.</p>
+  
+  <div class="logo-row">
+    <div class="logo-card" style="background: #002b36;">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#93a1a1" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#fdf6e3" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#586e75" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Solarized Dark</div>
+    </div>
+
+    <div class="logo-card cream">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#586e75" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#002b36" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#93a1a1" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Solarized Light</div>
+    </div>
+  </div>
+
+  <!-- OPTION 8: NON-SOLARIZED ALTERNATIVES -->
+  <div class="section-title">Option 8: Outside Solarized</div>
+  <p style="text-align: center; color: #888; margin-bottom: 24px;">Fresh palettes that aren't solarized.</p>
+  
+  <div class="logo-row">
+    <!-- Slate/Cool Gray -->
+    <div class="logo-card" style="background: #0f172a;">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#38bdf8" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#f8fafc" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#64748b" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Slate + Sky Blue</div>
+    </div>
+
+    <div class="logo-card" style="background: #f8fafc;">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#0ea5e9" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#0f172a" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#64748b" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Slate Light + Sky</div>
+    </div>
+
+    <!-- Warm Neutral -->
+    <div class="logo-card" style="background: #1c1917;">
+      <svg viewBox="0 0 170 70" width="220" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 18 8 L 6 22 L 18 36" fill="none" stroke="#f97316" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+        <text x="22" y="32" font-family="system-ui, sans-serif" font-size="28" font-weight="600" fill="#fafaf9" letter-spacing="-1">ivicOS</text>
+        <text x="6" y="56" font-family="system-ui, sans-serif" font-size="9" fill="#78716c" letter-spacing="2">PERMISSIONLESS DEMOCRACY</text>
+      </svg>
+      <div class="label">Stone + Orange</div>
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="section-title">Quick Reference</div>
+  <div style="max-width: 600px; margin: 0 auto; font-size: 13px; line-height: 2; color: #aaa;">
+    <p><strong style="color: #fff;">1. Monochrome:</strong> Safest. No brand confusion possible. Pure infrastructure.</p>
+    <p><strong style="color: #fff;">2. Orange Only:</strong> Keeps urgency, loses Citibank by dropping blue.</p>
+    <p><strong style="color: #fff;">3. Cyan:</strong> Calm, technical, "open source" feel.</p>
+    <p><strong style="color: #fff;">4. Green:</strong> Civic, sustainable, earthy.</p>
+    <p><strong style="color: #fff;">5. Violet:</strong> Distinctive, unexpected, less corporate.</p>
+    <p><strong style="color: #fff;">6. Red:</strong> Political urgency. Maybe too aggressive?</p>
+    <p><strong style="color: #fff;">7. Pure Solarized Base:</strong> Maximum developer credibility. Understated.</p>
+    <p><strong style="color: #fff;">8. Outside Solarized:</strong> Fresh options if you want to break from the palette.</p>
+  </div>
+
+</body>
+</html>

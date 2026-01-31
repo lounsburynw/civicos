@@ -579,9 +579,11 @@ The relay is more than a database — it needs compute for event routing, delive
 
 | Component | Platform | Trigger | Purpose |
 |-----------|----------|---------|---------|
-| **MCP Server** | Fly.io | HTTP endpoint | Serve AI queries (deployed: `civicos-mcp.fly.dev`) |
+| **MCP Server** | Modal | HTTP endpoint | Serve AI queries (`civicos--civicos-mcp-mcp-endpoint.modal.run`) |
 | **Relay Worker** | Modal | Cron (every 5 min) | Emit events, match subscriptions, deliver |
-| **Vector Indexer** | Modal | On-demand | Generate embeddings (existing) |
+| **Vector Indexer** | Modal | On-demand | Generate embeddings (GPU-accelerated) |
+
+All serverless compute consolidated on Modal for simplified operations.
 
 **Relay Worker implementation:**
 
@@ -634,12 +636,13 @@ REST API endpoints for relay operations are now available in `civicos-services`:
    - REST API endpoints ✓
    - Frontend can display voice counts ✓
 
-2. **Phase 2 (Next):** MCP Server on Modal
-   - Deploy `civicos-mcp` to Modal as web endpoint
-   - Connect to Claude.ai and ChatGPT
-   - Enables AI queries against civic data
+2. **Phase 2 (Complete):** MCP Server on Modal
+   - Deploy `civicos-mcp` to Modal as web endpoint ✓
+   - Connect to Claude.ai and ChatGPT ✓
+   - Full parity with Fly.io (25+ tools) ✓
+   - Input validation and federation support ✓
 
-3. **Phase 3:** Relay Worker on Modal
+3. **Phase 3 (Next):** Relay Worker on Modal
    - Event emission from civic data changes
    - Subscription matching and delivery
    - Resend integration for email
@@ -653,13 +656,14 @@ REST API endpoints for relay operations are now available in `civicos-services`:
 
 | Component | Provider | Est. Cost/mo |
 |-----------|----------|--------------|
-| Relay Worker | Modal | ~$2-5 |
 | MCP Server | Modal | ~$2-5 |
+| Relay Worker | Modal | ~$2-5 |
+| Vector Indexer | Modal | ~$5-10 |
 | Email delivery | Resend Free | $0 |
 | Claude API | Anthropic | ~$5-10 |
-| **Total compute** | | **~$10-20/mo** |
+| **Total compute** | | **~$15-30/mo** |
 
-This is in addition to storage costs (~$0 on Supabase free tier) and hosting (~$5/mo on Fly.io for main app).
+This is in addition to storage costs (Supabase: ~$25-50/mo for production, free tier for dev).
 
 ### Phase 2: Full Relay (Post-Pilot)
 
