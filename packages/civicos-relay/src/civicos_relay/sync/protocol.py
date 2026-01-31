@@ -59,6 +59,22 @@ class VoiceImportResponse(BaseModel):
     duplicates: int = Field(description="Voices already present")
 
 
+class EventImportRequest(BaseModel):
+    """Request to import events from a peer."""
+
+    events: list[Event]
+    source_relay: str
+    signature: str
+
+
+class EventImportResponse(BaseModel):
+    """Response after importing events."""
+
+    accepted: int = Field(description="Events successfully imported")
+    rejected: int = Field(description="Events rejected (invalid signature)")
+    duplicates: int = Field(description="Events already present")
+
+
 class SyncResponse(BaseModel):
     """Generic sync response wrapper."""
 

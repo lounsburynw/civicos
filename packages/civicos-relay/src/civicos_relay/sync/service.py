@@ -11,11 +11,15 @@ import httpx
 from civicos_relay.identity import RelayIdentity, PeerConfig
 from civicos_relay.voice.models import Voice
 from civicos_relay.voice.crypto import verify_voice
+from civicos_relay.relay.models import Event
 from civicos_relay.sync.protocol import (
     SyncRequest,
     VoiceSyncResponse,
     VoiceImportRequest,
     VoiceImportResponse,
+    EventSyncResponse,
+    EventImportRequest,
+    EventImportResponse,
     SyncProtocol,
 )
 
@@ -45,6 +49,16 @@ class SyncStorage(Protocol):
 
     def import_voice(self, voice: Voice) -> str:
         """Import a voice. Returns 'accepted', 'rejected', or 'duplicate'."""
+        ...
+
+    def get_events_since(
+        self, since: datetime, namespace: Optional[str], limit: int
+    ) -> tuple[list[Event], Optional[str]]:
+        """Get events for export. Returns (events, next_cursor)."""
+        ...
+
+    def import_event(self, event: Event) -> str:
+        """Import an event. Returns 'accepted', 'rejected', or 'duplicate'."""
         ...
 
 
@@ -208,6 +222,54 @@ class SyncService:
                 duplicates += 1
 
         return VoiceImportResponse(
+            accepted=accepted,
+            rejected=rejected,
+            duplicates=duplicates,
+        )
+
+    def export_events(self, request: SyncRequest) -> EventSyncResponse:
+        """Export events for a peer to sync."""
+        events, cursor = self._storage.get_events_since(
+            since=request.since or datetime.min,
+            namespace=request.namespace,
+            limit=request.limit,
+        )
+
+        # Sign the response - hash event identifiers
+        data_hash = hashlib.sha256(
+            b"".join(
+                f"{e.type.value}:{e.entity}:{e.timestamp.isoformat()}".encode()
+                for e in events
+            )
+        ).hexdigest()[:16]
+
+        signature = self._identity.sign_sync_response(
+            data_hash, cursor or "end"
+        )
+
+        return EventSyncResponse(
+            events=events,
+            cursor=cursor,
+            relay_id=self._identity.relay_id,
+            relay_signature=signature,
+        )
+
+    def import_events(self, request: EventImportRequest) -> EventImportResponse:
+        """Import events pushed by a peer."""
+        accepted = 0
+        rejected = 0
+        duplicates = 0
+
+        for event in request.events:
+            result = self._storage.import_event(event)
+            if result == "accepted":
+                accepted += 1
+            elif result == "rejected":
+                rejected += 1
+            else:
+                duplicates += 1
+
+        return EventImportResponse(
             accepted=accepted,
             rejected=rejected,
             duplicates=duplicates,
