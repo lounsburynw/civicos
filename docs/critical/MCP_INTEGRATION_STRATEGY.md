@@ -81,15 +81,20 @@ curl -s http://localhost:8080/mcp \
 
 | Option | Use Case | Cost | Setup Complexity | Notes |
 |--------|----------|------|------------------|-------|
-| **Fly.io** | Production (current) | ~$2/month | Medium | Already deployed at `civicos-mcp.fly.dev` |
-| **Modal** | Alternative | ~$2-5/month | Low | Same platform as relay worker, vector indexer |
+| **Modal** | Production (current) | ~$2-5/month | Low | All compute on one platform |
+| **Fly.io** | Legacy/alternative | ~$2/month | Medium | Previously at `civicos-mcp.fly.dev` |
 | **ngrok** | Development/Demo | Free tier available | Lowest | Temporary URLs |
 | **Railway** | Alternative | ~$5/month | Low | Good alternative |
 | **Render** | Alternative | Free tier + $7/month | Low | |
 
-**Current State (Jan 2026):** MCP server is deployed on **Fly.io** at `https://civicos-mcp.fly.dev/mcp`. This keeps it consistent with the web tier (civic-api, civic-websocket).
+**Current State (Jan 2026):** MCP server is deployed on **Modal** at `https://civicos--civicos-mcp-mcp-endpoint.modal.run`. This consolidates all serverless compute (MCP server, relay worker, vector indexer) on one platform.
 
-The relay worker (event emission, subscription matching) will run on **Modal** for cron support.
+Benefits of Modal consolidation:
+- Single platform for all compute
+- Serverless scaling (0 to N instances)
+- `keep_warm=1` prevents cold starts
+- GPU access for embeddings
+- Cron triggers for relay worker
 
 ### Environment Variables (Required for Deployment)
 
@@ -124,33 +129,17 @@ Claude.ai supports remote MCP servers for Pro/Max/Team/Enterprise:
 **References**:
 - [Building Custom Connectors](https://support.claude.com/en/articles/11503834-building-custom-connectors-via-remote-mcp-servers)
 
-### Fly.io Deployment (Current)
+### Modal Deployment (Production)
 
-The MCP server is deployed on Fly.io alongside the REST API and WebSocket server.
+The MCP server is deployed on Modal, consolidating all serverless compute on one platform.
 
-**Deployed at:** `https://civicos-mcp.fly.dev/mcp`
-
-**Deployment script:** `scripts/deploy-mcp.sh`
-
-```bash
-# Deploy MCP server to Fly.io
-./scripts/deploy-mcp.sh
-
-# Or manually:
-fly deploy -c fly-mcp.toml
-```
-
-**Configuration:** See `fly-mcp.toml` and `Dockerfile.mcp`
-
-### Modal Deployment (Alternative - Full Parity)
-
-Modal provides a serverless alternative to Fly.io with full feature parity (17+ tools, input validation, federation support).
+**Deployed at:** `https://civicos--civicos-mcp-mcp-endpoint.modal.run`
 
 **Key Features:**
 - **Serverless scaling**: 0 to N instances based on traffic
-- **`keep_warm=1`**: Prevents cold starts by maintaining one warm instance
+- **`min_containers=1`**: Prevents cold starts by maintaining one warm instance
 - **Singleton initialization**: CivicOS and embedding model initialized once per container
-- **Same platform**: Consolidates with relay worker and vector indexer
+- **Consolidated compute**: MCP server, relay worker, and vector indexer all on Modal
 
 ```bash
 # Install Modal CLI
@@ -165,7 +154,7 @@ modal secret create civicos-env \
     RELAY_DATABASE_URL="postgresql://..." \
     CIVICOS_JURISDICTION="city-san-rafael"
 
-# Deploy MCP server (full parity with Fly.io)
+# Deploy MCP server
 modal deploy apps/civicos-mcp/modal_app.py
 
 # Test locally first
@@ -187,16 +176,24 @@ Claude.ai/ChatGPT
 │  │   MCPServer class     │  │
 │  │   @modal.enter()      │  │  ← CivicOS + embeddings initialized once
 │  │   - CivicOS singleton │  │
-│  │   - 17+ tools         │  │
+│  │   - 25+ tools         │  │
 │  │   - Input validation  │  │
-│  │   - Federation        │  │
+│  │   - Federation support│  │
 │  └───────────────────────┘  │
-│  keep_warm=1 (no cold start)│
+│  min_containers=1 (warm)    │
 └─────────────────────────────┘
         │
         ▼
     Supabase (PostgreSQL + pgvector)
 ```
+
+### Fly.io Deployment (Legacy)
+
+Previously deployed on Fly.io at `civicos-mcp.fly.dev`. Configuration files remain for reference:
+
+- `fly-mcp.toml` - Fly.io app configuration
+- `Dockerfile.mcp` - Container definition
+- `scripts/deploy-mcp.sh` - Deployment script
 
 ### Railway Deployment (Alternative)
 

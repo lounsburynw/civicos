@@ -1,76 +1,66 @@
-# Hosting Decision: Fly.io + Modal
+# Hosting Decision: Modal + Supabase
 
-**Decision Date:** 2025-12-11 (Fly.io), 2026-01-30 (Modal addition)
+**Decision Date:** 2025-12-11 (initial), 2026-01-30 (Modal migration)
 **Status:** APPROVED
 **Budget Constraint:** <$25/month total operational
 
 ## Summary
 
-CivicOS uses a **two-tier hosting strategy**:
+CivicOS uses a **Modal-first strategy** for all serverless compute:
 
-1. **Fly.io** (~$5/mo) — Web services: REST API, WebSocket server, Vue frontend
-2. **Modal** (~$5-15/mo) — Compute: Relay worker, MCP server, vector indexing
+1. **Modal** (~$15-30/mo) — All compute: MCP server, relay worker, vector indexing
+2. **Supabase** (~$25-50/mo) — Storage: PostgreSQL, pgvector, relay database
 
-This separation reflects the different workload patterns:
-- Web services need always-on, low-latency response
-- Compute workloads are bursty, benefit from serverless scaling, may need GPU
+This consolidation simplifies operations:
+- Single platform for all compute workloads
+- Serverless scaling (0 to N instances)
+- GPU access for embeddings
+- No fixed costs for idle services
 
 ## Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           FLY.IO (Web Tier)                                  │
-│                           ~$7/month                                          │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  ┌────────┐ │
-│  │   civic-api     │  │ civic-websocket │  │  civicos-mcp    │  │  Vue   │ │
-│  │   (FastAPI)     │  │   (Socket.IO)   │  │   (MCP HTTP)    │  │Frontend│ │
-│  │   Port 8001     │  │   Port 8002     │  │   Port 8080     │  │        │ │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘  └────────┘ │
-│                                                     │                       │
-│                               Serves Claude.ai + ChatGPT                    │
+│                           MODAL (Compute Layer)                              │
+│                           ~$15-30/month                                      │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐            │
+│  │   MCP Server    │  │  Relay Worker   │  │ Vector Indexer  │            │
+│  │   (HTTP)        │  │  (cron: 5min)   │  │    (GPU)        │            │
+│  │                 │  │  • Event emit   │  │  • Embeddings   │            │
+│  │ Claude + ChatGPT│  │  • Match subs   │  │  • Re-indexing  │            │
+│  │   25+ tools     │  │  • Deliver      │  │                 │            │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘            │
+│                                                                             │
+│  Endpoint: https://civicos--civicos-mcp-mcp-endpoint.modal.run              │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     │ Queries
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           SUPABASE (Storage)                                 │
-│                           Free tier                                          │
-│  ┌─────────────────┐    ┌─────────────────┐                                │
-│  │  Main Database  │    │ Relay Database  │                                │
-│  │  (civic data)   │    │ (coordination)  │                                │
-│  └─────────────────┘    └─────────────────┘                                │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    │ Cron triggers
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           MODAL (Compute Tier)                               │
-│                           ~$5-15/month                                       │
-│  ┌─────────────────┐                        ┌─────────────────┐            │
-│  │  Relay Worker   │                        │ Vector Indexer  │            │
-│  │  (cron: 5min)   │                        │    (GPU)        │            │
-│  │  • Event emit   │                        │  • Embeddings   │            │
-│  │  • Match subs   │                        │  • Re-indexing  │            │
-│  │  • Deliver      │                        │                 │            │
-│  └─────────────────┘                        └─────────────────┘            │
+│                           SUPABASE (Storage Layer)                           │
+│                           ~$25-50/month                                      │
+│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐        │
+│  │  Main Database  │    │ Relay Database  │    │ Cloudflare R2   │        │
+│  │  (civic data)   │    │ (coordination)  │    │ (blobs/audio)   │        │
+│  │  + pgvector     │    │ voices, subs    │    │                 │        │
+│  └─────────────────┘    └─────────────────┘    └─────────────────┘        │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 **Current deployment (Jan 2026):**
-- MCP server: Fly.io (`https://civicos-mcp.fly.dev/mcp`) - primary
-- MCP server: Modal (`apps/civicos-mcp/modal_app.py`) - alternative with full parity
+- MCP server: Modal (`https://civicos--civicos-mcp-mcp-endpoint.modal.run`) - **production**
 - Relay worker: Modal (to be deployed)
 - Vector indexing: Modal (existing)
+- MCP server: Fly.io (`civicos-mcp.fly.dev`) - **legacy, deprecated**
 
-**MCP Server Deployment Options:**
+**Why Modal for MCP:**
 
-| Platform | URL | Pros | Cons |
-|----------|-----|------|------|
-| **Fly.io** (primary) | `civicos-mcp.fly.dev/mcp` | Always-on, consistent with web tier | ~$2/mo fixed cost |
-| **Modal** (alternative) | Deploy via `modal deploy` | Serverless scaling, consolidation | Cold starts without keep_warm |
-
-Both deployments have full feature parity (17+ tools, input validation, federation support).
-To switch to Modal as primary, deploy with `modal deploy apps/civicos-mcp/modal_app.py`.
+| Feature | Benefit |
+|---------|---------|
+| **`min_containers=1`** | Prevents cold starts |
+| **Singleton init** | CivicOS + embeddings initialized once per container |
+| **Consolidation** | Same platform as relay worker and vector indexer |
+| **Serverless** | Scales to 0 when unused (except warm container) |
 
 ---
 
@@ -369,29 +359,30 @@ fly certs create civic.example.com -a civic-api
 
 ---
 
-## Modal (Compute Tier)
+## Modal (Compute Layer) - Production
 
-Modal handles compute workloads that are bursty, need GPU, or require cron scheduling.
-
-**Note:** MCP server is on Fly.io (already deployed). Modal is used for relay worker and vector indexing.
+Modal handles all serverless compute: MCP server, relay worker, and vector indexing.
 
 ### Why Modal
 
 | Feature | Benefit |
 |---------|---------|
 | **Serverless** | Pay only when running, ~$0.10/hr for CPU |
+| **`min_containers=1`** | Keeps MCP warm (no cold starts) |
 | **GPU access** | Vector indexing with embeddings |
 | **Cron support** | Relay worker runs every 5 minutes |
 | **Python-native** | Same codebase, no Docker needed |
+| **Consolidation** | All compute on one platform |
 
 ### Cost Estimate
 
 | Workload | Usage | Est. Cost/mo |
 |----------|-------|--------------|
+| MCP Server | Always warm + queries | ~$5-10 |
 | Relay Worker | 5-min cron, ~10s/run | ~$1-2 |
-| Vector Indexer | Weekly batch | ~$2-5 |
+| Vector Indexer | Weekly batch (GPU) | ~$5-10 |
 | Claude API | Summaries, matching | ~$5-10 |
-| **Total** | | **~$8-17** |
+| **Total** | | **~$16-32** |
 
 ### Deployment
 
@@ -402,23 +393,52 @@ pip install modal
 # Authenticate
 modal token new
 
-# Deploy relay worker
+# Create secrets
+modal secret create civicos-env \
+    DATABASE_URL="postgresql://..." \
+    RELAY_DATABASE_URL="postgresql://..." \
+    CIVICOS_JURISDICTION="city-san-rafael"
+
+# Deploy MCP server (production)
+modal deploy apps/civicos-mcp/modal_app.py
+
+# Endpoint after deployment:
+# https://civicos--civicos-mcp-mcp-endpoint.modal.run
+
+# Deploy relay worker (when ready)
 modal deploy packages/civicos-relay/modal_worker.py
 
-# Deploy vector indexer (if not already)
+# Deploy vector indexer
 modal deploy scripts/modal_vectors.py
 ```
 
-### Modal Configuration
+### MCP Server Configuration
 
-**Relay Worker** (cron):
+**apps/civicos-mcp/modal_app.py:**
 
 ```python
-# packages/civicos-relay/modal_worker.py
-import modal
+@app.cls(
+    image=mcp_image,
+    secrets=[modal.Secret.from_name("civicos-env")],
+    memory=4096,  # 4GB for embedding model
+    timeout=300,  # 5 min timeout
+    min_containers=1,  # Always keep warm
+)
+@modal.concurrent(max_inputs=20)
+class MCPServer:
+    @modal.enter()
+    def initialize(self):
+        # CivicOS + embeddings initialized once per container
+        self.civic = CivicOS(jurisdiction)
+        # Pre-warm embedding model
+        self.civic._vectors._embedding_provider.encode(["warmup"])
+```
 
-app = modal.App("civicos-relay")
+### Relay Worker Configuration (Future)
 
+**packages/civicos-relay/modal_worker.py:**
+
+```python
 @app.function(
     secrets=[modal.Secret.from_name("civicos-env")],
     schedule=modal.Cron("*/5 * * * *"),  # Every 5 minutes
@@ -437,6 +457,7 @@ Create a secret named `civicos-env` with:
 modal secret create civicos-env \
     DATABASE_URL="postgresql://..." \
     RELAY_DATABASE_URL="postgresql://..." \
+    CIVICOS_JURISDICTION="city-san-rafael" \
     ANTHROPIC_API_KEY="..." \
     RESEND_API_KEY="..."
 ```
@@ -447,12 +468,14 @@ modal secret create civicos-env \
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
-| 2025-12-11 | Selected Fly.io | Best cost/feature balance for <$7/month |
+| 2025-12-11 | Selected Fly.io for web tier | Best cost/feature balance for <$7/month |
 | 2025-12-11 | SJC region | Closest to San Rafael pilot location |
 | 2025-12-11 | Shared CPU | Sufficient for pilot scale traffic |
 | 2025-12-11 | 3GB volume | Enough for SQLite + ChromaDB + growth |
 | 2025-12-17 | Use .fly.dev subdomains | Zero cost, already working, custom domain can be added later |
-| 2026-01-30 | Added Modal for compute | Serverless for relay worker, MCP server, vector indexing |
+| 2026-01-30 | Added Modal for compute | Serverless for relay worker, vector indexing |
+| 2026-01-30 | Migrated MCP to Modal | Consolidate all compute on Modal, full parity with Fly.io deployment |
+| 2026-01-30 | Deprecated Fly.io MCP | Modal provides serverless scaling + consolidation benefits |
 
 ## References
 
