@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo-light.svg" alt="CivicOS" width="400">
+  <img src="assets/logo-light.svg" alt="CivicOS" width="240">
 </p>
 
 # CivicOS
