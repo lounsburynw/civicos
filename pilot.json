@@ -1654,6 +1654,14 @@
         }
       ]
     },
+    "mcp_deployment_abstraction": {
+      "status": "ready",
+      "priority": 2,
+      "description": "Refactor MCP server to enable portable deployment across platforms (Modal, Docker, Fly.io, etc). Extract shared tool definitions, create thin platform adapters.",
+      "rationale": "modal_app.py duplicates 30 tool definitions from civicos_server.py. Refactoring enables frictionless community scaling - operators can deploy to their preferred platform without rewriting tool code.",
+      "artifact": "apps/civicos-mcp/tools/",
+      "note": "Session 536: Complete. Created tools/registry.py (30 tool definitions) and tools/handlers.py (1400 lines). Refactored modal_app.py from 1952 to 384 lines (80% reduction). Added server.py for container deployment, Dockerfile.mcp, requirements-mcp.txt. Destroyed deprecated civicos-mcp Fly.io app, removed deploy-mcp.yml workflow. Updated README with deployment guides."
+    },
     "cloud_storage": {
       "_completed_items": [
         {
@@ -3006,8 +3014,8 @@
     },
     "mcp_integration": {
       "voice_tools": {
-        "status": "pending",
-        "priority": 2,
+        "status": "not_ready",
+        "priority": 0,
         "description": "Add MCP tools for coordination: get_voice_counts(entity), subscribe_to_topic(topics, email), cast_voice(entity, stance). Enables AI agents to participate in coordination.",
         "test_file": "apps/civicos-mcp/tests/test_coordination_tools.py",
         "subtasks": [
@@ -3015,13 +3023,13 @@
           "subscribe_to_topic(jurisdiction, topics, email) - creates subscription",
           "cast_voice(entity, stance) - requires keypair management"
         ],
-        "note": "Demoted from P1 to P2 (2026-01-29) - AI agent coordination is nice-to-have, not blocking pilot"
+        "note": "Promoted to P0 (2026-01-30) - Backend must be complete before frontend voice_display."
       }
     },
     "frontend_integration": {
       "voice_display": {
         "status": "pending",
-        "priority": 0,
+        "priority": 2,
         "description": "Display voice counts on agenda items and decisions in the Vue frontend. Show support/oppose/watching breakdown. Simple badge/indicator UI.",
         "test_file": "apps/civicos-workspace/tests/e2e/voice-display.spec.ts",
         "subtasks": [

@@ -16519,3 +16519,19 @@ Created turnkey configuration system for CivicOS deployment:
 - Note: Relay database connection was timing out during testing (Supabase may be paused)
 - Updated `pilot.json`: api_endpoints marked ready
 - Next P0: voice_display (show voice counts in Vue frontend)
+
+---
+**Session 536** (2026-01-30)
+- Completed `mcp_deployment_abstraction` - Refactored MCP server for portable deployment
+- Created `apps/civicos-mcp/tools/` module:
+  - `registry.py` - 30 tool definitions in shared ToolRegistry class
+  - `handlers.py` - All handler implementations (~1400 lines)
+  - `__init__.py` - Exports for both modules
+- Refactored `modal_app.py`: 1952 → 384 lines (80% reduction)
+- Created `server.py` - FastAPI entry point for container deployments
+- Created `Dockerfile.mcp` - Generic container deployment
+- Created `requirements-mcp.txt` - Shared dependencies
+- Cleanup: Destroyed deprecated `civicos-mcp` Fly.io app, removed `deploy-mcp.yml` workflow, removed `fly-mcp.toml`
+- Updated README with deployment guides (Modal, Docker)
+- Updated `pilot.json`: mcp_deployment_abstraction marked ready
+- Next P0: voice_tools (MCP tools for coordination - backend before frontend)
