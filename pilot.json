@@ -2725,8 +2725,8 @@
         "ip_protection": "System prompt visible via prompt injection - keep generic. Actions call our API but don't expose backend. GPT config is not source code."
       },
       "web_frontend": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "pending",
+        "priority": 1,
         "artifact": "apps/civicos-workspace/ Vue frontend deployed",
         "description": "Deploy Vue frontend as primary web interface. ChatGPT/MCP drive discovery, web app provides depth.",
         "note": "Frontend functional locally via /launch. Needs deployment for public access. Linkback destination from all AI assistant interactions.",
@@ -3008,8 +3008,27 @@
       "event_emission": {
         "status": "pending",
         "priority": 2,
-        "description": "Hook event emission into data ingestion pipeline. Emit events when: agenda published, decision made, meeting scheduled. Store in coordination_events_log.",
-        "test_file": "packages/civicos-relay/tests/test_event_emission.py"
+        "description": "Relay Worker for event emission. Emit events for both government-originated (agenda published, decision made, meeting scheduled) and relay-originated (initiative created, voice threshold reached) triggers. Store in coordination_events_log. Match against subscriptions and queue for delivery.",
+        "test_file": "packages/civicos-relay/tests/test_event_emission.py",
+        "subtasks": [
+          "Government events: agenda_published, decision_made, meeting_scheduled (from ingestion pipeline)",
+          "Relay events: initiative_created, voice_threshold_reached (from relay storage triggers)",
+          "Subscription matching: filter events by topic, geography, event_type",
+          "Delivery queue: batch matched events for email_delivery service"
+        ],
+        "note": "This is the 'Relay Worker' that makes relay-originated initiatives discoverable without polling. Without this, initiatives only appear via explicit list_initiatives() queries."
+      },
+      "sync_endpoints": {
+        "status": "ready",
+        "priority": 2,
+        "description": "Expose relay sync HTTP endpoints. SyncService/SyncProtocol exist and are tested, but /sync/voices GET/POST not wired into FastAPI. Blocks relay-to-relay voice federation.",
+        "test_file": "packages/civicos-services/tests/test_sync_api.py",
+        "subtasks": [
+          "GET /sync/voices?since=cursor - export voices for peer sync",
+          "POST /sync/voices - import voices from peer (with signature verification)",
+          "Wire SyncService into coordination router"
+        ],
+        "note": "Service layer complete (packages/civicos-relay/src/civicos_relay/sync/). Only HTTP exposure missing."
       }
     },
     "mcp_integration": {
@@ -3118,10 +3137,66 @@
         }
       ],
       "peer_config": {
-        "status": "pending",
-        "priority": 3,
+        "status": "not_ready",
+        "priority": 0,
         "description": "YAML-based peer configuration, peer health checks, auto-disable unhealthy peers.",
         "test_file": "packages/civicos-relay/tests/test_peering.py"
+      },
+      "event_sync_endpoints": {
+        "status": "pending",
+        "priority": 1,
+        "description": "Expose event sync HTTP endpoints. Complement to sync_endpoints (voices). Enables relay-to-relay event federation.",
+        "test_file": "packages/civicos-services/tests/test_event_sync_api.py",
+        "subtasks": [
+          "GET /sync/events?since=cursor - export events for peer sync",
+          "POST /sync/events - import events from peer",
+          "Wire into coordination router alongside voice sync"
+        ],
+        "depends_on": [
+          "sync_endpoints",
+          "event_emission"
+        ],
+        "note": "Requires event_emission to exist first. Events flow: ingestion \u2192 event_emission \u2192 coordination_events_log \u2192 sync to peers."
+      },
+      "hierarchical_jurisdiction_routing": {
+        "status": "pending",
+        "priority": 1,
+        "description": "Route queries to parent jurisdictions when local data insufficient. city-san-rafael can query county-marin for county-level decisions. Borrows from BGP/IP hierarchical addressing.",
+        "test_file": "packages/civicos-relay/tests/test_hierarchy.py",
+        "subtasks": [
+          "Define jurisdiction hierarchy schema (city \u2192 county \u2192 state \u2192 federal)",
+          "Add parent_jurisdiction field to jurisdiction config",
+          "Implement fallback query to parent when local returns empty",
+          "Aggregate results from child jurisdictions for parent queries"
+        ],
+        "note": "Pattern borrowed from IP routing. Each relay only needs to know its parent, not the full hierarchy."
+      },
+      "webfinger_discovery": {
+        "status": "pending",
+        "priority": 1,
+        "description": "WebFinger-style jurisdiction discovery. Query civic:city-san-rafael returns instance URL and capabilities. Replaces hardcoded relay lists with standard discovery protocol.",
+        "test_file": "packages/civicos-relay/tests/test_discovery.py",
+        "subtasks": [
+          "GET /.well-known/webfinger?resource=civic:jurisdiction-id",
+          "Return instance URL, supported corpora, peer list",
+          "Client-side discovery resolution",
+          "Fallback to static registry when WebFinger unavailable"
+        ],
+        "note": "Borrowed from ActivityPub. Enables permissionless federation - any instance can be discovered without central registry."
+      },
+      "peer_announcements": {
+        "status": "pending",
+        "priority": 1,
+        "description": "BGP-style peer announcements. Relays announce what jurisdictions/corpora they serve. Enables routing without central registry.",
+        "test_file": "packages/civicos-relay/tests/test_announcements.py",
+        "subtasks": [
+          "Define announcement schema (instance, jurisdictions, corpora, peers)",
+          "POST /announce - receive announcement from peer",
+          "GET /announcements - list known peers and their capabilities",
+          "Periodic re-announcement (heartbeat)",
+          "Expire stale announcements"
+        ],
+        "note": "Combined with WebFinger, enables fully decentralized federation. No central registry required."
       }
     },
     "test_coverage": {

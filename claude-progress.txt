@@ -16605,3 +16605,47 @@ Created turnkey configuration system for CivicOS deployment:
 - 27 tests in test_initiative_tools.py (all passing)
 - 31 tests in test_coordination_tools.py (all passing)
 - 42 smoke tests (all passing)
+
+## Session 532 (2026-01-31) - Sync Endpoints
+
+**Item:** `sync_endpoints` (P0 → ready)
+**Status:** COMPLETE
+
+### Summary
+Exposed relay sync HTTP endpoints in FastAPI for relay-to-relay federation. The SyncService was already built; this session added the HTTP layer and PostgreSQL storage.
+
+### Changes Made
+
+**1. PostgresSyncStorage** (`packages/civicos-relay/src/civicos_relay/storage/postgres.py`)
+- Added `PostgresSyncStorage` class implementing `SyncStorage` protocol
+- `get_sync_cursor(peer_url)` - track sync state per peer
+- `set_sync_cursor(peer_url, cursor)` - update cursor
+- `get_voices_since(since, namespace, limit)` - paginated voice export
+- `import_voice(voice)` - import with deduplication
+
+**2. Sync API Endpoints** (`packages/civicos-services/src/civicos_services/servers/routers/coordination.py`)
+- `GET /api/coordination/sync/voices` - Export voices for peer sync
+  - Parameters: `since`, `namespace`, `limit`, `cursor`
+  - Returns signed response with relay_id and relay_signature
+- `POST /api/coordination/sync/voices` - Import voices from peer
+  - Verifies voice signatures before import
+  - Returns accepted/rejected/duplicates counts
+- Added `_get_sync_storage()` and `_get_relay_identity()` helpers
+- Updated storage getters to support pre-populated instances for testing
+
+**3. Integration Tests** (`packages/civicos-services/tests/test_sync_api.py`)
+- 8 unit tests with in-memory storage:
+  - Export empty, export with data, namespace filter, since filter
+  - Import success, import rejects invalid, import deduplicates
+  - Two-relay sync propagation
+- 3 PostgreSQL integration tests (skipped without RELAY_DATABASE_URL)
+
+### Tests Passing
+- 9 relay sync tests (`test_sync.py`)
+- 8 sync API unit tests (`test_sync_api.py`)
+- 42 smoke tests (`test_civicos.py`)
+
+### Next P0
+Set `peer_config` as P0 - enables actual peer discovery and health checks.
+
+---

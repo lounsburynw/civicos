@@ -1,11 +1,12 @@
 """
-Coordination router: voice, subscriptions, provenance.
+Coordination router: voice, subscriptions, provenance, sync.
 
 Exposes civicos-relay storage via REST API for:
 - Voice casting (signed, cryptographically verified)
 - Voice counts per entity
 - Subscription management
 - Key provenance tracking
+- Relay-to-relay sync
 
 Endpoints:
 - POST /coordination/voice - Cast a voice
@@ -14,6 +15,8 @@ Endpoints:
 - POST /coordination/subscribe - Create subscription
 - DELETE /coordination/subscribe/{subscription_id} - Deactivate subscription
 - GET /coordination/provenance/{public_key} - Get key provenance
+- GET /coordination/sync/voices - Export voices for peer sync
+- POST /coordination/sync/voices - Import voices from peer
 """
 
 import os
@@ -185,6 +188,44 @@ def _get_initiative_storage():
             logger.warning("civicos-relay not available")
             return None
     return _storage_instances["initiative"]
+
+
+def _get_sync_storage():
+    """Get or create sync storage instance."""
+    # Check if already set (for testing)
+    if "sync" in _storage_instances:
+        return _storage_instances["sync"]
+
+    url = _get_relay_url()
+    if not url:
+        return None
+
+    try:
+        from civicos_relay.storage.postgres import PostgresSyncStorage
+        _storage_instances["sync"] = PostgresSyncStorage(url)
+    except ImportError:
+        logger.warning("civicos-relay not available")
+        return None
+    return _storage_instances["sync"]
+
+
+def _get_relay_identity():
+    """Get or create relay identity for signing sync responses."""
+    # Check if already set (for testing)
+    if "identity" in _storage_instances:
+        return _storage_instances["identity"]
+
+    try:
+        from civicos_relay.identity import RelayIdentity
+        relay_id = os.environ.get("RELAY_ID", "relay.civicos.local")
+        private_key_path = os.environ.get("RELAY_PRIVATE_KEY_PATH")
+        _storage_instances["identity"] = RelayIdentity.load_or_generate(
+            relay_id, private_key_path
+        )
+    except ImportError:
+        logger.warning("civicos-relay not available")
+        return None
+    return _storage_instances["identity"]
 
 
 # === Endpoints ===
@@ -705,4 +746,172 @@ async def get_initiative(initiative_id: str):
         raise
     except Exception as e:
         logger.error(f"Error getting initiative: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+# === Sync Endpoints ===
+
+
+class VoiceSyncResponseAPI(BaseModel):
+    """Response containing voices for peer sync."""
+    voices: list[VoiceResponse]
+    cursor: Optional[str] = None
+    relay_id: str
+    relay_signature: str
+
+
+class VoiceImportRequestAPI(BaseModel):
+    """Request to import voices from a peer."""
+    voices: list[VoiceResponse]
+    source_relay: str
+    signature: str
+
+
+class VoiceImportResponseAPI(BaseModel):
+    """Response after importing voices."""
+    accepted: int
+    rejected: int
+    duplicates: int
+
+
+@router.get("/coordination/sync/voices", response_model=VoiceSyncResponseAPI)
+async def export_voices(
+    since: Optional[str] = None,
+    namespace: Optional[str] = None,
+    limit: int = 100,
+    cursor: Optional[str] = None,
+):
+    """
+    Export voices for peer relay sync.
+
+    Parameters:
+    - since: ISO timestamp, only return voices after this time
+    - namespace: Filter by entity namespace prefix (e.g., "city-san-rafael:*")
+    - limit: Max results per page (1-1000, default 100)
+    - cursor: Pagination cursor from previous response
+
+    Returns signed response for peer verification.
+    """
+    storage = _get_sync_storage()
+    identity = _get_relay_identity()
+    if not storage or not identity:
+        raise HTTPException(
+            status_code=503,
+            detail="Sync service not configured (missing RELAY_DATABASE_URL)"
+        )
+
+    try:
+        from civicos_relay.sync import SyncService
+        from civicos_relay.sync.protocol import SyncRequest
+
+        # Create sync service
+        sync_service = SyncService(identity, storage, [])
+
+        # Parse since timestamp - use cursor if provided, otherwise since param
+        since_dt = None
+        if cursor:
+            since_dt = datetime.fromisoformat(cursor)
+        elif since:
+            since_dt = datetime.fromisoformat(since)
+
+        # Build request
+        request = SyncRequest(
+            since=since_dt,
+            namespace=namespace,
+            limit=min(limit, 1000),
+            cursor=cursor,
+        )
+
+        # Export voices
+        response = sync_service.export_voices(request)
+
+        return VoiceSyncResponseAPI(
+            voices=[
+                VoiceResponse(
+                    entity=v.entity,
+                    stance=v.stance.value,
+                    public_key=v.public_key,
+                    signature=v.signature,
+                    timestamp=v.timestamp.isoformat(),
+                    revoked=v.revoked,
+                )
+                for v in response.voices
+            ],
+            cursor=response.cursor,
+            relay_id=response.relay_id,
+            relay_signature=response.relay_signature,
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid parameter: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error exporting voices: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.post("/coordination/sync/voices", response_model=VoiceImportResponseAPI)
+async def import_voices(request: VoiceImportRequestAPI):
+    """
+    Import voices from a peer relay.
+
+    Voices are verified for valid signatures before import.
+    Duplicates (same public_key+entity with newer timestamp) are skipped.
+
+    Returns counts of accepted, rejected, and duplicate voices.
+    """
+    storage = _get_sync_storage()
+    identity = _get_relay_identity()
+    if not storage or not identity:
+        raise HTTPException(
+            status_code=503,
+            detail="Sync service not configured (missing RELAY_DATABASE_URL)"
+        )
+
+    try:
+        from civicos_relay.sync import SyncService
+        from civicos_relay.sync.protocol import VoiceImportRequest
+        from civicos_relay.voice.models import Voice, Stance
+
+        # Create sync service
+        sync_service = SyncService(identity, storage, [])
+
+        # Convert API voices to internal format
+        voices = [
+            Voice(
+                entity=v.entity,
+                stance=Stance(v.stance),
+                public_key=v.public_key,
+                signature=v.signature,
+                timestamp=datetime.fromisoformat(v.timestamp),
+                revoked=v.revoked,
+            )
+            for v in request.voices
+        ]
+
+        # Build import request
+        import_request = VoiceImportRequest(
+            voices=voices,
+            source_relay=request.source_relay,
+            signature=request.signature,
+        )
+
+        # Import voices
+        response = sync_service.import_voices(import_request)
+
+        logger.info(
+            f"Voice import from {request.source_relay}: "
+            f"{response.accepted} accepted, {response.rejected} rejected, "
+            f"{response.duplicates} duplicates"
+        )
+
+        return VoiceImportResponseAPI(
+            accepted=response.accepted,
+            rejected=response.rejected,
+            duplicates=response.duplicates,
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid voice data: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error importing voices: {e}")
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")

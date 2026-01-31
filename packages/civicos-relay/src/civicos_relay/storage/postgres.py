@@ -574,3 +574,156 @@ class PostgresInitiativeStorage:
                 return cur.fetchone() is not None
         finally:
             self._return_connection(conn)
+
+
+class PostgresSyncStorage:
+    """PostgreSQL storage for sync state and voice import/export."""
+
+    def __init__(self, connection_url: str):
+        self._connection_url = connection_url
+        self._pool = None
+
+    def _get_connection(self):
+        if self._pool is None:
+            import psycopg2.pool
+            self._pool = psycopg2.pool.SimpleConnectionPool(
+                1, 10, self._connection_url
+            )
+        return self._pool.getconn()
+
+    def _return_connection(self, conn):
+        self._pool.putconn(conn)
+
+    def get_sync_cursor(self, peer_url: str) -> Optional[str]:
+        """Get last sync cursor for a peer."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT cursor FROM coordination_sync_cursors
+                    WHERE peer_url = %s
+                    """,
+                    (peer_url,),
+                )
+                row = cur.fetchone()
+                return row[0] if row else None
+        finally:
+            self._return_connection(conn)
+
+    def set_sync_cursor(self, peer_url: str, cursor: str) -> None:
+        """Update sync cursor for a peer."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO coordination_sync_cursors (peer_url, cursor, updated_at)
+                    VALUES (%s, %s, NOW())
+                    ON CONFLICT (peer_url) DO UPDATE SET cursor = %s, updated_at = NOW()
+                    """,
+                    (peer_url, cursor, cursor),
+                )
+                conn.commit()
+        finally:
+            self._return_connection(conn)
+
+    def get_voices_since(
+        self, since: datetime, namespace: Optional[str], limit: int
+    ) -> tuple[list[Voice], Optional[str]]:
+        """Get voices for export. Returns (voices, next_cursor)."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                if namespace:
+                    # Filter by namespace prefix (e.g., "city-san-rafael:*" matches "city-san-rafael:decision:123")
+                    namespace_prefix = namespace.rstrip("*")
+                    cur.execute(
+                        """
+                        SELECT entity, stance, public_key, signature, timestamp, revoked
+                        FROM coordination_voices
+                        WHERE timestamp > %s AND entity LIKE %s
+                        ORDER BY timestamp ASC
+                        LIMIT %s
+                        """,
+                        (since, namespace_prefix + "%", limit + 1),
+                    )
+                else:
+                    cur.execute(
+                        """
+                        SELECT entity, stance, public_key, signature, timestamp, revoked
+                        FROM coordination_voices
+                        WHERE timestamp > %s
+                        ORDER BY timestamp ASC
+                        LIMIT %s
+                        """,
+                        (since, limit + 1),
+                    )
+
+                rows = cur.fetchall()
+                voices = [
+                    Voice(
+                        entity=row[0],
+                        stance=Stance(row[1]),
+                        public_key=row[2],
+                        signature=row[3],
+                        timestamp=row[4],
+                        revoked=row[5],
+                    )
+                    for row in rows[:limit]
+                ]
+
+                # If we got more than limit, there's a next page
+                if len(rows) > limit:
+                    next_cursor = voices[-1].timestamp.isoformat()
+                    return voices, next_cursor
+                return voices, None
+        finally:
+            self._return_connection(conn)
+
+    def import_voice(self, voice: Voice) -> str:
+        """Import a voice. Returns 'accepted', 'rejected', or 'duplicate'."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                # Check if voice already exists
+                cur.execute(
+                    """
+                    SELECT timestamp FROM coordination_voices
+                    WHERE public_key = %s AND entity = %s
+                    """,
+                    (voice.public_key, voice.entity),
+                )
+                existing = cur.fetchone()
+
+                if existing:
+                    existing_ts = existing[0]
+                    if existing_ts >= voice.timestamp:
+                        return "duplicate"
+
+                # Insert or update voice
+                cur.execute(
+                    """
+                    INSERT INTO coordination_voices
+                    (entity, stance, public_key, signature, timestamp, revoked)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (public_key, entity)
+                    DO UPDATE SET stance = %s, signature = %s, timestamp = %s, revoked = %s
+                    """,
+                    (
+                        voice.entity,
+                        voice.stance.value,
+                        voice.public_key,
+                        voice.signature,
+                        voice.timestamp,
+                        voice.revoked,
+                        voice.stance.value,
+                        voice.signature,
+                        voice.timestamp,
+                        voice.revoked,
+                    ),
+                )
+                conn.commit()
+                return "accepted"
+        finally:
+            self._return_connection(conn)
