@@ -1820,3 +1820,368 @@ def list_relays(
     ])
 
     return "\n".join(result_parts)
+
+
+# === Initiative Tools ===
+
+
+def _generate_initiative_id(jurisdiction: str, title: str) -> str:
+    """Generate deterministic initiative ID."""
+    import hashlib
+    from datetime import date
+
+    today = date.today().isoformat()
+    title_hash = hashlib.sha256(title.encode()).hexdigest()[:8]
+    return f"initiative:{jurisdiction}:{today}:{title_hash}"
+
+
+def _create_initiative_message(
+    initiative_id: str, topic: str, title: str, timestamp: str
+) -> str:
+    """Create the message that must be signed for initiative creation."""
+    import hashlib
+
+    title_hash = hashlib.sha256(title.encode()).hexdigest()[:16]
+    return f"civicos:initiative:v1:{initiative_id}:{topic}:{title_hash}:{timestamp}"
+
+
+def prepare_initiative(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """
+    Prepare an initiative payload for signing.
+
+    Returns the exact message to sign with your private key.
+    This is step 1 of the two-step initiative creation process.
+    """
+    topic = args.get("topic", "")
+    title = args.get("title", "")
+    description = args.get("description", "")
+    location = args.get("location")
+
+    # Validate required fields
+    is_valid, sanitized, error = validate_input({
+        "topic": topic,
+        "title": title,
+        "description": description,
+    })
+    if not is_valid:
+        return f"Error: Invalid input - {error}"
+
+    topic = sanitized.get("topic", topic)
+    title = sanitized.get("title", title)
+    description = sanitized.get("description", description)
+
+    if not topic or not title or not description:
+        return "Error: topic, title, and description are required"
+
+    # Generate initiative ID and timestamp
+    from datetime import timezone
+
+    initiative_id = _generate_initiative_id(jurisdiction, title)
+    timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    # Construct the canonical message to sign
+    message = _create_initiative_message(initiative_id, topic, title, timestamp)
+
+    result_parts = [
+        "# Initiative Payload Ready for Signing",
+        "",
+        "## Your Initiative",
+        f"**ID:** {initiative_id}",
+        f"**Jurisdiction:** {jurisdiction}",
+        f"**Topic:** {topic}",
+        f"**Title:** {title}",
+        f"**Description:** {description}",
+    ]
+    if location:
+        result_parts.append(f"**Location:** {location}")
+
+    result_parts.extend([
+        f"**Timestamp:** {timestamp}",
+        "",
+        "## Message to Sign",
+        "Sign this exact string with your ECDSA P-256 private key:",
+        "",
+        "```",
+        message,
+        "```",
+        "",
+        "## How to Sign",
+        "",
+        "**Using Python:**",
+        "```python",
+        "from cryptography.hazmat.primitives import hashes",
+        "from cryptography.hazmat.primitives.asymmetric import ec",
+        f'message = b"{message}"',
+        "signature = private_key.sign(message, ec.ECDSA(hashes.SHA256()))",
+        "print(signature.hex())",
+        "```",
+        "",
+        "## Next Step",
+        "After signing, use `broadcast_initiative` with:",
+        f"- topic: {topic}",
+        f"- title: {title}",
+        f"- description: {description}",
+    ])
+    if location:
+        result_parts.append(f"- location: {location}")
+    result_parts.extend([
+        "- public_key: YOUR_PUBLIC_KEY_HEX",
+        "- signature: YOUR_SIGNATURE_HEX",
+        "",
+        "_Your private key never leaves your device._",
+        "_The signature cryptographically proves you authorized this initiative._",
+    ])
+
+    return "\n".join(result_parts)
+
+
+def broadcast_initiative(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """
+    Broadcast a signed initiative to relay(s).
+
+    This is step 2 of the two-step initiative creation process.
+    The initiative must be signed by the creator's private key.
+    """
+    topic = args.get("topic", "")
+    title = args.get("title", "")
+    description = args.get("description", "")
+    location = args.get("location")
+    public_key = args.get("public_key", "")
+    signature = args.get("signature", "")
+    relay_urls = args.get("relay_urls", [])
+
+    # Validate required fields
+    is_valid, sanitized, error = validate_input({
+        "topic": topic,
+        "title": title,
+        "description": description,
+        "public_key": public_key,
+        "signature": signature,
+    })
+    if not is_valid:
+        return f"Error: Invalid input - {error}"
+
+    topic = sanitized.get("topic", topic)
+    title = sanitized.get("title", title)
+    description = sanitized.get("description", description)
+    public_key = sanitized.get("public_key", public_key)
+    signature = sanitized.get("signature", signature)
+
+    if not all([topic, title, description, public_key, signature]):
+        return "Error: topic, title, description, public_key, and signature are required"
+
+    # Use default relay if none specified
+    if not relay_urls:
+        relay_urls = [_get_default_relay_url()]
+
+    import httpx
+
+    # Broadcast to all specified relays
+    results = []
+    payload = {
+        "jurisdiction": jurisdiction,
+        "topic": topic,
+        "title": title,
+        "description": description,
+        "location": location,
+        "public_key": public_key,
+        "signature": signature,
+    }
+
+    for relay_url in relay_urls:
+        relay_url = relay_url.rstrip("/")
+        try:
+            url = f"{relay_url}/coordination/initiative"
+
+            with httpx.Client(timeout=10.0) as client:
+                response = client.post(url, json=payload)
+
+                if response.status_code == 200:
+                    data = response.json()
+                    results.append({
+                        "relay": relay_url,
+                        "status": "success",
+                        "initiative_id": data.get("id"),
+                    })
+                elif response.status_code == 400:
+                    error_detail = response.json().get("detail", response.text)
+                    results.append({"relay": relay_url, "status": "rejected", "error": error_detail})
+                elif response.status_code == 409:
+                    error_detail = response.json().get("detail", "Initiative already exists")
+                    results.append({"relay": relay_url, "status": "duplicate", "error": error_detail})
+                elif response.status_code == 503:
+                    results.append({"relay": relay_url, "status": "unavailable"})
+                else:
+                    results.append({"relay": relay_url, "status": "error", "error": response.text})
+
+        except httpx.ConnectError:
+            results.append({"relay": relay_url, "status": "unreachable"})
+        except Exception as e:
+            logger.error(f"Error broadcasting to {relay_url}: {e}")
+            results.append({"relay": relay_url, "status": "error", "error": str(e)})
+
+    # Format results
+    successes = [r for r in results if r["status"] == "success"]
+    failures = [r for r in results if r["status"] != "success"]
+
+    result_parts = [
+        "# Initiative Broadcast Results",
+        "",
+        f"**Title:** {title}",
+        f"**Topic:** {topic}",
+        f"**Jurisdiction:** {jurisdiction}",
+        f"**Creator:** {public_key[:16]}...{public_key[-8:]}",
+        "",
+    ]
+
+    if successes:
+        result_parts.append(f"## Created on {len(successes)} relay(s)")
+        for r in successes:
+            result_parts.append(f"- {r['relay']}")
+            result_parts.append(f"  **ID:** {r.get('initiative_id', 'N/A')}")
+        result_parts.append("")
+
+    if failures:
+        result_parts.append(f"## Failed on {len(failures)} relay(s)")
+        for r in failures:
+            error_msg = r.get("error", r["status"])
+            result_parts.append(f"- {r['relay']}: {error_msg}")
+        result_parts.append("")
+
+    if successes:
+        initiative_id = successes[0].get("initiative_id", "N/A")
+        result_parts.extend([
+            f"_Your initiative is now live. People can voice on it using entity: {initiative_id}_",
+            "_The cryptographic signature proves you created it._",
+            "_Other relays can verify the signature and replicate your initiative._",
+        ])
+    else:
+        result_parts.extend([
+            "**No relays accepted the initiative.** Check the error messages above.",
+            "Common issues:",
+            "- Invalid signature (message didn't match what you signed)",
+            "- Initiative already exists (same title on same day)",
+            "- Relay is offline or unreachable",
+        ])
+
+    return "\n".join(result_parts)
+
+
+def list_initiatives(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> str:
+    """
+    List initiatives from a relay node.
+
+    Query community-created initiatives for a jurisdiction.
+    """
+    topic = args.get("topic")
+    status = args.get("status")
+    relay_url = args.get("relay_url")
+    limit = args.get("limit", 20)
+
+    # Use default relay if none specified
+    if not relay_url:
+        relay_url = _get_default_relay_url()
+
+    relay_url = relay_url.rstrip("/")
+
+    import httpx
+
+    try:
+        # Build query params
+        params = {}
+        if topic:
+            params["topic"] = topic
+        if status:
+            params["status"] = status
+        if limit:
+            params["limit"] = min(int(limit), 100)
+
+        url = f"{relay_url}/coordination/initiatives/{jurisdiction}"
+
+        with httpx.Client(timeout=10.0) as client:
+            response = client.get(url, params=params)
+
+            if response.status_code != 200:
+                return f"Error querying relay: {response.text}"
+
+            initiatives = response.json()
+
+        if not initiatives:
+            result_parts = [
+                "# No Initiatives Found",
+                "",
+                f"**Jurisdiction:** {jurisdiction}",
+                f"**Relay:** {relay_url}",
+            ]
+            if topic:
+                result_parts.append(f"**Topic filter:** {topic}")
+            if status:
+                result_parts.append(f"**Status filter:** {status}")
+            result_parts.extend([
+                "",
+                "No initiatives match your query.",
+                "",
+                "_Use `prepare_initiative` to create a new initiative._",
+            ])
+            return "\n".join(result_parts)
+
+        result_parts = [
+            f"# Initiatives in {jurisdiction}",
+            "",
+            f"**Relay:** {relay_url}",
+        ]
+        if topic:
+            result_parts.append(f"**Topic filter:** {topic}")
+        if status:
+            result_parts.append(f"**Status filter:** {status}")
+        result_parts.extend([
+            f"**Found:** {len(initiatives)} initiative(s)",
+            "",
+        ])
+
+        for i in initiatives:
+            voice_count = i.get("voice_count", 0)
+            status_badge = f"[{i.get('status', 'active').upper()}]"
+            result_parts.extend([
+                f"## {i.get('title', 'Untitled')} {status_badge}",
+                f"**ID:** `{i.get('id', 'N/A')}`",
+                f"**Topic:** {i.get('topic', 'N/A')}",
+                f"**Voices:** {voice_count}",
+                f"**Creator:** {i.get('public_key', 'N/A')[:16]}...",
+                f"**Created:** {i.get('timestamp', 'N/A')}",
+                "",
+                i.get("description", "")[:200] + ("..." if len(i.get("description", "")) > 200 else ""),
+                "",
+            ])
+
+        result_parts.extend([
+            "---",
+            "_Voice on an initiative using `prepare_voice` with the initiative ID as the entity._",
+            "_Create your own initiative using `prepare_initiative`._",
+        ])
+
+        return "\n".join(result_parts)
+
+    except httpx.ConnectError:
+        return f"Unable to connect to relay at {relay_url}. The relay may be offline."
+    except Exception as e:
+        logger.error(f"Error listing initiatives: {e}")
+        return f"Error listing initiatives: {str(e)}"

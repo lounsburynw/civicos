@@ -16558,3 +16558,50 @@ Created turnkey configuration system for CivicOS deployment:
 - Tests: 31 passing in `test_coordination_tools.py`
 - Updated `pilot.json`: voice_tools marked ready
 - Next: Need to assign P0 for next session
+
+## Session 538 - 2026-01-30
+
+**Task:** initiative_tools (P0)
+
+### Completed
+- Added Initiative model to relay models.py (with InitiativeStatus enum)
+- Added PostgresInitiativeStorage class with full CRUD operations
+- Added InMemoryInitiativeStorage for testing
+- Added initiative endpoints to coordination router:
+  - `POST /coordination/initiative` - Create initiative
+  - `GET /coordination/initiatives/{jurisdiction}` - List initiatives
+  - `GET /coordination/initiative/{initiative_id}` - Get initiative
+- Added verify_signature and sign_message to voice/crypto.py
+- Added MCP initiative tool handlers:
+  - `prepare_initiative` - Offline payload generation for signing
+  - `broadcast_initiative` - Submit signed initiative to relay(s)
+  - `list_initiatives` - Query initiatives from relay
+- Registered tools in registry.py (38 total tools now: 30 core + 5 voice + 3 initiative)
+- Created test_initiative_tools.py with 27 tests (all passing)
+- Updated test_coordination_tools.py to expect 38 tools
+- Updated pilot.json: initiative_tools -> ready
+
+### Design Decisions
+- Initiative ID format: `initiative:jurisdiction:date:hash`
+- Message format: `civicos:initiative:v1:{id}:{topic}:{title_hash}:{timestamp}`
+- Same two-step flow as voice_tools (prepare → sign locally → broadcast)
+- Optional relay_urls for permissionless relay selection
+- Signature verification using existing ECDSA P-256 crypto
+
+### Files Modified
+- packages/civicos-relay/src/civicos_relay/relay/models.py
+- packages/civicos-relay/src/civicos_relay/storage/postgres.py
+- packages/civicos-relay/src/civicos_relay/storage/memory.py
+- packages/civicos-relay/src/civicos_relay/voice/crypto.py
+- packages/civicos-services/src/civicos_services/servers/routers/coordination.py
+- apps/civicos-mcp/tools/registry.py
+- apps/civicos-mcp/tools/handlers.py
+- apps/civicos-mcp/tools/__init__.py
+- apps/civicos-mcp/modal_app.py
+- apps/civicos-mcp/tests/test_initiative_tools.py (new)
+- apps/civicos-mcp/tests/test_coordination_tools.py
+
+### Tests
+- 27 tests in test_initiative_tools.py (all passing)
+- 31 tests in test_coordination_tools.py (all passing)
+- 42 smoke tests (all passing)

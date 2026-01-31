@@ -5,7 +5,14 @@ from datetime import datetime
 from typing import Optional, Union
 
 from civicos_relay.voice.models import Voice, Stance
-from civicos_relay.relay.models import Subscription, MatchCriteria, DeliveryConfig, DeliveryMethod
+from civicos_relay.relay.models import (
+    Subscription,
+    MatchCriteria,
+    DeliveryConfig,
+    DeliveryMethod,
+    Initiative,
+    InitiativeStatus,
+)
 from civicos_relay.provenance.models import KeyProvenance
 
 
@@ -388,5 +395,182 @@ class PostgresProvenanceStorage:
                     )
                     for row in cur.fetchall()
                 ]
+        finally:
+            self._return_connection(conn)
+
+
+class PostgresInitiativeStorage:
+    """PostgreSQL storage for initiatives."""
+
+    def __init__(self, connection_url: str):
+        self._connection_url = connection_url
+        self._pool = None
+
+    def _get_connection(self):
+        if self._pool is None:
+            import psycopg2.pool
+
+            self._pool = psycopg2.pool.SimpleConnectionPool(
+                1, 10, self._connection_url
+            )
+        return self._pool.getconn()
+
+    def _return_connection(self, conn):
+        self._pool.putconn(conn)
+
+    def save_initiative(self, initiative: Initiative) -> None:
+        """Store an initiative."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO coordination_initiatives
+                    (id, jurisdiction, topic, title, description, location,
+                     public_key, signature, timestamp, status, voice_count)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (id) DO UPDATE SET
+                    status = %s, voice_count = %s
+                    """,
+                    (
+                        initiative.id,
+                        initiative.jurisdiction,
+                        initiative.topic,
+                        initiative.title,
+                        initiative.description,
+                        initiative.location,
+                        initiative.public_key,
+                        initiative.signature,
+                        initiative.timestamp,
+                        initiative.status.value,
+                        initiative.voice_count,
+                        initiative.status.value,
+                        initiative.voice_count,
+                    ),
+                )
+                conn.commit()
+        finally:
+            self._return_connection(conn)
+
+    def get_initiative(self, initiative_id: str) -> Optional[Initiative]:
+        """Get an initiative by ID."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, jurisdiction, topic, title, description, location,
+                           public_key, signature, timestamp, status, voice_count
+                    FROM coordination_initiatives
+                    WHERE id = %s
+                    """,
+                    (initiative_id,),
+                )
+                row = cur.fetchone()
+                if row:
+                    return Initiative(
+                        id=row[0],
+                        jurisdiction=row[1],
+                        topic=row[2],
+                        title=row[3],
+                        description=row[4],
+                        location=row[5],
+                        public_key=row[6],
+                        signature=row[7],
+                        timestamp=row[8],
+                        status=InitiativeStatus(row[9]),
+                        voice_count=row[10],
+                    )
+                return None
+        finally:
+            self._return_connection(conn)
+
+    def get_initiatives_for_jurisdiction(
+        self,
+        jurisdiction: str,
+        topic: Optional[str] = None,
+        status: Optional[InitiativeStatus] = None,
+        limit: int = 100,
+    ) -> list[Initiative]:
+        """Get initiatives for a jurisdiction with optional filters."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                query = """
+                    SELECT id, jurisdiction, topic, title, description, location,
+                           public_key, signature, timestamp, status, voice_count
+                    FROM coordination_initiatives
+                    WHERE jurisdiction = %s
+                """
+                params: list = [jurisdiction]
+
+                if topic:
+                    query += " AND topic = %s"
+                    params.append(topic)
+
+                if status:
+                    query += " AND status = %s"
+                    params.append(status.value)
+
+                query += " ORDER BY voice_count DESC, timestamp DESC LIMIT %s"
+                params.append(limit)
+
+                cur.execute(query, params)
+                return [
+                    Initiative(
+                        id=row[0],
+                        jurisdiction=row[1],
+                        topic=row[2],
+                        title=row[3],
+                        description=row[4],
+                        location=row[5],
+                        public_key=row[6],
+                        signature=row[7],
+                        timestamp=row[8],
+                        status=InitiativeStatus(row[9]),
+                        voice_count=row[10],
+                    )
+                    for row in cur.fetchall()
+                ]
+        finally:
+            self._return_connection(conn)
+
+    def update_voice_count(self, initiative_id: str, count: int) -> bool:
+        """Update the voice count for an initiative. Returns True if it existed."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE coordination_initiatives
+                    SET voice_count = %s
+                    WHERE id = %s
+                    RETURNING id
+                    """,
+                    (count, initiative_id),
+                )
+                conn.commit()
+                return cur.fetchone() is not None
+        finally:
+            self._return_connection(conn)
+
+    def update_status(
+        self, initiative_id: str, status: InitiativeStatus, public_key: str
+    ) -> bool:
+        """Update initiative status. Only creator (matching public_key) can update."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE coordination_initiatives
+                    SET status = %s
+                    WHERE id = %s AND public_key = %s
+                    RETURNING id
+                    """,
+                    (status.value, initiative_id, public_key),
+                )
+                conn.commit()
+                return cur.fetchone() is not None
         finally:
             self._return_connection(conn)
