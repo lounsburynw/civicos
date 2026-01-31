@@ -86,3 +86,36 @@ class Subscription(BaseModel):
     active: bool = Field(default=True)
     # Link to key for voice-related notifications (optional)
     public_key: Optional[str] = Field(default=None)
+
+
+class InitiativeStatus(str, Enum):
+    """Lifecycle status of an initiative."""
+
+    ACTIVE = "active"  # Open for voices
+    COMPLETED = "completed"  # Creator closed it (achieved goal)
+    FAILED = "failed"  # Creator closed it (gave up)
+
+
+class Initiative(BaseModel):
+    """
+    A community-created initiative (focal point for coordination).
+
+    Initiatives are permissionless - anyone can create one by signing with their key.
+    The signature proves authorship without requiring a trusted server.
+    """
+
+    id: str = Field(description="Format: initiative:jurisdiction:date:hash")
+    jurisdiction: str = Field(description="e.g., 'city-san-rafael'")
+    topic: str = Field(description="Topic area, e.g., 'traffic safety'")
+    title: str = Field(description="Short title for the initiative")
+    description: str = Field(description="Full description of the initiative")
+    location: Optional[str] = Field(
+        default=None, description="Optional physical location"
+    )
+    public_key: str = Field(description="Creator's public key (identity)")
+    signature: str = Field(description="Creator's signature over initiative data")
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    status: InitiativeStatus = Field(default=InitiativeStatus.ACTIVE)
+    voice_count: int = Field(default=0, description="Cached count for discovery")
+
+    model_config = {"frozen": True}

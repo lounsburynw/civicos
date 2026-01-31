@@ -2726,7 +2726,7 @@
       },
       "web_frontend": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "apps/civicos-workspace/ Vue frontend deployed",
         "description": "Deploy Vue frontend as primary web interface. ChatGPT/MCP drive discovery, web app provides depth.",
         "note": "Frontend functional locally via /launch. Needs deployment for public access. Linkback destination from all AI assistant interactions.",
@@ -3028,8 +3028,8 @@
         "note": "Completed 2026-01-30. Permissionless design: relay selection, two-step signing flow. 35 total MCP tools."
       },
       "initiative_tools": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "MCP tools for permissionless initiative/focal point creation. Users can create grassroots-originated entities that others can voice on.",
         "test_file": "apps/civicos-mcp/tests/test_initiative_tools.py",
         "tools": [

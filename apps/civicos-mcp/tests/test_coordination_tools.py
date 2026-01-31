@@ -372,10 +372,10 @@ class TestListRelaysHandler:
 class TestToolRegistry:
     """Test tool registry has coordination tools."""
 
-    def test_registry_has_35_tools(self):
-        """Verify tool count increased from 30 to 35."""
+    def test_registry_has_38_tools(self):
+        """Verify tool count: 30 core + 5 voice + 3 initiative = 38."""
         from tools.registry import TOOL_DEFINITIONS
-        assert len(TOOL_DEFINITIONS) == 35
+        assert len(TOOL_DEFINITIONS) == 38
 
     def test_coordination_tools_in_registry(self):
         """Verify all coordination tools are in registry."""
@@ -394,7 +394,7 @@ class TestToolRegistry:
         """Verify ToolRegistry class can load tools."""
         from tools.registry import ToolRegistry
         registry = ToolRegistry()
-        assert len(registry) == 35
+        assert len(registry) == 38
         assert registry.get_tool('get_voice_counts') is not None
         assert registry.get_tool('prepare_voice') is not None
         assert registry.get_tool('broadcast_voice') is not None

@@ -82,3 +82,34 @@ def verify_voice(voice: Voice) -> bool:
         return True
     except (InvalidSignature, ValueError):
         return False
+
+
+def verify_signature(public_key_hex: str, signature_hex: str, message: str) -> bool:
+    """
+    Verify an arbitrary message signature.
+
+    Used for initiatives and other non-voice signed content.
+    """
+    try:
+        public_key_bytes = bytes.fromhex(public_key_hex)
+        public_key = ec.EllipticCurvePublicKey.from_encoded_point(
+            ec.SECP256R1(), public_key_bytes
+        )
+
+        signature = bytes.fromhex(signature_hex)
+        message_bytes = message.encode("utf-8")
+        public_key.verify(signature, message_bytes, ec.ECDSA(hashes.SHA256()))
+        return True
+    except (InvalidSignature, ValueError):
+        return False
+
+
+def sign_message(keypair: KeyPair, message: str) -> str:
+    """
+    Sign an arbitrary message and return signature hex.
+
+    Used for initiatives and other non-voice signed content.
+    """
+    message_bytes = message.encode("utf-8")
+    signature = keypair.private_key.sign(message_bytes, ec.ECDSA(hashes.SHA256()))
+    return signature.hex()

@@ -88,6 +88,31 @@ class ProvenanceResponse(BaseModel):
     jurisdictions: list[str] = []
 
 
+class CreateInitiativeRequest(BaseModel):
+    """Request to create an initiative (signed by creator)."""
+    jurisdiction: str = Field(description="e.g., 'city-san-rafael'")
+    topic: str = Field(description="Topic area, e.g., 'traffic safety'")
+    title: str = Field(description="Short title for the initiative")
+    description: str = Field(description="Full description")
+    location: Optional[str] = Field(default=None, description="Optional physical location")
+    public_key: str = Field(description="Creator's public key (hex-encoded)")
+    signature: str = Field(description="Signature of initiative data (hex-encoded)")
+
+
+class InitiativeResponse(BaseModel):
+    """Initiative record response."""
+    id: str
+    jurisdiction: str
+    topic: str
+    title: str
+    description: str
+    location: Optional[str] = None
+    public_key: str
+    timestamp: str
+    status: str
+    voice_count: int = 0
+
+
 # === Storage Helpers ===
 
 _storage_instances = {}
@@ -144,6 +169,22 @@ def _get_provenance_storage():
             logger.warning("civicos-relay not available")
             return None
     return _storage_instances["provenance"]
+
+
+def _get_initiative_storage():
+    """Get or create initiative storage instance."""
+    url = _get_relay_url()
+    if not url:
+        return None
+
+    if "initiative" not in _storage_instances:
+        try:
+            from civicos_relay.storage.postgres import PostgresInitiativeStorage
+            _storage_instances["initiative"] = PostgresInitiativeStorage(url)
+        except ImportError:
+            logger.warning("civicos-relay not available")
+            return None
+    return _storage_instances["initiative"]
 
 
 # === Endpoints ===
@@ -426,4 +467,242 @@ async def get_provenance(public_key: str):
         raise
     except Exception as e:
         logger.error(f"Error getting provenance: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+# === Initiative Endpoints ===
+
+
+def _generate_initiative_id(jurisdiction: str, title: str) -> str:
+    """Generate deterministic initiative ID from jurisdiction + title + timestamp."""
+    import hashlib
+    from datetime import date
+
+    # Use date + title hash for uniqueness
+    today = date.today().isoformat()
+    title_hash = hashlib.sha256(title.encode()).hexdigest()[:8]
+    return f"initiative:{jurisdiction}:{today}:{title_hash}"
+
+
+def _create_initiative_message(
+    initiative_id: str, topic: str, title: str, timestamp: str
+) -> str:
+    """Create the message that must be signed for initiative creation."""
+    import hashlib
+
+    title_hash = hashlib.sha256(title.encode()).hexdigest()[:16]
+    return f"civicos:initiative:v1:{initiative_id}:{topic}:{title_hash}:{timestamp}"
+
+
+def _verify_initiative_signature(
+    public_key: str, signature: str, message: str
+) -> bool:
+    """Verify initiative signature using ECDSA P-256."""
+    try:
+        from civicos_relay.voice.crypto import verify_signature
+        return verify_signature(public_key, signature, message)
+    except ImportError:
+        logger.error("civicos-relay crypto module not available")
+        return False
+
+
+@router.post("/coordination/initiative", response_model=InitiativeResponse)
+async def create_initiative(request: CreateInitiativeRequest):
+    """
+    Create a new initiative (focal point for coordination).
+
+    Initiative must be cryptographically signed by the creator. The signature
+    verifies the initiative data is authorized by the public key.
+
+    Returns the created initiative with its generated ID.
+    """
+    storage = _get_initiative_storage()
+    if not storage:
+        raise HTTPException(
+            status_code=503,
+            detail="Coordination service not configured (missing RELAY_DATABASE_URL)"
+        )
+
+    try:
+        from civicos_relay.relay.models import Initiative, InitiativeStatus
+
+        # Generate initiative ID
+        initiative_id = _generate_initiative_id(request.jurisdiction, request.title)
+        timestamp = datetime.utcnow()
+
+        # Create the message that should have been signed
+        message = _create_initiative_message(
+            initiative_id,
+            request.topic,
+            request.title,
+            timestamp.isoformat(),
+        )
+
+        # Verify signature
+        if not _verify_initiative_signature(
+            request.public_key, request.signature, message
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid initiative signature"
+            )
+
+        # Check if initiative already exists
+        existing = storage.get_initiative(initiative_id)
+        if existing:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Initiative already exists: {initiative_id}"
+            )
+
+        # Create initiative
+        initiative = Initiative(
+            id=initiative_id,
+            jurisdiction=request.jurisdiction,
+            topic=request.topic,
+            title=request.title,
+            description=request.description,
+            location=request.location,
+            public_key=request.public_key,
+            signature=request.signature,
+            timestamp=timestamp,
+            status=InitiativeStatus.ACTIVE,
+            voice_count=0,
+        )
+
+        storage.save_initiative(initiative)
+
+        logger.info(f"Initiative created: {initiative_id} by {request.public_key[:16]}...")
+
+        return InitiativeResponse(
+            id=initiative.id,
+            jurisdiction=initiative.jurisdiction,
+            topic=initiative.topic,
+            title=initiative.title,
+            description=initiative.description,
+            location=initiative.location,
+            public_key=initiative.public_key,
+            timestamp=initiative.timestamp.isoformat(),
+            status=initiative.status.value,
+            voice_count=initiative.voice_count,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating initiative: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get(
+    "/coordination/initiatives/{jurisdiction}",
+    response_model=list[InitiativeResponse],
+)
+async def list_initiatives(
+    jurisdiction: str,
+    topic: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: int = 100,
+):
+    """
+    List initiatives for a jurisdiction.
+
+    Optional filters:
+    - topic: Filter by topic (e.g., "traffic safety")
+    - status: Filter by status ("active", "completed", "failed")
+    - limit: Maximum results (default 100)
+
+    Results are ordered by voice_count (descending), then timestamp (descending).
+    """
+    storage = _get_initiative_storage()
+    if not storage:
+        raise HTTPException(
+            status_code=503,
+            detail="Coordination service not configured"
+        )
+
+    try:
+        from civicos_relay.relay.models import InitiativeStatus as StatusEnum
+
+        # Parse status filter if provided
+        status_filter = None
+        if status:
+            try:
+                status_filter = StatusEnum(status)
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid status: {status}. Must be active, completed, or failed"
+                )
+
+        initiatives = storage.get_initiatives_for_jurisdiction(
+            jurisdiction=jurisdiction,
+            topic=topic,
+            status=status_filter,
+            limit=min(limit, 1000),  # Cap at 1000
+        )
+
+        return [
+            InitiativeResponse(
+                id=i.id,
+                jurisdiction=i.jurisdiction,
+                topic=i.topic,
+                title=i.title,
+                description=i.description,
+                location=i.location,
+                public_key=i.public_key,
+                timestamp=i.timestamp.isoformat(),
+                status=i.status.value,
+                voice_count=i.voice_count,
+            )
+            for i in initiatives
+        ]
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error listing initiatives: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get("/coordination/initiative/{initiative_id:path}", response_model=InitiativeResponse)
+async def get_initiative(initiative_id: str):
+    """
+    Get a specific initiative by ID.
+
+    Returns 404 if initiative not found.
+    """
+    storage = _get_initiative_storage()
+    if not storage:
+        raise HTTPException(
+            status_code=503,
+            detail="Coordination service not configured"
+        )
+
+    try:
+        initiative = storage.get_initiative(initiative_id)
+
+        if not initiative:
+            raise HTTPException(
+                status_code=404,
+                detail="Initiative not found"
+            )
+
+        return InitiativeResponse(
+            id=initiative.id,
+            jurisdiction=initiative.jurisdiction,
+            topic=initiative.topic,
+            title=initiative.title,
+            description=initiative.description,
+            location=initiative.location,
+            public_key=initiative.public_key,
+            timestamp=initiative.timestamp.isoformat(),
+            status=initiative.status.value,
+            voice_count=initiative.voice_count,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting initiative: {e}")
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")

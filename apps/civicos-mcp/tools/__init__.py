@@ -56,6 +56,10 @@ from .handlers import (
     prepare_voice,
     broadcast_voice,
     list_relays,
+    # Initiative handlers
+    prepare_initiative,
+    broadcast_initiative,
+    list_initiatives,
 )
 
 __all__ = [
@@ -100,4 +104,7 @@ __all__ = [
     "prepare_voice",
     "broadcast_voice",
     "list_relays",
+    "prepare_initiative",
+    "broadcast_initiative",
+    "list_initiatives",
 ]

@@ -448,6 +448,95 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
             "properties": {},
         },
     },
+    # === Initiative Tools ===
+    "prepare_initiative": {
+        "description": "Prepare an initiative (focal point for coordination) for signing. Returns the exact message to sign with your ECDSA P-256 private key. This is step 1 of creating an initiative.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "topic": {
+                    "type": "string",
+                    "description": "Topic area (e.g., 'traffic safety', 'housing', 'parks')",
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Short title for the initiative (e.g., 'Protected bike lane on 4th St')",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Full description of what you're trying to accomplish",
+                },
+                "location": {
+                    "type": "string",
+                    "description": "Optional physical location (e.g., '4th Street between A and B')",
+                },
+            },
+            "required": ["topic", "title", "description"],
+        },
+    },
+    "broadcast_initiative": {
+        "description": "Broadcast a signed initiative to relay node(s). This is step 2 of creating an initiative - after signing the payload from prepare_initiative with your private key, submit the signature here.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "topic": {
+                    "type": "string",
+                    "description": "Topic area (must match what you signed)",
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Initiative title (must match what you signed)",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Full description (must match what you signed)",
+                },
+                "location": {
+                    "type": "string",
+                    "description": "Optional location (must match what you signed)",
+                },
+                "public_key": {
+                    "type": "string",
+                    "description": "Your public key (hex-encoded, compressed ECDSA P-256)",
+                },
+                "signature": {
+                    "type": "string",
+                    "description": "Signature of the initiative payload (hex-encoded)",
+                },
+                "relay_urls": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Relay node URLs to broadcast to. Defaults to CivicOS relay if not specified.",
+                },
+            },
+            "required": ["topic", "title", "description", "public_key", "signature"],
+        },
+    },
+    "list_initiatives": {
+        "description": "List community-created initiatives from a relay node. Initiatives are focal points where people can coordinate around shared goals.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "topic": {
+                    "type": "string",
+                    "description": "Filter by topic (e.g., 'traffic safety')",
+                },
+                "status": {
+                    "type": "string",
+                    "enum": ["active", "completed", "failed"],
+                    "description": "Filter by status. Active initiatives are open for voices.",
+                },
+                "relay_url": {
+                    "type": "string",
+                    "description": "Relay node URL to query. Defaults to CivicOS relay if not specified.",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of initiatives to return (default 20, max 100)",
+                },
+            },
+        },
+    },
 }
 
 

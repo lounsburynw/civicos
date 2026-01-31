@@ -204,6 +204,10 @@ class MCPServer:
             "prepare_voice": handlers.prepare_voice,
             "broadcast_voice": handlers.broadcast_voice,
             "list_relays": handlers.list_relays,
+            # Initiative Tools
+            "prepare_initiative": handlers.prepare_initiative,
+            "broadcast_initiative": handlers.broadcast_initiative,
+            "list_initiatives": handlers.list_initiatives,
         }
 
         # Wrap handlers with context (civic, jurisdiction, validate_input, logger)
