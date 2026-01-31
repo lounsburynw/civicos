@@ -3026,6 +3026,23 @@
           "list_relays() - discover known relays in the network"
         ],
         "note": "Completed 2026-01-30. Permissionless design: relay selection, two-step signing flow. 35 total MCP tools."
+      },
+      "initiative_tools": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "MCP tools for permissionless initiative/focal point creation. Users can create grassroots-originated entities that others can voice on.",
+        "test_file": "apps/civicos-mcp/tests/test_initiative_tools.py",
+        "tools": [
+          "create_initiative(topic, title, description, jurisdiction, location?, public_key, signature) - create signed initiative",
+          "list_initiatives(jurisdiction, topic?, status?, relay_url?) - discover initiatives from any relay"
+        ],
+        "design_notes": [
+          "Initiative entity format: initiative:jurisdiction:date:hash",
+          "Creator signs initiative (public_key replaces creator_id for permissionless)",
+          "Relay emits initiative_created event for subscribers",
+          "Follow same two-step pattern as voice: prepare_initiative -> sign -> broadcast_initiative"
+        ],
+        "note": "Completes focal point creation flow. Users can create coordination points, not just react to government-originated entities."
       }
     },
     "frontend_integration": {
