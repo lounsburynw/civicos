@@ -3137,14 +3137,13 @@
         }
       ],
       "peer_config": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
         "description": "YAML-based peer configuration, peer health checks, auto-disable unhealthy peers.",
         "test_file": "packages/civicos-relay/tests/test_peering.py"
       },
       "event_sync_endpoints": {
-        "status": "pending",
-        "priority": 1,
+        "status": "not_ready",
+        "priority": 0,
         "description": "Expose event sync HTTP endpoints. Complement to sync_endpoints (voices). Enables relay-to-relay event federation.",
         "test_file": "packages/civicos-services/tests/test_event_sync_api.py",
         "subtasks": [

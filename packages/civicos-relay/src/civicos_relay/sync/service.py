@@ -21,6 +21,10 @@ from civicos_relay.sync.protocol import (
 
 logger = logging.getLogger(__name__)
 
+# Default health check settings (can be overridden via RelayConfig)
+DEFAULT_HEALTH_CHECK_TIMEOUT = 10
+DEFAULT_MAX_CONSECUTIVE_FAILURES = 3
+
 
 class SyncStorage(Protocol):
     """Protocol for sync state persistence."""
@@ -49,6 +53,7 @@ class SyncService:
     Service for synchronizing voices and events with peer relays.
 
     Handles both export (serving to peers) and import (fetching from peers).
+    Includes health checking to auto-disable unhealthy peers.
     """
 
     def __init__(
@@ -56,12 +61,16 @@ class SyncService:
         identity: RelayIdentity,
         storage: SyncStorage,
         peers: list[PeerConfig],
+        health_check_timeout: int = DEFAULT_HEALTH_CHECK_TIMEOUT,
+        max_consecutive_failures: int = DEFAULT_MAX_CONSECUTIVE_FAILURES,
     ):
         self._identity = identity
         self._storage = storage
         self._peers = {p.url: p for p in peers}
         self._client = httpx.AsyncClient(timeout=30.0)
+        self._health_client = httpx.AsyncClient(timeout=float(health_check_timeout))
         self._running = False
+        self._max_consecutive_failures = max_consecutive_failures
 
     async def start(self) -> None:
         """Start background sync tasks."""
@@ -74,14 +83,27 @@ class SyncService:
         """Stop background sync tasks."""
         self._running = False
         await self._client.aclose()
+        await self._health_client.aclose()
 
     async def _sync_loop(self, peer: PeerConfig) -> None:
         """Background loop for syncing with a peer."""
         while self._running:
+            # Skip if peer is unhealthy
+            if not peer.healthy:
+                logger.debug(f"Skipping sync with unhealthy peer: {peer.url}")
+                await asyncio.sleep(peer.sync_interval)
+                continue
+
             try:
                 await self.sync_from_peer(peer)
+                peer.last_successful_sync = datetime.utcnow()
+                # Reset failure count on successful sync
+                if peer.consecutive_failures > 0:
+                    peer.consecutive_failures = 0
+                    logger.info(f"Peer {peer.url} recovered after successful sync")
             except Exception as e:
                 logger.error(f"Sync error with {peer.url}: {e}")
+                self._record_peer_failure(peer)
 
             await asyncio.sleep(peer.sync_interval)
 
@@ -207,3 +229,86 @@ class SyncService:
     def list_peers(self) -> list[PeerConfig]:
         """List all configured peers."""
         return list(self._peers.values())
+
+    # Health check methods
+
+    async def check_peer_health(self, peer: PeerConfig) -> bool:
+        """
+        Check if a peer is healthy by calling its /health endpoint.
+
+        Returns True if peer responds with status 'healthy', False otherwise.
+        Updates peer health state based on result.
+        """
+        try:
+            response = await self._health_client.get(f"{peer.url}/health")
+            response.raise_for_status()
+
+            data = response.json()
+            is_healthy = data.get("status") == "healthy"
+
+            peer.last_health_check = datetime.utcnow()
+
+            if is_healthy:
+                # Reset failure count on successful health check
+                if peer.consecutive_failures > 0:
+                    logger.info(f"Peer {peer.url} health restored")
+                peer.consecutive_failures = 0
+                peer.healthy = True
+            else:
+                # Unexpected status (not 'healthy')
+                self._record_peer_failure(peer)
+
+            return is_healthy
+
+        except (httpx.RequestError, httpx.HTTPStatusError) as e:
+            logger.warning(f"Health check failed for {peer.url}: {e}")
+            self._record_peer_failure(peer)
+            return False
+
+    def _record_peer_failure(self, peer: PeerConfig) -> None:
+        """Record a failure for a peer and potentially mark it unhealthy."""
+        peer.consecutive_failures += 1
+        peer.last_health_check = datetime.utcnow()
+
+        if peer.consecutive_failures >= self._max_consecutive_failures:
+            if peer.healthy:
+                logger.warning(
+                    f"Marking peer {peer.url} as unhealthy after "
+                    f"{peer.consecutive_failures} consecutive failures"
+                )
+                peer.healthy = False
+
+    async def check_all_peers_health(self) -> dict[str, bool]:
+        """
+        Check health of all enabled peers.
+
+        Returns dict mapping peer URL to health status.
+        """
+        results = {}
+        for peer in self._peers.values():
+            if peer.enabled:
+                results[peer.url] = await self.check_peer_health(peer)
+        return results
+
+    def get_healthy_peers(self) -> list[PeerConfig]:
+        """Return list of healthy, enabled peers."""
+        return [p for p in self._peers.values() if p.enabled and p.healthy]
+
+    def get_unhealthy_peers(self) -> list[PeerConfig]:
+        """Return list of unhealthy peers."""
+        return [p for p in self._peers.values() if not p.healthy]
+
+    def reset_peer_health(self, peer_url: str) -> bool:
+        """
+        Manually reset a peer's health status to healthy.
+
+        Useful for re-enabling a peer after fixing issues.
+        Returns True if peer was found and reset, False otherwise.
+        """
+        peer = self._peers.get(peer_url)
+        if peer:
+            peer.healthy = True
+            peer.consecutive_failures = 0
+            logger.info(f"Manually reset health for peer: {peer_url}")
+            return True
+        return False
