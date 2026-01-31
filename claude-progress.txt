@@ -1,3 +1,40 @@
+## Session 532 (2026-01-31) - Event Sync Endpoints
+
+**Item:** `event_sync_endpoints` (P0 → ready)
+**Status:** COMPLETE
+
+### Summary
+Added HTTP endpoints for event synchronization between peer relays, completing the relay-to-relay federation sync capability. Events (decisions, meetings, agendas, etc.) can now be exported and imported via REST API, mirroring the existing voice sync pattern.
+
+### Changes Made
+1. **Protocol models** (`civicos_relay/sync/protocol.py`)
+   - Added `EventImportRequest` and `EventImportResponse` models
+
+2. **SyncStorage protocol** (`civicos_relay/sync/service.py`)
+   - Extended with `get_events_since()` and `import_event()` methods
+   - Added `export_events()` and `import_events()` to SyncService
+
+3. **API endpoints** (`civicos_services/servers/routers/coordination.py`)
+   - `GET /coordination/sync/events` - Export events with cursor pagination
+   - `POST /coordination/sync/events` - Import events from peer
+
+4. **In-memory storage** (`civicos_relay/storage/memory.py`)
+   - Added `InMemoryEventStorage` class
+   - Extended `InMemorySyncStorage` with event methods
+
+5. **Tests** (`civicos_services/tests/test_event_sync_api.py`)
+   - 10 tests covering: empty export, data export, namespace filtering, since filtering, import, deduplication, batch import, pagination, two-relay sync, bidirectional sync
+
+### Tests Passing
+- 10 event sync tests (test_event_sync_api.py)
+- 9 voice sync tests (test_sync.py)
+- 8 voice sync API tests (test_sync_api.py)
+
+### Next P0
+Set next priority item for continuation.
+
+---
+
 ## Session 531 (2026-01-29) - Entity ID Namespacing
 
 **Item:** `entity_id_namespacing` (P0 → ready)

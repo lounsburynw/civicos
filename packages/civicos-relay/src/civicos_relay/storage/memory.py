@@ -5,6 +5,8 @@ from typing import Optional
 
 from civicos_relay.voice.models import Voice, Stance
 from civicos_relay.relay.models import (
+    Event,
+    EventType,
     Subscription,
     MatchCriteria,
     DeliveryConfig,
@@ -198,11 +200,54 @@ class InMemoryInitiativeStorage:
         return False
 
 
+class InMemoryEventStorage:
+    """In-memory event storage for testing."""
+
+    def __init__(self):
+        self._events: list[Event] = []
+
+    def save_event(self, event: Event) -> None:
+        self._events.append(event)
+
+    def get_events_since(
+        self, since: datetime, namespace: Optional[str], limit: int
+    ) -> tuple[list[Event], Optional[str]]:
+        """Get events for sync export."""
+        events = [
+            e for e in self._events
+            if e.timestamp > since
+            and (namespace is None or e.jurisdiction.startswith(namespace.rstrip("*")))
+        ]
+        events.sort(key=lambda e: e.timestamp)
+
+        if len(events) > limit:
+            return events[:limit], events[limit - 1].timestamp.isoformat()
+        return events, None
+
+    def import_event(self, event: Event) -> str:
+        """Import an event. Returns 'accepted', 'rejected', or 'duplicate'."""
+        # Check for duplicates based on type+entity+timestamp
+        for existing in self._events:
+            if (
+                existing.type == event.type
+                and existing.entity == event.entity
+                and existing.timestamp == event.timestamp
+            ):
+                return "duplicate"
+        self._events.append(event)
+        return "accepted"
+
+
 class InMemorySyncStorage:
     """In-memory sync state storage for testing."""
 
-    def __init__(self, voice_storage: InMemoryVoiceStorage):
+    def __init__(
+        self,
+        voice_storage: InMemoryVoiceStorage,
+        event_storage: Optional["InMemoryEventStorage"] = None,
+    ):
         self._voice_storage = voice_storage
+        self._event_storage = event_storage or InMemoryEventStorage()
         self._cursors: dict[str, str] = {}
 
     def get_sync_cursor(self, peer_url: str) -> Optional[str]:
@@ -219,13 +264,22 @@ class InMemorySyncStorage:
     def import_voice(self, voice: Voice) -> str:
         return self._voice_storage.import_voice(voice)
 
+    def get_events_since(
+        self, since: datetime, namespace: Optional[str], limit: int
+    ) -> tuple[list[Event], Optional[str]]:
+        return self._event_storage.get_events_since(since, namespace, limit)
+
+    def import_event(self, event: Event) -> str:
+        return self._event_storage.import_event(event)
+
 
 class InMemoryStorage:
     """Combined in-memory storage for all relay data."""
 
     def __init__(self):
         self.voices = InMemoryVoiceStorage()
+        self.events = InMemoryEventStorage()
         self.subscriptions = InMemorySubscriptionStorage()
         self.provenance = InMemoryProvenanceStorage()
         self.initiatives = InMemoryInitiativeStorage()
-        self.sync = InMemorySyncStorage(self.voices)
+        self.sync = InMemorySyncStorage(self.voices, self.events)

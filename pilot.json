@@ -3142,7 +3142,7 @@
         "test_file": "packages/civicos-relay/tests/test_peering.py"
       },
       "event_sync_endpoints": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "description": "Expose event sync HTTP endpoints. Complement to sync_endpoints (voices). Enables relay-to-relay event federation.",
         "test_file": "packages/civicos-services/tests/test_event_sync_api.py",

@@ -915,3 +915,178 @@ async def import_voices(request: VoiceImportRequestAPI):
     except Exception as e:
         logger.error(f"Error importing voices: {e}")
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+# === Event Sync Endpoints ===
+
+
+class EventResponseAPI(BaseModel):
+    """API representation of an event."""
+    type: str
+    jurisdiction: str
+    entity: str
+    timestamp: str
+    data: dict
+
+
+class EventSyncResponseAPI(BaseModel):
+    """Response containing events for peer sync."""
+    events: list[EventResponseAPI]
+    cursor: Optional[str] = None
+    relay_id: str
+    relay_signature: str
+
+
+class EventImportRequestAPI(BaseModel):
+    """Request to import events from a peer."""
+    events: list[EventResponseAPI]
+    source_relay: str
+    signature: str
+
+
+class EventImportResponseAPI(BaseModel):
+    """Response after importing events."""
+    accepted: int
+    rejected: int
+    duplicates: int
+
+
+@router.get("/coordination/sync/events", response_model=EventSyncResponseAPI)
+async def export_events(
+    since: Optional[str] = None,
+    namespace: Optional[str] = None,
+    limit: int = 100,
+    cursor: Optional[str] = None,
+):
+    """
+    Export events for peer relay sync.
+
+    Parameters:
+    - since: ISO timestamp, only return events after this time
+    - namespace: Filter by jurisdiction prefix (e.g., "city-san-rafael")
+    - limit: Max results per page (1-1000, default 100)
+    - cursor: Pagination cursor from previous response
+
+    Returns signed response for peer verification.
+    """
+    storage = _get_sync_storage()
+    identity = _get_relay_identity()
+    if not storage or not identity:
+        raise HTTPException(
+            status_code=503,
+            detail="Sync service not configured (missing RELAY_DATABASE_URL)"
+        )
+
+    try:
+        from civicos_relay.sync import SyncService
+        from civicos_relay.sync.protocol import SyncRequest
+
+        # Create sync service
+        sync_service = SyncService(identity, storage, [])
+
+        # Parse since timestamp - use cursor if provided, otherwise since param
+        since_dt = None
+        if cursor:
+            since_dt = datetime.fromisoformat(cursor)
+        elif since:
+            since_dt = datetime.fromisoformat(since)
+
+        # Build request
+        request = SyncRequest(
+            since=since_dt,
+            namespace=namespace,
+            limit=min(limit, 1000),
+            cursor=cursor,
+        )
+
+        # Export events
+        response = sync_service.export_events(request)
+
+        return EventSyncResponseAPI(
+            events=[
+                EventResponseAPI(
+                    type=e.type.value,
+                    jurisdiction=e.jurisdiction,
+                    entity=e.entity,
+                    timestamp=e.timestamp.isoformat(),
+                    data=e.data,
+                )
+                for e in response.events
+            ],
+            cursor=response.cursor,
+            relay_id=response.relay_id,
+            relay_signature=response.relay_signature,
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid parameter: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error exporting events: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.post("/coordination/sync/events", response_model=EventImportResponseAPI)
+async def import_events(request: EventImportRequestAPI):
+    """
+    Import events from a peer relay.
+
+    Events are verified before import.
+    Duplicates (same type+entity+timestamp) are skipped.
+
+    Returns counts of accepted, rejected, and duplicate events.
+    """
+    storage = _get_sync_storage()
+    identity = _get_relay_identity()
+    if not storage or not identity:
+        raise HTTPException(
+            status_code=503,
+            detail="Sync service not configured (missing RELAY_DATABASE_URL)"
+        )
+
+    try:
+        from civicos_relay.sync import SyncService
+        from civicos_relay.sync.protocol import EventImportRequest
+        from civicos_relay.relay.models import Event, EventType
+
+        # Create sync service
+        sync_service = SyncService(identity, storage, [])
+
+        # Convert API events to internal format
+        events = [
+            Event(
+                type=EventType(e.type),
+                jurisdiction=e.jurisdiction,
+                entity=e.entity,
+                timestamp=datetime.fromisoformat(e.timestamp),
+                data=e.data,
+            )
+            for e in request.events
+        ]
+
+        # Build import request
+        import_request = EventImportRequest(
+            events=events,
+            source_relay=request.source_relay,
+            signature=request.signature,
+        )
+
+        # Import events
+        response = sync_service.import_events(import_request)
+
+        logger.info(
+            f"Event import from {request.source_relay}: "
+            f"{response.accepted} accepted, {response.rejected} rejected, "
+            f"{response.duplicates} duplicates"
+        )
+
+        return EventImportResponseAPI(
+            accepted=response.accepted,
+            rejected=response.rejected,
+            duplicates=response.duplicates,
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid event data: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error importing events: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
