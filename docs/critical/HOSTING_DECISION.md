@@ -31,7 +31,8 @@ This consolidation simplifies operations:
 │  │   25+ tools     │  │  • Deliver      │  │                 │            │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘            │
 │                                                                             │
-│  Endpoint: https://civicos--civicos-mcp-mcp-endpoint.modal.run              │
+│  Prod: https://san-rafael.civicosproject.org/mcp                            │
+│  Health: https://san-rafael.civicosproject.org/health                       │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     │ Queries
@@ -48,10 +49,15 @@ This consolidation simplifies operations:
 ```
 
 **Current deployment (Jan 2026):**
-- MCP server: Modal (`https://civicos--civicos-mcp-mcp-endpoint.modal.run`) - **production**
+- MCP server: Modal + Cloudflare proxy - **production**
+  - Production: `https://san-rafael.civicosproject.org/mcp`
+  - Health: `https://san-rafael.civicosproject.org/health`
+  - Modal direct: `https://lounsburynw--civicos-mcp-mcpserver-mcp-endpoint.modal.run`
 - Relay worker: Modal (to be deployed)
 - Vector indexing: Modal (existing)
-- MCP server: Fly.io (`civicos-mcp.fly.dev`) - **legacy, deprecated**
+- Fly.io MCP: **deprecated** (was `civicos-mcp.fly.dev`)
+
+See `docs/decisions/federation_domain_architecture.md` for domain strategy.
 
 **Why Modal for MCP:**
 
