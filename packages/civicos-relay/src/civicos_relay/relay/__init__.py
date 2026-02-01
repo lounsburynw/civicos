@@ -8,6 +8,7 @@ from civicos_relay.relay.models import (
     MatchCriteria,
 )
 from civicos_relay.relay.service import RelayService
+from civicos_relay.relay.event_emission import EventEmitter, EmissionResult
 
 __all__ = [
     "Event",
@@ -16,4 +17,6 @@ __all__ = [
     "DeliveryMethod",
     "MatchCriteria",
     "RelayService",
+    "EventEmitter",
+    "EmissionResult",
 ]

@@ -16727,3 +16727,75 @@ Implemented YAML-based peer configuration with health checks and auto-disable fo
 Set `event_sync_endpoints` as P0 - adds event synchronization to complement voice sync.
 
 ---
+
+---
+
+## Session 533 (2026-02-01) - Event Emission Service
+
+**Item:** `event_emission` (P0 → ready)
+**Status:** COMPLETE
+
+### Summary
+Implemented the EventEmitter service that orchestrates event emission for the relay. This is the "Relay Worker" that makes civic events discoverable through subscriptions rather than requiring explicit polling. Events are now saved to coordination_events_log, matched against subscriptions, and queued/delivered to subscribers.
+
+### Changes Made
+1. **PostgresEventStorage** (`civicos_relay/storage/postgres.py`)
+   - Added CRUD class for coordination_events_log table
+   - Methods: save_event(), update_delivery_counts(), get_events_since(), import_event()
+   - Follows established pattern from PostgresVoiceStorage
+
+2. **EventEmitter service** (`civicos_relay/relay/event_emission.py`)
+   - Core emit() method: save event → match subscriptions → deliver/queue
+   - Subscription matching logic (topic, entity, geography, voice threshold)
+   - Convenience methods for all 7 event types:
+     - emit_agenda_published()
+     - emit_decision_made()
+     - emit_meeting_scheduled()
+     - emit_initiative_created()
+     - emit_voice_threshold_reached()
+     - emit_public_comment_opened()
+     - emit_public_comment_closing()
+   - EmissionResult dataclass for return values
+   - Pending delivery queue for batch processing
+
+3. **Storage exports** (`civicos_relay/storage/__init__.py`)
+   - Added PostgresEventStorage, PostgresInitiativeStorage, PostgresSyncStorage
+   - Added InMemoryEventStorage, InMemoryInitiativeStorage
+
+4. **Relay exports** (`civicos_relay/relay/__init__.py`)
+   - Added EventEmitter, EmissionResult
+
+5. **Tests** (`civicos_relay/tests/test_event_emission.py`)
+   - 20 tests covering:
+     - Event emission and storage
+     - Subscription matching (topic, entity, geography, voice threshold)
+     - Delivery tracking and failure handling
+     - Pending delivery queue
+     - All 7 event type convenience methods
+     - InMemoryEventStorage operations
+
+### Tests Passing
+- 20 event emission tests (test_event_emission.py)
+- 70 relay tests total (all pass)
+- 42 smoke tests (test_civicos.py)
+
+### Architecture
+```
+CivicOS API / Ingestion Pipeline
+         ↓ (calls emit methods)
+    EventEmitter
+         ↓ (saves event)
+    PostgresEventStorage → coordination_events_log
+         ↓ (matches subscriptions)
+    SubscriptionStorage.get_subscriptions_for_jurisdiction()
+         ↓ (delivers or queues)
+    EventDelivery.deliver() or pending_deliveries queue
+```
+
+### Next Steps
+The event emission infrastructure is complete. Next priorities:
+- `email_delivery` (P2) - Actual email sending for matched subscriptions
+- `voice_display` (P2) - Frontend shows voice counts
+- `voice_button` (P2) - Users can cast voices
+
+---
