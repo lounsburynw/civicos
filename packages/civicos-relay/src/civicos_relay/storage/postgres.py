@@ -6,6 +6,8 @@ from typing import Optional, Union
 
 from civicos_relay.voice.models import Voice, Stance
 from civicos_relay.relay.models import (
+    Event,
+    EventType,
     Subscription,
     MatchCriteria,
     DeliveryConfig,
@@ -721,6 +723,156 @@ class PostgresSyncStorage:
                         voice.signature,
                         voice.timestamp,
                         voice.revoked,
+                    ),
+                )
+                conn.commit()
+                return "accepted"
+        finally:
+            self._return_connection(conn)
+
+
+class PostgresEventStorage:
+    """PostgreSQL storage for coordination events."""
+
+    def __init__(self, connection_url: str):
+        self._connection_url = connection_url
+        self._pool = None
+
+    def _get_connection(self):
+        if self._pool is None:
+            import psycopg2.pool
+            self._pool = psycopg2.pool.SimpleConnectionPool(
+                1, 10, self._connection_url
+            )
+        return self._pool.getconn()
+
+    def _return_connection(self, conn):
+        self._pool.putconn(conn)
+
+    def save_event(self, event: Event) -> int:
+        """Store an event. Returns the event ID."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO coordination_events_log
+                    (event_type, jurisdiction, entity, timestamp, data)
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    (
+                        event.type.value,
+                        event.jurisdiction,
+                        event.entity,
+                        event.timestamp,
+                        json.dumps(event.data),
+                    ),
+                )
+                event_id = cur.fetchone()[0]
+                conn.commit()
+                return event_id
+        finally:
+            self._return_connection(conn)
+
+    def update_delivery_counts(
+        self, event_id: int, attempted: int, succeeded: int
+    ) -> None:
+        """Update delivery counts for an event."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE coordination_events_log
+                    SET deliveries_attempted = %s, deliveries_succeeded = %s
+                    WHERE id = %s
+                    """,
+                    (attempted, succeeded, event_id),
+                )
+                conn.commit()
+        finally:
+            self._return_connection(conn)
+
+    def get_events_since(
+        self, since: datetime, namespace: Optional[str], limit: int
+    ) -> tuple[list[Event], Optional[str]]:
+        """Get events for export. Returns (events, next_cursor)."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                if namespace:
+                    namespace_prefix = namespace.rstrip("*")
+                    cur.execute(
+                        """
+                        SELECT event_type, jurisdiction, entity, timestamp, data
+                        FROM coordination_events_log
+                        WHERE timestamp > %s AND jurisdiction LIKE %s
+                        ORDER BY timestamp ASC
+                        LIMIT %s
+                        """,
+                        (since, namespace_prefix + "%", limit + 1),
+                    )
+                else:
+                    cur.execute(
+                        """
+                        SELECT event_type, jurisdiction, entity, timestamp, data
+                        FROM coordination_events_log
+                        WHERE timestamp > %s
+                        ORDER BY timestamp ASC
+                        LIMIT %s
+                        """,
+                        (since, limit + 1),
+                    )
+
+                rows = cur.fetchall()
+                events = [
+                    Event(
+                        type=EventType(row[0]),
+                        jurisdiction=row[1],
+                        entity=row[2],
+                        timestamp=row[3],
+                        data=_parse_jsonb(row[4]) or {},
+                    )
+                    for row in rows[:limit]
+                ]
+
+                if len(rows) > limit:
+                    next_cursor = events[-1].timestamp.isoformat()
+                    return events, next_cursor
+                return events, None
+        finally:
+            self._return_connection(conn)
+
+    def import_event(self, event: Event) -> str:
+        """Import an event. Returns 'accepted', 'rejected', or 'duplicate'."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                # Check for duplicates based on type+entity+timestamp
+                cur.execute(
+                    """
+                    SELECT id FROM coordination_events_log
+                    WHERE event_type = %s AND entity = %s AND timestamp = %s
+                    """,
+                    (event.type.value, event.entity, event.timestamp),
+                )
+                if cur.fetchone():
+                    return "duplicate"
+
+                # Insert the event
+                cur.execute(
+                    """
+                    INSERT INTO coordination_events_log
+                    (event_type, jurisdiction, entity, timestamp, data)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (
+                        event.type.value,
+                        event.jurisdiction,
+                        event.entity,
+                        event.timestamp,
+                        json.dumps(event.data),
                     ),
                 )
                 conn.commit()

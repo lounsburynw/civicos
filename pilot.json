@@ -437,7 +437,7 @@
       ],
       "manual_input_fallback_schema": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Schema for manually-curated financial mappings when automation fails",
         "note": "Some mappings (e.g., grant-to-program, CFDA enrichment) require human input. Define data/manual/*.json schema with source attribution and last_updated tracking. Prioritize automation but plan for manual fallback.",
         "pattern": "Manual input should be structured, versioned, and clearly marked as human-curated"
@@ -3001,12 +3001,19 @@
       },
       "email_delivery": {
         "status": "pending",
-        "priority": 2,
+        "priority": 0,
         "description": "Implement email delivery service for relay events. Use existing email infrastructure or simple SMTP. Include unsubscribe links.",
-        "test_file": "packages/civicos-relay/tests/test_email_delivery.py"
+        "test_file": "packages/civicos-relay/tests/test_email_delivery.py",
+        "subtasks": [
+          "EmailDelivery class implementing EventDelivery protocol",
+          "SMTP configuration (or use existing email infrastructure)",
+          "Unsubscribe link generation",
+          "HTML email template for events",
+          "Tests for delivery success/failure"
+        ]
       },
       "event_emission": {
-        "status": "pending",
+        "status": "ready",
         "priority": 2,
         "description": "Relay Worker for event emission. Emit events for both government-originated (agenda published, decision made, meeting scheduled) and relay-originated (initiative created, voice threshold reached) triggers. Store in coordination_events_log. Match against subscriptions and queue for delivery.",
         "test_file": "packages/civicos-relay/tests/test_event_emission.py",
@@ -3016,7 +3023,7 @@
           "Subscription matching: filter events by topic, geography, event_type",
           "Delivery queue: batch matched events for email_delivery service"
         ],
-        "note": "This is the 'Relay Worker' that makes relay-originated initiatives discoverable without polling. Without this, initiatives only appear via explicit list_initiatives() queries."
+        "note": "EventEmitter class implemented with convenience methods for all 7 event types. PostgresEventStorage provides CRUD for coordination_events_log. 20 tests pass."
       },
       "sync_endpoints": {
         "status": "ready",
@@ -3143,7 +3150,7 @@
       },
       "event_sync_endpoints": {
         "status": "ready",
-        "priority": 0,
+        "priority": 2,
         "description": "Expose event sync HTTP endpoints. Complement to sync_endpoints (voices). Enables relay-to-relay event federation.",
         "test_file": "packages/civicos-services/tests/test_event_sync_api.py",
         "subtasks": [
@@ -3155,7 +3162,7 @@
           "sync_endpoints",
           "event_emission"
         ],
-        "note": "Requires event_emission to exist first. Events flow: ingestion \u2192 event_emission \u2192 coordination_events_log \u2192 sync to peers."
+        "note": "Session 532: Event sync endpoints implemented. Events flow: ingestion → event_emission → coordination_events_log → sync to peers."
       },
       "hierarchical_jurisdiction_routing": {
         "status": "pending",
