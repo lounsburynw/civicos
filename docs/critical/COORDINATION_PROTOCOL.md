@@ -252,6 +252,7 @@ Instead of gatekeeping who can voice, the protocol makes voice quality transpare
 | **Voice history** | Diverse engagement across initiatives | Sustained effort per fake identity |
 | **Vouching** | Existing voices attest to this key | Social capital |
 | **Physical attestation** | Presented key at civic center | Physical presence |
+| **Device attestation** | Key bound to hardware device | Device acquisition (~$25-500) |
 | **Pattern** | Organic engagement vs. burst creation | Behavioral consistency |
 
 No single signal is definitive. The user's agent weighs them in combination:
@@ -263,6 +264,7 @@ Agent evaluates provenance:
   28 keys older than 90 days, diverse history    → high quality
   8 keys created this week, no prior voices      → low quality
   4 keys with physical attestation               → high quality
+  6 keys with device attestation                 → medium-high quality
   No burst patterns detected                     → organic growth
 
 Agent decides: "This is real momentum, notify user"
@@ -284,6 +286,77 @@ Cities can offer physical attestation as an optional trust signal. This is not r
 - Kiosk must be deliberately amnesiac (sign and forget, no logging)
 - Multiple attestation venues (civic center, libraries, community events) to avoid equity barriers
 - Attestation is one signal among many, not a gatekeeper
+
+### Device Attestation (Optional)
+
+Device attestation binds a keypair to hardware, making Sybil attacks require additional physical devices rather than just generating more keys.
+
+**Concept:** One attested device → one keypair (or limited keypairs per device)
+
+**Implementation approaches:**
+
+| Approach | Mechanism | Sybil Cost | Platform Dependency |
+|----------|-----------|------------|---------------------|
+| **Platform attestation** | Apple DeviceCheck, Android Play Integrity | ~$100+ (new phone) | High (Apple/Google) |
+| **Passkeys/WebAuthn** | Browser + hardware binding | New device per key | Medium (browser vendors) |
+| **Hardware tokens** | YubiKey, Titan Key | ~$25-50 per key | Low (open standards) |
+| **Secure enclave** | TPM/SEP limits key generation | Hardware constraint | Medium (device manufacturer) |
+
+**Flow:**
+
+1. User installs app or registers via WebAuthn-enabled browser
+2. Device attestation binds keypair to hardware (Secure Enclave, TPM, or platform API)
+3. Key stored in tamper-resistant hardware; cannot be exported
+4. Attestation record: "This key is bound to device X" (device ID is opaque/hashed)
+5. Relay stores attestation type, not device identity
+
+**Provenance record:**
+
+```json
+{
+  "attestations": [
+    {
+      "type": "device",
+      "platform": "ios",
+      "method": "device_check",
+      "bound_at": "2025-12-01",
+      "device_hash": "a1b2c3..."
+    }
+  ]
+}
+```
+
+**Design requirements:**
+
+- Device attestation is optional — keys without it still work, just with lower provenance weight
+- Device identity must be opaque (hashed or anonymized) — relay cannot track devices across keys
+- Support multiple methods to avoid single-platform gatekeeping
+- Shared device handling: libraries and community centers may need "kiosk mode" with limited attestation weight
+- Emulator/VM detection where platform APIs support it
+
+**Tradeoffs vs. physical attestation:**
+
+| Dimension | Physical | Device |
+|-----------|----------|--------|
+| **Accessibility** | Requires travel | Requires modern device |
+| **Scalability** | Limited by venue capacity | Unlimited |
+| **Renewal** | Monthly (requires return visit) | Continuous (device binding persists) |
+| **Privacy** | City sees face, not key usage | Platform sees device, not key usage |
+| **Attack surface** | Social engineering at kiosk | Emulators, rooted devices |
+| **Equity concerns** | Transportation barriers | Device cost barriers |
+
+**Complementary use:** Physical and device attestation address different attack vectors. Physical attestation proves a human visited a location. Device attestation proves a key is bound to hardware. Neither alone proves unique personhood, but together they increase Sybil cost significantly:
+
+```
+Key with both attestations:
+  - Someone physically visited San Rafael
+  - AND controls a specific hardware device
+  - AND that device is not an emulator
+
+Sybil cost: (device cost) × (travel cost) × (time cost)
+```
+
+**Status:** Future consideration (post-pilot). Physical attestation is simpler to implement and sufficient for pilot-scale validation. Device attestation becomes valuable at scale where physical venue capacity becomes a bottleneck.
 
 ### Entity Namespaces
 
@@ -393,6 +466,7 @@ Building MVP coordination protocol for Jan 2026 pilot. Combines relay + voice + 
 **What's deferred:**
 - Federation between relays
 - Physical attestation at civic centers
+- Device attestation via WebAuthn/platform APIs
 - Vouching system
 - SMS/ntfy delivery methods
 - DID:key standard (using simpler ECDSA keypairs)
@@ -681,6 +755,7 @@ If coordination shows value, expand voice system:
 - DID:key migration for standards compliance
 - Vouching system (existing keys vouch for new keys)
 - Physical attestation infrastructure (optional, city-provided)
+- Device attestation via WebAuthn/platform APIs (optional, complements physical)
 - Threshold event triggers
 
 ### Phase 4: Edge Intelligence (Future)
@@ -1205,3 +1280,5 @@ The protocol is the novel contribution. Civic data extraction is valuable but no
 - **Special districts.** School districts, water districts, transit authorities don't fit the city/county/state hierarchy cleanly. How do their entities and relays integrate? Likely: they operate relays like any other jurisdiction and peer with relevant geographic relays.
 
 - **Commercial agent ethics.** Should lobbyist or corporate agents be allowed to voice? They can subscribe (public data), but voicing implies civic standing. Provenance transparency helps — a corporate key is identifiable — but the protocol may need norms or guidance on commercial participation beyond transparency.
+
+- **Sybil resistance at scale.** The protocol chooses "transparency over gatekeeping" — anyone can generate unlimited keys, and provenance signals make voice quality visible rather than preventing low-quality voices. This works when Sybil attacks are unsophisticated (burst patterns, new keys). But a motivated attacker can generate keys months in advance, build fake engagement history, and obtain physical/device attestations for each. At what scale does this become a real threat? Is provenance transparency sufficient, or does the protocol eventually need stronger identity binding? The bet is that local civic issues rarely attract adversarial investment, but state/federal issues or well-funded astroturfing campaigns may require additional defenses.
