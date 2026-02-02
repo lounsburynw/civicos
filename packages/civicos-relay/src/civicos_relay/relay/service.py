@@ -49,7 +49,9 @@ class RelayService:
     Handles subscription management and event routing.
     """
 
-    def __init__(self, storage: SubscriptionStorage, delivery: EventDelivery):
+    def __init__(
+        self, storage: SubscriptionStorage, delivery: Optional[EventDelivery] = None
+    ):
         self._storage = storage
         self._delivery = delivery
 
@@ -90,7 +92,7 @@ class RelayService:
             if not sub.active:
                 continue
             if self._matches(event, sub.match):
-                if self._delivery.deliver(event, sub):
+                if self._delivery and self._delivery.deliver(event, sub):
                     delivered += 1
 
         return delivered

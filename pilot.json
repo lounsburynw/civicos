@@ -3000,8 +3000,8 @@
         ]
       },
       "email_delivery": {
-        "status": "pending",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "description": "Implement email delivery service for relay events. Use existing email infrastructure or simple SMTP. Include unsubscribe links.",
         "test_file": "packages/civicos-relay/tests/test_email_delivery.py",
         "subtasks": [
@@ -3074,7 +3074,7 @@
     "frontend_integration": {
       "voice_display": {
         "status": "pending",
-        "priority": 2,
+        "priority": 0,
         "description": "Display voice counts on agenda items and decisions in the Vue frontend. Show support/oppose/watching breakdown. Simple badge/indicator UI.",
         "test_file": "apps/civicos-workspace/tests/e2e/voice-display.spec.ts",
         "subtasks": [
@@ -3162,7 +3162,7 @@
           "sync_endpoints",
           "event_emission"
         ],
-        "note": "Session 532: Event sync endpoints implemented. Events flow: ingestion → event_emission → coordination_events_log → sync to peers."
+        "note": "Session 532: Event sync endpoints implemented. Events flow: ingestion \u2192 event_emission \u2192 coordination_events_log \u2192 sync to peers."
       },
       "hierarchical_jurisdiction_routing": {
         "status": "pending",
