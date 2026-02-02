@@ -1,3 +1,55 @@
+## Session 533 (2026-02-02) - Chat Route Endpoint Fix
+
+**Item:** `web_chat_interface` (P0 - in progress)
+**Status:** PARTIAL - Critical backend fix complete
+
+### Summary
+Fixed broken `/api/chat/route` endpoint in civicos-services that was calling a non-existent method (`chat_router.route()`). The endpoint now correctly calls `chat_router.route_message()` with all required parameters.
+
+### Problem Found
+The frontend chatRouter.ts calls `POST /api/chat/route` expecting a `ChatAction` response with:
+- `action`, `parameters`, `message`, `reasoning`
+- `conversation_id`, `mode`, `mode_changed`, `mode_reason`
+- `multi_operation`, `all_operations` (for OR queries)
+- `provider_used`, `model_used`, `usage` (for developer mode)
+
+But the backend:
+1. Called `chat_router.route()` which doesn't exist (only `route_message()` exists)
+2. Used wrong request model (missing `mode`, `serialized_context`, `model_override`)
+3. Used wrong response model (returned `route`, `intent`, `entities` instead of actions)
+
+### Changes Made
+1. **Updated ChatRouteRequest** (`conversations.py`)
+   - Added: `conversation_id`, `mode`, `serialized_context`, `model_override`
+   - Now matches frontend chatRouter.ts interface
+
+2. **Updated ChatRouteResponse** (`conversations.py`)
+   - Changed from route/intent/entities to action-based response
+   - Added: `action`, `parameters`, `message`, `reasoning`, `conversation_id`
+   - Added: `mode`, `mode_changed`, `mode_reason` for mode detection
+   - Added: `multi_operation`, `all_operations` for OR queries
+   - Added: `provider_used`, `model_used`, `usage` for developer mode
+   - Added: `ChatActionUsage` model for token tracking
+
+3. **Fixed route_chat endpoint** (`conversations.py:217-312`)
+   - Now calls `chat_router.route_message()` correctly
+   - Passes all parameters: message, context, mode, serialized_context, model_override
+   - Returns proper ChatRouteResponse matching frontend expectations
+   - Added fallback keyword routing when ChatRouter unavailable
+
+### What Remains for web_chat_interface
+- Streaming responses (SSE from backend) - not implemented
+- E2E tests (none exist yet)
+- Frontend already complete: ChatPanel, MessageBubble, quick actions, context indicator
+
+### Next Steps
+This fix enables the chat interface to work. Consider:
+1. Testing in dev environment with `./scripts/dev.sh`
+2. Adding streaming support for real-time response display
+3. Adding E2E tests for chat flow
+
+---
+
 ## Session 532 (2026-01-31) - Event Sync Endpoints
 
 **Item:** `event_sync_endpoints` (P0 → ready)

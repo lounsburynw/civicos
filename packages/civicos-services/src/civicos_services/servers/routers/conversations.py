@@ -41,17 +41,49 @@ class ConversationResponse(BaseModel):
 
 
 class ChatRouteRequest(BaseModel):
-    """Chat routing request."""
+    """Chat routing request.
+
+    Matches frontend chatRouter.ts interface for full chat routing with
+    function calling, mode detection, and context awareness.
+    """
     message: str
+    conversation_id: Optional[str] = None
     context: Optional[Dict[str, Any]] = None
+    mode: Optional[str] = "navigation"  # navigation, focus, compare
+    serialized_context: Optional[str] = None  # LLM-friendly context from open artifacts
+    model_override: Optional[str] = None  # Manual model selection
+
+
+class ChatActionUsage(BaseModel):
+    """Token usage for LLM calls."""
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
 
 
 class ChatRouteResponse(BaseModel):
-    """Chat routing response."""
-    route: str  # events, issues, legislation, general
-    intent: str
-    entities: Optional[Dict[str, Any]] = None
-    response: Optional[str] = None
+    """Chat routing response.
+
+    Full response matching frontend ChatAction interface, supporting
+    function calling actions, multi-operations, and provider metadata.
+    """
+    action: str  # search_events, file_complaint, respond, etc.
+    parameters: Optional[Dict[str, Any]] = None
+    message: Optional[str] = None
+    reasoning: Optional[str] = None
+    conversation_id: str
+    mode: Optional[str] = None  # Detected mode (may differ from input)
+    mode_changed: Optional[bool] = False  # True if mode switched
+    mode_reason: Optional[str] = None  # Why this mode was chosen
+    # Multi-operation support for OR queries
+    multi_operation: Optional[bool] = False
+    operation_count: Optional[int] = None
+    all_operations: Optional[List[Dict[str, Any]]] = None
+    # Provider metadata for developer mode
+    provider_used: Optional[str] = None
+    model_used: Optional[str] = None
+    usage: Optional[ChatActionUsage] = None
+    error: Optional[str] = None
 
 
 # === Auth Dependency ===
@@ -188,49 +220,95 @@ async def route_chat(
     token: str = Depends(verify_auth)
 ):
     """
-    Route a chat message to the appropriate handler.
+    Route a chat message via LLM function calling.
 
-    Classifies intent and extracts entities for downstream processing.
+    Uses ChatRouter.route_message() to:
+    - Detect optimal chat mode (navigation, focus, compare)
+    - Parse intent via OpenAI function calling
+    - Execute search_events, file_complaint, view_legislative_context, etc.
+    - Return structured action with parameters for frontend UI dispatch
+
     Requires authentication.
     """
+    import uuid
+
     try:
+        # Get or create conversation ID
+        conversation_id = request.conversation_id or str(uuid.uuid4())
+
         # Get chat router
         chat_router = get_chat_router()
 
         if chat_router:
-            # Use specialized router
-            result = chat_router.route(request.message, context=request.context)
-            return {
-                "route": result.get("route", "general"),
-                "intent": result.get("intent", "unknown"),
-                "entities": result.get("entities"),
-                "response": result.get("response")
+            # Build conversation history from store if available
+            conversation_history = None
+            store = get_conversation_store()
+            if store and request.conversation_id:
+                conversation_history = store.get_conversation(request.conversation_id)
+
+            # Route message via LLM function calling
+            result = chat_router.route_message(
+                message=request.message,
+                conversation_history=conversation_history,
+                context=request.context,
+                mode=request.mode or 'navigation',
+                serialized_context=request.serialized_context or '',
+                model_override=request.model_override
+            )
+
+            # Build response matching ChatAction interface
+            response = {
+                "action": result.get("action", "respond"),
+                "parameters": result.get("parameters"),
+                "message": result.get("message"),
+                "reasoning": result.get("reasoning"),
+                "conversation_id": conversation_id,
+                "mode": result.get("mode"),
+                "mode_changed": result.get("mode_changed", False),
+                "mode_reason": result.get("mode_reason"),
+                "multi_operation": result.get("multi_operation", False),
+                "operation_count": result.get("operation_count"),
+                "all_operations": result.get("all_operations"),
+                "provider_used": result.get("provider_used"),
+                "model_used": result.get("model_used"),
+                "error": result.get("error"),
             }
+
+            # Handle usage field
+            if result.get("usage"):
+                response["usage"] = ChatActionUsage(
+                    prompt_tokens=result["usage"].get("prompt_tokens", 0),
+                    completion_tokens=result["usage"].get("completion_tokens", 0),
+                    total_tokens=result["usage"].get("total_tokens", 0)
+                )
+
+            return response
+
         else:
-            # Fallback: simple keyword-based routing
+            # Fallback: simple keyword-based routing when ChatRouter unavailable
             message_lower = request.message.lower()
 
             if any(word in message_lower for word in ["meeting", "event", "agenda", "council"]):
-                route = "events"
-                intent = "find_events"
+                action = "search_events"
             elif any(word in message_lower for word in ["issue", "problem", "complaint", "broken", "fix"]):
-                route = "issues"
-                intent = "file_issue"
+                action = "file_complaint"
             elif any(word in message_lower for word in ["law", "bill", "legislation", "vote", "election"]):
-                route = "legislation"
-                intent = "find_legislation"
+                action = "view_legislative_context"
             else:
-                route = "general"
-                intent = "general_inquiry"
+                action = "respond"
 
             return {
-                "route": route,
-                "intent": intent,
-                "entities": {},
-                "response": None
+                "action": action,
+                "parameters": {},
+                "message": "Chat router not available. Please try again later." if action == "respond" else None,
+                "conversation_id": conversation_id,
+                "mode": request.mode or "navigation",
+                "mode_changed": False,
             }
 
     except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Chat routing error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
 
