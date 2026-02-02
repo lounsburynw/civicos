@@ -48,13 +48,14 @@ CivicOS works through AI assistants you already use.
 
 ## Example Questions
 
-| You | CivicOS can answer |
-|-----|-------------------|
-| *"What's happening with the downtown parking garage?"* | Upcoming agenda items, past decisions, related complaints |
-| *"Who else is concerned about traffic on Lincoln Ave?"* | Neighbors who filed similar 311 complaints |
-| *"What did people say about homelessness at the last meeting?"* | Public testimony from transcripts |
-| *"Help me prepare to speak at Monday's meeting"* | Relevant context, past decisions, talking points |
-| *"How do I submit a public comment?"* | Email address, deadlines, tips for effective comments |
+| You | CivicOS | Via |
+|-----|---------|-----|
+| *"What's happening with the 4th St rezoning?"* | Agenda status, past decisions, state density bonus law | MCP Server |
+| *"Who else cares about traffic on Lincoln?"* | 23 neighbors filed complaints, 8 voiced support | MCP + Relay |
+| *"What did people say about homelessness at the last meeting?"* | Public testimony from transcripts | MCP Server |
+| *"I support the bike lane proposal"* | Voice recorded. You're one of 34 supporters. | AI Assistant → Relay |
+| *"I'll attend Monday's meeting"* | Committed. 11 others plan to attend. | AI Assistant → Relay |
+| *"Help me prepare to speak"* | Context, talking points, then "Ready to commit?" | AI Assistant → MCP → Relay |
 
 ---
 
@@ -63,25 +64,24 @@ CivicOS works through AI assistants you already use.
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                                                                     │
-│   "What's on the         ┌─────────────┐                           │
-│    city council    ────► │ Claude.ai   │ ──┐                       │
-│    agenda?"              └─────────────┘   │                       │
-│                          ┌─────────────┐   │   ┌─────────────────┐ │
-│   "Who else cares        │ ChatGPT     │ ──┼──►│ CivicOS         │ │
-│    about this?"          └─────────────┘   │   │ MCP Server      │ │
-│                          ┌─────────────┐   │   └────────┬────────┘ │
-│                          │ Claude App  │ ──┘            │          │
-│                          └─────────────┘                ▼          │
-│                                              ┌─────────────────┐   │
-│                                              │   Civic Data    │   │
-│                                              │   (PostgreSQL)  │   │
-│                                              └─────────────────┘   │
+│   You ──► Your AI Assistant ──► CivicOS                            │
+│                                     │                               │
+│                          ┌──────────┴──────────┐                   │
+│                          ▼                     ▼                    │
+│                       Learn                   Act                   │
+│                   What's happening?      Voice support.             │
+│                   Who else cares?        Commit to action.          │
+│                                                                     │
+│   ─────────────────────────────────────────────────────────────    │
+│   Federated: Each city runs independently. Coordination syncs      │
+│   across boundaries—city, county, state. No central platform.      │
+│                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 **Why AI assistants?** Most people won't download a civic engagement app. But millions already use Claude and ChatGPT daily. CivicOS meets people where they are.
 
-**Why federation?** Each jurisdiction runs independently while sharing coordination signals across boundaries. No single platform controls civic participation—your AI agent reasons locally, civic knowledge flows openly. See [Coordination Protocol](docs/critical/COORDINATION_PROTOCOL.md) for details.
+**Why federation?** Civic issues span jurisdictions—housing involves federal funding, state law, county planning, and city zoning. CivicOS runs at each level. Your AI agent synthesizes across boundaries while you voice support once and it syncs everywhere relevant. No single platform controls civic participation. See [Coordination Protocol](docs/critical/COORDINATION_PROTOCOL.md) for details.
 
 ### San Rafael Pilot Data
 
@@ -136,7 +136,7 @@ cp .env.example .env  # Add your API keys
 ```
 civicos/
 ├── packages/civicos/             # Core query API
-├── packages/civicos-relay/       # Federation relay (voice, sync)
+├── packages/civicos-relay/       # Federation relay (voice, actions, sync)
 ├── packages/civicos-extraction/  # Data parsers (Legistar, SeeClickFix, etc.)
 ├── packages/civicos-services/    # REST API, WebSocket server
 ├── apps/civicos-workspace/       # Vue frontend

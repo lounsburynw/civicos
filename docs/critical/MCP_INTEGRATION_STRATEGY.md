@@ -1116,6 +1116,8 @@ The `civicos-relay` package provides coordination infrastructure (voices, subscr
 - Subscription management (`subscribe_to_topic`)
 - Provenance data (`get_key_provenance`)
 
+**Note:** Action primitives (define, commit, complete) are handled directly by the relay via Nostr WebSocket, not MCP. MCP remains a read-only knowledge layer. See `docs/critical/COORDINATION_PROTOCOL.md` for action primitive specifications.
+
 **MCP federation options:**
 
 1. **Single MCP, federated relay**: One MCP server connects to a relay that syncs with peers

@@ -31,6 +31,19 @@ CivicOS implements a full NIP-01 compliant relay with civic extensions. Users ma
 
 ## Civic Event Kinds
 
+| Kind | Type | Purpose | Status |
+|------|------|---------|--------|
+| 30800 | Addressable | Civic Voice (stance on entity) | ✅ Complete |
+| 30801 | Addressable | Civic Entity (decisions, initiatives) | ✅ Complete |
+| 30802 | Addressable | Civic Subscription (notifications) | ✅ Complete |
+| 30810 | Addressable | Civic Action (defined tasks) | 🚧 In Progress |
+| 30811 | Addressable | Civic Commitment (intent to act) | 🚧 In Progress |
+| 30812 | Addressable | Civic Completion (evidence) | 🚧 In Progress |
+| 10800 | Replaceable | Civic Provenance (reputation) | ✅ Complete |
+| 1800 | Regular | Civic Vouch (social attestation) | ✅ Complete |
+| 1801 | Regular | Civic Event Notification | ✅ Complete |
+| 1802 | Regular | Key Link Attestation | ✅ Complete |
+
 ### Kind 30800: Civic Voice
 
 A citizen's stance on a civic entity. Addressable by `kind:pubkey:d-tag`.
@@ -210,6 +223,145 @@ Links old CivicOS key (SECP256R1) to new Nostr key (secp256k1).
 3. Relay validates both signatures
 4. Provenance merges to new key
 
+---
+
+## Action Primitives
+
+Action primitives bridge the gap from signal to outcome. Voices express intent; actions accomplish change. These kinds enable coordination that catalyzes real-world civic action.
+
+### Kind 30810: Civic Action
+
+A defined task that moves an initiative forward. Addressable by `kind:pubkey:d-tag`.
+
+```json
+{
+  "kind": 30810,
+  "pubkey": "<organizer pubkey>",
+  "created_at": 1739520000,
+  "tags": [
+    ["d", "action:marin-housing:written-comment"],
+    ["a", "30801:<pubkey>:initiative:marin-housing"],
+    ["j", "marin-county"],
+    ["type", "written_comment"],
+    ["target", "clerk@marincounty.org"],
+    ["deadline", "2026-02-14T17:00:00Z"],
+    ["template", "<base64 encoded template or URI>"],
+    ["target_count", "30"]
+  ],
+  "content": "Submit written comment supporting proportional housing allocation",
+  "sig": "<64-byte schnorr signature>"
+}
+```
+
+**Required Tags:**
+- `d`: Action identifier (unique per action)
+- `a`: Reference to parent entity (initiative, agenda item)
+- `j`: Jurisdiction code
+- `type`: Action type (see below)
+
+**Optional Tags:**
+- `target`: Email, form URL, or contact for action
+- `deadline`: ISO 8601 deadline for action
+- `template`: Base64 template or URI for action content
+- `target_count`: Goal number of completions
+
+**Action Types:**
+- `written_comment` — submit to official email/form
+- `attend_meeting` — show up physically
+- `public_comment` — speak at meeting
+- `contact_official` — call/email specific person
+- `signature` — sign petition/letter
+- `share` — distribute information
+- `custom` — anything else
+
+### Kind 30811: Civic Commitment
+
+Binding intent to complete an action. Addressable by `kind:pubkey:d-tag`.
+
+```json
+{
+  "kind": 30811,
+  "pubkey": "<committer pubkey>",
+  "created_at": 1739520000,
+  "tags": [
+    ["d", "commit:<pubkey>:marin-housing:written-comment"],
+    ["a", "30810:<organizer_pubkey>:action:marin-housing:written-comment"],
+    ["j", "marin-county"],
+    ["status", "committed"]
+  ],
+  "content": "",
+  "sig": "<64-byte schnorr signature>"
+}
+```
+
+**Required Tags:**
+- `d`: Commitment identifier (includes pubkey for uniqueness)
+- `a`: Reference to action being committed to
+- `j`: Jurisdiction code
+- `status`: One of `committed`, `completed`, `withdrawn`
+
+**Behavior:**
+- One commitment per pubkey per action (addressable)
+- Status progression: `committed` → `completed` | `withdrawn`
+- Enables progress tracking: "12 committed, 8 completed"
+
+### Kind 30812: Civic Completion
+
+Evidence that an action was completed. Addressable by `kind:pubkey:d-tag`.
+
+```json
+{
+  "kind": 30812,
+  "pubkey": "<completer pubkey>",
+  "created_at": 1739606400,
+  "tags": [
+    ["d", "complete:<pubkey>:marin-housing:written-comment"],
+    ["a", "30810:<organizer_pubkey>:action:marin-housing:written-comment"],
+    ["j", "marin-county"],
+    ["evidence", "self_report"],
+    ["completed_at", "2026-02-13T14:30:00Z"]
+  ],
+  "content": "",
+  "sig": "<64-byte schnorr signature>"
+}
+```
+
+**Required Tags:**
+- `d`: Completion identifier
+- `a`: Reference to action completed
+- `j`: Jurisdiction code
+- `evidence`: Evidence type (see below)
+- `completed_at`: ISO 8601 timestamp of completion
+
+**Evidence Types:**
+- `self_report` — user clicked "I did it"
+- `email_confirmation` — forwarded confirmation
+- `attendance_check` — checked in at meeting
+- `verified` — organizer confirmed
+
+**Notes:**
+- Completion updates the corresponding commitment status to `completed`
+- Multiple completions by same pubkey for same action are ignored (idempotent)
+
+### Action Accounting
+
+Relays maintain derived views showing progress toward targets:
+
+```
+Initiative: Regional Housing
+Actions:
+├── Written Comment (deadline: Feb 14)
+│   └── 24 completed / 27 committed / 30 target
+├── Attend Meeting (deadline: Feb 18 2pm)
+│   └── 0 completed / 11 committed / 15 target
+└── Contact Rodoni (deadline: Feb 17)
+    └── 8 completed / 10 committed / 10 target
+
+Overall: 68% of target actions completed
+```
+
+---
+
 ## Relay Behavior
 
 ### Event Storage
@@ -368,12 +520,15 @@ Response:
 | Component | Status | Notes |
 |-----------|--------|-------|
 | Crypto (secp256k1/Schnorr) | ✅ Complete | BIP-340 compliant |
-| Event Models | ✅ Complete | All 7 civic kinds |
+| Event Models (Voice/Entity/Sub) | ✅ Complete | Kinds 30800-30802 |
+| Event Models (Provenance/Vouch) | ✅ Complete | Kinds 10800, 1800-1802 |
+| Event Models (Action Primitives) | 🚧 In Progress | Kinds 30810-30812 |
 | Storage Layer | ✅ Complete | PostgreSQL + indexes |
 | WebSocket Relay | ✅ Complete | NIP-01 compliant |
 | Key Link Attestation | ✅ Complete | Dual-sig validation |
 | REST Compatibility | ✅ Complete | Deprecated endpoints |
 | NIP-05 Verification | ✅ Complete | /.well-known/nostr.json endpoint |
+| Action Accounting Views | 🚧 Pending | Commitment/completion aggregation |
 
 ## References
 
