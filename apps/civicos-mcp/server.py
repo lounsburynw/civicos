@@ -141,6 +141,38 @@ async def health():
     }
 
 
+@app.get("/registry")
+async def get_registry():
+    """
+    CivicOS MCP Server Registry.
+
+    Returns the official registry of CivicOS-approved MCP servers.
+    Clients can use this to discover available MCP endpoints.
+    """
+    import datetime
+    registry_path = os.path.join(os.path.dirname(__file__), "registry_data.json")
+    try:
+        with open(registry_path, "r") as f:
+            registry_data = json.load(f)
+
+        # Add health status for this server
+        for operator in registry_data.get("operators", []):
+            if operator.get("jurisdiction_id") == _jurisdiction:
+                operator["health"] = {
+                    "status": "healthy",
+                    "tools_count": len(_registry) if _registry else 0,
+                    "checked_at": datetime.datetime.utcnow().isoformat() + "Z"
+                }
+
+        return registry_data
+    except FileNotFoundError:
+        return {
+            "version": "1.0.0",
+            "operators": [],
+            "error": "Registry data not found"
+        }
+
+
 @app.post("/mcp")
 async def mcp_endpoint(request: Request):
     """MCP JSON-RPC endpoint for Claude.ai and ChatGPT."""

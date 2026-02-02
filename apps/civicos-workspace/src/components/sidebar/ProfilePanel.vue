@@ -134,6 +134,11 @@
           Delete Account
         </button>
       </div>
+
+      <!-- MCP Data Sources Section -->
+      <div class="mcp-section">
+        <MCPRegistryPanel />
+      </div>
     </div>
 
     <!-- Error Message -->
@@ -156,6 +161,7 @@ import {
 } from '@/utils/archetypeMatching'
 import * as LucideIcons from 'lucide-vue-next'
 import { HelpCircle } from 'lucide-vue-next'
+import MCPRegistryPanel from '@/components/shared/MCPRegistryPanel.vue'
 
 const profileStore = useProfileStore()
 const workspaceStore = useWorkspaceStore()
@@ -739,5 +745,12 @@ async function handleDeleteAccount() {
   border-left: 3px solid var(--accent-red);
   font-size: 12px;
   line-height: 1.4;
+}
+
+/* MCP Data Sources Section */
+.mcp-section {
+  padding: var(--space-md);
+  border-top: 1px solid var(--border);
+  margin-top: var(--space-md);
 }
 </style>

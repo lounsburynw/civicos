@@ -1010,3 +1010,93 @@ export interface VectorStatsResponse {
   embedding_model: string;
   embedding_dimension: number;
 }
+
+// ============================================================================
+// Voice Counts (Coordination Protocol - Pilot Phase)
+// ============================================================================
+
+/**
+ * Voice count response from coordination API
+ * GET /api/coordination/voice/counts/{entity}
+ *
+ * Entity format: decision:{jurisdiction}:{date}:{item-ref}
+ * Example: decision:city-san-rafael:2026-02-03:item-6a
+ */
+export interface VoiceCountResponse {
+  entity: string;
+  support: number;
+  oppose: number;
+  watching: number;
+  total: number;
+}
+
+// ============================================================================
+// MCP Registry (Discovery of CivicOS MCP Servers)
+// ============================================================================
+
+/**
+ * Location information for an MCP operator
+ */
+export interface MCPOperatorLocation {
+  city: string;
+  county?: string;
+  state: string;
+}
+
+/**
+ * Contact information for an MCP operator
+ */
+export interface MCPOperatorContact {
+  organization: string;
+  url?: string;
+  email?: string;
+}
+
+/**
+ * Health status of an MCP operator
+ */
+export interface MCPOperatorHealth {
+  status: 'healthy' | 'unhealthy' | 'unknown';
+  tools_count?: number;
+  checked_at: string;
+  response_time_ms?: number;
+}
+
+/**
+ * An MCP server operator in the registry
+ */
+export interface MCPOperator {
+  id: string;
+  jurisdiction_id: string;
+  name: string;
+  description?: string;
+  mcp_endpoint: string;
+  type: 'official' | 'community' | 'experimental';
+  status: 'active' | 'inactive' | 'deprecated';
+  authoritative_for: string[];
+  tools_count?: number;
+  location?: MCPOperatorLocation;
+  contact?: MCPOperatorContact;
+  health?: MCPOperatorHealth;
+}
+
+/**
+ * Registry metadata
+ */
+export interface MCPRegistryMetadata {
+  protocol_version: string;
+  documentation_url?: string;
+  github_url?: string;
+}
+
+/**
+ * Full MCP server registry response
+ * GET /api/mcp/registry
+ */
+export interface MCPRegistry {
+  version: string;
+  updated: string;
+  registry_url?: string;
+  operators: MCPOperator[];
+  metadata?: MCPRegistryMetadata;
+}

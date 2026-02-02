@@ -1,0 +1,32 @@
+{
+  "version": "1.0.0",
+  "updated": "2026-02-02T00:00:00Z",
+  "registry_url": "https://civicosproject.org/mcp/registry",
+  "operators": [
+    {
+      "id": "civicos-san-rafael",
+      "jurisdiction_id": "city-san-rafael",
+      "name": "San Rafael",
+      "description": "City of San Rafael civic data - meetings, decisions, budget, issues",
+      "mcp_endpoint": "https://san-rafael.civicosproject.org/mcp",
+      "type": "official",
+      "status": "active",
+      "authoritative_for": ["meetings", "decisions", "budget", "issues", "municipal_code"],
+      "tools_count": 30,
+      "location": {
+        "city": "San Rafael",
+        "county": "Marin",
+        "state": "CA"
+      },
+      "contact": {
+        "organization": "CivicOS Project",
+        "url": "https://civicosproject.org"
+      }
+    }
+  ],
+  "metadata": {
+    "protocol_version": "2024-11-05",
+    "documentation_url": "https://civicosproject.org/docs/mcp",
+    "github_url": "https://github.com/civicosproject/civicos"
+  }
+}
