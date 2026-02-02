@@ -739,6 +739,61 @@ REST API endpoints for relay operations are now available in `civicos-services`:
 
 This is in addition to storage costs (Supabase: ~$25-50/mo for production, free tier for dev).
 
+### Nostr Protocol Integration
+
+CivicOS extends Nostr (NIP-01) with civic-specific event kinds. This provides maximum ecosystem interoperability — users manage keys via external Nostr clients (Damus, Primal, Amethyst, nos2x) and voice on civic entities through standard Nostr events.
+
+**Why Nostr:**
+- **Key management** — Users control keys in existing clients, no CivicOS-specific key infrastructure
+- **Ecosystem** — Any Nostr client can connect to CivicOS relays
+- **Federation** — Built-in relay federation (NIP-01) replaces custom sync protocol
+- **Standards** — secp256k1/Schnorr (BIP-340) is well-tested cryptography
+
+**Civic Event Kinds:**
+
+| Kind | Type | Purpose |
+|------|------|---------|
+| 30800 | Addressable | Civic Voice (one per pubkey per entity) |
+| 30801 | Addressable | Civic Entity (decisions, initiatives, meetings) |
+| 30802 | Addressable | Civic Subscription (notification criteria) |
+| 10800 | Replaceable | Civic Provenance (self-signed reputation) |
+| 1800 | Regular | Civic Vouch (social attestation) |
+| 1801 | Regular | Civic Event Notification (relay broadcasts) |
+| 1802 | Regular | Key Link Attestation (old key → Nostr migration) |
+
+**WebSocket Endpoint:**
+
+```
+wss://relay.civicos.org
+```
+
+Standard NIP-01 messages:
+- `["EVENT", <event>]` — Publish civic voice or other event
+- `["REQ", <sub_id>, {"kinds": [30800], "#j": ["city-san-rafael"]}]` — Subscribe to voices
+- `["CLOSE", <sub_id>]` — Unsubscribe
+
+**Key Migration (Old ECDSA → Nostr):**
+
+Existing CivicOS users with SECP256R1 keys can migrate to Nostr while preserving provenance:
+
+1. Generate new Nostr key in preferred client
+2. Sign link message with old key: `civicos:link:v1:<new_pubkey>`
+3. Publish kind 1802 attestation event with both signatures
+4. Relay validates and links keys
+5. Provenance transfers to new key
+
+**REST Compatibility:**
+
+Existing REST endpoints continue working with deprecation headers. Clients should migrate to WebSocket by Q2 2026:
+
+| REST Endpoint | Nostr Equivalent |
+|--------------|------------------|
+| `GET /voice/counts/{entity}` | `["REQ", "counts", {"kinds": [30800], "#d": ["entity"]}]` |
+| `GET /voice/{entity}` | `["REQ", "voices", {"kinds": [30800], "#d": ["entity"]}]` |
+| `POST /voice` | `["EVENT", <signed CivicVoiceEvent>]` |
+
+See `docs/critical/NOSTR_CIVIC_NIPS.md` for full NIP specification.
+
 ### Phase 2: Full Relay (Post-Pilot)
 
 If pilot validates coordination hypothesis, expand relay:

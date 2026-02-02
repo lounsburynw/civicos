@@ -1,0 +1,316 @@
+# Nostr Civic NIPs Specification
+
+CivicOS extends the Nostr protocol with civic-specific event kinds for local governance coordination.
+
+## Overview
+
+CivicOS implements a full NIP-01 compliant relay with civic extensions. Users manage keys via external Nostr clients (Damus, Primal, Amethyst, nos2x) and interact with civic entities through standard Nostr events.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Nostr Ecosystem                           │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐        │
+│  │  Damus  │  │ Primal  │  │Amethyst │  │  nos2x  │        │
+│  └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘        │
+│       │            │            │            │              │
+│       └────────────┴─────┬──────┴────────────┘              │
+│                          │                                  │
+│              WebSocket (NIP-01)                             │
+│                          │                                  │
+│  ┌───────────────────────▼───────────────────────────────┐  │
+│  │           CivicOS Nostr Relay                         │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌───────────┐     │  │
+│  │  │ Voice Count │  │ Provenance  │  │Subscription│     │  │
+│  │  │ Aggregation │  │  Tracking   │  │  Matching  │     │  │
+│  │  └─────────────┘  └─────────────┘  └───────────┘     │  │
+│  └───────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Civic Event Kinds
+
+### Kind 30800: Civic Voice
+
+A citizen's stance on a civic entity. Addressable by `kind:pubkey:d-tag`.
+
+```json
+{
+  "kind": 30800,
+  "pubkey": "<32-byte hex secp256k1 pubkey>",
+  "created_at": 1738464000,
+  "tags": [
+    ["d", "decision:city-san-rafael:2026-02-03:item-6a"],
+    ["j", "city-san-rafael"],
+    ["stance", "support"],
+    ["t", "housing"]
+  ],
+  "content": "",
+  "sig": "<64-byte schnorr signature>"
+}
+```
+
+**Required Tags:**
+- `d`: Entity identifier (unique per voice)
+- `j`: Jurisdiction code
+- `stance`: One of `support`, `oppose`, `watching`
+
+**Optional Tags:**
+- `t`: Topic tags (multiple allowed)
+
+**Behavior:**
+- One voice per pubkey per entity (addressable)
+- Revocation: publish with `content: "revoked"`
+- Newer events replace older ones
+
+### Kind 30801: Civic Entity
+
+A civic decision, initiative, meeting, or agenda item.
+
+```json
+{
+  "kind": 30801,
+  "pubkey": "<jurisdiction or creator pubkey>",
+  "tags": [
+    ["d", "decision:city-san-rafael:2026-02-03:item-6a"],
+    ["j", "city-san-rafael"],
+    ["type", "decision"],
+    ["title", "4th Street Rezoning"],
+    ["t", "housing"]
+  ],
+  "content": "{\"description\": \"...\", \"outcome\": \"approved\"}"
+}
+```
+
+**Required Tags:**
+- `d`: Entity identifier
+- `j`: Jurisdiction
+- `type`: One of `decision`, `initiative`, `agenda_item`, `meeting`
+- `title`: Human-readable title
+
+**Content JSON:**
+- `description`: Detailed description
+- `outcome`: One of `pending`, `approved`, `denied`, `deferred`, `passed`, `failed`
+
+**Notes:**
+- Official entities signed by jurisdiction key (NIP-05 verified)
+- Community initiatives signed by creator key
+
+### Kind 30802: Civic Subscription
+
+User's subscription criteria for notifications.
+
+```json
+{
+  "kind": 30802,
+  "tags": [
+    ["d", "sub:city-san-rafael:housing"],
+    ["j", "city-san-rafael"],
+    ["t", "housing"],
+    ["threshold", "10"]
+  ],
+  "content": "<NIP-44 encrypted delivery config>"
+}
+```
+
+**Tags:**
+- `d`: Subscription identifier
+- `j`: Jurisdiction filter (optional)
+- `t`: Topic filters (optional, multiple)
+- `type`: Entity type filter (optional)
+- `threshold`: Voice count threshold (optional)
+
+**Content:** NIP-44 encrypted JSON with delivery configuration.
+
+### Kind 10800: Civic Provenance
+
+Self-signed reputation record for a pubkey. Replaceable (one per pubkey).
+
+```json
+{
+  "kind": 10800,
+  "pubkey": "<subject pubkey>",
+  "tags": [
+    ["first-voice", "2025-09-01"],
+    ["total-voices", "23"],
+    ["entities-touched", "12"],
+    ["j", "city-san-rafael"],
+    ["attestation", "physical", "city-san-rafael", "2026-01-15"]
+  ],
+  "content": ""
+}
+```
+
+**Tags:**
+- `first-voice`: Date of first voice
+- `total-voices`: Total voice count
+- `entities-touched`: Unique entities count
+- `j`: Primary jurisdiction
+- `attestation`: [type, jurisdiction, date] tuples
+
+### Kind 1800: Civic Vouch
+
+One citizen vouching for another (social attestation).
+
+```json
+{
+  "kind": 1800,
+  "pubkey": "<voucher pubkey>",
+  "tags": [
+    ["p", "<vouchee pubkey>"],
+    ["j", "city-san-rafael"]
+  ],
+  "content": "I know this person from neighborhood meetings"
+}
+```
+
+### Kind 1801: Civic Event Notification
+
+Relay notification about civic events.
+
+```json
+{
+  "kind": 1801,
+  "pubkey": "<relay pubkey>",
+  "tags": [
+    ["event-type", "agenda_published"],
+    ["j", "city-san-rafael"],
+    ["a", "30801:<pubkey>:meeting:city-san-rafael:2026-02-03"]
+  ],
+  "content": "{\"title\": \"City Council Meeting\", ...}"
+}
+```
+
+**Event Types:**
+- `agenda_published`: New agenda available
+- `voice_threshold`: Entity reached voice threshold
+- `meeting_scheduled`: Upcoming meeting
+- `outcome_recorded`: Decision outcome recorded
+
+### Kind 1802: Key Link Attestation
+
+Links old CivicOS key (SECP256R1) to new Nostr key (secp256k1).
+
+```json
+{
+  "kind": 1802,
+  "pubkey": "<new secp256k1 pubkey>",
+  "tags": [
+    ["old-key", "<old SECP256R1 pubkey hex>"],
+    ["old-sig", "<ECDSA signature proving old key ownership>"]
+  ],
+  "content": "Key migration attestation: I control both keys"
+}
+```
+
+**Verification:**
+1. Old key signs message: `civicos:link:v1:<new_pubkey>`
+2. New key signs Nostr event normally
+3. Relay validates both signatures
+4. Provenance merges to new key
+
+## Relay Behavior
+
+### Event Storage
+
+- **Regular events (1-9999):** Stored, duplicates rejected by ID
+- **Replaceable events (10000-19999):** One per `kind:pubkey`, newer replaces older
+- **Addressable events (30000-39999):** One per `kind:pubkey:d-tag`, newer replaces older
+
+### Voice Count Aggregation
+
+The relay maintains materialized views of voice counts per entity:
+
+```sql
+-- Voice counts per entity
+entity_id | jurisdiction | support | oppose | watching | total
+----------|--------------|---------|--------|----------|------
+decision:... | city-sr | 10 | 3 | 5 | 18
+```
+
+### Subscription Matching
+
+Subscriptions filter events by:
+- `kinds`: Event kind numbers
+- `authors`: Pubkey list
+- `#d`, `#j`, `#t`: Tag values
+- `since`/`until`: Time range
+
+## Client Integration
+
+### Connecting
+
+```javascript
+const ws = new WebSocket('wss://relay.civicos.org');
+
+// Subscribe to San Rafael voices
+ws.send(JSON.stringify([
+  "REQ", "sr-voices",
+  {"kinds": [30800], "#j": ["city-san-rafael"]}
+]));
+```
+
+### Publishing a Voice
+
+```javascript
+// Using nostr-tools or similar
+const event = {
+  kind: 30800,
+  created_at: Math.floor(Date.now() / 1000),
+  tags: [
+    ["d", "decision:city-san-rafael:2026-02-03:item-6a"],
+    ["j", "city-san-rafael"],
+    ["stance", "support"],
+    ["t", "housing"]
+  ],
+  content: ""
+};
+
+// Sign and publish
+const signedEvent = await signEvent(event, privateKey);
+ws.send(JSON.stringify(["EVENT", signedEvent]));
+```
+
+### Revoking a Voice
+
+```javascript
+const revocation = {
+  kind: 30800,
+  tags: [
+    ["d", "decision:city-san-rafael:2026-02-03:item-6a"],
+    ["j", "city-san-rafael"],
+    ["stance", "support"]
+  ],
+  content: "revoked"
+};
+```
+
+## Migration from CivicOS v1
+
+Existing users with SECP256R1 keys can migrate to Nostr:
+
+1. Generate new Nostr key in preferred client
+2. Sign link message with old key: `civicos:link:v1:<new_pubkey>`
+3. Publish kind 1802 attestation event
+4. Relay validates and links keys
+5. Provenance transfers to new key
+
+See `docs/user_guides/KEY_MIGRATION_GUIDE.md` for detailed instructions.
+
+## Implementation Status
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Crypto (secp256k1/Schnorr) | ✅ Complete | BIP-340 compliant |
+| Event Models | ✅ Complete | All 7 civic kinds |
+| Storage Layer | ✅ Complete | PostgreSQL + indexes |
+| WebSocket Relay | ✅ Complete | NIP-01 compliant |
+| Key Link Attestation | ✅ Complete | Dual-sig validation |
+| REST Compatibility | ✅ Complete | Deprecated endpoints |
+
+## References
+
+- [NIP-01: Basic protocol flow](https://github.com/nostr-protocol/nips/blob/master/01.md)
+- [BIP-340: Schnorr Signatures](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki)
+- [CivicOS Coordination Protocol](./COORDINATION_PROTOCOL.md)
