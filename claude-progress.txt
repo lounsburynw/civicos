@@ -16891,3 +16891,35 @@ Status: COMPLETE
 
 ### Next recommended item
 Choose from P1/P2 items in relay, frontend, or data tracks.
+
+---
+## Session: 2026-02-02 - Priority Restructure for Edge Intelligence
+
+### What happened
+- User clarified architectural concern: MCP should be READ-ONLY, action/coordination happens via Edge Intelligence
+- Reviewed COORDINATION_PROTOCOL.md to align on architecture
+- Restructured pilot.json priorities
+
+### Priority changes made
+**P0 - Edge Intelligence (6 items):**
+- web_chat_interface, user_context_schema, context_aware_agent
+- client_side_signing, action_flow_integration
+- action_event_preparation (NEW) - prepares unsigned Nostr events
+
+**P1 - Relay Backend (5 items):**
+- action_kind, commitment_kind, completion_kind, action_accounting, action_attribution
+
+**P2 - Everything else (bumped down)**
+
+### Key architectural fix
+- `action_tools` in MCP converted to READ-ONLY (query actions, not create them)
+- Write operations moved to `action_event_preparation` in Edge Intelligence
+- Architecture: MCP reads → Edge Intelligence prepares → Client signs → Relay stores
+
+### Build order for next session
+1. action_kind (relay storage) - gives Edge Intelligence a target
+2. web_chat_interface + client_side_signing - user-facing flow
+3. Rest follows naturally
+
+### Next P0
+Edge Intelligence items (6 total), starting with web_chat_interface or action_kind depending on dependency preference

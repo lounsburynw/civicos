@@ -438,7 +438,7 @@
       ],
       "manual_input_fallback_schema": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 2,
         "artifact": "Schema for manually-curated financial mappings when automation fails",
         "note": "Some mappings (e.g., grant-to-program, CFDA enrichment) require human input. Define data/manual/*.json schema with source attribution and last_updated tracking. Prioritize automation but plan for manual fallback.",
         "pattern": "Manual input should be structured, versioned, and clearly marked as human-curated"
@@ -2727,7 +2727,7 @@
       },
       "web_frontend": {
         "status": "pending",
-        "priority": 1,
+        "priority": 2,
         "artifact": "apps/civicos-workspace/ Vue frontend deployed",
         "description": "Deploy Vue frontend as primary web interface. ChatGPT/MCP drive discovery, web app provides depth.",
         "note": "Frontend functional locally via /launch. Needs deployment for public access. Linkback destination from all AI assistant interactions.",
@@ -3073,42 +3073,23 @@
       },
       "action_tools": {
         "status": "pending",
-        "priority": 1,
-        "description": "MCP tools for action primitives - the core mechanism for catalyzing outcomes rather than just aggregating intent. Actions are specific tasks (submit comment, attend meeting, contact official) that move initiatives forward.",
+        "priority": 2,
+        "description": "READ-ONLY MCP tools for querying action state. Write operations (define, commit, complete) happen via Edge Intelligence, not MCP.",
         "test_file": "apps/civicos-mcp/tests/test_action_tools.py",
-        "rationale": "The trap in civic tech is building infrastructure for signaling intent vs enabling accomplishment. 89 voices means nothing. 27 letters + 11 attendees + 8 phone calls changes votes. Actions bridge that gap.",
+        "rationale": "MCP is the 'Library' - provides public civic knowledge. It queries, it does not mutate. Action preparation happens in Edge Intelligence; signing happens client-side.",
         "tools": [
-          "define_action(initiative, type, target, deadline, template?, target_count?) - create action for initiative",
-          "list_actions(initiative) - get actions with completion stats",
-          "commit_to_action(action_id, public_key, signature) - bind intent to complete",
-          "complete_action(action_id, evidence_type, public_key, signature) - record completion",
-          "get_action_accounting(initiative) - aggregate progress toward targets"
+          "list_actions(initiative) - query defined actions with progress stats",
+          "get_action_progress(action_id) - detailed completion breakdown",
+          "get_initiative_accounting(initiative_id) - aggregate action progress"
         ],
-        "action_types": [
-          "written_comment - submit to official email/form",
-          "attend_meeting - show up physically",
-          "public_comment - speak at meeting",
-          "contact_official - call/email specific person",
-          "signature - sign petition/letter",
-          "share - distribute information",
-          "custom - anything else"
-        ],
-        "design_notes": [
-          "Action (kind 30810): defined task with type, target, deadline, template, target_count",
-          "Commitment (kind 30811): binding intent - status: committed \u2192 completed | withdrawn",
-          "Completion (kind 30812): record that action happened - evidence: self_report | email_confirmation | attendance_check | verified",
-          "Accounting is derived view: X completed / Y committed / Z target",
-          "Templates lower friction: pre-written letters, talking points, scripts",
-          "Deadlines enable reminders: 'Your comment is due tomorrow'",
-          "Attribution closes loop: 'Your comment was 1 of 27 cited in the decision'"
-        ]
+        "note": "Moved write operations to Edge Intelligence. MCP remains read-only per architecture."
       }
     },
     "action_primitives": {
       "_doc": "Core primitives for catalyzing action, not just aggregating intent. These are the Nostr event kinds that enable coordination.",
       "action_kind": {
         "status": "pending",
-        "priority": 0,
+        "priority": 1,
         "description": "Kind 30810: Civic Action - addressable event defining a specific task that moves an initiative forward",
         "test_file": "packages/civicos-relay/tests/test_action_events.py",
         "schema": {
@@ -3247,7 +3228,7 @@
       },
       "action_attribution": {
         "status": "pending",
-        "priority": 2,
+        "priority": 1,
         "description": "Link completed actions to outcomes - close the feedback loop so people see their impact",
         "test_file": "packages/civicos-relay/tests/test_action_attribution.py",
         "design": [
@@ -3314,7 +3295,7 @@
       },
       "action_list": {
         "status": "pending",
-        "priority": 1,
+        "priority": 2,
         "description": "Display actions for an initiative with progress stats. Show type, deadline, target, and completion progress (X/Y completed, Z committed).",
         "test_file": "apps/civicos-workspace/tests/e2e/action-list.spec.ts",
         "subtasks": [
@@ -3327,7 +3308,7 @@
       },
       "action_commit": {
         "status": "pending",
-        "priority": 1,
+        "priority": 2,
         "description": "UI for committing to actions. User clicks 'I'll do this', signs commitment. Shows template/instructions when available.",
         "test_file": "apps/civicos-workspace/tests/e2e/action-commit.spec.ts",
         "subtasks": [
@@ -3339,7 +3320,7 @@
       },
       "action_complete": {
         "status": "pending",
-        "priority": 1,
+        "priority": 2,
         "description": "UI for marking actions complete. User clicks 'I did it', selects evidence type, signs completion. Triggers celebration/attribution.",
         "test_file": "apps/civicos-workspace/tests/e2e/action-complete.spec.ts",
         "subtasks": [
@@ -3468,8 +3449,8 @@
     ],
     "web_chat_interface": {
       "status": "pending",
-      "priority": 1,
-      "description": "Chat interface at civicos.org/[jurisdiction] for frictionless civic engagement. AI-powered conversation using Claude API + CivicOS MCP. Primary surface for citizens who don't use Claude.ai/ChatGPT directly.",
+      "priority": 0,
+      "description": "Web chat interface at civicos.org/[jurisdiction]. Primary surface for Edge Intelligence - where users interact with agents that prepare unsigned events.",
       "test_file": "apps/civicos-workspace/tests/e2e/chat-interface.spec.ts",
       "artifact": "apps/civicos-workspace/src/components/chat/",
       "subtasks": [
@@ -3490,7 +3471,7 @@
     },
     "user_context_schema": {
       "status": "pending",
-      "priority": 1,
+      "priority": 0,
       "description": "Schema for user context stored in localStorage. Transmitted per-request to agent. Never stored server-side. Optionally backed up as encrypted Nostr event.",
       "test_file": "apps/civicos-workspace/tests/unit/user-context.spec.ts",
       "artifact": "apps/civicos-workspace/src/services/UserContextService.ts",
@@ -3526,7 +3507,7 @@
     },
     "context_aware_agent": {
       "status": "pending",
-      "priority": 1,
+      "priority": 0,
       "description": "System prompt and agent logic that uses user context for personalized filtering. Stateless - context comes in request, agent reasons about relevance to THIS user.",
       "test_file": "packages/civicos-services/tests/test_context_agent.py",
       "artifact": "packages/civicos-services/src/civicos_services/chat/context_agent.py",
@@ -3558,8 +3539,8 @@
     },
     "client_side_signing": {
       "status": "pending",
-      "priority": 1,
-      "description": "Client-side Nostr signing - user's private key never leaves their device. Support multiple key management approaches for different user sophistication levels.",
+      "priority": 0,
+      "description": "Client-side Nostr signing. User's key NEVER leaves their device. Supports browser localStorage, NIP-07 (nos2x/Alby), and WebAuthn/passkeys. This is where unsigned events from the agent get signed before broadcast.",
       "test_file": "apps/civicos-workspace/tests/e2e/signing.spec.ts",
       "artifact": "apps/civicos-workspace/src/services/SigningService.ts",
       "approaches": {
@@ -3601,8 +3582,8 @@
     },
     "action_flow_integration": {
       "status": "pending",
-      "priority": 1,
-      "description": "End-to-end flow from awareness to action completion. Chat interface + context + signing integrated to catalyze civic action.",
+      "priority": 0,
+      "description": "End-to-end action flow: Agent discovers actions \u2192 prepares unsigned commitment/completion events \u2192 client signs \u2192 broadcast to relay. This is the core Edge Intelligence capability that transforms intent into civic action.",
       "test_file": "apps/civicos-workspace/tests/e2e/action-flow.spec.ts",
       "flow": [
         "1. User asks about civic issue in chat",
@@ -3618,10 +3599,10 @@
         "11. Agent shows attribution: 'You're 1 of 27'"
       ],
       "subtasks": [
-        "Chat → Action discovery flow",
-        "Commitment flow (prepare → sign → broadcast)",
+        "Chat \u2192 Action discovery flow",
+        "Commitment flow (prepare \u2192 sign \u2192 broadcast)",
         "Template delivery after commitment",
-        "Completion flow (evidence → sign → broadcast)",
+        "Completion flow (evidence \u2192 sign \u2192 broadcast)",
         "Attribution display after outcome"
       ]
     },
@@ -3642,6 +3623,20 @@
         "Deep links back to chat interface",
         "One-click actions in email (Mark Complete, View Template)"
       ]
+    },
+    "action_event_preparation": {
+      "status": "pending",
+      "priority": 0,
+      "description": "Agent logic to prepare unsigned Nostr action events (kinds 30810, 30811, 30812). Agent reasons about what action to suggest, prepares the event payload, returns it to client for signing. This is the 'write' side that MCP doesn't do.",
+      "test_file": "apps/civicos-workspace/tests/unit/action-preparation.spec.ts",
+      "subtasks": [
+        "prepare_action_event(initiative, type, target, deadline, template?) - returns unsigned kind 30810",
+        "prepare_commitment_event(action_id) - returns unsigned kind 30811",
+        "prepare_completion_event(action_id, evidence_type) - returns unsigned kind 30812",
+        "Agent prompts for each event type",
+        "Validation before preparation"
+      ],
+      "note": "This is what action_tools in MCP used to do. Moved here because Edge Intelligence prepares events, MCP only queries."
     }
   },
   "federation_infrastructure": {
