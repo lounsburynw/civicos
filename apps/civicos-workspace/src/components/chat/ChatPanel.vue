@@ -422,13 +422,39 @@ async function handleSend() {
 async function dispatchAction(action: ChatAction) {
   console.log('Dispatching action:', action.action, action.parameters)
 
+  // Session 534: If MCP result is available, display it as the primary response
+  // The backend already queried PostgreSQL via MCP tools
+  if (action.mcp_result) {
+    console.log('[ChatPanel] MCP result available from:', action.mcp_tool)
+    chatStore.addMessage({
+      role: 'assistant',
+      content: action.mcp_result,
+      provider_used: action.provider_used,
+      model_used: action.model_used,
+      usage: action.usage
+    })
+    // Still show the workspace for context (expand relevant section)
+    if (action.action === 'search_events') {
+      if (workspaceStore.viewMode === 'chat-first' && !workspaceStore.workspaceVisible) {
+        workspaceStore.toggleWorkspaceVisibility()
+      }
+      sidebarStore.expandSectionExclusive('events')
+    } else if (action.action === 'view_legislative_context') {
+      if (workspaceStore.viewMode === 'chat-first' && !workspaceStore.workspaceVisible) {
+        workspaceStore.toggleWorkspaceVisibility()
+      }
+      sidebarStore.expandSectionExclusive('legislative')
+    }
+    return
+  }
+
   // Session 58: Detect multi-operation queries
   if (action.multi_operation && action.all_operations && action.all_operations.length > 1) {
     await handleMultiOperation(action)
     return
   }
 
-  // Single operation dispatch (existing logic)
+  // Single operation dispatch (existing logic - fallback if no MCP result)
   switch (action.action) {
     case 'search_events':
       // Session 68: Pass provider info for developer mode

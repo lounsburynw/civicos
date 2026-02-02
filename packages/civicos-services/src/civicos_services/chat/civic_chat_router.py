@@ -6,11 +6,12 @@ Enables natural language navigation: "show housing meetings" → search_events()
 
 Session 68: Updated to use provider abstraction for 85% cost reduction.
 Session 77: Restored structured query planning for reliable OR/AND queries.
+Session 534: Integrated MCP tools for search operations (search_meeting_history, etc.)
 """
 
 from openai import OpenAI
 import json
-from typing import Dict, List, Optional, Literal
+from typing import Dict, List, Optional, Literal, Any, Callable
 import os
 import logging
 import re
@@ -26,6 +27,162 @@ from ..core.llm_provider import get_provider_for_task, get_model_for_task
 from ..core.cost_tracking import log_llm_cost
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# Session 534: MCP Tool Executor (HTTP-based)
+# Calls MCP server via HTTP JSON-RPC to preserve architectural boundaries
+# ============================================================================
+
+# Default MCP server URL (can be overridden via environment)
+MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8080")
+
+
+class MCPToolExecutor:
+    """
+    Executes MCP tools via HTTP calls to the MCP server.
+
+    This preserves architectural boundaries by:
+    - Not importing from apps/civicos-mcp directly
+    - Using the standard MCP JSON-RPC protocol
+    - Allowing MCP server to be deployed independently
+
+    The MCP server handles CivicOS initialization and tool execution.
+    """
+
+    # Tools available via MCP server
+    AVAILABLE_TOOLS = [
+        "search_meeting_history",
+        "get_upcoming_meetings",
+        "search_regulatory_stack",
+        "get_comment_template",
+        "compose_public_comment",
+        "get_public_testimony",
+        "search_budget",
+        "find_similar_issues",
+        "get_started",
+    ]
+
+    def __init__(self, jurisdiction: str = "city-san-rafael"):
+        self._jurisdiction = jurisdiction
+        self._mcp_url = os.getenv("MCP_SERVER_URL", MCP_SERVER_URL)
+        self._request_id = 0
+
+    def _next_request_id(self) -> int:
+        """Generate sequential request IDs for JSON-RPC."""
+        self._request_id += 1
+        return self._request_id
+
+    def execute(self, tool_name: str, args: dict) -> str:
+        """
+        Execute an MCP tool via HTTP and return the result.
+
+        Calls the MCP server's JSON-RPC endpoint with tools/call method.
+
+        Args:
+            tool_name: Name of the MCP tool
+            args: Tool arguments
+
+        Returns:
+            Tool result as string (markdown formatted)
+        """
+        import httpx
+
+        if tool_name not in self.AVAILABLE_TOOLS:
+            return f"Error: Unknown MCP tool '{tool_name}'"
+
+        try:
+            # Build JSON-RPC request
+            payload = {
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {
+                    "name": tool_name,
+                    "arguments": args
+                },
+                "id": self._next_request_id()
+            }
+
+            logger.info(f"Calling MCP server: {tool_name} at {self._mcp_url}")
+
+            # Make HTTP request to MCP server
+            with httpx.Client(timeout=30.0) as client:
+                response = client.post(
+                    f"{self._mcp_url}/mcp",
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                )
+
+                if response.status_code != 200:
+                    logger.error(f"MCP server returned {response.status_code}: {response.text}")
+                    return f"Error: MCP server returned status {response.status_code}"
+
+                data = response.json()
+
+            # Check for JSON-RPC error
+            if "error" in data:
+                error = data["error"]
+                logger.error(f"MCP tool error: {error}")
+                return f"Error: {error.get('message', 'Unknown MCP error')}"
+
+            # Extract result from JSON-RPC response
+            result = data.get("result", {})
+
+            # MCP returns content array with text items
+            content = result.get("content", [])
+            if content and isinstance(content, list):
+                # Concatenate all text content
+                text_parts = [
+                    item.get("text", "")
+                    for item in content
+                    if item.get("type") == "text"
+                ]
+                return "\n".join(text_parts) if text_parts else "No results found."
+
+            # Fallback for non-standard responses
+            if isinstance(result, str):
+                return result
+
+            return json.dumps(result, indent=2, default=str)
+
+        except httpx.ConnectError:
+            logger.warning(f"Could not connect to MCP server at {self._mcp_url}")
+            return f"Error: MCP server unavailable at {self._mcp_url}. Start with: python apps/civicos-mcp/server.py"
+
+        except httpx.TimeoutException:
+            logger.error(f"MCP server request timed out")
+            return "Error: MCP server request timed out"
+
+        except Exception as e:
+            logger.error(f"MCP tool {tool_name} failed: {e}", exc_info=True)
+            return f"Error executing {tool_name}: {str(e)}"
+
+    @property
+    def available_tools(self) -> List[str]:
+        """List of available MCP tools."""
+        return self.AVAILABLE_TOOLS
+
+
+# Singleton MCP executor (per jurisdiction)
+_mcp_executors: Dict[str, MCPToolExecutor] = {}
+
+
+def get_mcp_executor(jurisdiction: str = "city-san-rafael") -> MCPToolExecutor:
+    """Get or create MCP executor for a jurisdiction."""
+    global _mcp_executors
+    if jurisdiction not in _mcp_executors:
+        _mcp_executors[jurisdiction] = MCPToolExecutor(jurisdiction)
+    return _mcp_executors[jurisdiction]
+
+
+# Action to MCP tool mapping
+# Maps chat router actions to MCP tool names
+ACTION_TO_MCP_TOOL = {
+    "search_events": "search_meeting_history",  # Primary mapping
+    "view_legislative_context": "search_regulatory_stack",
+    "draft_comment": "get_comment_template",
+    "explain_event": "compose_public_comment",
+}
 
 # Session 60: JURISDICTION_MAPPINGS dictionary deleted - now using LLM-based normalization
 # via get_navigation_system_prompt() which auto-generates from CITY_CONFIGS
@@ -1230,6 +1387,74 @@ Examples:
                         parameters['jurisdiction'] = normalize_jurisdiction(original_jurisdiction)
                         if original_jurisdiction != parameters['jurisdiction']:
                             logger.info(f"Jurisdiction normalized for search: '{original_jurisdiction}' → '{parameters['jurisdiction']}'")
+
+                # Session 534: Execute MCP tools inline for search operations
+                # This allows the backend to query PostgreSQL via MCP handlers
+                # instead of just returning action parameters to the frontend
+                mcp_tool_name = ACTION_TO_MCP_TOOL.get(tool_call.name)
+                if mcp_tool_name:
+                    logger.info(f"Executing MCP tool: {mcp_tool_name} for action {tool_call.name}")
+
+                    try:
+                        # Get MCP executor (lazily initialized)
+                        jurisdiction = parameters.get('jurisdiction', 'city-san-rafael')
+                        # Normalize jurisdiction format for MCP (remove 'city-' prefix if needed)
+                        if jurisdiction and jurisdiction != 'all':
+                            jurisdiction = jurisdiction if jurisdiction.startswith('city-') else f'city-{jurisdiction}'
+
+                        mcp_executor = get_mcp_executor(jurisdiction)
+
+                        # Map parameters to MCP tool format
+                        mcp_args = {}
+                        if tool_call.name == 'search_events':
+                            # search_events -> search_meeting_history
+                            mcp_args['query'] = parameters.get('query') or parameters.get('topic', '')
+                            mcp_args['include_transcripts'] = True
+                            mcp_args['limit'] = 10
+
+                        elif tool_call.name == 'view_legislative_context':
+                            # view_legislative_context -> search_regulatory_stack
+                            mcp_args['topic'] = parameters.get('topic') or parameters.get('searchQuery', '')
+
+                        elif tool_call.name == 'draft_comment':
+                            # draft_comment -> get_comment_template
+                            mcp_args['item_title'] = parameters.get('agenda_item_id', '')
+                            mcp_args['stance'] = parameters.get('stance')
+                            if parameters.get('key_points'):
+                                mcp_args['key_points'] = '\n'.join(parameters['key_points'])
+
+                        elif tool_call.name == 'explain_event':
+                            # explain_event -> compose_public_comment
+                            mcp_args['item_title'] = parameters.get('event_id', '')
+                            mcp_args['topic'] = parameters.get('focus', '')
+
+                        # Execute MCP tool
+                        mcp_result = mcp_executor.execute(mcp_tool_name, mcp_args)
+                        logger.info(f"MCP tool {mcp_tool_name} returned {len(mcp_result)} chars")
+
+                        # Return with MCP result included
+                        return {
+                            "action": tool_call.name,
+                            "parameters": parameters,
+                            "reasoning": response.content or f"I'll help you with that.",
+                            "mcp_result": mcp_result,  # Include MCP tool output
+                            "mcp_tool": mcp_tool_name,  # Which MCP tool was used
+                            "mode": effective_mode,
+                            "mode_changed": effective_mode != mode,
+                            "mode_reason": mode_reason,
+                            "provider_used": provider_name,
+                            "model_used": model_name,
+                            "usage": {
+                                "prompt_tokens": response.usage.get('prompt_tokens', 0),
+                                "completion_tokens": response.usage.get('completion_tokens', 0),
+                                "total_tokens": response.usage.get('total_tokens', 0)
+                            }
+                        }
+
+                    except Exception as e:
+                        logger.error(f"MCP tool {mcp_tool_name} error: {e}", exc_info=True)
+                        # Fall through to return action without MCP result
+                        # Frontend can still handle the action if MCP fails
 
                 return {
                     "action": tool_call.name,
