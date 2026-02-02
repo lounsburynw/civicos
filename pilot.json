@@ -3471,7 +3471,7 @@
     },
     "user_context_schema": {
       "status": "pending",
-      "priority": 0,
+      "priority": 1,
       "description": "Schema for user context stored in localStorage. Transmitted per-request to agent. Never stored server-side. Optionally backed up as encrypted Nostr event.",
       "test_file": "apps/civicos-workspace/tests/unit/user-context.spec.ts",
       "artifact": "apps/civicos-workspace/src/services/UserContextService.ts",
@@ -3507,7 +3507,7 @@
     },
     "context_aware_agent": {
       "status": "pending",
-      "priority": 0,
+      "priority": 1,
       "description": "System prompt and agent logic that uses user context for personalized filtering. Stateless - context comes in request, agent reasons about relevance to THIS user.",
       "test_file": "packages/civicos-services/tests/test_context_agent.py",
       "artifact": "packages/civicos-services/src/civicos_services/chat/context_agent.py",
@@ -3539,7 +3539,7 @@
     },
     "client_side_signing": {
       "status": "pending",
-      "priority": 0,
+      "priority": 1,
       "description": "Client-side Nostr signing. User's key NEVER leaves their device. Supports browser localStorage, NIP-07 (nos2x/Alby), and WebAuthn/passkeys. This is where unsigned events from the agent get signed before broadcast.",
       "test_file": "apps/civicos-workspace/tests/e2e/signing.spec.ts",
       "artifact": "apps/civicos-workspace/src/services/SigningService.ts",
@@ -3582,7 +3582,7 @@
     },
     "action_flow_integration": {
       "status": "pending",
-      "priority": 0,
+      "priority": 1,
       "description": "End-to-end action flow: Agent discovers actions \u2192 prepares unsigned commitment/completion events \u2192 client signs \u2192 broadcast to relay. This is the core Edge Intelligence capability that transforms intent into civic action.",
       "test_file": "apps/civicos-workspace/tests/e2e/action-flow.spec.ts",
       "flow": [
@@ -3626,7 +3626,7 @@
     },
     "action_event_preparation": {
       "status": "pending",
-      "priority": 0,
+      "priority": 1,
       "description": "Agent logic to prepare unsigned Nostr action events (kinds 30810, 30811, 30812). Agent reasons about what action to suggest, prepares the event payload, returns it to client for signing. This is the 'write' side that MCP doesn't do.",
       "test_file": "apps/civicos-workspace/tests/unit/action-preparation.spec.ts",
       "subtasks": [
