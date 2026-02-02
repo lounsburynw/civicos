@@ -123,10 +123,18 @@ def get_llm_provider():
 
 def get_chat_router():
     """Get chat router for intent classification."""
+    import logging
+    logger = logging.getLogger(__name__)
     try:
         from civicos_services.chat.civic_chat_router import get_router
-        return get_router()
-    except ImportError:
+        router = get_router()
+        logger.info("ChatRouter loaded successfully")
+        return router
+    except ImportError as e:
+        logger.warning(f"ChatRouter not available: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"ChatRouter load error: {e}", exc_info=True)
         return None
 
 
@@ -274,6 +282,9 @@ async def route_chat(
                 "multi_operation": result.get("multi_operation", False),
                 "operation_count": result.get("operation_count"),
                 "all_operations": result.get("all_operations"),
+                # MCP tool integration (Session 534)
+                "mcp_result": result.get("mcp_result"),
+                "mcp_tool": result.get("mcp_tool"),
                 "provider_used": result.get("provider_used"),
                 "model_used": result.get("model_used"),
                 "error": result.get("error"),

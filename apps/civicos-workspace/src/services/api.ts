@@ -23,7 +23,10 @@ import type {
   OperationStatus,
   OperationsListResponse,
   DataBrowserResponse,
-  VectorStatsResponse
+  VectorStatsResponse,
+  VoiceCountResponse,
+  MCPRegistry,
+  MCPOperator
 } from '@/types/civic';
 
 /**
@@ -1495,6 +1498,140 @@ class CivicAPI {
     if (!response.ok) {
       const errorData = await response.json().catch(() => null);
       throw new Error(errorData?.error || `Failed to fetch vector stats: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  // =========================================================================
+  // Coordination Protocol API (Pilot Phase - Voice Counts)
+  // =========================================================================
+
+  /**
+   * Get voice counts for a civic entity
+   * GET /api/coordination/voice/counts/{entity}
+   *
+   * Entity format: decision:{jurisdiction}:{date}:{item-ref}
+   * Example: decision:city-san-rafael:2026-02-03:item-6a
+   *
+   * Returns counts of support, oppose, watching voices.
+   */
+  async getVoiceCounts(entity: string): Promise<VoiceCountResponse> {
+    const url = `${this.baseURL}/api/coordination/voice/counts/${encodeURIComponent(entity)}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      // Return zero counts on error (entity may not exist yet)
+      if (response.status === 404) {
+        return { entity, support: 0, oppose: 0, watching: 0, total: 0 };
+      }
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || `Failed to fetch voice counts: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get voice counts for multiple entities in one call
+   * Convenience method that batches individual calls
+   *
+   * Note: For MVP, this makes parallel individual calls.
+   * Future: Backend could support batch endpoint.
+   */
+  async getVoiceCountsBatch(entities: string[]): Promise<Map<string, VoiceCountResponse>> {
+    const results = new Map<string, VoiceCountResponse>();
+
+    // Make parallel calls for all entities
+    const promises = entities.map(async (entity) => {
+      try {
+        const counts = await this.getVoiceCounts(entity);
+        return { entity, counts };
+      } catch {
+        // Return zero counts on error
+        return { entity, counts: { entity, support: 0, oppose: 0, watching: 0, total: 0 } };
+      }
+    });
+
+    const settled = await Promise.all(promises);
+    for (const { entity, counts } of settled) {
+      results.set(entity, counts);
+    }
+
+    return results;
+  }
+
+  // ============================================================================
+  // MCP Registry - Discovery of CivicOS MCP Servers
+  // ============================================================================
+
+  /**
+   * Get the MCP server registry
+   * GET /api/mcp/registry
+   *
+   * Returns the official registry of CivicOS-approved MCP servers.
+   * Clients can use this to discover available MCP endpoints.
+   */
+  async getMCPRegistry(checkHealth: boolean = false): Promise<MCPRegistry> {
+    const url = new URL(`${this.baseURL}/api/mcp/registry`);
+    if (checkHealth) {
+      url.searchParams.set('check_health', 'true');
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch MCP registry: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get a specific MCP operator by ID
+   * GET /api/mcp/registry/operators/{operator_id}
+   */
+  async getMCPOperator(operatorId: string, checkHealth: boolean = true): Promise<MCPOperator> {
+    const url = new URL(`${this.baseURL}/api/mcp/registry/operators/${operatorId}`);
+    if (!checkHealth) {
+      url.searchParams.set('check_health', 'false');
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error(`MCP operator '${operatorId}' not found`);
+      }
+      throw new Error(`Failed to fetch MCP operator: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get MCP operators for a specific jurisdiction
+   * GET /api/mcp/registry/jurisdictions/{jurisdiction_id}/operators
+   */
+  async getMCPOperatorsByJurisdiction(jurisdictionId: string): Promise<MCPOperator[]> {
+    const response = await fetch(
+      `${this.baseURL}/api/mcp/registry/jurisdictions/${jurisdictionId}/operators`,
+      { headers: this.getAuthHeaders() }
+    );
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return []; // No operators for this jurisdiction
+      }
+      throw new Error(`Failed to fetch MCP operators: ${response.statusText}`);
     }
 
     return response.json();
