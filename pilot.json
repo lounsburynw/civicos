@@ -3448,7 +3448,7 @@
       "User controls keys: Nostr signing always happens client-side"
     ],
     "web_chat_interface": {
-      "status": "pending",
+      "status": "not_ready",
       "priority": 0,
       "description": "Web chat interface at civicos.org/[jurisdiction]. Primary surface for Edge Intelligence - where users interact with agents that prepare unsigned events.",
       "test_file": "apps/civicos-workspace/tests/e2e/chat-interface.spec.ts",
