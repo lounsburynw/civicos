@@ -3266,8 +3266,8 @@
     },
     "frontend_integration": {
       "voice_display": {
-        "status": "pending",
-        "priority": 2,
+        "status": "not_ready",
+        "priority": 0,
         "description": "Display voice counts on agenda items and decisions in the Vue frontend. Show support/oppose/watching breakdown. Simple badge/indicator UI.",
         "test_file": "apps/civicos-workspace/tests/e2e/voice-display.spec.ts",
         "subtasks": [
