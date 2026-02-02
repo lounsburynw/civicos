@@ -1,3 +1,64 @@
+## Session 534 (2026-02-02) - MCP Tool Integration for Chat (HTTP-based)
+
+**Item:** `web_chat_interface` (P0 - in progress)
+**Status:** PARTIAL - MCP integration complete
+
+### Summary
+Integrated MCP tools into the chat router via HTTP calls to the MCP server.
+This preserves architectural boundaries - the chat router calls MCP via JSON-RPC
+instead of directly importing handler code.
+
+Architecture: MCP = Library (read-only queries), Edge Intelligence = Librarian (uses MCP tools)
+
+### Changes Made
+
+1. **Added MCPToolExecutor class** (`civic_chat_router.py`)
+   - Calls MCP server via HTTP JSON-RPC (tools/call method)
+   - Configurable MCP_SERVER_URL via environment variable
+   - No direct imports from apps/civicos-mcp (preserves package boundaries)
+   - Handles connection errors, timeouts gracefully
+
+2. **Updated route_message()** (`civic_chat_router.py`)
+   - When LLM returns `search_events`, `view_legislative_context`, etc.
+   - Executes corresponding MCP tool via HTTP (like `search_web` already does)
+   - Returns `mcp_result` and `mcp_tool` fields in response
+
+3. **Updated API response model** (`conversations.py`)
+   - Added `mcp_result` (markdown result from MCP tool)
+   - Added `mcp_tool` (which MCP tool was used)
+
+4. **Updated frontend types** (`chatRouter.ts`)
+   - Added `mcp_result` and `mcp_tool` to ChatAction interface
+
+5. **Updated ChatPanel** (`ChatPanel.vue`)
+   - Checks for `mcp_result` in dispatchAction()
+   - Displays MCP result as chat message if available
+   - Falls back to existing UI update flow if no MCP result
+
+### Action to MCP Tool Mapping
+- `search_events` → `search_meeting_history`
+- `view_legislative_context` → `search_regulatory_stack`
+- `draft_comment` → `get_comment_template`
+- `explain_event` → `compose_public_comment`
+
+### Architecture Notes
+- MCP server must be running for MCP tools to work
+- Start with: `python apps/civicos-mcp/server.py`
+- Default URL: http://localhost:8080 (configurable via MCP_SERVER_URL)
+
+### What Remains for web_chat_interface
+- End-to-end testing with dev servers (API + MCP + frontend)
+- Streaming responses (SSE)
+- E2E test file
+
+### Files Changed
+- `packages/civicos-services/src/civicos_services/chat/civic_chat_router.py`
+- `packages/civicos-services/src/civicos_services/servers/routers/conversations.py`
+- `apps/civicos-workspace/src/services/chatRouter.ts`
+- `apps/civicos-workspace/src/components/chat/ChatPanel.vue`
+
+---
+
 ## Session 533 (2026-02-02) - Chat Route Endpoint Fix
 
 **Item:** `web_chat_interface` (P0 - in progress)

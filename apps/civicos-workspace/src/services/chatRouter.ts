@@ -24,6 +24,9 @@ export interface ChatAction {
   multi_operation?: boolean  // True if this is a multi-operation query
   operation_count?: number  // Total number of operations
   all_operations?: ChatAction[]  // Array of all operation results
+  // Session 534: MCP tool integration
+  mcp_result?: string  // Result from MCP tool execution (markdown)
+  mcp_tool?: string  // Which MCP tool was used
   // Session 84: Model routing metadata
   provider_used?: string  // LLM provider used (e.g., 'openai', 'openrouter', 'anthropic')
   model_used?: string  // Specific model used (e.g., 'gpt-4o-mini', 'gemini-2.0-flash-exp')

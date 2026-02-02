@@ -66,6 +66,8 @@ class ChatRouteResponse(BaseModel):
 
     Full response matching frontend ChatAction interface, supporting
     function calling actions, multi-operations, and provider metadata.
+
+    Session 534: Added mcp_result and mcp_tool for MCP integration.
     """
     action: str  # search_events, file_complaint, respond, etc.
     parameters: Optional[Dict[str, Any]] = None
@@ -79,6 +81,9 @@ class ChatRouteResponse(BaseModel):
     multi_operation: Optional[bool] = False
     operation_count: Optional[int] = None
     all_operations: Optional[List[Dict[str, Any]]] = None
+    # MCP tool integration (Session 534)
+    mcp_result: Optional[str] = None  # Result from MCP tool execution
+    mcp_tool: Optional[str] = None  # Which MCP tool was used
     # Provider metadata for developer mode
     provider_used: Optional[str] = None
     model_used: Optional[str] = None
