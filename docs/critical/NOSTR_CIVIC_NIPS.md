@@ -298,6 +298,71 @@ Existing users with SECP256R1 keys can migrate to Nostr:
 
 See `docs/user_guides/KEY_MIGRATION_GUIDE.md` for detailed instructions.
 
+## NIP-05 Jurisdiction Verification
+
+NIP-05 enables human-readable identity verification for CivicOS relays and jurisdictions.
+
+### CivicOS Relay Verification
+
+The CivicOS API serves `/.well-known/nostr.json` for identity verification:
+
+```
+GET https://api.civicos.org/.well-known/nostr.json?name=civicos
+
+Response:
+{
+  "names": {"civicos": "abc123..."},
+  "relays": {"abc123...": ["wss://relay.civicos.org"]}
+}
+```
+
+**Configuration:**
+- `NOSTR_RELAY_PUBKEY`: 64-char hex public key for the relay identity
+- `NOSTR_RELAY_URL`: WebSocket URL (default: `wss://relay.civicos.org`)
+
+### City Self-Hosted Verification
+
+Cities can verify their official accounts by hosting `/.well-known/nostr.json` on their domain:
+
+```
+# Example: sanrafael.gov verifies civicos@sanrafael.gov
+GET https://sanrafael.gov/.well-known/nostr.json?name=civicos
+
+Response:
+{
+  "names": {"civicos": "<city_official_pubkey>"},
+  "relays": {"<city_official_pubkey>": ["wss://relay.civicos.org"]}
+}
+```
+
+**For City IT Teams:**
+
+1. Generate a Nostr keypair (32-byte secret → 32-byte x-only pubkey)
+2. Create static JSON at `/.well-known/nostr.json`:
+   ```json
+   {
+     "names": {
+       "civicos": "<your_64_char_hex_pubkey>"
+     },
+     "relays": {
+       "<your_64_char_hex_pubkey>": ["wss://relay.civicos.org"]
+     }
+   }
+   ```
+3. Serve with CORS headers: `Access-Control-Allow-Origin: *`
+4. Cache recommended: `Cache-Control: max-age=3600`
+
+### Verification Flow
+
+1. User sees identifier: `civicos@sanrafael.gov`
+2. Nostr client fetches: `https://sanrafael.gov/.well-known/nostr.json?name=civicos`
+3. Client verifies pubkey matches event signatures
+4. Client displays verified badge
+
+### Reference
+
+- [NIP-05 Specification](https://github.com/nostr-protocol/nips/blob/master/05.md)
+
 ## Implementation Status
 
 | Component | Status | Notes |
@@ -308,6 +373,7 @@ See `docs/user_guides/KEY_MIGRATION_GUIDE.md` for detailed instructions.
 | WebSocket Relay | ✅ Complete | NIP-01 compliant |
 | Key Link Attestation | ✅ Complete | Dual-sig validation |
 | REST Compatibility | ✅ Complete | Deprecated endpoints |
+| NIP-05 Verification | ✅ Complete | /.well-known/nostr.json endpoint |
 
 ## References
 

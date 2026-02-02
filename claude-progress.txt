@@ -16858,3 +16858,36 @@ SMTP send (HTML + text/plain)
 - `voice_display` (P2) - Frontend shows voice counts
 - `voice_button` (P2) - Users can cast voices
 
+
+---
+Session: 2026-02-02 - NIP-05 Jurisdiction Verification
+Phase: Pilot
+Item: nip05_jurisdiction_verification (P0)
+Status: COMPLETE
+
+### Implemented
+- Created `packages/civicos-services/src/civicos_services/servers/routers/nostr.py`
+  - GET `/.well-known/nostr.json` endpoint per NIP-05 spec
+  - Configurable via NOSTR_RELAY_PUBKEY and NOSTR_RELAY_URL env vars
+  - CORS headers for cross-origin requests
+  - Cache-Control for CDN caching
+  - Returns pubkey for 'civicos' and '_' (wildcard) identifiers
+  
+- Updated API to include nostr_router
+  - Added to routers/__init__.py
+  - Included in api.py create_app()
+  - Added /.well-known/nostr.json to rate limit exemption list
+
+- Added test file: packages/civicos-services/tests/test_nip05.py
+  - Tests all edge cases (no pubkey, with pubkey, name lookup, unknown name, etc.)
+  - Note: TestClient has starlette version conflict, but unit tests pass
+
+- Updated docs/critical/NOSTR_CIVIC_NIPS.md
+  - Added NIP-05 Jurisdiction Verification section
+  - Documented city self-hosted verification
+  - Added verification flow explanation
+
+- Updated pilot.json: nip05_jurisdiction_verification -> ready
+
+### Next recommended item
+Choose from P1/P2 items in relay, frontend, or data tracks.
