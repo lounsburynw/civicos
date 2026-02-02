@@ -446,32 +446,266 @@ budget, school zone traffic, and park safety."
 
 This creates a commons of filtering intelligence. Community-maintained lenses for civic activity, not a platform algorithm optimizing for engagement.
 
+### Edge Intelligence Architecture
+
+"Edge" means user-controlled, not necessarily user-hosted. Server-side computation is acceptable if the user controls context, keys, and filtering logic.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           USER'S EDGE CONTEXT                               │
+│                     (stored locally, transmitted per-request)               │
+│                                                                             │
+│  Browser localStorage / Encrypted Nostr Event                               │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  location: { neighborhood: "Terra Linda" }                          │   │
+│  │  interests: ["housing", "transportation"]                           │   │
+│  │  filtering: "aggressive on housing, ignore parking"                 │   │
+│  │  nostr_pubkey: "npub1..."                                           │   │
+│  │  voice_history: [Nostr event IDs]                                   │   │
+│  │  commitment_history: [Nostr event IDs]                              │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                        │
+│                                    │ Sent per-request (not stored server)  │
+│                                    ▼                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         AGENT LAYER (stateless)                             │
+│                                                                             │
+│  Runs: civicos.org OR Claude.ai/ChatGPT with MCP                           │
+│                                                                             │
+│  1. Receives user context + query                                          │
+│  2. Queries MCP for raw civic data (no personalization server-side)        │
+│  3. Applies user's filtering logic                                         │
+│  4. Reasons about relevance to THIS user                                   │
+│  5. Suggests actions with templates                                        │
+│  6. Prepares unsigned Nostr events for user approval                       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     │ Unsigned events returned to client
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         CLIENT-SIDE SIGNING                                 │
+│                                                                             │
+│  User's Nostr key NEVER leaves their device                                │
+│                                                                             │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐            │
+│  │ Browser Key     │  │ nos2x/Alby      │  │ Passkey/WebAuthn│            │
+│  │ (localStorage)  │  │ (NIP-07)        │  │ (hardware-bound)│            │
+│  │ Lowest friction │  │ Power users     │  │ Best security   │            │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘            │
+│                                                                             │
+│  sign(event) → broadcast to relay                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**User Context Schema** (stored in browser localStorage):
+
+```typescript
+interface CivicUserContext {
+  nostr_pubkey: string;              // Public key
+  jurisdiction: string;               // "city-san-rafael"
+  location?: {
+    neighborhood?: string;            // "Terra Linda"
+    lat?: number;
+    lng?: number;
+  };
+  interests?: string[];               // ["housing", "transportation"]
+  filtering_instructions?: string;    // "aggressive on housing, ignore parking"
+  voice_history?: string[];           // Nostr event IDs
+  commitment_history?: string[];      // Nostr event IDs
+  notification_email?: string;        // For subscription delivery
+}
+```
+
+**What makes this "edge":**
+
+| Aspect | Centralized (bad) | Edge (good) |
+|--------|-------------------|-------------|
+| User preferences | Platform stores | User stores locally |
+| Behavior tracking | Platform logs queries | No logging |
+| Relevance decisions | Platform algorithm | User's filtering logic |
+| Recommendations | Opaque | Transparent reasoning |
+| Keys | Platform-controlled | User-controlled |
+
+---
+
+## Component 5: Action Primitives
+
+Actions bridge the gap from signal to outcome. Voices express intent; actions accomplish change.
+
+**The trap:** Building infrastructure for signaling intent (89 voices) vs. enabling accomplishment (27 letters + 11 attendees + 8 phone calls). The latter changes votes; the former doesn't.
+
+### Action (Kind 30810)
+
+A defined task that moves an initiative forward.
+
+```json
+{
+  "kind": 30810,
+  "tags": [
+    ["d", "action:marin-housing:written-comment"],
+    ["a", "30801:<pubkey>:initiative:marin-housing"],
+    ["type", "written_comment"],
+    ["target", "clerk@marincounty.org"],
+    ["deadline", "2026-02-14T17:00:00Z"],
+    ["template", "<base64 or URI>"],
+    ["target_count", "30"]
+  ],
+  "content": "Submit written comment supporting proportional housing allocation"
+}
+```
+
+**Action types:**
+- `written_comment` — submit to official email/form
+- `attend_meeting` — show up physically
+- `public_comment` — speak at meeting
+- `contact_official` — call/email specific person
+- `signature` — sign petition/letter
+- `share` — distribute information
+- `custom` — anything else
+
+### Commitment (Kind 30811)
+
+Binding intent to complete an action.
+
+```json
+{
+  "kind": 30811,
+  "tags": [
+    ["d", "commit:<pubkey>:marin-housing:written-comment"],
+    ["a", "30810:<pubkey>:action:marin-housing:written-comment"],
+    ["status", "committed"]
+  ],
+  "content": ""
+}
+```
+
+Status: `committed` → `completed` | `withdrawn`
+
+One commitment per pubkey per action (addressable). Enables progress tracking: "12 committed, 8 completed."
+
+### Completion (Kind 30812)
+
+Evidence that an action was completed.
+
+```json
+{
+  "kind": 30812,
+  "tags": [
+    ["d", "complete:<pubkey>:marin-housing:written-comment"],
+    ["a", "30810:<pubkey>:action:marin-housing:written-comment"],
+    ["evidence", "self_report"],
+    ["completed_at", "2026-02-13T14:30:00Z"]
+  ],
+  "content": ""
+}
+```
+
+**Evidence types:**
+- `self_report` — user clicked "I did it"
+- `email_confirmation` — forwarded confirmation
+- `attendance_check` — checked in at meeting
+- `verified` — organizer confirmed
+
+### Action Accounting
+
+Derived view showing progress toward targets:
+
+```
+Initiative: Regional Housing
+Actions:
+├── Written Comment (deadline: Feb 14)
+│   └── 24 completed / 27 committed / 30 target
+├── Attend Meeting (deadline: Feb 18 2pm)
+│   └── 0 completed / 11 committed / 15 target
+└── Contact Rodoni (deadline: Feb 17)
+    └── 8 completed / 10 committed / 10 target
+
+Overall: 68% of target actions completed
+```
+
+### Action Attribution
+
+Closes the feedback loop — people see their impact:
+
+```
+Outcome: Regional Housing Initiative — PASSED (3-2)
+
+Your contribution:
+- Written comment submitted Feb 13 ✓
+- You were 1 of 27 commenters cited by Supervisor Rodoni
+
+"Significant constituent input" — Supervisor Rodoni, explaining vote change
+```
+
+### Why Actions Matter
+
+| Without Actions | With Actions |
+|-----------------|--------------|
+| "89 voices support" | "27 comments submitted" |
+| Officials see: clicks | Officials see: constituent letters |
+| No coordination | Talking points, no redundancy |
+| No accountability | "You committed, here's your reminder" |
+| No attribution | "Your comment influenced the vote" |
+
+Actions transform passive support into organized civic power.
+
 ---
 
 ## Development Sequence
 
-### Phase 1: MVP (Current — Pilot)
+### Phase 1: Nostr Foundation (Complete)
 
-Building MVP coordination protocol for Jan 2026 pilot. Combines relay + voice + basic provenance in single phase.
+Migrated from custom protocol to Nostr-native civic kinds. Full NIP-01 WebSocket relay with civic extensions.
 
-**Package:** `packages/civicos-coordination/`
+**Package:** `packages/civicos-relay/`
 
-**MVP Scope:**
-- Single relay (no federation)
-- Email delivery only (webhook for API clients)
-- ECDSA keypairs (not full DID — simpler)
-- Basic provenance (key age, voice count — no vouching or attestation)
-- Voice counts displayed in frontend and MCP
+**Completed:**
+- NIP-01 compliant WebSocket relay
+- Civic voice (kind 30800), entity (kind 30801), subscription (kind 30802)
+- Provenance tracking (kind 10800)
+- Schnorr signing (secp256k1, BIP-340)
+- PostgreSQL storage for Nostr events
+- Voice counts exposed via MCP
 
-**What's deferred:**
-- Federation between relays
+### Phase 2: Action Primitives (Current)
+
+Adding action/commitment/completion kinds to catalyze outcomes.
+
+**Scope:**
+- Action (kind 30810) — defined tasks with deadlines, templates
+- Commitment (kind 30811) — binding intent to act
+- Completion (kind 30812) — evidence of action
+- Action accounting — progress toward targets
+- MCP tools: define_action, commit_to_action, complete_action
+
+**Implementation items tracked in:** `pilot.json` under `relay.action_primitives`
+
+### Phase 3: Edge Intelligence (Next)
+
+Web chat interface with user-controlled filtering.
+
+**Scope:**
+- Web chat at civicos.org/[jurisdiction]
+- User context stored locally (browser localStorage)
+- Context-aware agent using MCP
+- Client-side Nostr signing (NIP-07 support)
+- Action flow integration (discover → commit → complete)
+
+**Implementation items tracked in:** `pilot.json` under `edge_intelligence`
+
+### Phase 4: Full Provenance (Post-Pilot)
+
+Expanded trust signals if pilot validates.
+
+**Scope:**
 - Physical attestation at civic centers
 - Device attestation via WebAuthn/platform APIs
-- Vouching system
-- SMS/ntfy delivery methods
-- DID:key standard (using simpler ECDSA keypairs)
-
-**Implementation items tracked in:** `pilot.json` under `relay` category
+- Vouching system (kind 1800)
+- Key linking for migration (kind 1802)
 
 ### MVP Storage Schema
 
@@ -1326,7 +1560,7 @@ The protocol is the novel contribution. Civic data extraction is valuable but no
 
 - **Initiative governance.** Anyone can create initiatives. How do you handle spam, duplicate, or misleading initiatives? Provenance helps (low-provenance creator = less credible initiative) but may not be sufficient.
 
-- **Agent accessibility.** Who builds and hosts agents for users who don't run Claude Code or ChatGPT? The web app and email surfaces address basic access, but full edge intelligence requires an AI agent. As AI assistants become more common, this gap closes — but it's real today.
+- **Agent accessibility.** ~~Who builds and hosts agents for users who don't run Claude Code or ChatGPT?~~ **Addressed:** Web chat interface at civicos.org/[jurisdiction] provides AI-powered civic engagement for users who don't use Claude.ai or ChatGPT directly. User context stored locally (browser localStorage), transmitted per-request. Agent is stateless — no server-side user tracking. See `pilot.json` under `edge_intelligence.web_chat_interface`.
 
 - **Peering discovery.** How do relays find each other? Manual configuration works at small scale. A lightweight registry (DNS-based? well-known URI?) may be needed for broader federation.
 

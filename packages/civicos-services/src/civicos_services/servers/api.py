@@ -52,6 +52,7 @@ from .routers import (
     conversations_router,
     drafts_router,
     coordination_router,
+    nostr_router,
 )
 
 
@@ -109,6 +110,7 @@ def create_app() -> FastAPI:
 
     # Include routers
     app.include_router(core_router, tags=["Core"])
+    app.include_router(nostr_router, tags=["Nostr"])  # NIP-05 at /.well-known/nostr.json
     app.include_router(events_router, prefix="/api", tags=["Events"])
     app.include_router(issues_router, prefix="/api", tags=["Issues"])
     app.include_router(admin_router, prefix="/api/admin", tags=["Admin"])
@@ -237,8 +239,8 @@ def _check_endpoint_limit(client_id: str, path: str) -> tuple:
 
 async def rate_limit_middleware(request: Request, call_next):
     """Apply global rate limiting to all requests."""
-    # Skip rate limiting for health checks (load balancers need this)
-    if request.url.path in ["/health", "/docs", "/redoc", "/openapi.json"]:
+    # Skip rate limiting for health checks and well-known endpoints
+    if request.url.path in ["/health", "/docs", "/redoc", "/openapi.json", "/.well-known/nostr.json"]:
         return await call_next(request)
 
     # Get client ID for rate limiting

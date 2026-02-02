@@ -19,6 +19,7 @@
     "rollback_procedures",
     "user_documentation",
     "relay",
+    "edge_intelligence",
     "federation_infrastructure",
     "frontend_refinement",
     "pilot_validation"
@@ -3069,12 +3070,204 @@
           "Follow same two-step pattern as voice: prepare_initiative -> sign -> broadcast_initiative"
         ],
         "note": "Completes focal point creation flow. Users can create coordination points, not just react to government-originated entities."
+      },
+      "action_tools": {
+        "status": "pending",
+        "priority": 1,
+        "description": "MCP tools for action primitives - the core mechanism for catalyzing outcomes rather than just aggregating intent. Actions are specific tasks (submit comment, attend meeting, contact official) that move initiatives forward.",
+        "test_file": "apps/civicos-mcp/tests/test_action_tools.py",
+        "rationale": "The trap in civic tech is building infrastructure for signaling intent vs enabling accomplishment. 89 voices means nothing. 27 letters + 11 attendees + 8 phone calls changes votes. Actions bridge that gap.",
+        "tools": [
+          "define_action(initiative, type, target, deadline, template?, target_count?) - create action for initiative",
+          "list_actions(initiative) - get actions with completion stats",
+          "commit_to_action(action_id, public_key, signature) - bind intent to complete",
+          "complete_action(action_id, evidence_type, public_key, signature) - record completion",
+          "get_action_accounting(initiative) - aggregate progress toward targets"
+        ],
+        "action_types": [
+          "written_comment - submit to official email/form",
+          "attend_meeting - show up physically",
+          "public_comment - speak at meeting",
+          "contact_official - call/email specific person",
+          "signature - sign petition/letter",
+          "share - distribute information",
+          "custom - anything else"
+        ],
+        "design_notes": [
+          "Action (kind 30810): defined task with type, target, deadline, template, target_count",
+          "Commitment (kind 30811): binding intent - status: committed \u2192 completed | withdrawn",
+          "Completion (kind 30812): record that action happened - evidence: self_report | email_confirmation | attendance_check | verified",
+          "Accounting is derived view: X completed / Y committed / Z target",
+          "Templates lower friction: pre-written letters, talking points, scripts",
+          "Deadlines enable reminders: 'Your comment is due tomorrow'",
+          "Attribution closes loop: 'Your comment was 1 of 27 cited in the decision'"
+        ]
+      }
+    },
+    "action_primitives": {
+      "_doc": "Core primitives for catalyzing action, not just aggregating intent. These are the Nostr event kinds that enable coordination.",
+      "action_kind": {
+        "status": "pending",
+        "priority": 1,
+        "description": "Kind 30810: Civic Action - addressable event defining a specific task that moves an initiative forward",
+        "test_file": "packages/civicos-relay/tests/test_action_events.py",
+        "schema": {
+          "kind": 30810,
+          "tags": [
+            [
+              "d",
+              "action:{initiative}:{action-type}:{hash}"
+            ],
+            [
+              "a",
+              "30801:{pubkey}:{initiative-d-tag}"
+            ],
+            [
+              "type",
+              "written_comment|attend_meeting|public_comment|contact_official|signature|share|custom"
+            ],
+            [
+              "target",
+              "email address, meeting info, or official name"
+            ],
+            [
+              "deadline",
+              "ISO 8601 timestamp"
+            ],
+            [
+              "template",
+              "base64 or URI to template (optional)"
+            ],
+            [
+              "target_count",
+              "number of completions needed (optional)"
+            ]
+          ],
+          "content": "Human-readable description of what to do"
+        },
+        "subtasks": [
+          "CivicActionEvent model with validation",
+          "PostgreSQL storage for actions",
+          "Action types enum with validation",
+          "Template storage/retrieval (inline or URI)",
+          "Deadline handling and reminder triggers"
+        ]
+      },
+      "commitment_kind": {
+        "status": "pending",
+        "priority": 1,
+        "description": "Kind 30811: Civic Commitment - addressable event binding a user's intent to complete an action",
+        "test_file": "packages/civicos-relay/tests/test_commitment_events.py",
+        "schema": {
+          "kind": 30811,
+          "tags": [
+            [
+              "d",
+              "commit:{pubkey}:{action-d-tag}"
+            ],
+            [
+              "a",
+              "30810:{action-creator-pubkey}:{action-d-tag}"
+            ],
+            [
+              "status",
+              "committed|completed|withdrawn"
+            ]
+          ],
+          "content": ""
+        },
+        "subtasks": [
+          "CivicCommitmentEvent model",
+          "Status transitions: committed \u2192 completed | withdrawn",
+          "One commitment per pubkey per action (addressable)",
+          "Commitment counts exposed via API"
+        ]
+      },
+      "completion_kind": {
+        "status": "pending",
+        "priority": 1,
+        "description": "Kind 30812: Civic Completion - event recording that an action was completed with evidence",
+        "test_file": "packages/civicos-relay/tests/test_completion_events.py",
+        "schema": {
+          "kind": 30812,
+          "tags": [
+            [
+              "d",
+              "complete:{pubkey}:{action-d-tag}"
+            ],
+            [
+              "a",
+              "30810:{action-creator-pubkey}:{action-d-tag}"
+            ],
+            [
+              "evidence",
+              "self_report|email_confirmation|attendance_check|verified"
+            ],
+            [
+              "completed_at",
+              "ISO 8601 timestamp"
+            ]
+          ],
+          "content": "Optional evidence details or notes"
+        },
+        "evidence_types": [
+          "self_report - user clicked 'I did it'",
+          "email_confirmation - forwarded confirmation email",
+          "attendance_check - checked in at meeting location",
+          "verified - organizer/official confirmed completion"
+        ],
+        "subtasks": [
+          "CivicCompletionEvent model",
+          "Evidence type validation",
+          "Completion triggers commitment status update",
+          "Completion counts for action accounting"
+        ]
+      },
+      "action_accounting": {
+        "status": "pending",
+        "priority": 1,
+        "description": "Derived views and APIs for action progress tracking - the aggregate picture of what's happening",
+        "test_file": "packages/civicos-relay/tests/test_action_accounting.py",
+        "endpoints": [
+          "GET /actions/{initiative} - list actions with stats",
+          "GET /actions/{action_id}/progress - detailed breakdown",
+          "GET /initiatives/{id}/accounting - full action accounting for initiative"
+        ],
+        "views": {
+          "action_progress": "X completed / Y committed / Z target per action",
+          "initiative_progress": "aggregate across all actions",
+          "jurisdiction_leaderboard": "which areas need more action (for inter-jurisdictional)"
+        },
+        "subtasks": [
+          "PostgreSQL materialized view for action stats",
+          "API endpoints for progress queries",
+          "Real-time updates via WebSocket",
+          "Jurisdiction-level aggregation for inter-jurisdictional initiatives"
+        ]
+      },
+      "action_attribution": {
+        "status": "pending",
+        "priority": 2,
+        "description": "Link completed actions to outcomes - close the feedback loop so people see their impact",
+        "test_file": "packages/civicos-relay/tests/test_action_attribution.py",
+        "design": [
+          "When decision outcome is recorded, link to initiative",
+          "Query completions for that initiative",
+          "Generate attribution: 'Your comment was 1 of 27 that influenced this vote'",
+          "Include in outcome notification"
+        ],
+        "subtasks": [
+          "Link decision outcomes to initiatives",
+          "Query user's completions for attributed initiatives",
+          "Generate personalized attribution messages",
+          "Include attribution in outcome notifications"
+        ]
       }
     },
     "frontend_integration": {
       "voice_display": {
         "status": "pending",
-        "priority": 0,
+        "priority": 2,
         "description": "Display voice counts on agenda items and decisions in the Vue frontend. Show support/oppose/watching breakdown. Simple badge/indicator UI.",
         "test_file": "apps/civicos-workspace/tests/e2e/voice-display.spec.ts",
         "subtasks": [
@@ -3117,6 +3310,55 @@
           "Persist private key securely in localStorage",
           "Show public key fingerprint in UI (optional)",
           "Handle key recovery/reset flow"
+        ]
+      },
+      "action_list": {
+        "status": "pending",
+        "priority": 1,
+        "description": "Display actions for an initiative with progress stats. Show type, deadline, target, and completion progress (X/Y completed, Z committed).",
+        "test_file": "apps/civicos-workspace/tests/e2e/action-list.spec.ts",
+        "subtasks": [
+          "ActionList component showing actions for initiative",
+          "ActionCard with type icon, deadline, progress bar",
+          "Progress display: completed/committed/target counts",
+          "Deadline urgency indicators (due soon, overdue)",
+          "Filter by action type"
+        ]
+      },
+      "action_commit": {
+        "status": "pending",
+        "priority": 1,
+        "description": "UI for committing to actions. User clicks 'I'll do this', signs commitment. Shows template/instructions when available.",
+        "test_file": "apps/civicos-workspace/tests/e2e/action-commit.spec.ts",
+        "subtasks": [
+          "CommitButton component with confirmation",
+          "Show template/instructions after commit",
+          "Display user's committed actions in profile",
+          "Reminder opt-in for deadline"
+        ]
+      },
+      "action_complete": {
+        "status": "pending",
+        "priority": 1,
+        "description": "UI for marking actions complete. User clicks 'I did it', selects evidence type, signs completion. Triggers celebration/attribution.",
+        "test_file": "apps/civicos-workspace/tests/e2e/action-complete.spec.ts",
+        "subtasks": [
+          "CompleteButton on committed actions",
+          "Evidence type selector (self-report, confirmation, etc.)",
+          "Completion confirmation with updated stats",
+          "Show attribution: 'You're 1 of X who completed this'"
+        ]
+      },
+      "action_templates": {
+        "status": "pending",
+        "priority": 2,
+        "description": "Display and customize action templates (letters, talking points, scripts). Pre-fill with user context where possible.",
+        "test_file": "apps/civicos-workspace/tests/e2e/action-templates.spec.ts",
+        "subtasks": [
+          "TemplateView component with copy/download",
+          "Editable fields for personalization",
+          "Pre-fill user name/address if available",
+          "Direct submit for email-based actions (optional)"
         ]
       }
     },
@@ -3165,8 +3407,8 @@
         "note": "Session 532: Event sync endpoints implemented. Events flow: ingestion \u2192 event_emission \u2192 coordination_events_log \u2192 sync to peers."
       },
       "hierarchical_jurisdiction_routing": {
-        "status": "pending",
-        "priority": 1,
+        "status": "ready",
+        "priority": 2,
         "description": "Route queries to parent jurisdictions when local data insufficient. city-san-rafael can query county-marin for county-level decisions. Borrows from BGP/IP hierarchical addressing.",
         "test_file": "packages/civicos-relay/tests/test_hierarchy.py",
         "subtasks": [
@@ -3175,24 +3417,11 @@
           "Implement fallback query to parent when local returns empty",
           "Aggregate results from child jurisdictions for parent queries"
         ],
-        "note": "Pattern borrowed from IP routing. Each relay only needs to know its parent, not the full hierarchy."
-      },
-      "webfinger_discovery": {
-        "status": "pending",
-        "priority": 1,
-        "description": "WebFinger-style jurisdiction discovery. Query civic:city-san-rafael returns instance URL and capabilities. Replaces hardcoded relay lists with standard discovery protocol.",
-        "test_file": "packages/civicos-relay/tests/test_discovery.py",
-        "subtasks": [
-          "GET /.well-known/webfinger?resource=civic:jurisdiction-id",
-          "Return instance URL, supported corpora, peer list",
-          "Client-side discovery resolution",
-          "Fallback to static registry when WebFinger unavailable"
-        ],
-        "note": "Borrowed from ActivityPub. Enables permissionless federation - any instance can be discovered without central registry."
+        "note": "Obsolete after Nostr migration. Client-centric federation via #j tag filters replaces relay hierarchy."
       },
       "peer_announcements": {
-        "status": "pending",
-        "priority": 1,
+        "status": "ready",
+        "priority": 2,
         "description": "BGP-style peer announcements. Relays announce what jurisdictions/corpora they serve. Enables routing without central registry.",
         "test_file": "packages/civicos-relay/tests/test_announcements.py",
         "subtasks": [
@@ -3202,7 +3431,13 @@
           "Periodic re-announcement (heartbeat)",
           "Expire stale announcements"
         ],
-        "note": "Combined with WebFinger, enables fully decentralized federation. No central registry required."
+        "note": "Obsolete after Nostr migration. NIP-11 relay information document is the standard for relay metadata."
+      },
+      "nip05_jurisdiction_verification": {
+        "status": "ready",
+        "priority": 2,
+        "artifact": "NIP-05 verification for jurisdiction domains",
+        "note": "Implemented /.well-known/nostr.json endpoint. Configure via NOSTR_RELAY_PUBKEY and NOSTR_RELAY_URL env vars. Cities can host their own verification on their domains."
       }
     },
     "test_coverage": {
@@ -3218,6 +3453,195 @@
           "Test multi-relay sync (using in-memory storage)"
         ]
       }
+    }
+  },
+  "edge_intelligence": {
+    "description": "User-controlled AI filtering layer - intelligence at the edge, not centralized recommendations",
+    "_doc": "Edge means user-controlled, not necessarily user-hosted. User context stays with user (localStorage/encrypted Nostr). Agent is stateless - receives context per-request, applies user's filtering logic, returns personalized results. No behavior tracking, no recommendations, transparent reasoning.",
+    "design_principles": [
+      "User context stored locally (browser localStorage or encrypted Nostr event)",
+      "Context transmitted per-request, never stored server-side",
+      "No query logging, no behavior tracking, no engagement metrics",
+      "Agent applies user's filtering logic, not platform recommendations",
+      "Transparent reasoning: agent explains why it surfaced something",
+      "User controls keys: Nostr signing always happens client-side"
+    ],
+    "web_chat_interface": {
+      "status": "pending",
+      "priority": 1,
+      "description": "Chat interface at civicos.org/[jurisdiction] for frictionless civic engagement. AI-powered conversation using Claude API + CivicOS MCP. Primary surface for citizens who don't use Claude.ai/ChatGPT directly.",
+      "test_file": "apps/civicos-workspace/tests/e2e/chat-interface.spec.ts",
+      "artifact": "apps/civicos-workspace/src/components/chat/",
+      "subtasks": [
+        "ChatContainer component with message history",
+        "ChatInput with send button and quick-start suggestions",
+        "MessageBubble component (user vs agent styling)",
+        "Streaming response display (SSE from backend)",
+        "Quick-start buttons: 'What's on the agenda?', 'Housing updates', etc.",
+        "Jurisdiction selector (for multi-city deployment)"
+      ],
+      "backend": [
+        "POST /api/chat endpoint in civicos-services",
+        "Claude API integration with streaming",
+        "System prompt that uses MCP tools",
+        "Context injection from request headers",
+        "Rate limiting per session"
+      ]
+    },
+    "user_context_schema": {
+      "status": "pending",
+      "priority": 1,
+      "description": "Schema for user context stored in localStorage. Transmitted per-request to agent. Never stored server-side. Optionally backed up as encrypted Nostr event.",
+      "test_file": "apps/civicos-workspace/tests/unit/user-context.spec.ts",
+      "artifact": "apps/civicos-workspace/src/services/UserContextService.ts",
+      "schema": {
+        "nostr_pubkey": "string - public key (private stored separately, encrypted)",
+        "jurisdiction": "string - e.g., 'city-san-rafael'",
+        "location": {
+          "neighborhood": "string - e.g., 'Terra Linda'",
+          "lat": "number (optional)",
+          "lng": "number (optional)"
+        },
+        "interests": "string[] - e.g., ['housing', 'transportation']",
+        "filtering_instructions": "string - natural language, e.g., 'aggressive on housing, ignore parking'",
+        "voice_history": "string[] - Nostr event IDs (references, not copies)",
+        "commitment_history": "string[] - Nostr event IDs",
+        "notification_email": "string (optional) - for subscription delivery",
+        "reminder_preferences": {
+          "days_before_deadline": "number"
+        },
+        "attestations": {
+          "physical": "{ event_id, expires }",
+          "device": "{ event_id }"
+        }
+      },
+      "subtasks": [
+        "TypeScript interface for CivicUserContext",
+        "UserContextService: load/save to localStorage",
+        "Encryption for sensitive fields (private key)",
+        "Context serialization for API requests",
+        "First-visit onboarding flow (neighborhood, interests)",
+        "Optional: Nostr backup (encrypted kind 30900?)"
+      ]
+    },
+    "context_aware_agent": {
+      "status": "pending",
+      "priority": 1,
+      "description": "System prompt and agent logic that uses user context for personalized filtering. Stateless - context comes in request, agent reasons about relevance to THIS user.",
+      "test_file": "packages/civicos-services/tests/test_context_agent.py",
+      "artifact": "packages/civicos-services/src/civicos_services/chat/context_agent.py",
+      "capabilities": [
+        "Parse user context from request",
+        "Apply filtering_instructions as reasoning constraints",
+        "Use location for geographic relevance ('affects your neighborhood')",
+        "Reference voice_history and commitment_history",
+        "Generate transparent reasoning ('I'm showing you this because...')",
+        "Suggest actions based on what's needed + user's capacity",
+        "Prepare unsigned Nostr events for user approval"
+      ],
+      "system_prompt_sections": [
+        "Role: Civic assistant for [jurisdiction]",
+        "Context injection: User's location, interests, filtering instructions",
+        "Tool usage: MCP tools for raw data (no recommendations)",
+        "Reasoning: Explain why something is relevant to this user",
+        "Actions: When showing initiatives, show defined actions with progress",
+        "Commitments: Offer to help user commit, provide templates",
+        "Signing: Prepare unsigned events, never sign for user"
+      ],
+      "subtasks": [
+        "System prompt template with context placeholders",
+        "Context injection middleware",
+        "Action-aware responses (show actions, progress, templates)",
+        "Unsigned event generation for voices/commitments/completions",
+        "Reasoning transparency (explain relevance)"
+      ]
+    },
+    "client_side_signing": {
+      "status": "pending",
+      "priority": 1,
+      "description": "Client-side Nostr signing - user's private key never leaves their device. Support multiple key management approaches for different user sophistication levels.",
+      "test_file": "apps/civicos-workspace/tests/e2e/signing.spec.ts",
+      "artifact": "apps/civicos-workspace/src/services/SigningService.ts",
+      "approaches": {
+        "browser_key": {
+          "description": "Key generated and stored in localStorage (encrypted)",
+          "friction": "Lowest - automatic on first voice",
+          "security": "Medium - device-locked, vulnerable to XSS",
+          "users": "Default for new users"
+        },
+        "nos2x_alby": {
+          "description": "Browser extension (NIP-07) handles signing",
+          "friction": "Medium - requires extension install",
+          "security": "Higher - key isolated from page context",
+          "users": "Power users, existing Nostr users"
+        },
+        "passkey_webauthn": {
+          "description": "Hardware-bound key via WebAuthn",
+          "friction": "Low - modern UX, biometric",
+          "security": "Highest - key in secure enclave",
+          "users": "Future default as support improves"
+        }
+      },
+      "subtasks": [
+        "SigningService interface (sign, getPublicKey, hasKey)",
+        "BrowserKeyProvider: generate secp256k1 keypair, store encrypted",
+        "NIP07Provider: detect and use nos2x/Alby extension",
+        "Provider selection logic (prefer extension if available)",
+        "Sign voice events (kind 30800)",
+        "Sign commitment events (kind 30811)",
+        "Sign completion events (kind 30812)",
+        "Key backup/recovery flow for browser keys"
+      ],
+      "nip07_integration": [
+        "Detect window.nostr object",
+        "Request public key: window.nostr.getPublicKey()",
+        "Request signature: window.nostr.signEvent(event)",
+        "Handle user rejection gracefully"
+      ]
+    },
+    "action_flow_integration": {
+      "status": "pending",
+      "priority": 1,
+      "description": "End-to-end flow from awareness to action completion. Chat interface + context + signing integrated to catalyze civic action.",
+      "test_file": "apps/civicos-workspace/tests/e2e/action-flow.spec.ts",
+      "flow": [
+        "1. User asks about civic issue in chat",
+        "2. Agent queries MCP with user's context (location, interests)",
+        "3. Agent finds relevant initiative with defined actions",
+        "4. Agent shows actions with progress: '6 more comments needed by Friday'",
+        "5. User says 'I'll submit a comment'",
+        "6. Agent prepares unsigned commitment event",
+        "7. Browser signs with user's key (localStorage or NIP-07)",
+        "8. Signed event broadcast to relay",
+        "9. Agent shows template, sets reminder",
+        "10. User completes action, marks complete in UI",
+        "11. Agent shows attribution: 'You're 1 of 27'"
+      ],
+      "subtasks": [
+        "Chat → Action discovery flow",
+        "Commitment flow (prepare → sign → broadcast)",
+        "Template delivery after commitment",
+        "Completion flow (evidence → sign → broadcast)",
+        "Attribution display after outcome"
+      ]
+    },
+    "notification_integration": {
+      "status": "pending",
+      "priority": 2,
+      "description": "Connect edge intelligence to notification system. Action reminders, deadline alerts, outcome attribution delivered via email/SMS.",
+      "test_file": "packages/civicos-relay/tests/test_action_notifications.py",
+      "notification_types": [
+        "commitment_reminder: 'Your written comment is due tomorrow'",
+        "deadline_approaching: 'Action deadline in 24 hours, X still needed'",
+        "threshold_reached: 'Initiative reached target! Here's what happened'",
+        "outcome_attribution: 'The vote passed. Your comment was 1 of 27'"
+      ],
+      "subtasks": [
+        "Reminder scheduling based on commitment + deadline",
+        "Email templates for each notification type",
+        "Deep links back to chat interface",
+        "One-click actions in email (Mark Complete, View Template)"
+      ]
     }
   },
   "federation_infrastructure": {
