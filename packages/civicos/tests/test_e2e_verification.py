@@ -6678,7 +6678,7 @@ class TestCodeAuditDocumentation:
         """
         import os
 
-        tutorial_path = str(PROJECT_ROOT / 'docs/VERIFICATION_TUTORIAL.md')
+        tutorial_path = str(PROJECT_ROOT / 'docs/user_guides/VERIFICATION_TUTORIAL.md')
 
         assert os.path.exists(tutorial_path), "Missing VERIFICATION_TUTORIAL.md"
 

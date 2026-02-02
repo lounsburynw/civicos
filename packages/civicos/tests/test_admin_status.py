@@ -955,7 +955,13 @@ class TestAssemblyAIUsageFetcher:
     def test_fetch_usage_success(self):
         """Test successful usage fetch with mock transcripts."""
         from unittest.mock import patch, Mock
+        from datetime import datetime, timedelta
         from civicos_services.servers.routers.admin import _fetch_assemblyai_usage
+
+        # Use dynamic dates within current month (use hours to stay safely in current month)
+        now = datetime.utcnow()
+        recent_date = (now - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S.000000Z")
+        older_date = (now - timedelta(hours=12)).strftime("%Y-%m-%dT%H:%M:%S.000000Z")
 
         # Mock response with 2 completed transcripts
         mock_response = Mock()
@@ -966,13 +972,13 @@ class TestAssemblyAIUsageFetcher:
                     "id": "abc123",
                     "status": "completed",
                     "audio_duration": 120000,  # 2 minutes in ms
-                    "created": "2026-01-10T15:30:00.000000Z"
+                    "created": recent_date
                 },
                 {
                     "id": "def456",
                     "status": "completed",
                     "audio_duration": 180000,  # 3 minutes in ms
-                    "created": "2026-01-08T10:00:00.000000Z"
+                    "created": older_date
                 }
             ],
             "page_details": {}
@@ -990,7 +996,13 @@ class TestAssemblyAIUsageFetcher:
     def test_fetch_usage_filters_by_date(self):
         """Test that old transcripts are filtered out."""
         from unittest.mock import patch, Mock
+        from datetime import datetime, timedelta
         from civicos_services.servers.routers.admin import _fetch_assemblyai_usage
+
+        # Use dynamic dates - one recent, one from last year
+        now = datetime.utcnow()
+        recent_date = (now - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S.000000Z")
+        old_date = (now - timedelta(days=400)).strftime("%Y-%m-%dT%H:%M:%S.000000Z")  # Over a year ago
 
         # Mock response with one current and one old transcript
         mock_response = Mock()
@@ -1001,13 +1013,13 @@ class TestAssemblyAIUsageFetcher:
                     "id": "recent",
                     "status": "completed",
                     "audio_duration": 60000,  # 1 minute
-                    "created": "2026-01-10T15:30:00.000000Z"
+                    "created": recent_date
                 },
                 {
                     "id": "old",
                     "status": "completed",
                     "audio_duration": 600000,  # 10 minutes
-                    "created": "2025-01-01T10:00:00.000000Z"  # Last year
+                    "created": old_date
                 }
             ],
             "page_details": {}
@@ -1023,7 +1035,14 @@ class TestAssemblyAIUsageFetcher:
     def test_fetch_usage_excludes_non_completed(self):
         """Test that non-completed transcripts are excluded."""
         from unittest.mock import patch, Mock
+        from datetime import datetime, timedelta
         from civicos_services.servers.routers.admin import _fetch_assemblyai_usage
+
+        # Use dynamic dates within current month
+        now = datetime.utcnow()
+        date1 = (now - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S.000000Z")
+        date2 = (now - timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%S.000000Z")
+        date3 = (now - timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%S.000000Z")
 
         mock_response = Mock()
         mock_response.status_code = 200
@@ -1033,19 +1052,19 @@ class TestAssemblyAIUsageFetcher:
                     "id": "completed1",
                     "status": "completed",
                     "audio_duration": 60000,
-                    "created": "2026-01-10T15:30:00.000000Z"
+                    "created": date1
                 },
                 {
                     "id": "processing",
                     "status": "processing",
                     "audio_duration": 120000,
-                    "created": "2026-01-10T14:00:00.000000Z"
+                    "created": date2
                 },
                 {
                     "id": "error",
                     "status": "error",
                     "audio_duration": 180000,
-                    "created": "2026-01-10T13:00:00.000000Z"
+                    "created": date3
                 }
             ],
             "page_details": {}
