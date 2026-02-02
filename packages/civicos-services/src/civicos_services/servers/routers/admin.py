@@ -16,12 +16,13 @@ Endpoints:
 - POST /trigger - Trigger admin actions
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 from collections import defaultdict
 import os
 import time
 import logging
+import requests
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -651,9 +652,6 @@ def _fetch_assemblyai_usage(api_key: str, period: str = "current_month") -> Dict
     Returns:
         Dict with transcript_count, total_minutes, estimated_cost_usd, period dates
     """
-    import requests
-    from datetime import datetime, timedelta
-
     # Determine date range
     now = datetime.utcnow()
     if period == "current_month":
