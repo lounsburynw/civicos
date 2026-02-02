@@ -1,6 +1,7 @@
 """FastAPI application for relay server."""
 
 import logging
+import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -18,6 +19,7 @@ from civicos_relay.provenance.service import ProvenanceService
 from civicos_relay.sync.protocol import SyncRequest, VoiceSyncResponse, VoiceImportRequest, VoiceImportResponse
 from civicos_relay.sync.service import SyncService
 from civicos_relay.storage import InMemoryStorage
+from civicos_relay.delivery import EmailDelivery, EmailConfig
 
 logger = logging.getLogger(__name__)
 
@@ -84,9 +86,18 @@ async def lifespan(app: FastAPI):
     # Use in-memory storage for now (swap for Postgres in production)
     storage = InMemoryStorage()
 
+    # Initialize email delivery if configured
+    email_delivery = None
+    if os.environ.get("SMTP_HOST"):
+        email_config = EmailConfig.from_env()
+        email_delivery = EmailDelivery(email_config)
+        logger.info(f"Email delivery enabled: {email_config.smtp_host}:{email_config.smtp_port}")
+    else:
+        logger.info("Email delivery disabled (SMTP_HOST not set)")
+
     _relay_state["identity"] = identity
     _relay_state["voice_service"] = VoiceService(storage.voices)
-    _relay_state["relay_service"] = RelayService(storage.subscriptions, None)  # No delivery yet
+    _relay_state["relay_service"] = RelayService(storage.subscriptions, email_delivery)
     _relay_state["provenance_service"] = ProvenanceService(storage.provenance)
     _relay_state["sync_service"] = SyncService(identity, storage.sync, config.peers)
 

@@ -16799,3 +16799,62 @@ The event emission infrastructure is complete. Next priorities:
 - `voice_button` (P2) - Users can cast voices
 
 ---
+
+---
+
+## Session: 2026-02-02 - Email Delivery Implementation
+
+**Item:** email_delivery (P0)
+**Area:** relay > backend_integration
+**Status:** COMPLETE
+
+### What was done
+1. Created `EmailDelivery` class implementing `EventDelivery` protocol
+2. Added `EmailConfig` dataclass with `from_env()` for environment configuration
+3. HTML email templates for all 7 event types with:
+   - Event-specific content (deadlines, voice counts, meeting dates)
+   - Jurisdiction name formatting
+   - Unsubscribe link in footer
+4. Plain text fallback body
+5. SMTP integration with TLS and optional authentication
+6. Integrated into app.py - delivery is enabled when SMTP_HOST is set
+
+### Files created/modified
+- NEW: `packages/civicos-relay/src/civicos_relay/delivery/__init__.py`
+- NEW: `packages/civicos-relay/src/civicos_relay/delivery/email.py`
+- NEW: `packages/civicos-relay/tests/test_email_delivery.py`
+- MODIFIED: `packages/civicos-relay/src/civicos_relay/server/app.py`
+- MODIFIED: `pilot.json` (email_delivery → ready)
+
+### Tests
+- 25 new tests in test_email_delivery.py - all passing
+- 223 total relay tests passing
+
+### Environment Variables
+```
+SMTP_HOST        - SMTP server hostname (required to enable)
+SMTP_PORT        - SMTP port (default: 587)
+SMTP_USER        - Username for auth (optional)
+SMTP_PASSWORD    - Password for auth (optional)
+SMTP_USE_TLS     - Enable TLS (default: true)
+EMAIL_FROM_ADDRESS - From address (default: noreply@civicos.app)
+CIVICOS_BASE_URL - Base URL for unsubscribe links
+```
+
+### Architecture
+```
+EventEmitter.emit()
+    ↓
+Save to coordination_events_log
+    ↓
+Match subscriptions
+    ↓ (for each match)
+EmailDelivery.deliver()
+    ↓
+SMTP send (HTML + text/plain)
+```
+
+### Next recommended item
+- `voice_display` (P2) - Frontend shows voice counts
+- `voice_button` (P2) - Users can cast voices
+
