@@ -3108,7 +3108,7 @@
       "_doc": "Core primitives for catalyzing action, not just aggregating intent. These are the Nostr event kinds that enable coordination.",
       "action_kind": {
         "status": "pending",
-        "priority": 1,
+        "priority": 0,
         "description": "Kind 30810: Civic Action - addressable event defining a specific task that moves an initiative forward",
         "test_file": "packages/civicos-relay/tests/test_action_events.py",
         "schema": {
@@ -3267,7 +3267,7 @@
     "frontend_integration": {
       "voice_display": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 2,
         "description": "Display voice counts on agenda items and decisions in the Vue frontend. Show support/oppose/watching breakdown. Simple badge/indicator UI.",
         "test_file": "apps/civicos-workspace/tests/e2e/voice-display.spec.ts",
         "subtasks": [
