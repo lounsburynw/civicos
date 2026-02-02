@@ -12,6 +12,7 @@ dependencies = [
     "pydantic>=2.0",
     "cryptography>=41.0",
     "httpx>=0.24.0",
+    "coincurve>=19.0",  # secp256k1 for Nostr Schnorr signatures
 ]
 
 [project.optional-dependencies]
@@ -37,3 +38,8 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "integration: marks tests as integration tests (require PostgreSQL)",
+]
