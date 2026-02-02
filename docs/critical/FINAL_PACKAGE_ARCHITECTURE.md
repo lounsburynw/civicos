@@ -270,6 +270,7 @@ civicos/
 │   ├── civicos-relay/              # Federation-ready coordination relay
 │   │   ├── src/civicos_relay/
 │   │   │   ├── voice/              # Keypairs, signing, voice casting
+│   │   │   ├── actions/            # Action primitives (commit, complete)
 │   │   │   ├── relay/              # Events, subscriptions, delivery
 │   │   │   ├── provenance/         # Key age, history, trust signals
 │   │   │   ├── identity/           # Relay keypair, peering config
@@ -277,7 +278,7 @@ civicos/
 │   │   │   ├── storage/            # Postgres + in-memory backends
 │   │   │   └── server/             # Standalone FastAPI server
 │   │   ├── schema.sql              # PostgreSQL tables
-│   │   └── tests/                  # 30 tests including multi-relay sync
+│   │   └── tests/                  # 30+ tests including multi-relay sync
 │   │
 │   ├── civicos-extraction/         # Platform parsers
 │   │   └── src/civicos_extraction/
@@ -320,7 +321,7 @@ civicos/
 | Package | Responsibility |
 |---------|----------------|
 | `civicos` | Core API (`CivicOS` class), query methods, storage protocol |
-| `civicos-relay` | Voice casting, subscriptions, federation sync, standalone server |
+| `civicos-relay` | Voice casting, action primitives, subscriptions, federation sync, standalone server |
 | `civicos-extraction` | Platform-specific parsers, transcription, ETL pipeline |
 | `civicos-services` | REST API, WebSocket, chat interface |
 | `civicos-config` | Shared jurisdiction configuration |
@@ -545,6 +546,41 @@ Key properties:
 - **Self-verifying**: Any relay can verify a voice independently
 - **Portable**: Voices can sync between relays
 - **One voice per key per entity**: Deduplication by `(public_key, entity)`
+
+### Action Model
+
+Actions bridge the gap from signal to outcome. While voices express intent, actions catalyze real-world civic participation:
+
+```python
+Action(
+    entity="initiative:marin-housing",     # Parent initiative
+    action_type=ActionType.WRITTEN_COMMENT,
+    target="clerk@marincounty.org",
+    deadline=datetime(2026, 2, 14, 17, 0),
+    template="...",                         # Comment template
+    target_count=30,                        # Goal
+)
+
+Commitment(
+    action_id="action:marin-housing:written-comment",
+    public_key="02ab3f...",
+    status=CommitmentStatus.COMMITTED,      # committed | completed | withdrawn
+)
+
+Completion(
+    action_id="action:marin-housing:written-comment",
+    public_key="02ab3f...",
+    evidence=EvidenceType.SELF_REPORT,
+    completed_at=datetime.utcnow(),
+)
+```
+
+Key properties:
+- **Action types**: written_comment, attend_meeting, public_comment, contact_official, signature, share
+- **Progress tracking**: commitments and completions enable "12 committed, 8 completed" visibility
+- **Evidence types**: self_report, email_confirmation, attendance_check, verified
+
+See `docs/critical/COORDINATION_PROTOCOL.md` for full action primitive specifications.
 
 ### Federation Model
 
@@ -1348,7 +1384,7 @@ The codebase has been refactored from a monolithic structure to a multi-package 
 | Package | Purpose | Status |
 |---------|---------|--------|
 | `packages/civicos/` | Core API (`CivicOS` class), query methods, storage protocol | Active |
-| `packages/civicos-relay/` | Voice casting, subscriptions, federation sync | Active (new) |
+| `packages/civicos-relay/` | Voice casting, action primitives, subscriptions, federation sync | Active |
 | `packages/civicos-extraction/` | Platform parsers, transcription, ETL | Active |
 | `packages/civicos-services/` | REST API, WebSocket, chat | Active |
 | `packages/civicos-config/` | Shared jurisdiction configuration | Active |
@@ -1363,6 +1399,7 @@ The coordination functionality is now split between two packages:
 |---------|---------|-----------|
 | **Civic queries** (`what_happened`, `whats_next`) | `civicos` | Core API stays lean |
 | **Voice casting, signatures** | `civicos-relay` | Federation-ready, standalone deployable |
+| **Action primitives** | `civicos-relay` | Coordination state (commits, completions) |
 | **Subscriptions, events** | `civicos-relay` | Can run as separate service |
 | **LangGraph orchestration** | `civicos` | Tightly coupled to query/action cycle |
 
@@ -1373,6 +1410,7 @@ The `civicos-relay` package is designed for federation from day one:
 ```
 packages/civicos-relay/src/civicos_relay/
 ├── voice/          # Keypairs, signing, voice casting
+├── actions/        # Action primitives (commit, complete)
 ├── relay/          # Events, subscriptions, delivery
 ├── provenance/     # Key age, history, trust signals
 ├── identity/       # Relay keypair, peering config
@@ -1391,23 +1429,53 @@ Key design decisions:
 
 ## Implementation Priority
 
-### Phase 1: Pilot (Jan 2026)
+### CivicOS API Phases
+
+#### Phase 1: Pilot (Jan 2026)
 - [ ] Query methods (4)
 - [ ] Basic action methods (start_something, add_voice, follow)
 - [ ] Simple suggestions (upcoming meetings matching interests)
 - [ ] MCP server with all tools
 
-### Phase 2: Coordination (Mar 2026)
+#### Phase 2: Coordination (Mar 2026)
 - [ ] prepare() method
 - [ ] coordinate() method
 - [ ] Coordination planner
 - [ ] Outcome tracking
 
-### Phase 3: Learning (Jun 2026)
+#### Phase 3: Learning (Jun 2026)
 - [ ] Pattern learner
 - [ ] Strategy suggestions
 - [ ] Feedback loop analytics
 - [ ] Ecosystem health metrics
+
+### Relay/Coordination Protocol Phases
+
+See `docs/critical/COORDINATION_PROTOCOL.md` for detailed specifications.
+
+#### Phase 1: Nostr Foundation (Complete)
+- [x] NIP-01 compliant WebSocket relay
+- [x] Civic voice (kind 30800), entity (kind 30801), subscription (kind 30802)
+- [x] Provenance tracking (kind 10800)
+- [x] Schnorr signing (secp256k1, BIP-340)
+
+#### Phase 2: Action Primitives (Current)
+- [ ] Action (kind 30810) — defined tasks with deadlines, templates
+- [ ] Commitment (kind 30811) — binding intent to act
+- [ ] Completion (kind 30812) — evidence of action
+- [ ] Action accounting — progress toward targets
+
+#### Phase 3: Edge Intelligence (Next)
+- [ ] Web chat at civicos.org/[jurisdiction]
+- [ ] User context stored locally (browser localStorage)
+- [ ] Context-aware agent using MCP for knowledge
+- [ ] Client-side Nostr signing (NIP-07 support)
+
+#### Phase 4: Full Provenance (Post-Pilot)
+- [ ] Physical attestation at civic centers
+- [ ] Device attestation via WebAuthn/platform APIs
+- [ ] Vouching system (kind 1800)
+- [ ] Key linking for migration (kind 1802)
 
 ---
 

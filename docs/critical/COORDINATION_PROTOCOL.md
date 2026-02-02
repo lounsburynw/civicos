@@ -680,7 +680,7 @@ Adding action/commitment/completion kinds to catalyze outcomes.
 - Commitment (kind 30811) — binding intent to act
 - Completion (kind 30812) — evidence of action
 - Action accounting — progress toward targets
-- MCP tools: define_action, commit_to_action, complete_action
+- Relay WebSocket API for action CRUD operations
 
 **Implementation items tracked in:** `pilot.json` under `relay.action_primitives`
 
