@@ -3448,30 +3448,32 @@
       "User controls keys: Nostr signing always happens client-side"
     ],
     "web_chat_interface": {
-      "status": "not_ready",
-      "priority": 0,
+      "status": "ready",
+      "priority": 2,
+      "completed_session": 535,
       "description": "Web chat interface at civicos.org/[jurisdiction]. Primary surface for Edge Intelligence - where users interact with agents that prepare unsigned events.",
       "test_file": "apps/civicos-workspace/tests/e2e/chat-interface.spec.ts",
       "artifact": "apps/civicos-workspace/src/components/chat/",
-      "subtasks": [
-        "ChatContainer component with message history",
-        "ChatInput with send button and quick-start suggestions",
+      "subtasks_completed": [
+        "ChatContainer component with message history (ChatPanel.vue)",
+        "ChatInput with send button (lines 66-83)",
         "MessageBubble component (user vs agent styling)",
-        "Streaming response display (SSE from backend)",
-        "Quick-start buttons: 'What's on the agenda?', 'Housing updates', etc.",
-        "Jurisdiction selector (for multi-city deployment)"
+        "Quick-start buttons: meetings, issues, comments, legislation (lines 85-115)",
+        "POST /api/chat/route endpoint works (conversations.py)",
+        "LLM function calling via OpenRouter (Gemini 2.0 Flash)",
+        "MCP tool integration - queries flow through MCP server (Session 534)",
+        "Context injection from request body"
       ],
-      "backend": [
-        "POST /api/chat endpoint in civicos-services",
-        "Claude API integration with streaming",
-        "System prompt that uses MCP tools",
-        "Context injection from request headers",
-        "Rate limiting per session"
-      ]
+      "future_enhancements": [
+        "Streaming response display (SSE) - nice-to-have UX improvement",
+        "Jurisdiction selector UI - needed for multi-city expansion",
+        "Rate limiting per session - production hardening"
+      ],
+      "verification": "Tested 2026-02-02: 'show housing meetings in san rafael' -> search_meeting_history MCP tool -> PostgreSQL results returned"
     },
     "user_context_schema": {
-      "status": "pending",
-      "priority": 1,
+      "status": "not_ready",
+      "priority": 0,
       "description": "Schema for user context stored in localStorage. Transmitted per-request to agent. Never stored server-side. Optionally backed up as encrypted Nostr event.",
       "test_file": "apps/civicos-workspace/tests/unit/user-context.spec.ts",
       "artifact": "apps/civicos-workspace/src/services/UserContextService.ts",
