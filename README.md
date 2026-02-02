@@ -6,7 +6,7 @@
 
 **Ask questions about your local government—and find others who care.**
 
-CivicOS indexes civic data and exposes it through AI assistants you already use. Query meetings and decisions, find neighbors with shared concerns, coordinate on local issues. No app to download.
+Open, permissionless civic infrastructure for AI agents. Query meetings, decisions, and municipal code. Find neighbors with shared concerns. Coordinate across city, county, and state. No app, no lock-in.
 
 ## Contents
 
@@ -20,17 +20,9 @@ CivicOS indexes civic data and exposes it through AI assistants you already use.
 
 ---
 
-## Status: Pilot (Jan 2026)
-
-Active pilot focused on **San Rafael, California**. We're validating one city before expanding.
-
-**What we're testing:** Can structured civic data + AI assistance meaningfully increase resident participation in local decisions?
-
----
-
 ## Try It Now
 
-CivicOS works through AI assistants you already use.
+CivicOS provides an MCP server. Connect via Claude, ChatGPT, or any MCP-compatible client.
 
 **Claude (claude.ai or Claude Desktop):**
 1. Go to Settings → Connectors → Add Connector
@@ -42,7 +34,7 @@ CivicOS works through AI assistants you already use.
 2. Add connector: `https://san-rafael.civicosproject.org/mcp`
 3. Ask: *"What has San Rafael decided about housing?"*
 
-**New to this?** Once connected, just say **"get started"** and the assistant will walk you through what you can ask.
+**New to this?** Once connected, just say **"get started"** and the agent will walk you through what you can ask.
 
 ---
 
@@ -53,9 +45,9 @@ CivicOS works through AI assistants you already use.
 | *"What's happening with the 4th St rezoning?"* | Agenda status, past decisions, state density bonus law | MCP Server |
 | *"Who else cares about traffic on Lincoln?"* | 23 neighbors filed complaints, 8 voiced support | MCP + Relay |
 | *"What did people say about homelessness at the last meeting?"* | Public testimony from transcripts | MCP Server |
-| *"I support the bike lane proposal"* | Voice recorded. You're one of 34 supporters. | AI Assistant → Relay |
-| *"I'll attend Monday's meeting"* | Committed. 11 others plan to attend. | AI Assistant → Relay |
-| *"Help me prepare to speak"* | Context, talking points, then "Ready to commit?" | AI Assistant → MCP → Relay |
+| *"I support the bike lane proposal"* | Voice recorded. You're one of 34 supporters. | AI Agent → Relay |
+| *"I'll attend Monday's meeting"* | Committed. 11 others plan to attend. | AI Agent → Relay |
+| *"Help me prepare to speak"* | Context, talking points, then "Ready to commit?" | AI Agent → MCP → Relay |
 
 ---
 
@@ -64,7 +56,7 @@ CivicOS works through AI assistants you already use.
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                                                                     │
-│   You ──► Your AI Assistant ──► CivicOS                            │
+│   You ──► Your AI Agent ──► CivicOS                            │
 │                                     │                               │
 │                          ┌──────────┴──────────┐                   │
 │                          ▼                     ▼                    │
@@ -79,7 +71,7 @@ CivicOS works through AI assistants you already use.
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-**Why AI assistants?** Most people won't download a civic engagement app. But millions already use Claude and ChatGPT daily. CivicOS meets people where they are.
+**Why AI agents?** Most people won't download a civic engagement app. But millions already use AI agents daily. CivicOS connects via open protocols (MCP for knowledge, Nostr for coordination)—works with Claude, ChatGPT, open source models, or any compatible system. No lock-in.
 
 **Why federation?** Civic issues span jurisdictions—housing involves federal funding, state law, county planning, and city zoning. CivicOS runs at each level. Your AI agent synthesizes across boundaries while you voice support once and it syncs everywhere relevant. No single platform controls civic participation. See [Coordination Protocol](docs/critical/COORDINATION_PROTOCOL.md) for details.
 
