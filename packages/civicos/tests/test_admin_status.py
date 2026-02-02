@@ -680,7 +680,7 @@ class TestAPIKeyValidationHelpers:
         mock_response = Mock()
         mock_response.status_code = 200
 
-        with patch('requests.get', return_value=mock_response) as mock_get:
+        with patch('civicos_services.servers.routers.admin.requests.get', return_value=mock_response) as mock_get:
             result = _validate_assemblyai_key("test_api_key")
 
             assert result['is_valid'] is True
@@ -701,7 +701,7 @@ class TestAPIKeyValidationHelpers:
         mock_response = Mock()
         mock_response.status_code = 401
 
-        with patch('requests.get', return_value=mock_response):
+        with patch('civicos_services.servers.routers.admin.requests.get', return_value=mock_response):
             result = _validate_assemblyai_key("invalid_key")
 
             assert result['is_valid'] is False
@@ -713,7 +713,7 @@ class TestAPIKeyValidationHelpers:
         import requests
         from civicos_services.servers.routers.admin import _validate_assemblyai_key
 
-        with patch('requests.get', side_effect=requests.exceptions.Timeout()):
+        with patch('civicos_services.servers.routers.admin.requests.get', side_effect=requests.exceptions.Timeout()):
             result = _validate_assemblyai_key("test_key")
 
             assert result['is_valid'] is None
@@ -728,7 +728,7 @@ class TestAPIKeyValidationHelpers:
         mock_response.status_code = 200
         mock_response.json.return_value = {'status': 'OK'}
 
-        with patch('requests.get', return_value=mock_response) as mock_get:
+        with patch('civicos_services.servers.routers.admin.requests.get', return_value=mock_response) as mock_get:
             result = _validate_legiscan_key("test_api_key")
 
             assert result['is_valid'] is True
@@ -753,7 +753,7 @@ class TestAPIKeyValidationHelpers:
             'alert': {'message': 'Invalid API key'}
         }
 
-        with patch('requests.get', return_value=mock_response):
+        with patch('civicos_services.servers.routers.admin.requests.get', return_value=mock_response):
             result = _validate_legiscan_key("invalid_key")
 
             assert result['is_valid'] is False
@@ -765,7 +765,7 @@ class TestAPIKeyValidationHelpers:
         import requests
         from civicos_services.servers.routers.admin import _validate_legiscan_key
 
-        with patch('requests.get', side_effect=requests.exceptions.ConnectionError("Failed to connect")):
+        with patch('civicos_services.servers.routers.admin.requests.get', side_effect=requests.exceptions.ConnectionError("Failed to connect")):
             result = _validate_legiscan_key("test_key")
 
             assert result['is_valid'] is None
@@ -984,7 +984,7 @@ class TestAssemblyAIUsageFetcher:
             "page_details": {}
         }
 
-        with patch('requests.get', return_value=mock_response):
+        with patch('civicos_services.servers.routers.admin.requests.get', return_value=mock_response):
             result = _fetch_assemblyai_usage("test_api_key", "current_month")
 
             assert "error" not in result
@@ -1025,7 +1025,7 @@ class TestAssemblyAIUsageFetcher:
             "page_details": {}
         }
 
-        with patch('requests.get', return_value=mock_response):
+        with patch('civicos_services.servers.routers.admin.requests.get', return_value=mock_response):
             result = _fetch_assemblyai_usage("test_api_key", "current_month")
 
             # Only the recent transcript should be counted
@@ -1070,7 +1070,7 @@ class TestAssemblyAIUsageFetcher:
             "page_details": {}
         }
 
-        with patch('requests.get', return_value=mock_response):
+        with patch('civicos_services.servers.routers.admin.requests.get', return_value=mock_response):
             result = _fetch_assemblyai_usage("test_api_key", "current_month")
 
             # Only completed transcripts count
@@ -1085,7 +1085,7 @@ class TestAssemblyAIUsageFetcher:
         mock_response = Mock()
         mock_response.status_code = 401
 
-        with patch('requests.get', return_value=mock_response):
+        with patch('civicos_services.servers.routers.admin.requests.get', return_value=mock_response):
             result = _fetch_assemblyai_usage("invalid_key", "current_month")
 
             assert "error" in result
@@ -1097,7 +1097,7 @@ class TestAssemblyAIUsageFetcher:
         import requests
         from civicos_services.servers.routers.admin import _fetch_assemblyai_usage
 
-        with patch('requests.get', side_effect=requests.exceptions.Timeout()):
+        with patch('civicos_services.servers.routers.admin.requests.get', side_effect=requests.exceptions.Timeout()):
             result = _fetch_assemblyai_usage("test_key", "current_month")
 
             assert "error" in result
@@ -1109,7 +1109,7 @@ class TestAssemblyAIUsageFetcher:
         import requests
         from civicos_services.servers.routers.admin import _fetch_assemblyai_usage
 
-        with patch('requests.get', side_effect=requests.exceptions.ConnectionError("Failed")):
+        with patch('civicos_services.servers.routers.admin.requests.get', side_effect=requests.exceptions.ConnectionError("Failed")):
             result = _fetch_assemblyai_usage("test_key", "current_month")
 
             assert "error" in result

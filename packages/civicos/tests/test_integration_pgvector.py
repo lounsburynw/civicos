@@ -616,10 +616,11 @@ class TestLocalImplementationSurfacing:
 
     def test_sb9_has_local_implementation(self, adu_regulatory_stack):
         """SB9 (housing duplex law) should have requires_local_action=True."""
+        import re
         bills = [r for r in adu_regulatory_stack.state if r.get("type") == "bill"]
 
-        # Find SB9 in results
-        sb9_bills = [b for b in bills if "sb9" in b.get("id", "").lower()]
+        # Find SB9 in results - use word boundary to avoid matching sb938, sb91, etc.
+        sb9_bills = [b for b in bills if re.search(r'\bsb9\b', b.get("id", "").lower())]
 
         if sb9_bills:
             sb9 = sb9_bills[0]
@@ -679,10 +680,11 @@ class TestLegislationTopicClassification:
 
     def test_sb9_has_housing_topic(self, adu_regulatory_stack):
         """SB9 (housing duplex law) should have housing topic."""
+        import re
         bills = [r for r in adu_regulatory_stack.state if r.get("type") == "bill"]
 
-        # Find SB9 in results
-        sb9_bills = [b for b in bills if "sb9" in b.get("id", "").lower()]
+        # Find SB9 in results - use word boundary to avoid matching sb938, sb91, etc.
+        sb9_bills = [b for b in bills if re.search(r'\bsb9\b', b.get("id", "").lower())]
 
         if sb9_bills:
             sb9 = sb9_bills[0]

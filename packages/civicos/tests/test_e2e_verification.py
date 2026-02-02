@@ -7,7 +7,7 @@ verification steps from VERIFICATION_TUTORIAL.md into automated tests.
 Each test function is named to match its corresponding verification.json key.
 Status updates to verification.json should be made when tests pass.
 
-Reference: docs/VERIFICATION_TUTORIAL.md
+Reference: docs/user_guides/VERIFICATION_TUTORIAL.md
 """
 
 import pytest
