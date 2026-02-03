@@ -3449,17 +3449,40 @@
       "pattern_2_claude_desktop": "Local install - full NIP-07/hardware support. All identity modes.",
       "pattern_3_self_hosted": "User runs own server. Full sovereignty.",
       "pattern_4_jurisdiction_openwebui": {
-        "description": "RECOMMENDED FOR PILOT - City hosts Open WebUI instance with local Ollama",
+        "description": "RECOMMENDED FOR PILOT - City hosts Open WebUI with Enterprise API backend",
         "benefits": [
           "Zero cost to citizens (no AI subscription required)",
-          "Query privacy (local LLM, queries never leave city infrastructure)",
+          "Claude/GPT-4 quality for nuanced civic questions",
           "City attestation = sybil resistance + verified residency",
           "Integrated with city SSO/LDAP",
+          "Low operational burden (~$300/month vs GPU infrastructure)",
           "Cross-jurisdictional coordination via federated Jurisdiction MCPs"
         ],
+        "llm_backend_options": {
+          "enterprise_api": {
+            "status": "RECOMMENDED",
+            "description": "Claude API or OpenAI API with enterprise agreement",
+            "cost": "~$300/month for city-scale usage",
+            "quality": "Excellent (Claude, GPT-4)",
+            "privacy": "Contractual (no training, short retention, audit rights)",
+            "operational_burden": "Low (managed service, automatic updates)"
+          },
+          "local_ollama": {
+            "status": "Alternative",
+            "description": "For maximum privacy requirements or cloud-averse jurisdictions",
+            "cost": "GPU hardware + IT maintenance",
+            "quality": "Good (Llama 3, Mistral)",
+            "privacy": "Maximum (queries never leave city)",
+            "operational_burden": "High (infrastructure management)"
+          },
+          "hybrid": {
+            "description": "Ollama default, Claude API for complex queries",
+            "note": "Open WebUI supports multiple backends"
+          }
+        },
         "components": {
           "interface": "Open WebUI (docs.openwebui.com)",
-          "llm": "Ollama (local, no external API calls)",
+          "llm": "Enterprise API (recommended) or Ollama (privacy-first)",
           "auth": "City LDAP/SSO (proves residency)",
           "attestation": "City signs Nostr event linking account to npub",
           "signing": "Client-side (user's keys, city cannot impersonate)"

@@ -265,9 +265,19 @@ The municipality hosts an [Open WebUI](https://docs.openwebui.com/) instance for
 │   └─────────────────────────────────────────────────────────────────────┘  │
 │                                                                             │
 │   ┌─────────────────────────────────────────────────────────────────────┐  │
-│   │  LLM: Local Ollama                                                   │  │
+│   │  LLM Backend (choose one):                                           │  │
+│   │                                                                      │  │
+│   │  Option A: Local Ollama                                             │  │
 │   │  → Queries NEVER leave city infrastructure                          │  │
-│   │  → No Anthropic/OpenAI API calls                                    │  │
+│   │  → No external API calls                                            │  │
+│   │  → Requires GPU infrastructure + IT maintenance                     │  │
+│   │                                                                      │  │
+│   │  Option B: Enterprise API (RECOMMENDED FOR PILOT)                   │  │
+│   │  → Claude API or OpenAI API with enterprise agreement               │  │
+│   │  → Better LLM quality for nuanced civic questions                   │  │
+│   │  → ~$300/month for city-scale usage                                 │  │
+│   │  → Contractual privacy: no training, short retention, audit rights  │  │
+│   │  → Lower operational burden (no GPU, automatic model updates)       │  │
 │   └─────────────────────────────────────────────────────────────────────┘  │
 │                                                                             │
 │   ┌─────────────────────────────────────────────────────────────────────┐  │
@@ -284,17 +294,45 @@ The municipality hosts an [Open WebUI](https://docs.openwebui.com/) instance for
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Pros:**
+#### LLM Backend Options
+
+| Aspect | Local Ollama | Enterprise API |
+|--------|--------------|----------------|
+| **Query privacy** | Maximum (never leaves city) | Contractual (enterprise agreement) |
+| **LLM quality** | Good (Llama 3, Mistral) | Excellent (Claude, GPT-4) |
+| **Cost model** | GPU hardware + IT time | ~$300/month API costs |
+| **Operational burden** | High (maintain infrastructure) | Low (managed service) |
+| **Model updates** | Manual | Automatic |
+| **Vendor dependency** | None | Anthropic/OpenAI |
+
+**Enterprise API Privacy Guarantees:**
+
+With an enterprise agreement, cities can negotiate:
+- No training on civic queries
+- Data retention limits (e.g., 30-day deletion)
+- Audit rights
+- SOC 2 compliance
+- Custom data processing agreements
+
+This shifts the privacy model from "queries never leave city" to "queries are contractually protected." For most US municipalities operating under rule of law, this is an acceptable tradeoff for significantly better LLM quality.
+
+**Hybrid Option:**
+
+Open WebUI supports multiple backends. Cities could:
+- Default to Ollama for routine queries (cost control)
+- Route complex queries to Claude API (quality)
+- Offer user choice ("Use local AI" toggle for privacy-sensitive users)
+
+**Pros (both options):**
 - Zero cost to citizens (no AI subscription required)
-- Query privacy (local LLM, no external API calls)
 - City attestation = sybil resistance + verified residency
 - Integrated with existing city identity (SSO with other city services)
 - Open WebUI has [native MCP support](https://docs.openwebui.com/features/mcp/)
 
 **Cons:**
-- City bears infrastructure cost (Ollama GPU, hosting)
-- LLM quality may be lower than Claude/GPT-4
-- Requires city IT capacity to operate
+- City bears infrastructure/API cost
+- Enterprise API: queries leave city infrastructure (with contractual protections)
+- Local Ollama: lower LLM quality, higher operational burden
 - Creates per-jurisdiction silos (mitigated by federation)
 
 **Identity modes available:** 🟢 Easy, 🟡 Private (NIP-07 possible if not sandboxed)
@@ -342,11 +380,17 @@ This enables trust signals at every level without re-verification.
 
 #### Recommended for Pilot
 
-Pattern 4 is **recommended for the San Rafael pilot** because:
-1. Removes subscription barrier (biggest friction point)
-2. City attestation solves proof-of-residency
-3. San Rafael is a trusted jurisdiction (rule of law context)
-4. Query privacy with local LLM
+Pattern 4 with **Enterprise API backend** is recommended for the San Rafael pilot:
+
+1. **Removes subscription barrier** — biggest friction point for citizen adoption
+2. **City attestation** — solves proof-of-residency, provides sybil resistance
+3. **Claude/GPT-4 quality** — nuanced civic questions deserve excellent answers
+4. **Low operational burden** — no GPU infrastructure, automatic model updates
+5. **Reasonable cost** — ~$300/month is negligible in city budget terms
+6. **Contractual privacy** — enterprise agreement provides legal protections
+7. **San Rafael context** — trusted jurisdiction, rule of law, privacy tradeoff acceptable
+
+For cities with higher privacy requirements or distrust of cloud providers, the Ollama option remains available.
 5. Can still federate with other jurisdictions
 
 For authoritarian contexts, Pattern 2 (Claude Desktop) or Pattern 3 (Self-hosted) remain necessary.
