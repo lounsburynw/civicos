@@ -1117,7 +1117,7 @@
       },
       "srcs_decision_extraction": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Extract decisions/votes from SRCS meeting minutes using LLM",
         "note": "After agenda items, extract decisions from minutes PDFs (if available). Same pattern as city: civic_extraction.cli.decisions with Gemini. Populates decisions table. Lower priority - minutes often lag behind meetings.",
         "depends_on": [
@@ -2795,25 +2795,32 @@
         "notes": "All 3 MCP servers deployed and working: Federal (3 tools), California (4 tools), San Rafael (38 tools). Fixed jurisdiction normalization for state/country prefixes, added civicos_extraction to Modal image, fixed intergovernmental revenue handler."
       },
       "internal_mcp_registry": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "Internal registry service at civicosproject.org/registry",
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Internal registry service at /api/mcp/internal/*",
         "description": "Build internal MCP registry service that provides discovery, health aggregation, and capability introspection for all CivicOS servers. Enables UX development against stable interface before public registry submission.",
         "rationale": "Public registry listing should wait until after stress testing and launch. Internal registry unblocks UX development, establishes federation patterns, and makes public submission a simple export step.",
         "url_scheme": "{jurisdiction}.civicosproject.org/mcp already establishes namespace pattern",
+        "completed_session": 546,
+        "completed_date": "2026-02-03",
         "endpoints": [
-          "GET /registry/servers - List all CivicOS MCP servers",
-          "GET /registry/servers/{jurisdiction_id} - Server details + capabilities",
-          "GET /registry/health - Aggregated health status",
-          "GET /registry/tools - All tools across servers (deduplicated)"
+          "GET /api/mcp/internal/servers - List all CivicOS MCP servers",
+          "GET /api/mcp/internal/servers/{jurisdiction_id} - Server details + capabilities",
+          "GET /api/mcp/internal/health - Aggregated health status",
+          "GET /api/mcp/internal/tools - All tools across servers (deduplicated)"
         ],
         "subtasks": [
-          "Design registry API schema (OpenAPI)",
-          "Implement /registry/servers endpoint",
-          "Implement /registry/health aggregation",
-          "Implement /registry/tools introspection",
-          "Add to civicos-services or standalone"
+          "[DONE] Design registry API schema (OpenAPI via Pydantic models)",
+          "[DONE] Implement /registry/servers endpoint",
+          "[DONE] Implement /registry/health aggregation",
+          "[DONE] Implement /registry/tools introspection",
+          "[DONE] Add to civicos-services registry router"
         ],
+        "implementation": {
+          "file": "packages/civicos-services/src/civicos_services/servers/routers/registry.py",
+          "test_file": "packages/civicos-services/tests/test_internal_registry.py",
+          "uses": "civicos.jurisdiction_config.get_active_jurisdictions() as source of truth"
+        },
         "depends_on": [
           "mcp_jurisdiction_validation"
         ]

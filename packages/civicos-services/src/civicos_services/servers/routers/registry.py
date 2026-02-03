@@ -1,10 +1,23 @@
 """
 MCP Registry Router - Discovery endpoint for CivicOS MCP servers.
 
-Provides a public registry of official CivicOS-approved MCP server endpoints,
-enabling clients to discover available civic data sources.
+Provides:
+1. Public registry of official CivicOS-approved MCP server endpoints
+2. Internal registry for CivicOS platform discovery, health aggregation, and capability introspection
+
+Public endpoints (for external clients):
+- GET /api/mcp/registry - Full public registry
+- GET /api/mcp/registry/operators/{id} - Single operator details
+- GET /api/mcp/registry/jurisdictions/{jid}/operators - Operators by jurisdiction
+
+Internal endpoints (for CivicOS platform):
+- GET /api/mcp/internal/servers - All active CivicOS MCP servers
+- GET /api/mcp/internal/servers/{jurisdiction_id} - Server details + capabilities
+- GET /api/mcp/internal/health - Aggregated health across all servers
+- GET /api/mcp/internal/tools - All tools with jurisdiction mapping
 """
 
+import asyncio
 import os
 import json
 import httpx
@@ -13,6 +26,15 @@ from typing import Optional, List, Dict, Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
+# Import jurisdiction config for internal registry
+try:
+    from civicos.jurisdiction_config import get_active_jurisdictions, load_jurisdiction_config
+    JURISDICTION_CONFIG_AVAILABLE = True
+except ImportError:
+    JURISDICTION_CONFIG_AVAILABLE = False
+    get_active_jurisdictions = None
+    load_jurisdiction_config = None
 
 
 router = APIRouter()
@@ -72,6 +94,64 @@ class MCPRegistry(BaseModel):
     registry_url: Optional[str] = None
     operators: List[MCPOperator]
     metadata: Optional[RegistryMetadata] = None
+
+
+# === Internal Registry Models ===
+
+
+class InternalServerHealth(BaseModel):
+    """Health status from an MCP server's /health endpoint."""
+    status: str  # healthy, unhealthy, unknown
+    tools_count: Optional[int] = None
+    tools: Optional[List[str]] = None
+    checked_at: str
+    response_time_ms: Optional[int] = None
+    jurisdiction_level: Optional[str] = None
+    display_name: Optional[str] = None
+
+
+class InternalMCPServer(BaseModel):
+    """An MCP server in the internal registry."""
+    jurisdiction_id: str
+    level: str  # federal, state, county, city
+    display_name: str
+    mcp_endpoint: str
+    health_endpoint: str
+    parent_jurisdictions: List[str] = []
+    health: Optional[InternalServerHealth] = None
+
+
+class InternalRegistryResponse(BaseModel):
+    """Response from internal servers list."""
+    version: str = "1.0.0"
+    updated: str
+    total_servers: int
+    servers: List[InternalMCPServer]
+
+
+class AggregatedHealth(BaseModel):
+    """Aggregated health across all servers."""
+    updated: str
+    total_servers: int
+    healthy: int
+    unhealthy: int
+    unknown: int
+    total_tools: int
+    servers: Dict[str, InternalServerHealth]
+
+
+class ToolInfo(BaseModel):
+    """Information about a tool across jurisdictions."""
+    name: str
+    available_at: List[str]  # jurisdiction_ids
+    levels: List[str]  # jurisdiction levels where available
+
+
+class ToolsResponse(BaseModel):
+    """Response from tools introspection endpoint."""
+    updated: str
+    total_tools: int
+    tools: List[ToolInfo]
 
 
 # === Registry Data ===
@@ -173,6 +253,105 @@ async def check_operator_health(endpoint: str, timeout: float = 5.0) -> Operator
         )
 
 
+# === Internal Registry Helpers ===
+
+
+def _build_mcp_endpoint(jurisdiction_id: str) -> str:
+    """
+    Build MCP endpoint URL from jurisdiction ID.
+
+    URL scheme: {jurisdiction-slug}.civicosproject.org/mcp
+
+    Examples:
+        city-san-rafael -> san-rafael.civicosproject.org/mcp
+        state-california -> california.civicosproject.org/mcp
+        country-united-states -> federal.civicosproject.org/mcp
+    """
+    # Special case for federal
+    if jurisdiction_id == "country-united-states":
+        return "https://federal.civicosproject.org/mcp"
+
+    # Remove level prefix (city-, state-, county-)
+    for prefix in ["city-", "state-", "county-", "country-"]:
+        if jurisdiction_id.startswith(prefix):
+            slug = jurisdiction_id[len(prefix):]
+            return f"https://{slug}.civicosproject.org/mcp"
+
+    # Fallback: use as-is
+    return f"https://{jurisdiction_id}.civicosproject.org/mcp"
+
+
+def _get_internal_servers() -> List[InternalMCPServer]:
+    """
+    Get all CivicOS MCP servers from jurisdiction configs.
+
+    Uses get_active_jurisdictions() as source of truth.
+    """
+    if not JURISDICTION_CONFIG_AVAILABLE:
+        return []
+
+    servers = []
+    for jid, config in get_active_jurisdictions().items():
+        mcp_endpoint = _build_mcp_endpoint(jid)
+        health_endpoint = mcp_endpoint.replace("/mcp", "/health")
+
+        servers.append(InternalMCPServer(
+            jurisdiction_id=jid,
+            level=config.level,
+            display_name=config.display_name,
+            mcp_endpoint=mcp_endpoint,
+            health_endpoint=health_endpoint,
+            parent_jurisdictions=config.parent_jurisdictions,
+        ))
+
+    # Sort by level (federal, state, county, city) then by name
+    level_order = {"federal": 0, "state": 1, "county": 2, "city": 3}
+    servers.sort(key=lambda s: (level_order.get(s.level, 99), s.display_name))
+
+    return servers
+
+
+async def check_internal_server_health(
+    jurisdiction_id: str,
+    endpoint: str,
+    timeout: float = 10.0
+) -> InternalServerHealth:
+    """
+    Check health of an internal MCP server.
+
+    Uses longer timeout (10s) to account for cold starts on Modal.
+    Returns full health info including tools list.
+    """
+    start = datetime.now(timezone.utc)
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.get(endpoint)
+            response_time = int((datetime.now(timezone.utc) - start).total_seconds() * 1000)
+
+            if response.status_code == 200:
+                data = response.json()
+                return InternalServerHealth(
+                    status="healthy",
+                    tools_count=data.get("tools_count"),
+                    tools=data.get("tools", []),
+                    checked_at=datetime.now(timezone.utc).isoformat(),
+                    response_time_ms=response_time,
+                    jurisdiction_level=data.get("jurisdiction_level"),
+                    display_name=data.get("display_name"),
+                )
+            else:
+                return InternalServerHealth(
+                    status="unhealthy",
+                    checked_at=datetime.now(timezone.utc).isoformat(),
+                    response_time_ms=response_time,
+                )
+    except Exception:
+        return InternalServerHealth(
+            status="unknown",
+            checked_at=datetime.now(timezone.utc).isoformat(),
+        )
+
+
 # === Endpoints ===
 
 @router.get("/mcp/registry", response_model=MCPRegistry)
@@ -251,3 +430,197 @@ async def get_operators_by_jurisdiction(jurisdiction_id: str) -> List[MCPOperato
         )
 
     return operators
+
+
+# === Internal Registry Endpoints ===
+
+
+@router.get("/mcp/internal/servers", response_model=InternalRegistryResponse)
+async def get_internal_servers(check_health: bool = False):
+    """
+    Get all active CivicOS MCP servers.
+
+    Returns servers discovered from jurisdiction configuration files.
+    This is the internal registry used by the CivicOS platform for:
+    - Multi-jurisdiction discovery
+    - UX development against stable interface
+    - Federation patterns
+
+    Query Parameters:
+        check_health: If true, performs live health checks (slower, ~10s per server)
+
+    Example:
+        GET /api/mcp/internal/servers
+        GET /api/mcp/internal/servers?check_health=true
+    """
+    if not JURISDICTION_CONFIG_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="Jurisdiction configuration module not available"
+        )
+
+    servers = _get_internal_servers()
+
+    if check_health:
+        # Parallel health checks with 10s timeout per server
+        health_tasks = [
+            check_internal_server_health(s.jurisdiction_id, s.health_endpoint)
+            for s in servers
+        ]
+        health_results = await asyncio.gather(*health_tasks)
+
+        for server, health in zip(servers, health_results):
+            server.health = health
+
+    return InternalRegistryResponse(
+        updated=datetime.now(timezone.utc).isoformat(),
+        total_servers=len(servers),
+        servers=servers,
+    )
+
+
+@router.get("/mcp/internal/servers/{jurisdiction_id}", response_model=InternalMCPServer)
+async def get_internal_server(jurisdiction_id: str, check_health: bool = True):
+    """
+    Get details for a specific CivicOS MCP server.
+
+    Returns server info including live health check by default.
+    """
+    if not JURISDICTION_CONFIG_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="Jurisdiction configuration module not available"
+        )
+
+    servers = _get_internal_servers()
+    server = next((s for s in servers if s.jurisdiction_id == jurisdiction_id), None)
+
+    if not server:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Server not found for jurisdiction '{jurisdiction_id}'"
+        )
+
+    if check_health:
+        server.health = await check_internal_server_health(
+            server.jurisdiction_id,
+            server.health_endpoint
+        )
+
+    return server
+
+
+@router.get("/mcp/internal/health", response_model=AggregatedHealth)
+async def get_aggregated_health():
+    """
+    Get aggregated health status across all CivicOS MCP servers.
+
+    Performs parallel health checks on all servers and returns:
+    - Count of healthy/unhealthy/unknown servers
+    - Total tools across all servers
+    - Per-server health details
+
+    Useful for monitoring dashboards and status pages.
+    """
+    if not JURISDICTION_CONFIG_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="Jurisdiction configuration module not available"
+        )
+
+    servers = _get_internal_servers()
+
+    # Parallel health checks
+    health_tasks = [
+        check_internal_server_health(s.jurisdiction_id, s.health_endpoint)
+        for s in servers
+    ]
+    health_results = await asyncio.gather(*health_tasks)
+
+    # Aggregate results
+    healthy = 0
+    unhealthy = 0
+    unknown = 0
+    total_tools = 0
+    server_health: Dict[str, InternalServerHealth] = {}
+
+    for server, health in zip(servers, health_results):
+        server_health[server.jurisdiction_id] = health
+        if health.status == "healthy":
+            healthy += 1
+            total_tools += health.tools_count or 0
+        elif health.status == "unhealthy":
+            unhealthy += 1
+        else:
+            unknown += 1
+
+    return AggregatedHealth(
+        updated=datetime.now(timezone.utc).isoformat(),
+        total_servers=len(servers),
+        healthy=healthy,
+        unhealthy=unhealthy,
+        unknown=unknown,
+        total_tools=total_tools,
+        servers=server_health,
+    )
+
+
+@router.get("/mcp/internal/tools", response_model=ToolsResponse)
+async def get_tools_across_servers():
+    """
+    Get all tools available across CivicOS MCP servers.
+
+    Performs health checks to discover tools, then deduplicates and maps
+    each tool to the jurisdictions where it's available.
+
+    Useful for:
+    - Capability introspection
+    - Tool discovery across multi-jurisdiction deployments
+    - Federation planning
+
+    Note: This endpoint is slower as it performs health checks on all servers.
+    """
+    if not JURISDICTION_CONFIG_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="Jurisdiction configuration module not available"
+        )
+
+    servers = _get_internal_servers()
+
+    # Parallel health checks to get tools
+    health_tasks = [
+        check_internal_server_health(s.jurisdiction_id, s.health_endpoint)
+        for s in servers
+    ]
+    health_results = await asyncio.gather(*health_tasks)
+
+    # Build tool -> jurisdictions mapping
+    tool_map: Dict[str, Dict[str, Any]] = {}
+
+    for server, health in zip(servers, health_results):
+        if health.status == "healthy" and health.tools:
+            for tool_name in health.tools:
+                if tool_name not in tool_map:
+                    tool_map[tool_name] = {
+                        "available_at": [],
+                        "levels": set(),
+                    }
+                tool_map[tool_name]["available_at"].append(server.jurisdiction_id)
+                tool_map[tool_name]["levels"].add(server.level)
+
+    # Convert to response format
+    tools = [
+        ToolInfo(
+            name=name,
+            available_at=sorted(info["available_at"]),
+            levels=sorted(info["levels"]),
+        )
+        for name, info in sorted(tool_map.items())
+    ]
+
+    return ToolsResponse(
+        updated=datetime.now(timezone.utc).isoformat(),
+        total_tools=len(tools),
+        tools=tools,
+    )
