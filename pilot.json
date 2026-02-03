@@ -3261,7 +3261,7 @@
     "frontend_integration": {
       "voice_display": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "description": "Display voice counts on agenda items and decisions in the Vue frontend. Show support/oppose/watching breakdown. Simple badge/indicator UI.",
         "test_file": "apps/civicos-workspace/tests/e2e/voice-display.spec.ts",
         "subtasks": [
@@ -3347,8 +3347,8 @@
         "notes": "ActionFlow.vue completion support + /api/coordination/action/complete endpoint. MIGRATION NEEDED: Update to use new /coordination/civic-action/{id}/complete endpoint (Kind 30812)."
       },
       "action_templates": {
-        "status": "pending",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "description": "Display and customize action templates (letters, talking points, scripts). Pre-fill with user context where possible.",
         "test_file": "apps/civicos-workspace/tests/e2e/action-templates.spec.ts",
         "subtasks": [
@@ -3357,7 +3357,7 @@
           "Pre-fill user name/address if available",
           "Direct submit for email-based actions (optional)"
         ],
-        "note": "P0: Natural next step after action_list. Show templates after user commits to an action."
+        "note": "Session 541: TemplateView.vue created with placeholder parsing, copy/download, collapsible. Integrated into ActionFlow.vue."
       }
     },
     "federation": {

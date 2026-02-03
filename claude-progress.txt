@@ -17425,3 +17425,47 @@ Created the ActionList.vue component to display civic actions for an initiative:
 - TemplateView component with copy/download
 - Editable fields for personalization
 - Pre-fill user name/address if available
+
+## Session 541 (2026-02-02) - Action Templates Component
+
+**Item:** `action_templates` (P0)
+**Status:** COMPLETE
+
+### What Was Done
+Created TemplateView component to display action templates after user commits:
+
+1. **TemplateView.vue** (`apps/civicos-workspace/src/components/shared/TemplateView.vue`)
+   - Displays template text with formatting in collapsible section
+   - Parses `{{placeholder}}` tokens (e.g., `{{name}}`, `{{address}}`)
+   - Creates editable input fields for each unique placeholder
+   - Human-readable labels for common placeholders (name → "Your Name")
+   - Replaces placeholders with user input in real-time
+   - Shows `[NAME]` markers for unfilled fields
+   - Copy-to-clipboard with "Copied!" feedback
+   - Download as text file
+   - Accepts `prefill` prop for pre-populating fields from user context
+   - Shows optional instructions section
+
+2. **ActionFlow Integration** (`apps/civicos-workspace/src/components/shared/ActionFlow.vue`)
+   - Imported TemplateView component
+   - Replaced "Template and instructions available" hint with actual TemplateView
+   - Template now shows automatically when user is committed and action has template
+
+3. **Component Tests** (`apps/civicos-workspace/tests/e2e/action-templates.spec.ts`)
+   - 18 tests covering:
+     - Basic rendering (template text, instructions)
+     - Placeholder parsing and field generation
+     - Prefill from context
+     - Copy to clipboard
+     - Expand/collapse behavior
+     - Multiple/duplicate placeholders
+     - ActionFlow integration context
+
+### Files Changed
+- `apps/civicos-workspace/src/components/shared/TemplateView.vue` - New component
+- `apps/civicos-workspace/src/components/shared/ActionFlow.vue` - Integration
+- `apps/civicos-workspace/tests/e2e/action-templates.spec.ts` - Tests
+- `pilot.json` - Updated action_templates to ready, set voice_display to P0
+
+### Next Session
+**P0: voice_display** - Display voice counts on agenda items/decisions with support/oppose/watching badges.
