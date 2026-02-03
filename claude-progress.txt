@@ -17512,3 +17512,54 @@ Personal MCP is STATELESS at scale:
 1. Add HTTP transport to Personal MCP
 2. Write Open WebUI setup guide
 3. Test end-to-end: Open WebUI → Personal MCP → Jurisdiction MCP
+
+## Session 542 - Personal MCP HTTP Transport
+
+**P0: personal_mcp_http** - Add HTTP transport to Personal MCP for Open WebUI integration.
+
+### What Was Done
+
+1. **HTTP Server Implementation** (`apps/civicos-personal-mcp/src/http-server.ts`)
+   - Express HTTP server with JSON-RPC 2.0 endpoint at `/mcp`
+   - Health check endpoint at `/health`
+   - CORS configured for Open WebUI integration
+   - All 9 tools exposed via HTTP:
+     - identity_status, identity_create, identity_import, identity_unlock, identity_lock
+     - sign_voice, sign_commitment, sign_completion, sign_event
+
+2. **Dependencies Added**
+   - `express` (v5.2.1), `cors` for HTTP server
+   - `supertest`, `@types/supertest` for testing
+
+3. **Package Scripts**
+   - `npm run start:http` - Run HTTP server on port 8081
+   - `npm run start` - Run stdio server (original)
+
+4. **Test Suite** (`apps/civicos-personal-mcp/tests/http-transport.spec.ts`)
+   - 8 tests covering all HTTP functionality
+   - Health check, initialize, tools/list, tools/call
+   - Full identity workflow: create, status, sign_voice, sign_commitment, sign_completion
+   - Error handling for unknown methods and missing parameters
+
+### Testing Results
+```
+curl http://localhost:8081/health
+{"status":"healthy","server":"civicos-personal-mcp","version":"0.1.0","transport":"http","tools":9}
+
+curl -X POST http://localhost:8081/mcp -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
+# Returns all 9 tools
+
+# Create identity and sign voice - all working
+npm run test:run
+# 57 tests passing (49 signing + 8 HTTP transport)
+```
+
+### Files Changed
+- `apps/civicos-personal-mcp/src/http-server.ts` - New HTTP server
+- `apps/civicos-personal-mcp/tests/http-transport.spec.ts` - HTTP tests
+- `apps/civicos-personal-mcp/package.json` - Added deps and scripts
+- `pilot.json` - Updated personal_mcp_http to ready
+
+### Next Session
+**P0: openwebui_setup_guide** - Write setup documentation for Open WebUI + CivicOS MCP servers.
