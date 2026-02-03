@@ -24,7 +24,7 @@ describe('PersonalMCPHttpServer', () => {
       expect(response.body.status).toBe('healthy');
       expect(response.body.server).toBe('civicos-personal-mcp');
       expect(response.body.transport).toBe('http');
-      expect(response.body.tools).toBe(9);
+      expect(response.body.tools).toBe(14);
     });
   });
 
@@ -47,14 +47,21 @@ describe('PersonalMCPHttpServer', () => {
         .send({ jsonrpc: '2.0', method: 'tools/list', params: {}, id: 1 })
         .expect(200);
 
-      expect(response.body.result.tools).toHaveLength(9);
+      expect(response.body.result.tools).toHaveLength(14);
 
       const toolNames = response.body.result.tools.map((t: { name: string }) => t.name);
+      // Identity tools
       expect(toolNames).toContain('identity_status');
       expect(toolNames).toContain('identity_create');
       expect(toolNames).toContain('sign_voice');
       expect(toolNames).toContain('sign_commitment');
       expect(toolNames).toContain('sign_completion');
+      // Context tools
+      expect(toolNames).toContain('set_neighborhood');
+      expect(toolNames).toContain('set_interests');
+      expect(toolNames).toContain('follow_item');
+      expect(toolNames).toContain('unfollow_item');
+      expect(toolNames).toContain('get_context');
     });
   });
 

@@ -14,7 +14,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { IdentityManager, type IdentityManagerConfig } from './identity.js';
-import type { IdentityTier, NostrEvent } from '../lib/providers/index.js';
+import type { IdentityTier, NostrEvent, ContextStorage, StoredUserContext, FollowableEntityType } from '../lib/providers/index.js';
 import {
   CivicEventKinds,
   createVoiceContent,
@@ -23,6 +23,8 @@ import {
   createCommitmentTags,
   createCompletionContent,
   createCompletionTags,
+  LocalStorageContextStorage,
+  createDefaultContext,
 } from '../lib/providers/index.js';
 
 const VERSION = '0.1.0';
@@ -71,6 +73,7 @@ export interface HttpServerConfig {
   port?: number;
   corsOrigins?: string[];
   identityConfig?: IdentityManagerConfig;
+  contextStorage?: ContextStorage;
 }
 
 /**
@@ -81,6 +84,7 @@ export interface HttpServerConfig {
 export class PersonalMCPHttpServer {
   private app: express.Application;
   private identityManager: IdentityManager;
+  private contextStorage: ContextStorage;
   private config: HttpServerConfig;
 
   constructor(config: HttpServerConfig = {}) {
@@ -91,6 +95,7 @@ export class PersonalMCPHttpServer {
     };
 
     this.identityManager = new IdentityManager(config.identityConfig);
+    this.contextStorage = config.contextStorage ?? new LocalStorageContextStorage();
     this.app = express();
     this.setupMiddleware();
     this.setupRoutes();
@@ -388,6 +393,116 @@ export class PersonalMCPHttpServer {
           required: ['kind', 'content'],
         },
       },
+      // Context personalization tools
+      {
+        name: 'set_neighborhood',
+        description:
+          'Set your neighborhood location. Used for proximity-based filtering of civic information.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            jurisdiction: {
+              type: 'string',
+              description: 'Jurisdiction identifier (e.g., "city-san-rafael")',
+            },
+            neighborhood: {
+              type: 'string',
+              description: 'Neighborhood name (e.g., "Terra Linda", "Downtown")',
+            },
+            lat: {
+              type: 'number',
+              description: 'Optional latitude coordinate',
+            },
+            lng: {
+              type: 'number',
+              description: 'Optional longitude coordinate',
+            },
+          },
+          required: ['jurisdiction', 'neighborhood'],
+        },
+      },
+      {
+        name: 'set_interests',
+        description:
+          'Set your civic interest topics. Used to filter and prioritize relevant information.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            jurisdiction: {
+              type: 'string',
+              description: 'Jurisdiction identifier (e.g., "city-san-rafael")',
+            },
+            interests: {
+              type: 'array',
+              items: { type: 'string' },
+              description:
+                'Topic interests (e.g., ["housing", "transportation", "parks"])',
+            },
+          },
+          required: ['jurisdiction', 'interests'],
+        },
+      },
+      {
+        name: 'follow_item',
+        description:
+          'Follow a specific civic item to track updates. Can follow decisions, meetings, issues, or topics.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            jurisdiction: {
+              type: 'string',
+              description: 'Jurisdiction identifier (e.g., "city-san-rafael")',
+            },
+            entity_type: {
+              type: 'string',
+              enum: ['decision', 'meeting', 'issue', 'topic'],
+              description: 'Type of item to follow',
+            },
+            entity_id: {
+              type: 'string',
+              description: 'Item identifier (e.g., "decision:2026-01-15:item-6a")',
+            },
+            label: {
+              type: 'string',
+              description: 'Optional human-readable label for the item',
+            },
+          },
+          required: ['jurisdiction', 'entity_type', 'entity_id'],
+        },
+      },
+      {
+        name: 'unfollow_item',
+        description: 'Stop following a civic item.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            jurisdiction: {
+              type: 'string',
+              description: 'Jurisdiction identifier (e.g., "city-san-rafael")',
+            },
+            entity_id: {
+              type: 'string',
+              description: 'Item identifier to unfollow',
+            },
+          },
+          required: ['jurisdiction', 'entity_id'],
+        },
+      },
+      {
+        name: 'get_context',
+        description:
+          'Get your current civic context settings including neighborhood, interests, and followed items.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            jurisdiction: {
+              type: 'string',
+              description: 'Jurisdiction identifier (e.g., "city-san-rafael")',
+            },
+          },
+          required: ['jurisdiction'],
+        },
+      },
     ];
   }
 
@@ -461,6 +576,38 @@ export class PersonalMCPHttpServer {
           args.content as string,
           (args.tags as string[][]) ?? []
         );
+
+      // Context personalization tools
+      case 'set_neighborhood':
+        return this.handleSetNeighborhood(
+          args.jurisdiction as string,
+          args.neighborhood as string,
+          args.lat as number | undefined,
+          args.lng as number | undefined
+        );
+
+      case 'set_interests':
+        return this.handleSetInterests(
+          args.jurisdiction as string,
+          args.interests as string[]
+        );
+
+      case 'follow_item':
+        return this.handleFollowItem(
+          args.jurisdiction as string,
+          args.entity_type as FollowableEntityType,
+          args.entity_id as string,
+          args.label as string | undefined
+        );
+
+      case 'unfollow_item':
+        return this.handleUnfollowItem(
+          args.jurisdiction as string,
+          args.entity_id as string
+        );
+
+      case 'get_context':
+        return this.handleGetContext(args.jurisdiction as string);
 
       default:
         throw new Error(`Unknown tool: ${name}`);
@@ -646,6 +793,155 @@ export class PersonalMCPHttpServer {
     return {
       success: true,
       event: result.event,
+    };
+  }
+
+  // Context personalization handlers
+
+  private async handleSetNeighborhood(
+    jurisdiction: string,
+    neighborhood: string,
+    lat?: number,
+    lng?: number
+  ): Promise<unknown> {
+    let context = await this.contextStorage.load(jurisdiction);
+    if (!context) {
+      context = createDefaultContext(jurisdiction);
+    }
+
+    context.neighborhood = { neighborhood, lat, lng };
+    context.updated_at = Date.now();
+
+    await this.contextStorage.save(jurisdiction, context);
+
+    return {
+      success: true,
+      message: `Neighborhood set to "${neighborhood}" for ${jurisdiction}`,
+      neighborhood: context.neighborhood,
+    };
+  }
+
+  private async handleSetInterests(
+    jurisdiction: string,
+    interests: string[]
+  ): Promise<unknown> {
+    let context = await this.contextStorage.load(jurisdiction);
+    if (!context) {
+      context = createDefaultContext(jurisdiction);
+    }
+
+    // Normalize interests: lowercase, trim, deduplicate
+    const normalizedInterests = [...new Set(interests.map((i) => i.toLowerCase().trim()))];
+    context.interests = normalizedInterests;
+    context.updated_at = Date.now();
+
+    await this.contextStorage.save(jurisdiction, context);
+
+    return {
+      success: true,
+      message: `Interests updated for ${jurisdiction}`,
+      interests: context.interests,
+    };
+  }
+
+  private async handleFollowItem(
+    jurisdiction: string,
+    entityType: FollowableEntityType,
+    entityId: string,
+    label?: string
+  ): Promise<unknown> {
+    let context = await this.contextStorage.load(jurisdiction);
+    if (!context) {
+      context = createDefaultContext(jurisdiction);
+    }
+
+    // Check if already following
+    const existingIndex = context.following_items.findIndex(
+      (item) => item.entity_id === entityId
+    );
+
+    if (existingIndex >= 0) {
+      // Update existing item
+      context.following_items[existingIndex] = {
+        entity_type: entityType,
+        entity_id: entityId,
+        label,
+        followed_at: context.following_items[existingIndex].followed_at,
+      };
+    } else {
+      // Add new item
+      context.following_items.push({
+        entity_type: entityType,
+        entity_id: entityId,
+        label,
+        followed_at: Date.now(),
+      });
+    }
+
+    context.updated_at = Date.now();
+    await this.contextStorage.save(jurisdiction, context);
+
+    return {
+      success: true,
+      message: `Now following ${entityType}: ${entityId}`,
+      item: context.following_items.find((i) => i.entity_id === entityId),
+      total_following: context.following_items.length,
+    };
+  }
+
+  private async handleUnfollowItem(
+    jurisdiction: string,
+    entityId: string
+  ): Promise<unknown> {
+    const context = await this.contextStorage.load(jurisdiction);
+    if (!context) {
+      return {
+        success: false,
+        error: `No context found for ${jurisdiction}`,
+      };
+    }
+
+    const initialLength = context.following_items.length;
+    context.following_items = context.following_items.filter(
+      (item) => item.entity_id !== entityId
+    );
+
+    if (context.following_items.length === initialLength) {
+      return {
+        success: false,
+        error: `Item not found: ${entityId}`,
+      };
+    }
+
+    context.updated_at = Date.now();
+    await this.contextStorage.save(jurisdiction, context);
+
+    return {
+      success: true,
+      message: `Unfollowed: ${entityId}`,
+      total_following: context.following_items.length,
+    };
+  }
+
+  private async handleGetContext(jurisdiction: string): Promise<unknown> {
+    const context = await this.contextStorage.load(jurisdiction);
+
+    if (!context) {
+      return {
+        jurisdiction,
+        hasContext: false,
+        message: `No context saved for ${jurisdiction}. Use set_neighborhood, set_interests, or follow_item to personalize.`,
+      };
+    }
+
+    return {
+      jurisdiction,
+      hasContext: true,
+      neighborhood: context.neighborhood,
+      interests: context.interests,
+      following_items: context.following_items,
+      created_at: new Date(context.created_at).toISOString(),
+      updated_at: new Date(context.updated_at).toISOString(),
     };
   }
 

@@ -3750,17 +3750,32 @@
         "note": "P1: Private mode (mnemonic+password) works now. Easy mode adds lower friction option."
       },
       "context_personalization_tools": {
+        "status": "ready",
+        "priority": 2,
+        "description": "Personal MCP tools for storing user context - neighborhood, interests, followed items.",
+        "test_file": "apps/civicos-personal-mcp/tests/context-storage.spec.ts",
+        "completed": [
+          "set_neighborhood - Store user's neighborhood/location with optional coordinates",
+          "set_interests - Store normalized civic interest topics",
+          "follow_item - Track decisions, meetings, issues, topics",
+          "unfollow_item - Remove tracked items",
+          "get_context - Retrieve all personalization settings",
+          "ContextStorage interface with localStorage and memory implementations"
+        ],
+        "note": "Context storage complete. Query tools (get_relevant_now, etc.) require Jurisdiction MCP client - see personalized_query_tools."
+      },
+      "personalized_query_tools": {
         "status": "not_ready",
         "priority": 0,
-        "description": "Personal MCP tools that query Jurisdiction MCP and apply user context for personalized results.",
-        "test_file": "apps/civicos-personal-mcp/tests/context-tools.spec.ts",
+        "description": "Personal MCP tools that query Jurisdiction MCP and apply stored context for personalized results.",
+        "test_file": "apps/civicos-personal-mcp/tests/personalized-queries.spec.ts",
         "subtasks": [
-          "get_relevant_now(context) - Query Jurisdiction MCP, filter by user interests/location",
-          "get_suggestions(context) - Proactive recommendations based on civic activity",
-          "explain_relevance(item, context) - Why this matters to this user",
-          "Jurisdiction MCP client in Personal MCP"
+          "get_relevant_now(jurisdiction) - Query Jurisdiction MCP, filter by user interests/location",
+          "get_suggestions(jurisdiction) - Proactive recommendations based on civic activity",
+          "explain_relevance(item, jurisdiction) - Why this matters to this user",
+          "Jurisdiction MCP HTTP client in Personal MCP"
         ],
-        "note": "P1: Currently Personal MCP only signs. Need tools that query + personalize."
+        "note": "P1: Builds on context_personalization_tools. Requires Jurisdiction MCP HTTP endpoint."
       }
     },
     "action_flow_integration": {
