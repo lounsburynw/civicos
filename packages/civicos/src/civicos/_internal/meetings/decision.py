@@ -411,7 +411,8 @@ class Decision:
     """
 
     # Identity
-    decision_id: str  # e.g., "2025-11-17-item-6a"
+    decision_id: str  # Namespaced: decision:{jurisdiction}:{date}:{item}
+    jurisdiction_id: str  # e.g., "city-san-rafael"
     meeting_date: str  # ISO format
     agenda_item: str  # e.g., "6.a"
 
@@ -437,6 +438,7 @@ class Decision:
     def to_dict(self) -> dict:
         return {
             "decision_id": self.decision_id,
+            "jurisdiction_id": self.jurisdiction_id,
             "meeting_date": self.meeting_date,
             "agenda_item": self.agenda_item,
             "title": self.title,
@@ -465,7 +467,15 @@ class DecisionExtractor:
     OrdinanceExtractor).
     """
 
-    def __init__(self):
+    def __init__(self, jurisdiction_id: str = "city-san-rafael"):
+        """
+        Initialize the decision extractor.
+
+        Args:
+            jurisdiction_id: CivicOS jurisdiction for namespaced IDs
+                (e.g., "city-san-rafael", "city-berkeley")
+        """
+        self.jurisdiction_id = jurisdiction_id
         # Topic keywords for auto-categorization
         self.topic_keywords = {
             "housing": ["housing", "affordable", "development", "units", "apartment"],
@@ -562,10 +572,10 @@ class DecisionExtractor:
         if not title and not item.get("summary_notes"):
             return None
 
-        # Generate decision ID
-        date_part = meeting_date.replace("-", "")
+        # Generate namespaced decision ID
+        # Format: decision:{jurisdiction}:{date}:{item}
         item_part = item_number.replace(".", "-") if item_number else "unknown"
-        decision_id = f"{date_part}-item-{item_part}"
+        decision_id = f"decision:{self.jurisdiction_id}:{meeting_date}:{item_part}"
 
         # Determine outcome
         votes = item.get("votes", [])
@@ -689,6 +699,7 @@ class DecisionExtractor:
 
         return Decision(
             decision_id=decision_id,
+            jurisdiction_id=self.jurisdiction_id,
             meeting_date=meeting_date,
             agenda_item=item_number,
             title=title,
@@ -770,6 +781,7 @@ def extract_decisions(
     corpus_dir: str | Path,
     meeting_date: str,
     output_file: str | Path | None = None,
+    jurisdiction_id: str = "city-san-rafael",
 ) -> list[dict]:
     """
     Convenience function to extract decisions from a meeting corpus.
@@ -778,11 +790,12 @@ def extract_decisions(
         corpus_dir: Directory containing minutes, staff reports, ordinances
         meeting_date: ISO format date (e.g., "2025-11-17")
         output_file: Optional path to write JSON output
+        jurisdiction_id: CivicOS jurisdiction for namespaced IDs
 
     Returns:
         List of decision dictionaries
     """
-    extractor = DecisionExtractor()
+    extractor = DecisionExtractor(jurisdiction_id=jurisdiction_id)
     decisions = extractor.extract_from_corpus(corpus_dir, meeting_date)
     result = [d.to_dict() for d in decisions]
 

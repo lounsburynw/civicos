@@ -89,7 +89,9 @@ class SeeclickfixProvider:
 
         return None
 
-    def _normalize_issue(self, raw: Dict[str, Any]) -> NormalizedIssue:
+    def _normalize_issue(
+        self, raw: Dict[str, Any], jurisdiction_id: str
+    ) -> NormalizedIssue:
         """Convert SeeClickFix API response to NormalizedIssue."""
         # Parse datetime strings
         created_at = None
@@ -139,6 +141,7 @@ class SeeclickfixProvider:
                 reporter_name = None
 
         return NormalizedIssue(
+            jurisdiction_id=jurisdiction_id,
             provider="seeclickfix",
             external_id=str(raw.get("id", "")),
             title=raw.get("summary", ""),
@@ -205,6 +208,7 @@ class SeeclickfixProvider:
     def get_issues(
         self,
         place_url: str,
+        jurisdiction_id: Optional[str] = None,
         status: Optional[str] = None,
         per_page: int = 100,
         page: int = 1,
@@ -215,6 +219,8 @@ class SeeclickfixProvider:
 
         Args:
             place_url: City identifier (e.g., "san-rafael")
+            jurisdiction_id: CivicOS jurisdiction (e.g., "city-san-rafael").
+                If not provided, derived from place_url as "city-{place_url}".
             status: Filter by status ("open", "closed", "acknowledged", None for all)
             per_page: Results per page (default: 100, max: 100)
             page: Page number (default: 1)
@@ -223,6 +229,10 @@ class SeeclickfixProvider:
         Returns:
             List of NormalizedIssue objects
         """
+        # Derive jurisdiction_id from place_url if not provided
+        if jurisdiction_id is None:
+            jurisdiction_id = f"city-{place_url}"
+
         params = {
             "place_url": place_url,
             "per_page": min(per_page, 100),
@@ -251,15 +261,18 @@ class SeeclickfixProvider:
         else:
             raw_issues = response.get("issues", [])
 
-        issues = [self._normalize_issue(raw) for raw in raw_issues]
+        issues = [self._normalize_issue(raw, jurisdiction_id) for raw in raw_issues]
         return self._classify_issues(issues)
 
-    def get_issue(self, issue_id: str) -> Optional[NormalizedIssue]:
+    def get_issue(
+        self, issue_id: str, jurisdiction_id: str = "unknown"
+    ) -> Optional[NormalizedIssue]:
         """
         Fetch a single issue by SeeClickFix ID.
 
         Args:
             issue_id: SeeClickFix issue ID
+            jurisdiction_id: CivicOS jurisdiction (e.g., "city-san-rafael")
 
         Returns:
             NormalizedIssue or None if not found
@@ -267,13 +280,14 @@ class SeeclickfixProvider:
         response = self._make_request(f"issues/{issue_id}")
         if not response:
             return None
-        issue = self._normalize_issue(response)
+        issue = self._normalize_issue(response, jurisdiction_id)
         self._classify_issues([issue])
         return issue
 
     def get_all_issues(
         self,
         place_url: str,
+        jurisdiction_id: Optional[str] = None,
         status: Optional[str] = None,
         max_pages: int = 50,
         per_page: int = 100,
@@ -284,6 +298,8 @@ class SeeclickfixProvider:
 
         Args:
             place_url: City identifier (e.g., "san-rafael")
+            jurisdiction_id: CivicOS jurisdiction (e.g., "city-san-rafael").
+                If not provided, derived from place_url as "city-{place_url}".
             status: Filter by status
             max_pages: Maximum pages to fetch (default: 50)
             per_page: Results per page (default: 100)
@@ -292,6 +308,10 @@ class SeeclickfixProvider:
         Returns:
             List of all NormalizedIssue objects with classified issue_type
         """
+        # Derive jurisdiction_id from place_url if not provided
+        if jurisdiction_id is None:
+            jurisdiction_id = f"city-{place_url}"
+
         all_issues: List[NormalizedIssue] = []
         page = 1
 
@@ -325,7 +345,7 @@ class SeeclickfixProvider:
                 logger.info("No more issues to fetch")
                 break
 
-            issues = [self._normalize_issue(raw) for raw in raw_issues]
+            issues = [self._normalize_issue(raw, jurisdiction_id) for raw in raw_issues]
             all_issues.extend(issues)
             logger.info(f"  Fetched {len(issues)} issues (total: {len(all_issues)})")
 

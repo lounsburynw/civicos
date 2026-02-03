@@ -492,7 +492,7 @@
     "data_federation": {
       "_doc": "Data federation architecture for multi-jurisdiction deployment. See conversation 2026-01-29.",
       "entity_id_namespacing": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "description": "Namespace all entity IDs for global uniqueness across federated instances. Format: {type}:{jurisdiction}:{source}:{identifier}. Backwards-compatible - new format coexists with old during migration.",
         "rationale": "High value, low risk. Prevents painful data migration when second city joins. Start now so all new data gets namespaced IDs.",
@@ -522,7 +522,8 @@
           "decision": "decision:city-san-rafael:2026-01-15:item-6a"
         },
         "test_file": "packages/civicos/tests/test_entity_ids.py",
-        "schema_doc": "docs/decisions/entity_id_namespace.md"
+        "schema_doc": "docs/decisions/entity_id_namespace.md",
+        "note": "Implemented namespaced IDs for all entity types. Format: {type}:{jurisdiction}:{source}:{id}. Meetings, chunks, issues already supported. Decisions CLI updated. Existing data keeps old IDs (migration post-pilot)."
       },
       "data_source_protocol": {
         "status": "ready",
@@ -1576,7 +1577,7 @@
         },
         "improvements_needed": [
           "Auto-discover HUD grantee from FAC/HUD API",
-          "Onboarding wizard (detect platform → generate config → validate)",
+          "Onboarding wizard (detect platform \u2192 generate config \u2192 validate)",
           "Config validation schema with helpful errors",
           "Generic election scraper framework (template-based)"
         ],
@@ -1584,7 +1585,9 @@
           "berkeley_mvp": "3-5 days (meetings + federal + municipal code)",
           "berkeley_full_parity": "2-3 weeks (includes elections)"
         },
-        "depends_on": ["unified_city_deployment"],
+        "depends_on": [
+          "unified_city_deployment"
+        ],
         "defer_until": "Post E2E operational, pre-launch scaling phase"
       }
     }

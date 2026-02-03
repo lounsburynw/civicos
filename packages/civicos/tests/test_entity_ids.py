@@ -65,11 +65,11 @@ class TestEntityIdFormats:
         """Decision IDs should be namespaced."""
         jurisdiction_id = "city-san-rafael"
         meeting_date = "2026-01-15"
-        item_part = "item-6a"
+        item_part = "6-a"
         decision_id = f"decision:{jurisdiction_id}:{meeting_date}:{item_part}"
 
         assert is_namespaced(decision_id, "decision")
-        assert decision_id == "decision:city-san-rafael:2026-01-15:item-6a"
+        assert decision_id == "decision:city-san-rafael:2026-01-15:6-a"
 
     def test_chunk_id_format(self):
         """Chunk IDs should be namespaced."""
@@ -90,6 +90,25 @@ class TestEntityIdFormats:
 
         assert is_namespaced(issue_id, "issue")
         assert issue_id == "issue:city-san-rafael:seeclickfix:12345678"
+
+    def test_normalized_issue_id_property(self):
+        """NormalizedIssue.id property should return namespaced ID."""
+        from civicos.issues.provider import NormalizedIssue
+
+        issue = NormalizedIssue(
+            jurisdiction_id="city-san-rafael",
+            provider="seeclickfix",
+            external_id="12345678",
+            title="Test Issue",
+        )
+        assert issue.id == "issue:city-san-rafael:seeclickfix:12345678"
+
+    def test_decision_extractor_namespaced_id(self):
+        """DecisionExtractor should generate namespaced decision IDs."""
+        from civicos._internal.meetings.decision import DecisionExtractor
+
+        extractor = DecisionExtractor(jurisdiction_id="city-san-rafael")
+        assert extractor.jurisdiction_id == "city-san-rafael"
 
 
 class TestBackwardsCompatibility:

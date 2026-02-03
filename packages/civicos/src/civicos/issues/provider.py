@@ -28,6 +28,7 @@ class NormalizedIssue:
     enabling consistent storage, querying, and display across different sources.
 
     Attributes:
+        jurisdiction_id: CivicOS jurisdiction (e.g., "city-san-rafael")
         provider: Source provider name ("seeclickfix", "publicstuff", etc.)
         external_id: Provider's unique issue ID
         title: Issue summary/title
@@ -45,6 +46,7 @@ class NormalizedIssue:
         provider_metadata: Passthrough for provider-specific fields
     """
 
+    jurisdiction_id: str
     provider: str
     external_id: str
     title: str
@@ -63,8 +65,12 @@ class NormalizedIssue:
 
     @property
     def id(self) -> str:
-        """Generate a unique ID combining provider and external_id."""
-        return f"{self.provider}-{self.external_id}"
+        """Generate namespaced ID for federation support.
+
+        Format: issue:{jurisdiction}:{provider}:{external_id}
+        Example: issue:city-san-rafael:seeclickfix:12345678
+        """
+        return f"issue:{self.jurisdiction_id}:{self.provider}:{self.external_id}"
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for storage/serialization."""

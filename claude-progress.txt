@@ -17984,3 +17984,52 @@ Pilot phase at 93% completion (442/471 items ready).
 - Aligns with MCP app UX work (parallel session)
 
 **Note:** Fixed `entity_id_namespacing` status - was incorrectly marked "ready" when only schema was done, implementation pending.
+
+## Session 547 (2026-02-03)
+
+### Completed: Entity ID Namespacing (P0)
+
+Implemented namespaced entity IDs across all extraction pipelines for multi-city federation support.
+
+**Format:** `{entity_type}:{jurisdiction_id}:{source}:{identifier}`
+
+Examples:
+- `meeting:city-san-rafael:legistar:12345`
+- `decision:city-san-rafael:2025-12-15:4.a`
+- `issue:city-san-rafael:seeclickfix:20920575`
+- `chunk:city-san-rafael:meeting-legistar-12345:0042`
+
+**Changes Made:**
+
+1. **NormalizedIssue** (`packages/civicos/src/civicos/issues/provider.py`)
+   - Added `jurisdiction_id` required field
+   - Updated `id` property to return namespaced format
+
+2. **SeeclickfixProvider** (`packages/civicos/src/civicos/issues/providers/seeclickfix.py`)
+   - Updated `get_issues()`, `get_issue()`, `get_all_issues()` to accept jurisdiction_id
+   - Auto-derives `city-{place_url}` if not provided (backwards compatible)
+
+3. **Decision Extraction CLI** (`packages/civicos-extraction/src/civicos_extraction/cli/decisions.py`)
+   - Updated ID generation at line 452 to namespaced format
+   - This is the actual code path that stores decisions in PostgreSQL
+
+4. **Tests** (`packages/civicos/tests/test_entity_ids.py`)
+   - Added `test_normalized_issue_id_property`
+   - Added `test_decision_extractor_namespaced_id`
+
+**Already Namespaced (no changes needed):**
+- Meetings: Legistar, ProudCity, Simbli clients
+- Chunks: `postgres_backend.store_chunks()`
+- Issues (storage): `postgres_backend.store_issues()`
+
+**Key Insight (User Feedback):**
+Multiple individuals can host MCPs for the same jurisdiction (we're not at city-backing yet). The namespacing scheme handles this because:
+- External platform IDs (Legistar, SeeClickFix) are naturally unique regardless of host
+- Extracted data (decisions) is deterministic from official sources
+
+**Migration Strategy:**
+- Phase 1 (Pilot): NEW records get namespaced IDs
+- Phase 2: Old IDs continue to work
+- Phase 3 (Post-pilot): Migration script for existing records
+
+**Tests:** 57 passed (42 smoke + 15 entity ID tests)
