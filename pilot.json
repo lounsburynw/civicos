@@ -2616,17 +2616,75 @@
       "mcp_jurisdiction_validation": {
         "status": "not_ready",
         "priority": 0,
-        "artifact": "Scoped MCP servers deployed and validated for each jurisdiction level",
-        "description": "Deploy and validate jurisdiction-scoped MCP servers (federal, california, san-rafael) with proper tool filtering, data verification, and ingestion testing before registry submission.",
-        "note": "Session 547: Architecture complete (loader.py, config files, modal_app.py updated). Need to deploy, verify data exists at each level, test tool relevance, and confirm ingestion pipelines.",
+        "artifact": "Three scoped MCP servers deployed as federated architecture reference",
+        "description": "Deploy and validate three jurisdiction-scoped MCP servers (federal, california, san-rafael) demonstrating the federated architecture. Federal/state servers are reference implementations; city server is primary user-facing.",
+        "note": "Session 547: Architecture complete (loader.py, config files, modal_app.py). Federal/state data contextualizes city data and serves as reference for developers understanding the federated design.",
+        "rationale": "Federal/state MCPs demonstrate hierarchy (federal → state → city) and cross-jurisdictional alignment. Prepares for future scaling where multiple cities share state/federal data.",
+        "architecture": {
+          "federal": {
+            "role": "Reference implementation - shared by all US jurisdictions",
+            "endpoint": "federal.civicosproject.org/mcp",
+            "tools": 3,
+            "tool_list": ["get_federal_expenditures", "get_funding_flow", "search_regulatory_stack"]
+          },
+          "state": {
+            "role": "Reference implementation - shared by all CA cities",
+            "endpoint": "california.civicosproject.org/mcp",
+            "tools": 4,
+            "tool_list": ["get_federal_expenditures", "get_funding_flow", "get_intergovernmental_revenue", "search_regulatory_stack"]
+          },
+          "city": {
+            "role": "Primary user-facing - city-owned instance",
+            "endpoint": "san-rafael.civicosproject.org/mcp",
+            "tools": 38,
+            "tool_list": "All tools including federal/state for context"
+          }
+        },
         "subtasks": [
-          "Verify data inventory at each level (federal, state, city)",
-          "Deploy scoped MCP servers to Modal",
-          "Test federal tools (get_federal_expenditures, get_funding_flow, search_regulatory_stack)",
-          "Test state tools (get_intergovernmental_revenue, search_regulatory_stack)",
-          "Test city tools (all 30+ tools with San Rafael data)",
-          "Verify ingestion pipelines work for each level",
-          "Document deployment architecture"
+          {
+            "name": "Data inventory diagnostic",
+            "done": false,
+            "checks": [
+              "Federal: FAC expenditures, USAspending funding flows, Congress legislation",
+              "State: CA State Controller revenue, CA legislation (leginfo)",
+              "City: Meetings, decisions, issues, transcripts, budget, municipal code"
+            ]
+          },
+          {
+            "name": "Deploy federal MCP to Modal",
+            "done": false,
+            "description": "Reference implementation with 3 federal-only tools"
+          },
+          {
+            "name": "Deploy california MCP to Modal",
+            "done": false,
+            "description": "Reference implementation with 4 state+federal tools"
+          },
+          {
+            "name": "Redeploy san-rafael MCP with jurisdiction config",
+            "done": false,
+            "description": "Primary user-facing with all 38 tools"
+          },
+          {
+            "name": "Validate federal MCP returns meaningful data",
+            "done": false,
+            "tests": ["FAC expenditures", "funding flow traces", "federal legislation"]
+          },
+          {
+            "name": "Validate california MCP returns meaningful data",
+            "done": false,
+            "tests": ["CA State Controller revenue", "CA legislation", "federal tools work"]
+          },
+          {
+            "name": "Validate san-rafael MCP returns meaningful data",
+            "done": false,
+            "tests": ["All 38 tools", "federal/state context", "config-driven engagement tools"]
+          },
+          {
+            "name": "Document federated MCP architecture",
+            "done": false,
+            "artifact": "docs/critical/MCP_FEDERATION_ARCHITECTURE.md"
+          }
         ],
         "depends_on": [
           "remote_mcp_deployment"
