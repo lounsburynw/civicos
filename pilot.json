@@ -3737,7 +3737,7 @@
       },
       "easy_mode_passkey": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Implement PasskeyProvider for Easy mode identity. WebAuthn + PRF extension derives Nostr keypair. Lowest friction for normal users.",
         "test_file": "apps/civicos-personal-mcp/tests/passkey-provider.spec.ts",
         "artifact": "apps/civicos-personal-mcp/lib/providers/passkey-provider.ts",
