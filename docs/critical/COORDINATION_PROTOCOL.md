@@ -5,7 +5,8 @@ Infrastructure for permissionless civic coordination. Defines how residents disc
 **Status:** MVP Implementation (pilot phase)
 **Package:** `packages/civicos-relay/` — federation-ready relay with voice, sync, provenance
 **Enables:** Coordination and Focal Points stages of engagement ladder (see `CIVIC_DASHBOARD_VISION.md`)
-**Distributed via:** CivicOS MCP server (see `MCP_INTEGRATION_STRATEGY.md`)
+**Civic data via:** Jurisdiction MCP (`apps/civicos-mcp/`) — see `MCP_INTEGRATION_STRATEGY.md`
+**User-facing layer:** Personal MCP (`apps/civicos-personal-mcp/`) — see `EDGE_INTELLIGENCE_ARCHITECTURE.md`
 
 ---
 
@@ -17,7 +18,7 @@ The protocol has three components:
 
 1. **Relay** — routes civic events to subscribers (no filtering, no ranking)
 2. **Voice** — public expression of civic interest with transparent provenance
-3. **Edge Intelligence** — user-controlled LLM agents that filter and contextualize events using CivicOS MCP
+3. **Edge Intelligence** — user-controlled Personal MCP that filters and contextualizes events by querying Jurisdiction MCP
 
 Together, these replace the centralized recommendation engine with an open system where intelligence lives at the edges, controlled by users.
 
@@ -34,7 +35,7 @@ Relay (public event feed — routes, doesn't filter)
     ↓
 User's Agent (subscribes to relay, receives events)
     ↓
-CivicOS MCP (agent queries for civic context — enrichment)
+Jurisdiction MCP (agent queries for civic context — enrichment)
     ↓
 Edge Filtering (agent reasons about relevance using local user context)
     ↓
@@ -393,15 +394,15 @@ The user's LLM agent provides intelligent filtering on the client side. This rep
 
 **The hybrid is stronger than either alone.** The relay provides collaborative signals (voice counts, trending initiatives, threshold events) as public data. The edge agent provides individual causal reasoning using the user's private context. Neither alone achieves what the combination does.
 
-### CivicOS MCP as Knowledge Layer
+### Jurisdiction MCP as Knowledge Layer
 
-The edge agent uses CivicOS MCP to enrich relay events with civic context. This is not circular — the MCP server provides public civic knowledge; the agent provides user-specific reasoning.
+The edge agent uses Jurisdiction MCP to enrich relay events with civic context. This is not circular — the MCP server provides public civic knowledge; the agent provides user-specific reasoning.
 
 ```
 Relay emits:
   "New agenda item: 4th Street Corridor Rezoning"
 
-Agent calls CivicOS MCP:
+Agent calls Jurisdiction MCP:
   search_meeting_history("4th street rezoning")
   find_similar_issues("traffic 4th street")
   get_voting_record("Kate Colin", topic="rezoning")
@@ -420,7 +421,7 @@ Agent reasons (using local user context):
 
 | Component | Role | Analogy |
 |-----------|------|---------|
-| CivicOS MCP | Public civic knowledge | Library |
+| Jurisdiction MCP | Public civic knowledge | Library |
 | User's Agent | Knows user, asks good questions | Librarian |
 | Relay | Delivers events | Mail slot |
 
@@ -1049,10 +1050,10 @@ If coordination shows value, expand voice system:
 
 ### Phase 4: Edge Intelligence (Future)
 
-Agent-side filtering using CivicOS MCP for context enrichment.
+Agent-side filtering using Jurisdiction MCP for context enrichment.
 
 - Agent subscribes to relay, receives raw events
-- Agent calls CivicOS MCP to enrich with civic context
+- Agent calls Jurisdiction MCP to enrich with civic context
 - Agent applies user preferences to filter and prioritize
 - Shareable filtering configurations
 
@@ -1094,14 +1095,14 @@ A user's agent subscribes to relays at whichever levels match their civic life:
 }
 ```
 
-When events arrive from different levels, the agent uses CivicOS MCP to connect them:
+When events arrive from different levels, the agent uses Jurisdiction MCP to connect them:
 
 ```
 Tuesday:   State relay emits "SB 1234 passed — mandatory density bonus"
 Thursday:  City relay emits "Agenda item: 4th Street rezoning proposal"
 Friday:    Federal relay emits "House committee debates CDBG funding cut"
 
-Agent calls CivicOS MCP:
+Agent calls Jurisdiction MCP:
   search_regulatory_stack("density bonus")
   get_funding_flow(program="CDBG")
   search_meeting_history("rezoning")
@@ -1113,7 +1114,7 @@ Agent synthesizes:
    These three things are connected and all affect your neighborhood."
 ```
 
-No single relay can produce that synthesis. It requires reasoning across jurisdictional levels with knowledge of regulatory relationships — exactly what an LLM agent with CivicOS MCP access is good at.
+No single relay can produce that synthesis. It requires reasoning across jurisdictional levels with knowledge of regulatory relationships — exactly what an LLM agent with Jurisdiction MCP access is good at.
 
 ### Entity Jurisdiction Scope
 
@@ -1262,7 +1263,7 @@ What happened behind the scenes:
 
 | User Said | Protocol Action |
 |-----------|----------------|
-| "What's happening" | Agent queried CivicOS MCP (`get_upcoming_meetings()`) |
+| "What's happening" | Agent queried Jurisdiction MCP (`get_upcoming_meetings()`) |
 | "I care about this" | Agent generated keypair, stored locally |
 | "Yes, notify me" | Agent subscribed to city relay (topic + geography filter) |
 | "I support it" | Agent signed and cast voice on relay entity |
@@ -1295,7 +1296,7 @@ Each layer is real and inspectable. Users only go deeper if they choose to.
 The richest experience. The agent has conversational context, can reason about why events matter to this specific user, and can explain its filtering decisions.
 
 **Available today (Phase 1 — pull-based):**
-- CivicOS MCP connected to Claude.ai or any MCP-capable client
+- Jurisdiction MCP connected to Claude.ai or any MCP-capable client
 - Full civic query capability: meetings, decisions, testimony, budget, regulatory context
 - No subscriptions or push — user initiates every interaction
 
@@ -1357,7 +1358,7 @@ development near your neighborhood.
 
 Clicking "I support this" casts a voice. The email contains a signed token linked to the user's keypair (managed by the web app). No login required for the voice action.
 
-The contextual briefing ("what you should know") is generated by the edge intelligence layer — CivicOS MCP provides the civic context, the agent formats it for the notification.
+The contextual briefing ("what you should know") is generated by the edge intelligence layer — Jurisdiction MCP provides the civic context, the agent formats it for the notification.
 
 ### Why This Avoids Mastodon's Problems
 
@@ -1365,7 +1366,7 @@ The contextual briefing ("what you should know") is generated by the edge intell
 |----------|----------------------|
 | "Choose a server" | User never sees relays |
 | "This user is on another instance" | Voices just appear, federation invisible |
-| "Search doesn't work across servers" | Agent queries CivicOS MCP — full search |
+| "Search doesn't work across servers" | Agent queries Jurisdiction MCP — full search |
 | "Moving servers is hard" | Keys are portable, not relay-bound |
 | "What's federation?" | User never encounters the concept |
 | Mental model: servers and instances | Mental model: my city, my issues, my neighbors |
@@ -1429,7 +1430,7 @@ Detects:
    but 30 appeared in a 2-hour window, all first-time keys,
    no attestations"
 
-Agent calls CivicOS MCP:
+Agent calls Jurisdiction MCP:
   search_meeting_history("affordable housing")
   get_voting_record("all", topic="housing")
   search_agenda_packets("affordable housing developer")
