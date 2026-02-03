@@ -1,0 +1,62 @@
+# United States Federal Configuration
+#
+# Unified configuration for federal-level data and tools.
+# Top of jurisdiction hierarchy.
+
+# =============================================================================
+# Identity
+# =============================================================================
+
+jurisdiction_id: country-united-states
+level: federal
+display_name: United States Federal
+
+# =============================================================================
+# Hierarchy
+# =============================================================================
+
+# No parent jurisdictions (top level)
+parent_jurisdictions: []
+
+# =============================================================================
+# Data Sources
+# =============================================================================
+
+data_sources:
+  # Federal legislation (congress.gov API)
+  legislation: congress_api
+
+  # Federal Audit Clearinghouse Single Audit data
+  expenditures: fac_api
+
+  # USAspending federal spending data
+  funding: usaspending_api
+
+# =============================================================================
+# Tool Configuration
+# =============================================================================
+
+# Federal-level tools (from loader.py defaults):
+# - get_federal_expenditures (FAC Single Audit)
+# - get_funding_flow (Federal funding traces)
+# - search_regulatory_stack (Federal legislation)
+tools_enabled: null
+tool_overrides: {}
+
+# =============================================================================
+# Modal Deployment
+# =============================================================================
+
+modal:
+  min_containers: 0  # Cold start (not primary)
+  secrets:
+    - civicos-env
+
+# =============================================================================
+# Metadata
+# =============================================================================
+
+metadata:
+  created: "2026-01-15"
+  updated: "2026-02-03"
+  notes: "Unified config created in Session 545."

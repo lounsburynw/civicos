@@ -1,0 +1,70 @@
+# California State Configuration
+#
+# Unified configuration for State of California.
+# Shared state-level data and tools for California jurisdictions.
+
+# =============================================================================
+# Identity
+# =============================================================================
+
+jurisdiction_id: state-california
+level: state
+display_name: California
+
+# =============================================================================
+# Hierarchy
+# =============================================================================
+
+parent_jurisdictions:
+  - country-united-states
+
+# =============================================================================
+# State Information
+# =============================================================================
+
+state_info:
+  abbreviation: CA
+  timezone: America/Los_Angeles
+  legislature: California State Legislature
+  governor_title: Governor
+
+# =============================================================================
+# Data Sources
+# =============================================================================
+
+data_sources:
+  # California legislation (leginfo.legislature.ca.gov)
+  legislation: leginfo_api
+
+  # State Controller intergovernmental revenue data
+  revenue: state_controller
+
+# =============================================================================
+# Tool Configuration
+# =============================================================================
+
+# State-level tools (from loader.py defaults):
+# - get_federal_expenditures (inherited from federal)
+# - get_funding_flow (inherited from federal)
+# - get_intergovernmental_revenue (state-specific)
+# - search_regulatory_stack (cross-level)
+tools_enabled: null
+tool_overrides: {}
+
+# =============================================================================
+# Modal Deployment
+# =============================================================================
+
+modal:
+  min_containers: 0  # Cold start (not primary)
+  secrets:
+    - civicos-env
+
+# =============================================================================
+# Metadata
+# =============================================================================
+
+metadata:
+  created: "2026-01-15"
+  updated: "2026-02-03"
+  notes: "Unified config created in Session 545."
