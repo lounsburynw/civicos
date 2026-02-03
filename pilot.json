@@ -492,27 +492,37 @@
     "data_federation": {
       "_doc": "Data federation architecture for multi-jurisdiction deployment. See conversation 2026-01-29.",
       "entity_id_namespacing": {
-        "status": "ready",
-        "priority": 2,
-        "description": "Namespace all entity IDs for global uniqueness across federated instances. Format: {type}:{jurisdiction}:{identifier}. Backwards-compatible - new format coexists with old during migration.",
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Namespace all entity IDs for global uniqueness across federated instances. Format: {type}:{jurisdiction}:{source}:{identifier}. Backwards-compatible - new format coexists with old during migration.",
         "rationale": "High value, low risk. Prevents painful data migration when second city joins. Start now so all new data gets namespaced IDs.",
         "artifact": "Canonical entity ID schema + updated ingestion pipelines",
         "subtasks": [
-          "Audit current entity ID formats in database (meetings, decisions, issues, transcripts, etc.)",
-          "Define canonical entity ID schema in docs/decisions/entity_id_namespace.md",
+          "[DONE] Audit current entity ID formats in database (meetings, decisions, issues, transcripts, etc.)",
+          "[DONE] Define canonical entity ID schema in docs/decisions/entity_id_namespace.md",
+          "[DONE] Create format validation tests in packages/civicos/tests/test_entity_ids.py",
           "Update ingestion pipelines to emit namespaced IDs for new records",
           "Update relay to expect namespaced entity references",
           "Add backwards-compatible ID resolution (old IDs still work)",
           "Create migration script for existing records (run post-pilot)"
         ],
+        "implementation_files": [
+          "packages/civicos-extraction/src/civicos_extraction/clients/legistar.py:400",
+          "packages/civicos-extraction/src/civicos_extraction/clients/proudcity.py:851",
+          "packages/civicos-extraction/src/civicos_extraction/clients/simbli.py:584,684",
+          "packages/civicos/src/civicos/issues/provider.py:67",
+          "packages/civicos/src/civicos/_internal/meetings/decision.py:568",
+          "packages/civicos/src/civicos/storage/postgres_backend.py:2633"
+        ],
         "examples": {
           "old": "mtg-2026-01-15-council",
-          "new": "meeting:city-san-rafael:2026-01-15:council",
+          "new": "meeting:city-san-rafael:proudcity:2026-01-15-council",
           "bill": "bill:state-california:sb-1234",
           "federal": "bill:federal:hr-5678",
-          "decision": "decision:city-san-rafael:2026-01-15:homeless-encampment"
+          "decision": "decision:city-san-rafael:2026-01-15:item-6a"
         },
-        "test_file": "packages/civicos/tests/test_entity_ids.py"
+        "test_file": "packages/civicos/tests/test_entity_ids.py",
+        "schema_doc": "docs/decisions/entity_id_namespace.md"
       },
       "data_source_protocol": {
         "status": "ready",
@@ -1117,7 +1127,7 @@
       },
       "srcs_decision_extraction": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 2,
         "artifact": "Extract decisions/votes from SRCS meeting minutes using LLM",
         "note": "After agenda items, extract decisions from minutes PDFs (if available). Same pattern as city: civic_extraction.cli.decisions with Gemini. Populates decisions table. Lower priority - minutes often lag behind meetings.",
         "depends_on": [

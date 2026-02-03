@@ -17972,3 +17972,15 @@ No P0/P1 items remain. Suggested P0 candidates:
 - `case_law_ingestion` (P2) - Federal case law
 
 Pilot phase at 93% completion (442/471 items ready).
+
+### P0 Revision (Post-Session Discussion)
+
+**Discussion:** User noted that SRCS decision extraction is specific data work, not aligned with generalizable jurisdiction deployment theme (sessions 545-546 focused on unified deployment, internal registry).
+
+**Decision:** Changed P0 from `srcs_decision_extraction` to `entity_id_namespacing`
+- Schema and tests already exist (done in previous session)
+- Implementation in extraction pipelines is pending
+- Foundational for multi-city federation (prevents ID collisions)
+- Aligns with MCP app UX work (parallel session)
+
+**Note:** Fixed `entity_id_namespacing` status - was incorrectly marked "ready" when only schema was done, implementation pending.
