@@ -449,7 +449,9 @@ def extract_decisions_from_meeting(
         for i, decision in enumerate(high_stakes_decisions):
             decision_dict = decision.to_dict()
             # Add required fields for storage
-            decision_dict["id"] = f"{meeting_date}-{decision.item_ref}".replace(" ", "_")
+            # Namespaced ID format: decision:{jurisdiction}:{date}:{item}
+            item_ref = decision.item_ref.replace(" ", "_")
+            decision_dict["id"] = f"decision:{jurisdiction_id}:{meeting_date}:{item_ref}"
             decision_dict["meeting_date"] = meeting_date
             decision_dict["agenda_item"] = decision.item_ref
             decision_dict["summary"] = decision.description
