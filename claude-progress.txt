@@ -17849,3 +17849,9 @@ Date: 2026-02-03
 - Federal: https://lounsburynw--civicos-federal-federalmcpserver-mcp-endpoint.modal.run
 - California: https://lounsburynw--civicos-california-californiamcpserver-mcp-endpoint.modal.run
 - San Rafael: https://lounsburynw--civicos-mcp-mcpserver-mcp-endpoint.modal.run
+
+**Additional work (same session):**
+- Refactored to single parameterized Modal deployment (modal_mcp.py)
+- Removed redundant modal_federal.py and modal_california.py
+- All 3 servers now use same code, jurisdiction set via CIVICOS_JURISDICTION env var
+- Commit: f73ea44
