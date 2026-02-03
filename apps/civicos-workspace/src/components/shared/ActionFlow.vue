@@ -14,6 +14,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { api } from '@/services/api';
 import type { ActionCountResponse, InitiativeAction } from '@/types/civic';
+import TemplateView from './TemplateView.vue';
 
 const props = defineProps<{
   /** Action item from initiative */
@@ -202,9 +203,11 @@ watch(() => props.userCommitted, (val) => {
           <span class="check-icon">&#10003;</span>
           You're committed
         </div>
-        <p v-if="action.template" class="template-hint">
-          Template and instructions available
-        </p>
+        <TemplateView
+          v-if="action.template"
+          :template="action.template"
+          :instructions="action.instructions"
+        />
       </template>
 
       <template v-else>
