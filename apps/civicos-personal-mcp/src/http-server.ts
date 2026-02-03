@@ -26,6 +26,10 @@ import {
   LocalStorageContextStorage,
   createDefaultContext,
 } from '../lib/providers/index.js';
+import {
+  JurisdictionMCPClient,
+  type JurisdictionMCPClientConfig,
+} from '../lib/jurisdiction-mcp-client.js';
 
 const VERSION = '0.1.0';
 
@@ -74,6 +78,8 @@ export interface HttpServerConfig {
   corsOrigins?: string[];
   identityConfig?: IdentityManagerConfig;
   contextStorage?: ContextStorage;
+  jurisdictionMCPConfig?: JurisdictionMCPClientConfig;
+  jurisdictionMCPClient?: JurisdictionMCPClient;
 }
 
 /**
@@ -85,6 +91,7 @@ export class PersonalMCPHttpServer {
   private app: express.Application;
   private identityManager: IdentityManager;
   private contextStorage: ContextStorage;
+  private jurisdictionClient: JurisdictionMCPClient;
   private config: HttpServerConfig;
 
   constructor(config: HttpServerConfig = {}) {
@@ -96,6 +103,7 @@ export class PersonalMCPHttpServer {
 
     this.identityManager = new IdentityManager(config.identityConfig);
     this.contextStorage = config.contextStorage ?? new LocalStorageContextStorage();
+    this.jurisdictionClient = config.jurisdictionMCPClient ?? new JurisdictionMCPClient(config.jurisdictionMCPConfig);
     this.app = express();
     this.setupMiddleware();
     this.setupRoutes();
@@ -503,6 +511,70 @@ export class PersonalMCPHttpServer {
           required: ['jurisdiction'],
         },
       },
+      // Personalized query tools
+      {
+        name: 'get_relevant_now',
+        description:
+          'Get civic items relevant to you right now, filtered by your interests and neighborhood. Returns upcoming meetings, recent decisions, and trending issues that match your personalization settings.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            jurisdiction: {
+              type: 'string',
+              description: 'Jurisdiction identifier (e.g., "city-san-rafael")',
+            },
+          },
+          required: ['jurisdiction'],
+        },
+      },
+      {
+        name: 'get_suggestions',
+        description:
+          'Get proactive civic recommendations based on your interests and followed items. Suggests opportunities for engagement, related issues, and upcoming events you might care about.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            jurisdiction: {
+              type: 'string',
+              description: 'Jurisdiction identifier (e.g., "city-san-rafael")',
+            },
+          },
+          required: ['jurisdiction'],
+        },
+      },
+      {
+        name: 'explain_relevance',
+        description:
+          'Explain why a specific civic item matters to you based on your interests, neighborhood, and followed items.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            jurisdiction: {
+              type: 'string',
+              description: 'Jurisdiction identifier (e.g., "city-san-rafael")',
+            },
+            item_id: {
+              type: 'string',
+              description: 'Item identifier (e.g., "decision:2026-01-15:item-6a")',
+            },
+            item_type: {
+              type: 'string',
+              enum: ['decision', 'meeting', 'issue'],
+              description: 'Type of the item',
+            },
+            item_title: {
+              type: 'string',
+              description: 'Title or summary of the item',
+            },
+            item_topics: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Topics associated with the item',
+            },
+          },
+          required: ['jurisdiction', 'item_id'],
+        },
+      },
     ];
   }
 
@@ -608,6 +680,22 @@ export class PersonalMCPHttpServer {
 
       case 'get_context':
         return this.handleGetContext(args.jurisdiction as string);
+
+      // Personalized query tools
+      case 'get_relevant_now':
+        return this.handleGetRelevantNow(args.jurisdiction as string);
+
+      case 'get_suggestions':
+        return this.handleGetSuggestions(args.jurisdiction as string);
+
+      case 'explain_relevance':
+        return this.handleExplainRelevance(
+          args.jurisdiction as string,
+          args.item_id as string,
+          args.item_type as 'decision' | 'meeting' | 'issue' | undefined,
+          args.item_title as string | undefined,
+          args.item_topics as string[] | undefined
+        );
 
       default:
         throw new Error(`Unknown tool: ${name}`);
@@ -942,6 +1030,282 @@ export class PersonalMCPHttpServer {
       following_items: context.following_items,
       created_at: new Date(context.created_at).toISOString(),
       updated_at: new Date(context.updated_at).toISOString(),
+    };
+  }
+
+  // Personalized query handlers
+
+  private async handleGetRelevantNow(jurisdiction: string): Promise<unknown> {
+    // Load user context
+    const context = await this.contextStorage.load(jurisdiction);
+    const hasContext = context && (context.interests.length > 0 || context.neighborhood);
+
+    // Fetch city pulse from Jurisdiction MCP
+    const pulse = await this.jurisdictionClient.getCityPulse(7, 30);
+
+    if (!pulse) {
+      return {
+        success: false,
+        error: 'Unable to connect to Jurisdiction MCP server. Make sure it is running.',
+        suggestion: 'Start the API server with: ./scripts/dev.sh api',
+      };
+    }
+
+    // If no personalization, return everything with a hint
+    if (!hasContext) {
+      return {
+        success: true,
+        personalized: false,
+        message: 'Showing all items. Set interests and neighborhood to get personalized results.',
+        upcoming_meetings: pulse.upcoming_meetings ?? [],
+        recent_decisions: pulse.recent_decisions ?? [],
+        trending_issues: pulse.trending_issues ?? [],
+      };
+    }
+
+    // Apply personalization filters
+    const interests = context.interests.map((i) => i.toLowerCase());
+    const neighborhood = context.neighborhood?.neighborhood?.toLowerCase();
+
+    // Filter meetings by agenda items matching interests
+    const relevantMeetings = (pulse.upcoming_meetings ?? []).filter((meeting) => {
+      if (!meeting.agenda_items || meeting.agenda_items.length === 0) return true;
+      return meeting.agenda_items.some((item) =>
+        interests.some((interest) => item.toLowerCase().includes(interest))
+      );
+    });
+
+    // Filter decisions by topics matching interests
+    const relevantDecisions = (pulse.recent_decisions ?? []).filter((decision) => {
+      if (!decision.topics || decision.topics.length === 0) {
+        // Check title for interest keywords
+        return interests.some((interest) =>
+          decision.title.toLowerCase().includes(interest)
+        );
+      }
+      return decision.topics.some((topic) =>
+        interests.some((interest) => topic.toLowerCase().includes(interest))
+      );
+    });
+
+    // Filter issues by location (neighborhood) or type matching interests
+    const relevantIssues = (pulse.trending_issues ?? []).filter((issue) => {
+      const locationMatch = neighborhood && issue.location?.toLowerCase().includes(neighborhood);
+      const typeMatch = interests.some((interest) =>
+        issue.type.toLowerCase().includes(interest)
+      );
+      return locationMatch || typeMatch;
+    });
+
+    return {
+      success: true,
+      personalized: true,
+      context_used: {
+        interests: context.interests,
+        neighborhood: context.neighborhood?.neighborhood,
+      },
+      upcoming_meetings: relevantMeetings,
+      recent_decisions: relevantDecisions,
+      trending_issues: relevantIssues,
+      total_filtered: {
+        meetings: `${relevantMeetings.length} of ${pulse.upcoming_meetings?.length ?? 0}`,
+        decisions: `${relevantDecisions.length} of ${pulse.recent_decisions?.length ?? 0}`,
+        issues: `${relevantIssues.length} of ${pulse.trending_issues?.length ?? 0}`,
+      },
+    };
+  }
+
+  private async handleGetSuggestions(jurisdiction: string): Promise<unknown> {
+    // Load user context
+    const context = await this.contextStorage.load(jurisdiction);
+
+    if (!context || (context.interests.length === 0 && context.following_items.length === 0)) {
+      return {
+        success: true,
+        suggestions: [],
+        message: 'Set interests or follow items to get personalized suggestions.',
+        setup_needed: true,
+      };
+    }
+
+    const suggestions: Array<{
+      type: 'opportunity' | 'trend' | 'follow_up' | 'related';
+      title: string;
+      reason: string;
+      action?: string;
+      item_id?: string;
+    }> = [];
+
+    // Generate suggestions based on interests
+    for (const interest of context.interests.slice(0, 3)) {
+      // Search for related meetings/decisions
+      const history = await this.jurisdictionClient.searchMeetingHistory(interest, 3);
+
+      if (history?.decisions && history.decisions.length > 0) {
+        const latestDecision = history.decisions[0];
+        suggestions.push({
+          type: 'related',
+          title: `Recent activity on "${interest}"`,
+          reason: `Your interest in ${interest} matches: ${latestDecision.title}`,
+          item_id: latestDecision.id,
+          action: 'Review the decision and consider following for updates',
+        });
+      }
+
+      // Search for related issues
+      const issues = await this.jurisdictionClient.findSimilarIssues(interest, 5);
+
+      if (issues?.issues && issues.issues.length > 0) {
+        const openIssues = issues.issues.filter((i) => i.status === 'open');
+        if (openIssues.length > 0) {
+          suggestions.push({
+            type: 'trend',
+            title: `${openIssues.length} open issues related to "${interest}"`,
+            reason: `Community members are reporting ${interest}-related issues`,
+            action: 'View issues to understand community concerns',
+          });
+        }
+      }
+    }
+
+    // Generate follow-up suggestions for followed items
+    for (const followedItem of context.following_items.slice(0, 3)) {
+      suggestions.push({
+        type: 'follow_up',
+        title: `Update on ${followedItem.label ?? followedItem.entity_id}`,
+        reason: `You're following this ${followedItem.entity_type}`,
+        item_id: followedItem.entity_id,
+        action: 'Check for updates since you started following',
+      });
+    }
+
+    // Check for upcoming meetings matching interests
+    const meetings = await this.jurisdictionClient.getUpcomingMeetings(14);
+    if (meetings && meetings.length > 0) {
+      const interestKeywords = context.interests.map((i) => i.toLowerCase());
+      for (const meeting of meetings.slice(0, 2)) {
+        const agendaMatches = meeting.agenda_items?.some((item) =>
+          interestKeywords.some((kw) => item.toLowerCase().includes(kw))
+        );
+        if (agendaMatches) {
+          suggestions.push({
+            type: 'opportunity',
+            title: `Upcoming: ${meeting.title}`,
+            reason: 'Agenda items match your interests',
+            action: `Meeting on ${meeting.date} - consider attending or submitting comment`,
+          });
+        }
+      }
+    }
+
+    return {
+      success: true,
+      suggestions: suggestions.slice(0, 5), // Limit to top 5 suggestions
+      context_used: {
+        interests: context.interests,
+        following_count: context.following_items.length,
+      },
+    };
+  }
+
+  private async handleExplainRelevance(
+    jurisdiction: string,
+    itemId: string,
+    itemType?: 'decision' | 'meeting' | 'issue',
+    itemTitle?: string,
+    itemTopics?: string[]
+  ): Promise<unknown> {
+    // Load user context
+    const context = await this.contextStorage.load(jurisdiction);
+
+    if (!context) {
+      return {
+        success: true,
+        item_id: itemId,
+        relevance_score: 0,
+        explanations: [],
+        message: 'No personalization context set. This item may still be relevant to you.',
+      };
+    }
+
+    const explanations: string[] = [];
+    let score = 0;
+
+    const interests = context.interests.map((i) => i.toLowerCase());
+    const neighborhood = context.neighborhood?.neighborhood?.toLowerCase();
+    const followedIds = context.following_items.map((f) => f.entity_id);
+
+    // Check if item is followed
+    if (followedIds.includes(itemId)) {
+      explanations.push('You are following this item');
+      score += 0.4;
+    }
+
+    // Check topic matches
+    if (itemTopics && itemTopics.length > 0) {
+      const matchingTopics = itemTopics.filter((topic) =>
+        interests.some((interest) => topic.toLowerCase().includes(interest))
+      );
+      if (matchingTopics.length > 0) {
+        explanations.push(`Matches your interest in: ${matchingTopics.join(', ')}`);
+        score += 0.3 * Math.min(matchingTopics.length, 3);
+      }
+    }
+
+    // Check title for interest keywords
+    if (itemTitle) {
+      const titleLower = itemTitle.toLowerCase();
+      const matchingInterests = interests.filter((interest) =>
+        titleLower.includes(interest)
+      );
+      if (matchingInterests.length > 0 && explanations.length === 0) {
+        explanations.push(`Title mentions your interests: ${matchingInterests.join(', ')}`);
+        score += 0.2 * matchingInterests.length;
+      }
+    }
+
+    // Check for neighborhood/location relevance (would need item location data)
+    if (neighborhood && itemTitle?.toLowerCase().includes(neighborhood)) {
+      explanations.push(`Located in your neighborhood: ${context.neighborhood?.neighborhood}`);
+      score += 0.3;
+    }
+
+    // Check for followed items that might be related
+    const relatedFollowed = context.following_items.filter((f) => {
+      if (f.entity_type === itemType) return false; // Skip same type
+      if (itemTopics && f.label) {
+        return itemTopics.some((t) => f.label?.toLowerCase().includes(t.toLowerCase()));
+      }
+      return false;
+    });
+
+    if (relatedFollowed.length > 0) {
+      explanations.push(
+        `Related to items you follow: ${relatedFollowed.map((f) => f.label ?? f.entity_id).join(', ')}`
+      );
+      score += 0.1 * relatedFollowed.length;
+    }
+
+    // Cap score at 1.0
+    score = Math.min(score, 1.0);
+
+    return {
+      success: true,
+      item_id: itemId,
+      item_type: itemType,
+      relevance_score: Math.round(score * 100) / 100,
+      explanations,
+      context_used: {
+        interests: context.interests,
+        neighborhood: context.neighborhood?.neighborhood,
+        following_count: context.following_items.length,
+      },
+      verdict:
+        score >= 0.5
+          ? 'Highly relevant to your interests'
+          : score >= 0.2
+            ? 'Somewhat relevant to your interests'
+            : 'May not directly match your stated interests',
     };
   }
 
