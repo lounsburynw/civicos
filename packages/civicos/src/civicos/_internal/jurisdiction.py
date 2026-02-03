@@ -137,8 +137,13 @@ def normalize_jurisdiction(jurisdiction_id: str, strict: bool = True) -> str:
     if normalized.startswith(("city-", "county-", "state-", "country-")):
         if JurisdictionRegistry.has_jurisdiction(normalized):
             return normalized
-        # Special case: federal/state IDs may not be in registry but are valid
-        # Allow them through when strict=False
+        # Special case: federal/state/country IDs may not be in the city registry
+        # but are valid hierarchical identifiers. Allow them through since they
+        # have a valid prefix format. This enables multi-level MCP servers
+        # (federal, state, city) to all use the same normalization.
+        if normalized.startswith(("state-", "country-")):
+            return normalized
+        # Only raise for city/county that aren't registered
         if strict:
             raise JurisdictionError(
                 f"Unknown jurisdiction ID: '{jurisdiction_id}'. "

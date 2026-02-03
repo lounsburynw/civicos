@@ -1390,16 +1390,27 @@ def get_intergovernmental_revenue(
 
         result_parts = [
             "# Intergovernmental Revenue",
-            f"**Fiscal Year:** {revenue.get('fiscal_year', 'N/A')}",
-            f"**Total Revenue:** ${revenue.get('total', 0):,.0f}",
+            f"**Entity:** {revenue.entity_name}",
+            f"**Fiscal Year:** {revenue.fiscal_year}",
+            f"**Total Revenue:** ${revenue.total_dollars:,.0f}",
             "",
+            "## By Source",
+            f"- **Federal:** ${revenue.federal_total_dollars:,.0f}",
+            f"- **State:** ${revenue.state_total_dollars:,.0f}",
+            f"- **County:** ${revenue.county_total_dollars:,.0f}",
         ]
 
-        by_source = revenue.get('by_source', {})
-        if by_source:
-            result_parts.append("## By Source")
-            for src, amount in by_source.items():
-                result_parts.append(f"- **{src}:** ${amount:,.0f}")
+        if revenue.undetermined_total_dollars > 0:
+            result_parts.append(f"- **Undetermined:** ${revenue.undetermined_total_dollars:,.0f}")
+
+        # Show top details if available
+        if revenue.details:
+            result_parts.extend(["", "## Top Line Items"])
+            for detail in revenue.details[:10]:
+                desc = detail.line_description or detail.category or "Unknown"
+                result_parts.append(
+                    f"- {desc}: ${detail.amount_dollars:,.0f} ({detail.source})"
+                )
 
         return "\n".join(result_parts)
 

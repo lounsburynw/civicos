@@ -17855,3 +17855,56 @@ Date: 2026-02-03
 - Removed redundant modal_federal.py and modal_california.py
 - All 3 servers now use same code, jurisdiction set via CIVICOS_JURISDICTION env var
 - Commit: f73ea44
+
+## Session 544 (2026-02-03)
+**P0: mcp_jurisdiction_validation - COMPLETE**
+
+### Problem
+Federal and California MCP servers were failing:
+- Federal: "Unknown jurisdiction ID: 'country-united-states'"
+- California: "No module named 'civicos_extraction'" then "No module named 'bs4'"
+
+### Root Causes
+1. `normalize_jurisdiction()` was rejecting state-/country- prefixed IDs with strict=True
+2. Modal image missing `civicos_extraction` package and its dependencies (beautifulsoup4, google-api-python-client)
+3. `get_intergovernmental_revenue` handler had wrong attribute names
+
+### Fixes Applied
+1. **packages/civicos/src/civicos/_internal/jurisdiction.py**
+   - Allow state-* and country-* jurisdiction IDs through normalization (valid hierarchical format)
+
+2. **apps/civicos-mcp/modal_mcp.py**
+   - Added `civicos_extraction` to local packages
+   - Added `beautifulsoup4>=4.12.0` and `google-api-python-client>=2.0.0` to pip_install
+
+3. **apps/civicos-mcp/tools/handlers.py**
+   - Fixed `get_intergovernmental_revenue` to use correct attribute names (line_description, source)
+
+### Deployed MCP Servers
+| Server | Jurisdiction | Tools | Status |
+|--------|-------------|-------|--------|
+| San Rafael | city-san-rafael | 38 | ✅ Returns real data |
+| Federal | country-united-states | 3 | ✅ Works (empty data expected) |
+| California | state-california | 4 | ✅ Works (empty data expected) |
+
+### Endpoints
+- Federal: https://lounsburynw--civicos-federal-mcpserver-mcp-endpoint.modal.run
+- California: https://lounsburynw--civicos-california-mcpserver-mcp-endpoint.modal.run
+- San Rafael: https://lounsburynw--civicos-san-rafael-mcpserver-mcp-endpoint.modal.run
+
+### Verified Tool Calls
+- San Rafael `city_pulse`: Community pulse with meetings and issues
+- San Rafael `get_federal_expenditures`: $39.7M in federal audit data
+- San Rafael `get_intergovernmental_revenue`: $8.8M in state/federal/county revenue
+- Federal `get_federal_expenditures`: No errors (no data at federal level)
+- California `get_intergovernmental_revenue`: No errors (no data at state level)
+
+### Next Steps
+- P0 completed, need to set new P0 for next session
+
+### P0 Transition
+- **Completed P0:** mcp_jurisdiction_validation (now priority 1)
+- **New P0:** unified_city_deployment
+  - Config-driven workflow for deploying new cities
+  - One YAML drives extraction, MCP tools, Modal deployment, ingestion
+  - Goal: `civicos deploy city-berkeley` reads config and does everything

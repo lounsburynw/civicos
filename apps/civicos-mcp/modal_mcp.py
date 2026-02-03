@@ -107,6 +107,9 @@ mcp_image = (
         "langgraph>=0.2.0",
         "langchain-core>=0.3.0",
         "langchain-anthropic>=0.3.0",
+        # Extraction dependencies (for civicos_extraction)
+        "beautifulsoup4>=4.12.0",
+        "google-api-python-client>=2.0.0",
     )
     # Pre-download embedding model during image build
     .run_commands(
@@ -116,6 +119,7 @@ mcp_image = (
     .add_local_python_source("civicos")
     .add_local_python_source("civicos_config")
     .add_local_python_source("civicos_relay")
+    .add_local_python_source("civicos_extraction")
     # Add MCP server code
     .add_local_dir("apps/civicos-mcp", remote_path="/app/civicos-mcp")
     .add_local_file("apps/civicos_input_validator.py", remote_path="/app/civicos_input_validator.py")
