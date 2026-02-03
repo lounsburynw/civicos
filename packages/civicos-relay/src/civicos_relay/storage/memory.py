@@ -3,7 +3,16 @@
 from datetime import datetime
 from typing import Optional
 
-from civicos_relay.voice.models import Voice, Stance, Action, ActionType
+from civicos_relay.voice.models import (
+    Voice,
+    Stance,
+    Action,
+    ActionType,
+    CivicActionEvent,
+    CivicCommitment,
+    CivicCompletion,
+    CommitmentStatus,
+)
 from civicos_relay.relay.models import (
     Event,
     EventType,
@@ -330,6 +339,111 @@ class InMemoryActionStorage:
         return False
 
 
+class InMemoryCivicActionEventStorage:
+    """In-memory storage for civic action events (Kind 30810)."""
+
+    def __init__(self):
+        self._actions: dict[str, CivicActionEvent] = {}  # action_id -> CivicActionEvent
+
+    def save_action_event(self, action: CivicActionEvent) -> None:
+        self._actions[action.id] = action
+
+    def get_action_event(self, action_id: str) -> CivicActionEvent | None:
+        return self._actions.get(action_id)
+
+    def get_actions_for_initiative(self, initiative_id: str) -> list[CivicActionEvent]:
+        return [
+            a for a in self._actions.values()
+            if a.initiative_id == initiative_id and not a.revoked
+        ]
+
+    def revoke_action_event(self, action_id: str, public_key: str) -> bool:
+        if action_id in self._actions:
+            old = self._actions[action_id]
+            if old.public_key != public_key:
+                return False  # Only creator can revoke
+            self._actions[action_id] = CivicActionEvent(
+                id=old.id,
+                initiative_id=old.initiative_id,
+                action_type=old.action_type,
+                description=old.description,
+                target=old.target,
+                deadline=old.deadline,
+                template=old.template,
+                target_count=old.target_count,
+                public_key=old.public_key,
+                signature=old.signature,
+                timestamp=old.timestamp,
+                revoked=True,
+            )
+            return True
+        return False
+
+
+class InMemoryCivicCommitmentStorage:
+    """In-memory storage for civic commitments (Kind 30811)."""
+
+    def __init__(self):
+        # (public_key, action_ref) -> CivicCommitment
+        self._commitments: dict[tuple[str, str], CivicCommitment] = {}
+
+    def save_commitment(self, commitment: CivicCommitment) -> None:
+        key = (commitment.public_key, commitment.action_ref)
+        self._commitments[key] = commitment
+
+    def get_commitment(
+        self, public_key: str, action_ref: str
+    ) -> CivicCommitment | None:
+        return self._commitments.get((public_key, action_ref))
+
+    def get_commitments_for_action(self, action_ref: str) -> list[CivicCommitment]:
+        return [
+            c for c in self._commitments.values()
+            if c.action_ref == action_ref and not c.revoked
+        ]
+
+    def update_commitment_status(
+        self, public_key: str, action_ref: str, status: CommitmentStatus
+    ) -> bool:
+        key = (public_key, action_ref)
+        if key in self._commitments:
+            old = self._commitments[key]
+            self._commitments[key] = CivicCommitment(
+                id=old.id,
+                action_ref=old.action_ref,
+                status=status,
+                public_key=old.public_key,
+                signature=old.signature,
+                timestamp=old.timestamp,
+                revoked=old.revoked,
+            )
+            return True
+        return False
+
+
+class InMemoryCivicCompletionStorage:
+    """In-memory storage for civic completions (Kind 30812)."""
+
+    def __init__(self):
+        # (public_key, action_ref) -> CivicCompletion
+        self._completions: dict[tuple[str, str], CivicCompletion] = {}
+
+    def save_completion(self, completion: CivicCompletion) -> None:
+        key = (completion.public_key, completion.action_ref)
+        self._completions[key] = completion
+
+    def get_completion(
+        self, public_key: str, action_ref: str
+    ) -> CivicCompletion | None:
+        return self._completions.get((public_key, action_ref))
+
+    def get_completions_for_action(self, action_ref: str) -> list[CivicCompletion]:
+        return [
+            c for c in self._completions.values()
+            if c.action_ref == action_ref and not c.revoked
+        ]
+
+
 class InMemoryStorage:
     """Combined in-memory storage for all relay data."""
 
@@ -341,3 +455,7 @@ class InMemoryStorage:
         self.provenance = InMemoryProvenanceStorage()
         self.initiatives = InMemoryInitiativeStorage()
         self.sync = InMemorySyncStorage(self.voices, self.events)
+        # New action event storage (Kind 30810/30811/30812)
+        self.civic_action_events = InMemoryCivicActionEventStorage()
+        self.civic_commitments = InMemoryCivicCommitmentStorage()
+        self.civic_completions = InMemoryCivicCompletionStorage()

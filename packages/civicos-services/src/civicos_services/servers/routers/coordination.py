@@ -152,6 +152,84 @@ class ActionCountResponse(BaseModel):
     target: Optional[int] = None
 
 
+# === Civic Action Event Request/Response Models (Kind 30810/30811/30812) ===
+
+
+class CreateCivicActionEventRequest(BaseModel):
+    """Request to create a civic action event (Kind 30810)."""
+    initiative_id: str = Field(description="ID of the parent initiative")
+    action_type: str = Field(description="Action type: written_comment, attend_meeting, etc.")
+    description: str = Field(description="Human-readable description of the action")
+    public_key: str = Field(description="Creator's public key (hex-encoded)")
+    signature: str = Field(description="Signature of action data (hex-encoded)")
+    target: Optional[str] = Field(default=None, description="Target of action")
+    deadline: Optional[str] = Field(default=None, description="Deadline ISO 8601")
+    template: Optional[str] = Field(default=None, description="Template text for action")
+    target_count: Optional[int] = Field(default=None, description="Target number of completions")
+
+
+class CivicActionEventResponse(BaseModel):
+    """Civic action event response (Kind 30810)."""
+    id: str
+    initiative_id: str
+    action_type: str
+    description: str
+    target: Optional[str] = None
+    deadline: Optional[str] = None
+    template: Optional[str] = None
+    target_count: Optional[int] = None
+    public_key: str
+    timestamp: str
+    revoked: bool = False
+
+
+class CivicCommitmentRequest(BaseModel):
+    """Request to commit to a civic action (Kind 30811)."""
+    action_id: str = Field(description="ID of the action event")
+    public_key: str = Field(description="Committer's public key (hex-encoded)")
+    signature: str = Field(description="Signature of commitment (hex-encoded)")
+
+
+class CivicCommitmentResponse(BaseModel):
+    """Civic commitment response (Kind 30811)."""
+    id: str
+    action_ref: str
+    status: str
+    public_key: str
+    timestamp: str
+    revoked: bool = False
+
+
+class CivicCompletionRequest(BaseModel):
+    """Request to complete a civic action (Kind 30812)."""
+    action_id: str = Field(description="ID of the action event")
+    public_key: str = Field(description="Completer's public key (hex-encoded)")
+    signature: str = Field(description="Signature of completion (hex-encoded)")
+    evidence_type: str = Field(description="Type of evidence: self_report, email_confirmation, etc.")
+    evidence_content: Optional[str] = Field(default=None, description="Evidence URL or content")
+
+
+class CivicCompletionResponse(BaseModel):
+    """Civic completion response (Kind 30812)."""
+    id: str
+    action_ref: str
+    evidence_type: str
+    evidence_content: Optional[str] = None
+    completed_at: str
+    public_key: str
+    timestamp: str
+    revoked: bool = False
+
+
+class CivicActionProgressResponse(BaseModel):
+    """Progress for a civic action event."""
+    action_id: str
+    commitment_count: int = 0
+    completion_count: int = 0
+    target_count: Optional[int] = None
+    progress_percent: Optional[float] = None
+
+
 # === Storage Helpers ===
 
 _storage_instances = {}
@@ -278,6 +356,32 @@ def _get_action_storage():
             logger.warning("civicos-relay not available")
             return None
     return _storage_instances["action"]
+
+
+def _get_civic_action_service():
+    """Get or create civic action service (Kind 30810/30811/30812)."""
+    if "civic_action_service" not in _storage_instances:
+        try:
+            from civicos_relay.storage.memory import (
+                InMemoryCivicActionEventStorage,
+                InMemoryCivicCommitmentStorage,
+                InMemoryCivicCompletionStorage,
+            )
+            from civicos_relay.voice.civic_action_service import CivicActionService
+
+            _storage_instances["civic_action_events"] = InMemoryCivicActionEventStorage()
+            _storage_instances["civic_commitments"] = InMemoryCivicCommitmentStorage()
+            _storage_instances["civic_completions"] = InMemoryCivicCompletionStorage()
+
+            _storage_instances["civic_action_service"] = CivicActionService(
+                _storage_instances["civic_action_events"],
+                _storage_instances["civic_commitments"],
+                _storage_instances["civic_completions"],
+            )
+        except ImportError as e:
+            logger.warning(f"civicos-relay not available: {e}")
+            return None
+    return _storage_instances["civic_action_service"]
 
 
 # === Endpoints ===
@@ -1352,4 +1456,394 @@ async def list_completions(action_id: str):
 
     except Exception as e:
         logger.error(f"Error listing completions: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+# === Civic Action Event Endpoints (Kind 30810/30811/30812) ===
+
+
+@router.post("/coordination/civic-action", response_model=CivicActionEventResponse)
+async def create_civic_action_event(request: CreateCivicActionEventRequest):
+    """
+    Create a new civic action event (Kind 30810).
+
+    Action events define reusable actions that users can commit to and complete.
+    They are addressable Nostr events that can be federated to other relays.
+
+    The action must be cryptographically signed by the creator.
+    """
+    service = _get_civic_action_service()
+    if not service:
+        raise HTTPException(
+            status_code=503,
+            detail="Civic action service not configured"
+        )
+
+    try:
+        from civicos_relay.voice.models import CivicActionType
+
+        # Validate action type
+        try:
+            action_type = CivicActionType(request.action_type)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid action_type: {request.action_type}. Must be one of: "
+                       "written_comment, attend_meeting, public_comment, contact_official, "
+                       "signature, share, custom"
+            )
+
+        # Parse deadline if provided
+        deadline = None
+        if request.deadline:
+            deadline = datetime.fromisoformat(request.deadline)
+
+        action = service.create_action(
+            initiative_id=request.initiative_id,
+            action_type=action_type,
+            description=request.description,
+            public_key=request.public_key,
+            signature=request.signature,
+            target=request.target,
+            deadline=deadline,
+            template=request.template,
+            target_count=request.target_count,
+        )
+
+        logger.info(f"Civic action created: {action.id} for initiative {request.initiative_id}")
+
+        return CivicActionEventResponse(
+            id=action.id,
+            initiative_id=action.initiative_id,
+            action_type=action.action_type.value,
+            description=action.description,
+            target=action.target,
+            deadline=action.deadline.isoformat() if action.deadline else None,
+            template=action.template,
+            target_count=action.target_count,
+            public_key=action.public_key,
+            timestamp=action.timestamp.isoformat(),
+            revoked=action.revoked,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating civic action: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get(
+    "/coordination/civic-actions/{initiative_id:path}",
+    response_model=list[CivicActionEventResponse],
+)
+async def list_civic_actions_for_initiative(initiative_id: str):
+    """
+    List all civic action events for an initiative.
+
+    Returns non-revoked actions only.
+    """
+    service = _get_civic_action_service()
+    if not service:
+        return []
+
+    try:
+        actions = service.get_actions_for_initiative(initiative_id)
+
+        return [
+            CivicActionEventResponse(
+                id=a.id,
+                initiative_id=a.initiative_id,
+                action_type=a.action_type.value,
+                description=a.description,
+                target=a.target,
+                deadline=a.deadline.isoformat() if a.deadline else None,
+                template=a.template,
+                target_count=a.target_count,
+                public_key=a.public_key,
+                timestamp=a.timestamp.isoformat(),
+                revoked=a.revoked,
+            )
+            for a in actions
+        ]
+
+    except Exception as e:
+        logger.error(f"Error listing civic actions: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get(
+    "/coordination/civic-action/{action_id:path}",
+    response_model=CivicActionEventResponse,
+)
+async def get_civic_action_event(action_id: str):
+    """
+    Get a specific civic action event by ID.
+
+    Returns 404 if action not found.
+    """
+    service = _get_civic_action_service()
+    if not service:
+        raise HTTPException(
+            status_code=503,
+            detail="Civic action service not configured"
+        )
+
+    try:
+        action = service.get_action(action_id)
+
+        if not action:
+            raise HTTPException(status_code=404, detail="Action not found")
+
+        return CivicActionEventResponse(
+            id=action.id,
+            initiative_id=action.initiative_id,
+            action_type=action.action_type.value,
+            description=action.description,
+            target=action.target,
+            deadline=action.deadline.isoformat() if action.deadline else None,
+            template=action.template,
+            target_count=action.target_count,
+            public_key=action.public_key,
+            timestamp=action.timestamp.isoformat(),
+            revoked=action.revoked,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting civic action: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get(
+    "/coordination/civic-action/{action_id:path}/progress",
+    response_model=CivicActionProgressResponse,
+)
+async def get_civic_action_progress(action_id: str):
+    """
+    Get progress (commitments, completions, target) for a civic action.
+    """
+    service = _get_civic_action_service()
+    if not service:
+        # Graceful degradation
+        return CivicActionProgressResponse(
+            action_id=action_id,
+            commitment_count=0,
+            completion_count=0,
+        )
+
+    try:
+        progress = service.get_action_progress(action_id)
+
+        return CivicActionProgressResponse(
+            action_id=progress.action_id,
+            commitment_count=progress.commitment_count,
+            completion_count=progress.completion_count,
+            target_count=progress.target_count,
+            progress_percent=progress.progress_percent,
+        )
+
+    except Exception as e:
+        logger.error(f"Error getting civic action progress: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.post(
+    "/coordination/civic-action/{action_id:path}/commit",
+    response_model=CivicCommitmentResponse,
+)
+async def commit_to_civic_action(action_id: str, request: CivicCommitmentRequest):
+    """
+    Commit to a civic action (Kind 30811).
+
+    Records the user's commitment to take the specified action.
+    If the user has already committed, the old commitment is replaced.
+
+    The commitment must be cryptographically signed.
+    """
+    service = _get_civic_action_service()
+    if not service:
+        raise HTTPException(
+            status_code=503,
+            detail="Civic action service not configured"
+        )
+
+    try:
+        from civicos_relay.voice.crypto import verify_signature
+
+        # Verify signature
+        message = f"civicos:commitment:v1:{action_id}"
+        if not verify_signature(request.public_key, request.signature, message):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid commitment signature"
+            )
+
+        commitment = service.commit_to_action(
+            action_id=action_id,
+            public_key=request.public_key,
+            signature=request.signature,
+        )
+
+        logger.info(f"Commitment created for action {action_id} by {request.public_key[:16]}...")
+
+        return CivicCommitmentResponse(
+            id=commitment.id,
+            action_ref=commitment.action_ref,
+            status=commitment.status.value,
+            public_key=commitment.public_key,
+            timestamp=commitment.timestamp.isoformat(),
+            revoked=commitment.revoked,
+        )
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error committing to civic action: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.post(
+    "/coordination/civic-action/{action_id:path}/complete",
+    response_model=CivicCompletionResponse,
+)
+async def complete_civic_action(action_id: str, request: CivicCompletionRequest):
+    """
+    Complete a civic action with evidence (Kind 30812).
+
+    Records the user's completion of the action with optional evidence.
+    If the user has already completed, the old completion is replaced.
+    Also updates the commitment status to COMPLETED if one exists.
+
+    The completion must be cryptographically signed.
+    """
+    service = _get_civic_action_service()
+    if not service:
+        raise HTTPException(
+            status_code=503,
+            detail="Civic action service not configured"
+        )
+
+    try:
+        from civicos_relay.voice.crypto import verify_signature
+        from civicos_relay.voice.models import EvidenceType
+
+        # Validate evidence type
+        try:
+            evidence_type = EvidenceType(request.evidence_type)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid evidence_type: {request.evidence_type}. Must be one of: "
+                       "self_report, email_confirmation, attendance_check, verified"
+            )
+
+        # Verify signature
+        message = f"civicos:completion:v1:{action_id}:{evidence_type.value}"
+        if not verify_signature(request.public_key, request.signature, message):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid completion signature"
+            )
+
+        completion = service.complete_action(
+            action_id=action_id,
+            public_key=request.public_key,
+            signature=request.signature,
+            evidence_type=evidence_type,
+            evidence_content=request.evidence_content,
+        )
+
+        logger.info(f"Completion created for action {action_id} by {request.public_key[:16]}...")
+
+        return CivicCompletionResponse(
+            id=completion.id,
+            action_ref=completion.action_ref,
+            evidence_type=completion.evidence_type.value,
+            evidence_content=completion.evidence_content,
+            completed_at=completion.completed_at.isoformat(),
+            public_key=completion.public_key,
+            timestamp=completion.timestamp.isoformat(),
+            revoked=completion.revoked,
+        )
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error completing civic action: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get(
+    "/coordination/civic-action/{action_id:path}/commitments",
+    response_model=list[CivicCommitmentResponse],
+)
+async def list_civic_action_commitments(action_id: str):
+    """
+    List all commitments for a civic action.
+
+    Returns non-revoked commitments only.
+    """
+    service = _get_civic_action_service()
+    if not service:
+        return []
+
+    try:
+        commitments = service.get_commitments_for_action(action_id)
+
+        return [
+            CivicCommitmentResponse(
+                id=c.id,
+                action_ref=c.action_ref,
+                status=c.status.value,
+                public_key=c.public_key,
+                timestamp=c.timestamp.isoformat(),
+                revoked=c.revoked,
+            )
+            for c in commitments
+        ]
+
+    except Exception as e:
+        logger.error(f"Error listing civic action commitments: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get(
+    "/coordination/civic-action/{action_id:path}/completions",
+    response_model=list[CivicCompletionResponse],
+)
+async def list_civic_action_completions(action_id: str):
+    """
+    List all completions for a civic action.
+
+    Returns non-revoked completions only.
+    """
+    service = _get_civic_action_service()
+    if not service:
+        return []
+
+    try:
+        completions = service.get_completions_for_action(action_id)
+
+        return [
+            CivicCompletionResponse(
+                id=c.id,
+                action_ref=c.action_ref,
+                evidence_type=c.evidence_type.value,
+                evidence_content=c.evidence_content,
+                completed_at=c.completed_at.isoformat(),
+                public_key=c.public_key,
+                timestamp=c.timestamp.isoformat(),
+                revoked=c.revoked,
+            )
+            for c in completions
+        ]
+
+    except Exception as e:
+        logger.error(f"Error listing civic action completions: {e}")
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")

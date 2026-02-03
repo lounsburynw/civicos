@@ -1210,6 +1210,135 @@ export interface Initiative {
 }
 
 // ============================================================================
+// Nostr Action Event Specification (Kinds 30810, 30811, 30812)
+// ============================================================================
+
+/**
+ * Type of civic action (Kind 30810)
+ */
+export type CivicActionType =
+  | 'written_comment'
+  | 'attend_meeting'
+  | 'public_comment'
+  | 'contact_official'
+  | 'signature'
+  | 'share'
+  | 'custom';
+
+/**
+ * Status of a commitment (Kind 30811)
+ */
+export type CommitmentStatus = 'committed' | 'completed' | 'withdrawn';
+
+/**
+ * Type of evidence for completion (Kind 30812)
+ */
+export type EvidenceType =
+  | 'self_report'
+  | 'email_confirmation'
+  | 'attendance_check'
+  | 'verified';
+
+/**
+ * Civic Action Event (Kind 30810)
+ *
+ * Addressable Nostr event that defines a civic action.
+ * Can be reused across initiatives and federated to other relays.
+ */
+export interface CivicActionEvent {
+  id: string;                       // d-tag: action:{initiative}:{type}:{hash}
+  initiative_id: string;
+  action_type: CivicActionType;
+  description: string;
+  target?: string;                  // Target of action (email, meeting room)
+  deadline?: string;                // ISO 8601
+  template?: string;                // Template text for action
+  target_count?: number;            // Target number of completions
+  public_key: string;               // Creator's pubkey (hex)
+  timestamp: string;                // ISO 8601
+  revoked: boolean;
+}
+
+/**
+ * Civic Commitment (Kind 30811)
+ *
+ * User's commitment to take a civic action.
+ */
+export interface CivicCommitment {
+  id: string;                       // d-tag: commit:{pubkey}:{action-d-tag}
+  action_ref: string;               // a-tag: 30810:{pubkey}:{d-tag}
+  status: CommitmentStatus;
+  public_key: string;
+  timestamp: string;
+  revoked: boolean;
+}
+
+/**
+ * Civic Completion (Kind 30812)
+ *
+ * User's completion of a civic action with evidence.
+ */
+export interface CivicCompletion {
+  id: string;                       // d-tag: complete:{pubkey}:{action-d-tag}
+  action_ref: string;               // a-tag: 30810:{pubkey}:{d-tag}
+  evidence_type: EvidenceType;
+  evidence_content?: string;        // URL or content
+  completed_at: string;
+  public_key: string;
+  timestamp: string;
+  revoked: boolean;
+}
+
+/**
+ * Progress for a civic action event
+ */
+export interface CivicActionProgress {
+  action_id: string;
+  commitment_count: number;
+  completion_count: number;
+  target_count?: number;
+  progress_percent?: number;
+}
+
+/**
+ * Request to create a civic action event
+ * POST /api/coordination/civic-action
+ */
+export interface CreateCivicActionEventRequest {
+  initiative_id: string;
+  action_type: CivicActionType;
+  description: string;
+  public_key: string;
+  signature: string;
+  target?: string;
+  deadline?: string;
+  template?: string;
+  target_count?: number;
+}
+
+/**
+ * Request to commit to a civic action
+ * POST /api/coordination/civic-action/{action_id}/commit
+ */
+export interface CivicCommitmentRequest {
+  action_id: string;
+  public_key: string;
+  signature: string;
+}
+
+/**
+ * Request to complete a civic action
+ * POST /api/coordination/civic-action/{action_id}/complete
+ */
+export interface CivicCompletionRequest {
+  action_id: string;
+  public_key: string;
+  signature: string;
+  evidence_type: EvidenceType;
+  evidence_content?: string;
+}
+
+// ============================================================================
 // MCP Registry (Discovery of CivicOS MCP Servers)
 // ============================================================================
 
