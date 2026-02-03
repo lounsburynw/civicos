@@ -1,38 +1,59 @@
 # MCP Integration Strategy
 
 **Created**: 2025-11-24 (Session 118)
-**Updated**: 2026-01-29 (Session 559 - Relay + MCP federation architecture)
-**Status**: MCP Server Complete (32 primitives), HTTP Transport Ready, Deployment in Progress
+**Updated**: 2026-02-02 (Two-MCP architecture clarification)
+**Status**: Jurisdiction MCP Complete (32 primitives), HTTP Transport Ready, Deployment in Progress
 **Priority**: Strategic - Multi-platform AI distribution for pilot demo
 
 ---
 
 ## Executive Summary
 
-**Decision**: Deploy single MCP server with HTTP transport to serve both Claude.ai AND ChatGPT.
+**Scope**: This document covers the **Jurisdiction MCP** (`apps/civicos-mcp/`) — the read-only public civic data server. For the **Personal MCP** (user context, identity, personalization), see [Edge Intelligence Architecture](./EDGE_INTELLIGENCE_ARCHITECTURE.md).
+
+### Two-MCP Architecture
+
+| MCP Type | Package | Purpose |
+|----------|---------|---------|
+| **Jurisdiction MCP** | `apps/civicos-mcp/` | Read-only public civic data. Meetings, decisions, issues, voice counts. No user state. This document. |
+| **Personal MCP** | `apps/civicos-personal-mcp/` | User's edge agent. Context, identity, personalization, signing. Queries Jurisdiction MCP. See Edge Intelligence doc. |
+
+**Why two MCPs?**
+- Jurisdiction MCP is the "library" — public data, deployed per-jurisdiction
+- Personal MCP is the "librarian" — knows the user, applies their preferences, handles signing
+- Separation enables privacy (user context never sent to Jurisdiction MCP) and sovereignty (users can self-host Personal MCP)
+
+---
+
+## Jurisdiction MCP Deployment
+
+**Decision**: Deploy Jurisdiction MCP (`apps/civicos-mcp/`) with HTTP transport to serve Claude.ai, ChatGPT, and Personal MCPs.
 
 **Key Discovery (Jan 2026)**: ChatGPT now has native MCP client support (developer mode beta). This supersedes the Custom GPT + Actions approach - a single MCP server now serves all platforms.
 
 **Why This Matters**:
 - Single codebase serves Claude Desktop, Claude.ai, AND ChatGPT
+- Personal MCPs query Jurisdiction MCP for civic data
 - No need for separate OpenAPI spec maintenance for ChatGPT Actions
 - Better security (no exposed system prompts like Custom GPTs)
 - Future-proof as MCP becomes industry standard
 
-**Strategy**: Deploy MCP server publicly with HTTPS, connect to ChatGPT and Claude.ai as connectors.
+**Strategy**: Deploy Jurisdiction MCP publicly with HTTPS, connect to ChatGPT and Claude.ai as connectors.
 
 **Current State**:
-- MCP server complete: 25 tools + 5 resources + 2 prompts (`apps/civicos-mcp/civicos_server.py`)
+- Jurisdiction MCP complete: 25 tools + 5 resources + 2 prompts (`apps/civicos-mcp/civicos_server.py`)
 - 311 analysis suite (10 tools): analytics, trends, geo-search, accountability, neighborhood reports
 - HTTP transport added (Session 535) - ready for public deployment
 - REST API complete: FastAPI endpoints (`packages/civicos-services/`)
-- Vue frontend available: `apps/civicos-workspace/`
+- Vue frontend available: `apps/civicos-workspace/` (fallback for non-MCP users)
 
 **Next Steps** (P0):
-1. Deploy MCP server with HTTPS (Railway, Fly.io, or ngrok for testing)
+1. Deploy Jurisdiction MCP with HTTPS (Railway, Fly.io, or ngrok for testing)
 2. Connect to ChatGPT via developer mode connector
 3. Connect to Claude.ai via Connectors settings (OAuth optional for start)
 4. Register on MCP Registry after validation
+
+**See Also:** [Edge Intelligence Architecture](./EDGE_INTELLIGENCE_ARCHITECTURE.md) - Personal MCP design, tiered identity system, and MCP Apps integration.
 
 ---
 

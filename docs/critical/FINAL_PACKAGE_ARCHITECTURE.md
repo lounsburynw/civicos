@@ -52,25 +52,51 @@
 
 ---
 
-## Four-Layer Architecture
+## Five-Layer Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
+│                              USER                                        │
+│                    (Claude.ai, ChatGPT, Web)                            │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    EDGE INTELLIGENCE LAYER                               │
+│                    (Personal MCP - user's agent)                         │
+│                                                                          │
+│   • User context, interests, filtering                                  │
+│   • Tiered identity (Easy/Private/Sovereign)                            │
+│   • Signing (Nostr-compatible, client-side)                             │
+│   • Personalized reasoning ("showing this because...")                  │
+│   • See: EDGE_INTELLIGENCE_ARCHITECTURE.md                              │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
 │                    CIVIC COORDINATION PLATFORM                           │
+│                    (Jurisdiction MCP + Backend)                          │
 └─────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────┐   ┌────────────────┐   ┌──────────────┐   ┌──────────────┐
 │ INTELLIGENCE│   │ ORCHESTRATION  │   │ COORDINATION │   │   IMPACT     │
 │ LAYER       │──▶│ LAYER          │──▶│ LAYER        │──▶│   LAYER      │
-│ (table      │   │ (LangGraph)    │   │ (Custom)     │   │              │
-│  stakes)    │   │                │   │              │   │              │
+│ (table      │   │ (LangGraph)    │   │ (civicos-    │   │              │
+│  stakes)    │   │                │   │  relay)      │   │              │
 └─────────────┘   └────────────────┘   └──────────────┘   └──────────────┘
 
-1. INTELLIGENCE (90% complete):
+0. EDGE INTELLIGENCE (Personal MCP):
+   - User-controlled agent, runs in Claude.ai/ChatGPT or locally
+   - Queries Jurisdiction MCP for civic data
+   - Applies user context for personalization
+   - Handles identity and signing (keys never leave user control)
+   - See: apps/civicos-personal-mcp/, EDGE_INTELLIGENCE_ARCHITECTURE.md
+
+1. INTELLIGENCE (Jurisdiction MCP):
    - Multi-platform extraction (Legistar, CivicClerk, Granicus)
    - Legislative enrichment (28 state bills, federal programs)
    - SeeClickFix operational complaints (1,340 San Rafael issues)
-   - Unified city state database
+   - Read-only public civic data via MCP tools
 
 2. ORCHESTRATION (LangGraph):
    - State machine workflows (flagged → planning → active)
@@ -79,10 +105,10 @@
    - Human-in-loop (RSVP waiting, approvals)
    - LangSmith observability
 
-3. COORDINATION (Custom):
-   - Email/SMS (SendGrid, Twilio)
-   - Meeting scheduling (Google Meet, Zoom)
-   - PostGIS spatial queries
+3. COORDINATION (civicos-relay):
+   - Voice casting, action primitives
+   - Subscriptions and event delivery
+   - Federation sync between relays
    - WebSocket real-time coordination
 
 4. IMPACT:
@@ -92,7 +118,7 @@
    - Democratic quality (participation equity)
 ```
 
-**The Thesis**: Intelligence is table stakes. Coordination is the moat.
+**The Thesis**: Intelligence is table stakes. Coordination is the moat. Edge Intelligence is the user-facing layer that makes both accessible.
 
 ---
 
@@ -1388,8 +1414,23 @@ The codebase has been refactored from a monolithic structure to a multi-package 
 | `packages/civicos-extraction/` | Platform parsers, transcription, ETL | Active |
 | `packages/civicos-services/` | REST API, WebSocket, chat | Active |
 | `packages/civicos-config/` | Shared jurisdiction configuration | Active |
-| `apps/civicos-mcp/` | MCP server for AI assistants | Active |
-| `apps/civicos-workspace/` | Vue frontend | Active |
+| `apps/civicos-mcp/` | Jurisdiction MCP - read-only civic data for AI assistants | Active |
+| `apps/civicos-personal-mcp/` | Personal MCP - user context, identity, personalization | Planned |
+| `apps/civicos-workspace/` | Vue frontend (fallback for non-MCP users) | Active |
+
+### Two-MCP Architecture
+
+The MCP layer is split into two distinct servers (see `EDGE_INTELLIGENCE_ARCHITECTURE.md`):
+
+| MCP Type | Package | Purpose |
+|----------|---------|---------|
+| **Jurisdiction MCP** | `apps/civicos-mcp/` | Read-only public civic data. Meetings, decisions, issues, voice counts. No user state. |
+| **Personal MCP** | `apps/civicos-personal-mcp/` | User's edge agent. Context, identity, personalization, signing. Queries Jurisdiction MCP. |
+
+**Why two MCPs?**
+- Jurisdiction MCP is the "library" — public data, deployed per-jurisdiction
+- Personal MCP is the "librarian" — knows the user, applies their preferences, handles signing
+- Separation enables: privacy (user context never sent to Jurisdiction MCP), sovereignty (users can self-host Personal MCP), federation (any Personal MCP can query any Jurisdiction MCP)
 
 ### Coordination Layer Split
 

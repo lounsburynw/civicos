@@ -3437,21 +3437,27 @@
     }
   },
   "edge_intelligence": {
-    "description": "User-controlled AI filtering layer - intelligence at the edge, not centralized recommendations",
-    "_doc": "Edge means user-controlled, not necessarily user-hosted. User context stays with user (localStorage/encrypted Nostr). Agent is stateless - receives context per-request, applies user's filtering logic, returns personalized results. No behavior tracking, no recommendations, transparent reasoning.",
+    "description": "Personal MCP - user's edge agent for personalized civic participation. Queries Jurisdiction MCP, applies user context, handles identity/signing.",
+    "_doc": "Two-MCP architecture: Jurisdiction MCP (read-only civic data) + Personal MCP (user context, identity, personalization). Personal MCP can run as MCP App (iframe), Claude Desktop (local), or self-hosted. See EDGE_INTELLIGENCE_ARCHITECTURE.md for full design.",
+    "architecture": {
+      "jurisdiction_mcp": "apps/civicos-mcp/ - Read-only public civic data, deployed per-jurisdiction",
+      "personal_mcp": "apps/civicos-personal-mcp/ - User's edge agent, handles context/identity/signing"
+    },
     "design_principles": [
-      "User context stored locally (browser localStorage or encrypted Nostr event)",
-      "Context transmitted per-request, never stored server-side",
+      "Two MCPs: Jurisdiction (public data) and Personal (user context)",
+      "User context stored in Personal MCP (localStorage/IndexedDB), never sent to Jurisdiction MCP",
+      "Personal MCP queries Jurisdiction MCP, applies filtering, explains relevance",
       "No query logging, no behavior tracking, no engagement metrics",
-      "Agent applies user's filtering logic, not platform recommendations",
       "Transparent reasoning: agent explains why it surfaced something",
-      "User controls keys: Nostr signing always happens client-side"
+      "User controls keys: Nostr signing always happens client-side in Personal MCP",
+      "Tiered identity: Easy (passkey), Private (mnemonic), Sovereign (NIP-07/hardware)"
     ],
     "web_chat_interface": {
       "status": "ready",
       "priority": 2,
       "completed_session": 535,
-      "description": "Web chat interface at civicos.org/[jurisdiction]. Primary surface for Edge Intelligence - where users interact with agents that prepare unsigned events.",
+      "description": "Web chat interface at civicos.org/[jurisdiction]. FALLBACK surface for users without AI assistant subscriptions. Primary surface is MCP-native (Claude.ai, ChatGPT via Personal MCP). See EDGE_INTELLIGENCE_ARCHITECTURE.md.",
+      "_doc": "Strategic pivot: MCP-native is primary, web is fallback. Web embeds same Personal MCP logic for identity/signing consistency.",
       "test_file": "apps/civicos-workspace/tests/e2e/chat-interface.spec.ts",
       "artifact": "apps/civicos-workspace/src/components/chat/",
       "subtasks_completed": [
@@ -3461,14 +3467,14 @@
         "Quick-start buttons: meetings, issues, comments, legislation (lines 85-115)",
         "POST /api/chat/route endpoint works (conversations.py)",
         "LLM function calling via OpenRouter (Gemini 2.0 Flash)",
-        "MCP tool integration - queries flow through MCP server (Session 534)",
+        "MCP tool integration - queries flow through Jurisdiction MCP (Session 534)",
         "Context injection from request body"
       ],
       "future_enhancements": [
-        "Response synthesis - MCP returns raw data, agent should reason/summarize before displaying (Claude.ai does this naturally)",
-        "Streaming response display (SSE) - nice-to-have UX improvement",
-        "Jurisdiction selector UI - needed for multi-city expansion",
-        "Rate limiting per session - production hardening"
+        "Embed Personal MCP as web component for signing/identity consistency",
+        "Response synthesis - MCP returns raw data, agent should reason/summarize",
+        "Streaming response display (SSE)",
+        "Jurisdiction selector UI - needed for multi-city expansion"
       ],
       "verification": "Tested 2026-02-02: 'show housing meetings in san rafael' -> search_meeting_history MCP tool -> PostgreSQL results returned"
     },
@@ -3543,44 +3549,69 @@
     "client_side_signing": {
       "status": "not_ready",
       "priority": 0,
-      "description": "Client-side Nostr signing. User's key NEVER leaves their device. Supports browser localStorage, NIP-07 (nos2x/Alby), and WebAuthn/passkeys. This is where unsigned events from the agent get signed before broadcast.",
-      "test_file": "apps/civicos-workspace/tests/e2e/signing.spec.ts",
-      "artifact": "apps/civicos-workspace/src/services/SigningService.ts",
-      "approaches": {
-        "browser_key": {
-          "description": "Key generated and stored in localStorage (encrypted)",
-          "friction": "Lowest - automatic on first voice",
-          "security": "Medium - device-locked, vulnerable to XSS",
-          "users": "Default for new users"
+      "description": "Client-side Nostr signing via Personal MCP. User's key NEVER leaves their device. Tiered identity system: Easy (passkey), Private (mnemonic+password), Sovereign (NIP-07/hardware). See EDGE_INTELLIGENCE_ARCHITECTURE.md for full design.",
+      "test_file": "apps/civicos-personal-mcp/tests/signing.spec.ts",
+      "artifact": "apps/civicos-personal-mcp/lib/providers/",
+      "_doc": "Signing lives in Personal MCP, not civicos-workspace. Web frontend imports from Personal MCP or embeds as web component.",
+      "identity_tiers": {
+        "easy": {
+          "description": "WebAuthn passkey with PRF extension derives Nostr keypair",
+          "friction": "Lowest - TouchID/FaceID, 10 seconds setup",
+          "security": "Medium - cloud-synced passkeys, not state-actor resistant",
+          "users": "Default for normal residents",
+          "instantiation": ["mcp_app", "claude_desktop", "self_hosted"]
         },
-        "nos2x_alby": {
-          "description": "Browser extension (NIP-07) handles signing",
-          "friction": "Medium - requires extension install",
-          "security": "Higher - key isolated from page context",
-          "users": "Power users, existing Nostr users"
+        "private": {
+          "description": "BIP-39 mnemonic, encrypted with password, stored in IndexedDB",
+          "friction": "Medium - password required, must save recovery phrase",
+          "security": "Higher - no cloud sync, password can be 'forgotten'",
+          "users": "Privacy-conscious users",
+          "instantiation": ["mcp_app", "claude_desktop", "self_hosted"]
         },
-        "passkey_webauthn": {
-          "description": "Hardware-bound key via WebAuthn",
-          "friction": "Low - modern UX, biometric",
-          "security": "Highest - key in secure enclave",
-          "users": "Future default as support improves"
+        "sovereign": {
+          "description": "User brings own keys via NIP-07 extension, hardware wallet, or airgap",
+          "friction": "Higher - requires extension/hardware or manual signing",
+          "security": "Highest - full self-custody, state-actor resistant",
+          "users": "Dissidents, power users, existing Nostr users",
+          "instantiation": ["claude_desktop", "self_hosted"],
+          "note": "NIP-07 NOT available in MCP App (iframe sandbox blocks window.nostr)"
+        }
+      },
+      "instantiation_patterns": {
+        "_doc": "Personal MCP can run in different contexts with different identity options",
+        "mcp_app": {
+          "description": "Personal MCP runs as MCP App inside Claude.ai/ChatGPT iframe",
+          "identity_modes": ["easy", "private"],
+          "blocked": "NIP-07 (iframe cannot access browser extensions)"
+        },
+        "claude_desktop": {
+          "description": "Personal MCP runs locally via stdio in Claude Desktop/Goose",
+          "identity_modes": ["easy", "private", "sovereign"],
+          "note": "Full NIP-07 support, hardware wallets via WebUSB"
+        },
+        "self_hosted": {
+          "description": "User runs own Personal MCP server",
+          "identity_modes": ["easy", "private", "sovereign"],
+          "note": "Maximum sovereignty, requires technical expertise"
         }
       },
       "subtasks": [
-        "SigningService interface (sign, getPublicKey, hasKey)",
-        "BrowserKeyProvider: generate secp256k1 keypair, store encrypted",
-        "NIP07Provider: detect and use nos2x/Alby extension",
-        "Provider selection logic (prefer extension if available)",
-        "Sign voice events (kind 30800)",
-        "Sign commitment events (kind 30811)",
-        "Sign completion events (kind 30812)",
-        "Key backup/recovery flow for browser keys"
+        "Personal MCP scaffold (apps/civicos-personal-mcp/)",
+        "SigningProvider interface (sign, getPublicKey, hasKey)",
+        "PasskeyProvider: WebAuthn + PRF → HKDF → secp256k1 (Easy)",
+        "LocalWalletProvider: BIP-39 + PBKDF2 + AES-GCM (Private)",
+        "NIP07Provider: detect window.nostr, delegate signing (Sovereign)",
+        "HardwareWalletProvider: WebUSB/WebHID (Sovereign)",
+        "ManualSigningProvider: display message, paste signature (Sovereign/Airgap)",
+        "Provider selection based on instantiation pattern",
+        "Identity tier upgrade flow (Easy → Private → Sovereign)"
       ],
       "nip07_integration": [
-        "Detect window.nostr object",
+        "Detect window.nostr object (only in Claude Desktop, NOT in MCP App iframe)",
         "Request public key: window.nostr.getPublicKey()",
         "Request signature: window.nostr.signEvent(event)",
-        "Handle user rejection gracefully"
+        "Handle user rejection gracefully",
+        "Fallback to other providers if NIP-07 unavailable"
       ]
     },
     "action_flow_integration": {

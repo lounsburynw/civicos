@@ -177,6 +177,7 @@ Read only when needed. Organized by purpose:
 | `FOCAL_POINT_DECISION_AWARENESS.md` | Core hypothesis - why civic coordination works |
 | `COORDINATION_PROTOCOL.md` | Coordination protocol - relay, voice, provenance (MVP in pilot) |
 | `MCP_INTEGRATION_STRATEGY.md` | MCP server + multi-platform distribution (Claude.ai, ChatGPT, web) |
+| `EDGE_INTELLIGENCE_ARCHITECTURE.md` | User-centric agents, tiered identity, MCP Apps integration |
 | `CIVIC_DASHBOARD_VISION.md` | Post-pilot UX vision - engagement ladder, data visualization, multi-surface rendering |
 | `VECTOR_RAG_SCHEMA.md` | Vector storage schema, corpus types |
 | `COMMITMENT_TRACKER_ARCHITECTURE.md` | Tracking official commitments |
