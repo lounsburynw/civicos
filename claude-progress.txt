@@ -17149,3 +17149,63 @@ Tested end-to-end flow: frontend → chat router → LLM function calling → MC
   - Context serialization for API requests
   - First-visit onboarding flow
 
+
+## Session 536 (2026-02-02) - Context-Aware Agent Implementation
+
+**Item:** `context_aware_agent` (P0)
+**Status:** COMPLETE
+
+### What Was Done
+Implemented the context-aware agent that uses user context for personalized filtering:
+
+1. **ContextAgent Class** (`packages/civicos-services/src/civicos_services/chat/context_agent.py`)
+   - `UserContextForRequest` Pydantic model matching TypeScript interface
+   - `parse_filtering_instructions()` - NLP parsing of natural language filters
+   - `apply_filtering_logic()` - boost/ignore topics in results
+   - `add_location_context()` - "affects your neighborhood" annotations
+   - `generate_personalization_reasoning()` - transparent "I'm showing you this because..."
+   - `ContextAgent` class with full integration methods
+
+2. **Chat Router Integration** (`packages/civicos-services/src/civicos_services/chat/civic_chat_router.py`)
+   - Added `user_context` parameter to `route_message()`
+   - System prompt injection with personalization context
+   - Response enhancement with filtering and reasoning
+   - Applied to all return paths (function calls, MCP tools, conversational)
+
+3. **API Layer** (`packages/civicos-services/src/civicos_services/servers/routers/conversations.py`)
+   - Added `user_context` field to `ChatRouteRequest`
+   - Added `personalization_reasoning` to `ChatRouteResponse`
+   - Passes user_context through to chat router
+
+4. **Test Suite** (`packages/civicos-services/tests/test_context_agent.py`)
+   - 40 tests covering all functionality
+   - User context parsing, filtering logic, location context
+   - Reasoning transparency, agent class, full integration
+
+### Key Capabilities Implemented
+- Parse user context from request ✓
+- Apply filtering_instructions as reasoning constraints ✓
+- Use location for geographic relevance ✓
+- Reference voice_history and commitment_history ✓
+- Generate transparent reasoning ✓
+
+### Privacy Design
+- Stateless agent - context comes per-request, never stored server-side
+- No query logging, no behavior tracking
+- Agent applies USER's filtering logic, not platform recommendations
+- Transparent reasoning for all personalization decisions
+
+### Files Changed
+- `packages/civicos-services/src/civicos_services/chat/context_agent.py` - NEW
+- `packages/civicos-services/src/civicos_services/chat/civic_chat_router.py` - Modified
+- `packages/civicos-services/src/civicos_services/servers/routers/conversations.py` - Modified
+- `packages/civicos-services/tests/test_context_agent.py` - NEW
+- `pilot.json` - `context_aware_agent`: not_ready → ready
+
+### Remaining Subtasks (tracked in other items)
+- Action-aware responses → `action_flow_integration`
+- Unsigned event generation → `action_event_preparation`
+
+### Next P0
+- `client_side_signing`: Client-side Nostr signing for user privacy
+

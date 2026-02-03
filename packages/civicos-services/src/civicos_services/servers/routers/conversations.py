@@ -45,6 +45,8 @@ class ChatRouteRequest(BaseModel):
 
     Matches frontend chatRouter.ts interface for full chat routing with
     function calling, mode detection, and context awareness.
+
+    Session 536: Added user_context for edge intelligence personalization.
     """
     message: str
     conversation_id: Optional[str] = None
@@ -52,6 +54,8 @@ class ChatRouteRequest(BaseModel):
     mode: Optional[str] = "navigation"  # navigation, focus, compare
     serialized_context: Optional[str] = None  # LLM-friendly context from open artifacts
     model_override: Optional[str] = None  # Manual model selection
+    # Session 536: User context for personalized filtering (edge intelligence)
+    user_context: Optional[Dict[str, Any]] = None
 
 
 class ChatActionUsage(BaseModel):
@@ -68,6 +72,7 @@ class ChatRouteResponse(BaseModel):
     function calling actions, multi-operations, and provider metadata.
 
     Session 534: Added mcp_result and mcp_tool for MCP integration.
+    Session 536: Added personalization_reasoning for context-aware responses.
     """
     action: str  # search_events, file_complaint, respond, etc.
     parameters: Optional[Dict[str, Any]] = None
@@ -84,6 +89,8 @@ class ChatRouteResponse(BaseModel):
     # MCP tool integration (Session 534)
     mcp_result: Optional[str] = None  # Result from MCP tool execution
     mcp_tool: Optional[str] = None  # Which MCP tool was used
+    # Session 536: Edge intelligence personalization
+    personalization_reasoning: Optional[str] = None  # "I'm showing you this because..."
     # Provider metadata for developer mode
     provider_used: Optional[str] = None
     model_used: Optional[str] = None
@@ -260,13 +267,15 @@ async def route_chat(
                 conversation_history = store.get_conversation(request.conversation_id)
 
             # Route message via LLM function calling
+            # Session 536: Pass user_context for personalized filtering
             result = chat_router.route_message(
                 message=request.message,
                 conversation_history=conversation_history,
                 context=request.context,
                 mode=request.mode or 'navigation',
                 serialized_context=request.serialized_context or '',
-                model_override=request.model_override
+                model_override=request.model_override,
+                user_context=request.user_context
             )
 
             # Build response matching ChatAction interface
@@ -285,6 +294,8 @@ async def route_chat(
                 # MCP tool integration (Session 534)
                 "mcp_result": result.get("mcp_result"),
                 "mcp_tool": result.get("mcp_tool"),
+                # Session 536: Edge intelligence personalization
+                "personalization_reasoning": result.get("personalization_reasoning"),
                 "provider_used": result.get("provider_used"),
                 "model_used": result.get("model_used"),
                 "error": result.get("error"),

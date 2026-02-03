@@ -1017,13 +1017,15 @@ Examples:
         context: Optional[Dict] = None,
         mode: str = 'focus',
         serialized_context: str = '',
-        model_override: Optional[str] = None
+        model_override: Optional[str] = None,
+        user_context: Optional[Dict] = None
     ) -> Dict:
         """
         Route a user message to appropriate function or conversational response.
 
         Session 76: Pure function-calling architecture - all modes use function calling.
         Mode detection still used for system prompt customization.
+        Session 536: Added user_context for edge intelligence personalization.
 
         Args:
             message: User's chat message
@@ -1031,6 +1033,7 @@ Examples:
             context: Current UI context (current artifact, jurisdiction, etc.)
             mode: Chat mode suggestion ('navigation', 'focus', 'compare')
             serialized_context: LLM-friendly context summary from open artifacts
+            user_context: User's personalization context (interests, location, filtering_instructions)
 
         Returns:
             {
@@ -1041,6 +1044,7 @@ Examples:
                 "mode": str,          # Detected mode (may differ from input)
                 "mode_changed": bool, # True if mode switched
                 "mode_reason": str,   # Explanation for mode choice
+                "personalization_reasoning": str,  # Session 536: "I'm showing you this because..."
                 "usage": {            # Token usage metrics
                     "prompt_tokens": int,
                     "completion_tokens": int,
@@ -1048,6 +1052,9 @@ Examples:
                 }
             }
         """
+        # Session 536: Initialize context agent for personalization
+        from .context_agent import ContextAgent
+        context_agent = ContextAgent(user_context) if user_context else None
         # Session 56/76: Detect optimal mode for system prompt selection
         detected_mode, mode_reason = self.detect_mode(
             message=message,
@@ -1083,6 +1090,13 @@ Examples:
             mode_specific_prompt = MODE_SYSTEM_PROMPTS.get(effective_mode, MODE_SYSTEM_PROMPTS['navigation'])
             # Combine with base system prompt
             full_system_prompt = SYSTEM_PROMPT + "\n\n" + mode_specific_prompt
+
+            # Session 536: Add personalization context from user_context
+            if context_agent and context_agent.has_context:
+                personalization_prompt = context_agent.get_system_prompt_injection()
+                if personalization_prompt:
+                    full_system_prompt += "\n\n" + personalization_prompt
+
             messages.insert(0, {"role": "system", "content": full_system_prompt})
 
         # Session 55: Add serialized multi-artifact context if provided
@@ -1184,7 +1198,7 @@ Examples:
 
                         all_operations.append(operation_dict)
 
-                    return {
+                    result = {
                         "action": "multi_operation",
                         "multi_operation": True,
                         "operation_count": len(all_operations),
@@ -1201,6 +1215,10 @@ Examples:
                             "total_tokens": 0
                         }
                     }
+                    # Session 536: Apply personalization context
+                    if context_agent and context_agent.has_context:
+                        result = context_agent.apply_to_response(result)
+                    return result
                 else:
                     # Single operation - continue to regular function calling for consistency
                     logger.info("Query planning returned single operation - using regular function calling")
@@ -1433,7 +1451,7 @@ Examples:
                         logger.info(f"MCP tool {mcp_tool_name} returned {len(mcp_result)} chars")
 
                         # Return with MCP result included
-                        return {
+                        result = {
                             "action": tool_call.name,
                             "parameters": parameters,
                             "reasoning": response.content or f"I'll help you with that.",
@@ -1450,13 +1468,17 @@ Examples:
                                 "total_tokens": response.usage.get('total_tokens', 0)
                             }
                         }
+                        # Session 536: Apply personalization context
+                        if context_agent and context_agent.has_context:
+                            result = context_agent.apply_to_response(result)
+                        return result
 
                     except Exception as e:
                         logger.error(f"MCP tool {mcp_tool_name} error: {e}", exc_info=True)
                         # Fall through to return action without MCP result
                         # Frontend can still handle the action if MCP fails
 
-                return {
+                result = {
                     "action": tool_call.name,
                     "parameters": parameters,  # Use normalized parameters
                     "reasoning": response.content or f"I'll help you with that.",
@@ -1471,11 +1493,15 @@ Examples:
                         "total_tokens": response.usage.get('total_tokens', 0)
                     }
                 }
+                # Session 536: Apply personalization context
+                if context_agent and context_agent.has_context:
+                    result = context_agent.apply_to_response(result)
+                return result
             else:
                 # Conversational response
                 logger.info("Conversational response")
 
-                return {
+                result = {
                     "action": "respond",
                     "message": response.content,
                     "mode": effective_mode,
@@ -1489,6 +1515,10 @@ Examples:
                         "total_tokens": response.usage.get('total_tokens', 0)
                     }
                 }
+                # Session 536: Apply personalization context
+                if context_agent and context_agent.has_context:
+                    result = context_agent.apply_to_response(result)
+                return result
 
         except Exception as e:
             logger.error(f"Error routing message: {e}", exc_info=True)
