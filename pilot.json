@@ -3608,21 +3608,32 @@
           "friction": "Lowest - TouchID/FaceID, 10 seconds setup",
           "security": "Medium - cloud-synced passkeys, not state-actor resistant",
           "users": "Default for normal residents",
-          "instantiation": ["mcp_app", "claude_desktop", "self_hosted"]
+          "instantiation": [
+            "mcp_app",
+            "claude_desktop",
+            "self_hosted"
+          ]
         },
         "private": {
           "description": "BIP-39 mnemonic, encrypted with password, stored in IndexedDB",
           "friction": "Medium - password required, must save recovery phrase",
           "security": "Higher - no cloud sync, password can be 'forgotten'",
           "users": "Privacy-conscious users",
-          "instantiation": ["mcp_app", "claude_desktop", "self_hosted"]
+          "instantiation": [
+            "mcp_app",
+            "claude_desktop",
+            "self_hosted"
+          ]
         },
         "sovereign": {
           "description": "User brings own keys via NIP-07 extension, hardware wallet, or airgap",
           "friction": "Higher - requires extension/hardware or manual signing",
           "security": "Highest - full self-custody, state-actor resistant",
           "users": "Dissidents, power users, existing Nostr users",
-          "instantiation": ["claude_desktop", "self_hosted"],
+          "instantiation": [
+            "claude_desktop",
+            "self_hosted"
+          ],
           "note": "NIP-07 NOT available in MCP App (iframe sandbox blocks window.nostr)"
         }
       },
@@ -3630,30 +3641,41 @@
         "_doc": "Personal MCP can run in different contexts with different identity options",
         "mcp_app": {
           "description": "Personal MCP runs as MCP App inside Claude.ai/ChatGPT iframe",
-          "identity_modes": ["easy", "private"],
+          "identity_modes": [
+            "easy",
+            "private"
+          ],
           "blocked": "NIP-07 (iframe cannot access browser extensions)"
         },
         "claude_desktop": {
           "description": "Personal MCP runs locally via stdio in Claude Desktop/Goose",
-          "identity_modes": ["easy", "private", "sovereign"],
+          "identity_modes": [
+            "easy",
+            "private",
+            "sovereign"
+          ],
           "note": "Full NIP-07 support, hardware wallets via WebUSB"
         },
         "self_hosted": {
           "description": "User runs own Personal MCP server",
-          "identity_modes": ["easy", "private", "sovereign"],
+          "identity_modes": [
+            "easy",
+            "private",
+            "sovereign"
+          ],
           "note": "Maximum sovereignty, requires technical expertise"
         }
       },
       "subtasks": [
         "Personal MCP scaffold (apps/civicos-personal-mcp/)",
         "SigningProvider interface (sign, getPublicKey, hasKey)",
-        "PasskeyProvider: WebAuthn + PRF → HKDF → secp256k1 (Easy)",
+        "PasskeyProvider: WebAuthn + PRF \u2192 HKDF \u2192 secp256k1 (Easy)",
         "LocalWalletProvider: BIP-39 + PBKDF2 + AES-GCM (Private)",
         "NIP07Provider: detect window.nostr, delegate signing (Sovereign)",
         "HardwareWalletProvider: WebUSB/WebHID (Sovereign)",
         "ManualSigningProvider: display message, paste signature (Sovereign/Airgap)",
         "Provider selection based on instantiation pattern",
-        "Identity tier upgrade flow (Easy → Private → Sovereign)"
+        "Identity tier upgrade flow (Easy \u2192 Private \u2192 Sovereign)"
       ],
       "nip07_integration": [
         "Detect window.nostr object (only in Claude Desktop, NOT in MCP App iframe)",
@@ -3687,7 +3709,8 @@
         "Template delivery after commitment",
         "Completion flow (evidence \u2192 sign \u2192 broadcast)",
         "Attribution display after outcome"
-      ]
+      ],
+      "verification": "2026-02-02: Infrastructure complete - relay action models, Personal MCP signing tools, frontend types/API, ActionFlow.vue component. Needs integration testing and E2E test."
     },
     "notification_integration": {
       "status": "pending",
