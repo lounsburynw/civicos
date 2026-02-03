@@ -62,6 +62,18 @@ export {
   type PasskeyStorage,
 } from './passkey.js';
 
+// Context storage for personalization
+export {
+  LocalStorageContextStorage,
+  MemoryContextStorage,
+  createDefaultContext,
+  type ContextStorage,
+  type StoredUserContext,
+  type FollowingItem,
+  type FollowableEntityType,
+  type UserNeighborhood,
+} from './context-storage.js';
+
 // Future exports (not yet implemented):
 // export { NIP07Provider } from './nip07.js';
 // export { HardwareWalletProvider } from './hardware.js';

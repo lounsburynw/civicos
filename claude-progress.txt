@@ -17639,3 +17639,51 @@ All 96 tests pass (39 passkey + 49 signing + 8 http-transport)
 
 ### Next Session
 P0 set to `context_personalization_tools` - Personal MCP tools for civic context (neighborhood, interests, following).
+
+## Session 545 (2026-02-03) - Context Personalization Tools
+
+**Item:** `context_personalization_tools` (P0)
+**Status:** COMPLETE
+
+### What Was Done
+Implemented Personal MCP tools for storing user civic context - neighborhood, interests, and followed items.
+
+1. **ContextStorage Module** (`apps/civicos-personal-mcp/lib/providers/context-storage.ts`)
+   - `StoredUserContext` interface: version, jurisdiction, neighborhood, interests, following_items, timestamps
+   - `FollowingItem` type: entity_type (decision/meeting/issue/topic), entity_id, label, followed_at
+   - `UserNeighborhood` type: neighborhood name with optional lat/lng
+   - `ContextStorage` interface with save/load/delete/list methods
+   - `LocalStorageContextStorage`: Browser implementation using `civicos-context:{jurisdiction}` keys
+   - `MemoryContextStorage`: In-memory for testing
+
+2. **New MCP Tools** (5 tools added to `src/http-server.ts`)
+   - `set_neighborhood` - Store user's neighborhood with optional coordinates
+   - `set_interests` - Store normalized civic interest topics (lowercase, dedupe)
+   - `follow_item` - Track decisions, meetings, issues, topics with optional label
+   - `unfollow_item` - Remove tracked items
+   - `get_context` - Retrieve all personalization settings
+
+3. **Tests** (`tests/context-storage.spec.ts`)
+   - 22 tests covering storage operations and all 5 tools
+   - Tests for normalization, deduplication, update behavior
+   - Verifies isolation by jurisdiction
+
+### Files Changed
+- `apps/civicos-personal-mcp/lib/providers/context-storage.ts` - NEW
+- `apps/civicos-personal-mcp/lib/providers/index.ts` - Added exports
+- `apps/civicos-personal-mcp/src/http-server.ts` - Added 5 tools and handlers
+- `apps/civicos-personal-mcp/tests/context-storage.spec.ts` - NEW
+- `apps/civicos-personal-mcp/tests/http-transport.spec.ts` - Updated tool count 9→14
+- `pilot.json` - Updated context_personalization_tools to ready, added personalized_query_tools
+
+### Test Results
+All 118 tests pass (39 passkey + 49 signing + 8 http-transport + 22 context)
+
+### Tool Count
+Personal MCP now has 14 tools:
+- Identity: identity_status, identity_create, identity_import, identity_unlock, identity_lock
+- Signing: sign_voice, sign_commitment, sign_completion, sign_event
+- Context: set_neighborhood, set_interests, follow_item, unfollow_item, get_context
+
+### Next Session
+P0 set to `personalized_query_tools` - Tools that query Jurisdiction MCP with stored context for personalized results.
