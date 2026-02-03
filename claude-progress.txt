@@ -17209,3 +17209,82 @@ Implemented the context-aware agent that uses user context for personalized filt
 ### Next P0
 - `client_side_signing`: Client-side Nostr signing for user privacy
 
+
+## Session 537 (2026-02-02) - Client-Side Signing (Personal MCP)
+
+**Item:** `client_side_signing` (P0)
+**Status:** COMPLETE
+
+### What Was Done
+Created the Personal MCP scaffold with client-side Nostr signing for the "Private" identity tier:
+
+1. **Package Scaffold** (`apps/civicos-personal-mcp/`)
+   - TypeScript MCP server with @modelcontextprotocol/sdk
+   - @noble/curves for secp256k1 Schnorr (BIP-340)
+   - @scure/bip39 + @scure/bip32 for mnemonic/derivation
+   - Vitest for testing
+
+2. **SigningProvider Interface** (`lib/providers/types.ts`)
+   - `SigningProvider` interface: sign, getPublicKey, hasIdentity, unlock, lock
+   - `IdentityTier`: 'easy' | 'private' | 'sovereign'
+   - `NostrEvent`, `SignedNostrEvent`, `SigningResult` types
+   - Civic event helpers: `CivicEventKinds`, `createVoiceContent`, `createVoiceTags`
+
+3. **Nostr Crypto Utilities** (`lib/providers/crypto.ts`)
+   - Key generation: `generatePrivateKey`, `getPublicKey`
+   - Event signing: `signNostrEvent`, `verifyNostrEvent`
+   - Bech32 encoding: `publicKeyToNpub`, `npubToPublicKey`, `privateKeyToNsec`, `nsecToPrivateKey`
+   - Event ID computation per NIP-01
+
+4. **LocalWalletProvider** (`lib/providers/local-wallet.ts`)
+   - BIP-39 mnemonic generation (12 words)
+   - NIP-06 derivation path (m/44'/1237'/0'/0/0)
+   - PBKDF2-SHA256 (100k iterations) key derivation
+   - AES-256-GCM encryption for private key storage
+   - IndexedDB storage (browser) with MemoryStorage for testing
+   - Auto-lock timeout (5 minutes default)
+
+5. **IdentityManager** (`src/identity.ts`)
+   - Orchestrates signing providers
+   - createIdentity, importIdentity, unlock, lock, signEvent
+   - Future support for PasskeyProvider, NIP07Provider
+
+6. **PersonalMCPServer** (`src/server.ts`)
+   - MCP tools: identity_status, identity_create, identity_import
+   - MCP tools: identity_unlock, identity_lock
+   - MCP tools: sign_voice (civic events), sign_event (arbitrary)
+   - Stdio transport for Claude Desktop/local use
+
+7. **Test Suite** (`tests/signing.spec.ts`)
+   - 49 tests covering crypto utilities, LocalWalletProvider
+   - Key generation, bech32 encoding, event signing/verification
+   - Identity lifecycle, password security, civic voice signing
+
+### Security Model
+- Private key NEVER leaves device unencrypted
+- Password required to unlock (not stored)
+- 12-word BIP-39 mnemonic for recovery
+- PBKDF2 with 100k iterations for key stretching
+- AES-256-GCM with random salt/IV
+
+### Files Created
+- `apps/civicos-personal-mcp/package.json`
+- `apps/civicos-personal-mcp/tsconfig.json`
+- `apps/civicos-personal-mcp/vitest.config.ts`
+- `apps/civicos-personal-mcp/lib/providers/types.ts`
+- `apps/civicos-personal-mcp/lib/providers/crypto.ts`
+- `apps/civicos-personal-mcp/lib/providers/local-wallet.ts`
+- `apps/civicos-personal-mcp/lib/providers/index.ts`
+- `apps/civicos-personal-mcp/src/identity.ts`
+- `apps/civicos-personal-mcp/src/server.ts`
+- `apps/civicos-personal-mcp/src/index.ts`
+- `apps/civicos-personal-mcp/tests/signing.spec.ts`
+
+### Deferred to Future Work
+- PasskeyProvider (Easy tier) - WebAuthn + PRF
+- NIP07Provider (Sovereign tier) - window.nostr extension
+- HardwareWalletProvider - WebUSB/WebHID
+- ManualSigningProvider - airgap/paste signature
+
+### Next P0
+- `action_flow_integration`: End-to-end action flow connecting chat → signing → relay broadcast

@@ -14,8 +14,10 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+/lib/
 lib64/
+# Allow lib/ in app packages
+!apps/**/lib/
 parts/
 sdist/
 var/
@@ -124,3 +126,7 @@ data/vectors/
 packages/civic/data/
 data/uscode/
 city-san-rafael
+
+# Node.js
+node_modules/
+package-lock.json
