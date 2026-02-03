@@ -109,59 +109,70 @@ export class PersonalMCPServer {
       {
         name: 'identity_create',
         description:
-          'Create a new identity. For "private" tier, returns a 12-word recovery phrase that MUST be shown to the user for backup. The identity is automatically unlocked after creation.',
+          'Create a new identity. For "private" tier, returns a 12-word recovery phrase that MUST be shown to the user for backup. For "easy" tier, uses TouchID/FaceID via WebAuthn passkeys. The identity is automatically unlocked after creation.',
         inputSchema: {
           type: 'object',
           properties: {
             tier: {
               type: 'string',
-              enum: ['private'],
-              description: 'Identity tier. Currently only "private" is supported.',
+              enum: ['easy', 'private'],
+              description:
+                'Identity tier. "easy" uses TouchID/FaceID (lowest friction), "private" uses password + recovery phrase.',
             },
             password: {
               type: 'string',
-              description: 'Password to encrypt the identity (required for private tier)',
+              description: 'Password to encrypt the identity (required for private tier, ignored for easy)',
+            },
+            email: {
+              type: 'string',
+              description: 'Email address for identity recovery (required for easy tier, ignored for private)',
             },
           },
-          required: ['tier', 'password'],
+          required: ['tier'],
         },
       },
       {
         name: 'identity_import',
         description:
-          'Import an existing identity from a 12-word recovery phrase. The identity is automatically unlocked after import.',
+          'Import an existing identity. For "private" tier, requires 12-word recovery phrase. For "easy" tier, recovers via synced passkey + email. The identity is automatically unlocked after import.',
         inputSchema: {
           type: 'object',
           properties: {
             tier: {
               type: 'string',
-              enum: ['private'],
-              description: 'Identity tier. Currently only "private" is supported.',
+              enum: ['easy', 'private'],
+              description:
+                'Identity tier. "easy" recovers via synced passkey + email, "private" requires mnemonic.',
             },
             password: {
               type: 'string',
-              description: 'Password to encrypt the identity',
+              description: 'Password to encrypt the identity (required for private tier)',
+            },
+            email: {
+              type: 'string',
+              description: 'Email address used during creation (required for easy tier)',
             },
             mnemonic: {
               type: 'string',
-              description: '12-word recovery phrase',
+              description: '12-word recovery phrase (required for private tier)',
             },
           },
-          required: ['tier', 'password', 'mnemonic'],
+          required: ['tier'],
         },
       },
       {
         name: 'identity_unlock',
-        description: 'Unlock the identity with password. Required before signing.',
+        description:
+          'Unlock the identity. For "private" tier, requires password. For "easy" tier, triggers biometric auth (no password needed). Required before signing.',
         inputSchema: {
           type: 'object',
           properties: {
             password: {
               type: 'string',
-              description: 'Password to decrypt the identity',
+              description: 'Password to decrypt the identity (required for private tier, ignored for easy)',
             },
           },
-          required: ['password'],
+          required: [],
         },
       },
       {
@@ -301,18 +312,20 @@ export class PersonalMCPServer {
       case 'identity_create':
         return this.handleIdentityCreate(
           args.tier as IdentityTier,
-          args.password as string
+          args.password as string | undefined,
+          args.email as string | undefined
         );
 
       case 'identity_import':
         return this.handleIdentityImport(
           args.tier as IdentityTier,
-          args.password as string,
-          args.mnemonic as string
+          args.password as string | undefined,
+          args.mnemonic as string | undefined,
+          args.email as string | undefined
         );
 
       case 'identity_unlock':
-        return this.handleIdentityUnlock(args.password as string);
+        return this.handleIdentityUnlock(args.password as string | undefined);
 
       case 'identity_lock':
         return this.handleIdentityLock();
@@ -378,29 +391,67 @@ export class PersonalMCPServer {
 
   private async handleIdentityCreate(
     tier: IdentityTier,
-    password: string
+    password?: string,
+    email?: string
   ): Promise<unknown> {
-    const result = await this.identityManager.createIdentity(tier, password);
+    // Validate required parameters based on tier
+    if (tier === 'easy' && !email) {
+      throw new Error('Email is required for easy tier');
+    }
+    if (tier === 'private' && !password) {
+      throw new Error('Password is required for private tier');
+    }
 
-    return {
+    // Use email for easy tier, password for private tier
+    const passwordOrEmail = tier === 'easy' ? email! : password!;
+    const result = await this.identityManager.createIdentity(tier, passwordOrEmail);
+
+    const response: Record<string, unknown> = {
       success: true,
       identity: {
         tier: result.identity.tier,
         publicKey: result.identity.publicKey,
         npub: result.identity.npub,
       },
-      mnemonic: result.mnemonic,
-      warning:
-        'CRITICAL: Save this recovery phrase securely. It cannot be recovered if lost.',
     };
+
+    // Only include mnemonic for private tier
+    if (result.mnemonic) {
+      response.mnemonic = result.mnemonic;
+      response.warning =
+        'CRITICAL: Save this recovery phrase securely. It cannot be recovered if lost.';
+    }
+
+    // Advice for easy tier
+    if (tier === 'easy') {
+      response.note =
+        'Your identity is derived from your passkey. Same email + same passkey = same identity on any device.';
+    }
+
+    return response;
   }
 
   private async handleIdentityImport(
     tier: IdentityTier,
-    password: string,
-    mnemonic: string
+    password?: string,
+    mnemonic?: string,
+    email?: string
   ): Promise<unknown> {
-    const identity = await this.identityManager.importIdentity(tier, password, mnemonic);
+    // Validate required parameters based on tier
+    if (tier === 'easy' && !email) {
+      throw new Error('Email is required to recover easy tier identity');
+    }
+    if (tier === 'private' && (!password || !mnemonic)) {
+      throw new Error('Password and mnemonic are required for private tier');
+    }
+
+    // Use email for easy tier, password for private tier
+    const passwordOrEmail = tier === 'easy' ? email! : password!;
+    const identity = await this.identityManager.importIdentity(
+      tier,
+      passwordOrEmail,
+      mnemonic
+    );
 
     return {
       success: true,
@@ -412,14 +463,31 @@ export class PersonalMCPServer {
     };
   }
 
-  private async handleIdentityUnlock(password: string): Promise<unknown> {
-    const success = await this.identityManager.unlock(password);
-
-    if (success) {
-      return { success: true, message: 'Identity unlocked' };
-    } else {
-      return { success: false, error: 'Incorrect password' };
+  private async handleIdentityUnlock(password?: string): Promise<unknown> {
+    // Get current identity to check tier
+    const identity = await this.identityManager.getIdentity();
+    if (!identity) {
+      throw new Error('No identity found. Create or import one first.');
     }
+
+    // Easy tier doesn't need password (uses biometric)
+    if (identity.tier === 'easy') {
+      // For easy tier, unlock triggers WebAuthn prompt
+      const success = await this.identityManager.unlock(''); // Empty password, triggers passkey auth
+      return success
+        ? { success: true, message: 'Identity unlocked via passkey' }
+        : { success: false, error: 'Passkey authentication failed or was canceled' };
+    }
+
+    // Private tier requires password
+    if (!password) {
+      throw new Error('Password is required to unlock private tier identity');
+    }
+
+    const success = await this.identityManager.unlock(password);
+    return success
+      ? { success: true, message: 'Identity unlocked' }
+      : { success: false, error: 'Incorrect password' };
   }
 
   private handleIdentityLock(): unknown {
