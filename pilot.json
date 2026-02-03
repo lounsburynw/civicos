@@ -3722,7 +3722,7 @@
         "note": "Session 541: HTTP server implemented with Express. All tools work via JSON-RPC. Tests pass. Deployment deferred."
       },
       "openwebui_setup_guide": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "description": "Documentation for setting up Open WebUI with CivicOS MCP servers. Step-by-step guide for pilot users.",
         "artifact": "docs/user_guides/OPENWEBUI_SETUP.md",
