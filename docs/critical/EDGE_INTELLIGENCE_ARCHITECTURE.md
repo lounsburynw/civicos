@@ -249,6 +249,108 @@ User runs their own Personal MCP server.
 
 **Identity modes available:** All modes, plus custom integrations
 
+### Pattern 4: Jurisdiction-Hosted Open WebUI
+
+The municipality hosts an [Open WebUI](https://docs.openwebui.com/) instance for residents. This inverts the subscription model—city pays for infrastructure, citizens use for free.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    City-Hosted Open WebUI                                   │
+│                    (e.g., civic.sanrafael.gov)                              │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────────┐  │
+│   │  Authentication: City LDAP/SSO                                       │  │
+│   │  → Proves residency (account = verified resident)                   │  │
+│   │  → City signs attestation: "npub1abc is verified SR resident"       │  │
+│   └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────────┐  │
+│   │  LLM: Local Ollama                                                   │  │
+│   │  → Queries NEVER leave city infrastructure                          │  │
+│   │  → No Anthropic/OpenAI API calls                                    │  │
+│   └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────────┐  │
+│   │  Client-Side Identity (still in browser)                             │  │
+│   │  → Passkey/mnemonic-derived Nostr keys                              │  │
+│   │  → User signs civic actions (city CANNOT impersonate)               │  │
+│   └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│   MCP Connections:                                                          │
+│   → Own Jurisdiction MCP (san-rafael.civicosproject.org/mcp)              │
+│   → County Jurisdiction MCP (marin-county.civicosproject.org/mcp)         │
+│   → State Jurisdiction MCP (california.civicosproject.org/mcp)            │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Pros:**
+- Zero cost to citizens (no AI subscription required)
+- Query privacy (local LLM, no external API calls)
+- City attestation = sybil resistance + verified residency
+- Integrated with existing city identity (SSO with other city services)
+- Open WebUI has [native MCP support](https://docs.openwebui.com/features/mcp/)
+
+**Cons:**
+- City bears infrastructure cost (Ollama GPU, hosting)
+- LLM quality may be lower than Claude/GPT-4
+- Requires city IT capacity to operate
+- Creates per-jurisdiction silos (mitigated by federation)
+
+**Identity modes available:** 🟢 Easy, 🟡 Private (NIP-07 possible if not sandboxed)
+
+#### Cross-Jurisdictional Coordination
+
+City-hosted Open WebUI preserves cross-jurisdictional coordination:
+
+| Concern | How It Works |
+|---------|--------------|
+| **Querying other jurisdictions** | Open WebUI connects to ANY Jurisdiction MCP (city, county, state) |
+| **Voicing on other jurisdictions** | Relay accepts any valid Nostr signature |
+| **Attestation portability** | City attestation travels with npub across jurisdictions |
+| **Guest voices** | Allowed, displayed as "unverified" (vs "Verified SR resident") |
+
+**Attestation display example:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  🚴 Protected Bike Lane on 4th Street (San Rafael)             │
+│                                                                 │
+│  Support: 47                                                    │
+│    ├── 38 Verified San Rafael residents                        │
+│    ├── 6 Verified Marin County residents (other cities)        │
+│    └── 3 Unverified                                             │
+│                                                                 │
+│  [Your attestation: Verified San Rafael resident]              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Hierarchical Attestation
+
+For county/state issues, attestations aggregate:
+
+```
+City attests → "npub1abc is verified San Rafael resident"
+                              │
+                              ▼
+County verifies → "npub1abc is attested by a city in Marin County"
+                              │
+                              ▼
+State verifies → "npub1abc is attested by a county in California"
+```
+
+This enables trust signals at every level without re-verification.
+
+#### Recommended for Pilot
+
+Pattern 4 is **recommended for the San Rafael pilot** because:
+1. Removes subscription barrier (biggest friction point)
+2. City attestation solves proof-of-residency
+3. San Rafael is a trusted jurisdiction (rule of law context)
+4. Query privacy with local LLM
+5. Can still federate with other jurisdictions
+
+For authoritarian contexts, Pattern 2 (Claude Desktop) or Pattern 3 (Self-hosted) remain necessary.
+
 ### Instantiation ↔ Identity Constraints
 
 The instantiation method constrains available identity modes:
@@ -258,10 +360,11 @@ The instantiation method constrains available identity modes:
 | **MCP App** (iframe) | ✅ | ✅ | ❌ | ⚠️ Limited | ✅ |
 | **Claude Desktop** (local) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Self-hosted** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Jurisdiction Open WebUI** | ✅ | ✅ | ⚠️ Depends | ⚠️ Depends | ✅ |
 
-**Why NIP-07 requires local install:** Browser extensions inject `window.nostr` into pages, but MCP Apps run in sandboxed iframes that cannot access the parent window's extensions.
+**Why NIP-07 requires local install:** Browser extensions inject `window.nostr` into pages, but MCP Apps run in sandboxed iframes that cannot access the parent window's extensions. Jurisdiction-hosted Open WebUI may or may not sandbox the interface.
 
-**Implication for authoritarian contexts:** Users who need state-actor resistance should use Claude Desktop (local) or self-hosted patterns to access Sovereign identity modes. The MCP App pattern (zero install) trades some security for convenience.
+**Implication for authoritarian contexts:** Users who need state-actor resistance should use Claude Desktop (local) or self-hosted patterns to access Sovereign identity modes. The MCP App pattern (zero install) trades some security for convenience. Jurisdiction-hosted Open WebUI is appropriate for trusted jurisdictions operating under rule of law.
 
 ## Tiered Identity System
 
@@ -809,10 +912,12 @@ civicos:initiative:v1:{initiative_id}:{topic}:{title_hash}:{iso8601_timestamp}
 ## References
 
 - [MCP Apps Specification](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx)
+- [Open WebUI Documentation](https://docs.openwebui.com/) - Self-hosted AI platform with MCP support
+- [Open WebUI MCP Integration](https://docs.openwebui.com/features/mcp/) - Native MCP support in Open WebUI
 - [WebAuthn PRF Extension](https://w3c.github.io/webauthn/#prf-extension)
 - [BIP-39: Mnemonic code for generating deterministic keys](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
 - [BIP-340: Schnorr Signatures](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki)
 - [NIP-06: Basic key derivation from mnemonic seed phrase](https://github.com/nostr-protocol/nips/blob/master/06.md)
 - [NIP-07: window.nostr capability for web browsers](https://github.com/nostr-protocol/nips/blob/master/07.md)
 - [COORDINATION_PROTOCOL.md](./COORDINATION_PROTOCOL.md) - Relay protocol details
-- [MCP_INTEGRATION_STRATEGY.md](./MCP_INTEGRATION_STRATEGY.md) - MCP server architecture
+- [MCP_INTEGRATION_STRATEGY.md](./MCP_INTEGRATION_STRATEGY.md) - Jurisdiction MCP server architecture
