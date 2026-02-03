@@ -17930,3 +17930,45 @@ Federal and California MCP servers were failing:
 - `mcp_registry_listing` → P2 (deferred, depends on internal registry)
 
 **Key insight:** URL scheme `{jurisdiction}.civicosproject.org/mcp` already establishes namespace - registry formalizes this into queryable service.
+
+## Session 546 (2026-02-03)
+
+### Completed: Internal MCP Registry (P0)
+
+Built internal MCP registry service for CivicOS platform discovery, health aggregation, and capability introspection.
+
+**New Endpoints:**
+- `GET /api/mcp/internal/servers` - List all CivicOS MCP servers from jurisdiction configs
+- `GET /api/mcp/internal/servers/{jurisdiction_id}` - Server details with live health check
+- `GET /api/mcp/internal/health` - Aggregated health across all servers (parallel checks)
+- `GET /api/mcp/internal/tools` - All tools with jurisdiction mapping (deduplicated)
+
+**Implementation:**
+- Extended `packages/civicos-services/src/civicos_services/servers/routers/registry.py`
+- Uses `civicos.jurisdiction_config.get_active_jurisdictions()` as source of truth
+- URL scheme: `{jurisdiction-slug}.civicosproject.org/mcp` (e.g., `san-rafael`, `california`, `federal`)
+- 10s timeout for health checks (handles Modal cold starts)
+- Parallel async health checks via `asyncio.gather()`
+
+**Tests:** 8 tests added in `packages/civicos-services/tests/test_internal_registry.py`
+
+**Servers Discovered:**
+- `country-united-states` → https://federal.civicosproject.org/mcp
+- `state-california` → https://california.civicosproject.org/mcp
+- `city-berkeley` → https://berkeley.civicosproject.org/mcp
+- `city-san-rafael` → https://san-rafael.civicosproject.org/mcp
+
+**Why Internal First:**
+- Unblocks UX development against stable interface
+- Establishes federation patterns before public submission
+- Provides health aggregation for monitoring
+- Makes public registry submission a simple export step later
+
+### Next Session
+
+No P0/P1 items remain. Suggested P0 candidates:
+- `manual_input_fallback_schema` (P2) - Financial data infrastructure
+- `srcs_decision_extraction` (P2) - School district data
+- `case_law_ingestion` (P2) - Federal case law
+
+Pilot phase at 93% completion (442/471 items ready).
