@@ -17594,3 +17594,48 @@ Key technical details:
 
 ### Next Session
 Set P0 for next priority item in openwebui_pilot track.
+
+## Session 544 (2026-02-03) - Easy Mode Passkey Provider
+
+**Item:** `easy_mode_passkey` (P0)
+**Status:** COMPLETE
+
+### What Was Done
+Implemented PasskeyProvider for "Easy mode" identity - WebAuthn PRF-based Nostr keypair derivation with TouchID/FaceID.
+
+1. **PasskeyProvider** (`apps/civicos-personal-mcp/lib/providers/passkey.ts`)
+   - WebAuthn credential creation with PRF extension
+   - PRF output + email → HKDF → secp256k1 private key
+   - TouchID/FaceID unlock flow (biometric, no password)
+   - Browser support detection (Chrome 116+, Safari 17+)
+   - Deterministic key derivation: same email + passkey = same keypair across devices
+
+2. **Key Architecture**
+   - Email serves as salt for PRF (must be remembered for recovery)
+   - Private key derived on-demand, never stored
+   - Passkeys sync via iCloud/Google (cloud recovery)
+   - 5-minute auto-lock timeout
+
+3. **Integration**
+   - Updated `lib/providers/index.ts` with PasskeyProvider exports
+   - Updated `src/identity.ts` to register Easy mode provider
+   - IdentityManager now supports both 'easy' and 'private' tiers
+
+4. **Tests** (`tests/passkey-provider.spec.ts`)
+   - 39 tests with mocked WebAuthn APIs
+   - Covers creation, import/recovery, lock/unlock, signing
+   - Verifies deterministic key derivation
+   - Browser support detection tests
+
+### Files Changed
+- `apps/civicos-personal-mcp/lib/providers/passkey.ts` - New PasskeyProvider
+- `apps/civicos-personal-mcp/lib/providers/index.ts` - Added exports
+- `apps/civicos-personal-mcp/src/identity.ts` - Registered Easy mode
+- `apps/civicos-personal-mcp/tests/passkey-provider.spec.ts` - New tests
+- `pilot.json` - Updated easy_mode_passkey to ready
+
+### Test Results
+All 96 tests pass (39 passkey + 49 signing + 8 http-transport)
+
+### Next Session
+P0 set to `context_personalization_tools` - Personal MCP tools for civic context (neighborhood, interests, following).

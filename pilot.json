@@ -3723,7 +3723,7 @@
       },
       "openwebui_setup_guide": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Documentation for setting up Open WebUI with CivicOS MCP servers. Step-by-step guide for pilot users.",
         "artifact": "docs/user_guides/OPENWEBUI_SETUP.md",
         "subtasks": [
@@ -3736,8 +3736,8 @@
         "note": "P0: Users need documentation to try the MCP-native experience."
       },
       "easy_mode_passkey": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "description": "Implement PasskeyProvider for Easy mode identity. WebAuthn + PRF extension derives Nostr keypair. Lowest friction for normal users.",
         "test_file": "apps/civicos-personal-mcp/tests/passkey-provider.spec.ts",
         "artifact": "apps/civicos-personal-mcp/lib/providers/passkey-provider.ts",
@@ -3751,7 +3751,7 @@
       },
       "context_personalization_tools": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Personal MCP tools that query Jurisdiction MCP and apply user context for personalized results.",
         "test_file": "apps/civicos-personal-mcp/tests/context-tools.spec.ts",
         "subtasks": [
