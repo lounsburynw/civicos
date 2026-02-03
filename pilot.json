@@ -2615,7 +2615,7 @@
       },
       "mcp_registry_listing": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Civic MCP server listed on MCP Registry and community directories",
         "description": "Register civicos-mcp on official MCP Registry and community directories (MCP.so, MCPServers.org) for discoverability.",
         "note": "Session 529: MCP Registry launched Sept 2025, progressing toward GA. Community directories have 17k+ servers. Registration increases discoverability for civic-minded developers.",
@@ -3766,7 +3766,7 @@
       },
       "personalized_query_tools": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Personal MCP tools that query Jurisdiction MCP and apply stored context for personalized results.",
         "test_file": "apps/civicos-personal-mcp/tests/personalized-queries.spec.ts",
         "subtasks": [
