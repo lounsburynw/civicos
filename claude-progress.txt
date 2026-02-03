@@ -17745,3 +17745,44 @@ Started refactoring MCP server for jurisdiction-specific deployments before MCP 
 - `apps/civicos-mcp/jurisdictions/*.yaml` - San Rafael, California, Federal configs
 
 **Next Session:** Test imports, update modal_app.py, complete MCP registry listing.
+
+### Session 547 - MCP Registry Listing
+
+**Date:** 2026-02-03
+
+#### Completed Work
+
+1. **Completed Jurisdiction Refactoring (from Session 546)**
+   - Updated `modal_app.py` with config-driven handlers and tool filtering by level
+   - Verified handler imports work: `load_jurisdiction_config('city-san-rafael')` returns config
+   - City level: 38 tools, Federal level: 3 tools
+
+2. **Created MCP Registry Metadata**
+   - `apps/civicos-mcp/server.json` - Comprehensive server metadata for registry submissions
+   - Includes: description, tools list, example queries, data sources, transport info
+
+3. **Documented Submission Process**
+   - `apps/civicos-mcp/docs/MCP_REGISTRY_SUBMISSIONS.md` - Submission guide for all directories:
+     - MCP.so: GitHub issue at chatmcp/mcp-directory#1
+     - MCPServers.org: Web form at /submit
+     - Official MCP Registry: Requires namespace verification
+
+#### MCP Server Status
+- Health endpoint: https://san-rafael.civicosproject.org/health
+- Status: Healthy with 30 tools
+- Platform: Modal (serverless)
+
+#### Files Changed
+- `apps/civicos-mcp/modal_app.py` - Added jurisdiction config support
+- `apps/civicos-mcp/server.json` - NEW: Registry metadata
+- `apps/civicos-mcp/docs/MCP_REGISTRY_SUBMISSIONS.md` - NEW: Submission guide
+
+#### Remaining for MCP Registry Listing
+The metadata is prepared. Manual submissions needed:
+1. **MCP.so** - Post to https://github.com/chatmcp/mcp-directory/issues/1
+2. **MCPServers.org** - Fill form at https://mcpservers.org/submit
+3. **Official Registry** - Need to verify civicosproject.org domain ownership
+
+#### Commit
+`96b8d3a` - feat(mcp): Complete jurisdiction refactoring and add registry metadata
+
