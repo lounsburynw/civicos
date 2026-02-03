@@ -14,7 +14,9 @@ with the appropriate context (civic client, validator, logger).
 
 from datetime import datetime, timedelta
 from collections import Counter
-from typing import Any, Callable
+from typing import Any, Callable, Optional
+import math
+import os
 import random
 
 
@@ -22,6 +24,68 @@ import random
 CivicClient = Any
 ValidateInput = Callable[[dict], tuple[bool, dict, str | None]]
 Logger = Any
+
+
+# ─────────── Geocoding Utilities ───────────
+
+
+def _haversine_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """
+    Calculate the great-circle distance between two points in meters.
+
+    Uses the Haversine formula for accuracy at small distances.
+    """
+    R = 6371000  # Earth's radius in meters
+
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lng2 - lng1)
+
+    a = (math.sin(delta_phi / 2) ** 2 +
+         math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    return R * c
+
+
+def _geocode_address(address: str, logger: Logger) -> Optional[tuple[float, float]]:
+    """
+    Geocode an address to lat/lng using Google Maps API.
+
+    Returns (lat, lng) tuple or None if geocoding fails or API key not configured.
+    """
+    # Check both env var names for compatibility
+    api_key = os.getenv("GOOGLE_MAPS_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        logger.debug("GOOGLE_MAPS_API_KEY/GOOGLE_API_KEY not set, falling back to text matching")
+        return None
+
+    try:
+        import httpx
+
+        params = {
+            "address": address,
+            "key": api_key,
+        }
+        response = httpx.get(
+            "https://maps.googleapis.com/maps/api/geocode/json",
+            params=params,
+            timeout=5.0,
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        if data["status"] == "OK" and data.get("results"):
+            location = data["results"][0]["geometry"]["location"]
+            return (location["lat"], location["lng"])
+
+        logger.warning(f"Geocoding failed: {data.get('status')}")
+        return None
+
+    except Exception as e:
+        logger.warning(f"Geocoding error: {e}")
+        return None
 
 
 # ─────────── Core Civic Tools ───────────
@@ -900,29 +964,63 @@ def find_issues_near_address(
     logger: Logger,
     args: dict,
 ) -> str:
-    """Find 311 issues near a specific address."""
+    """Find 311 issues near a specific address using geocoding."""
     address = args.get("address", "")
     issue_type = args.get("issue_type")
+    radius_blocks = args.get("radius_blocks", 2)
 
     is_valid, sanitized, error = validate_input({"address": address})
     if not is_valid:
         return f"Error: Invalid input - {error}"
+
+    # Convert blocks to meters (approx 100m per city block)
+    radius_meters = radius_blocks * 100
 
     try:
         issues = civic._storage.get_issues(
             jurisdiction_id=jurisdiction, limit=2000
         )
 
-        # Filter by address proximity (simple string match)
-        address_lower = address.lower()
-        address_parts = address_lower.split()
+        # Try geocoding first
+        coords = _geocode_address(address, logger)
+        use_geocoding = coords is not None
 
-        matched = []
-        for i in issues:
-            issue_addr = (i.get('address', '') or '').lower()
-            # Match if any part of search address appears in issue address
-            if any(part in issue_addr for part in address_parts if len(part) > 2):
-                matched.append(i)
+        if use_geocoding:
+            target_lat, target_lng = coords
+            logger.info(f"Geocoded '{address}' to ({target_lat:.4f}, {target_lng:.4f})")
+
+            # Find issues within radius using haversine distance
+            matched = []
+            for i in issues:
+                issue_lat = i.get("latitude")
+                issue_lng = i.get("longitude")
+
+                if issue_lat is not None and issue_lng is not None:
+                    distance = _haversine_distance(
+                        target_lat, target_lng,
+                        float(issue_lat), float(issue_lng)
+                    )
+                    if distance <= radius_meters:
+                        i["_distance_m"] = round(distance)
+                        matched.append(i)
+
+            # Sort by distance
+            matched.sort(key=lambda x: x.get("_distance_m", 0))
+            search_method = f"geocoded ({radius_blocks} block radius)"
+
+        else:
+            # Fallback to text matching
+            address_lower = address.lower()
+            address_parts = address_lower.split()
+
+            matched = []
+            for i in issues:
+                issue_addr = (i.get('address', '') or '').lower()
+                # Match if any part of search address appears in issue address
+                if any(part in issue_addr for part in address_parts if len(part) > 2):
+                    matched.append(i)
+
+            search_method = "text match (geocoding unavailable)"
 
         # Filter by type if specified
         if issue_type:
@@ -932,14 +1030,28 @@ def find_issues_near_address(
         result_parts = [
             f"# Issues Near: {address}",
             f"**Found:** {len(matched)} issues",
+            f"**Method:** {search_method}",
             "",
         ]
 
         for i in matched[:30]:
-            result_parts.append(f"- **{i.get('issue_type', 'Issue')}**: {i.get('address', 'Unknown')}")
+            distance_str = ""
+            if use_geocoding and "_distance_m" in i:
+                distance_str = f" ({i['_distance_m']}m away)"
+
+            result_parts.append(
+                f"- **{i.get('issue_type', 'Issue')}**: {i.get('address', 'Unknown')}{distance_str}"
+            )
             desc = (i.get('description') or '')[:100]
             if desc:
                 result_parts.append(f"  > {desc}...")
+
+        if not matched:
+            if use_geocoding:
+                result_parts.append(f"No issues found within {radius_blocks} blocks of this address.")
+                result_parts.append("Try increasing radius_blocks or searching a nearby intersection.")
+            else:
+                result_parts.append("No issues matched this address text.")
 
         return "\n".join(result_parts)
 
