@@ -2613,20 +2613,44 @@
         },
         "ip_protection": "Exposes tool names/schemas/responses only. Implementation code stays in private repo. Deploy from private GitHub repo or local build."
       },
-      "mcp_registry_listing": {
+      "mcp_jurisdiction_validation": {
         "status": "not_ready",
         "priority": 0,
+        "artifact": "Scoped MCP servers deployed and validated for each jurisdiction level",
+        "description": "Deploy and validate jurisdiction-scoped MCP servers (federal, california, san-rafael) with proper tool filtering, data verification, and ingestion testing before registry submission.",
+        "note": "Session 547: Architecture complete (loader.py, config files, modal_app.py updated). Need to deploy, verify data exists at each level, test tool relevance, and confirm ingestion pipelines.",
+        "subtasks": [
+          "Verify data inventory at each level (federal, state, city)",
+          "Deploy scoped MCP servers to Modal",
+          "Test federal tools (get_federal_expenditures, get_funding_flow, search_regulatory_stack)",
+          "Test state tools (get_intergovernmental_revenue, search_regulatory_stack)",
+          "Test city tools (all 30+ tools with San Rafael data)",
+          "Verify ingestion pipelines work for each level",
+          "Document deployment architecture"
+        ],
+        "depends_on": [
+          "remote_mcp_deployment"
+        ],
+        "files": [
+          "apps/civicos-mcp/handlers/loader.py",
+          "apps/civicos-mcp/jurisdictions/*.yaml",
+          "apps/civicos-mcp/modal_app.py"
+        ]
+      },
+      "mcp_registry_listing": {
+        "status": "not_ready",
+        "priority": 2,
         "artifact": "Civic MCP server listed on MCP Registry and community directories",
         "description": "Register civicos-mcp on official MCP Registry and community directories (MCP.so, MCPServers.org) for discoverability.",
-        "note": "Session 529: MCP Registry launched Sept 2025, progressing toward GA. Community directories have 17k+ servers. Registration increases discoverability for civic-minded developers.",
+        "note": "Session 547: Metadata prepared (server.json, MCP_REGISTRY_SUBMISSIONS.md). Deferred until mcp_jurisdiction_validation complete - need to validate scoped servers before public listing.",
         "subtasks": [
-          "Prepare server metadata for registry submission",
+          "[DONE] Prepare server metadata for registry submission",
           "Submit to official MCP Registry (registry.modelcontextprotocol.io)",
           "Submit to MCP.so",
           "Submit to MCPServers.org"
         ],
         "depends_on": [
-          "remote_mcp_deployment"
+          "mcp_jurisdiction_validation"
         ]
       },
       "mcp_source_citations": {
