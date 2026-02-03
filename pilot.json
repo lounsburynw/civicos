@@ -1,7 +1,7 @@
 {
   "version": "2.0",
   "phase": "pilot",
-  "last_updated": "2026-02-02",
+  "last_updated": "2026-02-03",
   "target": "January 2026",
   "summary": "Consolidated pilot checklist: completed work summarized, active items tracked individually",
   "category_order": [
@@ -3695,13 +3695,13 @@
       "verification": "2026-02-02: ContextAgent class with parse_filtering_instructions(), apply_filtering_logic(), add_location_context(), generate_personalization_reasoning(). 40 unit tests passing. Integrated into civic_chat_router.route_message() with system prompt injection and response enhancement."
     },
     "client_side_signing": {
-      "status": "ready",
+      "status": "complete",
       "priority": 2,
       "description": "Client-side Nostr signing via Personal MCP. User's key NEVER leaves their device. Tiered identity system: Easy (passkey), Private (mnemonic+password), Sovereign (NIP-07/hardware). See EDGE_INTELLIGENCE_ARCHITECTURE.md for full design.",
       "test_file": "apps/civicos-personal-mcp/tests/signing.spec.ts",
       "artifact": "apps/civicos-personal-mcp/lib/providers/",
       "_doc": "Signing lives in Personal MCP, not civicos-workspace. Web frontend imports from Personal MCP or embeds as web component.",
-      "verification": "2026-02-02: Personal MCP scaffold complete. LocalWalletProvider (Private tier) implemented with BIP-39 mnemonic + PBKDF2 + AES-256-GCM encryption. Nostr crypto utilities (secp256k1 Schnorr, bech32 npub/nsec). MCP server with identity_create/import/unlock/lock and sign_voice/sign_event tools. 49 tests passing. Easy (PasskeyProvider) and Sovereign (NIP07Provider) tiers deferred to future work.",
+      "verification": "2026-02-03: COMPLETE for pilot. Easy tier (PasskeyProvider): WebAuthn + PRF extension for TouchID/FaceID identity. Private tier (LocalWalletProvider): BIP-39 + PBKDF2 + AES-256-GCM. Both tiers exposed in MCP server tools (identity_create/import/unlock with tier parameter). 132 tests passing across 5 test files. Sovereign tier (NIP-07/hardware) intentionally deferred - blocked in MCP App iframe sandbox. Core promise achieved: user keys NEVER leave device.",
       "identity_tiers": {
         "easy": {
           "description": "WebAuthn passkey with PRF extension derives Nostr keypair",
