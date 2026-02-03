@@ -3707,8 +3707,8 @@
       "description": "Open WebUI integration for San Rafael pilot. PRIMARY surface for civic participation via AI. Pattern 4 from EDGE_INTELLIGENCE_ARCHITECTURE.md.",
       "_doc": "This is the recommended instantiation for pilot: Users access via Open WebUI (self-hosted or city-hosted), LLM queries Personal MCP which queries Jurisdiction MCP. See EDGE_INTELLIGENCE_ARCHITECTURE.md for full design.",
       "personal_mcp_http": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "description": "Add HTTP transport to Personal MCP server for Open WebUI integration. Currently only stdio (Claude Desktop). Need SSE/HTTP for browser-based access.",
         "test_file": "apps/civicos-personal-mcp/tests/http-transport.spec.ts",
         "artifact": "apps/civicos-personal-mcp/src/http-server.ts",
@@ -3719,7 +3719,7 @@
           "Health check endpoint",
           "Deploy to Modal or Fly.io"
         ],
-        "note": "P0: This unblocks Open WebUI integration. Without HTTP transport, Personal MCP only works with Claude Desktop."
+        "note": "Session 541: HTTP server implemented with Express. All tools work via JSON-RPC. Tests pass. Deployment deferred."
       },
       "openwebui_setup_guide": {
         "status": "not_ready",
