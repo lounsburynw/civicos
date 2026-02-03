@@ -3595,12 +3595,13 @@
       "verification": "2026-02-02: ContextAgent class with parse_filtering_instructions(), apply_filtering_logic(), add_location_context(), generate_personalization_reasoning(). 40 unit tests passing. Integrated into civic_chat_router.route_message() with system prompt injection and response enhancement."
     },
     "client_side_signing": {
-      "status": "not_ready",
-      "priority": 0,
+      "status": "ready",
+      "priority": 2,
       "description": "Client-side Nostr signing via Personal MCP. User's key NEVER leaves their device. Tiered identity system: Easy (passkey), Private (mnemonic+password), Sovereign (NIP-07/hardware). See EDGE_INTELLIGENCE_ARCHITECTURE.md for full design.",
       "test_file": "apps/civicos-personal-mcp/tests/signing.spec.ts",
       "artifact": "apps/civicos-personal-mcp/lib/providers/",
       "_doc": "Signing lives in Personal MCP, not civicos-workspace. Web frontend imports from Personal MCP or embeds as web component.",
+      "verification": "2026-02-02: Personal MCP scaffold complete. LocalWalletProvider (Private tier) implemented with BIP-39 mnemonic + PBKDF2 + AES-256-GCM encryption. Nostr crypto utilities (secp256k1 Schnorr, bech32 npub/nsec). MCP server with identity_create/import/unlock/lock and sign_voice/sign_event tools. 49 tests passing. Easy (PasskeyProvider) and Sovereign (NIP07Provider) tiers deferred to future work.",
       "identity_tiers": {
         "easy": {
           "description": "WebAuthn passkey with PRF extension derives Nostr keypair",
@@ -3663,8 +3664,8 @@
       ]
     },
     "action_flow_integration": {
-      "status": "pending",
-      "priority": 1,
+      "status": "not_ready",
+      "priority": 0,
       "description": "End-to-end action flow: Agent discovers actions \u2192 prepares unsigned commitment/completion events \u2192 client signs \u2192 broadcast to relay. This is the core Edge Intelligence capability that transforms intent into civic action.",
       "test_file": "apps/civicos-workspace/tests/e2e/action-flow.spec.ts",
       "flow": [
