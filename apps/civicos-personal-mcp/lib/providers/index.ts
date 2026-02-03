@@ -19,7 +19,15 @@ export type {
   SigningProvider,
 } from './types.js';
 
-export { CivicEventKinds, createVoiceContent, createVoiceTags } from './types.js';
+export {
+  CivicEventKinds,
+  createVoiceContent,
+  createVoiceTags,
+  createCommitmentContent,
+  createCommitmentTags,
+  createCompletionContent,
+  createCompletionTags,
+} from './types.js';
 
 // Crypto utilities
 export {
