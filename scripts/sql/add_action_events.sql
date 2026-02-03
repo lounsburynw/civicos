@@ -6,6 +6,36 @@
 -- Run this migration on the coordination database (RELAY_DATABASE_URL)
 
 -- ============================================================================
+-- Simple Action Table (for Action model - older API)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS coordination_actions (
+    action_id TEXT NOT NULL,                       -- Action identifier
+    action_type TEXT NOT NULL,                     -- 'commitment' or 'completion'
+    public_key TEXT NOT NULL,                      -- User's public key (hex)
+    signature TEXT NOT NULL,                       -- Signature of action (hex)
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    evidence_url TEXT,                             -- URL to evidence (for completions)
+    revoked BOOLEAN NOT NULL DEFAULT FALSE,
+
+    -- One action per user per action_id per type
+    PRIMARY KEY (public_key, action_id, action_type),
+
+    CONSTRAINT valid_simple_action_type CHECK (
+        action_type IN ('commitment', 'completion')
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_actions_action_id
+    ON coordination_actions(action_id);
+CREATE INDEX IF NOT EXISTS idx_actions_public_key
+    ON coordination_actions(public_key);
+CREATE INDEX IF NOT EXISTS idx_actions_type
+    ON coordination_actions(action_type);
+CREATE INDEX IF NOT EXISTS idx_actions_timestamp
+    ON coordination_actions(timestamp);
+
+-- ============================================================================
 -- Kind 30810: CivicActionEvent
 -- ============================================================================
 
@@ -106,11 +136,16 @@ CREATE INDEX IF NOT EXISTS idx_completions_timestamp
 -- Enable RLS (Row Level Security) for these tables
 -- ============================================================================
 
+ALTER TABLE coordination_actions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE coordination_action_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE coordination_commitments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE coordination_completions ENABLE ROW LEVEL SECURITY;
 
 -- Allow service_role full access
+CREATE POLICY "Service role has full access to actions"
+    ON coordination_actions FOR ALL
+    USING (auth.role() = 'service_role');
+
 CREATE POLICY "Service role has full access to action_events"
     ON coordination_action_events FOR ALL
     USING (auth.role() = 'service_role');

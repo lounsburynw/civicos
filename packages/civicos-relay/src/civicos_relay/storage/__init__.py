@@ -7,6 +7,10 @@ from civicos_relay.storage.postgres import (
     PostgresInitiativeStorage,
     PostgresSyncStorage,
     PostgresEventStorage,
+    PostgresActionStorage,
+    PostgresCivicActionEventStorage,
+    PostgresCivicCommitmentStorage,
+    PostgresCivicCompletionStorage,
 )
 from civicos_relay.storage.memory import (
     InMemoryStorage,
@@ -17,6 +21,9 @@ from civicos_relay.storage.memory import (
     InMemoryEventStorage,
     InMemorySyncStorage,
     InMemoryActionStorage,
+    InMemoryCivicActionEventStorage,
+    InMemoryCivicCommitmentStorage,
+    InMemoryCivicCompletionStorage,
 )
 
 __all__ = [
@@ -27,6 +34,10 @@ __all__ = [
     "PostgresInitiativeStorage",
     "PostgresSyncStorage",
     "PostgresEventStorage",
+    "PostgresActionStorage",
+    "PostgresCivicActionEventStorage",
+    "PostgresCivicCommitmentStorage",
+    "PostgresCivicCompletionStorage",
     # In-memory (testing)
     "InMemoryStorage",
     "InMemoryVoiceStorage",
@@ -36,4 +47,7 @@ __all__ = [
     "InMemoryEventStorage",
     "InMemorySyncStorage",
     "InMemoryActionStorage",
+    "InMemoryCivicActionEventStorage",
+    "InMemoryCivicCommitmentStorage",
+    "InMemoryCivicCompletionStorage",
 ]

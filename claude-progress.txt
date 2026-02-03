@@ -17342,3 +17342,45 @@ Session 538 built the action infrastructure (models, services, API). This sessio
 - `apps/civicos-workspace/tests/e2e/action-flow.spec.ts` - New E2E tests
 - `apps/civicos-workspace/vite.config.ts` - Added test config
 - `pilot.json` - Updated 6 items to ready
+
+## Session 539 - PostgreSQL Action Storage Implementation
+
+### Context
+Session 538 completed action flow infrastructure using in-memory storage. This session adds PostgreSQL persistence for production use.
+
+### What Was Done
+Implemented PostgreSQL storage for all action models:
+
+1. **PostgresActionStorage** - Simple actions (commitment/completion) for older API
+2. **PostgresCivicActionEventStorage** - Civic action events (Kind 30810)
+3. **PostgresCivicCommitmentStorage** - Civic commitments (Kind 30811)
+4. **PostgresCivicCompletionStorage** - Civic completions (Kind 30812)
+
+### Files Modified
+
+- `packages/civicos-relay/src/civicos_relay/storage/postgres.py` - Added 4 PostgreSQL storage classes
+- `packages/civicos-relay/src/civicos_relay/storage/__init__.py` - Exported new classes
+- `packages/civicos-services/src/civicos_services/servers/routers/coordination.py` - Updated to use PostgreSQL when RELAY_DATABASE_URL is set
+- `scripts/sql/add_action_events.sql` - Added coordination_actions table and RLS policies
+
+### Tables Created (Migration)
+
+- `coordination_actions` - Simple actions (PK: public_key, action_id, action_type)
+- `coordination_action_events` - Civic action events (PK: id)
+- `coordination_commitments` - User commitments (PK: id, unique: public_key+action_ref)
+- `coordination_completions` - User completions (PK: id, unique: public_key+action_ref)
+
+### Architecture
+
+When `RELAY_DATABASE_URL` is set:
+- coordination.py uses `PostgresActionStorage` and `PostgresCivic*Storage`
+- Data persists to Supabase PostgreSQL
+
+When not set (testing):
+- Falls back to `InMemory*Storage` for unit tests
+
+### Next Steps
+
+- Run SQL migration on Supabase (RELAY_DATABASE_URL)
+- Test E2E action flow with PostgreSQL backend
+- Add pilot.json item for PostgresActionStorage if needed
