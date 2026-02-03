@@ -3438,10 +3438,34 @@
   },
   "edge_intelligence": {
     "description": "Personal MCP - user's edge agent for personalized civic participation. Queries Jurisdiction MCP, applies user context, handles identity/signing.",
-    "_doc": "Two-MCP architecture: Jurisdiction MCP (read-only civic data) + Personal MCP (user context, identity, personalization). Personal MCP can run as MCP App (iframe), Claude Desktop (local), or self-hosted. See EDGE_INTELLIGENCE_ARCHITECTURE.md for full design.",
+    "_doc": "Two-MCP architecture: Jurisdiction MCP (read-only civic data) + Personal MCP (user context, identity, personalization). For San Rafael pilot, RECOMMENDED instantiation is Pattern 4: Jurisdiction-Hosted Open WebUI. See EDGE_INTELLIGENCE_ARCHITECTURE.md for full design.",
     "architecture": {
       "jurisdiction_mcp": "apps/civicos-mcp/ - Read-only public civic data, deployed per-jurisdiction",
       "personal_mcp": "apps/civicos-personal-mcp/ - User's edge agent, handles context/identity/signing"
+    },
+    "instantiation_patterns": {
+      "_doc": "Four patterns for running Personal MCP. Pattern 4 recommended for San Rafael pilot.",
+      "pattern_1_mcp_app": "Zero install - runs in Claude.ai/ChatGPT iframe. Easy/Private identity only.",
+      "pattern_2_claude_desktop": "Local install - full NIP-07/hardware support. All identity modes.",
+      "pattern_3_self_hosted": "User runs own server. Full sovereignty.",
+      "pattern_4_jurisdiction_openwebui": {
+        "description": "RECOMMENDED FOR PILOT - City hosts Open WebUI instance with local Ollama",
+        "benefits": [
+          "Zero cost to citizens (no AI subscription required)",
+          "Query privacy (local LLM, queries never leave city infrastructure)",
+          "City attestation = sybil resistance + verified residency",
+          "Integrated with city SSO/LDAP",
+          "Cross-jurisdictional coordination via federated Jurisdiction MCPs"
+        ],
+        "components": {
+          "interface": "Open WebUI (docs.openwebui.com)",
+          "llm": "Ollama (local, no external API calls)",
+          "auth": "City LDAP/SSO (proves residency)",
+          "attestation": "City signs Nostr event linking account to npub",
+          "signing": "Client-side (user's keys, city cannot impersonate)"
+        },
+        "url_pattern": "civic.[city].gov or [city].civicosproject.org"
+      }
     },
     "design_principles": [
       "Two MCPs: Jurisdiction (public data) and Personal (user context)",
@@ -3450,7 +3474,8 @@
       "No query logging, no behavior tracking, no engagement metrics",
       "Transparent reasoning: agent explains why it surfaced something",
       "User controls keys: Nostr signing always happens client-side in Personal MCP",
-      "Tiered identity: Easy (passkey), Private (mnemonic), Sovereign (NIP-07/hardware)"
+      "Tiered identity: Easy (passkey), Private (mnemonic), Sovereign (NIP-07/hardware)",
+      "City attestation is additive (trust signal), not gate-keeping (permissionless relay)"
     ],
     "web_chat_interface": {
       "status": "ready",
