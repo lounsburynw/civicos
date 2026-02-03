@@ -345,33 +345,60 @@ def _get_relay_identity():
 def _get_action_storage():
     """Get or create action storage instance.
 
-    Uses in-memory storage for now. PostgresActionStorage will be added
-    for production use.
+    Uses PostgresActionStorage when RELAY_DATABASE_URL is set,
+    falls back to in-memory storage for testing.
     """
     if "action" not in _storage_instances:
-        try:
-            from civicos_relay.storage.memory import InMemoryActionStorage
-            _storage_instances["action"] = InMemoryActionStorage()
-        except ImportError:
-            logger.warning("civicos-relay not available")
-            return None
+        url = _get_relay_url()
+        if url:
+            try:
+                from civicos_relay.storage.postgres import PostgresActionStorage
+                _storage_instances["action"] = PostgresActionStorage(url)
+                logger.info("Using PostgresActionStorage for actions")
+            except ImportError:
+                logger.warning("civicos-relay postgres not available, falling back to in-memory")
+                from civicos_relay.storage.memory import InMemoryActionStorage
+                _storage_instances["action"] = InMemoryActionStorage()
+        else:
+            try:
+                from civicos_relay.storage.memory import InMemoryActionStorage
+                _storage_instances["action"] = InMemoryActionStorage()
+            except ImportError:
+                logger.warning("civicos-relay not available")
+                return None
     return _storage_instances["action"]
 
 
 def _get_civic_action_service():
-    """Get or create civic action service (Kind 30810/30811/30812)."""
+    """Get or create civic action service (Kind 30810/30811/30812).
+
+    Uses PostgreSQL storage when RELAY_DATABASE_URL is set,
+    falls back to in-memory storage for testing.
+    """
     if "civic_action_service" not in _storage_instances:
+        url = _get_relay_url()
         try:
-            from civicos_relay.storage.memory import (
-                InMemoryCivicActionEventStorage,
-                InMemoryCivicCommitmentStorage,
-                InMemoryCivicCompletionStorage,
-            )
             from civicos_relay.voice.civic_action_service import CivicActionService
 
-            _storage_instances["civic_action_events"] = InMemoryCivicActionEventStorage()
-            _storage_instances["civic_commitments"] = InMemoryCivicCommitmentStorage()
-            _storage_instances["civic_completions"] = InMemoryCivicCompletionStorage()
+            if url:
+                from civicos_relay.storage.postgres import (
+                    PostgresCivicActionEventStorage,
+                    PostgresCivicCommitmentStorage,
+                    PostgresCivicCompletionStorage,
+                )
+                _storage_instances["civic_action_events"] = PostgresCivicActionEventStorage(url)
+                _storage_instances["civic_commitments"] = PostgresCivicCommitmentStorage(url)
+                _storage_instances["civic_completions"] = PostgresCivicCompletionStorage(url)
+                logger.info("Using PostgreSQL storage for civic actions")
+            else:
+                from civicos_relay.storage.memory import (
+                    InMemoryCivicActionEventStorage,
+                    InMemoryCivicCommitmentStorage,
+                    InMemoryCivicCompletionStorage,
+                )
+                _storage_instances["civic_action_events"] = InMemoryCivicActionEventStorage()
+                _storage_instances["civic_commitments"] = InMemoryCivicCommitmentStorage()
+                _storage_instances["civic_completions"] = InMemoryCivicCompletionStorage()
 
             _storage_instances["civic_action_service"] = CivicActionService(
                 _storage_instances["civic_action_events"],
