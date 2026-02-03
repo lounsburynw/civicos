@@ -55,8 +55,14 @@ export {
   type WalletStorage,
 } from './local-wallet.js';
 
+export {
+  PasskeyProvider,
+  LocalStoragePasskeyStorage,
+  MemoryPasskeyStorage,
+  type PasskeyStorage,
+} from './passkey.js';
+
 // Future exports (not yet implemented):
-// export { PasskeyProvider } from './passkey.js';
 // export { NIP07Provider } from './nip07.js';
 // export { HardwareWalletProvider } from './hardware.js';
 // export { ManualSigningProvider } from './manual.js';

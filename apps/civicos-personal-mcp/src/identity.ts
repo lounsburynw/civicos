@@ -3,10 +3,10 @@
  *
  * Manages signing providers and provides a unified interface for identity operations.
  * Currently supports:
+ * - easy: PasskeyProvider (WebAuthn + PRF, lowest friction)
  * - private: LocalWalletProvider (BIP-39 + password encryption)
  *
  * Future support:
- * - easy: PasskeyProvider (WebAuthn + PRF)
  * - sovereign: NIP07Provider, HardwareWalletProvider, ManualSigningProvider
  */
 
@@ -17,15 +17,24 @@ import type {
   NostrEvent,
   SigningResult,
   WalletStorage,
+  PasskeyStorage,
 } from '../lib/providers/index.js';
-import { LocalWalletProvider, IndexedDBStorage, MemoryStorage } from '../lib/providers/index.js';
+import {
+  LocalWalletProvider,
+  IndexedDBStorage,
+  MemoryStorage,
+  PasskeyProvider,
+  MemoryPasskeyStorage,
+} from '../lib/providers/index.js';
 
 /**
  * Configuration for the IdentityManager.
  */
 export interface IdentityManagerConfig {
-  /** Override the default storage for testing */
+  /** Override the default storage for Private mode testing */
   storage?: WalletStorage;
+  /** Override the default storage for Easy mode testing */
+  passkeyStorage?: PasskeyStorage;
 }
 
 /**
@@ -43,8 +52,11 @@ export class IdentityManager {
     const storage = config.storage ?? this.createDefaultStorage();
     this.providers.set('private', new LocalWalletProvider(storage));
 
+    // Easy mode provider (passkey-based)
+    const passkeyStorage = config.passkeyStorage ?? this.createDefaultPasskeyStorage();
+    this.providers.set('easy', new PasskeyProvider(passkeyStorage));
+
     // Future providers:
-    // this.providers.set('easy', new PasskeyProvider());
     // this.providers.set('sovereign', new NIP07Provider());
   }
 
@@ -56,6 +68,11 @@ export class IdentityManager {
     }
     // For Node.js/testing, use memory storage
     return new MemoryStorage();
+  }
+
+  private createDefaultPasskeyStorage(): PasskeyStorage {
+    // For Node.js/testing, use memory storage (WebAuthn not available)
+    return new MemoryPasskeyStorage();
   }
 
   /**
@@ -108,36 +125,58 @@ export class IdentityManager {
 
   /**
    * Create a new identity with the specified tier.
+   *
+   * @param tier - Identity tier ('easy' or 'private')
+   * @param passwordOrEmail - Password for 'private' tier, email for 'easy' tier
    */
   async createIdentity(
     tier: IdentityTier,
-    password: string
+    passwordOrEmail: string
   ): Promise<{ identity: IdentityInfo; mnemonic?: string }> {
     const provider = this.providers.get(tier);
     if (!provider) {
       throw new Error(`Unsupported identity tier: ${tier}`);
     }
 
-    const result = await provider.createIdentity({ tier, password });
+    // Different parameters for different tiers
+    const options =
+      tier === 'easy'
+        ? { tier, email: passwordOrEmail }
+        : { tier, password: passwordOrEmail };
+
+    const result = await provider.createIdentity(options);
     this.activeProvider = provider;
 
     return result;
   }
 
   /**
-   * Import an existing identity from a mnemonic.
+   * Import an existing identity.
+   *
+   * For 'private' tier: requires password and mnemonic
+   * For 'easy' tier: requires email (passkey is synced via iCloud/Google)
+   *
+   * @param tier - Identity tier ('easy' or 'private')
+   * @param passwordOrEmail - Password for 'private' tier, email for 'easy' tier
+   * @param mnemonic - Recovery phrase for 'private' tier (ignored for 'easy')
    */
   async importIdentity(
     tier: IdentityTier,
-    password: string,
-    mnemonic: string
+    passwordOrEmail: string,
+    mnemonic?: string
   ): Promise<IdentityInfo> {
     const provider = this.providers.get(tier);
     if (!provider) {
       throw new Error(`Unsupported identity tier: ${tier}`);
     }
 
-    const identity = await provider.importIdentity({ tier, password, mnemonic });
+    // Different parameters for different tiers
+    const options =
+      tier === 'easy'
+        ? { tier, email: passwordOrEmail }
+        : { tier, password: passwordOrEmail, mnemonic };
+
+    const identity = await provider.importIdentity(options);
     this.activeProvider = provider;
 
     return identity;
