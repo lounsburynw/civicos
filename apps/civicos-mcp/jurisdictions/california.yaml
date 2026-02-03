@@ -24,7 +24,9 @@ data_sources:
   revenue: state_controller      # CA State Controller intergovernmental revenue
 
 # Tools enabled at state level
-# These tools query shared California datasets
-tools_enabled:
-  - search_regulatory_stack      # State section (CA bills)
-  - get_intergovernmental_revenue  # CA State Controller data
+# Uses default state-level tools from loader.py:
+# - get_federal_expenditures (inherited from federal)
+# - get_funding_flow (inherited from federal)
+# - get_intergovernmental_revenue (state-specific)
+# - search_regulatory_stack (cross-level)
+# tools_enabled: omitted to use defaults
