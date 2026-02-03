@@ -17734,3 +17734,14 @@ Personal MCP acts as a personalization layer between the user and Jurisdiction M
 P0 needs to be set. Remaining openwebui_pilot items:
 - subscription_notifications (P1) - Notification delivery for subscriptions
 - personal_mcp_documentation (P2) - User guide for Personal MCP
+
+### Session 546 Continued - MCP Jurisdiction Refactoring (WIP)
+
+Started refactoring MCP server for jurisdiction-specific deployments before MCP registry listing.
+
+**New Files:**
+- `apps/civicos-mcp/handlers/loader.py` - Tool categorization by level
+- `apps/civicos-mcp/handlers/jurisdiction/engagement.py` - Config-driven handlers
+- `apps/civicos-mcp/jurisdictions/*.yaml` - San Rafael, California, Federal configs
+
+**Next Session:** Test imports, update modal_app.py, complete MCP registry listing.
