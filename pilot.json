@@ -1478,7 +1478,7 @@
       ],
       "unified_city_deployment": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "description": "Unified config-driven workflow for deploying a new city: one YAML drives extraction, MCP tools, Modal deployment, and ingestion",
         "rationale": "Current state: extraction configs (data/extraction/*.json), MCP configs (apps/civicos-mcp/jurisdictions/*.yaml), and Modal secrets are separate systems. Adding a city requires manual coordination. Goal: `civicos deploy city-berkeley` reads config and does everything.",
         "gap_analysis": {
@@ -2653,8 +2653,8 @@
         "ip_protection": "Exposes tool names/schemas/responses only. Implementation code stays in private repo. Deploy from private GitHub repo or local build."
       },
       "mcp_jurisdiction_validation": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Three scoped MCP servers deployed as federated architecture reference",
         "description": "Deploy and validate three jurisdiction-scoped MCP servers (federal, california, san-rafael) demonstrating the federated architecture. Federal/state servers are reference implementations; city server is primary user-facing.",
         "note": "Session 548: Deployed all 3 servers. Tool filtering working. Remaining: validate tool calls return PostgreSQL data (containers may need restart), then document architecture.",
@@ -2753,7 +2753,8 @@
           "apps/civicos-mcp/handlers/loader.py",
           "apps/civicos-mcp/jurisdictions/*.yaml",
           "apps/civicos-mcp/modal_app.py"
-        ]
+        ],
+        "notes": "All 3 MCP servers deployed and working: Federal (3 tools), California (4 tools), San Rafael (38 tools). Fixed jurisdiction normalization for state/country prefixes, added civicos_extraction to Modal image, fixed intergovernmental revenue handler."
       },
       "mcp_registry_listing": {
         "status": "not_ready",
