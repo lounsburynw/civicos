@@ -1919,11 +1919,11 @@
         "note": "Shows transcript count, total minutes, and estimated cost ($0.02/min) for current month or last 30 days. Results cached 1 hour. Session 515."
       },
       "geocoding_production_config": {
-        "status": "ready",
+        "status": "complete",
         "priority": 1,
-        "artifact": "GOOGLE_MAPS_API_KEY set as Fly.io secret for production MCP server",
-        "description": "find_issues_near_address() fails in production: GOOGLE_MAPS_API_KEY not set. Key works locally but is not configured as a Fly.io secret.",
-        "note": "Session 529: MCP audit flagged geolocation as 0/10. Fix: fly secrets set GOOGLE_MAPS_API_KEY=xxx --app civicos-mcp | RESOLVED Session 529: fly secrets set completed, machines restarted healthy."
+        "artifact": "apps/civicos-mcp/tools/handlers.py - find_issues_near_address with geocoding",
+        "description": "find_issues_near_address() now uses Google Maps Geocoding API for proper lat/lng proximity search with haversine distance calculation.",
+        "verification": "2026-02-03: Integrated geocoding into find_issues_near_address handler. Uses GOOGLE_MAPS_API_KEY or GOOGLE_API_KEY (checks both). Haversine distance for accurate radius search. Graceful fallback to text matching if API key not set. Modal secret civic-google added to civicos-mcp app. Requires deploy: modal deploy apps/civicos-mcp/modal_app.py"
       }
     },
     "developer_tooling": {
