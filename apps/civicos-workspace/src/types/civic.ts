@@ -516,6 +516,8 @@ export interface ConversationRequest {
     when?: string;
     project_type?: string;
   };
+  // Privacy-first user context (Tier 2 - transmitted per-request, never stored)
+  user_context?: UserContextForRequest;
 }
 
 export interface ConversationResponse {
@@ -719,6 +721,94 @@ export interface LocationValidation {
 export interface SetLocationResponse {
   location: UserLocation;
   validation: LocationValidation;
+}
+
+// ============================================================================
+// User Context (Privacy-First Per-Request Context)
+// ============================================================================
+
+/**
+ * User's neighborhood location (subset of full UserLocation)
+ * Transmitted with requests to enable proximity-based filtering.
+ */
+export interface UserNeighborhood {
+  neighborhood: string;          // e.g., 'Terra Linda'
+  lat?: number;
+  lng?: number;
+}
+
+/**
+ * User's reminder preferences for deadline tracking.
+ */
+export interface ReminderPreferences {
+  days_before_deadline: number;
+}
+
+/**
+ * Attestation records (Nostr event references).
+ * Used for verification badges without storing proof server-side.
+ */
+export interface UserAttestations {
+  physical?: {
+    event_id: string;
+    expires: string;             // ISO 8601 date
+  };
+  device?: {
+    event_id: string;
+  };
+}
+
+/**
+ * CivicUserContext
+ *
+ * Privacy-first user context stored in localStorage.
+ * Transmitted per-request to enable personalized filtering.
+ * NEVER stored server-side - agent receives it, reasons, and forgets.
+ *
+ * Privacy tiers:
+ * - Tier 1 (browser-only): archetypes, private key - never transmitted
+ * - Tier 2 (per-request): interests, filtering_instructions - transmitted but not stored
+ * - Tier 3 (server-stored): user_id, demographics - stored for coordination
+ */
+export interface CivicUserContext {
+  // Identity (optional - for signed voice/actions)
+  nostr_pubkey?: string;         // Public key only (private stored separately, encrypted)
+
+  // Location context
+  jurisdiction: string;          // e.g., 'city-san-rafael'
+  location?: UserNeighborhood;
+
+  // Personalization (Privacy Tier 2 - per-request)
+  interests: string[];           // e.g., ['housing', 'transportation']
+  filtering_instructions: string; // Natural language, e.g., 'aggressive on housing, ignore parking'
+
+  // History references (Nostr event IDs, not copies)
+  voice_history: string[];       // IDs of voice events user has created
+  commitment_history: string[];  // IDs of commitments user has made
+
+  // Notifications (optional)
+  notification_email?: string;   // For subscription delivery
+  reminder_preferences?: ReminderPreferences;
+
+  // Verification badges
+  attestations?: UserAttestations;
+
+  // Metadata
+  created_at?: string;           // ISO 8601
+  updated_at?: string;           // ISO 8601
+}
+
+/**
+ * Serialized user context for API requests.
+ * Subset of CivicUserContext - only what the agent needs for filtering.
+ * Never includes sensitive data (private key, full attestations).
+ */
+export interface UserContextForRequest {
+  jurisdiction: string;
+  location?: UserNeighborhood;
+  interests: string[];
+  filtering_instructions: string;
+  notification_email?: string;
 }
 
 // ============================================================================
