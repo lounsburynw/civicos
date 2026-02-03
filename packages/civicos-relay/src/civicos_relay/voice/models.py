@@ -105,3 +105,162 @@ class ActionCount(BaseModel):
         if self.target and self.target > 0:
             return min(100.0, (self.completions / self.target) * 100)
         return None
+
+
+# ============================================================================
+# Full Nostr Action Event Specification (Kinds 30810, 30811, 30812)
+# ============================================================================
+
+
+class CivicActionType(str, Enum):
+    """Type of civic action that can be taken."""
+
+    WRITTEN_COMMENT = "written_comment"
+    ATTEND_MEETING = "attend_meeting"
+    PUBLIC_COMMENT = "public_comment"
+    CONTACT_OFFICIAL = "contact_official"
+    SIGNATURE = "signature"
+    SHARE = "share"
+    CUSTOM = "custom"
+
+
+class CommitmentStatus(str, Enum):
+    """Status of a commitment to an action."""
+
+    COMMITTED = "committed"
+    COMPLETED = "completed"
+    WITHDRAWN = "withdrawn"
+
+
+class EvidenceType(str, Enum):
+    """Type of evidence provided for action completion."""
+
+    SELF_REPORT = "self_report"
+    EMAIL_CONFIRMATION = "email_confirmation"
+    ATTENDANCE_CHECK = "attendance_check"
+    VERIFIED = "verified"
+
+
+class CivicActionEvent(BaseModel):
+    """
+    Kind 30810: Addressable action event.
+
+    Defines a civic action that users can commit to and complete.
+    Actions are first-class Nostr events that can be reused across
+    initiatives and federated to other relays.
+
+    d-tag format: action:{initiative}:{type}:{hash}
+    """
+
+    id: str = Field(
+        description="Unique action event ID (d-tag format: action:{initiative}:{type}:{hash})"
+    )
+    initiative_id: str = Field(
+        description="ID of the initiative this action belongs to"
+    )
+    action_type: CivicActionType = Field(
+        description="Type of action (written_comment, attend_meeting, etc.)"
+    )
+    description: str = Field(
+        description="Human-readable description of the action"
+    )
+    target: Optional[str] = Field(
+        default=None,
+        description="Target of the action (e.g., email address, meeting room)"
+    )
+    deadline: Optional[datetime] = Field(
+        default=None,
+        description="Deadline for completing the action"
+    )
+    template: Optional[str] = Field(
+        default=None,
+        description="Template text for the action (e.g., comment template)"
+    )
+    target_count: Optional[int] = Field(
+        default=None,
+        description="Target number of completions needed"
+    )
+    public_key: str = Field(description="Creator's public key (hex-encoded)")
+    signature: str = Field(description="Signature of action data (hex-encoded)")
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    revoked: bool = Field(default=False)
+
+    model_config = {"frozen": True}
+
+
+class CivicCommitment(BaseModel):
+    """
+    Kind 30811: User commitment to an action.
+
+    Records a user's commitment to take a civic action.
+    References the action via an a-tag (30810:{pubkey}:{d-tag}).
+
+    d-tag format: commit:{pubkey}:{action-d-tag}
+    """
+
+    id: str = Field(
+        description="Unique commitment ID (d-tag format: commit:{pubkey}:{action-d-tag})"
+    )
+    action_ref: str = Field(
+        description="Reference to action event (a-tag format: 30810:{pubkey}:{d-tag})"
+    )
+    status: CommitmentStatus = Field(
+        default=CommitmentStatus.COMMITTED,
+        description="Current status of the commitment"
+    )
+    public_key: str = Field(description="Committer's public key (hex-encoded)")
+    signature: str = Field(description="Signature of commitment data (hex-encoded)")
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    revoked: bool = Field(default=False)
+
+    model_config = {"frozen": True}
+
+
+class CivicCompletion(BaseModel):
+    """
+    Kind 30812: Action completion with evidence.
+
+    Records a user's completion of a civic action with optional evidence.
+    References the action via an a-tag (30810:{pubkey}:{d-tag}).
+
+    d-tag format: complete:{pubkey}:{action-d-tag}
+    """
+
+    id: str = Field(
+        description="Unique completion ID (d-tag format: complete:{pubkey}:{action-d-tag})"
+    )
+    action_ref: str = Field(
+        description="Reference to action event (a-tag format: 30810:{pubkey}:{d-tag})"
+    )
+    evidence_type: EvidenceType = Field(
+        description="Type of evidence provided"
+    )
+    evidence_content: Optional[str] = Field(
+        default=None,
+        description="Evidence content (URL, confirmation code, etc.)"
+    )
+    completed_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="When the action was completed"
+    )
+    public_key: str = Field(description="Completer's public key (hex-encoded)")
+    signature: str = Field(description="Signature of completion data (hex-encoded)")
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    revoked: bool = Field(default=False)
+
+    model_config = {"frozen": True}
+
+
+class CivicActionProgress(BaseModel):
+    """Aggregated progress for a civic action event."""
+
+    action_id: str
+    commitment_count: int = 0
+    completion_count: int = 0
+    target_count: Optional[int] = None
+
+    @property
+    def progress_percent(self) -> Optional[float]:
+        if self.target_count and self.target_count > 0:
+            return min(100.0, (self.completion_count / self.target_count) * 100)
+        return None
