@@ -74,6 +74,7 @@ civicos-state-server = "civicos._internal.state.mcp:main"
 civicos-legal-server = "civicos._internal.legal.mcp:main"
 civicos-status = "civicos.cli:main"
 civicos-bootstrap = "civicos.cli:bootstrap_main"
+civicos-deploy = "civicos.cli:deploy_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

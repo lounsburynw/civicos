@@ -1,0 +1,143 @@
+# Berkeley City Configuration
+#
+# Unified configuration for City of Berkeley, California.
+# Second pilot city to validate the unified deployment workflow.
+
+# =============================================================================
+# Identity
+# =============================================================================
+
+jurisdiction_id: city-berkeley
+level: city
+display_name: Berkeley
+
+# =============================================================================
+# Hierarchy
+# =============================================================================
+
+parent_jurisdictions:
+  - county-alameda
+  - state-california
+  - country-united-states
+
+# =============================================================================
+# Contact Information
+# =============================================================================
+
+contact_info:
+  clerk_email: clerk@berkeleyca.gov
+  city_hall_address: "2180 Milvia Street, Berkeley CA 94704"
+  phone: "(510) 981-6900"
+  website: "https://berkeleyca.gov"
+  public_comment_deadline: "Noon day of meeting"
+  in_person_time_limit: "2 minutes"
+  public_comment_subject: "Public Comment - [Agenda Item]"
+
+# =============================================================================
+# Governing Body
+# =============================================================================
+
+governing_body:
+  name: Berkeley City Council
+  members_title: Mayor and Councilmembers
+  meeting_schedule: "Tuesdays at 6:00 PM (varies)"
+  meeting_location: "School District Board Room, 1231 Addison Street"
+
+# =============================================================================
+# Data Sources
+# =============================================================================
+
+data_sources:
+  # Meeting extraction (Granicus platform)
+  meetings:
+    source_type: granicus
+    base_url: https://berkeley.granicus.com
+    auto_discover: false
+    archives:
+      city_council:
+        publisher_id: 5
+        view_id: 5
+
+  # Issue tracking (SeeClickFix)
+  issues: seeclickfix
+
+  # Budget data
+  budget: opengov
+
+  # Municipal code
+  municipal_code: municode
+
+  # Meeting transcripts (Granicus recordings)
+  transcripts:
+    source: granicus
+    playlist_id: null
+
+# =============================================================================
+# Financial Context
+# =============================================================================
+
+financial:
+  state: CA
+  county: Alameda
+
+federal_programs:
+  hud_grantee: Alameda County
+  hud_relationship: consortium
+  notes: "Berkeley receives HUD funds via Alameda County HOME Consortium"
+
+# =============================================================================
+# Geography
+# =============================================================================
+
+zip_codes:
+  - "94701"
+  - "94702"
+  - "94703"
+  - "94704"
+  - "94705"
+  - "94707"
+  - "94708"
+  - "94709"
+  - "94710"
+  - "94712"
+  - "94720"
+
+neighborhoods:
+  - Downtown
+  - North Berkeley
+  - South Berkeley
+  - West Berkeley
+  - Central Berkeley
+  - Northside
+  - Southside
+  - Claremont
+  - Thousand Oaks
+  - Elmwood
+  - Rockridge
+
+# =============================================================================
+# Tool Configuration
+# =============================================================================
+
+# All city-level tools enabled by default
+tools_enabled: null
+tool_overrides: {}
+
+# =============================================================================
+# Modal Deployment
+# =============================================================================
+
+modal:
+  min_containers: 0  # Cold start (not primary pilot)
+  secrets:
+    - civicos-env
+    - civic-google
+
+# =============================================================================
+# Metadata
+# =============================================================================
+
+metadata:
+  created: "2026-02-03"
+  updated: "2026-02-03"
+  notes: "Second pilot city for unified deployment validation. Uses Granicus platform."

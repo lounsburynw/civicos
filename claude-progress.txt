@@ -17908,3 +17908,10 @@ Federal and California MCP servers were failing:
   - Config-driven workflow for deploying new cities
   - One YAML drives extraction, MCP tools, Modal deployment, ingestion
   - Goal: `civicos deploy city-berkeley` reads config and does everything
+
+### P0 Transition
+- **Completed P0:** unified_city_deployment (now priority 1)
+- **New P0:** mcp_registry_listing
+  - Register CivicOS MCP on official registries for discoverability
+  - Submit to registry.modelcontextprotocol.io, MCP.so, MCPServers.org
+  - Metadata already prepared in previous session

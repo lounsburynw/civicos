@@ -1121,5 +1121,285 @@ Examples:
         sys.exit(1)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Deploy Command
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def validate_deploy_config(jurisdiction_id: str) -> tuple[bool, List[str], Optional[Any]]:
+    """
+    Validate that deployment can proceed using unified config.
+
+    Returns:
+        Tuple of (is_valid, list of error messages, config object)
+    """
+    errors = []
+    config = None
+
+    try:
+        from civicos.jurisdiction_config import load_jurisdiction_config
+        config = load_jurisdiction_config(jurisdiction_id)
+    except Exception as e:
+        errors.append(f"Failed to load config: {e}")
+        return False, errors, None
+
+    # Check required fields for deployment
+    if not config.jurisdiction_id:
+        errors.append("Missing jurisdiction_id in config")
+
+    if not config.level:
+        errors.append("Missing level in config")
+
+    # For city-level, check required extraction config
+    if config.level == "city":
+        if not config.data_sources.meetings.source_type:
+            errors.append("Missing data_sources.meetings.source_type for city deployment")
+        if not config.data_sources.meetings.base_url:
+            errors.append("Missing data_sources.meetings.base_url for city deployment")
+
+    # Check Modal config
+    if not config.modal.secrets:
+        errors.append("Missing modal.secrets in config")
+
+    return len(errors) == 0, errors, config
+
+
+def run_deploy(
+    jurisdiction_id: str,
+    skip_modal: bool = False,
+    skip_ingest: bool = False,
+    dry_run: bool = False,
+    verbose: bool = False,
+    no_color: bool = False,
+) -> Dict[str, Any]:
+    """
+    Deploy a jurisdiction using unified config.
+
+    Args:
+        jurisdiction_id: Jurisdiction to deploy (e.g., "city-berkeley")
+        skip_modal: Skip Modal deployment (config validation only)
+        skip_ingest: Skip data ingestion after deployment
+        dry_run: Show what would be done without doing it
+        verbose: Show detailed progress
+        no_color: Disable colored output
+
+    Returns:
+        Deployment result dict
+    """
+    import subprocess
+
+    result = {
+        "success": False,
+        "jurisdiction_id": jurisdiction_id,
+        "config_valid": False,
+        "modal_deployed": False,
+        "ingest_run": False,
+        "errors": [],
+        "warnings": [],
+    }
+
+    # Step 1: Validate config
+    if verbose:
+        print(f"Validating config for {jurisdiction_id}...")
+
+    is_valid, errors, config = validate_deploy_config(jurisdiction_id)
+    if not is_valid:
+        result["errors"] = errors
+        if not no_color:
+            print(colorize(f"Config validation FAILED for {jurisdiction_id}", Colors.RED, no_color))
+        for err in errors:
+            print(f"  - {err}")
+        return result
+
+    result["config_valid"] = True
+    if verbose:
+        print(colorize("Config validation passed", Colors.GREEN, no_color))
+        print(f"  Level: {config.level}")
+        print(f"  Display: {config.display_name}")
+        if config.level == "city":
+            print(f"  Source: {config.data_sources.meetings.source_type}")
+            print(f"  Archives: {len(config.data_sources.meetings.archives)} meeting types")
+        print(f"  Modal: {config.modal.min_containers} containers, secrets: {config.modal.secrets}")
+
+    if dry_run:
+        print()
+        print(colorize("DRY RUN - would perform:", Colors.YELLOW, no_color))
+        if not skip_modal:
+            print(f"  1. Deploy to Modal: CIVICOS_JURISDICTION={jurisdiction_id} modal deploy apps/civicos-mcp/modal_mcp.py")
+        if not skip_ingest and config.level == "city":
+            print(f"  2. Run ingestion: civicos-bootstrap {jurisdiction_id}")
+        result["success"] = True
+        return result
+
+    # Step 2: Deploy to Modal
+    if not skip_modal:
+        if verbose:
+            print()
+            print("Deploying to Modal...")
+
+        # Build Modal command
+        modal_script = "apps/civicos-mcp/modal_mcp.py"
+        env = os.environ.copy()
+        env["CIVICOS_JURISDICTION"] = jurisdiction_id
+
+        try:
+            proc = subprocess.run(
+                ["modal", "deploy", modal_script],
+                env=env,
+                capture_output=not verbose,
+                text=True,
+            )
+
+            if proc.returncode == 0:
+                result["modal_deployed"] = True
+                if verbose:
+                    print(colorize("Modal deployment successful", Colors.GREEN, no_color))
+            else:
+                result["errors"].append(f"Modal deployment failed: {proc.stderr or proc.stdout}")
+                if not no_color:
+                    print(colorize("Modal deployment FAILED", Colors.RED, no_color))
+                if proc.stderr:
+                    print(proc.stderr)
+                return result
+
+        except FileNotFoundError:
+            result["errors"].append("Modal CLI not found. Install with: pip install modal")
+            return result
+        except Exception as e:
+            result["errors"].append(f"Modal deployment error: {e}")
+            return result
+    else:
+        result["warnings"].append("Skipped Modal deployment (--skip-modal)")
+
+    # Step 3: Run ingestion (for city-level only)
+    if not skip_ingest and config.level == "city":
+        if verbose:
+            print()
+            print("Running data ingestion...")
+
+        try:
+            # Use the existing bootstrap function
+            bootstrap_result = run_bootstrap(
+                jurisdiction_id=jurisdiction_id,
+                verbose=verbose,
+                no_color=no_color,
+            )
+            result["ingest_run"] = True
+            if not bootstrap_result.success:
+                result["warnings"].append("Ingestion completed with issues")
+        except Exception as e:
+            result["warnings"].append(f"Ingestion error (non-fatal): {e}")
+    else:
+        if skip_ingest:
+            result["warnings"].append("Skipped ingestion (--skip-ingest)")
+        elif config.level != "city":
+            result["warnings"].append(f"Skipped ingestion (level={config.level}, only cities need ingestion)")
+
+    result["success"] = True
+    return result
+
+
+def deploy_main():
+    """Main CLI entry point for deploy command."""
+    parser = argparse.ArgumentParser(
+        description="Deploy a jurisdiction using unified config",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  civicos-deploy city-berkeley           # Full deploy (config + Modal + ingest)
+  civicos-deploy city-berkeley --dry-run # Show what would be done
+  civicos-deploy city-berkeley --skip-modal  # Validate config only
+  civicos-deploy state-california --skip-ingest  # Deploy Modal, no ingest
+
+Config Location:
+  Unified config files are in data/jurisdictions/{jurisdiction_id}.yaml
+        """
+    )
+
+    parser.add_argument(
+        "jurisdiction",
+        help="Jurisdiction to deploy (e.g., 'city-berkeley', 'state-california')"
+    )
+
+    parser.add_argument(
+        "--skip-modal",
+        action="store_true",
+        help="Skip Modal deployment (config validation only)"
+    )
+
+    parser.add_argument(
+        "--skip-ingest",
+        action="store_true",
+        help="Skip data ingestion after deployment"
+    )
+
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be done without doing it"
+    )
+
+    parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Show detailed progress"
+    )
+
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable colored output"
+    )
+
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output as JSON"
+    )
+
+    args = parser.parse_args()
+
+    # Normalize jurisdiction ID
+    jurisdiction_id = args.jurisdiction
+    # Don't auto-add city- prefix - trust the user input
+    # (could be state-california or country-united-states)
+
+    try:
+        result = run_deploy(
+            jurisdiction_id=jurisdiction_id,
+            skip_modal=args.skip_modal,
+            skip_ingest=args.skip_ingest,
+            dry_run=args.dry_run,
+            verbose=args.verbose and not args.json,
+            no_color=args.no_color or args.json,
+        )
+
+        if args.json:
+            print(json.dumps(result, indent=2))
+        elif result["success"]:
+            print()
+            print(colorize(f"Deployment COMPLETE for {jurisdiction_id}", Colors.GREEN + Colors.BOLD, args.no_color))
+            if result["warnings"]:
+                print("Warnings:")
+                for w in result["warnings"]:
+                    print(f"  - {w}")
+        else:
+            print()
+            print(colorize(f"Deployment FAILED for {jurisdiction_id}", Colors.RED + Colors.BOLD, args.no_color))
+            if result["errors"]:
+                print("Errors:")
+                for e in result["errors"]:
+                    print(f"  - {e}")
+
+        sys.exit(0 if result["success"] else 1)
+
+    except KeyboardInterrupt:
+        print("\nDeployment interrupted.")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     main()

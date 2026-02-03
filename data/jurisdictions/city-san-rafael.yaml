@@ -1,0 +1,149 @@
+# San Rafael City Configuration
+#
+# Unified configuration for City of San Rafael, California.
+# Single source of truth for MCP tools and extraction pipelines.
+
+# =============================================================================
+# Identity
+# =============================================================================
+
+jurisdiction_id: city-san-rafael
+level: city
+display_name: San Rafael
+
+# =============================================================================
+# Hierarchy
+# =============================================================================
+
+parent_jurisdictions:
+  - county-marin
+  - state-california
+  - country-united-states
+
+# =============================================================================
+# Contact Information
+# =============================================================================
+
+contact_info:
+  clerk_email: clerk@cityofsanrafael.org
+  city_hall_address: "1400 Fifth Avenue, San Rafael CA 94901"
+  phone: "(415) 485-3000"
+  website: "https://www.cityofsanrafael.org"
+  public_comment_deadline: "5:00 PM day of meeting"
+  in_person_time_limit: "3 minutes"
+  public_comment_subject: "Public Comment - [Agenda Item Title]"
+
+# =============================================================================
+# Governing Body
+# =============================================================================
+
+governing_body:
+  name: San Rafael City Council
+  members_title: Mayor and Council Members
+  meeting_schedule: "First and third Monday, 7:00 PM"
+  meeting_location: "City Council Chambers, 1400 Fifth Avenue"
+
+# =============================================================================
+# Data Sources
+# =============================================================================
+
+data_sources:
+  # Meeting extraction (ProudCity platform)
+  meetings:
+    source_type: proudcity
+    base_url: https://www.cityofsanrafael.org
+    auto_discover: true
+    archives:
+      city_council: /city-council-meetings/
+      planning_commission: /planning-commission-meetings/
+      fire_commission: /fire-commission-meetings/
+      tax_oversight: /voter-approved-tax-oversight-committee-meetings/
+      zoning_administrator: /zoning-administrator-hearings/
+      council_subcommittees: /council-subcommittee-meetings/
+      ada_access_advisory_committee: /ada-access-advisory-committee-meetings/
+      bicycle_pedestrian_advisory_committee: /bicycle-pedestrian-advisory-committee-meetings/
+      board_of_library_trustees: /board-of-library-trustees-meetings/
+      design_review_board: /design-review-board-hearings/
+      paac: /paac-meetings/
+      park_and_recreation_commission: /park-and-recreation-commission-meetings/
+      pickleweed_advisory_committee: /pickleweed-advisory-committee-meetings/
+      public_art_review_board: /public-art-review-board-meetings/
+      board_and_commission: /board-and-commission-meetings/
+
+  # Issue tracking (SeeClickFix)
+  issues: seeclickfix
+
+  # Budget data
+  budget: municipal_portal
+
+  # Municipal code
+  municipal_code: municode
+
+  # Meeting transcripts (YouTube)
+  transcripts:
+    source: youtube
+    playlist_id: null  # Auto-discovered from meeting pages
+
+# =============================================================================
+# Financial Context
+# =============================================================================
+
+financial:
+  state: CA
+  county: Marin
+
+federal_programs:
+  hud_grantee: Marin County
+  hud_relationship: consortium
+  notes: "San Rafael receives HUD funds via Marin County Urban County Program, not as direct entitlement"
+
+# =============================================================================
+# Geography
+# =============================================================================
+
+zip_codes:
+  - "94901"
+  - "94903"
+  - "94904"
+  - "94912"
+  - "94913"
+  - "94915"
+
+neighborhoods:
+  - Downtown
+  - Terra Linda
+  - Sun Valley
+  - Dominican
+  - Gerstle Park
+  - Peacock Gap
+  - Santa Venetia
+  - Los Ranchitos
+  - Lincoln Hill
+  - Bret Harte
+
+# =============================================================================
+# Tool Configuration
+# =============================================================================
+
+# All city-level tools enabled by default (null = use level defaults)
+tools_enabled: null
+tool_overrides: {}
+
+# =============================================================================
+# Modal Deployment
+# =============================================================================
+
+modal:
+  min_containers: 1  # Keep warm (primary pilot city)
+  secrets:
+    - civicos-env
+    - civic-google
+
+# =============================================================================
+# Metadata
+# =============================================================================
+
+metadata:
+  created: "2025-12-21"
+  updated: "2026-02-03"
+  notes: "Archives discovered via discover_meeting_types() in Session 304. Unified config created in Session 545."

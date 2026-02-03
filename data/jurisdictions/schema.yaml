@@ -1,0 +1,152 @@
+# Unified Jurisdiction Configuration Schema
+#
+# Single source of truth for jurisdiction config, used by:
+# - MCP tools (contact info, governance, tools)
+# - Extraction pipelines (source type, archives, financial)
+# - CLI deployment (Modal secrets, container config)
+#
+# File naming: {jurisdiction_id}.yaml (e.g., city-san-rafael.yaml)
+# Location: data/jurisdictions/
+
+# =============================================================================
+# REQUIRED: Identity
+# =============================================================================
+
+jurisdiction_id: string           # Canonical ID: "city-san-rafael", "state-california"
+level: string                     # "federal", "state", "county", "city"
+display_name: string              # Human-readable: "San Rafael", "California"
+
+# =============================================================================
+# REQUIRED: Hierarchy
+# =============================================================================
+
+parent_jurisdictions:             # List of parent jurisdiction IDs (bottom-up)
+  - county-{name}                 # City → County
+  - state-{name}                  # County → State
+  - country-united-states         # State → Country
+
+# =============================================================================
+# CITY/COUNTY: Contact Information (for engagement tools)
+# =============================================================================
+
+contact_info:
+  clerk_email: string             # Public comment submission email
+  city_hall_address: string       # Physical address for meetings
+  phone: string                   # Main contact number
+  website: string                 # Official website URL
+  public_comment_deadline: string # e.g., "5:00 PM day of meeting"
+  in_person_time_limit: string    # e.g., "3 minutes"
+  public_comment_subject: string  # Email subject format: "Public Comment - [Title]"
+
+# =============================================================================
+# CITY/COUNTY: Governing Body (for context in responses)
+# =============================================================================
+
+governing_body:
+  name: string                    # "San Rafael City Council"
+  members_title: string           # "Mayor and Council Members"
+  meeting_schedule: string        # "First and third Monday, 7:00 PM"
+  meeting_location: string        # "City Council Chambers, 1400 Fifth Avenue"
+
+# =============================================================================
+# STATE: State-Level Info (for state jurisdictions only)
+# =============================================================================
+
+state_info:
+  abbreviation: string            # "CA", "NY", etc.
+  timezone: string                # "America/Los_Angeles"
+  legislature: string             # "California State Legislature"
+  governor_title: string          # "Governor"
+
+# =============================================================================
+# REQUIRED: Data Sources
+# Maps corpus type to source platform for extraction pipeline
+# =============================================================================
+
+data_sources:
+  # Meeting/Agenda extraction
+  meetings:
+    source_type: string           # "proudcity", "granicus", "legistar", "civicclerk"
+    base_url: string              # Base URL for scraping
+    auto_discover: boolean        # Whether to auto-discover meeting types
+    archives:                     # Map of meeting_type → URL path
+      city_council: /path/
+      planning_commission: /path/
+
+  # Issue tracking
+  issues: string                  # "seeclickfix", "311", null
+
+  # Budget data
+  budget: string                  # "opengov", "municipal_portal", null
+
+  # Municipal code
+  municipal_code: string          # "municode", "codified", null
+
+  # Meeting transcripts
+  transcripts:
+    source: string                # "youtube", "granicus", null
+    playlist_id: string           # YouTube playlist ID if applicable
+
+  # Legislation (state/federal only)
+  legislation: string             # "leginfo_api", "congress_api", null
+
+  # Financial data (state only)
+  revenue: string                 # "state_controller", null
+
+  # Federal data
+  expenditures: string            # "fac_api", null
+  funding: string                 # "usaspending_api", null
+
+# =============================================================================
+# CITY/COUNTY: Financial Context (for HUD/federal data lookups)
+# =============================================================================
+
+financial:
+  state: string                   # State abbreviation: "CA"
+  county: string                  # County name: "Marin"
+  sco:                            # State Controller Office data
+    dataset_id: string            # SCO dataset ID
+    entity_name: string           # Entity name in SCO data
+
+federal_programs:
+  hud_grantee: string             # HUD grantee name (may be county)
+  hud_relationship: string        # "direct", "consortium", "subrecipient"
+  notes: string                   # Explanation of federal program relationships
+
+# =============================================================================
+# CITY/COUNTY: Geography (for filtering and geo tools)
+# =============================================================================
+
+zip_codes:                        # List of zip codes in jurisdiction
+  - "94901"
+
+neighborhoods:                    # List of neighborhoods for geo tools
+  - Downtown
+  - Terra Linda
+
+# =============================================================================
+# OPTIONAL: Tool Configuration
+# =============================================================================
+
+tools_enabled: null               # null = use defaults for level, or list of tool names
+tool_overrides: {}                # Custom tool parameters
+
+# =============================================================================
+# OPTIONAL: Modal Deployment Configuration
+# =============================================================================
+
+modal:
+  min_containers: integer         # 0 = cold start, 1+ = keep warm
+  secrets:                        # List of Modal secrets to mount
+    - civicos-env                 # Required: API keys
+    - civic-google                # Optional: Geocoding (cities only)
+
+# =============================================================================
+# OPTIONAL: Metadata
+# =============================================================================
+
+metadata:
+  created: string                 # ISO date: "2025-12-21"
+  updated: string                 # ISO date of last update
+  notes: string                   # Any notes about this config
+  youtube_playlist: string        # YouTube playlist URL (deprecated, use data_sources.transcripts)
