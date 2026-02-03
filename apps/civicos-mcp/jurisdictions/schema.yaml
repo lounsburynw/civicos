@@ -1,0 +1,47 @@
+# Jurisdiction Configuration Schema
+#
+# Each jurisdiction (city, county, state) has a YAML config file
+# that defines its contact info, data sources, and enabled tools.
+#
+# Config files are loaded by the tool loader at startup.
+
+# Required fields
+jurisdiction_id: string        # e.g., "city-san-rafael", "state-california"
+level: string                  # "federal", "state", "county", "city"
+display_name: string           # Human-readable name
+
+# Parent jurisdictions (for hierarchy)
+parent_jurisdictions:          # List of parent jurisdiction IDs
+  - county-{name}              # City belongs to county
+  - state-{name}               # County belongs to state
+  - country-united-states      # State belongs to country
+
+# Contact information (used by engagement tools)
+contact_info:
+  clerk_email: string          # Public comment submission email
+  city_hall_address: string    # Physical address
+  meeting_schedule: string     # e.g., "First and third Monday, 7:00 PM"
+  public_comment_deadline: string
+  in_person_time_limit: string # e.g., "3 minutes"
+  public_comment_subject: string # Email subject line format
+
+# Body information
+governing_body:
+  name: string                 # e.g., "San Rafael City Council"
+  members_title: string        # e.g., "Mayor and Council Members"
+
+# Data sources (for ingestion)
+data_sources:
+  meetings: string             # API source: "granicus", "legistar", etc.
+  issues: string               # "seeclickfix", "311", etc.
+  budget: string               # "opengov", "municipal_portal", etc.
+
+# Tool enablement (optional - defaults to all tools for level)
+tools_enabled:                 # List of tool names to enable
+  - tool_name_1
+  - tool_name_2
+
+# Tool overrides (optional - for custom behavior)
+tool_overrides:
+  tool_name:
+    param: value

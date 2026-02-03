@@ -4,8 +4,15 @@ CivicOS MCP Server - Container Entry Point
 This is the entry point for Docker/container deployments.
 For Modal deployment, use modal_app.py instead.
 
+Supports jurisdiction-specific deployments via CIVICOS_JURISDICTION env var.
+Each jurisdiction level (federal, state, city) gets different tools.
+
 Usage:
-    uvicorn server:app --host 0.0.0.0 --port 8080
+    # City-level server (default)
+    CIVICOS_JURISDICTION=city-san-rafael uvicorn server:app --host 0.0.0.0 --port 8080
+
+    # Federal-level server
+    CIVICOS_JURISDICTION=country-united-states uvicorn server:app --host 0.0.0.0 --port 8080
 
 Or with Python:
     python server.py
@@ -41,13 +48,14 @@ app = FastAPI(
 _civic = None
 _registry = None
 _jurisdiction = None
+_jurisdiction_config = None
 _validate_input = None
 
 
 @app.on_event("startup")
 async def startup():
     """Initialize CivicOS and tool registry on startup."""
-    global _civic, _registry, _jurisdiction, _validate_input
+    global _civic, _registry, _jurisdiction, _jurisdiction_config, _validate_input
     import time
 
     logger.info("Initializing CivicOS MCP Server...")
@@ -57,8 +65,17 @@ async def startup():
     from tools import handlers
     from civicos_input_validator import validate_civic_input
 
+    # Load jurisdiction config
+    from handlers.loader import load_jurisdiction_config, get_tools_for_level
+
     _jurisdiction = os.getenv("CIVICOS_JURISDICTION", "city-san-rafael")
+    _jurisdiction_config = load_jurisdiction_config(_jurisdiction)
     _validate_input = validate_civic_input
+
+    logger.info(
+        f"Jurisdiction: {_jurisdiction_config.display_name} "
+        f"(level: {_jurisdiction_config.level})"
+    )
 
     # Initialize CivicOS
     start = time.time()
@@ -78,15 +95,30 @@ async def startup():
         warmup_time = time.time() - start
         logger.info(f"Embedding model ready ({provider.model_name}, {warmup_time:.1f}s)")
 
-    # Create tool registry and bind handlers
+    # Create tool registry
     _registry = ToolRegistry()
 
+    # Get enabled tools for this jurisdiction level
+    enabled_tools = _jurisdiction_config.get_enabled_tools()
+    logger.info(f"Enabled tools for {_jurisdiction_config.level} level: {len(enabled_tools)}")
+
+    # Import config-driven handlers for engagement tools
+    from handlers.jurisdiction import engagement as config_handlers
+
+    # Map tools to handlers (with config-driven replacements where available)
+    config_driven = {
+        "compose_public_comment": config_handlers.compose_public_comment,
+        "get_comment_guidelines": config_handlers.get_comment_guidelines,
+        "get_comment_template": config_handlers.get_comment_template,
+    }
+
     handler_map = {
+        # Core civic tools
         "search_meeting_history": handlers.search_meeting_history,
         "get_upcoming_meetings": handlers.get_upcoming_meetings,
         "find_similar_issues": handlers.find_similar_issues,
         "search_regulatory_stack": handlers.search_regulatory_stack,
-        "compose_public_comment": handlers.compose_public_comment,
+        "compose_public_comment": config_driven["compose_public_comment"],
         "city_pulse": handlers.city_pulse,
         "get_issue_analytics": handlers.get_issue_analytics,
         "get_issue_trends": handlers.get_issue_trends,
@@ -94,8 +126,9 @@ async def startup():
         "search_budget": handlers.search_budget,
         "get_public_testimony": handlers.get_public_testimony,
         "search_agenda_packets": handlers.search_agenda_packets,
-        "get_comment_guidelines": handlers.get_comment_guidelines,
+        "get_comment_guidelines": config_driven["get_comment_guidelines"],
         "get_started": handlers.get_started,
+        # 311 analysis tools
         "query_issue_data": handlers.query_issue_data,
         "get_issue_resolution_stats": handlers.get_issue_resolution_stats,
         "detect_trends": handlers.detect_trends,
@@ -105,13 +138,25 @@ async def startup():
         "get_seasonal_patterns": handlers.get_seasonal_patterns,
         "compare_zip_codes": handlers.compare_zip_codes,
         "neighborhood_report": handlers.neighborhood_report,
+        # Council/voting tools
         "get_voting_record": handlers.get_voting_record,
         "get_decision_context": handlers.get_decision_context,
+        # Financial tools
         "get_funding_flow": handlers.get_funding_flow,
         "get_federal_expenditures": handlers.get_federal_expenditures,
         "get_intergovernmental_revenue": handlers.get_intergovernmental_revenue,
-        "get_comment_template": handlers.get_comment_template,
+        # Action tools
+        "get_comment_template": config_driven["get_comment_template"],
         "prepare_for_meeting": handlers.prepare_for_meeting,
+        # Coordination tools
+        "get_voice_counts": handlers.get_voice_counts,
+        "subscribe_to_topic": handlers.subscribe_to_topic,
+        "prepare_voice": handlers.prepare_voice,
+        "broadcast_voice": handlers.broadcast_voice,
+        "prepare_initiative": handlers.prepare_initiative,
+        "broadcast_initiative": handlers.broadcast_initiative,
+        "list_initiatives": handlers.list_initiatives,
+        "list_relays": handlers.list_relays,
     }
 
     def wrap_handler(handler_fn):
@@ -122,10 +167,20 @@ async def startup():
             return result
         return wrapped
 
+    # Only bind handlers for tools enabled at this jurisdiction level
+    bound_count = 0
     for name, handler_fn in handler_map.items():
-        _registry.bind_handler(name, wrap_handler(handler_fn))
+        if name in enabled_tools:
+            try:
+                _registry.bind_handler(name, wrap_handler(handler_fn))
+                bound_count += 1
+            except ValueError as e:
+                logger.warning(f"Could not bind handler {name}: {e}")
 
-    logger.info(f"MCP Server ready with {len(_registry)} tools")
+    logger.info(
+        f"MCP Server ready with {bound_count} tools "
+        f"(level: {_jurisdiction_config.level})"
+    )
 
 
 @app.get("/health")
@@ -135,6 +190,8 @@ async def health():
         "status": "healthy",
         "service": "civicos-mcp",
         "jurisdiction": _jurisdiction,
+        "jurisdiction_level": _jurisdiction_config.level if _jurisdiction_config else "unknown",
+        "display_name": _jurisdiction_config.display_name if _jurisdiction_config else _jurisdiction,
         "platform": "container",
         "tools_count": len(_registry) if _registry else 0,
         "tools": [name for name, _ in _registry] if _registry else [],

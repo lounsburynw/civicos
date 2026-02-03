@@ -1,0 +1,25 @@
+# Federal (United States) Configuration
+#
+# Shared federal-level data and tools.
+# Used by all city/county/state jurisdictions.
+
+jurisdiction_id: country-united-states
+level: federal
+display_name: United States Federal
+
+# No parent jurisdictions (top level)
+parent_jurisdictions: []
+
+# Data Sources
+data_sources:
+  legislation: congress_api      # Federal bills
+  expenditures: fac_api          # Single Audit data
+  funding: usaspending_api       # Federal spending
+
+# Tools enabled at federal level
+# These tools query shared federal datasets
+tools_enabled:
+  - search_regulatory_stack      # Federal section
+  - get_federal_expenditures     # FAC Single Audit
+  - get_funding_flow             # Federal funding traces
+  - list_relays                  # Shared relay discovery
