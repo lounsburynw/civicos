@@ -3473,8 +3473,8 @@
       "verification": "Tested 2026-02-02: 'show housing meetings in san rafael' -> search_meeting_history MCP tool -> PostgreSQL results returned"
     },
     "user_context_schema": {
-      "status": "not_ready",
-      "priority": 0,
+      "status": "ready",
+      "priority": 2,
       "description": "Schema for user context stored in localStorage. Transmitted per-request to agent. Never stored server-side. Optionally backed up as encrypted Nostr event.",
       "test_file": "apps/civicos-workspace/tests/unit/user-context.spec.ts",
       "artifact": "apps/civicos-workspace/src/services/UserContextService.ts",
@@ -3506,11 +3506,12 @@
         "Context serialization for API requests",
         "First-visit onboarding flow (neighborhood, interests)",
         "Optional: Nostr backup (encrypted kind 30900?)"
-      ]
+      ],
+      "verification": "2026-02-02: CivicUserContext interface + UserContextService + 29 unit tests passing. Chat store integrated. Remaining subtasks (encryption, onboarding UI) tracked separately."
     },
     "context_aware_agent": {
-      "status": "pending",
-      "priority": 1,
+      "status": "not_ready",
+      "priority": 0,
       "description": "System prompt and agent logic that uses user context for personalized filtering. Stateless - context comes in request, agent reasons about relevance to THIS user.",
       "test_file": "packages/civicos-services/tests/test_context_agent.py",
       "artifact": "packages/civicos-services/src/civicos_services/chat/context_agent.py",

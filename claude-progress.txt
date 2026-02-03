@@ -1,3 +1,57 @@
+## Session 535 (2026-02-02) - User Context Schema Implementation
+
+**Item:** `user_context_schema` (P0)
+**Status:** COMPLETE
+
+### What Was Done
+Implemented privacy-first user context management for the CivicOS frontend:
+
+1. **TypeScript Interfaces** (`apps/civicos-workspace/src/types/civic.ts`)
+   - `CivicUserContext`: Full user context with all fields from pilot.json schema
+   - `UserNeighborhood`, `ReminderPreferences`, `UserAttestations`: Supporting types
+   - `UserContextForRequest`: Subset for API transmission (privacy-filtered)
+   - Extended `ConversationRequest` to include `user_context`
+
+2. **UserContextService** (`apps/civicos-workspace/src/services/UserContextService.ts`)
+   - localStorage persistence with privacy-tier design
+   - Load/save with validation and error handling
+   - Partial update methods (jurisdiction, location, interests, filtering)
+   - History tracking (voice_history, commitment_history as Nostr event IDs)
+   - API serialization (filters sensitive data before transmission)
+   - Export/import for cross-device sync
+
+3. **Chat Store Integration** (`apps/civicos-workspace/src/stores/chat.ts`)
+   - Integrated `serializeForRequest()` into `sendMessage()`
+   - User context now transmitted with every chat API request
+   - Debug logging shows context being sent
+
+4. **Unit Tests** (`apps/civicos-workspace/tests/unit/user-context.spec.ts`)
+   - 29 tests covering all functionality
+   - localStorage mocking for isolated testing
+   - Tests for load/save, partial updates, API serialization, export/import
+
+### Privacy Design
+- Tier 1 (browser-only): archetypes, private key - NEVER transmitted
+- Tier 2 (per-request): interests, filtering_instructions - transmitted but not stored server-side
+- Tier 3 (server-stored): user_id, demographics - stored for coordination
+
+### Files Changed
+- `apps/civicos-workspace/src/types/civic.ts` - Added CivicUserContext types
+- `apps/civicos-workspace/src/services/UserContextService.ts` - NEW
+- `apps/civicos-workspace/src/stores/chat.ts` - Integrated context
+- `apps/civicos-workspace/tests/unit/user-context.spec.ts` - NEW
+- `pilot.json` - `user_context_schema`: not_ready → ready
+
+### Remaining Subtasks (tracked separately)
+- Encryption for sensitive fields (private key)
+- First-visit onboarding flow (neighborhood, interests)
+- Nostr backup (encrypted kind 30900?)
+
+### Next P0
+- `context_aware_agent`: Agent that uses user context for personalized filtering
+
+---
+
 ## Session 534 (2026-02-02) - MCP Tool Integration for Chat (HTTP-based)
 
 **Item:** `web_chat_interface` (P0 - in progress)

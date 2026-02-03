@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import type { CivicEvent, ConversationRequest } from '../types/civic'
 import { api } from '../services/api'
 import { useWorkspaceStore } from './workspace'
+import { serializeForRequest } from '../services/UserContextService'
 
 /**
  * Chat Store
@@ -140,6 +141,12 @@ export const useChatStore = defineStore('chat', () => {
       }
     }
 
+    // Add user context (Privacy Tier 2 - per-request, never stored server-side)
+    const userContext = serializeForRequest()
+    if (userContext) {
+      requestData.user_context = userContext
+    }
+
     // DEBUG: Log what we're sending
     console.log('[Chat Store] Sending request:', {
       has_context: !!context.value,
@@ -147,7 +154,10 @@ export const useChatStore = defineStore('chat', () => {
       has_event_data: !!(context.value?.data),
       city: requestData.city,
       has_event_context: !!requestData.event_context,
-      event_title: requestData.event_context?.title
+      event_title: requestData.event_context?.title,
+      has_user_context: !!userContext,
+      user_jurisdiction: userContext?.jurisdiction,
+      user_interests: userContext?.interests?.length || 0
     })
 
     isLoading.value = true
