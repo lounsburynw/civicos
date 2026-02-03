@@ -2757,20 +2757,45 @@
         ],
         "notes": "All 3 MCP servers deployed and working: Federal (3 tools), California (4 tools), San Rafael (38 tools). Fixed jurisdiction normalization for state/country prefixes, added civicos_extraction to Modal image, fixed intergovernmental revenue handler."
       },
-      "mcp_registry_listing": {
+      "internal_mcp_registry": {
         "status": "not_ready",
         "priority": 0,
+        "artifact": "Internal registry service at civicosproject.org/registry",
+        "description": "Build internal MCP registry service that provides discovery, health aggregation, and capability introspection for all CivicOS servers. Enables UX development against stable interface before public registry submission.",
+        "rationale": "Public registry listing should wait until after stress testing and launch. Internal registry unblocks UX development, establishes federation patterns, and makes public submission a simple export step.",
+        "url_scheme": "{jurisdiction}.civicosproject.org/mcp already establishes namespace pattern",
+        "endpoints": [
+          "GET /registry/servers - List all CivicOS MCP servers",
+          "GET /registry/servers/{jurisdiction_id} - Server details + capabilities",
+          "GET /registry/health - Aggregated health status",
+          "GET /registry/tools - All tools across servers (deduplicated)"
+        ],
+        "subtasks": [
+          "Design registry API schema (OpenAPI)",
+          "Implement /registry/servers endpoint",
+          "Implement /registry/health aggregation",
+          "Implement /registry/tools introspection",
+          "Add to civicos-services or standalone"
+        ],
+        "depends_on": [
+          "mcp_jurisdiction_validation"
+        ]
+      },
+      "mcp_registry_listing": {
+        "status": "not_ready",
+        "priority": 2,
         "artifact": "Civic MCP server listed on MCP Registry and community directories",
         "description": "Register civicos-mcp on official MCP Registry and community directories (MCP.so, MCPServers.org) for discoverability.",
-        "note": "Session 547: Metadata prepared (server.json, MCP_REGISTRY_SUBMISSIONS.md). Deferred until mcp_jurisdiction_validation complete - need to validate scoped servers before public listing.",
+        "note": "Session 545: Deferred until after stress testing and launch. Internal registry (internal_mcp_registry) should be built first to enable UX development and establish patterns.",
         "subtasks": [
           "[DONE] Prepare server metadata for registry submission",
+          "Export internal registry data to public format",
           "Submit to official MCP Registry (registry.modelcontextprotocol.io)",
           "Submit to MCP.so",
           "Submit to MCPServers.org"
         ],
         "depends_on": [
-          "mcp_jurisdiction_validation"
+          "internal_mcp_registry"
         ]
       },
       "mcp_source_citations": {
