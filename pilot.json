@@ -3465,6 +3465,7 @@
         "Context injection from request body"
       ],
       "future_enhancements": [
+        "Response synthesis - MCP returns raw data, agent should reason/summarize before displaying (Claude.ai does this naturally)",
         "Streaming response display (SSE) - nice-to-have UX improvement",
         "Jurisdiction selector UI - needed for multi-city expansion",
         "Rate limiting per session - production hardening"
