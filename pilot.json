@@ -1475,7 +1475,46 @@
           "name": "corpus_protocol_conformance",
           "status": "ready"
         }
-      ]
+      ],
+      "unified_city_deployment": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Unified config-driven workflow for deploying a new city: one YAML drives extraction, MCP tools, Modal deployment, and ingestion",
+        "rationale": "Current state: extraction configs (data/extraction/*.json), MCP configs (apps/civicos-mcp/jurisdictions/*.yaml), and Modal secrets are separate systems. Adding a city requires manual coordination. Goal: `civicos deploy city-berkeley` reads config and does everything.",
+        "gap_analysis": {
+          "extraction_config": "EXISTS - data/extraction/*.json with platform detection",
+          "mcp_jurisdiction_config": "EXISTS - apps/civicos-mcp/jurisdictions/*.yaml",
+          "modal_deployment": "EXISTS - modal_mcp.py parameterized by CIVICOS_JURISDICTION",
+          "missing": [
+            "Unified city config schema (merge extraction + MCP configs)",
+            "CLI command to bootstrap a new city from config",
+            "Automatic Modal secret creation from config",
+            "Ingestion orchestration driven by config data_sources"
+          ]
+        },
+        "subtasks": [
+          {
+            "name": "Design unified city config schema",
+            "done": false
+          },
+          {
+            "name": "Implement civicos CLI with deploy subcommand",
+            "done": false
+          },
+          {
+            "name": "Wire data_sources to ingestion pipelines",
+            "done": false
+          },
+          {
+            "name": "Test with city-berkeley as second city",
+            "done": false
+          }
+        ],
+        "artifact": "packages/civicos/src/civicos/cli.py with `civicos deploy city-berkeley`",
+        "depends_on": [
+          "mcp_jurisdiction_validation"
+        ]
+      }
     },
     "documentation": {
       "_completed_items": [
@@ -3810,8 +3849,8 @@
       "description": "Open WebUI integration for San Rafael pilot. PRIMARY surface for civic participation via AI. Pattern 4 from EDGE_INTELLIGENCE_ARCHITECTURE.md.",
       "_doc": "This is the recommended instantiation for pilot: Users access via Open WebUI (self-hosted or city-hosted), LLM queries Personal MCP which queries Jurisdiction MCP. See EDGE_INTELLIGENCE_ARCHITECTURE.md for full design.",
       "personal_mcp_http": {
-        "status": "ready",
-        "priority": 1,
+        "status": "complete",
+        "priority": 2,
         "description": "Add HTTP transport to Personal MCP server for Open WebUI integration. Currently only stdio (Claude Desktop). Need SSE/HTTP for browser-based access.",
         "test_file": "apps/civicos-personal-mcp/tests/http-transport.spec.ts",
         "artifact": "apps/civicos-personal-mcp/src/http-server.ts",
@@ -3822,7 +3861,7 @@
           "Health check endpoint",
           "Deploy to Modal or Fly.io"
         ],
-        "note": "Session 541: HTTP server implemented with Express. All tools work via JSON-RPC. Tests pass. Deployment deferred."
+        "note": "Session 543: HTTP server complete with 17 tools. Easy tier support added (passkey identity). Modal deployment created (modal_app.py). Deploy: modal deploy apps/civicos-personal-mcp/modal_app.py"
       },
       "openwebui_setup_guide": {
         "status": "ready",
