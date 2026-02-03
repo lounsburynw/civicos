@@ -17469,3 +17469,46 @@ Created TemplateView component to display action templates after user commits:
 
 ### Next Session
 **P0: voice_display** - Display voice counts on agenda items/decisions with support/oppose/watching badges.
+
+## Session 541 (continued) - Strategic Pivot to MCP-Native
+
+**Discussion:** User identified that we've been inverting priorities - building web frontend when MCP-native should be primary.
+
+### Key Insight
+From EDGE_INTELLIGENCE_ARCHITECTURE.md: "MCP-native is the primary surface. Web frontend is the fallback."
+
+### Architecture Clarification
+
+**Jurisdiction MCP** (civicos-mcp) - ALREADY DEPLOYED
+- Read-only public civic data
+- 30 tools, deployed at san-rafael.civicosproject.org/mcp
+- Stateless, shared across all users
+
+**Personal MCP** (civicos-personal-mcp) - PARTIALLY BUILT
+- User's edge agent (personalization, identity, signing)
+- Currently: stdio transport, Private identity tier, signing tools
+- Missing: HTTP transport (for Open WebUI), Easy mode, context tools
+
+### Reprioritization
+
+**DEMOTED (web frontend is fallback):**
+- voice_display: P0 → P3
+- action_flow_integration: P0 → P2
+
+**PROMOTED (MCP-native is primary):**
+- personal_mcp_http: P0 - HTTP transport for Open WebUI
+- openwebui_setup_guide: P0 - Setup documentation
+- easy_mode_passkey: P1 - Low-friction identity
+- context_personalization_tools: P1 - Query + personalize
+
+### Production Architecture
+Personal MCP is STATELESS at scale:
+- User context stored in browser (localStorage/IndexedDB)
+- Context passed with each request
+- Signing happens client-side
+- Horizontal scaling (any instance serves any user)
+
+### Next Steps
+1. Add HTTP transport to Personal MCP
+2. Write Open WebUI setup guide
+3. Test end-to-end: Open WebUI → Personal MCP → Jurisdiction MCP

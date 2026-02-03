@@ -3261,7 +3261,8 @@
     "frontend_integration": {
       "voice_display": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 3,
+        "note": "DEMOTED: Web frontend is fallback surface. MCP-native (Personal MCP + Open WebUI) is primary.",
         "description": "Display voice counts on agenda items and decisions in the Vue frontend. Show support/oppose/watching breakdown. Simple badge/indicator UI.",
         "test_file": "apps/civicos-workspace/tests/e2e/voice-display.spec.ts",
         "subtasks": [
@@ -3702,9 +3703,70 @@
         "Fallback to other providers if NIP-07 unavailable"
       ]
     },
+    "openwebui_pilot": {
+      "description": "Open WebUI integration for San Rafael pilot. PRIMARY surface for civic participation via AI. Pattern 4 from EDGE_INTELLIGENCE_ARCHITECTURE.md.",
+      "_doc": "This is the recommended instantiation for pilot: Users access via Open WebUI (self-hosted or city-hosted), LLM queries Personal MCP which queries Jurisdiction MCP. See EDGE_INTELLIGENCE_ARCHITECTURE.md for full design.",
+      "personal_mcp_http": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Add HTTP transport to Personal MCP server for Open WebUI integration. Currently only stdio (Claude Desktop). Need SSE/HTTP for browser-based access.",
+        "test_file": "apps/civicos-personal-mcp/tests/http-transport.spec.ts",
+        "artifact": "apps/civicos-personal-mcp/src/http-server.ts",
+        "subtasks": [
+          "Add FastAPI or Express HTTP server alongside stdio",
+          "SSE endpoint for MCP JSON-RPC over HTTP",
+          "CORS configuration for Open WebUI origin",
+          "Health check endpoint",
+          "Deploy to Modal or Fly.io"
+        ],
+        "note": "P0: This unblocks Open WebUI integration. Without HTTP transport, Personal MCP only works with Claude Desktop."
+      },
+      "openwebui_setup_guide": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Documentation for setting up Open WebUI with CivicOS MCP servers. Step-by-step guide for pilot users.",
+        "artifact": "docs/user_guides/OPENWEBUI_SETUP.md",
+        "subtasks": [
+          "Install Open WebUI (Docker)",
+          "Configure LLM backend (Claude API or OpenAI)",
+          "Add Jurisdiction MCP connection",
+          "Add Personal MCP connection",
+          "Test queries and signing"
+        ],
+        "note": "P0: Users need documentation to try the MCP-native experience."
+      },
+      "easy_mode_passkey": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Implement PasskeyProvider for Easy mode identity. WebAuthn + PRF extension derives Nostr keypair. Lowest friction for normal users.",
+        "test_file": "apps/civicos-personal-mcp/tests/passkey-provider.spec.ts",
+        "artifact": "apps/civicos-personal-mcp/lib/providers/passkey-provider.ts",
+        "subtasks": [
+          "WebAuthn credential creation with PRF extension",
+          "PRF output + email -> HKDF -> secp256k1 keypair",
+          "TouchID/FaceID signing flow",
+          "Browser support detection (Chrome 116+, Safari 17+)"
+        ],
+        "note": "P1: Private mode (mnemonic+password) works now. Easy mode adds lower friction option."
+      },
+      "context_personalization_tools": {
+        "status": "not_ready",
+        "priority": 1,
+        "description": "Personal MCP tools that query Jurisdiction MCP and apply user context for personalized results.",
+        "test_file": "apps/civicos-personal-mcp/tests/context-tools.spec.ts",
+        "subtasks": [
+          "get_relevant_now(context) - Query Jurisdiction MCP, filter by user interests/location",
+          "get_suggestions(context) - Proactive recommendations based on civic activity",
+          "explain_relevance(item, context) - Why this matters to this user",
+          "Jurisdiction MCP client in Personal MCP"
+        ],
+        "note": "P1: Currently Personal MCP only signs. Need tools that query + personalize."
+      }
+    },
     "action_flow_integration": {
       "status": "not_ready",
-      "priority": 0,
+      "priority": 2,
+      "note": "DEMOTED: Web frontend integration. MCP-native (Open WebUI) is primary.",
       "description": "End-to-end action flow: Agent discovers actions \u2192 prepares unsigned commitment/completion events \u2192 client signs \u2192 broadcast to relay. This is the core Edge Intelligence capability that transforms intent into civic action.",
       "test_file": "apps/civicos-workspace/tests/e2e/action-flow.spec.ts",
       "flow": [
