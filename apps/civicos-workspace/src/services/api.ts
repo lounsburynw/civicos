@@ -30,7 +30,8 @@ import type {
   ActionCountResponse,
   CommitActionRequest,
   CompleteActionRequest,
-  SignedActionRecord
+  SignedActionRecord,
+  CivicActionEvent
 } from '@/types/civic';
 
 /**
@@ -1698,6 +1699,31 @@ class CivicAPI {
       }
       const errorData = await response.json().catch(() => null);
       throw new Error(errorData?.error || `Failed to fetch completions: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get all civic actions for an initiative
+   * GET /api/coordination/civic-actions/{initiative_id}
+   *
+   * Returns non-revoked actions for the specified initiative.
+   */
+  async getCivicActionsForInitiative(initiativeId: string): Promise<CivicActionEvent[]> {
+    const url = `${this.baseURL}/api/coordination/civic-actions/${encodeURIComponent(initiativeId)}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return [];
+      }
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || `Failed to fetch actions: ${response.statusText}`);
     }
 
     return response.json();

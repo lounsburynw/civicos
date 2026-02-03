@@ -17384,3 +17384,44 @@ When not set (testing):
 - Run SQL migration on Supabase (RELAY_DATABASE_URL)
 - Test E2E action flow with PostgreSQL backend
 - Add pilot.json item for PostgresActionStorage if needed
+
+## Session 540 (2026-02-02) - ActionList Component
+
+**Item:** `action_list` (P0)
+**Status:** COMPLETE
+
+### What Was Done
+
+Created the ActionList.vue component to display civic actions for an initiative:
+
+1. **API Method** (`apps/civicos-workspace/src/services/api.ts`)
+   - Added `getCivicActionsForInitiative(initiativeId)` method
+   - Returns `CivicActionEvent[]` from `/api/coordination/civic-actions/{id}`
+   - Added `CivicActionEvent` to type imports
+
+2. **ActionList.vue** (`apps/civicos-workspace/src/components/shared/ActionList.vue`)
+   - Fetches actions on mount and when initiativeId changes
+   - Renders each action using existing `ActionFlow.vue` component
+   - Handles loading, error, and empty states
+   - Maps `CivicActionType` to `InitiativeAction.action_type` for compatibility
+   - Supports `userCommittedActions` Set prop to track user's commitments
+   - Emits `sign-request` and `committed` events (bubbled from ActionFlow)
+   - Exposes `onSigningComplete()`, `onSigningFailed()`, `refresh()` methods
+
+3. **Component Tests** (`apps/civicos-workspace/tests/e2e/action-list.spec.ts`)
+   - 14 tests covering all component functionality
+   - Initial render, loading state, error state, empty state
+   - Committed actions display, event handling, watch effects
+   - All tests passing
+
+### Files Changed
+- `apps/civicos-workspace/src/services/api.ts` - Added getCivicActionsForInitiative method
+- `apps/civicos-workspace/src/components/shared/ActionList.vue` - New component
+- `apps/civicos-workspace/tests/e2e/action-list.spec.ts` - Component tests
+- `pilot.json` - Updated action_list to ready, set action_templates to P0
+
+### Next Session
+**P0: action_templates** - Display action templates after user commits. Natural UX flow.
+- TemplateView component with copy/download
+- Editable fields for personalization
+- Pre-fill user name/address if available

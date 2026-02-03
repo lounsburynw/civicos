@@ -3307,8 +3307,8 @@
         ]
       },
       "action_list": {
-        "status": "pending",
-        "priority": 0,
+        "status": "ready",
+        "priority": 2,
         "description": "Display actions for an initiative with progress stats. Show type, deadline, target, and completion progress (X/Y completed, Z committed).",
         "test_file": "apps/civicos-workspace/tests/e2e/action-list.spec.ts",
         "subtasks": [
@@ -3318,7 +3318,7 @@
           "Deadline urgency indicators (due soon, overdue)",
           "Filter by action type"
         ],
-        "note": "P0: Users need to see available actions before they can commit. Depends on PostgresActionStorage (completed Session 539)."
+        "notes": "Session 540: ActionList.vue component fetches actions via getCivicActionsForInitiative(), renders each with ActionFlow.vue. 14 tests passing. Filter by action type deferred to P2."
       },
       "action_commit": {
         "status": "ready",
@@ -3348,7 +3348,7 @@
       },
       "action_templates": {
         "status": "pending",
-        "priority": 1,
+        "priority": 0,
         "description": "Display and customize action templates (letters, talking points, scripts). Pre-fill with user context where possible.",
         "test_file": "apps/civicos-workspace/tests/e2e/action-templates.spec.ts",
         "subtasks": [
@@ -3357,7 +3357,7 @@
           "Pre-fill user name/address if available",
           "Direct submit for email-based actions (optional)"
         ],
-        "note": "P1: Show action templates after user commits. Natural UX flow after action_list."
+        "note": "P0: Natural next step after action_list. Show templates after user commits to an action."
       }
     },
     "federation": {
