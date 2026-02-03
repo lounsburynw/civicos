@@ -344,13 +344,13 @@ describe('Context Personalization Tools', () => {
   });
 
   describe('tools/list includes context tools', () => {
-    it('lists 14 tools (9 identity + 5 context)', async () => {
+    it('lists 17 tools (9 identity + 5 context + 3 personalized query)', async () => {
       const response = await request(server.getApp())
         .post('/mcp')
         .send({ jsonrpc: '2.0', method: 'tools/list', params: {}, id: 1 });
 
       const tools = response.body.result.tools;
-      expect(tools).toHaveLength(14);
+      expect(tools).toHaveLength(17);
 
       const toolNames = tools.map((t: { name: string }) => t.name);
       expect(toolNames).toContain('set_neighborhood');
@@ -362,9 +362,9 @@ describe('Context Personalization Tools', () => {
   });
 
   describe('health check shows updated tool count', () => {
-    it('reports 14 tools', async () => {
+    it('reports 17 tools', async () => {
       const response = await request(server.getApp()).get('/health');
-      expect(response.body.tools).toBe(14);
+      expect(response.body.tools).toBe(17);
     });
   });
 });

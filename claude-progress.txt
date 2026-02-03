@@ -17687,3 +17687,50 @@ Personal MCP now has 14 tools:
 
 ### Next Session
 P0 set to `personalized_query_tools` - Tools that query Jurisdiction MCP with stored context for personalized results.
+
+---
+### Session 546 - 2026-02-03
+
+**Task:** personalized_query_tools (P0)
+**Area:** edge_intelligence > openwebui_pilot
+
+### What Changed
+Implemented personalized query tools for Personal MCP that query Jurisdiction MCP and filter results based on user context.
+
+### New Tools (3)
+- `get_relevant_now` - Returns upcoming meetings, recent decisions, and trending issues filtered by user's interests and neighborhood
+- `get_suggestions` - Generates proactive civic recommendations based on interests and followed items  
+- `explain_relevance` - Explains why a specific civic item matters to a user based on their personalization settings
+
+### Files Changed
+- `apps/civicos-personal-mcp/lib/jurisdiction-mcp-client.ts` - NEW: HTTP client for Jurisdiction MCP
+- `apps/civicos-personal-mcp/src/http-server.ts` - Added 3 tools and handlers
+- `apps/civicos-personal-mcp/tests/personalized-queries.spec.ts` - NEW: Test suite for personalized queries
+- `apps/civicos-personal-mcp/tests/http-transport.spec.ts` - Updated tool count 14→17
+- `apps/civicos-personal-mcp/tests/context-storage.spec.ts` - Updated tool count 14→17
+- `pilot.json` - Updated personalized_query_tools to ready
+
+### Test Results
+All 132 tests pass (39 passkey + 49 signing + 8 http-transport + 22 context + 14 personalized-queries)
+
+### Tool Count
+Personal MCP now has 17 tools:
+- Identity: identity_status, identity_create, identity_import, identity_unlock, identity_lock
+- Signing: sign_voice, sign_commitment, sign_completion, sign_event
+- Context: set_neighborhood, set_interests, follow_item, unfollow_item, get_context
+- Query: get_relevant_now, get_suggestions, explain_relevance
+
+### Architecture
+```
+User (Open WebUI) → Personal MCP → Jurisdiction MCP → CivicOS API
+                         ↓
+                  Context Storage
+                  (neighborhood, interests, followed items)
+```
+
+Personal MCP acts as a personalization layer between the user and Jurisdiction MCP data.
+
+### Next Session
+P0 needs to be set. Remaining openwebui_pilot items:
+- subscription_notifications (P1) - Notification delivery for subscriptions
+- personal_mcp_documentation (P2) - User guide for Personal MCP

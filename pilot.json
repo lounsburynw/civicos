@@ -3765,7 +3765,7 @@
         "note": "Context storage complete. Query tools (get_relevant_now, etc.) require Jurisdiction MCP client - see personalized_query_tools."
       },
       "personalized_query_tools": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "description": "Personal MCP tools that query Jurisdiction MCP and apply stored context for personalized results.",
         "test_file": "apps/civicos-personal-mcp/tests/personalized-queries.spec.ts",
