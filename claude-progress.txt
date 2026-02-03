@@ -17915,3 +17915,18 @@ Federal and California MCP servers were failing:
   - Register CivicOS MCP on official registries for discoverability
   - Submit to registry.modelcontextprotocol.io, MCP.so, MCPServers.org
   - Metadata already prepared in previous session
+
+### P0 Revision (Post-Session Discussion)
+
+**Discussion:** User raised concern about public registry listing before stress testing and launch.
+
+**Decision:** Build internal registry first ("internal-first" architecture pattern)
+- Unblocks UX development against stable interface
+- Establishes federation patterns
+- Makes public submission a simple export step later
+
+**Priority Changes:**
+- `internal_mcp_registry` → **P0 (NEW)** - Build internal registry service
+- `mcp_registry_listing` → P2 (deferred, depends on internal registry)
+
+**Key insight:** URL scheme `{jurisdiction}.civicosproject.org/mcp` already establishes namespace - registry formalizes this into queryable service.
