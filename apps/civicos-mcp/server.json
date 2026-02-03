@@ -1,0 +1,164 @@
+{
+  "$schema": "https://registry.modelcontextprotocol.io/schemas/server.json",
+  "name": "civicos-san-rafael",
+  "display_name": "CivicOS San Rafael",
+  "description": "Access San Rafael city council meetings, decisions, budget data, and 311 issues. Research civic topics, prepare public comments, and track what your local government is doing.",
+  "version": "1.0.0",
+  "author": {
+    "name": "CivicOS Project",
+    "url": "https://civicosproject.org",
+    "email": "contact@civicosproject.org"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/civicosproject/civicos"
+  },
+  "homepage": "https://civicosproject.org",
+  "documentation": "https://civicosproject.org/docs/mcp",
+  "license": "AGPL-3.0",
+  "tags": [
+    "civic",
+    "government",
+    "local-government",
+    "city-council",
+    "meetings",
+    "public-comment",
+    "budget",
+    "311",
+    "san-rafael",
+    "california",
+    "transparency",
+    "civic-engagement"
+  ],
+  "category": "government",
+  "platforms": ["claude-desktop", "claude-web", "chatgpt"],
+  "transport": {
+    "type": "http",
+    "url": "https://san-rafael.civicosproject.org/mcp"
+  },
+  "capabilities": {
+    "tools": true,
+    "resources": true,
+    "prompts": true
+  },
+  "tools": [
+    {
+      "name": "search_meeting_history",
+      "description": "Search past city council meetings and decisions on a topic"
+    },
+    {
+      "name": "get_upcoming_meetings",
+      "description": "Get upcoming city council meetings and agenda items"
+    },
+    {
+      "name": "find_similar_issues",
+      "description": "Find community issues related to a topic via 311/SeeClickFix"
+    },
+    {
+      "name": "search_regulatory_stack",
+      "description": "Search laws and regulations across local, state, and federal levels"
+    },
+    {
+      "name": "compose_public_comment",
+      "description": "Get context for writing a public comment on a civic agenda item"
+    },
+    {
+      "name": "city_pulse",
+      "description": "Get a snapshot of city activity (meetings, decisions, issues)"
+    },
+    {
+      "name": "get_issue_analytics",
+      "description": "Get statistics about 311/SeeClickFix issues"
+    },
+    {
+      "name": "search_budget",
+      "description": "Search city budget items and expenditures"
+    },
+    {
+      "name": "get_public_testimony",
+      "description": "Find past public testimony on a topic with video timestamps"
+    },
+    {
+      "name": "search_agenda_packets",
+      "description": "Search agenda packet documents (staff reports, attachments)"
+    },
+    {
+      "name": "get_voting_record",
+      "description": "Get voting history for council members"
+    },
+    {
+      "name": "get_decision_context",
+      "description": "Get full context around a specific council decision"
+    },
+    {
+      "name": "get_funding_flow",
+      "description": "Trace federal/state funding to local programs"
+    },
+    {
+      "name": "prepare_for_meeting",
+      "description": "Generate comprehensive meeting preparation materials"
+    },
+    {
+      "name": "get_started",
+      "description": "Get onboarding guidance based on user type (resident, staff, developer)"
+    }
+  ],
+  "tools_count": 30,
+  "example_queries": [
+    "What did the city council decide about housing last month?",
+    "When is the next city council meeting?",
+    "Are there potholes reported near my neighborhood?",
+    "What laws apply to accessory dwelling units in San Rafael?",
+    "Help me prepare a public comment about the downtown plan",
+    "What is the city's budget for parks and recreation?",
+    "What have residents said about traffic safety?",
+    "How did council members vote on the homeless services item?"
+  ],
+  "jurisdiction": {
+    "id": "city-san-rafael",
+    "level": "city",
+    "name": "San Rafael",
+    "state": "California",
+    "county": "Marin"
+  },
+  "data_sources": [
+    {
+      "name": "City Council Meetings",
+      "type": "meetings",
+      "count": "98+",
+      "freshness": "daily"
+    },
+    {
+      "name": "Council Decisions",
+      "type": "decisions",
+      "count": "44+",
+      "freshness": "daily"
+    },
+    {
+      "name": "Meeting Transcripts",
+      "type": "transcripts",
+      "count": "19+",
+      "freshness": "weekly"
+    },
+    {
+      "name": "311 Issues (SeeClickFix)",
+      "type": "issues",
+      "count": "1730+",
+      "freshness": "daily"
+    },
+    {
+      "name": "Municipal Code",
+      "type": "legislation",
+      "count": "16000+",
+      "freshness": "monthly"
+    },
+    {
+      "name": "Budget Items",
+      "type": "budget",
+      "count": "58",
+      "freshness": "annual"
+    }
+  ],
+  "health_check": "https://san-rafael.civicosproject.org/health",
+  "status": "active"
+}
