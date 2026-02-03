@@ -663,7 +663,7 @@
         "priority": 2,
         "artifact": "get_voting_record() finds semantically related votes",
         "description": "Update get_voting_record() to use semantic topic matching instead of exact array match. 'housing affordability' would also find votes on 'zoning', 'development', 'density'.",
-        "note": "Session 530: ALREADY IMPLEMENTED. Semantic search on decisions corpus exists at civicos.py:971-986, tested working (10 results for 'housing affordability'). The '0 votes' issue is a DATA gap not code — vote_json is NULL for all 44 decisions. Decisions extracted from agendas (pre-meeting) don't have votes. Need to extract votes from minutes or transcripts in a separate data_readiness item.",
+        "note": "Session 530: ALREADY IMPLEMENTED. Semantic search on decisions corpus exists at civicos.py:971-986, tested working (10 results for 'housing affordability'). The '0 votes' issue is a DATA gap not code \u2014 vote_json is NULL for all 44 decisions. Decisions extracted from agendas (pre-meeting) don't have votes. Need to extract votes from minutes or transcripts in a separate data_readiness item.",
         "depends_on": [
           "hybrid_what_applies"
         ]
@@ -1388,7 +1388,7 @@
         "status": "ready",
         "priority": 1,
         "description": "Align video-meeting schema: populate meetings.video_url, videos.meeting_url, add video_id to transcript vectors",
-        "artifact": "PgVectorBackend.index_from_storage video→meeting lookup for transcripts",
+        "artifact": "PgVectorBackend.index_from_storage video\u2192meeting lookup for transcripts",
         "note": "Session 526: Metadata backfill resolved all YouTube URL issues. Transcript embeddings now have real YouTube video_ids in metadata (e.g., k5ZUhxHn5pE). URLs correctly generate as youtube.com/watch?v=k5ZUhxHn5pE&t=70s. Read-time fallback also extracts video_id from embedding ID pattern.",
         "key_files": [
           "packages/civic/src/civic/storage/pgvector_backend.py:772-785"
@@ -1398,8 +1398,8 @@
         "status": "complete",
         "priority": 1,
         "description": "Fix transcript vectors storing video_id in meeting_id field",
-        "artifact": "PgVectorBackend.index_from_storage video→meeting lookup (same fix as video_meeting_schema_alignment)",
-        "note": "Session 525: ADDRESSED by video_meeting_schema_alignment code change. The lookup logic resolves transcript.video_id → videos.meeting_id → actual meeting ID. Re-indexing transcripts will apply the fix. Run: modal run scripts/modal_ingest.py --vectors --reindex transcripts"
+        "artifact": "PgVectorBackend.index_from_storage video\u2192meeting lookup (same fix as video_meeting_schema_alignment)",
+        "note": "Session 525: ADDRESSED by video_meeting_schema_alignment code change. The lookup logic resolves transcript.video_id \u2192 videos.meeting_id \u2192 actual meeting ID. Re-indexing transcripts will apply the fix. Run: modal run scripts/modal_ingest.py --vectors --reindex transcripts"
       }
     },
     "architectural_debt": {
@@ -2389,7 +2389,7 @@
         "priority": 99,
         "artifact": "prepare() method includes legal citations and precedents from vector search",
         "description": "When user prepares for a meeting, automatically search relevant: municipal code sections, state legislation, past decisions, similar issues. Include in preparation materials with proper citations.",
-        "note": "Session implemented. prepare() now returns legal_citations list with formatted citations (Cal. Gov. Code, Municipal Code §, etc.) and talking points reference them.",
+        "note": "Session implemented. prepare() now returns legal_citations list with formatted citations (Cal. Gov. Code, Municipal Code \u00a7, etc.) and talking points reference them.",
         "depends_on": "pgvector_cross_corpus_search"
       },
       "action_leverage_points": {
@@ -2411,7 +2411,7 @@
         "priority": 3,
         "artifact": "search_regulatory_stack() deduplicates local code results",
         "description": "MCP audit shows same municipal code section (e.g. 14.03.030) appearing 5x in local regulatory results. Need dedup logic in search_regulatory_stack() local section formatting.",
-        "note": "Session 530: Fixed in context.py — deduplicate local/county results by section_number using seen_sections set. Verified 0 duplicates across housing, traffic safety, parking queries."
+        "note": "Session 530: Fixed in context.py \u2014 deduplicate local/county results by section_number using seen_sections set. Verified 0 duplicates across housing, traffic safety, parking queries."
       }
     },
     "city_status_dashboard": {
@@ -2445,7 +2445,7 @@
         "status": "not_ready",
         "priority": 3,
         "artifact": "Sankey-style flow showing items through civic process stages",
-        "description": "Visualization showing how agenda items flow: Introduced → Heard → Decided → Implemented. Reveals where things stall (items 'continued' multiple times, decisions pending implementation). Requires tracking item state over time.",
+        "description": "Visualization showing how agenda items flow: Introduced \u2192 Heard \u2192 Decided \u2192 Implemented. Reveals where things stall (items 'continued' multiple times, decisions pending implementation). Requires tracking item state over time.",
         "note": "Session 542: Powerful for showing 'what's stuck' without editorial commentary. Data-forward approach.",
         "depends_on": "city_pulse_mcp_tool"
       },
@@ -2461,7 +2461,7 @@
         "status": "not_ready",
         "priority": 3,
         "artifact": "Treemap visualization of budget allocation by category",
-        "description": "Interactive treemap showing proportional budget allocation. Drillable: click Public Safety → Police vs Fire breakdown. Uses existing budget_items data.",
+        "description": "Interactive treemap showing proportional budget allocation. Drillable: click Public Safety \u2192 Police vs Fire breakdown. Uses existing budget_items data.",
         "note": "Session 542: Lower priority but valuable for 'where does the money go' questions.",
         "depends_on": "city_pulse_mcp_tool"
       },
@@ -2486,7 +2486,7 @@
         "status": "not_ready",
         "priority": 3,
         "artifact": "Progressive engagement UX from awareness to coordination",
-        "description": "UX flow that guides users through engagement ladder: Awareness (what's happening) → Relevance (what affects me) → Participation (where I can act) → Coordination (who's with me). Each dashboard view surfaces the 'next step' without forcing it.",
+        "description": "UX flow that guides users through engagement ladder: Awareness (what's happening) \u2192 Relevance (what affects me) \u2192 Participation (where I can act) \u2192 Coordination (who's with me). Each dashboard view surfaces the 'next step' without forcing it.",
         "note": "Session 542: The engagement ladder is the conceptual spine of the dashboard. This item is about making the progression feel natural in the UX."
       }
     }
@@ -3073,7 +3073,7 @@
       },
       "action_tools": {
         "status": "pending",
-        "priority": 2,
+        "priority": 1,
         "description": "READ-ONLY MCP tools for querying action state. Write operations (define, commit, complete) happen via Edge Intelligence, not MCP.",
         "test_file": "apps/civicos-mcp/tests/test_action_tools.py",
         "rationale": "MCP is the 'Library' - provides public civic knowledge. It queries, it does not mutate. Action preparation happens in Edge Intelligence; signing happens client-side.",
@@ -3082,7 +3082,7 @@
           "get_action_progress(action_id) - detailed completion breakdown",
           "get_initiative_accounting(initiative_id) - aggregate action progress"
         ],
-        "note": "Moved write operations to Edge Intelligence. MCP remains read-only per architecture."
+        "note": "P1: MCP tools for AI-assisted action taking. Enables chat agents to help users commit/complete actions."
       }
     },
     "action_primitives": {
@@ -3166,7 +3166,7 @@
         },
         "subtasks": [
           "CivicCommitmentEvent model",
-          "Status transitions: committed → completed | withdrawn",
+          "Status transitions: committed \u2192 completed | withdrawn",
           "One commitment per pubkey per action (addressable)",
           "Commitment counts exposed via API"
         ],
@@ -3308,7 +3308,7 @@
       },
       "action_list": {
         "status": "pending",
-        "priority": 2,
+        "priority": 0,
         "description": "Display actions for an initiative with progress stats. Show type, deadline, target, and completion progress (X/Y completed, Z committed).",
         "test_file": "apps/civicos-workspace/tests/e2e/action-list.spec.ts",
         "subtasks": [
@@ -3317,7 +3317,8 @@
           "Progress display: completed/committed/target counts",
           "Deadline urgency indicators (due soon, overdue)",
           "Filter by action type"
-        ]
+        ],
+        "note": "P0: Users need to see available actions before they can commit. Depends on PostgresActionStorage (completed Session 539)."
       },
       "action_commit": {
         "status": "ready",
@@ -3347,7 +3348,7 @@
       },
       "action_templates": {
         "status": "pending",
-        "priority": 2,
+        "priority": 1,
         "description": "Display and customize action templates (letters, talking points, scripts). Pre-fill with user context where possible.",
         "test_file": "apps/civicos-workspace/tests/e2e/action-templates.spec.ts",
         "subtasks": [
@@ -3355,7 +3356,8 @@
           "Editable fields for personalization",
           "Pre-fill user name/address if available",
           "Direct submit for email-based actions (optional)"
-        ]
+        ],
+        "note": "P1: Show action templates after user commits. Natural UX flow after action_list."
       }
     },
     "federation": {
@@ -3400,7 +3402,7 @@
           "sync_endpoints",
           "event_emission"
         ],
-        "note": "Session 532: Event sync endpoints implemented. Events flow: ingestion → event_emission → coordination_events_log → sync to peers."
+        "note": "Session 532: Event sync endpoints implemented. Events flow: ingestion \u2192 event_emission \u2192 coordination_events_log \u2192 sync to peers."
       },
       "hierarchical_jurisdiction_routing": {
         "status": "ready",
@@ -3408,7 +3410,7 @@
         "description": "Route queries to parent jurisdictions when local data insufficient. city-san-rafael can query county-marin for county-level decisions. Borrows from BGP/IP hierarchical addressing.",
         "test_file": "packages/civicos-relay/tests/test_hierarchy.py",
         "subtasks": [
-          "Define jurisdiction hierarchy schema (city → county → state → federal)",
+          "Define jurisdiction hierarchy schema (city \u2192 county \u2192 state \u2192 federal)",
           "Add parent_jurisdiction field to jurisdiction config",
           "Implement fallback query to parent when local returns empty",
           "Aggregate results from child jurisdictions for parent queries"
@@ -3440,7 +3442,7 @@
       "relay_integration_tests": {
         "status": "pending",
         "priority": 2,
-        "description": "Integration tests for relay → API → MCP flow. Verify voice casting through full stack, subscription delivery, provenance updates.",
+        "description": "Integration tests for relay \u2192 API \u2192 MCP flow. Verify voice casting through full stack, subscription delivery, provenance updates.",
         "test_file": "packages/civicos-services/tests/test_relay_integration.py",
         "subtasks": [
           "Test voice cast via API updates database and provenance",
@@ -3684,13 +3686,13 @@
       "subtasks": [
         "Personal MCP scaffold (apps/civicos-personal-mcp/)",
         "SigningProvider interface (sign, getPublicKey, hasKey)",
-        "PasskeyProvider: WebAuthn + PRF → HKDF → secp256k1 (Easy)",
+        "PasskeyProvider: WebAuthn + PRF \u2192 HKDF \u2192 secp256k1 (Easy)",
         "LocalWalletProvider: BIP-39 + PBKDF2 + AES-GCM (Private)",
         "NIP07Provider: detect window.nostr, delegate signing (Sovereign)",
         "HardwareWalletProvider: WebUSB/WebHID (Sovereign)",
         "ManualSigningProvider: display message, paste signature (Sovereign/Airgap)",
         "Provider selection based on instantiation pattern",
-        "Identity tier upgrade flow (Easy → Private → Sovereign)"
+        "Identity tier upgrade flow (Easy \u2192 Private \u2192 Sovereign)"
       ],
       "nip07_integration": [
         "Detect window.nostr object (only in Claude Desktop, NOT in MCP App iframe)",
@@ -3703,7 +3705,7 @@
     "action_flow_integration": {
       "status": "not_ready",
       "priority": 0,
-      "description": "End-to-end action flow: Agent discovers actions → prepares unsigned commitment/completion events → client signs → broadcast to relay. This is the core Edge Intelligence capability that transforms intent into civic action.",
+      "description": "End-to-end action flow: Agent discovers actions \u2192 prepares unsigned commitment/completion events \u2192 client signs \u2192 broadcast to relay. This is the core Edge Intelligence capability that transforms intent into civic action.",
       "test_file": "apps/civicos-workspace/tests/e2e/action-flow.spec.ts",
       "flow": [
         "1. User asks about civic issue in chat",
@@ -3719,10 +3721,10 @@
         "11. Agent shows attribution: 'You're 1 of 27'"
       ],
       "subtasks": [
-        "Chat → Action discovery flow",
-        "Commitment flow (prepare → sign → broadcast)",
+        "Chat \u2192 Action discovery flow",
+        "Commitment flow (prepare \u2192 sign \u2192 broadcast)",
         "Template delivery after commitment",
-        "Completion flow (evidence → sign → broadcast)",
+        "Completion flow (evidence \u2192 sign \u2192 broadcast)",
         "Attribution display after outcome"
       ],
       "verification": "2026-02-02: Full backend infrastructure complete - CivicActionEvent/CivicCommitment/CivicCompletion models, CivicActionService with storage protocols, 8 API endpoints, SQL migration, TypeScript types. Needs: frontend API client methods, ActionFlow.vue updates to use new endpoints, E2E tests.",
