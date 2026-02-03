@@ -102,6 +102,9 @@ class MCPServer:
 
     Tools are defined in tools/registry.py and handlers in tools/handlers.py.
     This class just provides the Modal infrastructure and binds handlers.
+
+    Supports jurisdiction-specific deployments via CIVICOS_JURISDICTION env var.
+    Each jurisdiction level (federal, state, city) gets different tools.
     """
 
     @modal.enter()
@@ -127,7 +130,16 @@ class MCPServer:
         # Import CivicOS and initialize
         from civicos import CivicOS
 
+        # Load jurisdiction config
+        from handlers.loader import load_jurisdiction_config
+
         self.jurisdiction = os.getenv("CIVICOS_JURISDICTION", "city-san-rafael")
+        self.jurisdiction_config = load_jurisdiction_config(self.jurisdiction)
+
+        self.logger.info(
+            f"Jurisdiction: {self.jurisdiction_config.display_name} "
+            f"(level: {self.jurisdiction_config.level})"
+        )
 
         start = time.time()
         self.civic = CivicOS(self.jurisdiction)
@@ -158,17 +170,34 @@ class MCPServer:
         self.registry = ToolRegistry()
         self._bind_handlers(handlers)
 
-        self.logger.info(f"MCP Server ready with {len(self.registry)} tools")
+        self.logger.info(
+            f"MCP Server ready with {len(self.registry)} tools "
+            f"(level: {self.jurisdiction_config.level})"
+        )
 
     def _bind_handlers(self, handlers):
         """Bind handler functions from the shared handlers module."""
+        # Import config-driven handlers for engagement tools
+        from handlers.jurisdiction import engagement as config_handlers
+
+        # Get enabled tools for this jurisdiction level
+        enabled_tools = self.jurisdiction_config.get_enabled_tools()
+        self.logger.info(f"Enabled tools for {self.jurisdiction_config.level} level: {len(enabled_tools)}")
+
+        # Map tools to handlers (with config-driven replacements where available)
+        config_driven = {
+            "compose_public_comment": config_handlers.compose_public_comment,
+            "get_comment_guidelines": config_handlers.get_comment_guidelines,
+            "get_comment_template": config_handlers.get_comment_template,
+        }
+
         handler_map = {
             # Core Civic Tools
             "search_meeting_history": handlers.search_meeting_history,
             "get_upcoming_meetings": handlers.get_upcoming_meetings,
             "find_similar_issues": handlers.find_similar_issues,
             "search_regulatory_stack": handlers.search_regulatory_stack,
-            "compose_public_comment": handlers.compose_public_comment,
+            "compose_public_comment": config_driven["compose_public_comment"],
             "city_pulse": handlers.city_pulse,
             "get_issue_analytics": handlers.get_issue_analytics,
             "get_issue_trends": handlers.get_issue_trends,
@@ -176,7 +205,7 @@ class MCPServer:
             "search_budget": handlers.search_budget,
             "get_public_testimony": handlers.get_public_testimony,
             "search_agenda_packets": handlers.search_agenda_packets,
-            "get_comment_guidelines": handlers.get_comment_guidelines,
+            "get_comment_guidelines": config_driven["get_comment_guidelines"],
             "get_started": handlers.get_started,
             # 311 Analysis Tools
             "query_issue_data": handlers.query_issue_data,
@@ -196,7 +225,7 @@ class MCPServer:
             "get_federal_expenditures": handlers.get_federal_expenditures,
             "get_intergovernmental_revenue": handlers.get_intergovernmental_revenue,
             # Action Tools
-            "get_comment_template": handlers.get_comment_template,
+            "get_comment_template": config_driven["get_comment_template"],
             "prepare_for_meeting": handlers.prepare_for_meeting,
             # Coordination Tools
             "get_voice_counts": handlers.get_voice_counts,
@@ -210,10 +239,16 @@ class MCPServer:
             "list_initiatives": handlers.list_initiatives,
         }
 
-        # Wrap handlers with context (civic, jurisdiction, validate_input, logger)
+        # Only bind handlers for tools enabled at this jurisdiction level
+        bound_count = 0
         for name, handler_fn in handler_map.items():
-            wrapped = self._wrap_handler(handler_fn)
-            self.registry.bind_handler(name, wrapped)
+            if name in enabled_tools:
+                try:
+                    wrapped = self._wrap_handler(handler_fn)
+                    self.registry.bind_handler(name, wrapped)
+                    bound_count += 1
+                except ValueError as e:
+                    self.logger.warning(f"Could not bind handler {name}: {e}")
 
     def _wrap_handler(self, handler_fn):
         """Wrap a handler function to provide context."""
@@ -370,6 +405,8 @@ class MCPServer:
             "status": "healthy",
             "service": "civicos-mcp",
             "jurisdiction": self.jurisdiction,
+            "jurisdiction_level": self.jurisdiction_config.level,
+            "display_name": self.jurisdiction_config.display_name,
             "platform": "modal",
             "tools_count": len(self.registry),
             "tools": [name for name, _ in self.registry],
