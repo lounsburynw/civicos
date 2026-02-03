@@ -1,0 +1,35 @@
+{
+  "name": "@civicos/mcp-apps",
+  "version": "0.1.0",
+  "description": "Interactive MCP Apps for CivicOS - Edge Intelligence in action",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run watch:widgets\" \"npm run serve:dev\"",
+    "build": "npm run build:widgets",
+    "build:widgets": "vite build",
+    "watch:widgets": "vite build --watch",
+    "serve": "tsx server.ts",
+    "serve:dev": "tsx watch server.ts",
+    "test": "vitest",
+    "tunnel": "npx cloudflared tunnel --url http://localhost:3002"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "^1.0.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "vue": "^3.4.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@vitejs/plugin-vue": "^5.0.0",
+    "concurrently": "^8.2.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0",
+    "vite-plugin-singlefile": "^2.0.0",
+    "vitest": "^1.0.0"
+  }
+}

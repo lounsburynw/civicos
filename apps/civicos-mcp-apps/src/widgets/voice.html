@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CivicOS Voice</title>
+  <style>
+    :root {
+      --support: #22c55e;
+      --support-bg: #dcfce7;
+      --oppose: #ef4444;
+      --oppose-bg: #fee2e2;
+      --watch: #3b82f6;
+      --watch-bg: #dbeafe;
+      --text: #1a1a1a;
+      --text-muted: #666;
+      --border: #e5e5e5;
+      --bg: #fafafa;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .widget {
+      max-width: 420px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    /* ─────────── Header: What this is about ─────────── */
+    .header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .context {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .entity-id {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: ui-monospace, monospace;
+    }
+
+    .relevance {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: #fef3c7;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #92400e;
+    }
+
+    .relevance::before {
+      content: "✨ ";
+    }
+
+    /* ─────────── Momentum: Show coordination is happening ─────────── */
+    .momentum {
+      padding: 16px 20px;
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .momentum-count {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--watch);
+    }
+
+    .momentum-label {
+      flex: 1;
+    }
+
+    .momentum-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .momentum-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .momentum-live {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--support);
+      font-weight: 500;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--support);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+    }
+
+    /* ─────────── Voice Buttons ─────────── */
+    .voice-section {
+      padding: 20px;
+    }
+
+    .section-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .voice-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .voice-btn {
+      flex: 1;
+      padding: 16px 8px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .voice-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .voice-btn.support:hover, .voice-btn.support.selected {
+      border-color: var(--support);
+      background: var(--support-bg);
+    }
+
+    .voice-btn.oppose:hover, .voice-btn.oppose.selected {
+      border-color: var(--oppose);
+      background: var(--oppose-bg);
+    }
+
+    .voice-btn.watch:hover, .voice-btn.watch.selected {
+      border-color: var(--watch);
+      background: var(--watch-bg);
+    }
+
+    .btn-icon {
+      font-size: 24px;
+      margin-bottom: 4px;
+    }
+
+    .btn-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+
+    .btn-count {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .voice-btn.support .btn-count { color: var(--support); }
+    .voice-btn.oppose .btn-count { color: var(--oppose); }
+    .voice-btn.watch .btn-count { color: var(--watch); }
+
+    /* ─────────── Cast Section ─────────── */
+    .cast-section {
+      padding: 0 20px 20px;
+    }
+
+    .identity-toggle {
+      display: flex;
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 4px;
+      margin-bottom: 12px;
+    }
+
+    .identity-option {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: var(--text-muted);
+    }
+
+    .identity-option.active {
+      background: white;
+      color: var(--text);
+      font-weight: 500;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .cast-btn {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .cast-btn.ready {
+      background: var(--watch);
+      color: white;
+    }
+
+    .cast-btn.ready:hover {
+      background: #2563eb;
+      transform: translateY(-1px);
+    }
+
+    .cast-btn.support-selected {
+      background: var(--support);
+      color: white;
+    }
+
+    .cast-btn.oppose-selected {
+      background: var(--oppose);
+      color: white;
+    }
+
+    .cast-btn:disabled {
+      background: var(--border);
+      color: var(--text-muted);
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* ─────────── Status Messages ─────────── */
+    .status {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .status.success {
+      background: var(--support-bg);
+      color: #166534;
+    }
+
+    .status.success::before {
+      content: "✓ ";
+    }
+
+    .status.error {
+      background: var(--oppose-bg);
+      color: #991b1b;
+    }
+
+    .status.loading {
+      background: var(--watch-bg);
+      color: #1e40af;
+    }
+
+    /* ─────────── Footer ─────────── */
+    .footer {
+      padding: 12px 20px;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .footer a {
+      color: var(--watch);
+      text-decoration: none;
+    }
+
+    /* ─────────── Loading State ─────────── */
+    .loading-skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="widget">
+    <!-- Initial loading state -->
+    <div class="header">
+      <div class="loading-skeleton" style="height: 24px; width: 80%; margin-bottom: 8px;"></div>
+      <div class="loading-skeleton" style="height: 16px; width: 60%;"></div>
+    </div>
+    <div class="momentum">
+      <div class="loading-skeleton" style="width: 60px; height: 40px;"></div>
+      <div style="flex: 1;">
+        <div class="loading-skeleton" style="height: 16px; width: 70%; margin-bottom: 4px;"></div>
+        <div class="loading-skeleton" style="height: 12px; width: 50%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { App } from "@modelcontextprotocol/ext-apps";
+
+    // ─────────── State ───────────
+    let state = {
+      entityId: "",
+      context: "",
+      relevance: null,
+      counts: { support: 0, oppose: 0, watching: 0, total: 0 },
+      selectedStance: null,
+      identityMode: "anonymous", // "anonymous" | "verified"
+      status: null, // { type: "success" | "error" | "loading", message: string }
+      isSubmitting: false,
+      lastUpdate: null,
+    };
+
+    // ─────────── MCP App Connection ───────────
+    const app = new App({ name: "CivicOS Voice", version: "1.0.0" });
+
+    app.ontoolresult = (result) => {
+      try {
+        const data = JSON.parse(result.content?.find((c) => c.type === "text")?.text || "{}");
+        state.entityId = data.entity_id || "";
+        state.context = data.context || state.entityId;
+        state.relevance = data.relevance || null;
+        state.counts = data.counts || { support: 0, oppose: 0, watching: 0, total: 0 };
+        state.lastUpdate = Date.now();
+        render();
+
+        // Start polling for updates
+        startPolling();
+      } catch (e) {
+        console.error("Failed to parse tool result:", e);
+        state.status = { type: "error", message: "Failed to load voice data" };
+        render();
+      }
+    };
+
+    app.connect();
+
+    // ─────────── Polling for Real-time Updates ───────────
+    let pollInterval = null;
+
+    function startPolling() {
+      if (pollInterval) return;
+      pollInterval = setInterval(async () => {
+        if (state.isSubmitting) return; // Don't poll while submitting
+        try {
+          const result = await app.callServerTool({
+            name: "refresh_voice_counts",
+            arguments: { entity: state.entityId },
+          });
+          const newCounts = JSON.parse(result.content?.find((c) => c.type === "text")?.text || "{}");
+
+          // Animate if counts changed
+          const changed =
+            newCounts.support !== state.counts.support ||
+            newCounts.oppose !== state.counts.oppose ||
+            newCounts.watching !== state.counts.watching;
+
+          if (changed) {
+            state.counts = newCounts;
+            state.lastUpdate = Date.now();
+            render();
+          }
+        } catch (e) {
+          console.error("Polling error:", e);
+        }
+      }, 5000); // Poll every 5 seconds
+    }
+
+    // ─────────── Actions ───────────
+    async function castVoice() {
+      if (!state.selectedStance || state.isSubmitting) return;
+
+      state.isSubmitting = true;
+      state.status = { type: "loading", message: "Casting your voice..." };
+      render();
+
+      try {
+        const { publicKey, signature } = await sign(state.entityId, state.selectedStance);
+
+        const result = await app.callServerTool({
+          name: "broadcast_voice",
+          arguments: {
+            entity: state.entityId,
+            stance: state.selectedStance,
+            public_key: publicKey,
+            signature: signature,
+          },
+        });
+
+        const parsed = JSON.parse(result.content?.find((c) => c.type === "text")?.text || "{}");
+
+        if (parsed.success) {
+          // Optimistic update
+          state.counts[state.selectedStance]++;
+          state.counts.total++;
+          state.status = { type: "success", message: "Your voice has been heard!" };
+
+          // Update host context so LLM knows user voiced
+          app.updateModelContext({
+            structuredContent: {
+              voice_cast: {
+                entity: state.entityId,
+                stance: state.selectedStance,
+                timestamp: Date.now(),
+              }
+            }
+          }).catch(e => console.warn("Failed to update model context:", e));
+        } else {
+          state.status = { type: "error", message: parsed.message || "Failed to cast voice" };
+        }
+      } catch (e) {
+        console.error("Cast voice error:", e);
+        state.status = { type: "error", message: e.message || "Failed to cast voice" };
+      } finally {
+        state.isSubmitting = false;
+        render();
+      }
+    }
+
+    // ─────────── Signing ───────────
+    async function sign(entity, stance) {
+      const message = `voice:${entity}:${stance}:${Date.now()}`;
+      const messageBytes = new TextEncoder().encode(message);
+
+      if (state.identityMode === "verified") {
+        // Try WebAuthn
+        try {
+          const credential = await navigator.credentials.get({
+            publicKey: {
+              challenge: messageBytes,
+              timeout: 60000,
+              userVerification: "preferred",
+              rpId: window.location.hostname,
+            },
+          });
+
+          const response = credential.response;
+          return {
+            publicKey: bufferToHex(response.authenticatorData || new ArrayBuffer(0)),
+            signature: bufferToHex(response.signature || new ArrayBuffer(0)),
+          };
+        } catch (e) {
+          console.warn("WebAuthn failed, falling back to ephemeral:", e);
+        }
+      }
+
+      // Ephemeral key (anonymous)
+      const keyPair = await crypto.subtle.generateKey(
+        { name: "ECDSA", namedCurve: "P-256" },
+        true,
+        ["sign"]
+      );
+
+      const signature = await crypto.subtle.sign(
+        { name: "ECDSA", hash: "SHA-256" },
+        keyPair.privateKey,
+        messageBytes
+      );
+
+      const publicKeyRaw = await crypto.subtle.exportKey("raw", keyPair.publicKey);
+
+      return {
+        publicKey: bufferToHex(publicKeyRaw),
+        signature: bufferToHex(signature),
+      };
+    }
+
+    function bufferToHex(buffer) {
+      return Array.from(new Uint8Array(buffer))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    }
+
+    // ─────────── Render ───────────
+    function render() {
+      const { entityId, context, relevance, counts, selectedStance, identityMode, status, isSubmitting } = state;
+
+      const total = counts.total || (counts.support + counts.oppose + counts.watching);
+      const recentText = counts.recentActivity?.lastHour
+        ? `+${counts.recentActivity.lastHour} in the last hour`
+        : total > 0
+        ? "Community voices"
+        : "Be the first to voice";
+
+      let castBtnClass = "cast-btn";
+      let castBtnText = "Select a position above";
+
+      if (selectedStance === "support") {
+        castBtnClass += " support-selected";
+        castBtnText = "Cast Support";
+      } else if (selectedStance === "oppose") {
+        castBtnClass += " oppose-selected";
+        castBtnText = "Cast Opposition";
+      } else if (selectedStance === "watching") {
+        castBtnClass += " ready";
+        castBtnText = "Start Watching";
+      }
+
+      if (isSubmitting) {
+        castBtnText = "Casting...";
+      }
+
+      document.getElementById("app").innerHTML = `
+        <div class="header">
+          <div class="context">${escapeHtml(context)}</div>
+          <div class="entity-id">${escapeHtml(entityId)}</div>
+          ${relevance ? `<div class="relevance">${escapeHtml(relevance)}</div>` : ""}
+        </div>
+
+        <div class="momentum">
+          <div class="momentum-count">${total}</div>
+          <div class="momentum-label">
+            <div class="momentum-title">people have voiced</div>
+            <div class="momentum-subtitle">${recentText}</div>
+          </div>
+          <div class="momentum-live">
+            <span class="live-dot"></span>
+            Live
+          </div>
+        </div>
+
+        <div class="voice-section">
+          <div class="section-label">Add Your Voice</div>
+          <div class="voice-buttons">
+            <button
+              class="voice-btn support ${selectedStance === "support" ? "selected" : ""}"
+              onclick="selectStance('support')"
+            >
+              <div class="btn-icon">👍</div>
+              <div class="btn-label">Support</div>
+              <div class="btn-count">${counts.support}</div>
+            </button>
+            <button
+              class="voice-btn oppose ${selectedStance === "oppose" ? "selected" : ""}"
+              onclick="selectStance('oppose')"
+            >
+              <div class="btn-icon">👎</div>
+              <div class="btn-label">Oppose</div>
+              <div class="btn-count">${counts.oppose}</div>
+            </button>
+            <button
+              class="voice-btn watch ${selectedStance === "watching" ? "selected" : ""}"
+              onclick="selectStance('watching')"
+            >
+              <div class="btn-icon">👀</div>
+              <div class="btn-label">Watch</div>
+              <div class="btn-count">${counts.watching}</div>
+            </button>
+          </div>
+        </div>
+
+        <div class="cast-section">
+          <div class="identity-toggle">
+            <button
+              class="identity-option ${identityMode === "anonymous" ? "active" : ""}"
+              onclick="setIdentity('anonymous')"
+            >
+              Anonymous
+            </button>
+            <button
+              class="identity-option ${identityMode === "verified" ? "active" : ""}"
+              onclick="setIdentity('verified')"
+            >
+              Verified (Passkey)
+            </button>
+          </div>
+
+          <button
+            class="${castBtnClass}"
+            onclick="castVoice()"
+            ${!selectedStance || isSubmitting ? "disabled" : ""}
+          >
+            ${castBtnText}
+          </button>
+
+          ${status ? `<div class="status ${status.type}">${escapeHtml(status.message)}</div>` : ""}
+        </div>
+
+        <div class="footer">
+          Voices are cryptographically signed. <a href="https://civicosproject.org/how-it-works" target="_blank">Learn more</a>
+        </div>
+      `;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    // ─────────── Global Handlers ───────────
+    window.selectStance = (stance) => {
+      state.selectedStance = stance;
+      state.status = null;
+      render();
+    };
+
+    window.setIdentity = (mode) => {
+      state.identityMode = mode;
+      render();
+    };
+
+    window.castVoice = castVoice;
+  </script>
+</body>
+</html>
