@@ -17800,3 +17800,52 @@ After discussion, recognized that registry submission is premature. Need to:
 - CHANGED: `mcp_registry_listing` demoted to P2, depends on validation
 
 **Next session:** Validate scoped MCP servers before registry submission.
+
+
+#### Session 548 - MCP Jurisdiction Validation Progress
+Date: 2026-02-03
+
+**P0: mcp_jurisdiction_validation**
+
+**Accomplished:**
+1. Data inventory diagnostic - verified data exists at all levels:
+   - Federal: 52 FAC expenditures, 5 awards
+   - State: 147 pass-through funds  
+   - City: 62 meetings, 44 decisions, 1717 issues, 35 transcripts
+
+2. Deployed three scoped MCP servers to Modal:
+   - civicos-federal (3 tools): get_federal_expenditures, get_funding_flow, search_regulatory_stack
+   - civicos-california (4 tools): above + get_intergovernmental_revenue
+   - civicos-mcp (30 tools): all city tools
+
+3. Created/updated deployment files:
+   - apps/civicos-mcp/modal_federal.py
+   - apps/civicos-mcp/modal_california.py
+   - apps/civicos-mcp/modal_base.py (shared infrastructure)
+
+4. Fixed ToolRegistry to only list tools with bound handlers
+
+5. Fixed jurisdiction YAML configs to use level-based defaults
+
+6. Fixed normalize_jurisdiction() to handle state-/country- prefixes
+
+**Remaining:**
+- Federal/California servers currently failing with SQLiteBackend
+  (containers may be using stale code/cache despite new secrets)
+- Need to verify tool calls work with PostgreSQL data
+- Document federated architecture in docs/critical/
+
+**Files modified:**
+- apps/civicos-mcp/modal_federal.py (new)
+- apps/civicos-mcp/modal_california.py (new)  
+- apps/civicos-mcp/modal_base.py (new)
+- apps/civicos-mcp/modal_app.py (refactored)
+- apps/civicos-mcp/tools/registry.py (list_tools fix)
+- apps/civicos-mcp/jurisdictions/federal.yaml
+- apps/civicos-mcp/jurisdictions/california.yaml
+- packages/civicos/src/civicos/_internal/jurisdiction.py
+
+**Modal Endpoints:**
+- Federal: https://lounsburynw--civicos-federal-federalmcpserver-mcp-endpoint.modal.run
+- California: https://lounsburynw--civicos-california-californiamcpserver-mcp-endpoint.modal.run
+- San Rafael: https://lounsburynw--civicos-mcp-mcpserver-mcp-endpoint.modal.run

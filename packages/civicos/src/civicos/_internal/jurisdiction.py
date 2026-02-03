@@ -133,11 +133,12 @@ def normalize_jurisdiction(jurisdiction_id: str, strict: bool = True) -> str:
     normalized = jurisdiction_id.lower().strip().replace("_", "-")
 
     # Already canonical format - validate against registry
-    if normalized.startswith(("city-", "county-")):
+    # Includes: city-, county-, state-, country- prefixes
+    if normalized.startswith(("city-", "county-", "state-", "country-")):
         if JurisdictionRegistry.has_jurisdiction(normalized):
             return normalized
-        # Special case: some IDs like "bart" or "sonoma-county" don't have prefix
-        # Check without assuming prefix format
+        # Special case: federal/state IDs may not be in registry but are valid
+        # Allow them through when strict=False
         if strict:
             raise JurisdictionError(
                 f"Unknown jurisdiction ID: '{jurisdiction_id}'. "

@@ -569,7 +569,10 @@ class ToolRegistry:
         return self.tools.get(name)
 
     def list_tools(self) -> list[dict]:
-        """Get tool list in MCP format (for tools/list response)."""
+        """Get tool list in MCP format (for tools/list response).
+
+        Only returns tools that have handlers bound.
+        """
         return [
             {
                 "name": name,
@@ -577,6 +580,7 @@ class ToolRegistry:
                 "inputSchema": info["inputSchema"],
             }
             for name, info in self.tools.items()
+            if "handler" in info  # Only include tools with bound handlers
         ]
 
     def call_tool(self, name: str, args: dict) -> str:
@@ -590,7 +594,8 @@ class ToolRegistry:
         return handler(args)
 
     def __len__(self) -> int:
-        return len(self.tools)
+        """Return count of tools with handlers bound."""
+        return sum(1 for info in self.tools.values() if "handler" in info)
 
     def __iter__(self):
         return iter(self.tools.items())

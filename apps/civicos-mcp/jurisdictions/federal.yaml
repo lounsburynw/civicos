@@ -17,9 +17,8 @@ data_sources:
   funding: usaspending_api       # Federal spending
 
 # Tools enabled at federal level
-# These tools query shared federal datasets
-tools_enabled:
-  - search_regulatory_stack      # Federal section
-  - get_federal_expenditures     # FAC Single Audit
-  - get_funding_flow             # Federal funding traces
-  - list_relays                  # Shared relay discovery
+# Uses default federal-level tools from loader.py:
+# - get_federal_expenditures (FAC Single Audit)
+# - get_funding_flow (Federal funding traces)
+# - search_regulatory_stack (Federal legislation)
+# tools_enabled: omitted to use defaults
