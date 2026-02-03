@@ -1,0 +1,30 @@
+# California State Configuration
+#
+# Shared state-level data and tools for California.
+# Used by all cities and counties in California.
+
+jurisdiction_id: state-california
+level: state
+display_name: California
+
+# Hierarchy
+parent_jurisdictions:
+  - country-united-states
+
+# State information
+state_info:
+  abbreviation: CA
+  timezone: America/Los_Angeles
+  legislature: California State Legislature
+  governor_title: Governor
+
+# Data Sources
+data_sources:
+  legislation: leginfo_api       # CA bill data (leginfo.legislature.ca.gov)
+  revenue: state_controller      # CA State Controller intergovernmental revenue
+
+# Tools enabled at state level
+# These tools query shared California datasets
+tools_enabled:
+  - search_regulatory_stack      # State section (CA bills)
+  - get_intergovernmental_revenue  # CA State Controller data

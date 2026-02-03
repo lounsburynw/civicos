@@ -1,0 +1,64 @@
+# San Rafael City Configuration
+#
+# Jurisdiction configuration for City of San Rafael, California.
+# Used by civicos-mcp tools for contact info, data sources, etc.
+
+jurisdiction_id: city-san-rafael
+level: city
+display_name: San Rafael
+
+# Hierarchy
+parent_jurisdictions:
+  - county-marin
+  - state-california
+  - country-united-states
+
+# Contact Information
+contact_info:
+  clerk_email: clerk@cityofsanrafael.org
+  city_hall_address: "1400 Fifth Avenue, San Rafael CA 94901"
+  phone: "(415) 485-3000"
+  website: "https://www.cityofsanrafael.org"
+  public_comment_deadline: "5:00 PM day of meeting"
+  in_person_time_limit: "3 minutes"
+  public_comment_subject: "Public Comment - [Agenda Item Title]"
+
+# Governing Body
+governing_body:
+  name: San Rafael City Council
+  members_title: Mayor and Council Members
+  meeting_schedule: "First and third Monday, 7:00 PM"
+  meeting_location: "City Council Chambers, 1400 Fifth Avenue"
+
+# Data Sources
+data_sources:
+  meetings: granicus
+  issues: seeclickfix
+  budget: municipal_portal
+  municipal_code: municode
+  transcripts: youtube  # Video transcription source
+
+# Zip codes in jurisdiction (for issue filtering)
+zip_codes:
+  - "94901"
+  - "94903"
+  - "94904"
+  - "94912"
+  - "94913"
+  - "94915"
+
+# Neighborhoods (for geo tools)
+neighborhoods:
+  - Downtown
+  - Terra Linda
+  - Sun Valley
+  - Dominican
+  - Gerstle Park
+  - Peacock Gap
+  - Santa Venetia
+  - Los Ranchitos
+  - Lincoln Hill
+  - Bret Harte
+
+# All city-level tools enabled by default
+# (No need to list - tool loader enables all city tools for city-level jurisdictions)
