@@ -17563,3 +17563,34 @@ npm run test:run
 
 ### Next Session
 **P0: openwebui_setup_guide** - Write setup documentation for Open WebUI + CivicOS MCP servers.
+
+## Session 543 - 2026-02-02
+
+### Work Item
+**P0: openwebui_setup_guide** (edge_intelligence > openwebui_pilot)
+
+### Completed
+Created `docs/user_guides/OPENWEBUI_SETUP.md` - comprehensive setup guide for Open WebUI + CivicOS MCP servers.
+
+Guide covers:
+1. Docker installation of Open WebUI
+2. LLM backend configuration (Claude API, OpenAI, Ollama)
+3. Adding Jurisdiction MCP (read-only civic data at san-rafael.civicosproject.org/mcp)
+4. Setting up Personal MCP (localhost:8081 with host.docker.internal for Docker)
+5. Identity creation and management
+6. Full flow testing with voice signing
+7. Troubleshooting section for common issues
+8. Security notes
+
+Key technical details:
+- Open WebUI requires Streamable HTTP transport (native MCP support)
+- Docker networking: use `host.docker.internal` not `localhost`
+- `WEBUI_SECRET_KEY` env var required to encrypt stored API keys
+- 30 tools from Jurisdiction MCP, 9 tools from Personal MCP
+
+### Files Changed
+- `docs/user_guides/OPENWEBUI_SETUP.md` - New setup guide
+- `pilot.json` - Updated openwebui_setup_guide to ready
+
+### Next Session
+Set P0 for next priority item in openwebui_pilot track.
