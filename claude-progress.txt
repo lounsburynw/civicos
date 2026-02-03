@@ -17786,3 +17786,17 @@ The metadata is prepared. Manual submissions needed:
 #### Commit
 `96b8d3a` - feat(mcp): Complete jurisdiction refactoring and add registry metadata
 
+
+#### Session 547 Update - Reprioritized
+
+After discussion, recognized that registry submission is premature. Need to:
+1. Validate data exists at each jurisdiction level (federal, state, city)
+2. Deploy scoped MCP servers
+3. Test tool relevance at each level
+4. Verify ingestion pipelines
+
+**pilot.json changes:**
+- NEW: `mcp_jurisdiction_validation` as P0
+- CHANGED: `mcp_registry_listing` demoted to P2, depends on validation
+
+**Next session:** Validate scoped MCP servers before registry submission.
