@@ -17288,3 +17288,57 @@ Created the Personal MCP scaffold with client-side Nostr signing for the "Privat
 
 ### Next P0
 - `action_flow_integration`: End-to-end action flow connecting chat → signing → relay broadcast
+
+## Session 539 - 2026-02-02
+
+### Work Item: action_flow_integration (continued from Session 538)
+
+Session 538 built the action infrastructure (models, services, API). This session focused on integration:
+
+### Completed
+
+1. **API Route Integration**
+   - Added action endpoints to coordination router in civicos-services
+   - Routes: `/api/coordination/action/{commit,complete,counts,commitments,completions}`
+   - Now accessible from frontend (frontend calls `/api/coordination/action/*`)
+
+2. **Action Endpoint Tests**
+   - Added `TestActionEndpoints` class to `test_coordination_api.py`
+   - Tests: commit, complete, counts, list commitments/completions, revocation
+
+3. **ActionFlow.vue E2E Tests**
+   - Created `apps/civicos-workspace/tests/e2e/action-flow.spec.ts`
+   - 18 tests covering: initial render, commit flow, urgent actions, watch effects
+   - All tests passing
+
+4. **Vite Config Update**
+   - Added vitest test config with happy-dom environment
+   - Installed happy-dom for component testing
+
+5. **Updated pilot.json**
+   - Marked 6 action-related items as `ready`:
+     - commitment_kind, completion_kind, action_accounting, action_attribution
+     - action_commit, action_complete (frontend)
+
+### Architecture Notes
+
+- ActionFlow.vue emits `sign-request` → parent calls Personal MCP → parent calls `onSigningComplete`
+- In-memory storage used for now; PostgresActionStorage needed for production
+- Actions use kinds 30801 (commitment) and 30802 (completion)
+- Canonical message format: `civicos:action:v1:{action_id}:{commitment|completion}`
+
+### Remaining for Full Action Flow
+
+- `action_kind` - Define actions as separate Nostr events (currently inline in Initiative)
+- `action_list` - ActionList component to display all actions for an initiative
+- `action_templates` - Show templates after user commits
+- `action_tools` - Personal MCP tools (exists, needs integration test)
+- PostgresActionStorage for production persistence
+
+### Files Modified
+
+- `packages/civicos-services/src/civicos_services/servers/routers/coordination.py` - Added action endpoints
+- `packages/civicos-services/tests/test_coordination_api.py` - Added action tests
+- `apps/civicos-workspace/tests/e2e/action-flow.spec.ts` - New E2E tests
+- `apps/civicos-workspace/vite.config.ts` - Added test config
+- `pilot.json` - Updated 6 items to ready

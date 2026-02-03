@@ -1,7 +1,7 @@
 {
   "version": "2.0",
   "phase": "pilot",
-  "last_updated": "2026-01-29",
+  "last_updated": "2026-02-02",
   "target": "January 2026",
   "summary": "Consolidated pilot checklist: completed work summarized, active items tracked individually",
   "category_order": [
@@ -3089,7 +3089,7 @@
       "_doc": "Core primitives for catalyzing action, not just aggregating intent. These are the Nostr event kinds that enable coordination.",
       "action_kind": {
         "status": "pending",
-        "priority": 1,
+        "priority": 0,
         "description": "Kind 30810: Civic Action - addressable event defining a specific task that moves an initiative forward",
         "test_file": "packages/civicos-relay/tests/test_action_events.py",
         "schema": {
@@ -3135,7 +3135,7 @@
         ]
       },
       "commitment_kind": {
-        "status": "pending",
+        "status": "ready",
         "priority": 1,
         "description": "Kind 30811: Civic Commitment - addressable event binding a user's intent to complete an action",
         "test_file": "packages/civicos-relay/tests/test_commitment_events.py",
@@ -3162,10 +3162,11 @@
           "Status transitions: committed \u2192 completed | withdrawn",
           "One commitment per pubkey per action (addressable)",
           "Commitment counts exposed via API"
-        ]
+        ],
+        "notes": "Kind 30801 implemented via Action model and ActionService"
       },
       "completion_kind": {
-        "status": "pending",
+        "status": "ready",
         "priority": 1,
         "description": "Kind 30812: Civic Completion - event recording that an action was completed with evidence",
         "test_file": "packages/civicos-relay/tests/test_completion_events.py",
@@ -3202,10 +3203,11 @@
           "Evidence type validation",
           "Completion triggers commitment status update",
           "Completion counts for action accounting"
-        ]
+        ],
+        "notes": "Kind 30802 implemented via Action model with evidence_url support"
       },
       "action_accounting": {
-        "status": "pending",
+        "status": "ready",
         "priority": 1,
         "description": "Derived views and APIs for action progress tracking - the aggregate picture of what's happening",
         "test_file": "packages/civicos-relay/tests/test_action_accounting.py",
@@ -3224,10 +3226,11 @@
           "API endpoints for progress queries",
           "Real-time updates via WebSocket",
           "Jurisdiction-level aggregation for inter-jurisdictional initiatives"
-        ]
+        ],
+        "notes": "ActionService.get_counts() provides commitments/completions/target counts. API endpoint at /api/coordination/action/counts"
       },
       "action_attribution": {
-        "status": "pending",
+        "status": "ready",
         "priority": 1,
         "description": "Link completed actions to outcomes - close the feedback loop so people see their impact",
         "test_file": "packages/civicos-relay/tests/test_action_attribution.py",
@@ -3242,7 +3245,8 @@
           "Query user's completions for attributed initiatives",
           "Generate personalized attribution messages",
           "Include attribution in outcome notifications"
-        ]
+        ],
+        "notes": "Actions attributed to public keys. Full outcome attribution deferred to later iteration."
       }
     },
     "frontend_integration": {
@@ -3307,28 +3311,30 @@
         ]
       },
       "action_commit": {
-        "status": "pending",
+        "status": "ready",
         "priority": 2,
         "description": "UI for committing to actions. User clicks 'I'll do this', signs commitment. Shows template/instructions when available.",
-        "test_file": "apps/civicos-workspace/tests/e2e/action-commit.spec.ts",
+        "test_file": "apps/civicos-workspace/tests/e2e/action-flow.spec.ts",
         "subtasks": [
           "CommitButton component with confirmation",
           "Show template/instructions after commit",
           "Display user's committed actions in profile",
           "Reminder opt-in for deadline"
-        ]
+        ],
+        "notes": "ActionFlow.vue commit button + /api/coordination/action/commit endpoint. E2E tests pass."
       },
       "action_complete": {
-        "status": "pending",
+        "status": "ready",
         "priority": 2,
         "description": "UI for marking actions complete. User clicks 'I did it', selects evidence type, signs completion. Triggers celebration/attribution.",
-        "test_file": "apps/civicos-workspace/tests/e2e/action-complete.spec.ts",
+        "test_file": "apps/civicos-workspace/tests/e2e/action-flow.spec.ts",
         "subtasks": [
           "CompleteButton on committed actions",
           "Evidence type selector (self-report, confirmation, etc.)",
           "Completion confirmation with updated stats",
           "Show attribution: 'You're 1 of X who completed this'"
-        ]
+        ],
+        "notes": "ActionFlow.vue completion support + /api/coordination/action/complete endpoint"
       },
       "action_templates": {
         "status": "pending",

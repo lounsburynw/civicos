@@ -280,6 +280,219 @@ class TestProvenanceEndpoints:
         assert "not found" in response.json()["detail"].lower()
 
 
+class TestActionEndpoints:
+    """Tests for /api/coordination/action endpoints."""
+
+    def test_commit_action_success(self, client, keypair):
+        """Can commit to an action with valid signature."""
+        from civicos_relay.voice.crypto import sign_message
+
+        action_id = f"action:test:commit-{datetime.utcnow().timestamp()}"
+        message = f"civicos:action:v1:{action_id}:commitment"
+        signature = sign_message(keypair, message)
+
+        response = client.post(
+            "/api/coordination/action/commit",
+            json={
+                "action_id": action_id,
+                "public_key": keypair.public_key_hex,
+                "signature": signature,
+            }
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["action_id"] == action_id
+        assert data["action_type"] == "commitment"
+        assert data["public_key"] == keypair.public_key_hex
+        assert data["revoked"] is False
+
+    def test_commit_action_invalid_signature(self, client, keypair):
+        """Rejects commitment with invalid signature."""
+        action_id = f"action:test:invalid-commit-{datetime.utcnow().timestamp()}"
+
+        response = client.post(
+            "/api/coordination/action/commit",
+            json={
+                "action_id": action_id,
+                "public_key": keypair.public_key_hex,
+                "signature": "deadbeef" * 16,  # Invalid signature
+            }
+        )
+
+        assert response.status_code == 400
+        assert "Invalid commitment signature" in response.json()["detail"]
+
+    def test_complete_action_success(self, client, keypair):
+        """Can complete an action with valid signature and evidence."""
+        from civicos_relay.voice.crypto import sign_message
+
+        action_id = f"action:test:complete-{datetime.utcnow().timestamp()}"
+        message = f"civicos:action:v1:{action_id}:completion"
+        signature = sign_message(keypair, message)
+
+        response = client.post(
+            "/api/coordination/action/complete",
+            json={
+                "action_id": action_id,
+                "public_key": keypair.public_key_hex,
+                "signature": signature,
+                "evidence_url": "https://example.com/proof",
+            }
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["action_id"] == action_id
+        assert data["action_type"] == "completion"
+        assert data["evidence_url"] == "https://example.com/proof"
+        assert data["revoked"] is False
+
+    def test_complete_action_invalid_signature(self, client, keypair):
+        """Rejects completion with invalid signature."""
+        action_id = f"action:test:invalid-complete-{datetime.utcnow().timestamp()}"
+
+        response = client.post(
+            "/api/coordination/action/complete",
+            json={
+                "action_id": action_id,
+                "public_key": keypair.public_key_hex,
+                "signature": "deadbeef" * 16,
+            }
+        )
+
+        assert response.status_code == 400
+        assert "Invalid completion signature" in response.json()["detail"]
+
+    def test_get_action_counts(self, client, keypair):
+        """Can get action counts after committing."""
+        from civicos_relay.voice.crypto import sign_message
+
+        action_id = f"action:test:counts-{datetime.utcnow().timestamp()}"
+        message = f"civicos:action:v1:{action_id}:commitment"
+        signature = sign_message(keypair, message)
+
+        # Commit first
+        client.post(
+            "/api/coordination/action/commit",
+            json={
+                "action_id": action_id,
+                "public_key": keypair.public_key_hex,
+                "signature": signature,
+            }
+        )
+
+        # Get counts
+        response = client.get(f"/api/coordination/action/counts/{action_id}")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["action_id"] == action_id
+        assert data["commitments"] >= 1
+        assert "completions" in data
+
+    def test_get_action_counts_with_target(self, client, keypair):
+        """Can get action counts with target parameter."""
+        action_id = f"action:test:target-{datetime.utcnow().timestamp()}"
+
+        response = client.get(
+            f"/api/coordination/action/counts/{action_id}",
+            params={"target": 10}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["target"] == 10
+
+    def test_list_commitments(self, client, keypair):
+        """Can list commitments for an action."""
+        from civicos_relay.voice.crypto import sign_message
+
+        action_id = f"action:test:list-commits-{datetime.utcnow().timestamp()}"
+        message = f"civicos:action:v1:{action_id}:commitment"
+        signature = sign_message(keypair, message)
+
+        # Commit first
+        client.post(
+            "/api/coordination/action/commit",
+            json={
+                "action_id": action_id,
+                "public_key": keypair.public_key_hex,
+                "signature": signature,
+            }
+        )
+
+        # List commitments
+        response = client.get(f"/api/coordination/action/commitments/{action_id}")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) >= 1
+        assert any(c["public_key"] == keypair.public_key_hex for c in data)
+
+    def test_list_completions(self, client, keypair):
+        """Can list completions for an action."""
+        from civicos_relay.voice.crypto import sign_message
+
+        action_id = f"action:test:list-complete-{datetime.utcnow().timestamp()}"
+        message = f"civicos:action:v1:{action_id}:completion"
+        signature = sign_message(keypair, message)
+
+        # Complete first
+        client.post(
+            "/api/coordination/action/complete",
+            json={
+                "action_id": action_id,
+                "public_key": keypair.public_key_hex,
+                "signature": signature,
+            }
+        )
+
+        # List completions
+        response = client.get(f"/api/coordination/action/completions/{action_id}")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) >= 1
+        assert any(c["public_key"] == keypair.public_key_hex for c in data)
+
+    def test_recommit_replaces_previous(self, client, keypair):
+        """Re-committing revokes previous commitment."""
+        from civicos_relay.voice.crypto import sign_message
+
+        action_id = f"action:test:recommit-{datetime.utcnow().timestamp()}"
+        message = f"civicos:action:v1:{action_id}:commitment"
+        signature = sign_message(keypair, message)
+
+        # Commit twice
+        client.post(
+            "/api/coordination/action/commit",
+            json={
+                "action_id": action_id,
+                "public_key": keypair.public_key_hex,
+                "signature": signature,
+            }
+        )
+        # Commit again (should replace)
+        response = client.post(
+            "/api/coordination/action/commit",
+            json={
+                "action_id": action_id,
+                "public_key": keypair.public_key_hex,
+                "signature": signature,
+            }
+        )
+
+        assert response.status_code == 200
+
+        # Should still only have 1 commitment
+        list_response = client.get(f"/api/coordination/action/commitments/{action_id}")
+        data = list_response.json()
+        assert len(data) == 1
+
+
 class TestServiceUnavailable:
     """Tests for behavior when RELAY_DATABASE_URL is not set."""
 

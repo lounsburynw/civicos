@@ -116,6 +116,42 @@ class InitiativeResponse(BaseModel):
     voice_count: int = 0
 
 
+# === Action Request/Response Models ===
+
+class CommitActionRequest(BaseModel):
+    """Request to commit to an action (signed by client)."""
+    action_id: str = Field(description="Action identifier")
+    public_key: str = Field(description="Public key (hex-encoded)")
+    signature: str = Field(description="Signature of action commitment (hex-encoded)")
+
+
+class CompleteActionRequest(BaseModel):
+    """Request to mark an action complete (signed by client)."""
+    action_id: str = Field(description="Action identifier")
+    public_key: str = Field(description="Public key (hex-encoded)")
+    signature: str = Field(description="Signature of action completion (hex-encoded)")
+    evidence_url: Optional[str] = Field(default=None, description="URL to evidence")
+
+
+class ActionResponse(BaseModel):
+    """Action record response."""
+    action_id: str
+    action_type: str  # "commitment" or "completion"
+    public_key: str
+    signature: str
+    timestamp: str
+    evidence_url: Optional[str] = None
+    revoked: bool = False
+
+
+class ActionCountResponse(BaseModel):
+    """Action counts for an action ID."""
+    action_id: str
+    commitments: int = 0
+    completions: int = 0
+    target: Optional[int] = None
+
+
 # === Storage Helpers ===
 
 _storage_instances = {}
@@ -226,6 +262,22 @@ def _get_relay_identity():
         logger.warning("civicos-relay not available")
         return None
     return _storage_instances["identity"]
+
+
+def _get_action_storage():
+    """Get or create action storage instance.
+
+    Uses in-memory storage for now. PostgresActionStorage will be added
+    for production use.
+    """
+    if "action" not in _storage_instances:
+        try:
+            from civicos_relay.storage.memory import InMemoryActionStorage
+            _storage_instances["action"] = InMemoryActionStorage()
+        except ImportError:
+            logger.warning("civicos-relay not available")
+            return None
+    return _storage_instances["action"]
 
 
 # === Endpoints ===
@@ -1089,4 +1141,215 @@ async def import_events(request: EventImportRequestAPI):
         raise HTTPException(status_code=400, detail=f"Invalid event data: {str(e)}")
     except Exception as e:
         logger.error(f"Error importing events: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+# === Action Endpoints ===
+
+
+@router.post("/coordination/action/commit", response_model=ActionResponse)
+async def commit_action(request: CommitActionRequest):
+    """
+    Commit to a civic action.
+
+    The commitment must be cryptographically signed by the client.
+    If the key has already committed to this action, the old commitment
+    is revoked and replaced.
+    """
+    storage = _get_action_storage()
+    if not storage:
+        raise HTTPException(
+            status_code=503,
+            detail="Action service not configured"
+        )
+
+    try:
+        from civicos_relay.voice.action_service import ActionService
+        from civicos_relay.voice.crypto import verify_signature
+
+        # Verify signature
+        message = f"civicos:action:v1:{request.action_id}:commitment"
+        if not verify_signature(request.public_key, request.signature, message):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid commitment signature"
+            )
+
+        service = ActionService(storage)
+        action = service.record_commitment(
+            action_id=request.action_id,
+            public_key=request.public_key,
+            signature=request.signature,
+        )
+
+        return ActionResponse(
+            action_id=action.action_id,
+            action_type=action.action_type.value,
+            public_key=action.public_key,
+            signature=action.signature,
+            timestamp=action.timestamp.isoformat(),
+            revoked=action.revoked,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error committing action: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.post("/coordination/action/complete", response_model=ActionResponse)
+async def complete_action(request: CompleteActionRequest):
+    """
+    Mark a civic action as complete.
+
+    The completion must be cryptographically signed by the client.
+    Optionally includes evidence_url to prove completion.
+    """
+    storage = _get_action_storage()
+    if not storage:
+        raise HTTPException(
+            status_code=503,
+            detail="Action service not configured"
+        )
+
+    try:
+        from civicos_relay.voice.action_service import ActionService
+        from civicos_relay.voice.crypto import verify_signature
+
+        # Verify signature
+        message = f"civicos:action:v1:{request.action_id}:completion"
+        if not verify_signature(request.public_key, request.signature, message):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid completion signature"
+            )
+
+        service = ActionService(storage)
+        action = service.record_completion(
+            action_id=request.action_id,
+            public_key=request.public_key,
+            signature=request.signature,
+            evidence_url=request.evidence_url,
+        )
+
+        return ActionResponse(
+            action_id=action.action_id,
+            action_type=action.action_type.value,
+            public_key=action.public_key,
+            signature=action.signature,
+            timestamp=action.timestamp.isoformat(),
+            evidence_url=action.evidence_url,
+            revoked=action.revoked,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error completing action: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get("/coordination/action/counts/{action_id:path}", response_model=ActionCountResponse)
+async def get_action_counts(action_id: str, target: Optional[int] = None):
+    """
+    Get action counts for an action ID.
+
+    Returns commitment and completion counts. Optionally specify a target
+    to calculate progress.
+    """
+    storage = _get_action_storage()
+    if not storage:
+        # Return zeros if service not configured (graceful degradation)
+        return ActionCountResponse(
+            action_id=action_id,
+            commitments=0,
+            completions=0,
+            target=target,
+        )
+
+    try:
+        from civicos_relay.voice.action_service import ActionService
+
+        service = ActionService(storage)
+        counts = service.get_counts(action_id, target=target)
+
+        return ActionCountResponse(
+            action_id=counts.action_id,
+            commitments=counts.commitments,
+            completions=counts.completions,
+            target=counts.target,
+        )
+
+    except Exception as e:
+        logger.error(f"Error getting action counts: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get("/coordination/action/commitments/{action_id:path}", response_model=list[ActionResponse])
+async def list_commitments(action_id: str):
+    """
+    List all commitments for an action.
+
+    Returns non-revoked commitments only.
+    """
+    storage = _get_action_storage()
+    if not storage:
+        return []
+
+    try:
+        from civicos_relay.voice.action_service import ActionService
+
+        service = ActionService(storage)
+        commitments = service.get_commitments(action_id)
+
+        return [
+            ActionResponse(
+                action_id=c.action_id,
+                action_type=c.action_type.value,
+                public_key=c.public_key,
+                signature=c.signature,
+                timestamp=c.timestamp.isoformat(),
+                revoked=c.revoked,
+            )
+            for c in commitments
+        ]
+
+    except Exception as e:
+        logger.error(f"Error listing commitments: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get("/coordination/action/completions/{action_id:path}", response_model=list[ActionResponse])
+async def list_completions(action_id: str):
+    """
+    List all completions for an action.
+
+    Returns non-revoked completions only.
+    """
+    storage = _get_action_storage()
+    if not storage:
+        return []
+
+    try:
+        from civicos_relay.voice.action_service import ActionService
+
+        service = ActionService(storage)
+        completions = service.get_completions(action_id)
+
+        return [
+            ActionResponse(
+                action_id=c.action_id,
+                action_type=c.action_type.value,
+                public_key=c.public_key,
+                signature=c.signature,
+                timestamp=c.timestamp.isoformat(),
+                evidence_url=c.evidence_url,
+                revoked=c.revoked,
+            )
+            for c in completions
+        ]
+
+    except Exception as e:
+        logger.error(f"Error listing completions: {e}")
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
