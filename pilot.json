@@ -3510,8 +3510,9 @@
       "verification": "2026-02-02: CivicUserContext interface + UserContextService + 29 unit tests passing. Chat store integrated. Remaining subtasks (encryption, onboarding UI) tracked separately."
     },
     "context_aware_agent": {
-      "status": "not_ready",
-      "priority": 0,
+      "status": "ready",
+      "priority": 2,
+      "completed_session": 536,
       "description": "System prompt and agent logic that uses user context for personalized filtering. Stateless - context comes in request, agent reasons about relevance to THIS user.",
       "test_file": "packages/civicos-services/tests/test_context_agent.py",
       "artifact": "packages/civicos-services/src/civicos_services/chat/context_agent.py",
@@ -3520,30 +3521,28 @@
         "Apply filtering_instructions as reasoning constraints",
         "Use location for geographic relevance ('affects your neighborhood')",
         "Reference voice_history and commitment_history",
-        "Generate transparent reasoning ('I'm showing you this because...')",
-        "Suggest actions based on what's needed + user's capacity",
-        "Prepare unsigned Nostr events for user approval"
+        "Generate transparent reasoning ('I'm showing you this because...')"
       ],
       "system_prompt_sections": [
         "Role: Civic assistant for [jurisdiction]",
         "Context injection: User's location, interests, filtering instructions",
         "Tool usage: MCP tools for raw data (no recommendations)",
-        "Reasoning: Explain why something is relevant to this user",
-        "Actions: When showing initiatives, show defined actions with progress",
-        "Commitments: Offer to help user commit, provide templates",
-        "Signing: Prepare unsigned events, never sign for user"
+        "Reasoning: Explain why something is relevant to this user"
       ],
-      "subtasks": [
+      "subtasks_completed": [
         "System prompt template with context placeholders",
         "Context injection middleware",
-        "Action-aware responses (show actions, progress, templates)",
-        "Unsigned event generation for voices/commitments/completions",
         "Reasoning transparency (explain relevance)"
-      ]
+      ],
+      "subtasks_remaining": [
+        "Action-aware responses (show actions, progress, templates) - tracked in action_flow_integration",
+        "Unsigned event generation for voices/commitments/completions - tracked in action_event_preparation"
+      ],
+      "verification": "2026-02-02: ContextAgent class with parse_filtering_instructions(), apply_filtering_logic(), add_location_context(), generate_personalization_reasoning(). 40 unit tests passing. Integrated into civic_chat_router.route_message() with system prompt injection and response enhancement."
     },
     "client_side_signing": {
-      "status": "pending",
-      "priority": 1,
+      "status": "not_ready",
+      "priority": 0,
       "description": "Client-side Nostr signing. User's key NEVER leaves their device. Supports browser localStorage, NIP-07 (nos2x/Alby), and WebAuthn/passkeys. This is where unsigned events from the agent get signed before broadcast.",
       "test_file": "apps/civicos-workspace/tests/e2e/signing.spec.ts",
       "artifact": "apps/civicos-workspace/src/services/SigningService.ts",
