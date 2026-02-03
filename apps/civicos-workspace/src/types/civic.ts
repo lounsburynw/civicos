@@ -1121,6 +1121,95 @@ export interface VoiceCountResponse {
 }
 
 // ============================================================================
+// Action Flow (Edge Intelligence - Pilot Phase)
+// ============================================================================
+
+/**
+ * Signed action type for commitments and completions
+ */
+export type SignedActionType = 'commitment' | 'completion';
+
+/**
+ * A signed civic action commitment or completion record
+ * (Distinct from CivicAction which tracks user actions in the backend)
+ */
+export interface SignedActionRecord {
+  action_id: string;
+  action_type: SignedActionType;
+  public_key: string;
+  signature: string;
+  timestamp: string; // ISO 8601
+  evidence_url?: string;
+  revoked: boolean;
+}
+
+/**
+ * Action count response from coordination API
+ * GET /api/coordination/action/counts/{action_id}
+ *
+ * Action ID format: action:{jurisdiction}:{initiative-id}:{action-type}
+ * Example: action:city-san-rafael:initiative-123:comment
+ */
+export interface ActionCountResponse {
+  action_id: string;
+  commitments: number;
+  completions: number;
+  target?: number; // Target number needed (from initiative)
+  progress_percent?: number;
+}
+
+/**
+ * Request to commit to an action
+ * POST /api/coordination/action/commit
+ */
+export interface CommitActionRequest {
+  action_id: string;
+  public_key: string;
+  signature: string;
+}
+
+/**
+ * Request to complete an action
+ * POST /api/coordination/action/complete
+ */
+export interface CompleteActionRequest {
+  action_id: string;
+  public_key: string;
+  signature: string;
+  evidence_url?: string;
+}
+
+/**
+ * Initiative action definition (from backend)
+ * Part of an initiative that users can commit to
+ */
+export interface InitiativeAction {
+  id: string;
+  action_type: 'comment' | 'attend' | 'contact' | 'share' | 'other';
+  description: string;
+  target_count?: number;
+  deadline?: string; // ISO 8601
+  template?: string; // Template text for the action
+  instructions?: string;
+}
+
+/**
+ * Initiative with actions
+ */
+export interface Initiative {
+  id: string;
+  jurisdiction: string;
+  title: string;
+  description: string;
+  topic: string;
+  status: 'draft' | 'active' | 'achieved' | 'archived';
+  voice_count: number;
+  actions: InitiativeAction[];
+  created_at: string;
+  updated_at?: string;
+}
+
+// ============================================================================
 // MCP Registry (Discovery of CivicOS MCP Servers)
 // ============================================================================
 

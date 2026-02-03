@@ -28,6 +28,10 @@ import {
   CivicEventKinds,
   createVoiceContent,
   createVoiceTags,
+  createCommitmentContent,
+  createCommitmentTags,
+  createCompletionContent,
+  createCompletionTags,
   verifyNostrEvent,
 } from '../lib/providers/index.js';
 
@@ -195,9 +199,54 @@ export class PersonalMCPServer {
         },
       },
       {
+        name: 'sign_commitment',
+        description:
+          'Sign a commitment to take a civic action. Returns a signed Nostr event (kind 30801) ready to broadcast to the relay.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            action_id: {
+              type: 'string',
+              description:
+                'Action identifier (e.g., "action:city-san-rafael:initiative-123:comment")',
+            },
+            jurisdiction: {
+              type: 'string',
+              description: 'Jurisdiction identifier (e.g., "city-san-rafael")',
+            },
+          },
+          required: ['action_id', 'jurisdiction'],
+        },
+      },
+      {
+        name: 'sign_completion',
+        description:
+          'Sign a completion report for a civic action. Returns a signed Nostr event (kind 30802) ready to broadcast to the relay.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            action_id: {
+              type: 'string',
+              description:
+                'Action identifier (e.g., "action:city-san-rafael:initiative-123:comment")',
+            },
+            jurisdiction: {
+              type: 'string',
+              description: 'Jurisdiction identifier (e.g., "city-san-rafael")',
+            },
+            evidence_url: {
+              type: 'string',
+              description:
+                'Optional URL to evidence of completion (e.g., link to submitted comment)',
+            },
+          },
+          required: ['action_id', 'jurisdiction'],
+        },
+      },
+      {
         name: 'sign_event',
         description:
-          'Sign an arbitrary Nostr event. Use sign_voice for civic actions instead.',
+          'Sign an arbitrary Nostr event. Use sign_voice, sign_commitment, or sign_completion for civic actions instead.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -273,6 +322,19 @@ export class PersonalMCPServer {
           args.entity as string,
           args.jurisdiction as string,
           args.stance as 'support' | 'oppose' | 'watching'
+        );
+
+      case 'sign_commitment':
+        return this.handleSignCommitment(
+          args.action_id as string,
+          args.jurisdiction as string
+        );
+
+      case 'sign_completion':
+        return this.handleSignCompletion(
+          args.action_id as string,
+          args.jurisdiction as string,
+          args.evidence_url as string | undefined
         );
 
       case 'sign_event':
@@ -389,6 +451,59 @@ export class PersonalMCPServer {
       success: true,
       event: result.event,
       message: `Voice signed: ${stance} on ${entity}`,
+    };
+  }
+
+  private async handleSignCommitment(
+    actionId: string,
+    jurisdiction: string
+  ): Promise<unknown> {
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    const event: NostrEvent = {
+      created_at: timestamp,
+      kind: CivicEventKinds.COMMITMENT,
+      tags: createCommitmentTags(actionId, jurisdiction),
+      content: createCommitmentContent(actionId, timestamp),
+    };
+
+    const result = await this.identityManager.signEvent(event);
+
+    if (!result.success) {
+      throw new Error(result.error ?? 'Signing failed');
+    }
+
+    return {
+      success: true,
+      event: result.event,
+      message: `Commitment signed for action: ${actionId}`,
+    };
+  }
+
+  private async handleSignCompletion(
+    actionId: string,
+    jurisdiction: string,
+    evidenceUrl?: string
+  ): Promise<unknown> {
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    const event: NostrEvent = {
+      created_at: timestamp,
+      kind: CivicEventKinds.COMPLETION,
+      tags: createCompletionTags(actionId, jurisdiction, evidenceUrl),
+      content: createCompletionContent(actionId, timestamp, evidenceUrl),
+    };
+
+    const result = await this.identityManager.signEvent(event);
+
+    if (!result.success) {
+      throw new Error(result.error ?? 'Signing failed');
+    }
+
+    return {
+      success: true,
+      event: result.event,
+      message: `Completion signed for action: ${actionId}${evidenceUrl ? ` with evidence: ${evidenceUrl}` : ''}`,
     };
   }
 

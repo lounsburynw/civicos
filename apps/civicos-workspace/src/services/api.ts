@@ -26,7 +26,11 @@ import type {
   VectorStatsResponse,
   VoiceCountResponse,
   MCPRegistry,
-  MCPOperator
+  MCPOperator,
+  ActionCountResponse,
+  CommitActionRequest,
+  CompleteActionRequest,
+  SignedActionRecord
 } from '@/types/civic';
 
 /**
@@ -1563,6 +1567,140 @@ class CivicAPI {
     }
 
     return results;
+  }
+
+  // =========================================================================
+  // Coordination Protocol API (Pilot Phase - Action Flow)
+  // =========================================================================
+
+  /**
+   * Get action counts for an action item
+   * GET /api/coordination/action/counts/{action_id}
+   *
+   * Action ID format: action:{jurisdiction}:{initiative-id}:{action-type}
+   * Example: action:city-san-rafael:initiative-123:comment
+   *
+   * Returns counts of commitments and completions.
+   */
+  async getActionCounts(actionId: string, target?: number): Promise<ActionCountResponse> {
+    const url = new URL(`${this.baseURL}/api/coordination/action/counts/${encodeURIComponent(actionId)}`);
+    if (target !== undefined) {
+      url.searchParams.set('target', target.toString());
+    }
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      // Return zero counts on error (action may not exist yet)
+      if (response.status === 404) {
+        return { action_id: actionId, commitments: 0, completions: 0, target };
+      }
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || `Failed to fetch action counts: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Submit a commitment to an action
+   * POST /api/coordination/action/commit
+   *
+   * The signature must be created by the Personal MCP's sign_commitment tool.
+   */
+  async commitAction(request: CommitActionRequest): Promise<SignedActionRecord> {
+    const url = `${this.baseURL}/api/coordination/action/commit`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        ...this.getAuthHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(request)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.detail || errorData?.error || `Failed to commit action: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Submit a completion for an action
+   * POST /api/coordination/action/complete
+   *
+   * The signature must be created by the Personal MCP's sign_completion tool.
+   */
+  async completeAction(request: CompleteActionRequest): Promise<SignedActionRecord> {
+    const url = `${this.baseURL}/api/coordination/action/complete`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        ...this.getAuthHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(request)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.detail || errorData?.error || `Failed to complete action: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get all commitments for an action
+   * GET /api/coordination/action/commitments/{action_id}
+   */
+  async getActionCommitments(actionId: string): Promise<SignedActionRecord[]> {
+    const url = `${this.baseURL}/api/coordination/action/commitments/${encodeURIComponent(actionId)}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return [];
+      }
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || `Failed to fetch commitments: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get all completions for an action
+   * GET /api/coordination/action/completions/{action_id}
+   */
+  async getActionCompletions(actionId: string): Promise<SignedActionRecord[]> {
+    const url = `${this.baseURL}/api/coordination/action/completions/${encodeURIComponent(actionId)}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return [];
+      }
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || `Failed to fetch completions: ${response.statusText}`);
+    }
+
+    return response.json();
   }
 
   // ============================================================================

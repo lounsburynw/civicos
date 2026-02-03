@@ -9,8 +9,9 @@ from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel, Field
 
 from civicos_relay.identity import RelayIdentity, RelayConfig
-from civicos_relay.voice.models import Voice, Stance, VoiceCount
+from civicos_relay.voice.models import Voice, Stance, VoiceCount, Action, ActionType, ActionCount
 from civicos_relay.voice.service import VoiceService
+from civicos_relay.voice.action_service import ActionService
 from civicos_relay.voice.crypto import KeyPair, sign_voice
 from civicos_relay.relay.models import Subscription, MatchCriteria, DeliveryConfig, DeliveryMethod
 from civicos_relay.relay.service import RelayService
@@ -31,6 +32,21 @@ class CastVoiceRequest(BaseModel):
     stance: Stance
     public_key: str
     signature: str
+
+
+class CommitActionRequest(BaseModel):
+    """Request to commit to an action."""
+    action_id: str
+    public_key: str
+    signature: str
+
+
+class CompleteActionRequest(BaseModel):
+    """Request to mark an action as completed."""
+    action_id: str
+    public_key: str
+    signature: str
+    evidence_url: Optional[str] = None
 
 
 class SubscribeRequest(BaseModel):
@@ -69,6 +85,10 @@ def get_sync_service() -> SyncService:
     return _relay_state["sync_service"]
 
 
+def get_action_service() -> ActionService:
+    return _relay_state["action_service"]
+
+
 def get_identity() -> RelayIdentity:
     return _relay_state["identity"]
 
@@ -97,6 +117,7 @@ async def lifespan(app: FastAPI):
 
     _relay_state["identity"] = identity
     _relay_state["voice_service"] = VoiceService(storage.voices)
+    _relay_state["action_service"] = ActionService(storage.actions)
     _relay_state["relay_service"] = RelayService(storage.subscriptions, email_delivery)
     _relay_state["provenance_service"] = ProvenanceService(storage.provenance)
     _relay_state["sync_service"] = SyncService(identity, storage.sync, config.peers)
@@ -174,6 +195,84 @@ def create_app() -> FastAPI:
     ):
         """List all voices for an entity."""
         return voice_service._storage.get_voices_for_entity(entity)
+
+    # Action endpoints (commitments and completions)
+    @app.post("/action/commit", response_model=Action)
+    async def commit_action(
+        request: CommitActionRequest,
+        action_service: ActionService = Depends(get_action_service),
+    ):
+        """Commit to taking a civic action."""
+        # Create action from request
+        action = Action(
+            action_id=request.action_id,
+            action_type=ActionType.COMMITMENT,
+            public_key=request.public_key,
+            signature=request.signature,
+        )
+
+        # Verify signature
+        if not action_service.verify(action):
+            raise HTTPException(status_code=400, detail="Invalid action signature")
+
+        # Record commitment
+        return action_service.record_commitment(
+            action_id=request.action_id,
+            public_key=request.public_key,
+            signature=request.signature,
+        )
+
+    @app.post("/action/complete", response_model=Action)
+    async def complete_action(
+        request: CompleteActionRequest,
+        action_service: ActionService = Depends(get_action_service),
+    ):
+        """Mark a civic action as completed."""
+        # Create action from request
+        action = Action(
+            action_id=request.action_id,
+            action_type=ActionType.COMPLETION,
+            public_key=request.public_key,
+            signature=request.signature,
+            evidence_url=request.evidence_url,
+        )
+
+        # Verify signature
+        if not action_service.verify(action):
+            raise HTTPException(status_code=400, detail="Invalid action signature")
+
+        # Record completion
+        return action_service.record_completion(
+            action_id=request.action_id,
+            public_key=request.public_key,
+            signature=request.signature,
+            evidence_url=request.evidence_url,
+        )
+
+    @app.get("/action/counts/{action_id:path}", response_model=ActionCount)
+    async def get_action_counts(
+        action_id: str,
+        target: Optional[int] = None,
+        action_service: ActionService = Depends(get_action_service),
+    ):
+        """Get commitment and completion counts for an action."""
+        return action_service.get_counts(action_id, target)
+
+    @app.get("/action/commitments/{action_id:path}", response_model=list[Action])
+    async def list_commitments(
+        action_id: str,
+        action_service: ActionService = Depends(get_action_service),
+    ):
+        """List all commitments for an action."""
+        return action_service.get_commitments(action_id)
+
+    @app.get("/action/completions/{action_id:path}", response_model=list[Action])
+    async def list_completions(
+        action_id: str,
+        action_service: ActionService = Depends(get_action_service),
+    ):
+        """List all completions for an action."""
+        return action_service.get_completions(action_id)
 
     # Subscription endpoints
     @app.post("/subscribe", response_model=Subscription)

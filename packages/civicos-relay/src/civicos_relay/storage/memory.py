@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional
 
-from civicos_relay.voice.models import Voice, Stance
+from civicos_relay.voice.models import Voice, Stance, Action, ActionType
 from civicos_relay.relay.models import (
     Event,
     EventType,
@@ -273,12 +273,70 @@ class InMemorySyncStorage:
         return self._event_storage.import_event(event)
 
 
+class InMemoryActionStorage:
+    """In-memory action storage for testing."""
+
+    def __init__(self):
+        # (public_key, action_id, action_type) -> Action
+        self._actions: dict[tuple[str, str, ActionType], Action] = {}
+
+    def save_action(self, action: Action) -> None:
+        key = (action.public_key, action.action_id, action.action_type)
+        self._actions[key] = action
+
+    def get_action(
+        self, public_key: str, action_id: str, action_type: ActionType
+    ) -> Optional[Action]:
+        return self._actions.get((public_key, action_id, action_type))
+
+    def get_actions_for_id(self, action_id: str) -> list[Action]:
+        return [
+            a for a in self._actions.values()
+            if a.action_id == action_id and not a.revoked
+        ]
+
+    def get_commitments_for_id(self, action_id: str) -> list[Action]:
+        return [
+            a for a in self._actions.values()
+            if a.action_id == action_id
+            and a.action_type == ActionType.COMMITMENT
+            and not a.revoked
+        ]
+
+    def get_completions_for_id(self, action_id: str) -> list[Action]:
+        return [
+            a for a in self._actions.values()
+            if a.action_id == action_id
+            and a.action_type == ActionType.COMPLETION
+            and not a.revoked
+        ]
+
+    def revoke_action(
+        self, public_key: str, action_id: str, action_type: ActionType
+    ) -> bool:
+        key = (public_key, action_id, action_type)
+        if key in self._actions:
+            old = self._actions[key]
+            self._actions[key] = Action(
+                action_id=old.action_id,
+                action_type=old.action_type,
+                public_key=old.public_key,
+                signature=old.signature,
+                timestamp=old.timestamp,
+                evidence_url=old.evidence_url,
+                revoked=True,
+            )
+            return True
+        return False
+
+
 class InMemoryStorage:
     """Combined in-memory storage for all relay data."""
 
     def __init__(self):
         self.voices = InMemoryVoiceStorage()
         self.events = InMemoryEventStorage()
+        self.actions = InMemoryActionStorage()
         self.subscriptions = InMemorySubscriptionStorage()
         self.provenance = InMemoryProvenanceStorage()
         self.initiatives = InMemoryInitiativeStorage()

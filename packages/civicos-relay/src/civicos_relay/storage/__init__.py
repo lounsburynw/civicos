@@ -16,6 +16,7 @@ from civicos_relay.storage.memory import (
     InMemoryInitiativeStorage,
     InMemoryEventStorage,
     InMemorySyncStorage,
+    InMemoryActionStorage,
 )
 
 __all__ = [
@@ -34,4 +35,5 @@ __all__ = [
     "InMemoryInitiativeStorage",
     "InMemoryEventStorage",
     "InMemorySyncStorage",
+    "InMemoryActionStorage",
 ]

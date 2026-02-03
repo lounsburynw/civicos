@@ -185,3 +185,60 @@ export function createVoiceTags(
     ['stance', stance], // Position
   ];
 }
+
+/**
+ * Canonical message format for civic action commitments.
+ * Used for deterministic signing verification.
+ */
+export function createCommitmentContent(
+  actionId: string,
+  timestamp: number
+): string {
+  return `civicos:action:v1:${actionId}:commitment:${timestamp}`;
+}
+
+/**
+ * Create tags for a civic commitment event.
+ */
+export function createCommitmentTags(
+  actionId: string,
+  jurisdiction: string
+): string[][] {
+  return [
+    ['d', actionId], // Addressable event identifier
+    ['j', jurisdiction], // Jurisdiction tag
+    ['action', 'commitment'], // Action type
+  ];
+}
+
+/**
+ * Canonical message format for civic action completions.
+ * Used for deterministic signing verification.
+ */
+export function createCompletionContent(
+  actionId: string,
+  timestamp: number,
+  evidenceUrl?: string
+): string {
+  const base = `civicos:action:v1:${actionId}:completion:${timestamp}`;
+  return evidenceUrl ? `${base}:${evidenceUrl}` : base;
+}
+
+/**
+ * Create tags for a civic completion event.
+ */
+export function createCompletionTags(
+  actionId: string,
+  jurisdiction: string,
+  evidenceUrl?: string
+): string[][] {
+  const tags: string[][] = [
+    ['d', actionId], // Addressable event identifier
+    ['j', jurisdiction], // Jurisdiction tag
+    ['action', 'completion'], // Action type
+  ];
+  if (evidenceUrl) {
+    tags.push(['evidence', evidenceUrl]);
+  }
+  return tags;
+}

@@ -1,4 +1,4 @@
-"""Voice data models."""
+"""Voice and Action data models."""
 
 from datetime import datetime
 from enum import Enum
@@ -13,6 +13,13 @@ class Stance(str, Enum):
     SUPPORT = "support"
     OPPOSE = "oppose"
     WATCHING = "watching"
+
+
+class ActionType(str, Enum):
+    """Type of civic action."""
+
+    COMMITMENT = "commitment"  # Promise to take action
+    COMPLETION = "completion"  # Report action completed
 
 
 class Voice(BaseModel):
@@ -46,3 +53,55 @@ class VoiceCount(BaseModel):
     @property
     def total(self) -> int:
         return self.support + self.oppose + self.watching
+
+
+class Action(BaseModel):
+    """
+    A civic action commitment or completion.
+
+    Actions track user commitments to civic participation:
+    - Commitment (kind 30801): User promises to take action (e.g., submit comment)
+    - Completion (kind 30802): User reports action completed with evidence
+
+    Nostr event kinds:
+    - 30801: Commitment
+    - 30802: Completion
+    """
+
+    action_id: str = Field(
+        description="Action identifier (e.g., 'action:city-san-rafael:initiative-123:comment')"
+    )
+    action_type: ActionType = Field(description="commitment or completion")
+    public_key: str = Field(description="Public key (hex-encoded)")
+    signature: str = Field(description="Signature (hex-encoded)")
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    # For completions: evidence of action taken
+    evidence_url: Optional[str] = Field(
+        default=None,
+        description="URL to evidence (e.g., public comment submission confirmation)"
+    )
+    revoked: bool = Field(default=False)
+
+    model_config = {"frozen": True}
+
+
+class ActionCount(BaseModel):
+    """Aggregated action counts for an action item."""
+
+    action_id: str
+    commitments: int = 0
+    completions: int = 0
+    target: Optional[int] = Field(
+        default=None,
+        description="Target number of actions needed (from initiative)"
+    )
+
+    @property
+    def total_committed(self) -> int:
+        return self.commitments
+
+    @property
+    def progress_percent(self) -> Optional[float]:
+        if self.target and self.target > 0:
+            return min(100.0, (self.completions / self.target) * 100)
+        return None
