@@ -1540,6 +1540,43 @@
           "status": "ready"
         }
       ]
+    },
+    "scaling": {
+      "turnkey_city_deployment": {
+        "status": "not_ready",
+        "priority": 3,
+        "description": "Make unified config system actually reduce new city deployment effort. Currently config is ~20% of work; extractors, HUD mapping, and elections are ~80%.",
+        "rationale": "Session 545 audit found: core infrastructure 70-75% generalizable, but election data (1/5), HUD grantee mapping (manual), and platform-specific extractors still require significant per-city work.",
+        "audit_reference": "docs/critical/CITY_DEPLOYMENT_AUDIT.md",
+        "current_state": {
+          "generalizable": [
+            "Core API & Storage (5/5)",
+            "Pipeline stages (5/5)",
+            "Legistar/CivicClerk clients (5/5)",
+            "Federal data sources (4/5)",
+            "Municipal code (4.5/5)",
+            "ProudCity (4/5)"
+          ],
+          "manual_work": [
+            "Election data - completely jurisdiction-specific (1/5)",
+            "HUD grantee mapping - requires research per city",
+            "School board meetings - platform varies",
+            "Transcription roster data - per jurisdiction"
+          ]
+        },
+        "improvements_needed": [
+          "Auto-discover HUD grantee from FAC/HUD API",
+          "Onboarding wizard (detect platform → generate config → validate)",
+          "Config validation schema with helpful errors",
+          "Generic election scraper framework (template-based)"
+        ],
+        "effort_estimate": {
+          "berkeley_mvp": "3-5 days (meetings + federal + municipal code)",
+          "berkeley_full_parity": "2-3 weeks (includes elections)"
+        },
+        "depends_on": ["unified_city_deployment"],
+        "defer_until": "Post E2E operational, pre-launch scaling phase"
+      }
     }
   },
   "ingestion_visibility": {
