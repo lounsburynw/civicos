@@ -9,7 +9,7 @@ Widgets:
     - pulse: City dashboard (upcoming meetings, trending topics, local issues)
 
 Endpoint:
-    civicos-mcp-apps--mcp-apps-server-web.modal.run
+    lounsburynw--civicos-mcp-apps-mcp-apps-server.modal.run
 
 Deploy:
     modal deploy apps/civicos-mcp-apps/modal_app.py
@@ -75,7 +75,7 @@ def mcp_apps_server():
     # Get URLs from environment (set in civicos-env secret)
     jurisdiction_url = os.environ.get(
         "JURISDICTION_MCP_URL",
-        "https://civicos-san-rafael--mcp-server-handle-request.modal.run/mcp"
+        "https://lounsburynw--civicos-san-rafael-mcpserver-mcp-endpoint.modal.run"
     )
     relay_url = os.environ.get(
         "RELAY_URL",
@@ -113,7 +113,7 @@ def main():
     print("Interactive UI widgets for AI hosts (Claude.ai, ChatGPT)")
     print()
     print("Deploy: modal deploy apps/civicos-mcp-apps/modal_app.py")
-    print("Endpoint: civicos-mcp-apps--mcp-apps-server-web.modal.run")
+    print("Endpoint: lounsburynw--civicos-mcp-apps-mcp-apps-server.modal.run")
     print()
     print("Widgets:")
     print("  voice - Support/Oppose/Watch civic items with real-time counts")

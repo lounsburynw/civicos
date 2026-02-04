@@ -18033,3 +18033,65 @@ Multiple individuals can host MCPs for the same jurisdiction (we're not at city-
 - Phase 3 (Post-pilot): Migration script for existing records
 
 **Tests:** 57 passed (42 smoke + 15 entity ID tests)
+
+---
+## Session: 2026-02-03 - MCP Apps Backend Connection
+
+**P0 Item:** mcp_apps_widgets
+**Status:** Significant progress, not yet complete
+
+### Accomplished
+
+1. **Fixed Jurisdiction MCP URL**
+   - Correct URL: `https://lounsburynw--civicos-san-rafael-mcpserver-mcp-endpoint.modal.run`
+   - Updated in `modal_app.py` and `server.ts`
+
+2. **Increased timeout for Modal cold starts**
+   - Changed from 5s to 20s in `jurisdiction-client.ts`
+
+3. **Implemented real data parsing for City Pulse**
+   - Fixed `fetchCityPulse()` to use `get_upcoming_meetings` tool
+   - Implemented `parseMeetingsFromText()` to parse markdown meeting list
+   - Implemented `parseIssueClustersFromText()` to parse analytics data
+   - Removed mock fallback data
+
+4. **Verified both widgets use real backend**
+   - Voice widget: Returns real counts (0 for new entities)
+   - City Pulse: Returns 2 real upcoming meetings, 5 issue clusters with real counts
+
+### Subtask Status
+
+- [x] Deploy MCP Apps server to Modal (permanent URL)
+- [x] Connect to real jurisdiction MCP backend
+- [ ] Add meeting_prep widget
+- [ ] Add issue_card widget
+- [~] Test full voice casting flow with relay (broadcast works but relay is localhost)
+
+### Remaining Work
+
+1. **Relay Configuration** - Jurisdiction MCP tries to broadcast to `localhost:8001`
+   - Need to deploy relay server or configure proper endpoint
+   
+2. **Additional Widgets** - meeting_prep and issue_card not yet implemented
+
+3. **Cloudflare Proxy** (optional) - Route san-rafael.civicosproject.org/apps → Modal
+
+### Test Commands
+
+```bash
+# Health check
+curl -s "https://lounsburynw--civicos-mcp-apps-mcp-apps-server.modal.run/health"
+
+# City Pulse (real data)
+curl -s -X POST "https://lounsburynw--civicos-mcp-apps-mcp-apps-server.modal.run/mcp" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"city_pulse","arguments":{}},"id":1}'
+```
+
+### Key Files Modified
+
+- `apps/civicos-mcp-apps/modal_app.py` - Fixed jurisdiction URL
+- `apps/civicos-mcp-apps/server.ts` - Fixed jurisdiction URL
+- `apps/civicos-mcp-apps/src/lib/jurisdiction-client.ts` - Increased timeout to 20s
+- `apps/civicos-mcp-apps/src/widgets/pulse/register.ts` - Implemented real data parsing

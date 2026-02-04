@@ -3929,6 +3929,26 @@
         "Fallback to other providers if NIP-07 unavailable"
       ]
     },
+    "mcp_apps": {
+      "description": "MCP Apps - Interactive UI widgets rendered directly in Claude.ai, ChatGPT, and other MCP Apps-enabled hosts. Pattern 1 from EDGE_INTELLIGENCE_ARCHITECTURE.md.",
+      "_doc": "MCP Apps extend MCP protocol with ui:// resources. Widgets render in sandboxed iframes, communicate via postMessage. Zero-install civic participation.",
+      "mcp_apps_widgets": {
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Build and deploy MCP Apps widgets for civic engagement. Voice + City Pulse deployed to Modal with real backend. Remaining: meeting_prep, issue_card widgets.",
+        "artifact": "apps/civicos-mcp-apps/",
+        "test_file": "apps/civicos-mcp-apps/src/widgets/voice.html",
+        "subtasks": [
+          "[DONE] Deploy MCP Apps server to Modal (permanent URL)",
+          "[DONE] Connect to real jurisdiction MCP backend",
+          "Add meeting_prep widget",
+          "Add issue_card widget",
+          "[BLOCKED] Voice broadcast needs relay deployment (see federation_infrastructure)"
+        ],
+        "note": "2026-02-03: Deployed to Modal. Fixed jurisdiction MCP URL. Implemented real data parsing for pulse widget. Voice/Pulse show real data. Broadcast blocked on relay deployment.",
+        "modal_url": "https://lounsburynw--civicos-mcp-apps-mcp-apps-server.modal.run"
+      }
+    },
     "openwebui_pilot": {
       "description": "Open WebUI integration for San Rafael pilot. PRIMARY surface for civic participation via AI. Pattern 4 from EDGE_INTELLIGENCE_ARCHITECTURE.md.",
       "_doc": "This is the recommended instantiation for pilot: Users access via Open WebUI (self-hosted or city-hosted), LLM queries Personal MCP which queries Jurisdiction MCP. See EDGE_INTELLIGENCE_ARCHITECTURE.md for full design.",
