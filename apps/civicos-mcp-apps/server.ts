@@ -35,6 +35,8 @@ import { fileURLToPath } from "node:url";
 import { JurisdictionClient } from "./src/lib/jurisdiction-client.js";
 import { registerVoiceWidget } from "./src/widgets/voice/register.js";
 import { registerPulseWidget } from "./src/widgets/pulse/register.js";
+import { registerMeetingPrepWidget } from "./src/widgets/meeting_prep/register.js";
+import { registerIssueCardWidget } from "./src/widgets/issue_card/register.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -74,9 +76,17 @@ await registerPulseWidget(server, {
   widgetsDir: path.join(__dirname, "dist/widgets"),
 });
 
+await registerMeetingPrepWidget(server, {
+  jurisdictionClient,
+  widgetsDir: path.join(__dirname, "dist/widgets"),
+});
+
+await registerIssueCardWidget(server, {
+  jurisdictionClient,
+  widgetsDir: path.join(__dirname, "dist/widgets"),
+});
+
 // Future widgets:
-// await registerMeetingPrepWidget(server, { ... });
-// await registerIssueCardWidget(server, { ... });
 // await registerInitiativeWidget(server, { ... });
 
 // ─────────── HTTP Server ───────────
@@ -98,7 +108,7 @@ app.post("/mcp", async (req, res) => {
 
 // Health check
 app.get("/health", (req, res) => {
-  res.json({ status: "ok", widgets: ["voice", "pulse"] });
+  res.json({ status: "ok", widgets: ["voice", "pulse", "meeting_prep", "issue_card"] });
 });
 
 // ─────────── Start Server ───────────

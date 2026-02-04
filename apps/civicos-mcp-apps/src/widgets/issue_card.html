@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Issue Card</title>
+  <style>
+    :root {
+      --primary: #3b82f6;
+      --primary-bg: #eff6ff;
+      --success: #22c55e;
+      --success-bg: #dcfce7;
+      --warning: #f59e0b;
+      --warning-bg: #fef3c7;
+      --danger: #ef4444;
+      --danger-bg: #fee2e2;
+      --purple: #8b5cf6;
+      --purple-bg: #f5f3ff;
+      --orange: #f97316;
+      --orange-bg: #fff7ed;
+      --text: #1a1a1a;
+      --text-muted: #666;
+      --text-light: #999;
+      --border: #e5e5e5;
+      --bg: #fafafa;
+      --card-bg: white;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .issue-card-widget {
+      max-width: 500px;
+      margin: 0 auto;
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    /* ─────────── Header ─────────── */
+    .header {
+      padding: 20px;
+      background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+      color: white;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .header-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .issue-count {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      background: rgba(255,255,255,0.2);
+      padding: 4px 10px;
+      border-radius: 12px;
+    }
+
+    .header-subtitle {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    .type-filters {
+      display: flex;
+      gap: 6px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+
+    .type-filter {
+      padding: 4px 10px;
+      background: rgba(255,255,255,0.2);
+      border: none;
+      border-radius: 12px;
+      font-size: 11px;
+      color: white;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .type-filter:hover,
+    .type-filter.active {
+      background: rgba(255,255,255,0.4);
+    }
+
+    /* ─────────── Sections ─────────── */
+    .section {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section:last-child {
+      border-bottom: none;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .section-action {
+      font-size: 12px;
+      color: var(--primary);
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    /* ─────────── Issue Cards ─────────── */
+    .issue-card {
+      padding: 14px;
+      background: var(--bg);
+      border-radius: 12px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .issue-card:last-child {
+      margin-bottom: 0;
+    }
+
+    .issue-card:hover {
+      background: var(--primary-bg);
+    }
+
+    .issue-card.expanded {
+      background: var(--primary-bg);
+    }
+
+    .issue-top {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .issue-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .issue-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .issue-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 4px;
+    }
+
+    .issue-type {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      text-transform: capitalize;
+    }
+
+    .issue-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      text-transform: uppercase;
+    }
+
+    .issue-status.open {
+      background: var(--warning-bg);
+      color: #92400e;
+    }
+
+    .issue-status.acknowledged {
+      background: var(--primary-bg);
+      color: #1d4ed8;
+    }
+
+    .issue-status.closed {
+      background: var(--success-bg);
+      color: #166534;
+    }
+
+    .issue-address {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .issue-description {
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .issue-card.expanded .issue-description {
+      -webkit-line-clamp: unset;
+    }
+
+    /* ─────────── Issue Details (Expanded) ─────────── */
+    .issue-details {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      display: none;
+    }
+
+    .issue-card.expanded .issue-details {
+      display: block;
+    }
+
+    .detail-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+
+    .detail-item {
+      flex: 1;
+    }
+
+    .detail-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .detail-value {
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .issue-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .action-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card-bg);
+      font-size: 12px;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .action-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .action-btn.primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    .action-btn.primary:hover {
+      background: #2563eb;
+    }
+
+    /* ─────────── Similar Issues ─────────── */
+    .similar-issues {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .similar-issue {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--bg);
+      border-radius: 8px;
+    }
+
+    .match-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: var(--success-bg);
+      color: #166534;
+      white-space: nowrap;
+    }
+
+    .match-badge.medium {
+      background: var(--warning-bg);
+      color: #92400e;
+    }
+
+    .match-badge.low {
+      background: var(--bg);
+      color: var(--text-muted);
+    }
+
+    .similar-description {
+      font-size: 12px;
+      color: var(--text);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ─────────── Analytics ─────────── */
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .analytics-item {
+      padding: 10px;
+      background: var(--bg);
+      border-radius: 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .analytics-item:hover {
+      background: var(--primary-bg);
+    }
+
+    .analytics-icon {
+      font-size: 18px;
+      margin-bottom: 4px;
+    }
+
+    .analytics-count {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .analytics-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: capitalize;
+    }
+
+    /* ─────────── Footer ─────────── */
+    .footer {
+      padding: 12px 20px;
+      background: var(--bg);
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-light);
+    }
+
+    .footer a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    /* ─────────── Loading ─────────── */
+    .loading-skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ─────────── Empty State ─────────── */
+    .empty-state {
+      text-align: center;
+      padding: 24px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .empty-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="issue-card-widget">
+    <!-- Loading state -->
+    <div class="header">
+      <div class="loading-skeleton" style="height: 22px; width: 60%; margin-bottom: 8px;"></div>
+      <div class="loading-skeleton" style="height: 14px; width: 40%;"></div>
+    </div>
+    <div class="section">
+      <div class="loading-skeleton" style="height: 80px; margin-bottom: 8px;"></div>
+      <div class="loading-skeleton" style="height: 80px;"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { App } from "@modelcontextprotocol/ext-apps";
+
+    // ─────────── State ───────────
+    let state = {
+      issues: [],
+      similarIssues: [],
+      analytics: { total: 0, byType: [] },
+      filter: { type: null, address: null },
+      expandedIssue: null,
+      activeType: null,
+    };
+
+    // ─────────── MCP App Connection ───────────
+    const app = new App({ name: "Issue Card", version: "1.0.0" });
+
+    app.ontoolresult = (result) => {
+      try {
+        const data = JSON.parse(result.content?.find((c) => c.type === "text")?.text || "{}");
+        state.issues = data.issues || [];
+        state.similarIssues = data.similarIssues || [];
+        state.analytics = data.analytics || { total: 0, byType: [] };
+        state.filter = data.filter || {};
+        render();
+      } catch (e) {
+        console.error("Failed to parse tool result:", e);
+        renderError("Failed to load issue data");
+      }
+    };
+
+    app.connect();
+
+    // ─────────── Actions ───────────
+    window.toggleIssue = (issueId) => {
+      state.expandedIssue = state.expandedIssue === issueId ? null : issueId;
+      render();
+    };
+
+    window.filterByType = async (type) => {
+      state.activeType = state.activeType === type ? null : type;
+
+      // Re-fetch issues with filter
+      await app.callServerTool({
+        name: "issue_card",
+        arguments: { issue_type: state.activeType || undefined },
+      });
+    };
+
+    window.searchNearby = async (address) => {
+      await app.callServerTool({
+        name: "get_issues_near_address",
+        arguments: { address, radius: 500 },
+      });
+    };
+
+    window.findSimilar = async (description) => {
+      await app.callServerTool({
+        name: "search_similar_issues",
+        arguments: { description },
+      });
+    };
+
+    window.openVoice = async (issueType) => {
+      // Create a voice interface for this issue type
+      await app.callServerTool({
+        name: "voice_interface",
+        arguments: {
+          entity_id: `issue:city-san-rafael:${issueType}`,
+          context: `Community concerns about ${formatType(issueType)} issues`,
+        },
+      });
+    };
+
+    // ─────────── Render ───────────
+    function render() {
+      const { issues, similarIssues, analytics, filter, expandedIssue, activeType } = state;
+
+      const topTypes = analytics.byType?.slice(0, 6) || [];
+
+      document.getElementById("app").innerHTML = `
+        <div class="header">
+          <div class="header-top">
+            <div class="header-title">Local Issues</div>
+            <div class="issue-count">
+              ${analytics.total.toLocaleString()} reports
+            </div>
+          </div>
+          <div class="header-subtitle">
+            ${filter.address ? `Near ${escapeHtml(filter.address)}` : 'Community 311 Reports'}
+          </div>
+          ${topTypes.length > 0 ? `
+          <div class="type-filters">
+            ${topTypes.map(t => `
+              <button class="type-filter ${activeType === t.type ? 'active' : ''}"
+                      onclick="filterByType('${t.type}')">
+                ${getTypeIcon(t.type)} ${formatType(t.type)} (${t.count})
+              </button>
+            `).join('')}
+          </div>
+          ` : ''}
+        </div>
+
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">
+              ${activeType ? getTypeIcon(activeType) + ' ' + formatType(activeType) : '📋'} Recent Reports
+            </div>
+          </div>
+          ${issues.length > 0 ? issues.map(issue => renderIssueCard(issue, expandedIssue)).join('') : `
+            <div class="empty-state">
+              <div class="empty-icon">📭</div>
+              <div>No issues found</div>
+            </div>
+          `}
+        </div>
+
+        ${similarIssues.length > 0 ? `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">🔗 Similar Reports</div>
+            <span class="section-action">${similarIssues.length} found</span>
+          </div>
+          <div class="similar-issues">
+            ${similarIssues.slice(0, 5).map(s => `
+              <div class="similar-issue">
+                <span class="match-badge ${s.match >= 70 ? '' : s.match >= 50 ? 'medium' : 'low'}">${s.match}%</span>
+                <span class="similar-description">${escapeHtml(s.description)}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        ` : ''}
+
+        ${topTypes.length > 0 ? `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">📊 Issue Breakdown</div>
+          </div>
+          <div class="analytics-grid">
+            ${topTypes.slice(0, 6).map(t => `
+              <div class="analytics-item" onclick="filterByType('${t.type}')">
+                <div class="analytics-icon">${getTypeIcon(t.type)}</div>
+                <div class="analytics-count">${t.count}</div>
+                <div class="analytics-label">${formatType(t.type)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        ` : ''}
+
+        <div class="footer">
+          Data from SeeClickFix 311 ·
+          <a href="#" onclick="filterByType(null)">Clear filters</a>
+        </div>
+      `;
+    }
+
+    function renderIssueCard(issue, expandedIssue) {
+      const isExpanded = expandedIssue === issue.id;
+
+      return `
+        <div class="issue-card ${isExpanded ? 'expanded' : ''}" onclick="toggleIssue('${issue.id}')">
+          <div class="issue-top">
+            <div class="issue-icon">${getTypeIcon(issue.type)}</div>
+            <div class="issue-content">
+              <div class="issue-header">
+                <span class="issue-type">${formatType(issue.type)}</span>
+                <span class="issue-status ${issue.status}">${formatStatus(issue.status)}</span>
+              </div>
+              ${issue.address ? `
+                <div class="issue-address">
+                  📍 ${escapeHtml(truncateAddress(issue.address))}
+                </div>
+              ` : ''}
+              <div class="issue-description">${escapeHtml(issue.description || 'No description')}</div>
+
+              <div class="issue-details">
+                ${issue.createdAt ? `
+                <div class="detail-row">
+                  <div class="detail-item">
+                    <div class="detail-label">Reported</div>
+                    <div class="detail-value">${formatDate(issue.createdAt)}</div>
+                  </div>
+                  <div class="detail-item">
+                    <div class="detail-label">Status</div>
+                    <div class="detail-value">${formatStatus(issue.status)}</div>
+                  </div>
+                </div>
+                ` : ''}
+                <div class="issue-actions">
+                  <button class="action-btn" onclick="event.stopPropagation(); findSimilar('${escapeHtml(issue.description?.slice(0, 50) || issue.type)}')">
+                    🔍 Find Similar
+                  </button>
+                  <button class="action-btn primary" onclick="event.stopPropagation(); openVoice('${issue.type}')">
+                    🗳️ Voice Support
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderError(message) {
+      document.getElementById("app").innerHTML = `
+        <div class="header">
+          <div class="header-title">Local Issues</div>
+        </div>
+        <div class="section">
+          <div class="empty-state">${escapeHtml(message)}</div>
+        </div>
+      `;
+    }
+
+    // ─────────── Helpers ───────────
+    function escapeHtml(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function formatType(type) {
+      if (!type) return "Issue";
+      return type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    function formatStatus(status) {
+      const labels = {
+        open: "Open",
+        acknowledged: "In Progress",
+        closed: "Resolved",
+      };
+      return labels[status] || status;
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return "";
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    }
+
+    function truncateAddress(address) {
+      if (!address) return "";
+      // Take just the street address part
+      const parts = address.split(',');
+      return parts[0] || address;
+    }
+
+    function getTypeIcon(type) {
+      const icons = {
+        traffic_signal: "🚦",
+        parking: "🅿️",
+        illegal_dumping: "🗑️",
+        trees_vegetation: "🌳",
+        operational: "⚙️",
+        stormwater: "🌧️",
+        pothole: "🕳️",
+        graffiti: "🎨",
+        parks: "🏞️",
+        streetlight: "💡",
+        sidewalk: "🚶",
+        street_cleaning: "🧹",
+        fire_hazard: "🔥",
+        public_safety: "🚨",
+        water_sewer: "💧",
+        noise: "🔊",
+        animal_control: "🐕",
+        other: "📋",
+      };
+      return icons[type] || "📍";
+    }
+  </script>
+</body>
+</html>
