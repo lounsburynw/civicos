@@ -302,17 +302,85 @@ class MCPServer:
             return result
         return wrapped
 
-    # ─────────── MCP Protocol Handler ───────────
+    # ─────────── FastAPI App for all endpoints ───────────
 
-    @modal.fastapi_endpoint(method="POST", docs=True)
-    def mcp_endpoint(self, request: dict) -> dict:
-        """MCP JSON-RPC endpoint for Claude.ai and ChatGPT."""
+    @modal.asgi_app()
+    def mcp_endpoint(self):
+        """
+        Full FastAPI app with MCP and REST endpoints.
+
+        Endpoints:
+        - POST / : MCP JSON-RPC endpoint (for Claude.ai, ChatGPT)
+        - GET /health : Health check
+        - /api/tools/* : REST endpoints (for Open WebUI OpenAPI mode)
+        """
+        from fastapi import FastAPI
+        from fastapi.middleware.cors import CORSMiddleware
+
+        app = FastAPI(
+            title=f"CivicOS MCP Server ({self.jurisdiction_config.display_name})",
+            description="Civic data API for AI assistants. Supports both MCP (JSON-RPC) and REST endpoints.",
+            version="1.0.0",
+        )
+
+        # CORS for Open WebUI and other clients
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
+        # Mount REST API router
+        from rest_api import create_rest_router
+        rest_router = create_rest_router(
+            self.registry,
+            self.civic,
+            self.jurisdiction,
+            self.validate_input,
+            self.logger
+        )
+        app.include_router(rest_router)
+
+        # MCP JSON-RPC endpoint
+        @app.post("/", tags=["MCP"])
+        async def mcp_endpoint(request: dict) -> dict:
+            return self._handle_mcp_request(request)
+
+        # Health endpoint
+        @app.get("/health", tags=["Health"])
+        async def health() -> dict:
+            return self._health_response()
+
+        return app
+
+    def _health_response(self) -> dict:
+        """Generate health check response."""
+        bound_tools = [t["name"] for t in self.registry.list_tools()]
+        return {
+            "status": "healthy",
+            "service": "civicos-mcp",
+            "jurisdiction": self.jurisdiction,
+            "jurisdiction_level": self.jurisdiction_config.level,
+            "display_name": self.jurisdiction_config.display_name,
+            "platform": "modal",
+            "tools_count": len(bound_tools),
+            "tools": bound_tools,
+            "endpoints": {
+                "mcp": "POST /",
+                "health": "GET /health",
+                "rest_api": "/api/tools/*",
+                "openapi_spec": "/openapi.json",
+            }
+        }
+
+    def _handle_mcp_request(self, request: dict) -> dict:
+        """Handle MCP JSON-RPC request."""
         try:
             method = request.get("method", "")
             params = request.get("params", {})
             request_id = request.get("id", 1)
-
-            self.logger.debug(f"MCP request: {method}")
 
             if method == "initialize":
                 return {
@@ -433,20 +501,6 @@ class MCPServer:
                 "id": request.get("id", 1),
             }
 
-    @modal.fastapi_endpoint(method="GET", docs=True)
-    def health(self) -> dict:
-        """Health check endpoint."""
-        bound_tools = [t["name"] for t in self.registry.list_tools()]
-        return {
-            "status": "healthy",
-            "service": "civicos-mcp",
-            "jurisdiction": self.jurisdiction,
-            "jurisdiction_level": self.jurisdiction_config.level,
-            "display_name": self.jurisdiction_config.display_name,
-            "platform": "modal",
-            "tools_count": len(bound_tools),
-            "tools": bound_tools,
-        }
 
 
 # ─────────── LOCAL ENTRYPOINT ───────────

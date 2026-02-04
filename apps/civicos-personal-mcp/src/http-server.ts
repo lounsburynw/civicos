@@ -110,12 +110,20 @@ export class PersonalMCPHttpServer {
   }
 
   private setupMiddleware(): void {
-    // CORS for Open WebUI
-    this.app.use(cors({
-      origin: this.config.corsOrigins,
-      methods: ['GET', 'POST', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
-    }));
+    // CORS for Open WebUI - set headers manually to ensure they're sent
+    this.app.use((req: Request, res: Response, next: NextFunction) => {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+      // Handle preflight
+      if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
+      }
+      next();
+    });
 
     // JSON body parser
     this.app.use(express.json());
@@ -136,7 +144,18 @@ export class PersonalMCPHttpServer {
         version: VERSION,
         transport: 'http',
         tools: this.getTools().length,
+        endpoints: {
+          mcp: 'POST /mcp',
+          health: 'GET /health',
+          rest_api: '/api/*',
+          openapi_spec: 'GET /openapi.json',
+        },
       });
+    });
+
+    // OpenAPI spec endpoint
+    this.app.get('/openapi.json', (_req: Request, res: Response) => {
+      res.json(this.generateOpenAPISpec());
     });
 
     // MCP JSON-RPC endpoint
@@ -154,10 +173,284 @@ export class PersonalMCPHttpServer {
       }
     });
 
+    // ─────────── REST API Endpoints for OpenAPI/Open WebUI ───────────
+
+    // Identity endpoints
+    this.app.get('/api/identity/status', async (_req: Request, res: Response) => {
+      await this.handleRestEndpoint(res, 'identity_status', {});
+    });
+
+    this.app.post('/api/identity/create', async (req: Request, res: Response) => {
+      await this.handleRestEndpoint(res, 'identity_create', req.body);
+    });
+
+    this.app.post('/api/identity/import', async (req: Request, res: Response) => {
+      await this.handleRestEndpoint(res, 'identity_import', req.body);
+    });
+
+    this.app.post('/api/identity/unlock', async (req: Request, res: Response) => {
+      await this.handleRestEndpoint(res, 'identity_unlock', req.body);
+    });
+
+    this.app.post('/api/identity/lock', async (_req: Request, res: Response) => {
+      await this.handleRestEndpoint(res, 'identity_lock', {});
+    });
+
+    // Signing endpoints
+    this.app.post('/api/sign/voice', async (req: Request, res: Response) => {
+      await this.handleRestEndpoint(res, 'sign_voice', req.body);
+    });
+
+    this.app.post('/api/sign/commitment', async (req: Request, res: Response) => {
+      await this.handleRestEndpoint(res, 'sign_commitment', req.body);
+    });
+
+    this.app.post('/api/sign/completion', async (req: Request, res: Response) => {
+      await this.handleRestEndpoint(res, 'sign_completion', req.body);
+    });
+
+    this.app.post('/api/sign/event', async (req: Request, res: Response) => {
+      await this.handleRestEndpoint(res, 'sign_event', req.body);
+    });
+
+    // Context endpoints
+    this.app.post('/api/context/neighborhood', async (req: Request, res: Response) => {
+      await this.handleRestEndpoint(res, 'set_neighborhood', req.body);
+    });
+
+    this.app.post('/api/context/interests', async (req: Request, res: Response) => {
+      await this.handleRestEndpoint(res, 'set_interests', req.body);
+    });
+
+    this.app.post('/api/context/follow', async (req: Request, res: Response) => {
+      await this.handleRestEndpoint(res, 'follow_item', req.body);
+    });
+
+    this.app.post('/api/context/unfollow', async (req: Request, res: Response) => {
+      await this.handleRestEndpoint(res, 'unfollow_item', req.body);
+    });
+
+    this.app.get('/api/context', async (req: Request, res: Response) => {
+      const jurisdiction = (req.query.jurisdiction as string) || 'city-san-rafael';
+      await this.handleRestEndpoint(res, 'get_context', { jurisdiction });
+    });
+
+    // Query endpoints
+    this.app.get('/api/relevant-now', async (req: Request, res: Response) => {
+      const jurisdiction = (req.query.jurisdiction as string) || 'city-san-rafael';
+      await this.handleRestEndpoint(res, 'get_relevant_now', { jurisdiction });
+    });
+
+    this.app.get('/api/suggestions', async (req: Request, res: Response) => {
+      const jurisdiction = (req.query.jurisdiction as string) || 'city-san-rafael';
+      await this.handleRestEndpoint(res, 'get_suggestions', { jurisdiction });
+    });
+
+    this.app.post('/api/explain-relevance', async (req: Request, res: Response) => {
+      await this.handleRestEndpoint(res, 'explain_relevance', req.body);
+    });
+
     // 404 handler
     this.app.use((_req: Request, res: Response) => {
       res.status(404).json({ error: 'Not found' });
     });
+  }
+
+  private async handleRestEndpoint(
+    res: Response,
+    toolName: string,
+    args: Record<string, unknown>
+  ): Promise<void> {
+    try {
+      const result = await this.executeToolCall(toolName, args);
+      res.json({ success: true, data: result, error: null });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      res.status(400).json({ success: false, data: null, error: message });
+    }
+  }
+
+  private generateOpenAPISpec(): object {
+    return {
+      openapi: '3.1.0',
+      info: {
+        title: 'CivicOS Personal MCP',
+        description: 'Personal civic identity and context management. Handles identity creation, signing civic actions, and personalization.',
+        version: VERSION,
+      },
+      paths: {
+        '/api/identity/status': {
+          get: {
+            tags: ['Identity'],
+            summary: 'Get identity status',
+            description: 'Check current identity status including tier, public key, and lock status.',
+            operationId: 'identity_status',
+            responses: { '200': { description: 'Identity status', content: { 'application/json': { schema: { $ref: '#/components/schemas/ToolResponse' } } } } },
+          },
+        },
+        '/api/identity/create': {
+          post: {
+            tags: ['Identity'],
+            summary: 'Create identity',
+            description: 'Create a new civic identity. For "easy" tier, uses passkeys. For "private" tier, uses password + recovery phrase.',
+            operationId: 'identity_create',
+            requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/IdentityCreateRequest' } } }, required: true },
+            responses: { '200': { description: 'Identity created', content: { 'application/json': { schema: { $ref: '#/components/schemas/ToolResponse' } } } } },
+          },
+        },
+        '/api/identity/unlock': {
+          post: {
+            tags: ['Identity'],
+            summary: 'Unlock identity',
+            description: 'Unlock identity for signing. Easy tier uses biometrics, private tier requires password.',
+            operationId: 'identity_unlock',
+            requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/IdentityUnlockRequest' } } } },
+            responses: { '200': { description: 'Identity unlocked', content: { 'application/json': { schema: { $ref: '#/components/schemas/ToolResponse' } } } } },
+          },
+        },
+        '/api/identity/lock': {
+          post: {
+            tags: ['Identity'],
+            summary: 'Lock identity',
+            description: 'Lock identity and clear keys from memory.',
+            operationId: 'identity_lock',
+            responses: { '200': { description: 'Identity locked', content: { 'application/json': { schema: { $ref: '#/components/schemas/ToolResponse' } } } } },
+          },
+        },
+        '/api/sign/voice': {
+          post: {
+            tags: ['Signing'],
+            summary: 'Sign civic voice',
+            description: 'Sign a civic voice event (support/oppose/watching on a decision).',
+            operationId: 'sign_voice',
+            requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/SignVoiceRequest' } } }, required: true },
+            responses: { '200': { description: 'Voice signed', content: { 'application/json': { schema: { $ref: '#/components/schemas/ToolResponse' } } } } },
+          },
+        },
+        '/api/sign/commitment': {
+          post: {
+            tags: ['Signing'],
+            summary: 'Sign commitment',
+            description: 'Sign a commitment to take a civic action.',
+            operationId: 'sign_commitment',
+            requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/SignCommitmentRequest' } } }, required: true },
+            responses: { '200': { description: 'Commitment signed', content: { 'application/json': { schema: { $ref: '#/components/schemas/ToolResponse' } } } } },
+          },
+        },
+        '/api/context/neighborhood': {
+          post: {
+            tags: ['Context'],
+            summary: 'Set neighborhood',
+            description: 'Set your neighborhood for proximity-based filtering.',
+            operationId: 'set_neighborhood',
+            requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/SetNeighborhoodRequest' } } }, required: true },
+            responses: { '200': { description: 'Neighborhood set', content: { 'application/json': { schema: { $ref: '#/components/schemas/ToolResponse' } } } } },
+          },
+        },
+        '/api/context/interests': {
+          post: {
+            tags: ['Context'],
+            summary: 'Set interests',
+            description: 'Set your civic interest topics for filtering.',
+            operationId: 'set_interests',
+            requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/SetInterestsRequest' } } }, required: true },
+            responses: { '200': { description: 'Interests set', content: { 'application/json': { schema: { $ref: '#/components/schemas/ToolResponse' } } } } },
+          },
+        },
+        '/api/context': {
+          get: {
+            tags: ['Context'],
+            summary: 'Get context',
+            description: 'Get your current civic context settings.',
+            operationId: 'get_context',
+            parameters: [{ name: 'jurisdiction', in: 'query', schema: { type: 'string', default: 'city-san-rafael' } }],
+            responses: { '200': { description: 'Context', content: { 'application/json': { schema: { $ref: '#/components/schemas/ToolResponse' } } } } },
+          },
+        },
+        '/api/relevant-now': {
+          get: {
+            tags: ['Queries'],
+            summary: 'Get relevant items',
+            description: 'Get civic items relevant to you right now, filtered by your interests.',
+            operationId: 'get_relevant_now',
+            parameters: [{ name: 'jurisdiction', in: 'query', schema: { type: 'string', default: 'city-san-rafael' } }],
+            responses: { '200': { description: 'Relevant items', content: { 'application/json': { schema: { $ref: '#/components/schemas/ToolResponse' } } } } },
+          },
+        },
+        '/api/suggestions': {
+          get: {
+            tags: ['Queries'],
+            summary: 'Get suggestions',
+            description: 'Get proactive civic recommendations based on your interests.',
+            operationId: 'get_suggestions',
+            parameters: [{ name: 'jurisdiction', in: 'query', schema: { type: 'string', default: 'city-san-rafael' } }],
+            responses: { '200': { description: 'Suggestions', content: { 'application/json': { schema: { $ref: '#/components/schemas/ToolResponse' } } } } },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          ToolResponse: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: { type: 'object' },
+              error: { type: 'string', nullable: true },
+            },
+          },
+          IdentityCreateRequest: {
+            type: 'object',
+            properties: {
+              tier: { type: 'string', enum: ['easy', 'private'], description: 'Identity tier' },
+              password: { type: 'string', description: 'Password for private tier' },
+              email: { type: 'string', description: 'Email for easy tier' },
+            },
+            required: ['tier'],
+          },
+          IdentityUnlockRequest: {
+            type: 'object',
+            properties: {
+              password: { type: 'string', description: 'Password for private tier' },
+            },
+          },
+          SignVoiceRequest: {
+            type: 'object',
+            properties: {
+              entity: { type: 'string', description: 'Entity identifier' },
+              jurisdiction: { type: 'string', description: 'Jurisdiction identifier' },
+              stance: { type: 'string', enum: ['support', 'oppose', 'watching'] },
+            },
+            required: ['entity', 'jurisdiction', 'stance'],
+          },
+          SignCommitmentRequest: {
+            type: 'object',
+            properties: {
+              action_id: { type: 'string', description: 'Action identifier' },
+              jurisdiction: { type: 'string', description: 'Jurisdiction identifier' },
+            },
+            required: ['action_id', 'jurisdiction'],
+          },
+          SetNeighborhoodRequest: {
+            type: 'object',
+            properties: {
+              jurisdiction: { type: 'string' },
+              neighborhood: { type: 'string' },
+              lat: { type: 'number' },
+              lng: { type: 'number' },
+            },
+            required: ['jurisdiction', 'neighborhood'],
+          },
+          SetInterestsRequest: {
+            type: 'object',
+            properties: {
+              jurisdiction: { type: 'string' },
+              interests: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['jurisdiction', 'interests'],
+          },
+        },
+      },
+    };
   }
 
   private async handleJsonRpc(request: JsonRpcRequest): Promise<JsonRpcResponse> {
@@ -240,59 +533,70 @@ export class PersonalMCPHttpServer {
       {
         name: 'identity_create',
         description:
-          'Create a new identity. For "private" tier, returns a 12-word recovery phrase that MUST be shown to the user for backup. The identity is automatically unlocked after creation.',
+          'Create a new identity. For "private" tier, returns a 12-word recovery phrase that MUST be shown to the user for backup. For "easy" tier, uses TouchID/FaceID via WebAuthn passkeys. The identity is automatically unlocked after creation.',
         inputSchema: {
           type: 'object',
           properties: {
             tier: {
               type: 'string',
-              enum: ['private'],
-              description: 'Identity tier. Currently only "private" is supported.',
+              enum: ['easy', 'private'],
+              description:
+                'Identity tier. "easy" uses TouchID/FaceID (lowest friction), "private" uses password + recovery phrase.',
             },
             password: {
               type: 'string',
-              description: 'Password to encrypt the identity (required for private tier)',
+              description: 'Password to encrypt the identity (required for private tier, ignored for easy)',
+            },
+            email: {
+              type: 'string',
+              description: 'Email address for identity recovery (required for easy tier, ignored for private)',
             },
           },
-          required: ['tier', 'password'],
+          required: ['tier'],
         },
       },
       {
         name: 'identity_import',
         description:
-          'Import an existing identity from a 12-word recovery phrase. The identity is automatically unlocked after import.',
+          'Import an existing identity. For "private" tier, requires 12-word recovery phrase. For "easy" tier, recovers via synced passkey + email. The identity is automatically unlocked after import.',
         inputSchema: {
           type: 'object',
           properties: {
             tier: {
               type: 'string',
-              enum: ['private'],
-              description: 'Identity tier. Currently only "private" is supported.',
+              enum: ['easy', 'private'],
+              description:
+                'Identity tier. "easy" recovers via synced passkey + email, "private" requires mnemonic.',
             },
             password: {
               type: 'string',
-              description: 'Password to encrypt the identity',
+              description: 'Password to encrypt the identity (required for private tier)',
+            },
+            email: {
+              type: 'string',
+              description: 'Email address used during creation (required for easy tier)',
             },
             mnemonic: {
               type: 'string',
-              description: '12-word recovery phrase',
+              description: '12-word recovery phrase (required for private tier)',
             },
           },
-          required: ['tier', 'password', 'mnemonic'],
+          required: ['tier'],
         },
       },
       {
         name: 'identity_unlock',
-        description: 'Unlock the identity with password. Required before signing.',
+        description:
+          'Unlock the identity. For "private" tier, requires password. For "easy" tier, triggers biometric auth (no password needed). Required before signing.',
         inputSchema: {
           type: 'object',
           properties: {
             password: {
               type: 'string',
-              description: 'Password to decrypt the identity',
+              description: 'Password to decrypt the identity (required for private tier, ignored for easy)',
             },
           },
-          required: ['password'],
+          required: [],
         },
       },
       {
@@ -606,18 +910,20 @@ export class PersonalMCPHttpServer {
       case 'identity_create':
         return this.handleIdentityCreate(
           args.tier as IdentityTier,
-          args.password as string
+          args.password as string | undefined,
+          args.email as string | undefined
         );
 
       case 'identity_import':
         return this.handleIdentityImport(
           args.tier as IdentityTier,
-          args.password as string,
-          args.mnemonic as string
+          args.password as string | undefined,
+          args.mnemonic as string | undefined,
+          args.email as string | undefined
         );
 
       case 'identity_unlock':
-        return this.handleIdentityUnlock(args.password as string);
+        return this.handleIdentityUnlock(args.password as string | undefined);
 
       case 'identity_lock':
         return this.handleIdentityLock();
@@ -731,29 +1037,67 @@ export class PersonalMCPHttpServer {
 
   private async handleIdentityCreate(
     tier: IdentityTier,
-    password: string
+    password?: string,
+    email?: string
   ): Promise<unknown> {
-    const result = await this.identityManager.createIdentity(tier, password);
+    // Validate required parameters based on tier
+    if (tier === 'easy' && !email) {
+      throw new Error('Email is required for easy tier');
+    }
+    if (tier === 'private' && !password) {
+      throw new Error('Password is required for private tier');
+    }
 
-    return {
+    // Use email for easy tier, password for private tier
+    const passwordOrEmail = tier === 'easy' ? email! : password!;
+    const result = await this.identityManager.createIdentity(tier, passwordOrEmail);
+
+    const response: Record<string, unknown> = {
       success: true,
       identity: {
         tier: result.identity.tier,
         publicKey: result.identity.publicKey,
         npub: result.identity.npub,
       },
-      mnemonic: result.mnemonic,
-      warning:
-        'CRITICAL: Save this recovery phrase securely. It cannot be recovered if lost.',
     };
+
+    // Only include mnemonic for private tier
+    if (result.mnemonic) {
+      response.mnemonic = result.mnemonic;
+      response.warning =
+        'CRITICAL: Save this recovery phrase securely. It cannot be recovered if lost.';
+    }
+
+    // Advice for easy tier
+    if (tier === 'easy') {
+      response.note =
+        'Your identity is derived from your passkey. Same email + same passkey = same identity on any device.';
+    }
+
+    return response;
   }
 
   private async handleIdentityImport(
     tier: IdentityTier,
-    password: string,
-    mnemonic: string
+    password?: string,
+    mnemonic?: string,
+    email?: string
   ): Promise<unknown> {
-    const identity = await this.identityManager.importIdentity(tier, password, mnemonic);
+    // Validate required parameters based on tier
+    if (tier === 'easy' && !email) {
+      throw new Error('Email is required to recover easy tier identity');
+    }
+    if (tier === 'private' && (!password || !mnemonic)) {
+      throw new Error('Password and mnemonic are required for private tier');
+    }
+
+    // Use email for easy tier, password for private tier
+    const passwordOrEmail = tier === 'easy' ? email! : password!;
+    const identity = await this.identityManager.importIdentity(
+      tier,
+      passwordOrEmail,
+      mnemonic
+    );
 
     return {
       success: true,
@@ -765,14 +1109,31 @@ export class PersonalMCPHttpServer {
     };
   }
 
-  private async handleIdentityUnlock(password: string): Promise<unknown> {
-    const success = await this.identityManager.unlock(password);
-
-    if (success) {
-      return { success: true, message: 'Identity unlocked' };
-    } else {
-      return { success: false, error: 'Incorrect password' };
+  private async handleIdentityUnlock(password?: string): Promise<unknown> {
+    // Get current identity to check tier
+    const identity = await this.identityManager.getIdentity();
+    if (!identity) {
+      throw new Error('No identity found. Create or import one first.');
     }
+
+    // Easy tier doesn't need password (uses biometric)
+    if (identity.tier === 'easy') {
+      // For easy tier, unlock triggers WebAuthn prompt
+      const success = await this.identityManager.unlock(''); // Empty password, triggers passkey auth
+      return success
+        ? { success: true, message: 'Identity unlocked via passkey' }
+        : { success: false, error: 'Passkey authentication failed or was canceled' };
+    }
+
+    // Private tier requires password
+    if (!password) {
+      throw new Error('Password is required to unlock private tier identity');
+    }
+
+    const success = await this.identityManager.unlock(password);
+    return success
+      ? { success: true, message: 'Identity unlocked' }
+      : { success: false, error: 'Incorrect password' };
   }
 
   private handleIdentityLock(): unknown {

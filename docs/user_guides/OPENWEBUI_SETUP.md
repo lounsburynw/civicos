@@ -89,13 +89,29 @@ For fully offline use:
 
 The Jurisdiction MCP provides read-only access to San Rafael civic data: meetings, decisions, issues, legislation, and more.
 
+> **Note:** Open WebUI's MCP Streamable HTTP support has known issues (see [GitHub #14776](https://github.com/open-webui/open-webui/discussions/14776)). We recommend using **OpenAPI mode** for reliable integration.
+
+### Recommended: OpenAPI Mode
+
+1. Go to **Settings → Admin Settings → External Tools**
+2. Click **+ Add Connection**
+3. Configure:
+   - **Type:** OpenAPI
+   - **URL:** `https://lounsburynw--civicos-san-rafael-mcpserver-fastapi-app.modal.run/openapi.json`
+   - **Authentication:** None
+4. Click **Import**
+
+### Alternative: MCP Mode (may not work reliably)
+
 1. Go to **Settings → Admin Settings → External Tools**
 2. Click **+ Add Server**
 3. Configure:
    - **Type:** MCP (Streamable HTTP)
-   - **URL:** `https://san-rafael.civicosproject.org/mcp`
+   - **URL:** `https://lounsburynw--civicos-san-rafael-mcpserver-fastapi-app.modal.run`
    - **Authentication:** None
 4. Click **Save**
+
+**Troubleshooting MCP mode:** If you see "Failed to import", try OpenAPI mode instead. Open WebUI's MCP implementation is actively being improved.
 
 ### Test the Connection
 
@@ -119,9 +135,25 @@ The LLM should call the `get_upcoming_meetings` tool and return scheduled meetin
 
 ## Step 4: Set Up Personal MCP (Identity & Signing)
 
-The Personal MCP runs locally and manages your civic identity and signing keys.
+The Personal MCP manages your civic identity and signing keys.
 
-### Clone and Build
+### Option A: Use Hosted Server (Recommended)
+
+For the easiest setup, use the hosted Personal MCP:
+
+1. Go to **Settings → Admin Settings → External Tools**
+2. Click **+ Add Server**
+3. Configure:
+   - **Type:** MCP (Streamable HTTP)
+   - **URL:** `https://civicos-personal-mcp--personal-mcp-server-web.modal.run/mcp`
+   - **Authentication:** None
+4. Click **Save**
+
+### Option B: Run Locally
+
+For development or if you want full control over your keys:
+
+#### Clone and Build
 
 ```bash
 # Clone the repository
@@ -134,7 +166,7 @@ npm install
 npm run build
 ```
 
-### Start the Server
+#### Start the Server
 
 ```bash
 npm run start:http
@@ -149,7 +181,7 @@ curl http://localhost:8081/health
 # Returns: {"status":"healthy","server":"civicos-personal-mcp",...}
 ```
 
-### Add to Open WebUI
+#### Add to Open WebUI
 
 1. Go to **Settings → Admin Settings → External Tools**
 2. Click **+ Add Server**
@@ -161,19 +193,39 @@ curl http://localhost:8081/health
 
 **Note:** Use `host.docker.internal` instead of `localhost` because Open WebUI runs in Docker and needs to reach your host machine.
 
-### Available Tools (9 total)
+### Available Tools (17 total)
+
+**Identity Tools:**
 
 | Tool | Description |
 |------|-------------|
 | `identity_status` | Check current identity (tier, public key, lock status) |
-| `identity_create` | Create new identity (returns 12-word recovery phrase) |
-| `identity_import` | Import existing identity from recovery phrase |
-| `identity_unlock` | Unlock identity with password |
+| `identity_create` | Create identity (Easy: passkey, Private: password + recovery phrase) |
+| `identity_import` | Import existing identity |
+| `identity_unlock` | Unlock identity (Easy: biometric, Private: password) |
 | `identity_lock` | Lock identity (clear keys from memory) |
+
+**Signing Tools:**
+
+| Tool | Description |
+|------|-------------|
 | `sign_voice` | Sign support/oppose/watching on a decision |
 | `sign_commitment` | Sign commitment to take action |
 | `sign_completion` | Sign completion report for an action |
 | `sign_event` | Sign arbitrary Nostr event |
+
+**Context & Personalization Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `set_neighborhood` | Set your neighborhood for proximity filtering |
+| `set_interests` | Set civic interest topics (housing, transportation, etc.) |
+| `follow_item` | Follow a decision, meeting, issue, or topic |
+| `unfollow_item` | Stop following an item |
+| `get_context` | View your current personalization settings |
+| `get_relevant_now` | Get items relevant to you based on interests |
+| `get_suggestions` | Get proactive civic recommendations |
+| `explain_relevance` | Explain why an item matters to you |
 
 ---
 
@@ -181,7 +233,15 @@ curl http://localhost:8081/health
 
 In a chat with both MCP servers connected:
 
-> "Create a civic identity for me"
+### Option A: Easy Tier (Recommended for most users)
+
+> "Create an easy identity with my email user@example.com"
+
+Uses TouchID/FaceID via WebAuthn passkeys. No password to remember. Same email + same device passkey = same identity.
+
+### Option B: Private Tier (Full control)
+
+> "Create a private identity with password mypassword123"
 
 The LLM will call `identity_create` and return:
 
@@ -192,9 +252,10 @@ The LLM will call `identity_create` and return:
 
 ### Unlock to Sign
 
-Your identity is locked by default. Before signing actions, unlock it:
+Before signing actions, unlock your identity:
 
-> "Unlock my identity with password [your-password]"
+- **Easy tier:** "Unlock my identity" (triggers biometric prompt)
+- **Private tier:** "Unlock my identity with password [your-password]"
 
 ---
 
