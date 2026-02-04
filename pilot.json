@@ -2840,7 +2840,7 @@
       },
       "mcp_registry_listing": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Civic MCP server listed on MCP Registry and community directories",
         "description": "Register civicos-mcp on official MCP Registry and community directories (MCP.so, MCPServers.org) for discoverability.",
         "note": "Session 545: Deferred until after stress testing and launch. Internal registry (internal_mcp_registry) should be built first to enable UX development and establish patterns.",
@@ -3933,19 +3933,19 @@
       "description": "MCP Apps - Interactive UI widgets rendered directly in Claude.ai, ChatGPT, and other MCP Apps-enabled hosts. Pattern 1 from EDGE_INTELLIGENCE_ARCHITECTURE.md.",
       "_doc": "MCP Apps extend MCP protocol with ui:// resources. Widgets render in sandboxed iframes, communicate via postMessage. Zero-install civic participation.",
       "mcp_apps_widgets": {
-        "status": "not_ready",
-        "priority": 0,
-        "description": "Build and deploy MCP Apps widgets for civic engagement. Voice + City Pulse deployed to Modal with real backend. Remaining: meeting_prep, issue_card widgets.",
+        "status": "ready",
+        "priority": 2,
+        "description": "Build and deploy MCP Apps widgets for civic engagement. 4 widgets deployed: Voice, City Pulse, Meeting Prep, Issue Card.",
         "artifact": "apps/civicos-mcp-apps/",
         "test_file": "apps/civicos-mcp-apps/src/widgets/voice.html",
         "subtasks": [
           "[DONE] Deploy MCP Apps server to Modal (permanent URL)",
           "[DONE] Connect to real jurisdiction MCP backend",
-          "Add meeting_prep widget",
-          "Add issue_card widget",
+          "[DONE] Add meeting_prep widget",
+          "[DONE] Add issue_card widget",
           "[BLOCKED] Voice broadcast needs relay deployment (see federation_infrastructure)"
         ],
-        "note": "2026-02-03: Deployed to Modal. Fixed jurisdiction MCP URL. Implemented real data parsing for pulse widget. Voice/Pulse show real data. Broadcast blocked on relay deployment.",
+        "note": "2026-02-04: All 4 widgets complete. Voice, Pulse, Meeting Prep, Issue Card deployed. Voice broadcast blocked on relay.",
         "modal_url": "https://lounsburynw--civicos-mcp-apps-mcp-apps-server.modal.run"
       }
     },

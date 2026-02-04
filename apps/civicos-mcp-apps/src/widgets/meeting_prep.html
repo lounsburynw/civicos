@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meeting Prep</title>
+  <style>
+    :root {
+      --primary: #3b82f6;
+      --primary-bg: #eff6ff;
+      --success: #22c55e;
+      --success-bg: #dcfce7;
+      --warning: #f59e0b;
+      --warning-bg: #fef3c7;
+      --danger: #ef4444;
+      --danger-bg: #fee2e2;
+      --purple: #8b5cf6;
+      --purple-bg: #f5f3ff;
+      --text: #1a1a1a;
+      --text-muted: #666;
+      --text-light: #999;
+      --border: #e5e5e5;
+      --bg: #fafafa;
+      --card-bg: white;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .meeting-prep-widget {
+      max-width: 500px;
+      margin: 0 auto;
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    /* ─────────── Header ─────────── */
+    .header {
+      padding: 20px;
+      background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+      color: white;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .meeting-name {
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .meeting-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      background: rgba(255,255,255,0.2);
+      padding: 4px 10px;
+      border-radius: 12px;
+      white-space: nowrap;
+    }
+
+    .header-meta {
+      display: flex;
+      gap: 16px;
+      font-size: 13px;
+      opacity: 0.9;
+      margin-bottom: 12px;
+    }
+
+    .header-meta span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .agenda-stats {
+      display: flex;
+      gap: 12px;
+      background: rgba(0,0,0,0.1);
+      margin: 0 -20px -20px;
+      padding: 12px 20px;
+    }
+
+    .stat {
+      flex: 1;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      opacity: 0.8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ─────────── Sections ─────────── */
+    .section {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section:last-child {
+      border-bottom: none;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .section-action {
+      font-size: 12px;
+      color: var(--primary);
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    /* ─────────── Agenda Items ─────────── */
+    .agenda-item {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+      background: var(--bg);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .agenda-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .agenda-item:hover {
+      background: var(--primary-bg);
+    }
+
+    .agenda-item.expanded {
+      background: var(--primary-bg);
+    }
+
+    .item-number {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .item-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .item-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .item-type {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text-muted);
+    }
+
+    .item-type.public_hearing {
+      background: var(--warning-bg);
+      color: #92400e;
+    }
+
+    .item-type.action {
+      background: var(--purple-bg);
+      color: #6d28d9;
+    }
+
+    .item-type.consent {
+      background: var(--success-bg);
+      color: #166534;
+    }
+
+    .item-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .voice-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 10px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .voice-btn:hover {
+      background: #2563eb;
+    }
+
+    /* ─────────── Item Details (Expanded) ─────────── */
+    .item-details {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      display: none;
+    }
+
+    .agenda-item.expanded .item-details {
+      display: block;
+    }
+
+    .detail-section {
+      margin-bottom: 12px;
+    }
+
+    .detail-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .detail-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .related-decision {
+      display: flex;
+      gap: 8px;
+      padding: 8px;
+      background: var(--card-bg);
+      border-radius: 6px;
+      margin-bottom: 4px;
+      font-size: 12px;
+    }
+
+    .related-date {
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .related-title {
+      color: var(--text);
+    }
+
+    .loading-context {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* ─────────── Context Section ─────────── */
+    .context-card {
+      padding: 12px;
+      background: var(--bg);
+      border-radius: 10px;
+      margin-bottom: 8px;
+    }
+
+    .context-card:last-child {
+      margin-bottom: 0;
+    }
+
+    .context-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .context-date {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* ─────────── Quick Prep ─────────── */
+    .quick-prep {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .prep-tag {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: var(--bg);
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .prep-tag:hover {
+      background: var(--primary-bg);
+      color: var(--primary);
+    }
+
+    .prep-tag-icon {
+      font-size: 14px;
+    }
+
+    /* ─────────── Footer ─────────── */
+    .footer {
+      padding: 12px 20px;
+      background: var(--bg);
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-light);
+    }
+
+    .footer a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    /* ─────────── Loading ─────────── */
+    .loading-skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ─────────── Empty State ─────────── */
+    .empty-state {
+      text-align: center;
+      padding: 24px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .empty-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="meeting-prep-widget">
+    <!-- Loading state -->
+    <div class="header">
+      <div class="loading-skeleton" style="height: 22px; width: 70%; margin-bottom: 8px;"></div>
+      <div class="loading-skeleton" style="height: 14px; width: 50%;"></div>
+    </div>
+    <div class="section">
+      <div class="loading-skeleton" style="height: 60px; margin-bottom: 8px;"></div>
+      <div class="loading-skeleton" style="height: 60px; margin-bottom: 8px;"></div>
+      <div class="loading-skeleton" style="height: 60px;"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { App } from "@modelcontextprotocol/ext-apps";
+
+    // ─────────── State ───────────
+    let state = {
+      meeting: null,
+      context: null,
+      topic: null,
+      expandedItem: null,
+      itemContexts: {}, // Cache for item-level context
+    };
+
+    // ─────────── MCP App Connection ───────────
+    const app = new App({ name: "Meeting Prep", version: "1.0.0" });
+
+    app.ontoolresult = (result) => {
+      try {
+        const data = JSON.parse(result.content?.find((c) => c.type === "text")?.text || "{}");
+        state.meeting = data.meeting;
+        state.context = data.context;
+        state.topic = data.topic;
+        render();
+      } catch (e) {
+        console.error("Failed to parse tool result:", e);
+        renderError("Failed to load meeting data");
+      }
+    };
+
+    app.connect();
+
+    // ─────────── Actions ───────────
+    window.toggleItem = async (itemId) => {
+      if (state.expandedItem === itemId) {
+        state.expandedItem = null;
+      } else {
+        state.expandedItem = itemId;
+        // Fetch context for this item if not cached
+        if (!state.itemContexts[itemId]) {
+          const item = state.meeting?.agendaItems?.find(i => i.id === itemId);
+          if (item) {
+            await fetchItemContext(item);
+          }
+        }
+      }
+      render();
+    };
+
+    window.openVoice = async (entityId, title) => {
+      await app.callServerTool({
+        name: "voice_interface",
+        arguments: {
+          entity_id: entityId,
+          context: title,
+        },
+      });
+    };
+
+    window.searchTopic = async (topic) => {
+      await app.callServerTool({
+        name: "search_meeting_history",
+        arguments: { query: topic, limit: 5 },
+      });
+    };
+
+    async function fetchItemContext(item) {
+      try {
+        state.itemContexts[item.id] = { loading: true };
+        render();
+
+        const result = await app.callServerTool({
+          name: "get_agenda_item_context",
+          arguments: {
+            item_title: item.title,
+            meeting_id: state.meeting?.id,
+          },
+        });
+
+        const text = result.content?.find((c) => c.type === "text")?.text || "";
+        state.itemContexts[item.id] = {
+          loading: false,
+          relatedDecisions: parseRelatedDecisions(text),
+        };
+        render();
+      } catch (e) {
+        console.error("Failed to fetch item context:", e);
+        state.itemContexts[item.id] = { loading: false, error: true };
+        render();
+      }
+    }
+
+    // ─────────── Render ───────────
+    function render() {
+      const { meeting, context, topic, expandedItem, itemContexts } = state;
+
+      if (!meeting) {
+        return; // Still loading
+      }
+
+      if (meeting.id === "none" || meeting.id === "error") {
+        document.getElementById("app").innerHTML = `
+          <div class="header">
+            <div class="meeting-name">Meeting Prep</div>
+          </div>
+          <div class="section">
+            <div class="empty-state">
+              <div class="empty-icon">📅</div>
+              <div>${meeting.name}</div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      const actionItems = meeting.agendaItems?.filter(i => i.hasVoice) || [];
+      const consentItems = meeting.agendaItems?.filter(i => i.type === 'consent') || [];
+      const otherItems = meeting.agendaItems?.filter(i => !i.hasVoice && i.type !== 'consent') || [];
+
+      document.getElementById("app").innerHTML = `
+        <div class="header">
+          <div class="header-top">
+            <div class="meeting-name">${escapeHtml(meeting.name)}</div>
+            <div class="meeting-badge">
+              ${formatTimeUntil(meeting.date)}
+            </div>
+          </div>
+          <div class="header-meta">
+            <span>📅 ${formatDate(meeting.date)}</span>
+            <span>🕐 ${escapeHtml(meeting.time)}</span>
+          </div>
+          <div class="agenda-stats">
+            <div class="stat">
+              <div class="stat-value">${meeting.agendaItems?.length || 0}</div>
+              <div class="stat-label">Items</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">${actionItems.length}</div>
+              <div class="stat-label">Action Items</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">${consentItems.length}</div>
+              <div class="stat-label">Consent</div>
+            </div>
+          </div>
+        </div>
+
+        ${actionItems.length > 0 ? `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">🗳️ Action Items</div>
+          </div>
+          ${actionItems.map(item => renderAgendaItem(item, expandedItem, itemContexts)).join('')}
+        </div>
+        ` : ''}
+
+        ${otherItems.length > 0 ? `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">📋 Other Business</div>
+          </div>
+          ${otherItems.map(item => renderAgendaItem(item, expandedItem, itemContexts)).join('')}
+        </div>
+        ` : ''}
+
+        ${consentItems.length > 0 ? `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">✅ Consent Calendar</div>
+            <span class="section-action" onclick="toggleConsent()">
+              ${state.showConsent ? 'Hide' : 'Show'} ${consentItems.length} items
+            </span>
+          </div>
+          ${state.showConsent ? consentItems.map(item => renderAgendaItem(item, expandedItem, itemContexts)).join('') : ''}
+        </div>
+        ` : ''}
+
+        ${context?.relatedDecisions?.length > 0 ? `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">📚 Related History</div>
+          </div>
+          ${context.relatedDecisions.slice(0, 3).map(d => `
+            <div class="context-card" onclick="searchTopic('${escapeHtml(d.title)}')">
+              <div class="context-title">${escapeHtml(d.title)}</div>
+              <div class="context-date">${formatDate(d.date)}</div>
+            </div>
+          `).join('')}
+        </div>
+        ` : ''}
+
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">🔍 Quick Prep</div>
+          </div>
+          <div class="quick-prep">
+            <div class="prep-tag" onclick="searchTopic('budget')">
+              <span class="prep-tag-icon">💰</span>
+              Budget Impact
+            </div>
+            <div class="prep-tag" onclick="searchTopic('housing')">
+              <span class="prep-tag-icon">🏠</span>
+              Housing
+            </div>
+            <div class="prep-tag" onclick="searchTopic('traffic')">
+              <span class="prep-tag-icon">🚗</span>
+              Traffic
+            </div>
+            <div class="prep-tag" onclick="searchTopic('environment')">
+              <span class="prep-tag-icon">🌳</span>
+              Environment
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          Meeting at ${escapeHtml(meeting.location || 'City Hall')} ·
+          <a href="#" onclick="searchTopic('${escapeHtml(meeting.body)}')">More from ${escapeHtml(meeting.body)}</a>
+        </div>
+      `;
+    }
+
+    function renderAgendaItem(item, expandedItem, itemContexts) {
+      const isExpanded = expandedItem === item.id;
+      const ctx = itemContexts[item.id];
+
+      return `
+        <div class="agenda-item ${isExpanded ? 'expanded' : ''}" onclick="toggleItem('${item.id}')">
+          <div class="item-number">${escapeHtml(item.number)}</div>
+          <div class="item-content">
+            <div class="item-title">${escapeHtml(item.title)}</div>
+            <span class="item-type ${item.type}">${formatItemType(item.type)}</span>
+
+            <div class="item-details">
+              ${ctx?.loading ? `
+                <div class="loading-context">Loading context...</div>
+              ` : ctx?.relatedDecisions?.length > 0 ? `
+                <div class="detail-section">
+                  <div class="detail-label">Related Decisions</div>
+                  ${ctx.relatedDecisions.slice(0, 3).map(d => `
+                    <div class="related-decision">
+                      <span class="related-date">${formatDate(d.date)}</span>
+                      <span class="related-title">${escapeHtml(d.title)}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : `
+                <div class="loading-context">No related decisions found</div>
+              `}
+            </div>
+          </div>
+          <div class="item-actions">
+            ${item.hasVoice ? `
+              <button class="voice-btn" onclick="event.stopPropagation(); openVoice('${item.voiceEntityId}', '${escapeHtml(item.title)}')">
+                🗳️ Voice
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderError(message) {
+      document.getElementById("app").innerHTML = `
+        <div class="header">
+          <div class="meeting-name">Meeting Prep</div>
+        </div>
+        <div class="section">
+          <div class="empty-state">${escapeHtml(message)}</div>
+        </div>
+      `;
+    }
+
+    // ─────────── Helpers ───────────
+    function escapeHtml(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return "";
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    }
+
+    function formatTimeUntil(dateStr) {
+      if (!dateStr) return "";
+      const date = new Date(dateStr);
+      const now = new Date();
+      const diffDays = Math.ceil((date - now) / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) return "Past";
+      if (diffDays === 0) return "Today";
+      if (diffDays === 1) return "Tomorrow";
+      if (diffDays <= 7) return `In ${diffDays} days`;
+      return `In ${Math.ceil(diffDays / 7)} weeks`;
+    }
+
+    function formatItemType(type) {
+      const labels = {
+        consent: "Consent",
+        public_hearing: "Public Hearing",
+        action: "Action Item",
+        report: "Report",
+        other: "Item",
+      };
+      return labels[type] || "Item";
+    }
+
+    function parseRelatedDecisions(text) {
+      const decisions = [];
+      const lines = text.split("\n");
+      for (const line of lines) {
+        const match = line.match(/(\d{4}-\d{2}-\d{2})[:\s]+(.+)/);
+        if (match) {
+          decisions.push({
+            date: match[1],
+            title: match[2].slice(0, 80),
+          });
+        }
+      }
+      return decisions;
+    }
+
+    // Toggle consent calendar visibility
+    window.toggleConsent = () => {
+      state.showConsent = !state.showConsent;
+      render();
+    };
+  </script>
+</body>
+</html>

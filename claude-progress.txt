@@ -18095,3 +18095,84 @@ curl -s -X POST "https://lounsburynw--civicos-mcp-apps-mcp-apps-server.modal.run
 - `apps/civicos-mcp-apps/server.ts` - Fixed jurisdiction URL
 - `apps/civicos-mcp-apps/src/lib/jurisdiction-client.ts` - Increased timeout to 20s
 - `apps/civicos-mcp-apps/src/widgets/pulse/register.ts` - Implemented real data parsing
+
+---
+
+## Session (2026-02-04) - MCP Apps Widgets: meeting_prep and issue_card
+
+**Item:** `mcp_apps_widgets` (P0)
+**Status:** COMPLETE - All 4 widgets implemented
+
+### What Was Done
+
+Added two new widgets to the MCP Apps server:
+
+1. **Meeting Prep Widget** (`meeting_prep`)
+   - Shows upcoming meetings from jurisdiction MCP
+   - Displays agenda items with type indicators (action, consent, public hearing)
+   - Fetches historical context for agenda items
+   - Links to Voice widget for action items
+   - Quick prep topics (budget, housing, traffic, environment)
+
+2. **Issue Card Widget** (`issue_card`)
+   - Displays local 311/SeeClickFix issues
+   - Filter by issue type (pothole, parking, traffic, etc.)
+   - Shows similar issues (momentum indicator)
+   - Issue analytics breakdown by category
+   - Links to Voice widget for community support
+
+### Files Created
+
+**meeting_prep:**
+- `apps/civicos-mcp-apps/src/widgets/meeting_prep/register.ts` - Tool/resource registration
+- `apps/civicos-mcp-apps/src/widgets/meeting_prep.html` - Widget HTML/JS
+
+**issue_card:**
+- `apps/civicos-mcp-apps/src/widgets/issue_card/register.ts` - Tool/resource registration
+- `apps/civicos-mcp-apps/src/widgets/issue_card.html` - Widget HTML/JS
+
+### Files Modified
+
+- `apps/civicos-mcp-apps/server.ts` - Added widget registrations
+- `apps/civicos-mcp-apps/package.json` - Added build scripts
+- `pilot.json` - Updated mcp_apps_widgets status to ready
+
+### Tools Now Available
+
+1. `voice_interface` - Cast voice on civic decisions
+2. `broadcast_voice` - Submit signed voice (helper)
+3. `refresh_voice_counts` - Real-time count updates (helper)
+4. `city_pulse` - Dashboard of city activity
+5. `meeting_prep` - Prepare for upcoming meetings (NEW)
+6. `get_agenda_item_context` - Historical context (NEW helper)
+7. `issue_card` - View local 311 issues (NEW)
+8. `search_similar_issues` - Find similar reports (NEW helper)
+9. `get_issues_near_address` - Location-based search (NEW helper)
+
+### Test Commands
+
+```bash
+# Health check (shows all 4 widgets)
+curl -s http://localhost:3002/health
+# {"status":"ok","widgets":["voice","pulse","meeting_prep","issue_card"]}
+
+# Meeting Prep
+curl -s -X POST http://localhost:3002/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"meeting_prep","arguments":{}},"id":1}'
+
+# Issue Card
+curl -s -X POST http://localhost:3002/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"issue_card","arguments":{"issue_type":"pothole"}},"id":1}'
+```
+
+### Remaining Work
+
+1. **Deploy to Modal** - Local server has new widgets, need to deploy
+2. **Voice Broadcast** - Still blocked on relay deployment
+3. **Agenda Parsing** - `prepare_for_meeting` backend tool needs different format
+
+### Next P0
+
+Deploy MCP Apps with new widgets to Modal.
