@@ -37,11 +37,11 @@ export class JurisdictionClient {
 
   /**
    * Call a tool on the jurisdiction MCP server.
-   * Times out after 5 seconds to avoid hanging.
+   * Times out after 20 seconds to allow for Modal cold starts.
    */
   async callTool(name: string, args: Record<string, unknown>): Promise<string> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
+    const timeout = setTimeout(() => controller.abort(), 20000);
 
     try {
       const response = await fetch(this.baseUrl, {

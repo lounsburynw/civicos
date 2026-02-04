@@ -34,6 +34,7 @@ import { fileURLToPath } from "node:url";
 
 import { JurisdictionClient } from "./src/lib/jurisdiction-client.js";
 import { registerVoiceWidget } from "./src/widgets/voice/register.js";
+import { registerPulseWidget } from "./src/widgets/pulse/register.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -43,7 +44,7 @@ const config = {
   port: parseInt(process.env.PORT || "3002", 10),
   jurisdictionMcpUrl:
     process.env.JURISDICTION_MCP_URL ||
-    "https://san-rafael.civicosproject.org/mcp",
+    "https://lounsburynw--civicos-san-rafael-mcpserver-mcp-endpoint.modal.run",
   relayUrl: process.env.RELAY_URL || "https://api.civicosproject.org",
   personalMcpUrl: process.env.PERSONAL_MCP_URL, // Optional
 };
@@ -65,6 +66,11 @@ const jurisdictionClient = new JurisdictionClient(config.jurisdictionMcpUrl);
 await registerVoiceWidget(server, {
   jurisdictionClient,
   relayUrl: config.relayUrl,
+  widgetsDir: path.join(__dirname, "dist/widgets"),
+});
+
+await registerPulseWidget(server, {
+  jurisdictionClient,
   widgetsDir: path.join(__dirname, "dist/widgets"),
 });
 
@@ -92,7 +98,7 @@ app.post("/mcp", async (req, res) => {
 
 // Health check
 app.get("/health", (req, res) => {
-  res.json({ status: "ok", widgets: ["voice"] });
+  res.json({ status: "ok", widgets: ["voice", "pulse"] });
 });
 
 // ─────────── Start Server ───────────
