@@ -18176,3 +18176,48 @@ curl -s -X POST http://localhost:3002/mcp \
 ### Next P0
 
 Deploy MCP Apps with new widgets to Modal.
+
+## 2026-02-04 Session: Open WebUI Investigation + MCP Apps Deployment
+
+### Task: Debug Open WebUI Integration (from handoff)
+
+**Status: Investigated, decided to pivot**
+
+### Investigation Results
+
+1. **OpenAPI spec improvements made:**
+   - Added `servers` field to FastAPI app in `modal_mcp.py`
+   - Redeployed jurisdiction MCP server
+   - Confirmed OpenAPI spec now includes server URL
+
+2. **Open WebUI issues found:**
+   - Tool server import has known regressions (GitHub #17764, #12313)
+   - MCP Streamable HTTP support is buggy (#14776)
+   - OpenAPI import mechanism unclear from docs
+   - Community has ongoing issues with external tool servers
+
+3. **MCP Apps deployed successfully:**
+   - URL: `https://lounsburynw--civicos-mcp-apps-mcp-apps-server.modal.run`
+   - 4 widgets: voice, pulse, meeting_prep, issue_card
+   - 9 MCP tools available
+   - Fully functional alternative to Open WebUI integration
+
+### Decision: Pivot to MCP Apps strategy
+
+Rather than continue debugging Open WebUI (uncertain timeline, ongoing bugs),
+the MCP Apps approach provides:
+- Direct integration with Claude.ai via cloudflared tunnels
+- Working widgets with real civic data
+- No dependency on buggy third-party integration
+
+### Next Steps (for next session)
+
+1. Return to P0: `mcp_registry_listing` for Anthropic MCP directory
+2. Document MCP Apps deployment in user guides
+3. Consider removing Open WebUI setup complexity
+
+### Files Modified
+- `apps/civicos-mcp/modal_mcp.py` - Added OpenAPI servers field
+
+### P0 for Next Session
+Resume `mcp_registry_listing` - original pilot.json P0

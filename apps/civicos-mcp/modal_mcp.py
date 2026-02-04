@@ -317,10 +317,18 @@ class MCPServer:
         from fastapi import FastAPI
         from fastapi.middleware.cors import CORSMiddleware
 
+        # Build the server URL for OpenAPI spec
+        # Modal generates URLs like: lounsburynw--civicos-san-rafael-mcpserver-mcp-endpoint.modal.run
+        app_name = get_app_name(self.jurisdiction)
+        server_url = f"https://lounsburynw--{app_name}-mcpserver-mcp-endpoint.modal.run"
+
         app = FastAPI(
             title=f"CivicOS MCP Server ({self.jurisdiction_config.display_name})",
             description="Civic data API for AI assistants. Supports both MCP (JSON-RPC) and REST endpoints.",
             version="1.0.0",
+            servers=[
+                {"url": server_url, "description": "Modal deployment"},
+            ],
         )
 
         # CORS for Open WebUI and other clients
