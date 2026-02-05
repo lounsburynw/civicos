@@ -493,7 +493,7 @@
       "_doc": "Data federation architecture for multi-jurisdiction deployment. See conversation 2026-01-29.",
       "entity_id_namespacing": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Namespace all entity IDs for global uniqueness across federated instances. Format: {type}:{jurisdiction}:{source}:{identifier}. Backwards-compatible - new format coexists with old during migration.",
         "rationale": "High value, low risk. Prevents painful data migration when second city joins. Start now so all new data gets namespaced IDs.",
         "artifact": "Canonical entity ID schema + updated ingestion pipelines",
@@ -2525,26 +2525,26 @@
       },
       "participation_calendar_viz": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "Calendar heatmap showing meeting participation density",
         "description": "Visualization component showing meetings on a calendar with intensity based on public participation (comment count, testimony count). Reveals which meetings draw engagement. Implement as: (1) data shape from city_pulse, (2) Claude artifact renderer, (3) Vue component.",
-        "note": "Session 542: First visualization primitive. Calendar heatmap is simple, high-signal, and works well in both artifact and web contexts.",
+        "note": "Session 542: First visualization primitive. Calendar heatmap is simple, high-signal, and works well in both artifact and web contexts. Part of civic_dashboard_mvp (P0).",
         "depends_on": "city_pulse_mcp_tool"
       },
       "decision_flow_viz": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "Sankey-style flow showing items through civic process stages",
         "description": "Visualization showing how agenda items flow: Introduced \u2192 Heard \u2192 Decided \u2192 Implemented. Reveals where things stall (items 'continued' multiple times, decisions pending implementation). Requires tracking item state over time.",
-        "note": "Session 542: Powerful for showing 'what's stuck' without editorial commentary. Data-forward approach.",
+        "note": "Session 542: Powerful for showing 'what's stuck' without editorial commentary. Data-forward approach. Part of civic_dashboard_mvp (P0).",
         "depends_on": "city_pulse_mcp_tool"
       },
       "issue_geography_viz": {
         "status": "not_ready",
-        "priority": 3,
+        "priority": 1,
         "artifact": "Dot density map showing geographic distribution of civic issues",
         "description": "Map visualization showing where 311/SeeClickFix issues cluster. Hex bin or dot density. Reveals neighborhood-level patterns. Requires geocoded issue data (lat/lng from addresses).",
-        "note": "Session 542: High impact but requires good geocoding. San Rafael issues have addresses; need to geocode to lat/lng.",
+        "note": "Session 542: High impact but requires good geocoding. San Rafael issues have addresses; need to geocode to lat/lng. Part of civic_dashboard_mvp (P0).",
         "depends_on": "city_pulse_mcp_tool"
       },
       "budget_treemap_viz": {
@@ -2578,6 +2578,23 @@
         "artifact": "Progressive engagement UX from awareness to coordination",
         "description": "UX flow that guides users through engagement ladder: Awareness (what's happening) \u2192 Relevance (what affects me) \u2192 Participation (where I can act) \u2192 Coordination (who's with me). Each dashboard view surfaces the 'next step' without forcing it.",
         "note": "Session 542: The engagement ladder is the conceptual spine of the dashboard. This item is about making the progression feel natural in the UX."
+      },
+      "civic_dashboard_mvp": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "MVP civic dashboard with 3+ visualization primitives",
+        "description": "Implement minimum viable dashboard UX before MCP registry listing. Must include: (1) at least 3 visualization primitives (calendar heatmap, decision flow, issue geography), (2) visible engagement ladder progression (awareness \u2192 participation path), (3) data-forward presentation (patterns emerge, no editorializing), (4) multi-surface capability (same query works in chat + visual rendering).",
+        "note": "Created 2026-02-04. UX must be solidified before public listing. See docs/critical/CIVIC_DASHBOARD_VISION.md for full vision.",
+        "depends_on": "city_pulse_mcp_tool",
+        "blocks": "mcp_registry_listing",
+        "subtasks": [
+          "Implement participation_calendar_viz (calendar heatmap)",
+          "Implement decision_flow_viz (Sankey-style flow)",
+          "Implement issue_geography_viz (dot density map)",
+          "Add engagement ladder navigation to dashboard",
+          "Verify multi-surface rendering (MCP Apps + civicos-workspace)",
+          "Test data-forward presentation (no editorializing)"
+        ]
       }
     }
   },
@@ -2840,10 +2857,10 @@
       },
       "mcp_registry_listing": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Civic MCP server listed on MCP Registry and community directories",
         "description": "Register civicos-mcp on official MCP Registry and community directories (MCP.so, MCPServers.org) for discoverability.",
-        "note": "Session 545: Deferred until after stress testing and launch. Internal registry (internal_mcp_registry) should be built first to enable UX development and establish patterns.",
+        "note": "Session 545: Deferred until after stress testing and launch. Internal registry (internal_mcp_registry) should be built first to enable UX development and establish patterns. Deferred until UX vision implemented (civic_dashboard_mvp).",
         "subtasks": [
           "[DONE] Prepare server metadata for registry submission",
           "Export internal registry data to public format",
