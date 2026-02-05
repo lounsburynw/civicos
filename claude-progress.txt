@@ -18375,3 +18375,23 @@ PORT=8080 uvicorn open_webui.main:app --port 8080 --host 0.0.0.0
 
 ### P0 for Next Session
 Continue civic_dashboard_mvp - implement visualization primitives (calendar heatmap, decision flow, issue geography)
+
+### LLM-Triggered Artifacts - WORKING
+After debugging, implemented artifact pinning to prevent auto-close:
+
+**Root causes found:**
+1. `initNewChat()` was closing all panels on new chat start
+2. `getContents()` was overwriting artifact content after LLM response
+3. `Artifacts.svelte` was closing panel when contents became empty
+
+**Solution - artifactPinned store:**
+- New store `artifactPinned` in stores/index.ts
+- When City Pulse opens, sets `artifactPinned = true`
+- `initNewChat()`, `getContents()`, and Artifacts.svelte now check pinned state
+- Manual close button unpins the artifact
+
+**Files modified in civicos-openwebui:**
+- src/lib/stores/index.ts - added artifactPinned store
+- src/lib/components/chat/Chat.svelte - handleOpenArtifact, initNewChat, getContents
+- src/lib/components/chat/Artifacts.svelte - close button, subscription check
+- src/routes/(app)/+page.svelte - event dispatch approach
