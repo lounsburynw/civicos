@@ -18333,3 +18333,45 @@ Connected the Open WebUI City Pulse widget to live PostgreSQL data via Modal MCP
 
 ### P0 for Next Session
 Continue `civic_dashboard_mvp` - test live data flow, implement LLM triggers
+
+---
+## Session Feb 5, 2026 - LLM-Triggered Artifacts
+
+### Work Item
+P0: civic_dashboard_mvp
+
+### Completed
+1. Implemented LLM-triggered artifact opening:
+   - Added civic intent detection in Chat.svelte (patterns: "what's happening", "upcoming meetings", "city council", "san rafael", etc.)
+   - Dispatches custom 'civicintent' event when civic patterns detected
+   - +page.svelte listens for event and auto-opens City Pulse widget
+   - Built and tested frontend compilation
+
+2. Updated documentation:
+   - CIVIC_DASHBOARD_VISION.md - marked tasks 1 & 2 as Done
+   - pilot.json - added llm_triggered_artifacts: complete to progress
+
+### Files Modified
+- civicos-openwebui/src/lib/components/chat/Chat.svelte (civic intent detection)
+- civicos-openwebui/src/routes/(app)/+page.svelte (event listener)
+- civicos/apps/civicos-openwebui-fork/src/routes/(app)/+page.svelte (sync)
+- docs/critical/CIVIC_DASHBOARD_VISION.md
+- pilot.json
+
+### Testing Notes
+To test:
+```bash
+# Terminal 1: Ollama
+ollama serve
+
+# Terminal 2: Open WebUI backend
+cd /Users/nicolaslounsbury/projects/civicos-openwebui/backend
+source venv/bin/activate
+PORT=8080 uvicorn open_webui.main:app --port 8080 --host 0.0.0.0
+
+# Browser: http://localhost:8080
+# Type: "What's happening in San Rafael?" - City Pulse should auto-open
+```
+
+### P0 for Next Session
+Continue civic_dashboard_mvp - implement visualization primitives (calendar heatmap, decision flow, issue geography)
