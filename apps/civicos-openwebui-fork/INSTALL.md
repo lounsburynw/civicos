@@ -157,8 +157,10 @@ PUBLIC_CIVICOS_DEFAULT_THEME=community-garden
 | `community-garden` | Community Garden | Light | Warm greens |
 | `public-comment` | Public Comment | Light | High contrast purple |
 | `terra-cotta` | Terra Cotta | Light | California mission style |
+| `solarized-light` | Solarized Light | Light | Classic low-contrast |
 | `night-session` | Night Session | Dark | Late council meetings |
 | `midnight-council` | Midnight Council | Dark | OLED-friendly pure dark |
+| `solarized-dark` | Solarized Dark | Dark | Classic low-contrast |
 
 ### Programmatic Theme Control
 

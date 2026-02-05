@@ -126,6 +126,40 @@ export const themes: Theme[] = [
       border: '#262626',
     },
   },
+  {
+    id: 'solarized-light',
+    name: 'Solarized Light',
+    description: 'Classic low-contrast light theme',
+    mode: 'light',
+    colors: {
+      primary: '#268bd2',
+      primaryHover: '#2aa198',
+      accent: '#859900',
+      background: '#fdf6e3',
+      surface: '#eee8d5',
+      surfaceHover: '#eee8d5',
+      text: '#657b83',
+      textSecondary: '#93a1a1',
+      border: '#eee8d5',
+    },
+  },
+  {
+    id: 'solarized-dark',
+    name: 'Solarized Dark',
+    description: 'Classic low-contrast dark theme',
+    mode: 'dark',
+    colors: {
+      primary: '#268bd2',
+      primaryHover: '#2aa198',
+      accent: '#859900',
+      background: '#002b36',
+      surface: '#073642',
+      surfaceHover: '#073642',
+      text: '#839496',
+      textSecondary: '#586e75',
+      border: '#073642',
+    },
+  },
 ];
 
 export const defaultThemeId = 'city-hall';
