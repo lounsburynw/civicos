@@ -362,15 +362,19 @@ def city_pulse(
     }
 
     try:
-        # Upcoming meetings
+        # Recent and upcoming meetings (look back 3 days to catch "today" in different timezones)
+        # This ensures we show recent activity even when meetings are stored in UTC
         meetings = storage.get_meetings(
             jurisdiction,
-            since=now,
+            since=now - timedelta(days=3),
             until=now + timedelta(days=days_ahead),
             limit=20
         )
 
-        for m in meetings:
+        # Sort by date and take most recent/upcoming
+        meetings = sorted(meetings, key=lambda m: m.get('meeting_datetime') or now, reverse=True)
+
+        for m in meetings[:10]:  # Limit to 10 most recent/upcoming
             meeting_dt = m.get('meeting_datetime')
             if meeting_dt and hasattr(meeting_dt, 'strftime'):
                 date_str = meeting_dt.strftime("%a, %b %d")
@@ -385,16 +389,27 @@ def city_pulse(
                 "time": time_str,
             })
 
-        # Recent decisions
-        since_date = (now - timedelta(days=days_back)).strftime("%Y-%m-%d")
-        decisions = storage.get_decisions(jurisdiction, since=since_date, limit=10)
+        # Recent decisions - get all and sort by most recent
+        # Many decisions don't have dates set, so we fetch all and limit
+        decisions = storage.get_decisions(jurisdiction, limit=50)
 
+        # Sort by decision_date if available, then limit
+        decisions_with_dates = []
         for d in decisions:
             decision_date = d.get('decision_date') or d.get('meeting_datetime')
+            decisions_with_dates.append((d, decision_date))
+
+        # Sort: those with dates first (newest), then those without
+        decisions_with_dates.sort(
+            key=lambda x: (x[1] is None, x[1] if x[1] else now),
+            reverse=True
+        )
+
+        for d, decision_date in decisions_with_dates[:10]:
             if decision_date and hasattr(decision_date, 'strftime'):
                 date_str = decision_date.strftime("%b %d")
             else:
-                date_str = str(decision_date)[:10] if decision_date else "Recent"
+                date_str = "Recent"
 
             result["recent_outcomes"].append({
                 "title": d.get('title') or 'Decision',

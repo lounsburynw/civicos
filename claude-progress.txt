@@ -18221,3 +18221,115 @@ the MCP Apps approach provides:
 
 ### P0 for Next Session
 Resume `mcp_registry_listing` - original pilot.json P0
+
+---
+## Session: 2026-02-04 (Open WebUI Integration)
+
+### Objective
+Verify and implement Open WebUI fork as primary UX surface for civic dashboard
+
+### Accomplished
+1. Verified civicos-openwebui fork already had Svelte civic components
+2. Set up Open WebUI backend (Python) with all dependencies
+3. Updated civic.ts to use REST API instead of MCP JSON-RPC
+4. Integrated Chat component directly into civic dashboard page
+5. Dashboard + chat now work together at localhost:8080
+
+### Key Technical Decisions
+- REST API over MCP JSON-RPC for programmatic access (MCP returns markdown)
+- Embedded Chat component rather than separate routes
+- Dashboard toggle to show/hide city pulse above chat
+
+### Files Modified
+- apps/civicos-openwebui-fork/src/lib/apis/civic.ts - REST API client
+- apps/civicos-openwebui-fork/src/routes/(app)/+page.svelte - Hybrid dashboard+chat
+- apps/civicos-openwebui-fork/src/lib/components/civic/MomentumCard.svelte - Links to chat
+
+### Issues to Address
+- Layout needs CSS fixes (dashboard squished behind chat)
+- Momentum card links don't pre-fill chat query
+- No LLM configured yet
+
+### Next Steps
+1. Fix CSS layout (z-index, stacking)
+2. Explore modular widget architecture (artifacts)
+3. Configure LLM provider
+4. Add visualization primitives
+
+### P0 for Next Session
+Continue `civic_dashboard_mvp` - fix layout and explore widget modularity
+
+## Session: 2026-02-04 (Evening) - Open WebUI Artifact Integration
+
+### Accomplished
+1. **Validated artifact system** - Open WebUI's built-in artifact panel renders civic widgets
+2. **Created test widget** - City Pulse HTML widget with live CSS animations
+3. **Cleaned up interface** - Removed old dashboard clutter, clean chat + artifact layout
+4. **Added test button** - Purple "Test Artifact Panel" button for dev testing
+5. **Documented UX strategy** - Updated CIVIC_DASHBOARD_VISION.md with implementation progress
+
+### Key Decisions
+- **Widget placement**: Hybrid approach (top banner + side panel)
+- **Architecture**: Self-contained HTML widgets in Open WebUI artifacts
+- **Data flow**: Fetch from Modal MCP server (not MCP SDK in iframe)
+
+### Files Modified
+- `/Users/nicolaslounsbury/projects/civicos-openwebui/src/routes/(app)/+page.svelte` - Simplified to Chat + test button
+- `docs/critical/CIVIC_DASHBOARD_VISION.md` - Added implementation progress section
+- `docs/next_session_prompt.md` - Updated handoff notes
+
+### Next Steps
+1. Connect widget to live MCP data
+2. LLM-triggered artifact opening
+3. Top banner component for persistent city context
+4. Port Voice widget to artifacts
+
+### P0 for Next Session
+Continue `civic_dashboard_mvp` - connect to live data, implement top banner
+
+## Session 536 (2026-02-04) - Live Data Connection for City Pulse Widget
+
+**Item:** `civic_dashboard_mvp` (P0)
+**Status:** IN PROGRESS (Phase 1 complete)
+
+### What Was Done
+Connected the Open WebUI City Pulse widget to live PostgreSQL data via Modal MCP API:
+
+1. **Fixed `city_pulse` handler** (`apps/civicos-mcp/tools/handlers.py:342-418`)
+   - Modified meeting query to look back 3 days (catches "today" in UTC timezone)
+   - Fixed decision query to get all recent decisions (many have NULL dates)
+   - Sorted results by recency for better UX
+
+2. **Updated Open WebUI page** (`civicos-openwebui/src/routes/(app)/+page.svelte`)
+   - Added `fetchCityPulse()` to call Modal REST API endpoint
+   - Added `generatePulseWidget()` to transform API data to HTML widget
+   - Added `parseDate()` helper for flexible date parsing (ISO and formatted)
+   - Added loading skeleton state while fetching
+   - Renamed button from "Test Artifact" to "City Pulse"
+
+3. **Redeployed Modal MCP** (`modal deploy apps/civicos-mcp/modal_mcp.py`)
+   - API now returns live data from PostgreSQL
+   - Tested: 5 meetings, 10 decisions, 500 issues
+
+### API Response Shape
+```json
+{
+  "decisions_this_week": [{"title": "...", "date": "2026-02-04", "time": ""}],
+  "recent_outcomes": [{"title": "...", "outcome": "approved", "date": "Recent"}],
+  "community_pulse": {"total_issues": 500, "top_types": {...}}
+}
+```
+
+### Files Modified
+- `apps/civicos-mcp/tools/handlers.py` - city_pulse handler date logic
+- `civicos-openwebui/src/routes/(app)/+page.svelte` - live data integration
+- `apps/civicos-openwebui-fork/` - synced backup
+
+### Next Steps
+1. Test in browser (run Open WebUI backend, click "City Pulse" button)
+2. LLM-triggered artifacts (auto-open widget on civic queries)
+3. Top banner component for persistent city context
+4. Port Voice widget to artifacts
+
+### P0 for Next Session
+Continue `civic_dashboard_mvp` - test live data flow, implement LLM triggers
