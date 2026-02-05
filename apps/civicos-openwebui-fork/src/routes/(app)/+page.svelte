@@ -3,7 +3,6 @@
 	import { page } from '$app/stores';
 	import { toast } from 'svelte-sonner';
 	import Chat from '$lib/components/chat/Chat.svelte';
-	import { artifactContents, showArtifacts, showControls } from '$lib/stores';
 
 	// Modal MCP server endpoint
 	const MCP_API_URL = 'https://lounsburynw--civicos-san-rafael-mcpserver-mcp-endpoint.modal.run';
@@ -18,12 +17,15 @@
 
 		// CivicOS: Listen for civic intent from chat to auto-open City Pulse
 		const handleCivicIntent = () => {
+			console.log('[CivicOS] Received civicintent event, isLoading:', isLoading);
 			// Only trigger if not already loading and no artifact currently shown
 			if (!isLoading) {
+				console.log('[CivicOS] Opening City Pulse...');
 				openCityPulse();
 			}
 		};
 		window.addEventListener('civicintent', handleCivicIntent);
+		console.log('[CivicOS] Registered civicintent listener');
 		return () => window.removeEventListener('civicintent', handleCivicIntent);
 	});
 
@@ -546,28 +548,33 @@
 	async function openCityPulse() {
 		if (isLoading) return;
 		isLoading = true;
+		console.log('[CivicOS] Opening City Pulse...');
 
-		// Show loading state immediately
-		artifactContents.set([{ type: 'iframe', content: loadingWidgetHtml }]);
-		showControls.set(true);
-		showArtifacts.set(true);
+		// Dispatch event to Chat.svelte which has access to the pane controls
+		window.dispatchEvent(new CustomEvent('openartifact', {
+			detail: { content: loadingWidgetHtml }
+		}));
 
 		try {
 			const data = await fetchCityPulse();
 			const widgetHtml = generatePulseWidget(data);
-			artifactContents.set([{ type: 'iframe', content: widgetHtml }]);
+			// Update content via event
+			window.dispatchEvent(new CustomEvent('openartifact', {
+				detail: { content: widgetHtml }
+			}));
 			toast.success('City Pulse loaded with live data');
 		} catch (error) {
 			console.error('Failed to fetch city pulse:', error);
 			toast.error('Failed to load live data. Using cached view.');
-			// Keep the loading state visible with error message
-			artifactContents.set([{
-				type: 'iframe',
-				content: loadingWidgetHtml.replace(
-					'Loading live data from San Rafael...',
-					'Unable to connect to server. Please try again.'
-				)
-			}]);
+			// Update with error message
+			window.dispatchEvent(new CustomEvent('openartifact', {
+				detail: {
+					content: loadingWidgetHtml.replace(
+						'Loading live data from San Rafael...',
+						'Unable to connect to server. Please try again.'
+					)
+				}
+			}));
 		} finally {
 			isLoading = false;
 		}
