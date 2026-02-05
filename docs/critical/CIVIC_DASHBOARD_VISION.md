@@ -1,8 +1,9 @@
 # Civic Dashboard Vision: City Status at a Glance
 
 **Created**: 2026-01-22
-**Status**: Vision / Pre-Implementation
-**Priority**: Post-Pilot - informs product direction after Jan 2026 validation
+**Updated**: 2026-02-04
+**Status**: In Progress - Open WebUI artifact integration validated
+**Priority**: Active - implementing for pilot launch
 
 ---
 
@@ -303,6 +304,86 @@ What signals "healthy" civic engagement?
 
 ### Platform Parity
 Should MCP users get the same experience as web users? Or is MCP for exploration and web for action?
+
+---
+
+## Implementation Progress (Feb 2026)
+
+### Validated Approach: Open WebUI + Artifacts
+
+We validated that Open WebUI's artifact system can render civic widgets effectively:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Open WebUI Interface                         │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────┐  ┌──────────────────────────┐  │
+│  │                             │  │    ARTIFACT PANEL        │  │
+│  │       CHAT INTERFACE        │  │  ┌────────────────────┐  │  │
+│  │                             │  │  │   City Pulse       │  │  │
+│  │   "What's happening in      │  │  │   Widget           │  │  │
+│  │    San Rafael?"             │  │  │                    │  │  │
+│  │                             │  │  │   [Live Data]      │  │  │
+│  │   → Shows City Pulse in     │  │  │   [Trending]       │  │  │
+│  │     artifact panel ───────────────│   [Voice Stats]    │  │  │
+│  │                             │  │  └────────────────────┘  │  │
+│  └─────────────────────────────┘  └──────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Key Findings:**
+- Self-contained HTML widgets render cleanly in sandboxed iframe
+- CSS animations (pulse effects) work correctly
+- Widget design system (CSS variables) transfers cleanly
+- Side panel works well for detailed widgets
+
+### Widget Placement Strategy
+
+Different widget types suit different placements:
+
+| Widget Type | Placement | Rationale |
+|-------------|-----------|-----------|
+| **City Pulse summary** | Top banner (dropdown) | Persistent context, quick glance, high visibility |
+| **Notifications/Alerts** | Top banner | Time-sensitive, shouldn't miss |
+| **Meeting Prep** | Side panel | Deep content, reference while chatting |
+| **Issue Details** | Side panel | Exploration, multiple data points |
+| **Voice Widget** | Side panel or modal | Action-focused, needs space for options |
+| **Quick Actions** | Inline in chat | Low friction, contextual |
+
+**Hybrid approach recommended:**
+- **Top banner**: City context + alerts (collapsible)
+- **Side panel**: Detailed widgets triggered by conversation
+- **Inline**: Quick actions and confirmations
+
+### Immediate Priorities
+
+| Priority | Task | Status |
+|----------|------|--------|
+| 1 | Connect City Pulse widget to live MCP data | Done |
+| 2 | LLM-triggered artifact opening (query → widget) | Done |
+| 3 | Top banner component for City Pulse summary | Pending |
+| 4 | Port Voice widget to Open WebUI artifacts | Pending |
+| 5 | Port Meeting Prep widget | Pending |
+
+### Technical Stack
+
+```
+civicos-openwebui/                    # Open WebUI fork
+├── src/routes/(app)/+page.svelte    # Main page (Chat + test button)
+├── src/lib/components/civic/        # Civic Svelte components (unused for now)
+├── src/lib/stores/                   # Artifact stores (showArtifacts, artifactContents)
+└── src/lib/components/chat/
+    └── Artifacts.svelte              # Side panel renderer
+
+civicos-mcp-apps/                     # Existing MCP widgets (HTML)
+└── src/widgets/
+    ├── voice.html                    # Voice casting widget
+    ├── meeting_prep.html             # Meeting preparation
+    ├── issue_card.html               # Issue details
+    └── pulse.html                    # City Pulse dashboard
+```
+
+**Integration path:** Port MCP Apps HTML widgets → Open WebUI artifacts, connecting to Modal MCP server for live data.
 
 ---
 

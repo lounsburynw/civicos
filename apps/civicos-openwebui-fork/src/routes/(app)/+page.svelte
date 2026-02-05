@@ -15,6 +15,16 @@
 		if ($page.url.searchParams.get('error')) {
 			toast.error($page.url.searchParams.get('error') || 'An unknown error occurred.');
 		}
+
+		// CivicOS: Listen for civic intent from chat to auto-open City Pulse
+		const handleCivicIntent = () => {
+			// Only trigger if not already loading and no artifact currently shown
+			if (!isLoading) {
+				openCityPulse();
+			}
+		};
+		window.addEventListener('civicintent', handleCivicIntent);
+		return () => window.removeEventListener('civicintent', handleCivicIntent);
 	});
 
 	// Category metadata for issue icons

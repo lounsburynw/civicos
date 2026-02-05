@@ -2584,15 +2584,27 @@
         "priority": 0,
         "artifact": "MVP civic dashboard with 3+ visualization primitives",
         "description": "Implement minimum viable dashboard UX before MCP registry listing. Must include: (1) at least 3 visualization primitives (calendar heatmap, decision flow, issue geography), (2) visible engagement ladder progression (awareness \u2192 participation path), (3) data-forward presentation (patterns emerge, no editorializing), (4) multi-surface capability (same query works in chat + visual rendering).",
-        "note": "Created 2026-02-04. UX must be solidified before public listing. See docs/critical/CIVIC_DASHBOARD_VISION.md for full vision.",
+        "note": "2026-02-05: LLM-triggered artifacts implemented. Chat detects civic intent (patterns like 'what's happening', 'upcoming meetings', 'san rafael') and auto-opens City Pulse widget. Previous: Open WebUI fork integration, live Modal MCP data flow. Next: viz primitives, layout CSS.",
         "depends_on": "city_pulse_mcp_tool",
         "blocks": "mcp_registry_listing",
+        "progress": {
+          "openwebui_integration": "complete",
+          "civic_dashboard_display": "complete",
+          "rest_api_client": "complete",
+          "chat_integration": "complete",
+          "llm_triggered_artifacts": "complete",
+          "layout_css": "needs_work",
+          "calendar_heatmap_viz": "not_started",
+          "decision_flow_viz": "not_started",
+          "issue_geography_viz": "not_started"
+        },
         "subtasks": [
+          "Fix CSS layout (dashboard overlaps chat) - IN PROGRESS",
           "Implement participation_calendar_viz (calendar heatmap)",
           "Implement decision_flow_viz (Sankey-style flow)",
           "Implement issue_geography_viz (dot density map)",
           "Add engagement ladder navigation to dashboard",
-          "Verify multi-surface rendering (MCP Apps + civicos-workspace)",
+          "Configure LLM provider for Open WebUI",
           "Test data-forward presentation (no editorializing)"
         ]
       }
