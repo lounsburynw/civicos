@@ -77,7 +77,7 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
         },
     },
     "city_pulse": {
-        "description": "Get a comprehensive snapshot of city activity (meetings, decisions, issues)",
+        "description": "Get structured city activity data (meetings, decisions, community issues) as JSON. Returns raw data suitable for analysis or display. Use when you need specific counts, dates, or structured information about civic activity.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -159,7 +159,7 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
         },
     },
     "get_started": {
-        "description": "Get an overview of what's happening in local government",
+        "description": "Get a friendly welcome overview for new users. Returns formatted text with upcoming meetings, recent decisions, and suggestions for what to explore. Use when users first arrive or ask general questions like 'what can you help with?' or 'what's going on?'",
         "inputSchema": {
             "type": "object",
             "properties": {},
