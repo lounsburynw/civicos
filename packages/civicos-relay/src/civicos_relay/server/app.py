@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from civicos_relay.identity import RelayIdentity, RelayConfig
@@ -149,6 +150,13 @@ def create_app() -> FastAPI:
         description="Federation-ready civic coordination relay",
         version="0.1.0",
         lifespan=lifespan,
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:5173", "http://localhost:8080"],
+        allow_methods=["GET", "POST"],
+        allow_headers=["*"],
     )
 
     # Health on root (not behind /coordination)
