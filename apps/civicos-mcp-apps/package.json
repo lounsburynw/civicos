@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run watch:widgets\" \"npm run serve:dev\"",
-    "build": "npm run build:voice && npm run build:pulse && npm run build:meeting_prep && npm run build:issue_card",
+    "build": "npm run build:voice && npm run build:pulse && npm run build:meeting_prep && npm run build:issue_card && npm run build:action",
     "build:voice": "WIDGET=voice vite build",
     "build:pulse": "WIDGET=pulse vite build",
     "build:meeting_prep": "WIDGET=meeting_prep vite build",
     "build:issue_card": "WIDGET=issue_card vite build",
+    "build:action": "WIDGET=action vite build",
     "watch:widgets": "vite build --watch",
     "serve": "tsx server.ts",
     "serve:dev": "tsx watch server.ts",

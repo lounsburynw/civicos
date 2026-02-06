@@ -2869,7 +2869,7 @@
       },
       "mcp_registry_listing": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Civic MCP server listed on MCP Registry and community directories",
         "description": "Register civicos-mcp on official MCP Registry and community directories (MCP.so, MCPServers.org) for discoverability.",
         "note": "Session 545: Deferred until after stress testing and launch. Internal registry (internal_mcp_registry) should be built first to enable UX development and establish patterns. Deferred until UX vision implemented (civic_dashboard_mvp).",
@@ -4054,9 +4054,9 @@
       }
     },
     "action_flow_integration": {
-      "status": "not_ready",
-      "priority": 2,
-      "note": "DEMOTED: Web frontend integration. MCP-native (Open WebUI) is primary.",
+      "status": "ready",
+      "priority": 1,
+      "note": "P0: Build MCP Apps action widget using new prepare tools (30810/30811/30812). Follow voice.html pattern.",
       "description": "End-to-end action flow: Agent discovers actions \u2192 prepares unsigned commitment/completion events \u2192 client signs \u2192 broadcast to relay. This is the core Edge Intelligence capability that transforms intent into civic action.",
       "test_file": "apps/civicos-workspace/tests/e2e/action-flow.spec.ts",
       "flow": [
@@ -4107,7 +4107,7 @@
     },
     "action_event_preparation": {
       "status": "ready",
-      "priority": 0,
+      "priority": 1,
       "description": "Agent logic to prepare unsigned Nostr action events (kinds 30810, 30811, 30812). Agent reasons about what action to suggest, prepares the event payload, returns it to client for signing. This is the 'write' side that MCP doesn't do.",
       "test_file": "apps/civicos-personal-mcp/tests/action-preparation.spec.ts",
       "subtasks": [
