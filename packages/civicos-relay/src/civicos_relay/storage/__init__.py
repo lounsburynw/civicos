@@ -6,11 +6,13 @@ from civicos_relay.storage.postgres import (
     PostgresProvenanceStorage,
     PostgresInitiativeStorage,
     PostgresSyncStorage,
+    PostgresSyncStorageAdapter,
     PostgresEventStorage,
     PostgresActionStorage,
     PostgresCivicActionEventStorage,
     PostgresCivicCommitmentStorage,
     PostgresCivicCompletionStorage,
+    PostgresStorage,
 )
 from civicos_relay.storage.memory import (
     InMemoryStorage,
@@ -28,11 +30,13 @@ from civicos_relay.storage.memory import (
 
 __all__ = [
     # Postgres
+    "PostgresStorage",
     "PostgresVoiceStorage",
     "PostgresSubscriptionStorage",
     "PostgresProvenanceStorage",
     "PostgresInitiativeStorage",
     "PostgresSyncStorage",
+    "PostgresSyncStorageAdapter",
     "PostgresEventStorage",
     "PostgresActionStorage",
     "PostgresCivicActionEventStorage",
