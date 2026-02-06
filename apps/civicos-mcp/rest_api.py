@@ -136,8 +136,8 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
             raise HTTPException(status_code=500, detail=str(e))
 
     @router.post("/city-pulse", response_model=ToolResponse,
-                 summary="Get city pulse snapshot",
-                 description="Get a comprehensive snapshot of city activity including upcoming meetings, recent decisions, and trending issues.")
+                 summary="Get structured city data",
+                 description="Get structured city activity data (meetings, decisions, community issues) as JSON. Returns raw data suitable for analysis or display. Use when you need specific counts, dates, or structured information about civic activity.")
     async def city_pulse(request: CityPulseRequest):
         data = call_tool_safe("city_pulse", request.model_dump())
         return ToolResponse(data=data)
@@ -220,8 +220,8 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
         return ToolResponse(data=data)
 
     @router.get("/get-started", response_model=ToolResponse,
-                summary="Get started",
-                description="Get an overview of what's happening in local government.")
+                summary="Welcome overview for new users",
+                description="Get a friendly welcome overview for new users. Returns formatted text with upcoming meetings, recent decisions, and suggestions for what to explore. Use when users first arrive or ask general questions like 'what can you help with?' or 'what's going on?'")
     async def get_started():
         data = call_tool_safe("get_started", {})
         return ToolResponse(data=data)

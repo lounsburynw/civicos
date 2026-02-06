@@ -18395,3 +18395,27 @@ After debugging, implemented artifact pinning to prevent auto-close:
 - src/lib/components/chat/Chat.svelte - handleOpenArtifact, initNewChat, getContents
 - src/lib/components/chat/Artifacts.svelte - close button, subscription check
 - src/routes/(app)/+page.svelte - event dispatch approach
+
+### Session: 2026-02-05 - City Pulse Left Pane
+
+**Accomplished:**
+- Created left-side City Pulse pane mirroring Open WebUI's artifact architecture
+- Removed hard-coded tool detection hacks from Chat.svelte
+- Improved MCP tool descriptions (city_pulse, get_started) for LLM-driven approach
+- Deployed MCP changes to Modal
+- Styled City Pulse to match Open WebUI aesthetic (clean, minimal, dark mode support)
+- Added subtle background contrast (#f9fafb light, #111827 dark)
+
+**Files modified (civicos-openwebui):**
+- src/lib/components/civic/CityPulse.svelte - Main widget component
+- src/lib/components/civic/CityPulsePane.svelte - Pane container (mirrors ChatControls)
+- src/lib/stores/index.ts - Added showCityPulse store
+- src/lib/components/chat/Chat.svelte - Integrated CityPulsePane
+- src/lib/components/chat/Placeholder.svelte - Removed inline CityPulse
+- src/routes/(app)/+page.svelte - Cleaned up
+
+**Files modified (civicos):**
+- apps/civicos-mcp/tools/registry.py - Improved tool descriptions
+- apps/civicos-mcp/rest_api.py - Updated OpenAPI descriptions
+
+**Next:** Expand City Pulse pane into secondary sidebar with multiple civic widgets
