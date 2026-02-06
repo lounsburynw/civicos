@@ -2581,7 +2581,7 @@
       },
       "civic_dashboard_mvp": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 2,
         "artifact": "MVP civic dashboard with 3+ visualization primitives",
         "description": "Implement minimum viable dashboard UX before MCP registry listing. Must include: (1) at least 3 visualization primitives (calendar heatmap, decision flow, issue geography), (2) visible engagement ladder progression (awareness \u2192 participation path), (3) data-forward presentation (patterns emerge, no editorializing), (4) multi-surface capability (same query works in chat + visual rendering).",
         "note": "2026-02-05: LLM-triggered artifacts implemented. Chat detects civic intent (patterns like 'what's happening', 'upcoming meetings', 'san rafael') and auto-opens City Pulse widget. Previous: Open WebUI fork integration, live Modal MCP data flow. Next: viz primitives, layout CSS.",
@@ -4107,7 +4107,7 @@
     },
     "action_event_preparation": {
       "status": "pending",
-      "priority": 1,
+      "priority": 0,
       "description": "Agent logic to prepare unsigned Nostr action events (kinds 30810, 30811, 30812). Agent reasons about what action to suggest, prepares the event payload, returns it to client for signing. This is the 'write' side that MCP doesn't do.",
       "test_file": "apps/civicos-workspace/tests/unit/action-preparation.spec.ts",
       "subtasks": [
