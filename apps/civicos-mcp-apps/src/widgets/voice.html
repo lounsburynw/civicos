@@ -170,6 +170,37 @@
       background: var(--watch-bg);
     }
 
+    /* Current stance indicator (already cast) */
+    .voice-btn.current {
+      position: relative;
+    }
+
+    .voice-btn.current::after {
+      content: "✓ You";
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .voice-btn.support.current::after {
+      background: var(--support);
+      color: white;
+    }
+
+    .voice-btn.oppose.current::after {
+      background: var(--oppose);
+      color: white;
+    }
+
+    .voice-btn.watch.current::after {
+      background: var(--watch);
+      color: white;
+    }
+
     .btn-icon {
       font-size: 24px;
       margin-bottom: 4px;
@@ -343,7 +374,8 @@
       context: "",
       relevance: null,
       counts: { support: 0, oppose: 0, watching: 0, total: 0 },
-      selectedStance: null,
+      selectedStance: null,      // What user is about to cast
+      currentStance: null,       // What user has already cast (if any)
       identityMode: "anonymous", // "anonymous" | "verified"
       status: null, // { type: "success" | "error" | "loading", message: string }
       isSubmitting: false,
@@ -430,9 +462,19 @@
 
         if (parsed.success) {
           // Optimistic update
+          const wasChanging = state.currentStance && state.currentStance !== state.selectedStance;
+          const wasNew = !state.currentStance;
+
+          if (wasChanging) {
+            // Changing stance - decrement old, increment new
+            state.counts[state.currentStance]--;
+          } else if (wasNew) {
+            // New voice - increment total
+            state.counts.total++;
+          }
           state.counts[state.selectedStance]++;
-          state.counts.total++;
-          state.status = { type: "success", message: "Your voice has been heard!" };
+          state.currentStance = state.selectedStance;
+          state.status = { type: "success", message: wasChanging ? "Your voice has been updated!" : "Your voice has been heard!" };
 
           // Update host context so LLM knows user voiced
           app.updateModelContext({
@@ -512,7 +554,7 @@
 
     // ─────────── Render ───────────
     function render() {
-      const { entityId, context, relevance, counts, selectedStance, identityMode, status, isSubmitting } = state;
+      const { entityId, context, relevance, counts, selectedStance, currentStance, identityMode, status, isSubmitting } = state;
 
       const total = counts.total || (counts.support + counts.oppose + counts.watching);
       const recentText = counts.recentActivity?.lastHour
@@ -521,23 +563,51 @@
         ? "Community voices"
         : "Be the first to voice";
 
+      // Determine button state and text
       let castBtnClass = "cast-btn";
       let castBtnText = "Select a position above";
+      let castBtnDisabled = !selectedStance || isSubmitting;
 
-      if (selectedStance === "support") {
-        castBtnClass += " support-selected";
-        castBtnText = "Cast Support";
-      } else if (selectedStance === "oppose") {
-        castBtnClass += " oppose-selected";
-        castBtnText = "Cast Opposition";
-      } else if (selectedStance === "watching") {
-        castBtnClass += " ready";
-        castBtnText = "Start Watching";
+      if (selectedStance) {
+        const isChanging = currentStance && currentStance !== selectedStance;
+        const isSame = currentStance === selectedStance;
+
+        if (isSame) {
+          // Already cast this stance
+          castBtnText = `You already ${selectedStance === "watching" ? "watch" : selectedStance} this`;
+          castBtnDisabled = true;
+        } else if (isChanging) {
+          // Changing stance
+          castBtnText = `Change to ${selectedStance === "watching" ? "Watch" : selectedStance.charAt(0).toUpperCase() + selectedStance.slice(1)}`;
+          castBtnClass += selectedStance === "support" ? " support-selected" : selectedStance === "oppose" ? " oppose-selected" : " ready";
+        } else {
+          // New cast
+          if (selectedStance === "support") {
+            castBtnClass += " support-selected";
+            castBtnText = "Cast Support";
+          } else if (selectedStance === "oppose") {
+            castBtnClass += " oppose-selected";
+            castBtnText = "Cast Opposition";
+          } else if (selectedStance === "watching") {
+            castBtnClass += " ready";
+            castBtnText = "Start Watching";
+          }
+        }
       }
 
       if (isSubmitting) {
         castBtnText = "Casting...";
       }
+
+      // Helper to determine button classes
+      const btnClass = (stance) => {
+        let classes = `voice-btn ${stance === "watching" ? "watch" : stance}`;
+        if (selectedStance === stance) classes += " selected";
+        if (currentStance === stance) classes += " current";
+        return classes;
+      };
+
+      const sectionLabel = currentStance ? "Change Your Voice" : "Add Your Voice";
 
       document.getElementById("app").innerHTML = `
         <div class="header">
@@ -559,10 +629,10 @@
         </div>
 
         <div class="voice-section">
-          <div class="section-label">Add Your Voice</div>
+          <div class="section-label">${sectionLabel}</div>
           <div class="voice-buttons">
             <button
-              class="voice-btn support ${selectedStance === "support" ? "selected" : ""}"
+              class="${btnClass("support")}"
               onclick="selectStance('support')"
             >
               <div class="btn-icon">👍</div>
@@ -570,7 +640,7 @@
               <div class="btn-count">${counts.support}</div>
             </button>
             <button
-              class="voice-btn oppose ${selectedStance === "oppose" ? "selected" : ""}"
+              class="${btnClass("oppose")}"
               onclick="selectStance('oppose')"
             >
               <div class="btn-icon">👎</div>
@@ -578,7 +648,7 @@
               <div class="btn-count">${counts.oppose}</div>
             </button>
             <button
-              class="voice-btn watch ${selectedStance === "watching" ? "selected" : ""}"
+              class="${btnClass("watching")}"
               onclick="selectStance('watching')"
             >
               <div class="btn-icon">👀</div>
@@ -607,7 +677,7 @@
           <button
             class="${castBtnClass}"
             onclick="castVoice()"
-            ${!selectedStance || isSubmitting ? "disabled" : ""}
+            ${castBtnDisabled ? "disabled" : ""}
           >
             ${castBtnText}
           </button>

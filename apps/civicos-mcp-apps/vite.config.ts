@@ -1,28 +1,20 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { viteSingleFile } from "vite-plugin-singlefile";
-import { readdirSync } from "fs";
 import { resolve } from "path";
 
-// Auto-discover widgets
-const widgetsDir = resolve(__dirname, "src/widgets");
-const widgets = readdirSync(widgetsDir)
-  .filter((f) => f.endsWith(".html"))
-  .reduce(
-    (acc, file) => {
-      const name = file.replace(".html", "");
-      acc[name] = resolve(widgetsDir, file);
-      return acc;
-    },
-    {} as Record<string, string>
-  );
+// Build one widget at a time (singlefile plugin limitation)
+// Use WIDGET env var to specify which one
+const widget = process.env.WIDGET || "voice";
 
 export default defineConfig({
   plugins: [vue(), viteSingleFile()],
   build: {
-    outDir: "dist/widgets",
+    // Each widget gets its own output directory to avoid overwrites
+    outDir: `dist/widgets/${widget}`,
+    emptyOutDir: true,
     rollupOptions: {
-      input: widgets,
+      input: resolve(__dirname, `src/widgets/${widget}.html`),
     },
   },
   resolve: {

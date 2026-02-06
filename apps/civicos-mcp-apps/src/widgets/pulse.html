@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>City Pulse</title>
+  <style>
+    :root {
+      --primary: #3b82f6;
+      --primary-bg: #eff6ff;
+      --success: #22c55e;
+      --success-bg: #dcfce7;
+      --warning: #f59e0b;
+      --warning-bg: #fef3c7;
+      --danger: #ef4444;
+      --danger-bg: #fee2e2;
+      --text: #1a1a1a;
+      --text-muted: #666;
+      --text-light: #999;
+      --border: #e5e5e5;
+      --bg: #fafafa;
+      --card-bg: white;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .pulse-widget {
+      max-width: 500px;
+      margin: 0 auto;
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    /* ─────────── Header ─────────── */
+    .header {
+      padding: 20px;
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+      color: white;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .city-name {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      background: rgba(255,255,255,0.2);
+      padding: 4px 10px;
+      border-radius: 12px;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: #4ade80;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.2); }
+    }
+
+    .header-subtitle {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+
+    /* ─────────── Stats Bar ─────────── */
+    .stats-bar {
+      display: flex;
+      background: rgba(0,0,0,0.1);
+      margin: 16px -20px -20px;
+      padding: 12px 20px;
+    }
+
+    .stat {
+      flex: 1;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      opacity: 0.8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ─────────── Sections ─────────── */
+    .section {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section:last-child {
+      border-bottom: none;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .section-action {
+      font-size: 12px;
+      color: var(--primary);
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .section-action:hover {
+      text-decoration: underline;
+    }
+
+    /* ─────────── Meeting Cards ─────────── */
+    .meeting-card {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+      background: var(--bg);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .meeting-card:last-child {
+      margin-bottom: 0;
+    }
+
+    .meeting-card:hover {
+      background: var(--primary-bg);
+    }
+
+    .meeting-date {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 48px;
+      padding: 8px;
+      background: var(--card-bg);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .meeting-day {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1;
+    }
+
+    .meeting-month {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .meeting-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .meeting-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+
+    .meeting-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .meeting-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 6px;
+    }
+
+    .meeting-item-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--warning-bg);
+      color: #92400e;
+    }
+
+    .meeting-item-tag.hot {
+      background: var(--danger-bg);
+      color: #991b1b;
+    }
+
+    /* ─────────── Trending Cards ─────────── */
+    .trending-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: var(--bg);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .trending-card:hover {
+      background: var(--primary-bg);
+    }
+
+    .trending-rank {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-light);
+      min-width: 24px;
+    }
+
+    .trending-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .trending-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .trending-stats {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .trending-stat {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .trending-stat.support { color: var(--success); }
+    .trending-stat.oppose { color: var(--danger); }
+
+    .trending-momentum {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 12px;
+      background: var(--success-bg);
+      color: #166534;
+      white-space: nowrap;
+    }
+
+    .trending-momentum.high {
+      background: var(--danger-bg);
+      color: #991b1b;
+    }
+
+    /* ─────────── Issues Section ─────────── */
+    .issues-summary {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .issue-cluster {
+      flex: 1;
+      min-width: 140px;
+      padding: 12px;
+      background: var(--bg);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .issue-cluster:hover {
+      background: var(--primary-bg);
+    }
+
+    .issue-cluster-icon {
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+
+    .issue-cluster-count {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .issue-cluster-label {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .issue-cluster-trend {
+      font-size: 11px;
+      color: var(--success);
+      margin-top: 4px;
+    }
+
+    .issue-cluster-trend.up {
+      color: var(--danger);
+    }
+
+    /* ─────────── Quick Actions ─────────── */
+    .quick-actions {
+      display: flex;
+      gap: 8px;
+      padding: 16px 20px;
+      background: var(--bg);
+    }
+
+    .quick-action {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 8px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .quick-action:hover {
+      border-color: var(--primary);
+      background: var(--primary-bg);
+    }
+
+    .quick-action-icon {
+      font-size: 20px;
+    }
+
+    .quick-action-label {
+      font-size: 11px;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    /* ─────────── Your Topics (Personalized) ─────────── */
+    .your-topics {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .topic-tag {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--primary-bg);
+      border-radius: 16px;
+      font-size: 13px;
+      color: var(--primary);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .topic-tag:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    .topic-tag .badge {
+      background: var(--primary);
+      color: white;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+
+    .topic-tag:hover .badge {
+      background: white;
+      color: var(--primary);
+    }
+
+    /* ─────────── Empty State ─────────── */
+    .empty-state {
+      text-align: center;
+      padding: 20px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* ─────────── Footer ─────────── */
+    .footer {
+      padding: 12px 20px;
+      background: var(--bg);
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-light);
+    }
+
+    .footer a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    /* ─────────── Loading ─────────── */
+    .loading-skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="pulse-widget">
+    <!-- Loading state -->
+    <div class="header">
+      <div class="loading-skeleton" style="height: 24px; width: 60%; margin-bottom: 8px;"></div>
+      <div class="loading-skeleton" style="height: 16px; width: 40%;"></div>
+    </div>
+    <div class="section">
+      <div class="loading-skeleton" style="height: 80px; margin-bottom: 8px;"></div>
+      <div class="loading-skeleton" style="height: 80px;"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { App } from "@modelcontextprotocol/ext-apps";
+
+    // ─────────── State ───────────
+    let state = {
+      jurisdiction: "",
+      displayName: "",
+      timestamp: null,
+      stats: {
+        activeVoices: 0,
+        upcomingMeetings: 0,
+        openIssues: 0,
+      },
+      upcomingMeetings: [],
+      trending: [],
+      issueClusters: [],
+      yourTopics: [], // Personalized - topics user follows
+      recentActivity: [],
+    };
+
+    // ─────────── MCP App Connection ───────────
+    const app = new App({ name: "City Pulse", version: "1.0.0" });
+
+    app.ontoolresult = (result) => {
+      try {
+        const data = JSON.parse(result.content?.find((c) => c.type === "text")?.text || "{}");
+        Object.assign(state, data);
+        render();
+      } catch (e) {
+        console.error("Failed to parse tool result:", e);
+        renderError("Failed to load city data");
+      }
+    };
+
+    app.connect();
+
+    // ─────────── Actions ───────────
+    window.openMeeting = async (meetingId) => {
+      // Request meeting prep widget for this meeting
+      await app.callServerTool({
+        name: "meeting_prep",
+        arguments: { meeting_id: meetingId }
+      });
+    };
+
+    window.openTrending = async (entityId) => {
+      // Request voice widget for this item
+      await app.callServerTool({
+        name: "voice_interface",
+        arguments: { entity_id: entityId }
+      });
+    };
+
+    window.openIssues = async (category) => {
+      // Request issues explorer for this category
+      await app.callServerTool({
+        name: "issue_explorer",
+        arguments: { category: category }
+      });
+    };
+
+    window.openTopic = async (topic) => {
+      // Search for topic-related content
+      await app.callServerTool({
+        name: "search_meeting_history",
+        arguments: { query: topic }
+      });
+    };
+
+    window.quickAction = async (action) => {
+      const actions = {
+        'meetings': { tool: 'get_upcoming_meetings', args: { days: 30 } },
+        'issues': { tool: 'issue_explorer', args: {} },
+        'budget': { tool: 'budget_explorer', args: {} },
+        'voice': { tool: 'voice_interface', args: { entity_id: 'browse' } },
+      };
+      const { tool, args } = actions[action] || {};
+      if (tool) {
+        await app.callServerTool({ name: tool, arguments: args });
+      }
+    };
+
+    // ─────────── Render ───────────
+    function render() {
+      const {
+        jurisdiction, displayName, stats,
+        upcomingMeetings, trending, issueClusters, yourTopics
+      } = state;
+
+      document.getElementById("app").innerHTML = `
+        <div class="header">
+          <div class="header-top">
+            <div class="city-name">${escapeHtml(displayName || jurisdiction)}</div>
+            <div class="live-badge">
+              <span class="live-dot"></span>
+              Live
+            </div>
+          </div>
+          <div class="header-subtitle">Your civic pulse for ${formatDate(new Date())}</div>
+
+          <div class="stats-bar">
+            <div class="stat">
+              <div class="stat-value">${stats.activeVoices || 0}</div>
+              <div class="stat-label">Active Voices</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">${stats.upcomingMeetings || 0}</div>
+              <div class="stat-label">Meetings</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value">${stats.openIssues || 0}</div>
+              <div class="stat-label">Open Issues</div>
+            </div>
+          </div>
+        </div>
+
+        ${yourTopics.length > 0 ? `
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">📌 Your Topics</div>
+            <span class="section-action" onclick="quickAction('settings')">Manage</span>
+          </div>
+          <div class="your-topics">
+            ${yourTopics.map(t => `
+              <span class="topic-tag" onclick="openTopic('${escapeHtml(t.name)}')">
+                ${escapeHtml(t.name)}
+                ${t.updates ? `<span class="badge">${t.updates}</span>` : ''}
+              </span>
+            `).join('')}
+          </div>
+        </div>
+        ` : ''}
+
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">📅 Upcoming Decisions</div>
+            <span class="section-action" onclick="quickAction('meetings')">See all</span>
+          </div>
+          ${upcomingMeetings.length > 0 ? upcomingMeetings.slice(0, 3).map(m => `
+            <div class="meeting-card" onclick="openMeeting('${escapeHtml(m.id)}')">
+              <div class="meeting-date">
+                <div class="meeting-day">${new Date(m.date).getDate()}</div>
+                <div class="meeting-month">${new Date(m.date).toLocaleString('default', { month: 'short' })}</div>
+              </div>
+              <div class="meeting-info">
+                <div class="meeting-name">${escapeHtml(m.name)}</div>
+                <div class="meeting-meta">${escapeHtml(m.time)} · ${escapeHtml(m.location || 'City Hall')}</div>
+                ${m.hotItems?.length > 0 ? `
+                  <div class="meeting-items">
+                    ${m.hotItems.slice(0, 2).map(item => `
+                      <span class="meeting-item-tag ${item.hot ? 'hot' : ''}">${escapeHtml(item.title)}</span>
+                    `).join('')}
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          `).join('') : `
+            <div class="empty-state">No upcoming meetings scheduled</div>
+          `}
+        </div>
+
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">🔥 Trending Now</div>
+            <span class="section-action" onclick="quickAction('voice')">Voice on more</span>
+          </div>
+          ${trending.length > 0 ? trending.slice(0, 4).map((t, i) => `
+            <div class="trending-card" onclick="openTrending('${escapeHtml(t.entityId)}')">
+              <div class="trending-rank">${i + 1}</div>
+              <div class="trending-content">
+                <div class="trending-title">${escapeHtml(t.title)}</div>
+                <div class="trending-stats">
+                  <span class="trending-stat support">👍 ${t.support}</span>
+                  <span class="trending-stat oppose">👎 ${t.oppose}</span>
+                  <span class="trending-stat">👀 ${t.watching}</span>
+                </div>
+              </div>
+              ${t.momentum ? `
+                <div class="trending-momentum ${t.momentum > 10 ? 'high' : ''}">
+                  +${t.momentum} today
+                </div>
+              ` : ''}
+            </div>
+          `).join('') : `
+            <div class="empty-state">No trending topics yet. Be the first to voice!</div>
+          `}
+        </div>
+
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">📍 Local Issues</div>
+            <span class="section-action" onclick="quickAction('issues')">See map</span>
+          </div>
+          <div class="issues-summary">
+            ${issueClusters.length > 0 ? issueClusters.slice(0, 3).map(c => `
+              <div class="issue-cluster" onclick="openIssues('${escapeHtml(c.category)}')">
+                <div class="issue-cluster-icon">${c.icon || '📋'}</div>
+                <div class="issue-cluster-count">${c.count}</div>
+                <div class="issue-cluster-label">${escapeHtml(c.label)}</div>
+                ${c.trend ? `
+                  <div class="issue-cluster-trend ${c.trend > 0 ? 'up' : ''}">
+                    ${c.trend > 0 ? '↑' : '↓'} ${Math.abs(c.trend)}% this month
+                  </div>
+                ` : ''}
+              </div>
+            `).join('') : `
+              <div class="empty-state" style="width: 100%;">No local issues data available</div>
+            `}
+          </div>
+        </div>
+
+        <div class="quick-actions">
+          <div class="quick-action" onclick="quickAction('meetings')">
+            <span class="quick-action-icon">📅</span>
+            <span class="quick-action-label">All Meetings</span>
+          </div>
+          <div class="quick-action" onclick="quickAction('issues')">
+            <span class="quick-action-icon">📍</span>
+            <span class="quick-action-label">Issue Map</span>
+          </div>
+          <div class="quick-action" onclick="quickAction('budget')">
+            <span class="quick-action-icon">💰</span>
+            <span class="quick-action-label">Budget</span>
+          </div>
+          <div class="quick-action" onclick="quickAction('voice')">
+            <span class="quick-action-icon">🗳️</span>
+            <span class="quick-action-label">Voice</span>
+          </div>
+        </div>
+
+        <div class="footer">
+          Data updated ${state.timestamp ? formatTimeAgo(state.timestamp) : 'just now'} ·
+          <a href="https://civicosproject.org" target="_blank">Powered by CivicOS</a>
+        </div>
+      `;
+    }
+
+    function renderError(message) {
+      document.getElementById("app").innerHTML = `
+        <div class="header">
+          <div class="city-name">City Pulse</div>
+        </div>
+        <div class="section">
+          <div class="empty-state">${escapeHtml(message)}</div>
+        </div>
+      `;
+    }
+
+    // ─────────── Helpers ───────────
+    function escapeHtml(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function formatDate(date) {
+      return date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric'
+      });
+    }
+
+    function formatTimeAgo(timestamp) {
+      const seconds = Math.floor((Date.now() - timestamp) / 1000);
+      if (seconds < 60) return 'just now';
+      if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+      if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+      return `${Math.floor(seconds / 86400)}d ago`;
+    }
+  </script>
+</body>
+</html>
