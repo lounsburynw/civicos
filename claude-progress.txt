@@ -18466,3 +18466,17 @@ After debugging, implemented artifact pinning to prevent auto-close:
   5. feat(personal-mcp): Modal deployment configuration
 - Pushed all 61 local commits (56 previously unpushed + 5 new) to origin/main
 - Skipped committing: chroma.sqlite3 binary, stray workspace claude-progress.txt, venv files
+
+### Live Voice Loop Test — PASSED
+
+End-to-end test of Personal MCP → Relay voice signing and verification:
+
+1. **Identity create** (POST /api/identity/create) — generated secp256k1 keypair, tier=private
+2. **Identity unlock** (POST /api/identity/unlock) — unlocked with password
+3. **Sign voice** (POST /api/sign/voice) — signed Nostr Kind 30800 event (support stance)
+4. **Broadcast to relay** (POST /coordination/voice) — relay verified BIP-340 Schnorr signature, accepted voice
+5. **Check counts** (GET /coordination/voice/counts/{entity}) — support: 1
+6. **Change stance** — signed oppose, broadcast → relay revoked old support, counts: oppose: 1
+7. **Tamper detection** — flipped signature byte → relay correctly rejected (400)
+
+**Issue found:** The relay server that was already running had stale code from before the Schnorr commit. After restarting, verification passed immediately. The root cause was the prior relay process loaded the old crypto module. No code bug — just a stale process.
