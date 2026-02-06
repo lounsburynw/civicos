@@ -81,3 +81,72 @@
 
 ### Next P0
 - vectors_e2e_cloud (build pgvector indexes from cloud SQL data)
+
+## Session 545 (2026-02-03) - Unified City Deployment
+
+**Item:** `unified_city_deployment` (P0)
+**Status:** COMPLETE
+
+### What Was Done
+Implemented unified config-driven workflow for deploying new cities with a single YAML config.
+
+1. **Unified Config Schema** (`data/jurisdictions/schema.yaml`)
+   - Documents all fields: identity, hierarchy, contact, governance, data_sources, financial, geography, tools, Modal config
+   - Merges extraction config (JSON) and MCP config (YAML) into single source
+
+2. **Jurisdiction Configs** (`data/jurisdictions/`)
+   - `city-san-rafael.yaml` - primary pilot city (ProudCity platform)
+   - `city-berkeley.yaml` - second city for validation (Granicus platform)
+   - `state-california.yaml` - state-level config
+   - `country-united-states.yaml` - federal-level config
+
+3. **Unified Config Loader** (`packages/civicos/src/civicos/jurisdiction_config.py`)
+   - `JurisdictionConfig` dataclass with all fields
+   - `load_jurisdiction_config()` - loads from YAML
+   - `get_active_jurisdictions()` - lists all configs
+   - `to_extraction_dict()` - backwards compatibility with extraction code
+   - Legacy properties: `source_id`, `source_type`, `base_url`, `archives`
+
+4. **Deploy CLI Command** (`packages/civicos/src/civicos/cli.py`)
+   - `civicos-deploy city-berkeley` - full deploy workflow
+   - `--dry-run` - show what would be done
+   - `--skip-modal` - config validation only
+   - `--skip-ingest` - deploy Modal but skip ingestion
+   - `--verbose` - detailed progress
+   - `--json` - machine-readable output
+
+### Usage
+```bash
+# Validate config
+civicos-deploy city-berkeley --dry-run --verbose
+
+# Full deploy (Modal + ingestion)
+civicos-deploy city-berkeley
+
+# Deploy Modal only (no ingestion)
+civicos-deploy city-berkeley --skip-ingest
+```
+
+### Files Created
+- `data/jurisdictions/schema.yaml` - unified schema documentation
+- `data/jurisdictions/city-san-rafael.yaml` - San Rafael unified config
+- `data/jurisdictions/city-berkeley.yaml` - Berkeley unified config
+- `data/jurisdictions/state-california.yaml` - California unified config
+- `data/jurisdictions/country-united-states.yaml` - Federal unified config
+- `packages/civicos/src/civicos/jurisdiction_config.py` - config loader
+
+### Files Modified
+- `packages/civicos/src/civicos/cli.py` - added deploy_main() and run_deploy()
+- `packages/civicos/pyproject.toml` - added civicos-deploy entry point
+- `pilot.json` - marked unified_city_deployment as ready
+
+### Remaining Work
+- Automatic Modal secret creation (currently manual)
+- Granicus extractor implementation for Berkeley
+
+### Tests
+- 42 smoke tests passed
+- Manual testing of civicos-deploy with --dry-run
+
+### Next P0
+- TBD (need to set in pilot.json before ending session)

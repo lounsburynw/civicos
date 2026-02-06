@@ -37,6 +37,14 @@ class Voice(BaseModel):
     public_key: str = Field(description="Public key (hex-encoded)")
     signature: str = Field(description="Signature of entity+stance (hex-encoded)")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+    jurisdiction: Optional[str] = Field(
+        default=None,
+        description="Jurisdiction code (e.g., 'city-san-rafael') for Nostr event tag reconstruction"
+    )
+    created_at: Optional[int] = Field(
+        default=None,
+        description="Unix timestamp from the signed Nostr event (for signature verification)"
+    )
     revoked: bool = Field(default=False)
 
     model_config = {"frozen": True}

@@ -1579,8 +1579,8 @@ def _get_default_relay_url() -> str:
     api_url = os.environ.get("CIVICOS_API_URL")
     if api_url:
         return api_url
-    # Default to localhost for local dev
-    return "http://localhost:8001"
+    # Default to localhost relay port for local dev
+    return "http://localhost:8003"
 
 
 def _resolve_relay_url(relay_url: str | None) -> str:
@@ -1813,6 +1813,8 @@ def broadcast_voice(
     stance = args.get("stance", "")
     public_key = args.get("public_key", "")
     signature = args.get("signature", "")
+    created_at = args.get("created_at")
+    voice_jurisdiction = args.get("jurisdiction", "")
     relay_urls = args.get("relay_urls", [])
 
     # Validate required fields
@@ -1824,6 +1826,8 @@ def broadcast_voice(
         return "Error: public_key is required"
     if not signature:
         return "Error: signature is required"
+    if created_at is None:
+        return "Error: created_at is required (Unix timestamp from signed Nostr event)"
 
     is_valid, sanitized, error = validate_input({
         "entity": entity,
@@ -1849,7 +1853,10 @@ def broadcast_voice(
         "stance": stance,
         "public_key": public_key,
         "signature": signature,
+        "created_at": created_at,
     }
+    if voice_jurisdiction:
+        payload["jurisdiction"] = voice_jurisdiction
 
     for relay_url in relay_urls:
         relay_url = relay_url.rstrip("/")

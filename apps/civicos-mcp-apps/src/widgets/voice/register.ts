@@ -118,8 +118,8 @@ The interface shows real-time voice counts and enables instant participation.
     resourceUri,
     { mimeType: RESOURCE_MIME_TYPE },
     async () => {
-      // Vite preserves directory structure, so output is in src/widgets/
-      const htmlPath = path.join(widgetsDir, "src", "widgets", "voice.html");
+      // Each widget is in its own subdirectory, vite preserves src structure
+      const htmlPath = path.join(widgetsDir, "voice", "src", "widgets", "voice.html");
       const html = await fs.readFile(htmlPath, "utf-8");
       return {
         contents: [{ uri: resourceUri, mimeType: RESOURCE_MIME_TYPE, text: html }],
@@ -138,6 +138,8 @@ The interface shows real-time voice counts and enables instant participation.
       stance: z.enum(["support", "oppose", "watching"]).describe("Position"),
       public_key: z.string().describe("Hex-encoded public key"),
       signature: z.string().describe("Hex-encoded signature"),
+      created_at: z.number().optional().describe("Unix timestamp from signed Nostr event"),
+      jurisdiction: z.string().optional().describe("Jurisdiction code from signed event"),
     },
     async (args) => {
       const result = await jurisdictionClient.broadcastVoice({
@@ -145,6 +147,8 @@ The interface shows real-time voice counts and enables instant participation.
         stance: args.stance,
         publicKey: args.public_key,
         signature: args.signature,
+        createdAt: args.created_at,
+        jurisdiction: args.jurisdiction,
       });
 
       return {
