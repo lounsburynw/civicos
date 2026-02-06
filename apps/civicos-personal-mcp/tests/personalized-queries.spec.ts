@@ -317,13 +317,13 @@ describe('Personalized Query Tools', () => {
   });
 
   describe('tools/list includes personalized query tools', () => {
-    it('lists 17 tools (9 identity + 5 context + 3 personalized query)', async () => {
+    it('lists 20 tools (9 identity + 3 prepare + 5 context + 3 personalized query)', async () => {
       const response = await request(server.getApp())
         .post('/mcp')
         .send({ jsonrpc: '2.0', method: 'tools/list', params: {}, id: 1 });
 
       const tools = response.body.result.tools;
-      expect(tools).toHaveLength(17);
+      expect(tools).toHaveLength(20);
 
       const toolNames = tools.map((t: { name: string }) => t.name);
       expect(toolNames).toContain('get_relevant_now');
@@ -333,9 +333,9 @@ describe('Personalized Query Tools', () => {
   });
 
   describe('health check shows updated tool count', () => {
-    it('reports 17 tools', async () => {
+    it('reports 20 tools', async () => {
       const response = await request(server.getApp()).get('/health');
-      expect(response.body.tools).toBe(17);
+      expect(response.body.tools).toBe(20);
     });
   });
 });

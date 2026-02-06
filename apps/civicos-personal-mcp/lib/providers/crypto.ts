@@ -48,6 +48,15 @@ export function hexToPrivateKey(hex: string): Uint8Array {
 }
 
 /**
+ * Compute SHA-256 hash and return as hex string.
+ * Useful for generating deterministic IDs from descriptions.
+ */
+export function sha256Hex(input: string): string {
+  const hash = sha256(new TextEncoder().encode(input));
+  return bytesToHex(hash);
+}
+
+/**
  * Compute the Nostr event ID per NIP-01.
  *
  * The ID is the SHA-256 hash of the serialized event:

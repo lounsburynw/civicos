@@ -33,7 +33,22 @@ import {
   createCompletionContent,
   createCompletionTags,
   verifyNostrEvent,
+  // Action event helpers (30810/30811/30812)
+  generateActionId,
+  generateCommitmentId,
+  generateCompletionId,
+  generateActionRef,
+  createActionEventContent,
+  createActionEventTags,
+  createActionCommitmentContent,
+  createActionCommitmentTags,
+  createActionCompletionContent,
+  createActionCompletionTags,
+  CIVIC_ACTION_TYPES,
+  EVIDENCE_TYPES,
+  sha256Hex,
 } from '../lib/providers/index.js';
+import type { CivicActionType, EvidenceType } from '../lib/providers/index.js';
 
 /**
  * Personal MCP Server configuration.
@@ -56,6 +71,9 @@ interface PersonalMCPConfig {
  * - identity_lock: Lock identity
  * - sign_voice: Sign a civic voice event
  * - sign_event: Sign an arbitrary Nostr event
+ * - prepare_action_event: Prepare unsigned kind 30810 action event
+ * - prepare_commitment: Prepare unsigned kind 30811 commitment
+ * - prepare_completion: Prepare unsigned kind 30812 completion
  */
 export class PersonalMCPServer {
   private server: Server;
@@ -281,6 +299,123 @@ export class PersonalMCPServer {
           required: ['kind', 'content'],
         },
       },
+      // ================================================================
+      // Action Event Preparation Tools (kinds 30810, 30811, 30812)
+      // ================================================================
+      {
+        name: 'prepare_action_event',
+        description:
+          'Prepare an unsigned civic action event (kind 30810). Defines a civic action that users can commit to and complete. Returns an unsigned Nostr event — use sign_event to sign it before broadcasting. Valid action types: written_comment, attend_meeting, public_comment, contact_official, signature, share, custom.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            initiative_id: {
+              type: 'string',
+              description:
+                'Initiative this action belongs to (e.g., "city-san-rafael:housing-element-2026")',
+            },
+            action_type: {
+              type: 'string',
+              enum: [
+                'written_comment',
+                'attend_meeting',
+                'public_comment',
+                'contact_official',
+                'signature',
+                'share',
+                'custom',
+              ],
+              description: 'Type of civic action',
+            },
+            description: {
+              type: 'string',
+              description:
+                'Human-readable description of the action (e.g., "Submit a written comment supporting the Housing Element Update")',
+            },
+            jurisdiction: {
+              type: 'string',
+              description: 'Jurisdiction identifier (e.g., "city-san-rafael")',
+            },
+            target: {
+              type: 'string',
+              description:
+                'Target of the action (e.g., email address, meeting room, submission URL)',
+            },
+            deadline: {
+              type: 'string',
+              description: 'ISO 8601 deadline for completing the action (e.g., "2026-02-15T17:00:00Z")',
+            },
+            template: {
+              type: 'string',
+              description:
+                'Template text for the action (e.g., a comment template the user can customize)',
+            },
+            target_count: {
+              type: 'number',
+              description: 'Target number of completions needed (e.g., 10 comments)',
+            },
+          },
+          required: ['initiative_id', 'action_type', 'description', 'jurisdiction'],
+        },
+      },
+      {
+        name: 'prepare_commitment',
+        description:
+          'Prepare an unsigned commitment event (kind 30811). Records a user\'s commitment to take a civic action defined by a 30810 event. Returns an unsigned Nostr event — use sign_event to sign it before broadcasting.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            action_id: {
+              type: 'string',
+              description:
+                'Action event ID (d-tag of the 30810 event, e.g., "action:city-san-rafael:housing-element-2026:written_comment:a1b2c3d4")',
+            },
+            action_creator_pubkey: {
+              type: 'string',
+              description: 'Public key (hex) of the action event creator, needed for the a-tag reference',
+            },
+            jurisdiction: {
+              type: 'string',
+              description: 'Jurisdiction identifier (e.g., "city-san-rafael")',
+            },
+          },
+          required: ['action_id', 'action_creator_pubkey', 'jurisdiction'],
+        },
+      },
+      {
+        name: 'prepare_completion',
+        description:
+          'Prepare an unsigned completion event (kind 30812). Records that a user completed a civic action with evidence. Returns an unsigned Nostr event — use sign_event to sign it before broadcasting.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            action_id: {
+              type: 'string',
+              description:
+                'Action event ID (d-tag of the 30810 event)',
+            },
+            action_creator_pubkey: {
+              type: 'string',
+              description: 'Public key (hex) of the action event creator',
+            },
+            evidence_type: {
+              type: 'string',
+              enum: ['self_report', 'email_confirmation', 'attendance_check', 'verified'],
+              description: 'Type of evidence provided for completion',
+            },
+            jurisdiction: {
+              type: 'string',
+              description: 'Jurisdiction identifier (e.g., "city-san-rafael")',
+            },
+            evidence_content: {
+              type: 'string',
+              description:
+                'Evidence content (e.g., URL to submitted comment, confirmation code, screenshot link)',
+            },
+          },
+          required: ['action_id', 'action_creator_pubkey', 'evidence_type', 'jurisdiction'],
+        },
+      },
     ];
   }
 
@@ -355,6 +490,36 @@ export class PersonalMCPServer {
           args.kind as number,
           args.content as string,
           (args.tags as string[][]) ?? []
+        );
+
+      case 'prepare_action_event':
+        return this.handlePrepareActionEvent(
+          args.initiative_id as string,
+          args.action_type as CivicActionType,
+          args.description as string,
+          args.jurisdiction as string,
+          {
+            target: args.target as string | undefined,
+            deadline: args.deadline as string | undefined,
+            template: args.template as string | undefined,
+            targetCount: args.target_count as number | undefined,
+          }
+        );
+
+      case 'prepare_commitment':
+        return this.handlePrepareCommitment(
+          args.action_id as string,
+          args.action_creator_pubkey as string,
+          args.jurisdiction as string
+        );
+
+      case 'prepare_completion':
+        return this.handlePrepareCompletion(
+          args.action_id as string,
+          args.action_creator_pubkey as string,
+          args.evidence_type as EvidenceType,
+          args.jurisdiction as string,
+          args.evidence_content as string | undefined
         );
 
       default:
@@ -572,6 +737,182 @@ export class PersonalMCPServer {
       success: true,
       event: result.event,
       message: `Completion signed for action: ${actionId}${evidenceUrl ? ` with evidence: ${evidenceUrl}` : ''}`,
+    };
+  }
+
+  // ================================================================
+  // Action Event Preparation Handlers (kinds 30810, 30811, 30812)
+  // ================================================================
+
+  private async handlePrepareActionEvent(
+    initiativeId: string,
+    actionType: CivicActionType,
+    description: string,
+    jurisdiction: string,
+    options: {
+      target?: string;
+      deadline?: string;
+      template?: string;
+      targetCount?: number;
+    }
+  ): Promise<unknown> {
+    // Validate action type
+    if (!CIVIC_ACTION_TYPES.includes(actionType)) {
+      throw new Error(
+        `Invalid action_type: "${actionType}". Must be one of: ${CIVIC_ACTION_TYPES.join(', ')}`
+      );
+    }
+
+    // Validate deadline format if provided
+    if (options.deadline) {
+      const parsed = Date.parse(options.deadline);
+      if (isNaN(parsed)) {
+        throw new Error(`Invalid deadline format: "${options.deadline}". Use ISO 8601 (e.g., "2026-02-15T17:00:00Z")`);
+      }
+    }
+
+    // Generate deterministic action ID (matches Python CivicActionService)
+    const descHashFull = sha256Hex(description);
+    const descHashForId = descHashFull.slice(0, 8);
+    const descHashForContent = descHashFull.slice(0, 16);
+    const actionId = generateActionId(initiativeId, actionType, descHashForId);
+
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    // Build unsigned Nostr event
+    const content = createActionEventContent(actionId, actionType, descHashForContent, timestamp);
+    const tags = createActionEventTags(actionId, initiativeId, actionType, jurisdiction, {
+      description,
+      target: options.target,
+      deadline: options.deadline,
+      template: options.template,
+      targetCount: options.targetCount,
+    });
+
+    const unsignedEvent: NostrEvent = {
+      created_at: timestamp,
+      kind: CivicEventKinds.ACTION_EVENT,
+      tags,
+      content,
+    };
+
+    return {
+      action_id: actionId,
+      unsigned_event: unsignedEvent,
+      metadata: {
+        initiative_id: initiativeId,
+        action_type: actionType,
+        description,
+        jurisdiction,
+        target: options.target ?? null,
+        deadline: options.deadline ?? null,
+        template: options.template ?? null,
+        target_count: options.targetCount ?? null,
+      },
+      instructions: 'This event is unsigned. Call sign_event with the kind, content, and tags to sign it, then broadcast to the relay.',
+    };
+  }
+
+  private async handlePrepareCommitment(
+    actionId: string,
+    actionCreatorPubkey: string,
+    jurisdiction: string
+  ): Promise<unknown> {
+    // Get user's public key for commitment ID
+    const pubkey = await this.identityManager.getPublicKey();
+    if (!pubkey) {
+      throw new Error('No identity found. Create or import one first, then unlock it.');
+    }
+
+    // Generate commitment ID and action reference
+    const publicKeyPrefix = pubkey.slice(0, 16);
+    const commitmentId = generateCommitmentId(publicKeyPrefix, actionId);
+    const actionRef = generateActionRef(actionCreatorPubkey, actionId);
+
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    // Build unsigned Nostr event
+    const content = createActionCommitmentContent(commitmentId, actionRef);
+    const tags = createActionCommitmentTags(commitmentId, actionRef, jurisdiction);
+
+    const unsignedEvent: NostrEvent = {
+      created_at: timestamp,
+      kind: CivicEventKinds.ACTION_COMMITMENT,
+      tags,
+      content,
+    };
+
+    return {
+      commitment_id: commitmentId,
+      action_ref: actionRef,
+      unsigned_event: unsignedEvent,
+      metadata: {
+        action_id: actionId,
+        action_creator_pubkey: actionCreatorPubkey,
+        jurisdiction,
+        committer_pubkey: pubkey,
+      },
+      instructions: 'This event is unsigned. Call sign_event with the kind, content, and tags to sign it, then broadcast to the relay.',
+    };
+  }
+
+  private async handlePrepareCompletion(
+    actionId: string,
+    actionCreatorPubkey: string,
+    evidenceType: EvidenceType,
+    jurisdiction: string,
+    evidenceContent?: string
+  ): Promise<unknown> {
+    // Validate evidence type
+    if (!EVIDENCE_TYPES.includes(evidenceType)) {
+      throw new Error(
+        `Invalid evidence_type: "${evidenceType}". Must be one of: ${EVIDENCE_TYPES.join(', ')}`
+      );
+    }
+
+    // Get user's public key for completion ID
+    const pubkey = await this.identityManager.getPublicKey();
+    if (!pubkey) {
+      throw new Error('No identity found. Create or import one first, then unlock it.');
+    }
+
+    // Generate completion ID and action reference
+    const publicKeyPrefix = pubkey.slice(0, 16);
+    const completionId = generateCompletionId(publicKeyPrefix, actionId);
+    const actionRef = generateActionRef(actionCreatorPubkey, actionId);
+
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    // Build unsigned Nostr event
+    const content = createActionCompletionContent(completionId, actionRef, evidenceType);
+    const tags = createActionCompletionTags(
+      completionId,
+      actionRef,
+      jurisdiction,
+      evidenceType,
+      evidenceContent
+    );
+
+    const unsignedEvent: NostrEvent = {
+      created_at: timestamp,
+      kind: CivicEventKinds.ACTION_COMPLETION,
+      tags,
+      content,
+    };
+
+    return {
+      completion_id: completionId,
+      action_ref: actionRef,
+      unsigned_event: unsignedEvent,
+      metadata: {
+        action_id: actionId,
+        action_creator_pubkey: actionCreatorPubkey,
+        evidence_type: evidenceType,
+        evidence_content: evidenceContent ?? null,
+        jurisdiction,
+        completer_pubkey: pubkey,
+      },
+      instructions: 'This event is unsigned. Call sign_event with the kind, content, and tags to sign it, then broadcast to the relay.',
     };
   }
 

@@ -27,6 +27,24 @@ export {
   createCommitmentTags,
   createCompletionContent,
   createCompletionTags,
+  // Action event helpers (kinds 30810/30811/30812)
+  generateActionId,
+  generateCommitmentId,
+  generateCompletionId,
+  generateActionRef,
+  createActionEventContent,
+  createActionEventTags,
+  createActionCommitmentContent,
+  createActionCommitmentTags,
+  createActionCompletionContent,
+  createActionCompletionTags,
+  CIVIC_ACTION_TYPES,
+  EVIDENCE_TYPES,
+} from './types.js';
+
+export type {
+  CivicActionType,
+  EvidenceType,
 } from './types.js';
 
 // Crypto utilities
@@ -45,6 +63,7 @@ export {
   npubToPublicKey,
   privateKeyToNsec,
   nsecToPrivateKey,
+  sha256Hex,
 } from './crypto.js';
 
 // Providers
