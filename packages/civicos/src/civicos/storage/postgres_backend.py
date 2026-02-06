@@ -84,10 +84,38 @@ class PostgresBackend:
         self._conn_string = connection_string
         self._schema_ensured = connection_string in self._schemas_verified
 
-    def _get_connection(self):
-        """Get a database connection with dict cursor factory."""
-        conn = psycopg2.connect(self._conn_string)
-        return conn
+    def _get_connection(self, retries: int = 3, retry_delay: float = 1.0):
+        """Get a database connection with keepalive settings and retry logic.
+
+        Configured for stability with connection poolers (PgBouncer/Supabase):
+        - TCP keepalive enabled to detect dropped connections
+        - Retry logic for transient connection failures
+        - Short keepalive intervals suitable for cloud environments
+
+        Args:
+            retries: Number of connection retry attempts (default 3)
+            retry_delay: Seconds to wait between retries (default 1.0)
+        """
+        last_error = None
+        for attempt in range(retries):
+            try:
+                conn = psycopg2.connect(
+                    self._conn_string,
+                    # TCP keepalive settings for connection stability
+                    keepalives=1,  # Enable TCP keepalive
+                    keepalives_idle=30,  # Start keepalive after 30s idle
+                    keepalives_interval=10,  # Send keepalive every 10s
+                    keepalives_count=5,  # Close after 5 failed keepalives
+                    connect_timeout=30,  # Connection timeout in seconds
+                )
+                return conn
+            except psycopg2.OperationalError as e:
+                last_error = e
+                if attempt < retries - 1:
+                    time.sleep(retry_delay * (attempt + 1))  # Exponential backoff
+                    continue
+                raise
+        raise last_error
 
     @property
     def backend_type(self) -> str:
