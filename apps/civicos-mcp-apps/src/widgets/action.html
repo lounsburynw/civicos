@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CivicOS Action</title>
+  <style>
+    :root {
+      --commit: #8b5cf6;
+      --commit-bg: #ede9fe;
+      --complete: #22c55e;
+      --complete-bg: #dcfce7;
+      --text: #1a1a1a;
+      --text-muted: #666;
+      --border: #e5e5e5;
+      --bg: #fafafa;
+      --progress-bg: #e5e7eb;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .widget {
+      max-width: 420px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    /* ─────────── Header ─────────── */
+    .header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .action-type-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      background: var(--commit-bg);
+      color: #6d28d9;
+    }
+
+    .action-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .action-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: ui-monospace, monospace;
+    }
+
+    .deadline {
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: #fef3c7;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #92400e;
+    }
+
+    /* ─────────── Progress ─────────── */
+    .progress-section {
+      padding: 16px 20px;
+      background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .progress-counts {
+      display: flex;
+      gap: 16px;
+    }
+
+    .progress-stat {
+      text-align: center;
+    }
+
+    .progress-stat .count {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .progress-stat .label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .progress-stat.committed .count { color: var(--commit); }
+    .progress-stat.completed .count { color: var(--complete); }
+
+    .progress-live {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--commit);
+      font-weight: 500;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--commit);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: var(--progress-bg);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+
+    .progress-bar-fill.committed {
+      background: var(--commit);
+    }
+
+    .progress-bar-fill.completed {
+      background: var(--complete);
+    }
+
+    .progress-target {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: right;
+    }
+
+    /* ─────────── Action Buttons ─────────── */
+    .action-section {
+      padding: 20px;
+    }
+
+    .section-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 16px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .action-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .action-btn.commit:hover, .action-btn.commit.selected {
+      border-color: var(--commit);
+      background: var(--commit-bg);
+    }
+
+    .action-btn.complete:hover, .action-btn.complete.selected {
+      border-color: var(--complete);
+      background: var(--complete-bg);
+    }
+
+    .action-btn.done {
+      border-color: var(--complete);
+      background: var(--complete-bg);
+      cursor: default;
+    }
+
+    .action-btn .btn-icon {
+      font-size: 24px;
+      margin-bottom: 4px;
+    }
+
+    .action-btn .btn-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .action-btn .btn-sublabel {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .action-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* ─────────── Evidence Form ─────────── */
+    .evidence-form {
+      padding: 0 20px 16px;
+    }
+
+    .evidence-select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      color: var(--text);
+      background: white;
+      margin-bottom: 8px;
+      appearance: auto;
+    }
+
+    .evidence-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      color: var(--text);
+      resize: vertical;
+      min-height: 60px;
+      font-family: inherit;
+    }
+
+    .evidence-input::placeholder {
+      color: #999;
+    }
+
+    /* ─────────── Submit Button ─────────── */
+    .submit-section {
+      padding: 0 20px 20px;
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .submit-btn.commit-ready {
+      background: var(--commit);
+      color: white;
+    }
+
+    .submit-btn.commit-ready:hover {
+      background: #7c3aed;
+      transform: translateY(-1px);
+    }
+
+    .submit-btn.complete-ready {
+      background: var(--complete);
+      color: white;
+    }
+
+    .submit-btn.complete-ready:hover {
+      background: #16a34a;
+      transform: translateY(-1px);
+    }
+
+    .submit-btn:disabled {
+      background: var(--border);
+      color: var(--text-muted);
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* ─────────── Status Messages ─────────── */
+    .status {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .status.success {
+      background: var(--complete-bg);
+      color: #166534;
+    }
+
+    .status.success::before {
+      content: "\2713 ";
+    }
+
+    .status.error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .status.loading {
+      background: var(--commit-bg);
+      color: #5b21b6;
+    }
+
+    /* ─────────── Footer ─────────── */
+    .footer {
+      padding: 12px 20px;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .footer a {
+      color: var(--commit);
+      text-decoration: none;
+    }
+
+    /* ─────────── Loading State ─────────── */
+    .loading-skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="widget">
+    <!-- Initial loading state -->
+    <div class="header">
+      <div class="loading-skeleton" style="height: 20px; width: 30%; margin-bottom: 8px;"></div>
+      <div class="loading-skeleton" style="height: 24px; width: 80%; margin-bottom: 8px;"></div>
+      <div class="loading-skeleton" style="height: 16px; width: 60%;"></div>
+    </div>
+    <div class="progress-section">
+      <div class="loading-skeleton" style="width: 60px; height: 40px; margin-bottom: 8px;"></div>
+      <div class="loading-skeleton" style="height: 8px; width: 100%;"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { App } from "@modelcontextprotocol/ext-apps";
+
+    // ─────────── State ───────────
+    let state = {
+      actionId: "",
+      actionType: "",
+      description: "",
+      target: null,
+      deadline: null,
+      targetCount: null,
+      counts: { commitments: 0, completions: 0, target: null },
+      userStatus: null,       // null | "committed" | "completed"
+      selectedAction: null,   // null | "commit" | "complete"
+      evidenceType: "self_report",
+      evidenceContent: "",
+      status: null,
+      isSubmitting: false,
+      lastUpdate: null,
+    };
+
+    // ─────────── MCP App Connection ───────────
+    const app = new App({ name: "CivicOS Action", version: "1.0.0" });
+
+    app.ontoolresult = (result) => {
+      try {
+        const data = JSON.parse(result.content?.find((c) => c.type === "text")?.text || "{}");
+        state.actionId = data.action_id || "";
+        state.actionType = data.action_type || "";
+        state.description = data.description || "";
+        state.target = data.target || null;
+        state.deadline = data.deadline || null;
+        state.targetCount = data.target_count || null;
+        state.counts = data.counts || { commitments: 0, completions: 0, target: null };
+        state.lastUpdate = Date.now();
+        render();
+
+        startPolling();
+      } catch (e) {
+        console.error("Failed to parse tool result:", e);
+        state.status = { type: "error", message: "Failed to load action data" };
+        render();
+      }
+    };
+
+    app.connect();
+
+    // ─────────── Polling for Real-time Updates ───────────
+    let pollInterval = null;
+
+    function startPolling() {
+      if (pollInterval) return;
+      pollInterval = setInterval(async () => {
+        if (state.isSubmitting) return;
+        try {
+          const result = await app.callServerTool({
+            name: "refresh_action_counts",
+            arguments: { action_id: state.actionId },
+          });
+          const newCounts = JSON.parse(result.content?.find((c) => c.type === "text")?.text || "{}");
+
+          const changed =
+            newCounts.commitments !== state.counts.commitments ||
+            newCounts.completions !== state.counts.completions;
+
+          if (changed) {
+            state.counts = newCounts;
+            state.lastUpdate = Date.now();
+            render();
+          }
+        } catch (e) {
+          console.error("Polling error:", e);
+        }
+      }, 5000);
+    }
+
+    // ─────────── Actions ───────────
+    async function submitAction() {
+      if (!state.selectedAction || state.isSubmitting) return;
+
+      state.isSubmitting = true;
+      const isCommit = state.selectedAction === "commit";
+      state.status = {
+        type: "loading",
+        message: isCommit ? "Recording your commitment..." : "Recording your completion...",
+      };
+      render();
+
+      try {
+        const actionType = isCommit ? "commitment" : "completion";
+        const { publicKey, signature } = await sign(state.actionId, actionType);
+
+        const toolName = isCommit ? "broadcast_commitment" : "broadcast_completion";
+        const args = {
+          action_id: state.actionId,
+          public_key: publicKey,
+          signature: signature,
+        };
+
+        if (!isCommit) {
+          args.evidence_url = state.evidenceContent || null;
+        }
+
+        const result = await app.callServerTool({ name: toolName, arguments: args });
+        const parsed = JSON.parse(result.content?.find((c) => c.type === "text")?.text || "{}");
+
+        if (parsed.success) {
+          if (isCommit) {
+            state.counts.commitments++;
+            state.userStatus = "committed";
+            state.status = { type: "success", message: "You're committed! We'll remind you as the deadline approaches." };
+          } else {
+            state.counts.completions++;
+            state.userStatus = "completed";
+            state.status = { type: "success", message: "Action completed! Thank you for participating." };
+          }
+          state.selectedAction = null;
+
+          app.updateModelContext({
+            structuredContent: {
+              action_taken: {
+                action_id: state.actionId,
+                type: actionType,
+                timestamp: Date.now(),
+              },
+            },
+          }).catch((e) => console.warn("Failed to update model context:", e));
+        } else {
+          state.status = { type: "error", message: parsed.message || "Failed to record action" };
+        }
+      } catch (e) {
+        console.error("Submit action error:", e);
+        state.status = { type: "error", message: e.message || "Failed to record action" };
+      } finally {
+        state.isSubmitting = false;
+        render();
+      }
+    }
+
+    // ─────────── Signing ───────────
+    async function sign(actionId, actionType) {
+      const message = `civicos:action:v1:${actionId}:${actionType}`;
+      const messageBytes = new TextEncoder().encode(message);
+
+      const keyPair = await crypto.subtle.generateKey(
+        { name: "ECDSA", namedCurve: "P-256" },
+        true,
+        ["sign"]
+      );
+
+      const signature = await crypto.subtle.sign(
+        { name: "ECDSA", hash: "SHA-256" },
+        keyPair.privateKey,
+        messageBytes
+      );
+
+      const publicKeyRaw = await crypto.subtle.exportKey("raw", keyPair.publicKey);
+
+      return {
+        publicKey: bufferToHex(publicKeyRaw),
+        signature: bufferToHex(signature),
+      };
+    }
+
+    function bufferToHex(buffer) {
+      return Array.from(new Uint8Array(buffer))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    }
+
+    // ─────────── Render ───────────
+    function render() {
+      const {
+        actionId, actionType, description, target, deadline, targetCount,
+        counts, userStatus, selectedAction, evidenceType, evidenceContent,
+        status, isSubmitting,
+      } = state;
+
+      // Action type display
+      const typeLabels = {
+        written_comment: "Written Comment",
+        attend_meeting: "Attend Meeting",
+        public_comment: "Public Comment",
+        contact_official: "Contact Official",
+        signature: "Sign Petition",
+        share: "Share",
+        custom: "Action",
+      };
+      const typeLabel = typeLabels[actionType] || actionType || "Civic Action";
+
+      // Progress calculations
+      const effectiveTarget = counts.target || targetCount;
+      const commitPercent = effectiveTarget
+        ? Math.min(100, (counts.commitments / effectiveTarget) * 100)
+        : 0;
+      const completePercent = effectiveTarget
+        ? Math.min(100, (counts.completions / effectiveTarget) * 100)
+        : 0;
+
+      // Deadline formatting
+      let deadlineHtml = "";
+      if (deadline) {
+        const deadlineDate = new Date(deadline);
+        const now = new Date();
+        const daysLeft = Math.ceil((deadlineDate - now) / (1000 * 60 * 60 * 24));
+        if (daysLeft > 0) {
+          deadlineHtml = `<div class="deadline">${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining &mdash; ${deadlineDate.toLocaleDateString()}</div>`;
+        } else if (daysLeft === 0) {
+          deadlineHtml = `<div class="deadline" style="background:#fee2e2;color:#991b1b;">Due today!</div>`;
+        } else {
+          deadlineHtml = `<div class="deadline" style="background:#fee2e2;color:#991b1b;">Past deadline (${deadlineDate.toLocaleDateString()})</div>`;
+        }
+      }
+
+      // Button states
+      const canCommit = userStatus !== "committed" && userStatus !== "completed";
+      const canComplete = userStatus === "committed" || userStatus === "completed";
+
+      // Section label
+      let sectionLabel = "Take Action";
+      if (userStatus === "committed") sectionLabel = "You're Committed";
+      if (userStatus === "completed") sectionLabel = "Action Completed";
+
+      // Submit button
+      let submitClass = "submit-btn";
+      let submitText = "Select an action above";
+      let submitDisabled = !selectedAction || isSubmitting;
+
+      if (selectedAction === "commit") {
+        submitClass += " commit-ready";
+        submitText = "Commit to This Action";
+      } else if (selectedAction === "complete") {
+        submitClass += " complete-ready";
+        submitText = "Submit Completion";
+      }
+
+      if (isSubmitting) {
+        submitText = "Submitting...";
+      }
+
+      // Progress bar: show completions stacked over commitments
+      let progressBarHtml = "";
+      if (effectiveTarget) {
+        progressBarHtml = `
+          <div class="progress-bar">
+            <div class="progress-bar-fill completed" style="width: ${completePercent}%"></div>
+          </div>
+          <div class="progress-target">${counts.completions} of ${effectiveTarget} completed</div>
+        `;
+      } else {
+        progressBarHtml = `<div class="progress-target">${counts.commitments} committed &middot; ${counts.completions} completed</div>`;
+      }
+
+      // Evidence form (shown when "complete" is selected)
+      let evidenceHtml = "";
+      if (selectedAction === "complete") {
+        evidenceHtml = `
+          <div class="evidence-form">
+            <select class="evidence-select" onchange="setEvidenceType(this.value)">
+              <option value="self_report" ${evidenceType === "self_report" ? "selected" : ""}>Self-reported</option>
+              <option value="email_confirmation" ${evidenceType === "email_confirmation" ? "selected" : ""}>Email confirmation</option>
+              <option value="attendance_check" ${evidenceType === "attendance_check" ? "selected" : ""}>Attendance check</option>
+            </select>
+            <textarea
+              class="evidence-input"
+              placeholder="Optional: describe what you did or paste a confirmation link..."
+              oninput="setEvidenceContent(this.value)"
+            >${escapeHtml(evidenceContent)}</textarea>
+          </div>
+        `;
+      }
+
+      document.getElementById("app").innerHTML = `
+        <div class="header">
+          <div class="action-type-badge">${escapeHtml(typeLabel)}</div>
+          <div class="action-title">${escapeHtml(description || actionId)}</div>
+          <div class="action-meta">${escapeHtml(actionId)}</div>
+          ${deadlineHtml}
+        </div>
+
+        <div class="progress-section">
+          <div class="progress-header">
+            <div class="progress-counts">
+              <div class="progress-stat committed">
+                <div class="count">${counts.commitments}</div>
+                <div class="label">Committed</div>
+              </div>
+              <div class="progress-stat completed">
+                <div class="count">${counts.completions}</div>
+                <div class="label">Completed</div>
+              </div>
+            </div>
+            <div class="progress-live">
+              <span class="live-dot"></span>
+              Live
+            </div>
+          </div>
+          ${progressBarHtml}
+        </div>
+
+        <div class="action-section">
+          <div class="section-label">${sectionLabel}</div>
+          ${canCommit ? `
+            <button
+              class="action-btn commit ${selectedAction === "commit" ? "selected" : ""}"
+              onclick="selectAction('commit')"
+              ${isSubmitting ? "disabled" : ""}
+            >
+              <div class="btn-icon">\u{1F91D}</div>
+              <div class="btn-label">I'll Do This</div>
+              <div class="btn-sublabel">Commit to taking this action</div>
+            </button>
+          ` : ""}
+          ${canComplete ? `
+            <button
+              class="action-btn complete ${selectedAction === "complete" ? "selected" : ""} ${userStatus === "completed" ? "done" : ""}"
+              onclick="selectAction('complete')"
+              ${isSubmitting || userStatus === "completed" ? "disabled" : ""}
+            >
+              <div class="btn-icon">${userStatus === "completed" ? "\u2705" : "\u{1F3C6}"}</div>
+              <div class="btn-label">${userStatus === "completed" ? "Completed" : "Mark as Done"}</div>
+              <div class="btn-sublabel">${userStatus === "completed" ? "You've completed this action" : "Report that you've taken this action"}</div>
+            </button>
+          ` : `
+            <button
+              class="action-btn complete"
+              onclick="selectAction('complete')"
+              ${isSubmitting ? "disabled" : ""}
+            >
+              <div class="btn-icon">\u{1F3C6}</div>
+              <div class="btn-label">Mark as Done</div>
+              <div class="btn-sublabel">Already did this? Report your completion</div>
+            </button>
+          `}
+        </div>
+
+        ${evidenceHtml}
+
+        <div class="submit-section">
+          <button
+            class="${submitClass}"
+            onclick="submitAction()"
+            ${submitDisabled ? "disabled" : ""}
+          >
+            ${submitText}
+          </button>
+          ${status ? `<div class="status ${status.type}">${escapeHtml(status.message)}</div>` : ""}
+        </div>
+
+        <div class="footer">
+          Actions are cryptographically signed. <a href="https://civicosproject.org/how-it-works" target="_blank">Learn more</a>
+        </div>
+      `;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    // ─────────── Global Handlers ───────────
+    window.selectAction = (action) => {
+      state.selectedAction = action;
+      state.status = null;
+      render();
+    };
+
+    window.setEvidenceType = (type) => {
+      state.evidenceType = type;
+    };
+
+    window.setEvidenceContent = (content) => {
+      state.evidenceContent = content;
+    };
+
+    window.submitAction = submitAction;
+  </script>
+</body>
+</html>
