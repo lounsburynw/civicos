@@ -342,6 +342,8 @@ class PostgresBackend:
                 jurisdiction_id TEXT NOT NULL,
                 meeting_date TEXT NOT NULL,
                 agenda_item TEXT,
+                meeting_id TEXT,
+                agenda_item_id TEXT,
                 title TEXT NOT NULL,
                 summary TEXT,
                 outcome TEXT,
@@ -1494,6 +1496,35 @@ class PostgresBackend:
             ON federal_program_allocations(jurisdiction_id, valid_from, valid_to)
         """)
 
+        # Migration: Add meeting_id and agenda_item_id FK columns to decisions
+        # Soft references (no FK constraints) since meetings use temporal versioning
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'decisions' AND column_name = 'meeting_id'
+                ) THEN
+                    ALTER TABLE decisions ADD COLUMN meeting_id TEXT;
+                END IF;
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'decisions' AND column_name = 'agenda_item_id'
+                ) THEN
+                    ALTER TABLE decisions ADD COLUMN agenda_item_id TEXT;
+                END IF;
+            END $$;
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_decisions_meeting_id
+            ON decisions(meeting_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_decisions_agenda_item_id
+            ON decisions(agenda_item_id)
+        """)
+
         conn.commit()
         self._schema_ensured = True
         PostgresBackend._schemas_verified.add(self._conn_string)
@@ -2275,21 +2306,50 @@ class PostgresBackend:
                 # Compute content hash for data integrity verification
                 content_hash = compute_decision_hash(decision)
 
+                # Resolve meeting_id from meeting_date if not provided
+                meeting_id_val = decision.get('meeting_id')
+                if not meeting_id_val and decision.get('meeting_date'):
+                    cursor.execute("""
+                        SELECT id FROM meetings
+                        WHERE jurisdiction_id = %s AND meeting_datetime::date = %s::date
+                          AND valid_to IS NULL
+                        LIMIT 1
+                    """, (jurisdiction_id, decision.get('meeting_date')))
+                    row = cursor.fetchone()
+                    if row:
+                        meeting_id_val = row[0]
+
+                # Resolve agenda_item_id from meeting_id + item_number
+                agenda_item_id_val = decision.get('agenda_item_id')
+                if not agenda_item_id_val and meeting_id_val and decision.get('agenda_item'):
+                    cursor.execute("""
+                        SELECT id FROM agenda_items
+                        WHERE meeting_id = %s AND item_number = %s
+                          AND valid_to IS NULL AND deleted_at IS NULL
+                        LIMIT 1
+                    """, (meeting_id_val, decision.get('agenda_item')))
+                    row = cursor.fetchone()
+                    if row:
+                        agenda_item_id_val = row[0]
+
                 cursor.execute("""
                     INSERT INTO decisions (
                         id, jurisdiction_id, meeting_date, agenda_item,
+                        meeting_id, agenda_item_id,
                         title, summary, outcome, vote_json,
                         staff_recommendation_json, public_input_json,
                         legal_instruments_json, topics, source_documents,
                         extraction_method, financial_impact_cents,
                         extracted_at, valid_from, valid_to, content_hash,
                         extraction_version
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s, %s)
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s, %s)
                 """, (
                     decision_id,
                     jurisdiction_id,
                     decision.get('meeting_date'),
                     decision.get('agenda_item'),
+                    meeting_id_val,
+                    agenda_item_id_val,
                     decision.get('title'),
                     decision.get('summary'),
                     decision.get('outcome'),

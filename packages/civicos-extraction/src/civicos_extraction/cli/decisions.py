@@ -453,6 +453,7 @@ def extract_decisions_from_meeting(
             item_ref = decision.item_ref.replace(" ", "_")
             decision_dict["id"] = f"decision:{jurisdiction_id}:{meeting_date}:{item_ref}"
             decision_dict["meeting_date"] = meeting_date
+            decision_dict["meeting_id"] = meeting_id
             decision_dict["agenda_item"] = decision.item_ref
             decision_dict["summary"] = decision.description
             decision_dict["outcome"] = "approved" if decision.passed else "pending"

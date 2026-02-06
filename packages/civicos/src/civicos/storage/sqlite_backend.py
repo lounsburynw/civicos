@@ -237,6 +237,8 @@ class SQLiteBackend:
                 jurisdiction_id TEXT NOT NULL,
                 meeting_date TEXT NOT NULL,
                 agenda_item TEXT,
+                meeting_id TEXT,
+                agenda_item_id TEXT,
                 title TEXT NOT NULL,
                 summary TEXT,
                 outcome TEXT,
@@ -1119,17 +1121,20 @@ class SQLiteBackend:
                 cursor.execute("""
                     INSERT INTO decisions (
                         id, jurisdiction_id, meeting_date, agenda_item,
+                        meeting_id, agenda_item_id,
                         title, summary, outcome, vote_json,
                         staff_recommendation_json, public_input_json,
                         legal_instruments_json, topics, source_documents,
                         extraction_method, financial_impact_cents,
                         extracted_at, valid_from, valid_to
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
                 """, (
                     decision_id,
                     jurisdiction_id,
                     decision.get('meeting_date'),
                     decision.get('agenda_item'),
+                    decision.get('meeting_id'),
+                    decision.get('agenda_item_id'),
                     decision.get('title'),
                     decision.get('summary'),
                     decision.get('outcome'),
