@@ -40,6 +40,8 @@ class CastVoiceRequest(BaseModel):
     stance: str = Field(description="Position: support, oppose, or watching")
     public_key: str = Field(description="Public key (hex-encoded)")
     signature: str = Field(description="Signature of entity+stance (hex-encoded)")
+    created_at: Optional[int] = Field(default=None, description="Unix timestamp from the signed Nostr event")
+    jurisdiction: Optional[str] = Field(default=None, description="Jurisdiction code for Nostr event reconstruction")
 
 
 class VoiceResponse(BaseModel):
@@ -451,6 +453,8 @@ async def cast_voice(request: CastVoiceRequest):
             public_key=request.public_key,
             signature=request.signature,
             timestamp=datetime.utcnow(),
+            created_at=request.created_at,
+            jurisdiction=request.jurisdiction,
         )
 
         # Verify signature
