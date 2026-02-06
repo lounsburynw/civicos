@@ -24,6 +24,76 @@ The Edge Intelligence layer closes the loop between:
 
 **January 2026 context**: MCP Apps extension released, enabling interactive UI components inside Claude.ai, Goose, VS Code, and other MCP-compatible hosts. This changes the calculus—MCP servers can now provide rich interfaces, not just text responses.
 
+## Why Local Models Change Everything
+
+The MCP architecture decouples the LLM (reasoning) from the data (MCP tools) and identity (client-side signing). This means the LLM layer is **swappable** — and with local models (Ollama, vLLM, llama.cpp), the entire stack can run without any external API dependency.
+
+### Full Privacy by Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  What STAYS on the user's device / city's infrastructure:                    │
+│                                                                             │
+│  • All queries ("What's the housing policy near me?")                       │
+│  • All reasoning (LLM inference via Ollama/local model)                     │
+│  • All identity material (keys, passkeys, mnemonics)                        │
+│  • All personalization (interests, neighborhood, filtering)                 │
+│  • All query history and participation patterns                             │
+│                                                                             │
+│  What LEAVES (only by explicit user action):                                │
+│                                                                             │
+│  • Signed civic actions (voice, commitment, completion)                     │
+│    → Cryptographic signature only, no query context attached                │
+│  • MCP tool calls to Jurisdiction MCP (public data requests)                │
+│    → Read-only, no user identity sent, equivalent to visiting city website  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+This is a qualitatively different privacy model from most civic tech platforms, which store query history, build interest profiles, and can reconstruct user behavior from usage patterns. With local models + client-side signing, there is **nothing to subpoena** because no third party ever sees the queries.
+
+### The Quality Gap Is Closing
+
+Civic queries are predominantly **structured tool calls** — "find meetings about housing," "show voice counts on this decision," "what laws apply to ADUs." The LLM's job is to:
+
+1. Parse user intent into tool calls
+2. Select the right MCP tool(s)
+3. Format the response naturally
+
+This is tool-calling proficiency, not creative reasoning. Modern open-source models handle this well:
+
+| Model | Parameters | Tool Calling | Civic Query Quality | Hardware Required |
+|-------|-----------|-------------|-------------------|-------------------|
+| Llama 3.1 | 8B | Good | Sufficient for most queries | M-series Mac, 8GB+ |
+| Llama 3.1 | 70B | Excellent | Near-parity with cloud APIs | GPU server or M-series 64GB+ |
+| Qwen 2.5 | 7B-72B | Excellent | Strong tool calling | Similar to Llama |
+| Mistral Large | 123B | Excellent | Near-parity | Multi-GPU |
+
+The heavy lifting happens in the MCP tools (RAG, semantic search, vector queries), not in the LLM. A capable 8B model can drive CivicOS effectively for routine civic participation.
+
+### Distribution Implications
+
+Local models unlock deployment patterns that cloud APIs cannot:
+
+| Pattern | Cloud API | Local Model |
+|---------|-----------|-------------|
+| **City-hosted** | Enterprise agreement + ~$300/mo | One-time hardware, zero ongoing API cost |
+| **Library-hosted** | Libraries can't sign enterprise API contracts | Runs on commodity hardware, fully self-contained |
+| **Community-hosted** | Cost prohibitive for neighborhood orgs | Consumer hardware sufficient (Mac Mini + Ollama) |
+| **School district** | Student privacy concerns (FERPA) | No data leaves district infrastructure |
+| **Air-gapped** | Impossible | Fully viable — entire stack runs offline |
+| **International** | US API providers = jurisdiction risk | No external dependencies, deployable anywhere |
+| **Authoritarian contexts** | API providers can be compelled | No third party to compel |
+
+### Strategic Implication
+
+**The moat is coordination, not intelligence.** Local models commoditize the LLM layer entirely. CivicOS's value is:
+
+1. **Data pipeline** — parsing agendas, extracting decisions, indexing legislation
+2. **Coordination protocol** — relay, voices, initiatives, commitments
+3. **Identity system** — tiered privacy, client-side signing, attestation
+
+This strengthens the open-source thesis: there's no need to gatekeep API access. Revenue comes from data ingestion services and support contracts, not from being a middleman to cloud LLMs.
+
 ## Architecture Overview
 
 ```
@@ -298,14 +368,18 @@ The municipality hosts an [Open WebUI](https://docs.openwebui.com/) instance for
 
 #### LLM Backend Options
 
-| Aspect | Local Ollama | Enterprise API |
-|--------|--------------|----------------|
-| **Query privacy** | Maximum (never leaves city) | Contractual (enterprise agreement) |
-| **LLM quality** | Good (Llama 3, Mistral) | Excellent (Claude, GPT-4) |
-| **Cost model** | GPU hardware + IT time | ~$300/month API costs |
-| **Operational burden** | High (maintain infrastructure) | Low (managed service) |
-| **Model updates** | Manual | Automatic |
-| **Vendor dependency** | None | Anthropic/OpenAI |
+| Aspect | Local Ollama | Enterprise API | Hybrid |
+|--------|--------------|----------------|--------|
+| **Query privacy** | Maximum (never leaves city) | Contractual (enterprise agreement) | User's choice per query |
+| **LLM quality** | Good–Excellent (Llama 3.1, Qwen 2.5) | Excellent (Claude, GPT-4) | Best of both |
+| **Tool calling** | Sufficient for civic queries | Excellent | Route by complexity |
+| **Cost model** | GPU hardware + IT time | ~$300/month API costs | Minimized API spend |
+| **Operational burden** | Moderate (Ollama simplifies management) | Low (managed service) | Moderate |
+| **Model updates** | `ollama pull` (one command) | Automatic | Both |
+| **Vendor dependency** | None | Anthropic/OpenAI | Optional |
+| **Subpoena surface** | None | API provider logs | Reduced |
+
+**Key insight (2026):** The quality gap between local and cloud models has narrowed significantly for tool-calling workloads. Civic queries are predominantly structured MCP tool calls — the LLM selects tools and formats responses, while the MCP tools handle RAG, semantic search, and data retrieval. A capable 8B–70B local model handles this well. Cloud APIs retain an edge for nuanced reasoning (e.g., synthesizing testimony across multiple meetings), but this is a small fraction of queries.
 
 **Enterprise API Privacy Guarantees:**
 
@@ -316,14 +390,15 @@ With an enterprise agreement, cities can negotiate:
 - SOC 2 compliance
 - Custom data processing agreements
 
-This shifts the privacy model from "queries never leave city" to "queries are contractually protected." For most US municipalities operating under rule of law, this is an acceptable tradeoff for significantly better LLM quality.
+This shifts the privacy model from "queries never leave city" to "queries are contractually protected." For most US municipalities operating under rule of law, this is an acceptable tradeoff — but it's now a **choice**, not a requirement.
 
-**Hybrid Option:**
+**Hybrid Option (Recommended):**
 
-Open WebUI supports multiple backends. Cities could:
-- Default to Ollama for routine queries (cost control)
-- Route complex queries to Claude API (quality)
+Open WebUI supports multiple backends simultaneously. Cities could:
+- Default to Ollama for routine queries (zero cost, full privacy)
+- Route complex synthesis queries to Claude API (quality)
 - Offer user choice ("Use local AI" toggle for privacy-sensitive users)
+- Fall back to cloud if local GPU is under load
 
 **Pros (both options):**
 - Zero cost to citizens (no AI subscription required)
@@ -332,9 +407,9 @@ Open WebUI supports multiple backends. Cities could:
 - Open WebUI has [native MCP support](https://docs.openwebui.com/features/mcp/)
 
 **Cons:**
-- City bears infrastructure/API cost
+- City bears infrastructure/API cost (though local-only eliminates ongoing API spend)
 - Enterprise API: queries leave city infrastructure (with contractual protections)
-- Local Ollama: lower LLM quality, higher operational burden
+- Local Ollama: slightly lower quality for complex synthesis, moderate operational burden
 - Creates per-jurisdiction silos (mitigated by federation)
 
 **Identity modes available:** 🟢 Easy, 🟡 Private (NIP-07 possible if not sandboxed)
@@ -382,20 +457,21 @@ This enables trust signals at every level without re-verification.
 
 #### Recommended for Pilot
 
-Pattern 4 with **Enterprise API backend** is recommended for the San Rafael pilot:
+Pattern 4 with **Hybrid backend** (local default + cloud escalation) is recommended for the San Rafael pilot:
 
 1. **Removes subscription barrier** — biggest friction point for citizen adoption
 2. **City attestation** — solves proof-of-residency, provides sybil resistance
-3. **Claude/GPT-4 quality** — nuanced civic questions deserve excellent answers
-4. **Low operational burden** — no GPU infrastructure, automatic model updates
-5. **Reasonable cost** — ~$300/month is negligible in city budget terms
-6. **Contractual privacy** — enterprise agreement provides legal protections
-7. **San Rafael context** — trusted jurisdiction, rule of law, privacy tradeoff acceptable
+3. **Local-first privacy** — routine queries never leave city infrastructure
+4. **Cloud escalation** — complex synthesis routes to Claude API when needed
+5. **Reasonable cost** — minimal API spend (most queries handled locally) + one-time hardware
+6. **San Rafael context** — trusted jurisdiction, can demonstrate both privacy models
+7. **Demonstrates the vision** — shows other cities the full-privacy deployment is real
 
-For cities with higher privacy requirements or distrust of cloud providers, the Ollama option remains available.
-5. Can still federate with other jurisdictions
+For cities that want maximum simplicity, enterprise API-only remains an option (~$300/month, zero hardware).
 
-For authoritarian contexts, Pattern 2 (Claude Desktop) or Pattern 3 (Self-hosted) remain necessary.
+For cities with strict data sovereignty requirements, local-only (Ollama) requires no external dependencies whatsoever.
+
+For authoritarian contexts, Pattern 2 (Claude Desktop) or Pattern 3 (Self-hosted) with local models provides complete independence from any third party.
 
 ### Instantiation ↔ Identity Constraints
 
