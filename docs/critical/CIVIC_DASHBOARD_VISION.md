@@ -368,12 +368,14 @@ Different widget types suit different placements:
 ### Technical Stack
 
 ```
-civicos-openwebui/                    # Open WebUI fork
+apps/civicos-openwebui-fork/          # Open WebUI fork (symlink → ~/projects/civicos-openwebui)
 ├── src/routes/(app)/+page.svelte    # Main page (Chat + test button)
 ├── src/lib/components/civic/        # Civic Svelte components (unused for now)
 ├── src/lib/stores/                   # Artifact stores (showArtifacts, artifactContents)
 └── src/lib/components/chat/
     └── Artifacts.svelte              # Side panel renderer
+# Note: Separate private repo (github.com/lounsburynw/civicos-openwebui)
+# Symlinked into monorepo for unified VS Code navigation
 
 civicos-mcp-apps/                     # Existing MCP widgets (HTML)
 └── src/widgets/

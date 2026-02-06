@@ -127,6 +127,9 @@ packages/civic/data/
 data/uscode/
 city-san-rafael
 
+# Open WebUI fork (symlinked to separate repo)
+apps/civicos-openwebui-fork
+
 # Node.js
 node_modules/
 package-lock.json
