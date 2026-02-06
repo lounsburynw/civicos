@@ -18419,3 +18419,50 @@ After debugging, implemented artifact pinning to prevent auto-close:
 - apps/civicos-mcp/rest_api.py - Updated OpenAPI descriptions
 
 **Next:** Expand City Pulse pane into secondary sidebar with multiple civic widgets
+
+## Session (2026-02-05) - Edge Intelligence: Fix Voice Crypto Loop
+
+**Item:** Edge Intelligence voice loop (P0, from handoff)
+**Status:** COMPLETE
+
+**Problem:** Personal MCP signs Nostr events using BIP-340 Schnorr on secp256k1, but the relay was using ECDSA on P-256 (completely incompatible). The relay also lacked `created_at` and `jurisdiction` fields needed to reconstruct the Nostr event ID for verification.
+
+**Accomplished:**
+- Fixed `_schnorr_verify()` to use `coincurve.PublicKeyXOnly.verify()` instead of broken `secp256k1` library call
+- Updated `verify_voice()` to reconstruct exact Nostr event (Kind 30800) and verify Schnorr signature
+- Added `created_at` and `jurisdiction` fields to `Voice` model for event ID reconstruction
+- Updated `CastVoiceRequest` in relay API to accept `created_at` and `jurisdiction`
+- Updated `broadcast_voice` MCP tool handler and registry to send new fields
+- Updated `KeyPair.generate()` to produce real secp256k1 x-only keys via coincurve
+- Updated `sign_voice()` test helper to produce real Schnorr signatures
+- Updated `sign_message()` test helper to produce real Schnorr signatures
+- Updated widget TypeScript (`register.ts`, `jurisdiction-client.ts`) to pass through new fields
+- Updated tests (`test_voice.py`) for new key format and tamper detection
+- All 223 relay tests pass, 42 smoke tests pass
+
+**Key Files Modified:**
+- packages/civicos-relay/src/civicos_relay/voice/crypto.py - Core crypto (Schnorr verify, sign, KeyPair)
+- packages/civicos-relay/src/civicos_relay/voice/models.py - Added created_at, jurisdiction to Voice
+- packages/civicos-relay/src/civicos_relay/server/app.py - CastVoiceRequest with new fields
+- apps/civicos-mcp/tools/handlers.py - broadcast_voice sends created_at
+- apps/civicos-mcp/tools/registry.py - broadcast_voice schema updated
+- apps/civicos-mcp-apps/src/widgets/voice/register.ts - Pass-through new fields
+- apps/civicos-mcp-apps/src/lib/jurisdiction-client.ts - Pass-through new fields
+- packages/civicos-relay/tests/test_voice.py - Updated for new crypto
+
+**Note:** The voice.html widget still uses browser WebCrypto (P-256 ECDSA) for ephemeral signing — this is a separate code path from the Personal MCP and needs its own crypto migration in a future session.
+
+## Session (2026-02-05) - Commit Cleanup & Push
+
+**Item:** Organize and commit accumulated dirty files from previous sessions
+**Status:** COMPLETE
+
+**Accomplished:**
+- Organized ~15 dirty/untracked files into 5 logical commits:
+  1. chore: Add civicos-env/ to .gitignore
+  2. feat(relay): PostgresStorage composite class + coordination table migration
+  3. feat(widgets): Voice stance tracking, City Pulse widget, VoiceBadge component
+  4. fix: PostgresBackend connection resilience + Modal remote vector indexing
+  5. feat(personal-mcp): Modal deployment configuration
+- Pushed all 61 local commits (56 previously unpushed + 5 new) to origin/main
+- Skipped committing: chroma.sqlite3 binary, stray workspace claude-progress.txt, venv files
