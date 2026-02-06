@@ -4,6 +4,8 @@ This guide explains how to set up [Open WebUI](https://docs.openwebui.com/) with
 
 ## Overview
 
+> **Developer note:** CivicOS maintains a private Open WebUI fork at `github.com/lounsburynw/civicos-openwebui`. In the monorepo, it's symlinked as `apps/civicos-openwebui-fork/`. Changes to Open WebUI components are committed to that separate repo, not the civicos monorepo. The `/commit` command handles both repos automatically.
+
 Open WebUI is a self-hosted AI chat interface that supports MCP (Model Context Protocol) servers. With this setup, you can:
 
 - Query civic data (meetings, decisions, issues, legislation)

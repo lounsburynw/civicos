@@ -160,6 +160,7 @@ packages/civicos-extraction/  # Platform parsers
 packages/civicos-services/    # Application layer (API server, chat, websocket)
 apps/civicos-workspace/       # Vue frontend
 apps/civicos-mcp/             # MCP server
+apps/civicos-openwebui-fork/  # Open WebUI fork (symlink → ~/projects/civicos-openwebui, separate private repo)
 data/                       # Extracted events, issues, legislative context
 docs/critical/              # Essential architecture docs
 docs/archive/               # Historical docs (recoverable)

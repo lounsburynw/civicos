@@ -251,6 +251,8 @@ User runs their own Personal MCP server.
 
 ### Pattern 4: Jurisdiction-Hosted Open WebUI
 
+> **Implementation note:** CivicOS maintains a private Open WebUI fork (`github.com/lounsburynw/civicos-openwebui`), symlinked into the monorepo at `apps/civicos-openwebui-fork/`. City Pulse and civic components live there.
+
 The municipality hosts an [Open WebUI](https://docs.openwebui.com/) instance for residents. This inverts the subscription model—city pays for infrastructure, citizens use for free.
 
 ```
