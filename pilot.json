@@ -4106,19 +4106,19 @@
       ]
     },
     "action_event_preparation": {
-      "status": "pending",
+      "status": "ready",
       "priority": 0,
       "description": "Agent logic to prepare unsigned Nostr action events (kinds 30810, 30811, 30812). Agent reasons about what action to suggest, prepares the event payload, returns it to client for signing. This is the 'write' side that MCP doesn't do.",
-      "test_file": "apps/civicos-workspace/tests/unit/action-preparation.spec.ts",
+      "test_file": "apps/civicos-personal-mcp/tests/action-preparation.spec.ts",
       "subtasks": [
-        "prepare_action_event(initiative, type, target, deadline, template?) - returns unsigned kind 30810",
-        "prepare_commitment_event(action_id) - returns unsigned kind 30811",
-        "prepare_completion_event(action_id, evidence_type) - returns unsigned kind 30812",
-        "Agent prompts for each event type",
-        "Validation before preparation"
+        "[DONE] prepare_action_event(initiative, type, target, deadline, template?) - returns unsigned kind 30810",
+        "[DONE] prepare_commitment_event(action_id) - returns unsigned kind 30811",
+        "[DONE] prepare_completion_event(action_id, evidence_type) - returns unsigned kind 30812",
+        "[DONE] Validation before preparation (action_type, evidence_type, deadline format)",
+        "Agent prompts for each event type (deferred - LLM uses tools directly)"
       ],
-      "note": "This is what action_tools in MCP used to do. Moved here because Edge Intelligence prepares events, MCP only queries.",
-      "notes": "Backend infrastructure complete (2026-02-02). Relay can store/retrieve all event types. This item tracks frontend/agent logic to prepare unsigned events before signing."
+      "note": "2026-02-06: Implemented in Personal MCP (stdio + HTTP). 3 prepare tools + helpers in types.ts + crypto.ts. CivicEventKinds extended with ACTION_EVENT(30810), ACTION_COMMITMENT(30811), ACTION_COMPLETION(30812). Canonical messages match Python relay verification. 29 tests passing.",
+      "notes": "Backend infrastructure complete (2026-02-02). Client-side preparation complete (2026-02-06). Both stdio and HTTP servers updated. Relay can store/retrieve all event types."
     }
   },
   "federation_infrastructure": {

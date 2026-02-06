@@ -154,10 +154,53 @@ export interface SigningProvider {
  */
 export const CivicEventKinds = {
   VOICE: 30800, // Voice/stance on a decision
-  COMMITMENT: 30801, // Commitment to take action
-  COMPLETION: 30802, // Report action completed
+  COMMITMENT: 30801, // Simple commitment to take action
+  COMPLETION: 30802, // Simple completion report
+  ACTION_EVENT: 30810, // Full Nostr action event (defines the action)
+  ACTION_COMMITMENT: 30811, // Commitment to a 30810 action
+  ACTION_COMPLETION: 30812, // Completion of a 30810 action with evidence
   ATTESTATION: 30850, // Identity attestation (city → resident)
 } as const;
+
+/**
+ * Type of civic action that can be taken.
+ * Matches Python CivicActionType enum in civicos_relay.voice.models.
+ */
+export type CivicActionType =
+  | 'written_comment'
+  | 'attend_meeting'
+  | 'public_comment'
+  | 'contact_official'
+  | 'signature'
+  | 'share'
+  | 'custom';
+
+export const CIVIC_ACTION_TYPES: readonly CivicActionType[] = [
+  'written_comment',
+  'attend_meeting',
+  'public_comment',
+  'contact_official',
+  'signature',
+  'share',
+  'custom',
+] as const;
+
+/**
+ * Type of evidence provided for action completion.
+ * Matches Python EvidenceType enum in civicos_relay.voice.models.
+ */
+export type EvidenceType =
+  | 'self_report'
+  | 'email_confirmation'
+  | 'attendance_check'
+  | 'verified';
+
+export const EVIDENCE_TYPES: readonly EvidenceType[] = [
+  'self_report',
+  'email_confirmation',
+  'attendance_check',
+  'verified',
+] as const;
 
 /**
  * Canonical message format for civic voices.
@@ -239,6 +282,183 @@ export function createCompletionTags(
   ];
   if (evidenceUrl) {
     tags.push(['evidence', evidenceUrl]);
+  }
+  return tags;
+}
+
+// ============================================================================
+// Full Nostr Action Event Helpers (Kinds 30810, 30811, 30812)
+// ============================================================================
+
+/**
+ * Generate a deterministic action ID.
+ * Matches Python CivicActionService._generate_action_id().
+ *
+ * @param initiativeId - Initiative this action belongs to
+ * @param actionType - Type of action
+ * @param descriptionHashPrefix - First 8 hex chars of SHA-256(description)
+ */
+export function generateActionId(
+  initiativeId: string,
+  actionType: string,
+  descriptionHashPrefix: string
+): string {
+  return `action:${initiativeId}:${actionType}:${descriptionHashPrefix}`;
+}
+
+/**
+ * Generate a commitment ID.
+ * Matches Python CivicActionService.commit_to_action() pattern.
+ *
+ * @param publicKeyPrefix - First 16 hex chars of committer's public key
+ * @param actionId - Action being committed to
+ */
+export function generateCommitmentId(
+  publicKeyPrefix: string,
+  actionId: string
+): string {
+  return `commit:${publicKeyPrefix}:${actionId}`;
+}
+
+/**
+ * Generate a completion ID.
+ * Matches Python CivicActionService.complete_action() pattern.
+ *
+ * @param publicKeyPrefix - First 16 hex chars of completer's public key
+ * @param actionId - Action being completed
+ */
+export function generateCompletionId(
+  publicKeyPrefix: string,
+  actionId: string
+): string {
+  return `complete:${publicKeyPrefix}:${actionId}`;
+}
+
+/**
+ * Generate an action reference (a-tag format).
+ * Format: 30810:{creator_pubkey}:{action_id}
+ */
+export function generateActionRef(
+  creatorPubkey: string,
+  actionId: string
+): string {
+  return `30810:${creatorPubkey}:${actionId}`;
+}
+
+/**
+ * Canonical content for action event (kind 30810).
+ * Matches Python CivicActionService._create_action_message().
+ *
+ * @param actionId - Deterministic action ID
+ * @param actionType - Type of action
+ * @param descriptionHashPrefix - First 16 hex chars of SHA-256(description)
+ * @param timestamp - Unix timestamp (seconds)
+ */
+export function createActionEventContent(
+  actionId: string,
+  actionType: string,
+  descriptionHashPrefix: string,
+  timestamp: number
+): string {
+  return `civicos:action:v1:${actionId}:${actionType}:${descriptionHashPrefix}:${timestamp}`;
+}
+
+/**
+ * Create tags for an action event (kind 30810).
+ */
+export function createActionEventTags(
+  actionId: string,
+  initiativeId: string,
+  actionType: string,
+  jurisdiction: string,
+  options?: {
+    description?: string;
+    target?: string;
+    deadline?: string;
+    template?: string;
+    targetCount?: number;
+  }
+): string[][] {
+  const tags: string[][] = [
+    ['d', actionId],
+    ['j', jurisdiction],
+    ['initiative', initiativeId],
+    ['action_type', actionType],
+  ];
+  if (options?.description) {
+    tags.push(['description', options.description]);
+  }
+  if (options?.target) {
+    tags.push(['target', options.target]);
+  }
+  if (options?.deadline) {
+    tags.push(['deadline', options.deadline]);
+  }
+  if (options?.template) {
+    tags.push(['template', options.template]);
+  }
+  if (options?.targetCount !== undefined) {
+    tags.push(['target_count', String(options.targetCount)]);
+  }
+  return tags;
+}
+
+/**
+ * Canonical content for action commitment (kind 30811).
+ * Matches Python CivicActionService.verify_commitment_signature().
+ */
+export function createActionCommitmentContent(
+  commitmentId: string,
+  actionRef: string
+): string {
+  return `civicos:commitment:v1:${commitmentId}:${actionRef}`;
+}
+
+/**
+ * Create tags for an action commitment (kind 30811).
+ */
+export function createActionCommitmentTags(
+  commitmentId: string,
+  actionRef: string,
+  jurisdiction: string
+): string[][] {
+  return [
+    ['d', commitmentId],
+    ['a', actionRef],
+    ['j', jurisdiction],
+  ];
+}
+
+/**
+ * Canonical content for action completion (kind 30812).
+ * Matches Python CivicActionService.verify_completion_signature().
+ */
+export function createActionCompletionContent(
+  completionId: string,
+  actionRef: string,
+  evidenceType: string
+): string {
+  return `civicos:completion:v1:${completionId}:${actionRef}:${evidenceType}`;
+}
+
+/**
+ * Create tags for an action completion (kind 30812).
+ */
+export function createActionCompletionTags(
+  completionId: string,
+  actionRef: string,
+  jurisdiction: string,
+  evidenceType: string,
+  evidenceContent?: string
+): string[][] {
+  const tags: string[][] = [
+    ['d', completionId],
+    ['a', actionRef],
+    ['j', jurisdiction],
+    ['evidence_type', evidenceType],
+  ];
+  if (evidenceContent) {
+    tags.push(['evidence', evidenceContent]);
   }
   return tags;
 }

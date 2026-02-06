@@ -1,3 +1,51 @@
+## Session 537 (2026-02-06) - Action Event Preparation Tools
+
+**Item:** action_event_preparation (P0, edge_intelligence)
+**Status:** COMPLETE
+
+### What was done
+1. **CivicEventKinds extended** (`lib/providers/types.ts`) — Added ACTION_EVENT (30810), ACTION_COMMITMENT (30811), ACTION_COMPLETION (30812) alongside legacy 30801/30802.
+2. **Helper functions** (`lib/providers/types.ts`) — Added 10 functions: generateActionId, generateCommitmentId, generateCompletionId, generateActionRef, createActionEventContent, createActionEventTags, createActionCommitmentContent, createActionCommitmentTags, createActionCompletionContent, createActionCompletionTags. Canonical messages match Python relay verification.
+3. **sha256Hex utility** (`lib/providers/crypto.ts`) — For deterministic action ID generation matching Python's hashlib.sha256.
+4. **3 prepare tools in stdio server** (`src/server.ts`) — prepare_action_event, prepare_commitment, prepare_completion. Each validates inputs, generates deterministic IDs, creates unsigned Nostr events.
+5. **3 prepare tools in HTTP server** (`src/http-server.ts`) — Same 3 tools for Open WebUI integration. Both servers now have 20 tools (was 17).
+6. **29 new tests** (`tests/action-preparation.spec.ts`) — Unit tests for all helpers + integration tests for event structure and cross-language canonical message alignment.
+7. **Updated existing tests** — Tool count assertions updated from 17 → 20 in context-storage, personalized-queries, http-transport test files.
+
+### Key Design Decisions
+- **Prepare ≠ Sign**: Tools return unsigned events. Agent presents to user, then calls sign_event. This preserves user consent.
+- **Deterministic IDs**: Action IDs use SHA-256(description)[:8], matching Python's CivicActionService._generate_action_id().
+- **Canonical messages**: Content strings match Python relay's verify_*_signature() methods exactly.
+- **CivicActionType/EvidenceType**: TypeScript types match Python enums for cross-language consistency.
+
+### Test Results
+- 161 tests passing (6 test files), 0 failures, 0 regressions
+
+### Commit
+- Pending `/commit`
+
+---
+
+## Session 536 (2026-02-06) - Fix Meeting Times in City Pulse
+
+**Item:** Meeting time display bug + data backfill
+**Status:** COMPLETE
+
+### What Was Done
+1. Display fix in `apps/civicos-mcp/tools/handlers.py` — parse ISO string datetimes before strftime checks
+2. Backfill script `scripts/backfill_meeting_times.py` — scraped 52 meeting times from ProudCity, updated PostgreSQL
+3. Rotated database passwords in Modal secret after accidental exposure, redeployed MCP + relay
+4. Verified end-to-end: City Pulse shows real meeting times
+
+### Commit
+- `9247d54` fix: Display actual meeting times in City Pulse instead of "Time TBD"
+
+### Next Session
+- P0: `action_event_preparation` (edge_intelligence) — unchanged
+- P1: City Pulse UX polish bundle (5 items) — see `docs/next_session_prompt.md`
+
+---
+
 ## Session 535 (2026-02-02) - User Context Schema Implementation
 
 **Item:** `user_context_schema` (P0)
