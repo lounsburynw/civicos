@@ -1462,3 +1462,45 @@ class PostgresCivicCompletionStorage:
                 ]
         finally:
             self._return_connection(conn)
+
+
+class PostgresSyncStorageAdapter:
+    """Adapter that combines PostgresSyncStorage + PostgresEventStorage to satisfy SyncStorage protocol."""
+
+    def __init__(self, connection_url: str):
+        self._sync = PostgresSyncStorage(connection_url)
+        self._events = PostgresEventStorage(connection_url)
+
+    def get_sync_cursor(self, peer_url: str) -> Optional[str]:
+        return self._sync.get_sync_cursor(peer_url)
+
+    def set_sync_cursor(self, peer_url: str, cursor: str) -> None:
+        self._sync.set_sync_cursor(peer_url, cursor)
+
+    def get_voices_since(self, since, namespace, limit):
+        return self._sync.get_voices_since(since, namespace, limit)
+
+    def import_voice(self, voice) -> str:
+        return self._sync.import_voice(voice)
+
+    def get_events_since(self, since, namespace, limit):
+        return self._events.get_events_since(since, namespace, limit)
+
+    def import_event(self, event) -> str:
+        return self._events.import_event(event)
+
+
+class PostgresStorage:
+    """Combined PostgreSQL storage for all relay data."""
+
+    def __init__(self, connection_url: str):
+        self.voices = PostgresVoiceStorage(connection_url)
+        self.events = PostgresEventStorage(connection_url)
+        self.actions = PostgresActionStorage(connection_url)
+        self.subscriptions = PostgresSubscriptionStorage(connection_url)
+        self.provenance = PostgresProvenanceStorage(connection_url)
+        self.initiatives = PostgresInitiativeStorage(connection_url)
+        self.sync = PostgresSyncStorageAdapter(connection_url)
+        self.civic_action_events = PostgresCivicActionEventStorage(connection_url)
+        self.civic_commitments = PostgresCivicCommitmentStorage(connection_url)
+        self.civic_completions = PostgresCivicCompletionStorage(connection_url)

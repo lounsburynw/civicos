@@ -23,6 +23,12 @@ This document provides a comprehensive reference for all secrets and API keys us
 | `PERPLEXITY_API_KEY` | Research/search mode | [Perplexity Settings](https://www.perplexity.ai/settings/api) | Pay-per-use |
 | `OPENROUTER_API_KEY` | Unified model access | [OpenRouter Keys](https://openrouter.ai/keys) | Pay-per-use |
 
+#### Database Connections
+| Secret | Purpose | Where to Obtain | Cost |
+|--------|---------|-----------------|------|
+| `DATABASE_URL` | Main Supabase Postgres (civic data) | [Supabase Dashboard](https://supabase.com/dashboard) > Connect | Free tier available |
+| `RELAY_DATABASE_URL` | Relay Supabase Postgres (coordination data) | Separate Supabase project > Connect | Free tier available |
+
 #### External Data Services
 | Secret | Purpose | Where to Obtain | Cost |
 |--------|---------|-----------------|------|
@@ -82,7 +88,85 @@ curl https://api.openai.com/v1/models \
 
 ---
 
-### 2. CIVICOS_WEB_KEY (REQUIRED-PROD)
+### 2. Database URLs (REQUIRED)
+
+CivicOS uses **two separate Supabase databases** — one for civic read data, one for coordination/relay data.
+
+| Env Var | Purpose | Data |
+|---------|---------|------|
+| `DATABASE_URL` | Jurisdiction data (read-heavy) | Meetings, decisions, vectors, legislation |
+| `RELAY_DATABASE_URL` | Coordination data (write-heavy) | Voices, actions, subscriptions, sync |
+
+These are separate by design — different access patterns, different scaling needs, and in a federated world, relays are independently deployable.
+
+**Current (Pilot)**: One jurisdiction DB (San Rafael), one relay. Both are env vars pointing to Supabase Postgres instances.
+
+**Future (Federation)**: N jurisdiction DBs and N relays, with a routing/registry layer mapping jurisdictions to their DB and relay URLs. The current env vars are per-deployment, not per-jurisdiction — scaling beyond one jurisdiction will require a `JURISDICTION_REGISTRY_URL` or equivalent service discovery mechanism.
+
+#### Obtaining the URL
+
+1. Go to Supabase Dashboard > your project > **Connect**
+2. Select **Method: Transaction pooler** (NOT "Direct connection")
+3. Copy the URI
+
+#### Use the Transaction Pooler URL
+
+The **direct connection** URL (`db.PROJECT_REF.supabase.co:5432`) has issues:
+- IPv6-only without the IPv4 add-on
+- Bypasses connection pooling (exhausts connections under load)
+
+The **transaction pooler** URL format varies by project — always check the Supabase Connect dialog:
+
+```bash
+# Shared pooler host (some projects):
+postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres
+
+# Project-specific host (other projects):
+postgresql://postgres:PASSWORD@db.PROJECT_REF.supabase.co:6543/postgres
+```
+
+The region in the pooler host **must match** the project's region (e.g., `us-west-1` for N. California, `us-west-2` for Oregon).
+
+#### Common Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `could not translate host name` | Wrong host or IPv6-only direct URL | Use transaction pooler URL |
+| `Tenant or user not found` | Wrong region in pooler host, or project paused | Check region; restore if paused |
+| `password authentication failed` | Wrong password or user format | Reset in Project Settings > Database |
+| `SASL authentication failed` | Mixed up direct host with pooler port | Use exact URL from Connect dialog |
+
+**Paused projects**: Free-tier Supabase projects auto-pause after inactivity. After restoring, the pooler may take several minutes to register the project.
+
+#### Validation
+
+```bash
+python3 -c "
+from dotenv import load_dotenv; load_dotenv()
+import os, psycopg2
+for var in ['DATABASE_URL', 'RELAY_DATABASE_URL']:
+    url = os.environ.get(var)
+    if not url:
+        print(f'{var}: NOT SET'); continue
+    try:
+        conn = psycopg2.connect(url, connect_timeout=5)
+        conn.cursor().execute('SELECT 1')
+        conn.close()
+        print(f'{var}: OK')
+    except Exception as e:
+        print(f'{var}: FAILED - {e}')
+"
+```
+
+#### Schema Migrations
+
+- Main DB: managed by the core CivicOS package
+- Relay DB: run `scripts/sql/add_coordination_tables.sql` then `scripts/sql/add_action_events.sql`
+
+---
+
+### 3. CIVICOS_WEB_KEY (REQUIRED-PROD)
+
 
 **Purpose**: Bearer token for API authentication.
 
@@ -108,7 +192,7 @@ curl -H "Authorization: Bearer $CIVICOS_WEB_KEY" \
 
 ---
 
-### 3. CIVICOS_CORS_ORIGINS (REQUIRED-PROD)
+### 4. CIVICOS_CORS_ORIGINS (REQUIRED-PROD)
 
 **Purpose**: Restricts which domains can make cross-origin requests.
 
@@ -130,7 +214,7 @@ CIVICOS_CORS_ORIGINS=https://civic.example.com,https://www.civic.example.com
 
 ---
 
-### 4. Embeddings Configuration
+### 5. Embeddings Configuration
 
 **Default (Free)**:
 Uses local `all-MiniLM-L6-v2` model - no API key required.
@@ -149,7 +233,7 @@ CIVICOS_EMBEDDING_MODEL=text-embedding-3-small
 
 ---
 
-### 5. PDF Parsing Tiers
+### 6. PDF Parsing Tiers
 
 The system supports tiered PDF parsing. Choose based on document complexity:
 
