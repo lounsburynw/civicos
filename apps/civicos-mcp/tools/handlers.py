@@ -1583,6 +1583,29 @@ def _get_default_relay_url() -> str:
     return "http://localhost:8003"
 
 
+def _save_voice_receipt(payload: dict, relay_urls: list, logger) -> None:
+    """Save a local receipt of the signed voice before broadcasting."""
+    import json
+    import os
+    import time
+    from pathlib import Path
+
+    receipts_dir = Path.home() / ".civicos"
+    receipts_file = receipts_dir / "voice_receipts.jsonl"
+
+    try:
+        receipts_dir.mkdir(exist_ok=True)
+        receipt = {
+            **payload,
+            "target_relays": relay_urls,
+            "saved_at": int(time.time()),
+        }
+        with open(receipts_file, "a") as f:
+            f.write(json.dumps(receipt) + "\n")
+    except Exception as e:
+        logger.warning(f"Failed to save voice receipt: {e}")
+
+
 def _resolve_relay_url(relay_url: str | None) -> str:
     """Resolve relay URL, using default if not specified."""
     if relay_url:
@@ -1857,6 +1880,9 @@ def broadcast_voice(
     }
     if voice_jurisdiction:
         payload["jurisdiction"] = voice_jurisdiction
+
+    # Save local receipt before broadcasting
+    _save_voice_receipt(payload, relay_urls, logger)
 
     for relay_url in relay_urls:
         relay_url = relay_url.rstrip("/")
