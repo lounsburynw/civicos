@@ -5,7 +5,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 
 from civicos_relay.identity import RelayIdentity, RelayConfig
@@ -19,7 +19,7 @@ from civicos_relay.provenance.models import KeyProvenance
 from civicos_relay.provenance.service import ProvenanceService
 from civicos_relay.sync.protocol import SyncRequest, VoiceSyncResponse, VoiceImportRequest, VoiceImportResponse
 from civicos_relay.sync.service import SyncService
-from civicos_relay.storage import InMemoryStorage
+from civicos_relay.storage import InMemoryStorage, PostgresStorage
 from civicos_relay.delivery import EmailDelivery, EmailConfig
 
 logger = logging.getLogger(__name__)
@@ -27,11 +27,13 @@ logger = logging.getLogger(__name__)
 
 # Request/Response models for API
 class CastVoiceRequest(BaseModel):
-    """Request to cast a voice."""
+    """Request to cast a voice (signed Nostr event fields)."""
     entity: str
     stance: Stance
     public_key: str
     signature: str
+    created_at: int = Field(description="Unix timestamp from the signed Nostr event")
+    jurisdiction: Optional[str] = Field(default=None, description="Jurisdiction code for Nostr tag reconstruction")
 
 
 class CommitActionRequest(BaseModel):
@@ -103,8 +105,14 @@ async def lifespan(app: FastAPI):
         config.private_key_path,
     )
 
-    # Use in-memory storage for now (swap for Postgres in production)
-    storage = InMemoryStorage()
+    # RELAY_DATABASE_URL overrides DATABASE_URL (for separate relay DB)
+    relay_db_url = os.environ.get("RELAY_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    if relay_db_url:
+        storage = PostgresStorage(relay_db_url)
+        logger.info("Relay storage: PostgreSQL")
+    else:
+        storage = InMemoryStorage()
+        logger.info("Relay storage: in-memory (set RELAY_DATABASE_URL for persistence)")
 
     # Initialize email delivery if configured
     email_delivery = None
@@ -143,25 +151,29 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Health endpoints
+    # Health on root (not behind /coordination)
     @app.get("/health", response_model=HealthResponse)
     async def health(identity: RelayIdentity = Depends(get_identity)):
         return HealthResponse(status="healthy", relay_id=identity.relay_id)
 
-    # Voice endpoints
-    @app.post("/voice", response_model=Voice)
+    # All coordination endpoints under /coordination prefix
+    router = APIRouter(prefix="/coordination")
+
+    @router.post("/voice", response_model=Voice)
     async def cast_voice(
         request: CastVoiceRequest,
         voice_service: VoiceService = Depends(get_voice_service),
         provenance_service: ProvenanceService = Depends(get_provenance_service),
     ):
         """Cast a voice on an entity."""
-        # Create voice from signed request
+        # Create voice from signed Nostr event fields
         voice = Voice(
             entity=request.entity,
             stance=request.stance,
             public_key=request.public_key,
             signature=request.signature,
+            created_at=request.created_at,
+            jurisdiction=request.jurisdiction,
         )
 
         # Verify and store
@@ -180,7 +192,7 @@ def create_app() -> FastAPI:
 
         return voice
 
-    @app.get("/voice/counts/{entity:path}", response_model=VoiceCount)
+    @router.get("/voice/counts/{entity:path}", response_model=VoiceCount)
     async def get_voice_counts(
         entity: str,
         voice_service: VoiceService = Depends(get_voice_service),
@@ -188,7 +200,7 @@ def create_app() -> FastAPI:
         """Get voice counts for an entity."""
         return voice_service.get_counts(entity)
 
-    @app.get("/voice/{entity:path}", response_model=list[Voice])
+    @router.get("/voice/{entity:path}", response_model=list[Voice])
     async def list_voices(
         entity: str,
         voice_service: VoiceService = Depends(get_voice_service),
@@ -197,7 +209,7 @@ def create_app() -> FastAPI:
         return voice_service._storage.get_voices_for_entity(entity)
 
     # Action endpoints (commitments and completions)
-    @app.post("/action/commit", response_model=Action)
+    @router.post("/action/commit", response_model=Action)
     async def commit_action(
         request: CommitActionRequest,
         action_service: ActionService = Depends(get_action_service),
@@ -222,7 +234,7 @@ def create_app() -> FastAPI:
             signature=request.signature,
         )
 
-    @app.post("/action/complete", response_model=Action)
+    @router.post("/action/complete", response_model=Action)
     async def complete_action(
         request: CompleteActionRequest,
         action_service: ActionService = Depends(get_action_service),
@@ -249,7 +261,7 @@ def create_app() -> FastAPI:
             evidence_url=request.evidence_url,
         )
 
-    @app.get("/action/counts/{action_id:path}", response_model=ActionCount)
+    @router.get("/action/counts/{action_id:path}", response_model=ActionCount)
     async def get_action_counts(
         action_id: str,
         target: Optional[int] = None,
@@ -258,7 +270,7 @@ def create_app() -> FastAPI:
         """Get commitment and completion counts for an action."""
         return action_service.get_counts(action_id, target)
 
-    @app.get("/action/commitments/{action_id:path}", response_model=list[Action])
+    @router.get("/action/commitments/{action_id:path}", response_model=list[Action])
     async def list_commitments(
         action_id: str,
         action_service: ActionService = Depends(get_action_service),
@@ -266,7 +278,7 @@ def create_app() -> FastAPI:
         """List all commitments for an action."""
         return action_service.get_commitments(action_id)
 
-    @app.get("/action/completions/{action_id:path}", response_model=list[Action])
+    @router.get("/action/completions/{action_id:path}", response_model=list[Action])
     async def list_completions(
         action_id: str,
         action_service: ActionService = Depends(get_action_service),
@@ -275,7 +287,7 @@ def create_app() -> FastAPI:
         return action_service.get_completions(action_id)
 
     # Subscription endpoints
-    @app.post("/subscribe", response_model=Subscription)
+    @router.post("/subscribe", response_model=Subscription)
     async def subscribe(
         request: SubscribeRequest,
         relay_service: RelayService = Depends(get_relay_service),
@@ -296,7 +308,7 @@ def create_app() -> FastAPI:
             delivery=delivery,
         )
 
-    @app.delete("/subscribe/{subscription_id}")
+    @router.delete("/subscribe/{subscription_id}")
     async def unsubscribe(
         subscription_id: str,
         relay_service: RelayService = Depends(get_relay_service),
@@ -307,7 +319,7 @@ def create_app() -> FastAPI:
         return {"status": "unsubscribed"}
 
     # Provenance endpoints
-    @app.get("/provenance/{public_key}", response_model=Optional[KeyProvenance])
+    @router.get("/provenance/{public_key}", response_model=Optional[KeyProvenance])
     async def get_provenance(
         public_key: str,
         provenance_service: ProvenanceService = Depends(get_provenance_service),
@@ -319,7 +331,7 @@ def create_app() -> FastAPI:
         return provenance
 
     # Sync endpoints (federation)
-    @app.get("/sync/voices", response_model=VoiceSyncResponse)
+    @router.get("/sync/voices", response_model=VoiceSyncResponse)
     async def export_voices(
         since: Optional[str] = None,
         namespace: Optional[str] = None,
@@ -337,7 +349,7 @@ def create_app() -> FastAPI:
         )
         return sync_service.export_voices(request)
 
-    @app.post("/sync/voices", response_model=VoiceImportResponse)
+    @router.post("/sync/voices", response_model=VoiceImportResponse)
     async def import_voices(
         request: VoiceImportRequest,
         sync_service: SyncService = Depends(get_sync_service),
@@ -345,6 +357,7 @@ def create_app() -> FastAPI:
         """Import voices from a peer relay."""
         return sync_service.import_voices(request)
 
+    app.include_router(router)
     return app
 
 

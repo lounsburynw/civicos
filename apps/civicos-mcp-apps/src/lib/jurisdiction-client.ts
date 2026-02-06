@@ -117,14 +117,19 @@ export class JurisdictionClient {
     stance: "support" | "oppose" | "watching";
     publicKey: string;
     signature: string;
+    createdAt?: number;
+    jurisdiction?: string;
   }): Promise<{ success: boolean; message: string }> {
     try {
-      const text = await this.callTool("broadcast_voice", {
+      const toolArgs: Record<string, unknown> = {
         entity: params.entity,
         stance: params.stance,
         public_key: params.publicKey,
         signature: params.signature,
-      });
+      };
+      if (params.createdAt !== undefined) toolArgs.created_at = params.createdAt;
+      if (params.jurisdiction) toolArgs.jurisdiction = params.jurisdiction;
+      const text = await this.callTool("broadcast_voice", toolArgs);
 
       return {
         success: !text.toLowerCase().includes("error"),

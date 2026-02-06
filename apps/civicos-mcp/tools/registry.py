@@ -411,26 +411,34 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
         },
     },
     "broadcast_voice": {
-        "description": "Broadcast a signed voice to relay node(s). This is step 2 of casting a voice - after signing the payload from prepare_voice with your private key, submit the signature here.",
+        "description": "Broadcast a signed voice to relay node(s). This is step 2 of casting a voice - after signing the Nostr event with your private key via the Personal MCP, submit the signed event fields here.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "entity": {
                     "type": "string",
-                    "description": "Entity identifier (must match what you signed)",
+                    "description": "Entity identifier (from the signed Nostr event d-tag)",
                 },
                 "stance": {
                     "type": "string",
                     "enum": ["support", "oppose", "watching"],
-                    "description": "Your position (must match what you signed)",
+                    "description": "Your position (from the signed Nostr event stance tag)",
                 },
                 "public_key": {
                     "type": "string",
-                    "description": "Your public key (hex-encoded, compressed ECDSA P-256)",
+                    "description": "Your public key (hex-encoded, 32-byte x-only secp256k1)",
                 },
                 "signature": {
                     "type": "string",
-                    "description": "Signature of the voice payload (hex-encoded)",
+                    "description": "BIP-340 Schnorr signature (hex-encoded, 64 bytes)",
+                },
+                "created_at": {
+                    "type": "integer",
+                    "description": "Unix timestamp from the signed Nostr event",
+                },
+                "jurisdiction": {
+                    "type": "string",
+                    "description": "Jurisdiction code (e.g., 'city-san-rafael') from the signed event j-tag",
                 },
                 "relay_urls": {
                     "type": "array",
@@ -438,7 +446,7 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
                     "description": "Relay node URLs to broadcast to. Defaults to CivicOS relay if not specified.",
                 },
             },
-            "required": ["entity", "stance", "public_key", "signature"],
+            "required": ["entity", "stance", "public_key", "signature", "created_at"],
         },
     },
     "list_relays": {
