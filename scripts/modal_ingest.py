@@ -205,7 +205,7 @@ def fetch_municipal_code(
     vector_result = None
     if auto_index and stored_count > 0 and not dry_run:
         logger.info(f"[MUNICIPAL] Auto-indexing vectors for {jurisdiction}...")
-        vector_result = index_vectors.local(
+        vector_result = index_vectors.remote(
             jurisdiction=jurisdiction,
             corpus="municipal_code",
             reindex=False,
@@ -398,7 +398,7 @@ def fetch_legislation(
         logger.info(f"[LEGISLATION] Auto-indexing vectors for {jurisdiction}...")
         # Legislation uses "legislation-CA" format for vector indexing
         vector_jurisdiction = f"legislation-{state_code}"
-        vector_result = index_vectors.local(
+        vector_result = index_vectors.remote(
             jurisdiction=vector_jurisdiction,
             corpus="legislation",
             reindex=False,
@@ -617,7 +617,7 @@ def sync_legislation(
     if auto_index:
         logger.info(f"[LEGISLATION SYNC] Auto-indexing vectors for {jurisdiction}...")
         vector_jurisdiction = f"legislation-{state_code}"
-        vector_result = index_vectors.local(
+        vector_result = index_vectors.remote(
             jurisdiction=vector_jurisdiction,
             corpus="legislation",
             reindex=False,
@@ -763,7 +763,7 @@ def fetch_executive_orders(
     vector_result = None
     if auto_index and stored_count > 0 and not dry_run:
         logger.info("[EO] Auto-indexing vectors for executive_orders...")
-        vector_result = index_vectors.local(
+        vector_result = index_vectors.remote(
             jurisdiction="federal-US",
             corpus="executive_orders",
             reindex=False,
@@ -1032,7 +1032,7 @@ def fetch_federal_programs(
     vector_result = None
     if auto_index and stored > 0 and not dry_run:
         logger.info("[FEDERAL PROGRAMS] Auto-indexing vectors...")
-        vector_result = index_vectors.local(
+        vector_result = index_vectors.remote(
             jurisdiction="federal-US",
             corpus="programs",
             reindex=False,
@@ -1671,7 +1671,7 @@ def fetch_meetings(
     vector_result = None
     if auto_index and stored_count > 0 and not dry_run:
         logger.info(f"[MEETINGS] Auto-indexing vectors for {jurisdiction}...")
-        vector_result = index_vectors.local(
+        vector_result = index_vectors.remote(
             jurisdiction=jurisdiction,
             corpus="meetings",
             reindex=False,
@@ -2021,7 +2021,7 @@ def fetch_issues(
     vector_result = None
     if auto_index and stored_count > 0 and not dry_run:
         logger.info(f"[ISSUES] Auto-indexing vectors for {jurisdiction}...")
-        vector_result = index_vectors.local(
+        vector_result = index_vectors.remote(
             jurisdiction=jurisdiction,
             corpus="issues",
             reindex=False,
@@ -2153,7 +2153,7 @@ def fetch_elections(
     vector_result = None
     if auto_index and stored_count > 0 and not dry_run:
         logger.info(f"[ELECTIONS] Auto-indexing vectors for {jurisdiction}...")
-        vector_result = index_vectors.local(
+        vector_result = index_vectors.remote(
             jurisdiction=jurisdiction,
             corpus="elections",
             reindex=False,
@@ -2400,7 +2400,7 @@ def extract_chunks(
     vector_result = None
     if auto_index and total_chunks > 0 and not dry_run:
         logger.info(f"[CHUNKS] Auto-indexing vectors for {jurisdiction}...")
-        vector_result = index_vectors.local(
+        vector_result = index_vectors.remote(
             jurisdiction=jurisdiction,
             corpus="chunks",
             reindex=False,
@@ -2511,7 +2511,7 @@ def extract_agenda_items(
     vector_result = None
     if auto_index and total_items > 0 and not dry_run:
         logger.info(f"[AGENDA] Auto-indexing vectors for {jurisdiction}...")
-        vector_result = index_vectors.local(
+        vector_result = index_vectors.remote(
             jurisdiction=jurisdiction,
             corpus="agenda_items",
             reindex=False,
@@ -2644,7 +2644,7 @@ def extract_decisions(
     vector_result = None
     if auto_index and total_decisions > 0 and not dry_run:
         logger.info(f"[DECISIONS] Auto-indexing vectors for {jurisdiction}...")
-        vector_result = index_vectors.local(
+        vector_result = index_vectors.remote(
             jurisdiction=jurisdiction,
             corpus="decisions",
             reindex=False,
@@ -2871,7 +2871,7 @@ def extract_transcripts(
     vector_result = None
     if auto_index and transcripts_extracted > 0 and not dry_run:
         logger.info(f"[TRANSCRIPTS] Auto-indexing vectors for {jurisdiction}...")
-        vector_result = index_vectors.local(
+        vector_result = index_vectors.remote(
             jurisdiction=jurisdiction,
             corpus="transcripts",
             reindex=False,
