@@ -379,6 +379,11 @@ def city_pulse(
         upcoming_items = []
         for m in meetings:
             meeting_dt = m.get('meeting_datetime')
+            if isinstance(meeting_dt, str):
+                try:
+                    meeting_dt = datetime.fromisoformat(meeting_dt.replace('Z', '+00:00'))
+                except (ValueError, TypeError):
+                    meeting_dt = None
             if meeting_dt and hasattr(meeting_dt, 'strftime') and meeting_dt > now:
                 items = storage.get_agenda_items(meeting_id=m.get('id'))
                 for item in items:
@@ -395,6 +400,11 @@ def city_pulse(
 
         for m in meetings[:10]:  # Limit to 10 most recent/upcoming
             meeting_dt = m.get('meeting_datetime')
+            if isinstance(meeting_dt, str):
+                try:
+                    meeting_dt = datetime.fromisoformat(meeting_dt.replace('Z', '+00:00'))
+                except (ValueError, TypeError):
+                    meeting_dt = None
             if meeting_dt and hasattr(meeting_dt, 'strftime'):
                 date_str = meeting_dt.strftime("%a, %b %d")
                 time_str = meeting_dt.strftime("%I:%M %p").lstrip('0')
