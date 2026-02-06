@@ -357,6 +357,7 @@ def city_pulse(
         "jurisdiction": jurisdiction,
         "generated_at": now.isoformat(),
         "decisions_this_week": [],
+        "upcoming_items": [],
         "recent_outcomes": [],
         "community_pulse": {},
     }
@@ -373,6 +374,24 @@ def city_pulse(
 
         # Sort by date and take most recent/upcoming
         meetings = sorted(meetings, key=lambda m: m.get('meeting_datetime') or now, reverse=True)
+
+        # Collect upcoming agenda items from future meetings
+        upcoming_items = []
+        for m in meetings:
+            meeting_dt = m.get('meeting_datetime')
+            if meeting_dt and hasattr(meeting_dt, 'strftime') and meeting_dt > now:
+                items = storage.get_agenda_items(meeting_id=m.get('id'))
+                for item in items:
+                    upcoming_items.append({
+                        "id": item.get('id'),
+                        "meeting_id": m.get('id'),
+                        "item_number": item.get('item_number'),
+                        "title": item.get('title', 'Agenda Item'),
+                        "project_type": item.get('project_type'),
+                        "meeting_title": m.get('title') or m.get('body') or 'Meeting',
+                        "meeting_date": meeting_dt.strftime("%b %d"),
+                    })
+        result["upcoming_items"] = upcoming_items[:10]
 
         for m in meetings[:10]:  # Limit to 10 most recent/upcoming
             meeting_dt = m.get('meeting_datetime')
