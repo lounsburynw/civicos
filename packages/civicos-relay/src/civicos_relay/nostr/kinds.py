@@ -72,6 +72,21 @@ Criteria in public tags enable relay-side filtering.
 Delivery config encrypted for user privacy.
 """
 
+CIVIC_COMMENT = 30803
+"""
+Civic Comment - A public comment on a civic entity.
+
+Tags:
+- d: Entity identifier (required)
+- j: Jurisdiction (optional)
+- stance: "support" | "oppose" | "watching" (optional)
+
+Content: The comment text
+
+Addressable by kind:pubkey:d-tag (one comment per key per entity).
+Revocation: Publish with content "deleted"
+"""
+
 # =============================================================================
 # Replaceable Civic Kinds (10800-10899)
 # These are replaced by kind:pubkey (one per pubkey)
@@ -228,6 +243,7 @@ def is_civic_kind(kind: int) -> bool:
         CIVIC_VOICE,
         CIVIC_ENTITY,
         CIVIC_SUBSCRIPTION,
+        CIVIC_COMMENT,
         CIVIC_PROVENANCE,
         CIVIC_VOUCH,
         CIVIC_EVENT_NOTIFICATION,

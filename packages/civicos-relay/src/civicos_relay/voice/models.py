@@ -63,6 +63,39 @@ class VoiceCount(BaseModel):
         return self.support + self.oppose + self.watching
 
 
+class Comment(BaseModel):
+    """
+    A public comment on a civic entity.
+
+    Comments are signed records associating a keypair with text on an entity.
+    One key can post one comment per entity (can be updated or soft-deleted).
+    """
+
+    entity: str = Field(
+        description="Namespaced entity identifier (e.g., 'agenda-item:123')"
+    )
+    comment_text: str = Field(description="The comment text")
+    public_key: str = Field(description="Public key (hex-encoded)")
+    signature: str = Field(description="Signature (hex-encoded)")
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    jurisdiction: Optional[str] = Field(default=None)
+    stance: Optional[str] = Field(default=None)
+    created_at: Optional[int] = Field(
+        default=None,
+        description="Unix timestamp from the signed Nostr event"
+    )
+    deleted: bool = Field(default=False)
+
+    model_config = {"frozen": True}
+
+
+class CommentCount(BaseModel):
+    """Aggregated comment count for an entity."""
+
+    entity: str
+    count: int = 0
+
+
 class Action(BaseModel):
     """
     A civic action commitment or completion.

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-from civicos_relay.voice.models import Voice, Stance
+from civicos_relay.voice.models import Voice, Stance, Comment
 
 
 def _schnorr_verify(pubkey_hex: str, sig_hex: str, msg_hex: str) -> bool:
@@ -140,6 +140,45 @@ def verify_voice(voice: Voice) -> bool:
         content = f"{_voice_message(voice.entity, voice.stance)}:{created_at}"
 
         event_id = _compute_nostr_event_id(pubkey, created_at, 30800, tags, content)
+        return _schnorr_verify(pubkey, sig, event_id)
+    except Exception:
+        return False
+
+
+def verify_comment(comment: Comment) -> bool:
+    """
+    Verify a comment signature.
+
+    Comments use Nostr Kind 30803. The comment text IS the event content.
+    The signature is over the Nostr event ID (SHA-256 of serialized event).
+    """
+    try:
+        pubkey = comment.public_key
+        sig = comment.signature
+
+        if not pubkey or not sig:
+            return False
+
+        if len(pubkey) != 64 or len(sig) != 128:
+            return False
+
+        if comment.created_at is None:
+            return False
+
+        created_at = comment.created_at
+
+        # Build tags: d (entity), j (jurisdiction), optionally stance
+        tags = [
+            ["d", comment.entity],
+            ["j", comment.jurisdiction],
+        ]
+        if comment.stance:
+            tags.append(["stance", comment.stance])
+
+        # Content is the comment text itself
+        content = comment.comment_text
+
+        event_id = _compute_nostr_event_id(pubkey, created_at, 30803, tags, content)
         return _schnorr_verify(pubkey, sig, event_id)
     except Exception:
         return False
