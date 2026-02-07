@@ -267,6 +267,42 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
             logger.error(f"Error in issue_geography: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
+    @router.get("/budget-summary", response_model=ToolResponse,
+                summary="Budget allocation summary",
+                description="Budget items grouped by department/fund/program with dollar amounts and percentages.")
+    async def budget_summary(group_by: str = "department", fiscal_year: Optional[str] = None):
+        try:
+            # Auto-detect latest fiscal year if not specified
+            if not fiscal_year:
+                items = civic._storage.get_budget_items(jurisdiction)
+                years = sorted(set(i.get("fiscal_year") for i in items if i.get("fiscal_year")), reverse=True)
+                fiscal_year = years[0] if years else "2025-2026"
+
+            rows = civic._storage.get_budget_summary(
+                jurisdiction_id=jurisdiction,
+                fiscal_year=fiscal_year,
+                group_by=group_by,
+            )
+            total_cents = sum(int(r.get("budgeted_cents", 0) or 0) for r in rows)
+            categories = []
+            for r in rows:
+                budgeted_cents = int(r.get("budgeted_cents", 0) or 0)
+                categories.append({
+                    "category": r.get(group_by) or "Other",
+                    "budgeted_dollars": budgeted_cents / 100,
+                    "percentage": round(float(budgeted_cents) / total_cents * 100, 1) if total_cents else 0,
+                    "item_count": int(r.get("item_count", 0)),
+                })
+            return ToolResponse(data={
+                "categories": categories,
+                "total_budgeted_dollars": total_cents / 100,
+                "fiscal_year": fiscal_year,
+                "group_by": group_by,
+            })
+        except Exception as e:
+            logger.error(f"Error in budget_summary: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
     @router.post("/comment-synthesis", response_model=ToolResponse,
                   summary="Comment synthesis for an entity",
                   description="Aggregate public comments for an entity: total count, stance breakdown, and comment texts. No LLM — pure data aggregation for edge AI synthesis.")
