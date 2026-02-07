@@ -3787,6 +3787,7 @@ class PostgresBackend:
         status: Optional[str] = None,
         issue_type: Optional[str] = None,
         limit: Optional[int] = None,
+        created_after: Optional[datetime] = None,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve 311 issues with optional filtering.
@@ -3828,6 +3829,10 @@ class PostgresBackend:
         if issue_type:
             query += " AND issue_type = %s"
             params.append(issue_type)
+
+        if created_after:
+            query += " AND created_at >= %s"
+            params.append(created_after.isoformat())
 
         query += " ORDER BY created_at DESC"
 
