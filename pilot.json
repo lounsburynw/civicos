@@ -2581,7 +2581,7 @@
       },
       "civic_dashboard_mvp": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "MVP civic dashboard with 3+ visualization primitives",
         "description": "Implement minimum viable dashboard UX before MCP registry listing. Must include: (1) at least 3 visualization primitives (calendar heatmap, decision flow, issue geography), (2) visible engagement ladder progression (awareness \u2192 participation path), (3) data-forward presentation (patterns emerge, no editorializing), (4) multi-surface capability (same query works in chat + visual rendering).",
         "note": "2026-02-05: LLM-triggered artifacts implemented. Chat detects civic intent (patterns like 'what's happening', 'upcoming meetings', 'san rafael') and auto-opens City Pulse widget. Previous: Open WebUI fork integration, live Modal MCP data flow. Next: viz primitives, layout CSS.",
@@ -2869,7 +2869,7 @@
       },
       "mcp_registry_listing": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 3,
         "artifact": "Civic MCP server listed on MCP Registry and community directories",
         "description": "Register civicos-mcp on official MCP Registry and community directories (MCP.so, MCPServers.org) for discoverability.",
         "note": "Session 545: Deferred until after stress testing and launch. Internal registry (internal_mcp_registry) should be built first to enable UX development and establish patterns. Deferred until UX vision implemented (civic_dashboard_mvp).",

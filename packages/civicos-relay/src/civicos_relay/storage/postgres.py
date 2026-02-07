@@ -1464,6 +1464,130 @@ class PostgresCivicCompletionStorage:
             self._return_connection(conn)
 
 
+class PostgresCommentStorage:
+    """PostgreSQL storage for public comments (Kind 30803)."""
+
+    def __init__(self, connection_url: str):
+        self._connection_url = connection_url
+        self._pool = None
+
+    def _get_connection(self):
+        if self._pool is None:
+            import psycopg2.pool
+            self._pool = psycopg2.pool.SimpleConnectionPool(
+                1, 10, self._connection_url
+            )
+        return self._pool.getconn()
+
+    def _return_connection(self, conn):
+        self._pool.putconn(conn)
+
+    def save_comment(self, comment) -> None:
+        """Store a comment (upsert by public_key + entity)."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO coordination_comments
+                    (entity, comment_text, public_key, signature, timestamp,
+                     jurisdiction, stance, created_at, deleted)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (public_key, entity)
+                    DO UPDATE SET comment_text = %s, signature = %s, timestamp = %s,
+                    stance = %s, created_at = %s, deleted = %s
+                    """,
+                    (
+                        comment.entity,
+                        comment.comment_text,
+                        comment.public_key,
+                        comment.signature,
+                        comment.timestamp,
+                        comment.jurisdiction,
+                        comment.stance,
+                        comment.created_at,
+                        comment.deleted,
+                        comment.comment_text,
+                        comment.signature,
+                        comment.timestamp,
+                        comment.stance,
+                        comment.created_at,
+                        comment.deleted,
+                    ),
+                )
+                conn.commit()
+        finally:
+            self._return_connection(conn)
+
+    def get_comments_for_entity(self, entity: str) -> list:
+        """Get all non-deleted comments for an entity, newest first."""
+        from civicos_relay.voice.models import Comment
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT entity, comment_text, public_key, signature, timestamp,
+                           jurisdiction, stance, created_at, deleted
+                    FROM coordination_comments
+                    WHERE entity = %s AND deleted = FALSE
+                    ORDER BY timestamp DESC
+                    """,
+                    (entity,),
+                )
+                return [
+                    Comment(
+                        entity=row[0],
+                        comment_text=row[1],
+                        public_key=row[2],
+                        signature=row[3],
+                        timestamp=row[4],
+                        jurisdiction=row[5],
+                        stance=row[6],
+                        created_at=row[7],
+                        deleted=row[8],
+                    )
+                    for row in cur.fetchall()
+                ]
+        finally:
+            self._return_connection(conn)
+
+    def get_comment_count(self, entity: str) -> int:
+        """Get count of non-deleted comments for an entity."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT COUNT(*) FROM coordination_comments
+                    WHERE entity = %s AND deleted = FALSE
+                    """,
+                    (entity,),
+                )
+                return cur.fetchone()[0]
+        finally:
+            self._return_connection(conn)
+
+    def delete_comment(self, public_key: str, entity: str) -> bool:
+        """Soft-delete a comment. Returns True if it existed."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE coordination_comments
+                    SET deleted = TRUE
+                    WHERE public_key = %s AND entity = %s
+                    RETURNING entity
+                    """,
+                    (public_key, entity),
+                )
+                conn.commit()
+                return cur.fetchone() is not None
+        finally:
+            self._return_connection(conn)
+
+
 class PostgresSyncStorageAdapter:
     """Adapter that combines PostgresSyncStorage + PostgresEventStorage to satisfy SyncStorage protocol."""
 
@@ -1501,6 +1625,7 @@ class PostgresStorage:
         self.provenance = PostgresProvenanceStorage(connection_url)
         self.initiatives = PostgresInitiativeStorage(connection_url)
         self.sync = PostgresSyncStorageAdapter(connection_url)
+        self.comments = PostgresCommentStorage(connection_url)
         self.civic_action_events = PostgresCivicActionEventStorage(connection_url)
         self.civic_commitments = PostgresCivicCommitmentStorage(connection_url)
         self.civic_completions = PostgresCivicCompletionStorage(connection_url)

@@ -10,10 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from civicos_relay.identity import RelayIdentity, RelayConfig
-from civicos_relay.voice.models import Voice, Stance, VoiceCount, Action, ActionType, ActionCount
+from civicos_relay.voice.models import Voice, Stance, VoiceCount, Action, ActionType, ActionCount, Comment, CommentCount
 from civicos_relay.voice.service import VoiceService
 from civicos_relay.voice.action_service import ActionService
-from civicos_relay.voice.crypto import KeyPair, sign_voice
+from civicos_relay.voice.crypto import KeyPair, sign_voice, verify_comment
 from civicos_relay.relay.models import Subscription, MatchCriteria, DeliveryConfig, DeliveryMethod
 from civicos_relay.relay.service import RelayService
 from civicos_relay.provenance.models import KeyProvenance
@@ -50,6 +50,17 @@ class CompleteActionRequest(BaseModel):
     public_key: str
     signature: str
     evidence_url: Optional[str] = None
+
+
+class SubmitCommentRequest(BaseModel):
+    """Request to submit a public comment."""
+    entity: str
+    comment_text: str
+    public_key: str
+    signature: str
+    created_at: int = Field(description="Unix timestamp from the signed Nostr event")
+    jurisdiction: Optional[str] = None
+    stance: Optional[str] = None
 
 
 class SubscribeRequest(BaseModel):
@@ -92,6 +103,10 @@ def get_action_service() -> ActionService:
     return _relay_state["action_service"]
 
 
+def get_comment_storage():
+    return _relay_state["comment_storage"]
+
+
 def get_identity() -> RelayIdentity:
     return _relay_state["identity"]
 
@@ -130,6 +145,7 @@ async def lifespan(app: FastAPI):
     _relay_state["relay_service"] = RelayService(storage.subscriptions, email_delivery)
     _relay_state["provenance_service"] = ProvenanceService(storage.provenance)
     _relay_state["sync_service"] = SyncService(identity, storage.sync, config.peers)
+    _relay_state["comment_storage"] = storage.comments
 
     if config.sync_enabled:
         await _relay_state["sync_service"].start()
@@ -293,6 +309,46 @@ def create_app() -> FastAPI:
     ):
         """List all completions for an action."""
         return action_service.get_completions(action_id)
+
+    # Comment endpoints (public comment board)
+    @router.post("/comment", response_model=Comment)
+    async def submit_comment(
+        request: SubmitCommentRequest,
+        comment_storage=Depends(get_comment_storage),
+    ):
+        """Submit a signed public comment on an entity."""
+        comment = Comment(
+            entity=request.entity,
+            comment_text=request.comment_text,
+            public_key=request.public_key,
+            signature=request.signature,
+            created_at=request.created_at,
+            jurisdiction=request.jurisdiction,
+            stance=request.stance,
+        )
+
+        if not verify_comment(comment):
+            raise HTTPException(status_code=400, detail="Invalid comment signature")
+
+        comment_storage.save_comment(comment)
+        return comment
+
+    @router.get("/comments/{entity:path}", response_model=list[Comment])
+    async def list_comments(
+        entity: str,
+        comment_storage=Depends(get_comment_storage),
+    ):
+        """List non-deleted comments for an entity."""
+        return comment_storage.get_comments_for_entity(entity)
+
+    @router.get("/comment/counts/{entity:path}", response_model=CommentCount)
+    async def get_comment_counts(
+        entity: str,
+        comment_storage=Depends(get_comment_storage),
+    ):
+        """Get comment count for an entity."""
+        count = comment_storage.get_comment_count(entity)
+        return CommentCount(entity=entity, count=count)
 
     # Subscription endpoints
     @router.post("/subscribe", response_model=Subscription)

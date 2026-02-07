@@ -8,6 +8,7 @@ from civicos_relay.voice.models import (
     Stance,
     Action,
     ActionType,
+    Comment,
     CivicActionEvent,
     CivicCommitment,
     CivicCompletion,
@@ -339,6 +340,49 @@ class InMemoryActionStorage:
         return False
 
 
+class InMemoryCommentStorage:
+    """In-memory comment storage for testing."""
+
+    def __init__(self):
+        self._comments: dict[tuple[str, str], Comment] = {}  # (public_key, entity) -> Comment
+
+    def save_comment(self, comment: Comment) -> None:
+        key = (comment.public_key, comment.entity)
+        self._comments[key] = comment
+
+    def get_comments_for_entity(self, entity: str) -> list[Comment]:
+        comments = [
+            c for c in self._comments.values()
+            if c.entity == entity and not c.deleted
+        ]
+        comments.sort(key=lambda c: c.timestamp, reverse=True)
+        return comments
+
+    def get_comment_count(self, entity: str) -> int:
+        return len([
+            c for c in self._comments.values()
+            if c.entity == entity and not c.deleted
+        ])
+
+    def delete_comment(self, public_key: str, entity: str) -> bool:
+        key = (public_key, entity)
+        if key in self._comments:
+            old = self._comments[key]
+            self._comments[key] = Comment(
+                entity=old.entity,
+                comment_text=old.comment_text,
+                public_key=old.public_key,
+                signature=old.signature,
+                timestamp=old.timestamp,
+                jurisdiction=old.jurisdiction,
+                stance=old.stance,
+                created_at=old.created_at,
+                deleted=True,
+            )
+            return True
+        return False
+
+
 class InMemoryCivicActionEventStorage:
     """In-memory storage for civic action events (Kind 30810)."""
 
@@ -455,6 +499,7 @@ class InMemoryStorage:
         self.provenance = InMemoryProvenanceStorage()
         self.initiatives = InMemoryInitiativeStorage()
         self.sync = InMemorySyncStorage(self.voices, self.events)
+        self.comments = InMemoryCommentStorage()
         # New action event storage (Kind 30810/30811/30812)
         self.civic_action_events = InMemoryCivicActionEventStorage()
         self.civic_commitments = InMemoryCivicCommitmentStorage()
