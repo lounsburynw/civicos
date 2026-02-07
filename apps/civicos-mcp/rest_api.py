@@ -252,6 +252,7 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
                         "type": i.get('issue_type', 'other'),
                         "status": i.get('status', 'open'),
                         "address": i.get('address', ''),
+                        "created_at": i.get('created_at', ''),
                     })
             return ToolResponse(data={
                 "points": points,

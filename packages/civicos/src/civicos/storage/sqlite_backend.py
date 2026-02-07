@@ -1770,6 +1770,7 @@ class SQLiteBackend:
         status: Optional[str] = None,
         issue_type: Optional[str] = None,
         limit: Optional[int] = None,
+        created_after: Optional[datetime] = None,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve 311 issues (stub for SQLite - issues use Postgres in production).
