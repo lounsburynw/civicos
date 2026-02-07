@@ -2524,27 +2524,27 @@
         "test_file": "packages/civicos/tests/test_mcp_city_pulse.py"
       },
       "participation_calendar_viz": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
-        "artifact": "Calendar heatmap showing meeting participation density",
-        "description": "Visualization component showing meetings on a calendar with intensity based on public participation (comment count, testimony count). Reveals which meetings draw engagement. Implement as: (1) data shape from city_pulse, (2) Claude artifact renderer, (3) Vue component.",
-        "note": "Session 542: First visualization primitive. Calendar heatmap is simple, high-signal, and works well in both artifact and web contexts. Part of civic_dashboard_mvp (P0).",
+        "artifact": "Calendar heatmap showing meeting density by date",
+        "description": "MeetingCalendar.svelte: SVG grid heatmap showing meeting density per day. Green intensity scale (1/2/3+ meetings). Hover shows meeting titles. Derives date range from city_pulse data.",
+        "note": "2026-02-06: Implemented as MeetingCalendar.svelte in OpenWebUI fork. Pure SVG, no chart library. Integrated into CityPulse.svelte.",
         "depends_on": "city_pulse_mcp_tool"
       },
       "decision_flow_viz": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
-        "artifact": "Sankey-style flow showing items through civic process stages",
-        "description": "Visualization showing how agenda items flow: Introduced \u2192 Heard \u2192 Decided \u2192 Implemented. Reveals where things stall (items 'continued' multiple times, decisions pending implementation). Requires tracking item state over time.",
-        "note": "Session 542: Powerful for showing 'what's stuck' without editorial commentary. Data-forward approach. Part of civic_dashboard_mvp (P0).",
+        "artifact": "Pipeline bar showing upcoming vs decided items with outcome breakdown",
+        "description": "DecisionFlow.svelte: Horizontal stacked bar showing item pipeline (upcoming + decided). Color-coded segments. Outcome chip breakdown (approved/denied/continued). Uses city_pulse data directly.",
+        "note": "2026-02-06: Implemented as DecisionFlow.svelte. All 44 current decisions are 'approved' so bar is simple; will become more interesting as more outcomes accumulate.",
         "depends_on": "city_pulse_mcp_tool"
       },
       "issue_geography_viz": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
-        "artifact": "Dot density map showing geographic distribution of civic issues",
-        "description": "Map visualization showing where 311/SeeClickFix issues cluster. Hex bin or dot density. Reveals neighborhood-level patterns. Requires geocoded issue data (lat/lng from addresses).",
-        "note": "Session 542: High impact but requires good geocoding. San Rafael issues have addresses; need to geocode to lat/lng. Part of civic_dashboard_mvp (P0).",
+        "artifact": "Leaflet dot map showing geographic distribution of 1,749 geocoded issues",
+        "description": "IssueMap.svelte: Leaflet map centered on San Rafael with circle markers for each 311 issue. Color-coded by issue type. Popup on click shows type/address/status. New /api/tools/issue-geography endpoint returns lat/lng data.",
+        "note": "2026-02-06: Implemented as IssueMap.svelte + REST endpoint in rest_api.py. All 1,749 issues are geocoded. Uses Leaflet (already in OpenWebUI deps).",
         "depends_on": "city_pulse_mcp_tool"
       },
       "budget_treemap_viz": {
@@ -2583,8 +2583,8 @@
         "status": "not_ready",
         "priority": 0,
         "artifact": "MVP civic dashboard with 3+ visualization primitives",
-        "description": "Implement minimum viable dashboard UX before MCP registry listing. Must include: (1) at least 3 visualization primitives (calendar heatmap, decision flow, issue geography), (2) visible engagement ladder progression (awareness \u2192 participation path), (3) data-forward presentation (patterns emerge, no editorializing), (4) multi-surface capability (same query works in chat + visual rendering).",
-        "note": "2026-02-05: LLM-triggered artifacts implemented. Chat detects civic intent (patterns like 'what's happening', 'upcoming meetings', 'san rafael') and auto-opens City Pulse widget. Previous: Open WebUI fork integration, live Modal MCP data flow. Next: viz primitives, layout CSS.",
+        "description": "Implement minimum viable dashboard UX before MCP registry listing. Must include: (1) issue geography map as hero visualization with type filtering, (2) visible engagement ladder progression (awareness \u2192 participation path), (3) data-forward presentation (patterns emerge, no editorializing), (4) multi-surface capability (same query works in chat + visual rendering).",
+        "note": "2026-02-07: Removed DecisionFlow and MeetingCalendar (low utility per user review). Enhanced IssueMap: 300px height, clickable type-filter legend, sorted by count. Map is the hero visualization. Previous: 3 primitives, issue-geography endpoint, comment threads, voice toggle. Next: deploy to Modal, test with live data, layout CSS polish.",
         "depends_on": "city_pulse_mcp_tool",
         "blocks": "mcp_registry_listing",
         "progress": {
@@ -2594,15 +2594,16 @@
           "chat_integration": "complete",
           "llm_triggered_artifacts": "complete",
           "layout_css": "needs_work",
-          "calendar_heatmap_viz": "not_started",
-          "decision_flow_viz": "not_started",
-          "issue_geography_viz": "not_started"
+          "calendar_heatmap_viz": "removed",
+          "decision_flow_viz": "removed",
+          "issue_geography_viz": "enhanced",
+          "ill_speak_removed": "complete",
+          "issue_map_type_filter": "complete"
         },
         "subtasks": [
           "Fix CSS layout (dashboard overlaps chat) - IN PROGRESS",
-          "Implement participation_calendar_viz (calendar heatmap)",
-          "Implement decision_flow_viz (Sankey-style flow)",
-          "Implement issue_geography_viz (dot density map)",
+          "Deploy issue-geography endpoint to Modal",
+          "Test IssueMap with live data",
           "Add engagement ladder navigation to dashboard",
           "Configure LLM provider for Open WebUI",
           "Test data-forward presentation (no editorializing)"

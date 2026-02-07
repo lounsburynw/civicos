@@ -233,4 +233,32 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
         data = call_tool_safe("get_comment_guidelines", {"jurisdiction": jurisdiction})
         return ToolResponse(data=data)
 
+    @router.get("/issue-geography", response_model=ToolResponse,
+                summary="Get issue locations for map",
+                description="Get 311 issues with latitude/longitude for geographic visualization.")
+    async def issue_geography(limit: int = 2000):
+        try:
+            issues = civic._storage.get_issues(
+                jurisdiction_id=jurisdiction, limit=limit
+            )
+            points = []
+            for i in issues:
+                lat = i.get('latitude')
+                lng = i.get('longitude')
+                if lat and lng:
+                    points.append({
+                        "lat": float(lat),
+                        "lng": float(lng),
+                        "type": i.get('issue_type', 'other'),
+                        "status": i.get('status', 'open'),
+                        "address": i.get('address', ''),
+                    })
+            return ToolResponse(data={
+                "points": points,
+                "total": len(points),
+            })
+        except Exception as e:
+            logger.error(f"Error in issue_geography: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
     return router
