@@ -418,6 +418,8 @@ def city_pulse(
                 "title": m.get('title') or m.get('body') or 'Meeting',
                 "date": date_str,
                 "time": time_str,
+                "location": m.get('location') or '',
+                "meeting_datetime": meeting_dt.isoformat() if meeting_dt and hasattr(meeting_dt, 'isoformat') else '',
             })
 
         # Recent decisions - get all and sort by most recent

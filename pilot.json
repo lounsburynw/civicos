@@ -2619,14 +2619,15 @@
         ]
       },
       "add_to_cal": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": "Add-to-calendar links for upcoming meetings",
         "description": "Generate .ics calendar event links for each meeting in the Upcoming section. Use meeting_datetime, title, and location from the meetings table. Support both Google Calendar URL and downloadable .ics file. Render as a small calendar icon button next to each meeting row.",
         "depends_on": "civic_dashboard_mvp",
+        "note": "Implemented: calendar icon button on each upcoming meeting, dropdown with Google Calendar link + .ics download. Backend returns location + meeting_datetime in city-pulse response. Frontend generates RFC 5545 .ics and Google Calendar URLs. 2-hour default duration. Click-outside closes dropdown.",
         "implementation": {
-          "backend": "Add meeting location to city-pulse API response if not already present",
-          "frontend": "Generate .ics blob URL and Google Calendar link per meeting in CityPulse.svelte",
+          "backend": "Added location + meeting_datetime to city-pulse decisions_this_week response (handlers.py)",
+          "frontend": "Calendar icon + dropdown in CityPulse.svelte with generateGoogleCalendarUrl() and downloadIcs() helpers",
           "format": "RFC 5545 VCALENDAR with VEVENT (DTSTART, DTEND, SUMMARY, LOCATION)"
         }
       },
