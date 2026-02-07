@@ -519,6 +519,21 @@ print(status.gaps())  # Only corpora with indexing gaps
 
 Use `/data-status` and `/vector-coverage` commands for quick checks.
 
+## Deployment
+
+Always deploy to **Modal**, never Fly.io or other platforms. The project uses Modal for all cloud deployments including apps, cron jobs, relay services, and GPU workloads (vector indexing).
+
+- Local file edits are not automatically included in Modal deployments — code is bundled at deploy time. Verify edits are saved before deploying.
+- Ensure all required Modal Secrets are configured before deploying (`modal secret list`).
+
+## UX Surface
+
+The primary UX surface is the **Open WebUI fork** running in Docker at `localhost:8080` (`apps/civicos-openwebui-fork/`). When discussing UI/UX changes, always target this fork unless explicitly told otherwise. Do not propose changes to Vue dashboards, Claude.ai MCP panels, or other surfaces without asking first.
+
+## Protocol (Nostr)
+
+This project uses **Nostr protocol with secp256k1 Schnorr signatures** (not P-256 ECDSA). All cryptographic operations must use the correct curve. Entity IDs follow Nostr conventions and require proper namespacing for federation. See `packages/civicos-relay/src/civicos_relay/voice/crypto.py` and `nostr/kinds.py`.
+
 ## Constraints
 
 - Foundation-funded (<$7/month operational)
