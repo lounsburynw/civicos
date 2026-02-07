@@ -552,6 +552,58 @@ async def cast_voice(request: CastVoiceRequest):
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
 
+class RevokeVoiceRequest(BaseModel):
+    """Request to revoke a voice (signed by client)."""
+    entity: str = Field(description="Namespaced entity identifier")
+    public_key: str = Field(description="Public key (hex-encoded)")
+    signature: str = Field(description="Signature proving ownership of the key")
+    created_at: Optional[int] = Field(default=None, description="Unix timestamp")
+
+
+@router.post("/coordination/voice/revoke")
+async def revoke_voice(request: RevokeVoiceRequest):
+    """
+    Revoke a voice on a civic entity.
+
+    Requires a signed proof to verify the caller owns the public key.
+    The client signs a Nostr event with content "civicos:voice:v1:{entity}:revoke:{created_at}".
+    """
+    storage = _get_voice_storage()
+    if not storage:
+        raise HTTPException(
+            status_code=503,
+            detail="Coordination service not configured (missing RELAY_DATABASE_URL)"
+        )
+
+    try:
+        from civicos_relay.voice.crypto import _compute_nostr_event_id, _schnorr_verify
+
+        if not request.public_key or not request.signature or request.created_at is None:
+            raise HTTPException(status_code=400, detail="Missing required fields")
+
+        # Verify signature: client signed a revoke event (kind 30800)
+        tags = [["d", request.entity]]
+        content = f"civicos:voice:v1:{request.entity}:revoke:{request.created_at}"
+        event_id = _compute_nostr_event_id(
+            request.public_key, request.created_at, 30800, tags, content
+        )
+        if not _schnorr_verify(request.public_key, request.signature, event_id):
+            raise HTTPException(status_code=400, detail="Invalid revocation signature")
+
+        existing = storage.get_voice(request.public_key, request.entity)
+        if existing and not existing.revoked:
+            storage.revoke_voice(request.public_key, request.entity)
+            return {"status": "revoked", "entity": request.entity}
+        else:
+            return {"status": "no_voice", "entity": request.entity}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error revoking voice: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
 @router.get("/coordination/voice/counts/{entity:path}", response_model=VoiceCountResponse)
 async def get_voice_counts(entity: str):
     """
