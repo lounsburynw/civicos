@@ -1,3 +1,50 @@
+## Session 540 (2026-02-07) - Dashboard MVP: IssueMap Filtering, Trends, Expand + Pilot Planning
+
+**Item:** civic_dashboard_mvp (P0, frontend_refinement)
+**Status:** Core MVP functional, P1 feature batch defined
+
+### Accomplished
+
+1. **Backend: `created_after` filter + `created_at` in API response**
+   - Added `created_after: Optional[datetime]` to `get_issues()` protocol, postgres, sqlite
+   - Added `created_at` field to `/issue-geography` API response
+   - Deployed to Modal (`a505425`)
+
+2. **IssueMap: Recency filtering + trends + expand + status filter**
+   - 30d/90d/All recency pill toggle (client-side date filtering)
+   - Trend TLDR line ("142 new this month, up 12% vs prior month")
+   - Full-screen expand modal (portaled to `document.body` to escape sidebar stacking context)
+   - Open/Closed status filter pills (mutually exclusive)
+   - Type + recency + status filters all compose correctly
+
+3. **Removed redundant Issues summary** from CityPulse (replaced by map legend)
+
+4. **Documented Open WebUI dev workflow**
+   - CLAUDE.md: New "Open WebUI Development" section (use `npm run dev`, not Docker rebuilds)
+   - `/launch` and `/relaunch` skills updated with Open WebUI instructions
+
+5. **Pilot planning: 6 new dashboard items**
+   - P1: `add_to_cal`, `comment_synthesis`, `budget_treemap_viz`, `agenda_actionability`
+   - P2: `expandable_decisions`, `provenance_footer`
+   - All have `implementation` blocks with backend/frontend details
+
+### Commits
+- civicos: `a505425` feat(dashboard): Add created_at to issue-geography + created_after filter
+- civicos: `95ee9f0` docs: Add Open WebUI dev workflow to CLAUDE.md and launch skills
+- openwebui: `3e7b68a` feat(dashboard): IssueMap recency filter, trends, expand + remove Issues summary
+- openwebui: `85118a6` fix(dashboard): Portal expand modal to body + add Open status filter
+
+### Uncommitted
+- civicos: `pilot.json` (6 new items), `docs/next_session_prompt.md`, `claude-progress.txt`
+
+### What's Next
+- Commit remaining civicos changes
+- Pick from P1 batch: add_to_cal (quickest), comment_synthesis (highest value), budget_viz, agenda_actionability
+- Use `npm run dev` for frontend iteration (NOT Docker rebuilds)
+- Docker rebuild only for final production testing
+
+---
+
 ## Session 539 (2026-02-07) - Dashboard MVP: Refine Visualizations
 
 **Item:** civic_dashboard_mvp (P0, frontend_refinement)

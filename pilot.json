@@ -1,7 +1,7 @@
 {
   "version": "2.0",
   "phase": "pilot",
-  "last_updated": "2026-02-03",
+  "last_updated": "2026-02-07",
   "target": "January 2026",
   "summary": "Consolidated pilot checklist: completed work summarized, active items tracked individually",
   "category_order": [
@@ -674,7 +674,7 @@
         "priority": 2,
         "artifact": "get_voting_record() finds semantically related votes",
         "description": "Update get_voting_record() to use semantic topic matching instead of exact array match. 'housing affordability' would also find votes on 'zoning', 'development', 'density'.",
-        "note": "Session 530: ALREADY IMPLEMENTED. Semantic search on decisions corpus exists at civicos.py:971-986, tested working (10 results for 'housing affordability'). The '0 votes' issue is a DATA gap not code \u2014 vote_json is NULL for all 44 decisions. Decisions extracted from agendas (pre-meeting) don't have votes. Need to extract votes from minutes or transcripts in a separate data_readiness item.",
+        "note": "Session 530: ALREADY IMPLEMENTED. Semantic search on decisions corpus exists at civicos.py:971-986, tested working (10 results for 'housing affordability'). The '0 votes' issue is a DATA gap not code — vote_json is NULL for all 44 decisions. Decisions extracted from agendas (pre-meeting) don't have votes. Need to extract votes from minutes or transcripts in a separate data_readiness item.",
         "depends_on": [
           "hybrid_what_applies"
         ]
@@ -1399,7 +1399,7 @@
         "status": "ready",
         "priority": 1,
         "description": "Align video-meeting schema: populate meetings.video_url, videos.meeting_url, add video_id to transcript vectors",
-        "artifact": "PgVectorBackend.index_from_storage video\u2192meeting lookup for transcripts",
+        "artifact": "PgVectorBackend.index_from_storage video→meeting lookup for transcripts",
         "note": "Session 526: Metadata backfill resolved all YouTube URL issues. Transcript embeddings now have real YouTube video_ids in metadata (e.g., k5ZUhxHn5pE). URLs correctly generate as youtube.com/watch?v=k5ZUhxHn5pE&t=70s. Read-time fallback also extracts video_id from embedding ID pattern.",
         "key_files": [
           "packages/civic/src/civic/storage/pgvector_backend.py:772-785"
@@ -1409,8 +1409,8 @@
         "status": "complete",
         "priority": 1,
         "description": "Fix transcript vectors storing video_id in meeting_id field",
-        "artifact": "PgVectorBackend.index_from_storage video\u2192meeting lookup (same fix as video_meeting_schema_alignment)",
-        "note": "Session 525: ADDRESSED by video_meeting_schema_alignment code change. The lookup logic resolves transcript.video_id \u2192 videos.meeting_id \u2192 actual meeting ID. Re-indexing transcripts will apply the fix. Run: modal run scripts/modal_ingest.py --vectors --reindex transcripts"
+        "artifact": "PgVectorBackend.index_from_storage video→meeting lookup (same fix as video_meeting_schema_alignment)",
+        "note": "Session 525: ADDRESSED by video_meeting_schema_alignment code change. The lookup logic resolves transcript.video_id → videos.meeting_id → actual meeting ID. Re-indexing transcripts will apply the fix. Run: modal run scripts/modal_ingest.py --vectors --reindex transcripts"
       }
     },
     "architectural_debt": {
@@ -1577,7 +1577,7 @@
         },
         "improvements_needed": [
           "Auto-discover HUD grantee from FAC/HUD API",
-          "Onboarding wizard (detect platform \u2192 generate config \u2192 validate)",
+          "Onboarding wizard (detect platform → generate config → validate)",
           "Config validation schema with helpful errors",
           "Generic election scraper framework (template-based)"
         ],
@@ -2479,7 +2479,7 @@
         "priority": 99,
         "artifact": "prepare() method includes legal citations and precedents from vector search",
         "description": "When user prepares for a meeting, automatically search relevant: municipal code sections, state legislation, past decisions, similar issues. Include in preparation materials with proper citations.",
-        "note": "Session implemented. prepare() now returns legal_citations list with formatted citations (Cal. Gov. Code, Municipal Code \u00a7, etc.) and talking points reference them.",
+        "note": "Session implemented. prepare() now returns legal_citations list with formatted citations (Cal. Gov. Code, Municipal Code §, etc.) and talking points reference them.",
         "depends_on": "pgvector_cross_corpus_search"
       },
       "action_leverage_points": {
@@ -2501,7 +2501,7 @@
         "priority": 3,
         "artifact": "search_regulatory_stack() deduplicates local code results",
         "description": "MCP audit shows same municipal code section (e.g. 14.03.030) appearing 5x in local regulatory results. Need dedup logic in search_regulatory_stack() local section formatting.",
-        "note": "Session 530: Fixed in context.py \u2014 deduplicate local/county results by section_number using seen_sections set. Verified 0 duplicates across housing, traffic safety, parking queries."
+        "note": "Session 530: Fixed in context.py — deduplicate local/county results by section_number using seen_sections set. Verified 0 duplicates across housing, traffic safety, parking queries."
       }
     },
     "city_status_dashboard": {
@@ -2549,11 +2549,15 @@
       },
       "budget_treemap_viz": {
         "status": "not_ready",
-        "priority": 3,
-        "artifact": "Treemap visualization of budget allocation by category",
-        "description": "Interactive treemap showing proportional budget allocation. Drillable: click Public Safety \u2192 Police vs Fire breakdown. Uses existing budget_items data.",
-        "note": "Session 542: Lower priority but valuable for 'where does the money go' questions.",
-        "depends_on": "city_pulse_mcp_tool"
+        "priority": 1,
+        "artifact": "Budget visualization in CityPulse dashboard",
+        "description": "Horizontal bar chart or treemap showing budget allocation by department/category. Uses existing 58 budget_items ($180M FY25-26) from PostgreSQL. Render in CityPulse sidebar as a collapsible section. Show department name, amount, and percentage of total. Clickable bars could filter to related decisions/issues in future.",
+        "depends_on": "civic_dashboard_mvp",
+        "implementation": {
+          "backend": "New API endpoint /budget-summary returning budget_items grouped by category with totals",
+          "frontend": "BudgetChart.svelte component in CityPulse, horizontal bars with labels and amounts",
+          "data": "budget_items table already populated with 58 items for city-san-rafael"
+        }
       },
       "web_dashboard_route": {
         "status": "not_ready",
@@ -2576,15 +2580,15 @@
         "status": "not_ready",
         "priority": 3,
         "artifact": "Progressive engagement UX from awareness to coordination",
-        "description": "UX flow that guides users through engagement ladder: Awareness (what's happening) \u2192 Relevance (what affects me) \u2192 Participation (where I can act) \u2192 Coordination (who's with me). Each dashboard view surfaces the 'next step' without forcing it.",
+        "description": "UX flow that guides users through engagement ladder: Awareness (what's happening) → Relevance (what affects me) → Participation (where I can act) → Coordination (who's with me). Each dashboard view surfaces the 'next step' without forcing it.",
         "note": "Session 542: The engagement ladder is the conceptual spine of the dashboard. This item is about making the progression feel natural in the UX."
       },
       "civic_dashboard_mvp": {
         "status": "not_ready",
         "priority": 0,
         "artifact": "MVP civic dashboard with 3+ visualization primitives",
-        "description": "Implement minimum viable dashboard UX before MCP registry listing. Must include: (1) issue geography map as hero visualization with type filtering, (2) visible engagement ladder progression (awareness \u2192 participation path), (3) data-forward presentation (patterns emerge, no editorializing), (4) multi-surface capability (same query works in chat + visual rendering).",
-        "note": "2026-02-07: Removed DecisionFlow and MeetingCalendar (low utility per user review). Enhanced IssueMap: 300px height, clickable type-filter legend, sorted by count. Map is the hero visualization. Previous: 3 primitives, issue-geography endpoint, comment threads, voice toggle. Next: deploy to Modal, test with live data, layout CSS polish.",
+        "description": "Implement minimum viable dashboard UX before MCP registry listing. Must include: (1) issue geography map as hero visualization with type filtering, (2) visible engagement ladder progression (awareness → participation path), (3) data-forward presentation (patterns emerge, no editorializing), (4) multi-surface capability (same query works in chat + visual rendering).",
+        "note": "2026-02-07: IssueMap enhanced with recency filtering (30d/90d/All), status filtering (Open/Closed), trend TLDR line, full-screen expand modal (portaled to body), and type legend. Comment threads + voice toggle functional. Issues summary removed (redundant with map legend). Remaining MVP items broken out as sibling items: add_to_cal, comment_synthesis, budget_viz, agenda_actionability, expandable_decisions, provenance_footer.",
         "depends_on": "city_pulse_mcp_tool",
         "blocks": "mcp_registry_listing",
         "progress": {
@@ -2598,16 +2602,83 @@
           "decision_flow_viz": "removed",
           "issue_geography_viz": "enhanced",
           "ill_speak_removed": "complete",
-          "issue_map_type_filter": "complete"
+          "issue_map_type_filter": "complete",
+          "issue_map_recency_filter": "complete",
+          "issue_map_status_filter": "complete",
+          "issue_map_trend_line": "complete",
+          "issue_map_expand_modal": "complete",
+          "issues_summary_removed": "complete",
+          "modal_deployed": "complete"
         },
         "subtasks": [
+          "Deploy issue-geography endpoint to Modal - COMPLETE",
+          "Test IssueMap with live data - COMPLETE",
           "Fix CSS layout (dashboard overlaps chat) - IN PROGRESS",
-          "Deploy issue-geography endpoint to Modal",
-          "Test IssueMap with live data",
-          "Add engagement ladder navigation to dashboard",
           "Configure LLM provider for Open WebUI",
           "Test data-forward presentation (no editorializing)"
         ]
+      },
+      "add_to_cal": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Add-to-calendar links for upcoming meetings",
+        "description": "Generate .ics calendar event links for each meeting in the Upcoming section. Use meeting_datetime, title, and location from the meetings table. Support both Google Calendar URL and downloadable .ics file. Render as a small calendar icon button next to each meeting row.",
+        "depends_on": "civic_dashboard_mvp",
+        "implementation": {
+          "backend": "Add meeting location to city-pulse API response if not already present",
+          "frontend": "Generate .ics blob URL and Google Calendar link per meeting in CityPulse.svelte",
+          "format": "RFC 5545 VCALENDAR with VEVENT (DTSTART, DTEND, SUMMARY, LOCATION)"
+        }
+      },
+      "comment_synthesis": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "AI-synthesized public comment summary per agenda item",
+        "description": "For each agenda item with public comments, generate an LLM-synthesized summary: total comment count, sentiment breakdown (support/oppose/neutral with counts), key themes raised, and notable quotes. Targeted at council members and engaged residents who need to understand public sentiment at a glance. Cache synthesis results to avoid redundant LLM calls.",
+        "depends_on": "civic_dashboard_mvp",
+        "implementation": {
+          "backend": "New API endpoint /comment-synthesis?entity_id=X that fetches comments, calls LLM, caches result",
+          "frontend": "Expandable synthesis panel below each agenda item with comment activity",
+          "llm_prompt": "Structured output: {total, support_count, oppose_count, neutral_count, themes: [], notable_quotes: []}",
+          "caching": "Store synthesis in DB keyed by entity_id + comment_count hash, invalidate when new comments arrive"
+        }
+      },
+      "agenda_actionability": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "LLM-based agenda item actionability classification",
+        "description": "Classify each agenda item as 'actionable' (has a decision point, public input meaningful — e.g. zoning variance, ordinance adoption) vs 'informational' (update, presentation, procedural — e.g. 'Open Time for Public Expression', rail transit update). Classification runs at ingestion time via LLM and is stored permanently. Frontend hides or de-emphasizes voice/comment UI on informational items. No heuristics — use LLM with structured output for reliable classification.",
+        "depends_on": "civic_dashboard_mvp",
+        "implementation": {
+          "backend_schema": "Add 'actionability' field to agenda items (enum: actionable, informational, mixed)",
+          "ingestion": "LLM classification at store_meetings() or as post-processing step",
+          "llm_prompt": "Given agenda item title and description, classify as actionable/informational/mixed with confidence and reasoning",
+          "frontend": "Hide voice/comment controls on informational items, show subtle 'informational' badge instead",
+          "retroactive": "Run classification on existing 98 meetings' agenda items"
+        }
+      },
+      "expandable_decisions": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Expandable decision detail cards in CityPulse",
+        "description": "Expand Recent Decisions rows to show full detail: vote breakdown, related public testimony (via vector search), linked agenda packet chunks, and timeline context. Click a decision row to expand inline. Fetch additional detail on demand to keep initial load fast.",
+        "depends_on": "civic_dashboard_mvp",
+        "implementation": {
+          "backend": "New API endpoint /decision-detail?id=X returning vote breakdown, related testimony, linked documents",
+          "frontend": "Expandable card in CityPulse decision section with slide transition",
+          "vectors": "Use existing transcript + chunk embeddings to find related testimony"
+        }
+      },
+      "provenance_footer": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Data provenance footer showing MCP/relay source info",
+        "description": "Footer or info panel in CityPulse showing data provenance: MCP endpoint URL, relay ID, jurisdiction, data freshness (last sync timestamp), and corpus coverage summary. Builds trust by showing where data comes from. Accessible via small info icon in the dashboard header.",
+        "depends_on": "civic_dashboard_mvp",
+        "implementation": {
+          "backend": "Add /data-provenance endpoint returning endpoint URL, relay pubkey, last_updated timestamps per corpus",
+          "frontend": "Collapsible provenance panel or tooltip in CityPulse header"
+        }
       }
     }
   },
@@ -2739,7 +2810,7 @@
         "artifact": "Three scoped MCP servers deployed as federated architecture reference",
         "description": "Deploy and validate three jurisdiction-scoped MCP servers (federal, california, san-rafael) demonstrating the federated architecture. Federal/state servers are reference implementations; city server is primary user-facing.",
         "note": "Session 548: Deployed all 3 servers. Tool filtering working. Remaining: validate tool calls return PostgreSQL data (containers may need restart), then document architecture.",
-        "rationale": "Federal/state MCPs demonstrate hierarchy (federal \u2192 state \u2192 city) and cross-jurisdictional alignment. Prepares for future scaling where multiple cities share state/federal data.",
+        "rationale": "Federal/state MCPs demonstrate hierarchy (federal → state → city) and cross-jurisdictional alignment. Prepares for future scaling where multiple cities share state/federal data.",
         "architecture": {
           "federal": {
             "role": "Reference implementation - shared by all US jurisdictions",
@@ -3422,7 +3493,7 @@
         },
         "subtasks": [
           "CivicCommitmentEvent model",
-          "Status transitions: committed \u2192 completed | withdrawn",
+          "Status transitions: committed → completed | withdrawn",
           "One commitment per pubkey per action (addressable)",
           "Commitment counts exposed via API"
         ],
@@ -3659,7 +3730,7 @@
           "sync_endpoints",
           "event_emission"
         ],
-        "note": "Session 532: Event sync endpoints implemented. Events flow: ingestion \u2192 event_emission \u2192 coordination_events_log \u2192 sync to peers."
+        "note": "Session 532: Event sync endpoints implemented. Events flow: ingestion → event_emission → coordination_events_log → sync to peers."
       },
       "hierarchical_jurisdiction_routing": {
         "status": "ready",
@@ -3667,7 +3738,7 @@
         "description": "Route queries to parent jurisdictions when local data insufficient. city-san-rafael can query county-marin for county-level decisions. Borrows from BGP/IP hierarchical addressing.",
         "test_file": "packages/civicos-relay/tests/test_hierarchy.py",
         "subtasks": [
-          "Define jurisdiction hierarchy schema (city \u2192 county \u2192 state \u2192 federal)",
+          "Define jurisdiction hierarchy schema (city → county → state → federal)",
           "Add parent_jurisdiction field to jurisdiction config",
           "Implement fallback query to parent when local returns empty",
           "Aggregate results from child jurisdictions for parent queries"
@@ -3699,7 +3770,7 @@
       "relay_integration_tests": {
         "status": "pending",
         "priority": 2,
-        "description": "Integration tests for relay \u2192 API \u2192 MCP flow. Verify voice casting through full stack, subscription delivery, provenance updates.",
+        "description": "Integration tests for relay → API → MCP flow. Verify voice casting through full stack, subscription delivery, provenance updates.",
         "test_file": "packages/civicos-services/tests/test_relay_integration.py",
         "subtasks": [
           "Test voice cast via API updates database and provenance",
@@ -3943,13 +4014,13 @@
       "subtasks": [
         "Personal MCP scaffold (apps/civicos-personal-mcp/)",
         "SigningProvider interface (sign, getPublicKey, hasKey)",
-        "PasskeyProvider: WebAuthn + PRF \u2192 HKDF \u2192 secp256k1 (Easy)",
+        "PasskeyProvider: WebAuthn + PRF → HKDF → secp256k1 (Easy)",
         "LocalWalletProvider: BIP-39 + PBKDF2 + AES-GCM (Private)",
         "NIP07Provider: detect window.nostr, delegate signing (Sovereign)",
         "HardwareWalletProvider: WebUSB/WebHID (Sovereign)",
         "ManualSigningProvider: display message, paste signature (Sovereign/Airgap)",
         "Provider selection based on instantiation pattern",
-        "Identity tier upgrade flow (Easy \u2192 Private \u2192 Sovereign)"
+        "Identity tier upgrade flow (Easy → Private → Sovereign)"
       ],
       "nip07_integration": [
         "Detect window.nostr object (only in Claude Desktop, NOT in MCP App iframe)",
@@ -4058,7 +4129,7 @@
       "status": "ready",
       "priority": 1,
       "note": "P0: Build MCP Apps action widget using new prepare tools (30810/30811/30812). Follow voice.html pattern.",
-      "description": "End-to-end action flow: Agent discovers actions \u2192 prepares unsigned commitment/completion events \u2192 client signs \u2192 broadcast to relay. This is the core Edge Intelligence capability that transforms intent into civic action.",
+      "description": "End-to-end action flow: Agent discovers actions → prepares unsigned commitment/completion events → client signs → broadcast to relay. This is the core Edge Intelligence capability that transforms intent into civic action.",
       "test_file": "apps/civicos-workspace/tests/e2e/action-flow.spec.ts",
       "flow": [
         "1. User asks about civic issue in chat",
@@ -4074,10 +4145,10 @@
         "11. Agent shows attribution: 'You're 1 of 27'"
       ],
       "subtasks": [
-        "Chat \u2192 Action discovery flow",
-        "Commitment flow (prepare \u2192 sign \u2192 broadcast)",
+        "Chat → Action discovery flow",
+        "Commitment flow (prepare → sign → broadcast)",
         "Template delivery after commitment",
-        "Completion flow (evidence \u2192 sign \u2192 broadcast)",
+        "Completion flow (evidence → sign → broadcast)",
         "Attribution display after outcome"
       ],
       "verification": "2026-02-02: Full backend infrastructure complete - CivicActionEvent/CivicCommitment/CivicCompletion models, CivicActionService with storage protocols, 8 API endpoints, SQL migration, TypeScript types. Needs: frontend API client methods, ActionFlow.vue updates to use new endpoints, E2E tests.",
