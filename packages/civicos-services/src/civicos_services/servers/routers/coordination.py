@@ -223,6 +223,38 @@ class CivicCompletionResponse(BaseModel):
     revoked: bool = False
 
 
+# === Comment Request/Response Models ===
+
+
+class SubmitCommentRequest(BaseModel):
+    """Request to submit a public comment."""
+    entity: str
+    comment_text: str
+    public_key: str
+    signature: str
+    created_at: int = Field(description="Unix timestamp from the signed Nostr event")
+    jurisdiction: Optional[str] = None
+    stance: Optional[str] = None
+
+
+class CommentResponse(BaseModel):
+    """Comment record response."""
+    entity: str
+    comment_text: str
+    public_key: str
+    signature: str
+    timestamp: str
+    jurisdiction: Optional[str] = None
+    stance: Optional[str] = None
+    deleted: bool = False
+
+
+class CommentCountResponse(BaseModel):
+    """Comment count for an entity."""
+    entity: str
+    count: int = 0
+
+
 class CivicActionProgressResponse(BaseModel):
     """Progress for a civic action event."""
     action_id: str
@@ -369,6 +401,28 @@ def _get_action_storage():
                 logger.warning("civicos-relay not available")
                 return None
     return _storage_instances["action"]
+
+
+def _get_comment_storage():
+    """Get or create comment storage instance."""
+    if "comment" not in _storage_instances:
+        url = _get_relay_url()
+        if url:
+            try:
+                from civicos_relay.storage.postgres import PostgresCommentStorage
+                _storage_instances["comment"] = PostgresCommentStorage(url)
+                logger.info("Using PostgresCommentStorage for comments")
+            except ImportError:
+                logger.warning("civicos-relay postgres not available for comments")
+                return None
+        else:
+            try:
+                from civicos_relay.storage.memory import InMemoryCommentStorage
+                _storage_instances["comment"] = InMemoryCommentStorage()
+            except ImportError:
+                logger.warning("civicos-relay not available for comments")
+                return None
+    return _storage_instances["comment"]
 
 
 def _get_civic_action_service():
@@ -1877,4 +1931,107 @@ async def list_civic_action_completions(action_id: str):
 
     except Exception as e:
         logger.error(f"Error listing civic action completions: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+# === Comment Endpoints (Kind 30803) ===
+
+
+@router.post("/coordination/comment", response_model=CommentResponse)
+async def submit_comment(request: SubmitCommentRequest):
+    """
+    Submit a signed public comment on a civic entity.
+
+    Comments are Nostr Kind 30803 events. The comment text is the event content.
+    One comment per public_key per entity (upsert).
+    """
+    storage = _get_comment_storage()
+    if not storage:
+        raise HTTPException(
+            status_code=503,
+            detail="Comment service not configured (missing RELAY_DATABASE_URL)"
+        )
+
+    try:
+        from civicos_relay.voice.models import Comment
+        from civicos_relay.voice.crypto import verify_comment
+
+        comment = Comment(
+            entity=request.entity,
+            comment_text=request.comment_text,
+            public_key=request.public_key,
+            signature=request.signature,
+            created_at=request.created_at,
+            jurisdiction=request.jurisdiction,
+            stance=request.stance,
+        )
+
+        if not verify_comment(comment):
+            raise HTTPException(status_code=400, detail="Invalid comment signature")
+
+        storage.save_comment(comment)
+
+        return CommentResponse(
+            entity=comment.entity,
+            comment_text=comment.comment_text,
+            public_key=comment.public_key,
+            signature=comment.signature,
+            timestamp=comment.timestamp.isoformat(),
+            jurisdiction=comment.jurisdiction,
+            stance=comment.stance,
+            deleted=comment.deleted,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error submitting comment: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get("/coordination/comments/{entity:path}", response_model=list[CommentResponse])
+async def list_comments(entity: str):
+    """
+    List non-deleted comments for an entity, newest first.
+    """
+    storage = _get_comment_storage()
+    if not storage:
+        return []
+
+    try:
+        comments = storage.get_comments_for_entity(entity)
+        return [
+            CommentResponse(
+                entity=c.entity,
+                comment_text=c.comment_text,
+                public_key=c.public_key,
+                signature=c.signature,
+                timestamp=c.timestamp.isoformat(),
+                jurisdiction=c.jurisdiction,
+                stance=c.stance,
+                deleted=c.deleted,
+            )
+            for c in comments
+        ]
+
+    except Exception as e:
+        logger.error(f"Error listing comments: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get("/coordination/comment/counts/{entity:path}", response_model=CommentCountResponse)
+async def get_comment_counts(entity: str):
+    """
+    Get comment count for an entity.
+    """
+    storage = _get_comment_storage()
+    if not storage:
+        return CommentCountResponse(entity=entity, count=0)
+
+    try:
+        count = storage.get_comment_count(entity)
+        return CommentCountResponse(entity=entity, count=count)
+
+    except Exception as e:
+        logger.error(f"Error getting comment counts: {e}")
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
