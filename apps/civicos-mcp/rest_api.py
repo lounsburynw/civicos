@@ -91,6 +91,11 @@ class GetDecisionContextRequest(BaseModel):
     limit: int = Field(default=5, description="Maximum results")
 
 
+class CommentSynthesisRequest(BaseModel):
+    """Request for comment-synthesis endpoint."""
+    entity_id: str = Field(..., description="Entity ID to get comment synthesis for (e.g., 'agenda-item:123')")
+
+
 class ToolResponse(BaseModel):
     """Standard response for all tool endpoints."""
     success: bool = True
@@ -261,5 +266,59 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
         except Exception as e:
             logger.error(f"Error in issue_geography: {e}")
             raise HTTPException(status_code=500, detail=str(e))
+
+    @router.post("/comment-synthesis", response_model=ToolResponse,
+                  summary="Comment synthesis for an entity",
+                  description="Aggregate public comments for an entity: total count, stance breakdown, and comment texts. No LLM — pure data aggregation for edge AI synthesis.")
+    async def comment_synthesis(request: CommentSynthesisRequest):
+        import httpx
+        import os
+
+        relay_url = os.environ.get("CIVICOS_RELAY_URL") or os.environ.get("CIVICOS_API_URL") or "http://localhost:8003"
+        relay_url = relay_url.rstrip("/")
+        entity_id = request.entity_id
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(
+                    f"{relay_url}/coordination/comments/{entity_id}"
+                )
+                response.raise_for_status()
+                comments = response.json()
+        except Exception as e:
+            logger.error(f"Failed to fetch comments from relay: {e}")
+            raise HTTPException(status_code=502, detail=f"Relay unavailable: {e}")
+
+        # Aggregate stance counts
+        support = 0
+        oppose = 0
+        neutral = 0
+        for c in comments:
+            stance = (c.get("stance") or "").lower()
+            if stance == "support":
+                support += 1
+            elif stance == "oppose":
+                oppose += 1
+            else:
+                neutral += 1
+
+        # Build comment summaries (newest first, already sorted by relay)
+        comment_entries = []
+        for c in comments:
+            comment_entries.append({
+                "text": c.get("comment_text", ""),
+                "stance": c.get("stance") or "neutral",
+                "timestamp": c.get("timestamp", ""),
+                "author_short": (c.get("public_key") or "")[:8],
+            })
+
+        return ToolResponse(data={
+            "entity_id": entity_id,
+            "total": len(comments),
+            "support": support,
+            "oppose": oppose,
+            "neutral": neutral,
+            "comments": comment_entries,
+        })
 
     return router

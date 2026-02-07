@@ -1,3 +1,32 @@
+## Session 542 (2026-02-07) - comment_synthesis: Sentiment Aggregation
+
+**Item:** comment_synthesis (P1, frontend_refinement > city_status_dashboard)
+**Status:** Complete
+
+#### What Was Done
+1. **Backend endpoint** (`apps/civicos-mcp/rest_api.py`): `POST /api/tools/comment-synthesis`
+   - Fetches comments from relay via HTTP
+   - Aggregates stance counts (support/oppose/neutral)
+   - Returns structured JSON with counts + raw comment texts
+   - No LLM — pure data aggregation (provider-agnostic per edge intelligence architecture)
+
+2. **Frontend API client** (`src/lib/apis/civic.ts`): `getCommentSynthesis()` function + `CommentSynthesis` type
+
+3. **Dashboard UI** (`src/lib/components/civic/CityPulse.svelte`):
+   - Synthesis panel with colored sentiment bar (green=support, red=oppose, gray=neutral)
+   - Labels showing counts per stance
+   - Renders above comment list when thread expanded
+   - Fetched in parallel with comments on thread toggle
+
+#### Architecture Decision
+- User asked about which LLM performs synthesis → pivoted to provider-agnostic approach
+- Server provides structured data, user's chosen AI (via Open WebUI/MCP) does interpretation
+- Aligns with edge intelligence architecture: no server-side LLM dependency, no per-call cost
+
+#### Commits
+- civicos: comment_synthesis backend + pilot.json update
+- openwebui: synthesis bar UI + API client
+
 ## Session 541 (2026-02-07) - add_to_cal: Meeting Calendar Links
 
 **Item:** add_to_cal (P1, frontend_refinement > city_status_dashboard)
