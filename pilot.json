@@ -2632,16 +2632,16 @@
         }
       },
       "comment_synthesis": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
-        "artifact": "AI-synthesized public comment summary per agenda item",
-        "description": "For each agenda item with public comments, generate an LLM-synthesized summary: total comment count, sentiment breakdown (support/oppose/neutral with counts), key themes raised, and notable quotes. Targeted at council members and engaged residents who need to understand public sentiment at a glance. Cache synthesis results to avoid redundant LLM calls.",
+        "artifact": "Comment aggregation with sentiment bar per agenda item",
+        "description": "Provider-agnostic comment synthesis: backend aggregates comment data (counts, stance breakdown, texts) without LLM. Dashboard shows sentiment bar (green/red/gray) and labels. Theme extraction happens at the edge via user's chosen AI through MCP tools.",
         "depends_on": "civic_dashboard_mvp",
+        "note": "2026-02-07: Implemented as pure data aggregation (no server-side LLM) per edge intelligence architecture. Backend: /comment-synthesis endpoint fetches from relay, aggregates stances. Frontend: synthesis-panel with colored bar segments + labels above comment thread.",
         "implementation": {
-          "backend": "New API endpoint /comment-synthesis?entity_id=X that fetches comments, calls LLM, caches result",
-          "frontend": "Expandable synthesis panel below each agenda item with comment activity",
-          "llm_prompt": "Structured output: {total, support_count, oppose_count, neutral_count, themes: [], notable_quotes: []}",
-          "caching": "Store synthesis in DB keyed by entity_id + comment_count hash, invalidate when new comments arrive"
+          "backend": "POST /api/tools/comment-synthesis endpoint in rest_api.py — fetches comments from relay, returns structured aggregation",
+          "frontend": "Synthesis bar + labels in CityPulse.svelte comment thread (support=green, oppose=red, neutral=gray)",
+          "architecture": "No LLM on server — provider-agnostic per edge intelligence layer. User's AI does theme extraction via MCP tools."
         }
       },
       "agenda_actionability": {
