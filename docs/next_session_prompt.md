@@ -1,71 +1,68 @@
-# Next Session: Dashboard MVP — Refine Visualizations
+# Recommended: Dashboard MVP — P1 Feature Batch
 
-## What Was Done (2026-02-07)
+**Priority:** P0 (civic_dashboard_mvp umbrella) with P1 sub-items ready to implement
+**Area:** frontend_refinement > city_status_dashboard
+**Date:** 2026-02-07
 
-1. **Removed "I'll Speak"** from CityPulse.svelte — button, state, API, CSS all cleaned out
-2. **Added 3 viz primitives** to CityPulse: MeetingCalendar, DecisionFlow, IssueMap
-3. **Added `GET /api/tools/issue-geography`** endpoint to rest_api.py (returns lat/lng for all 1,749 issues)
-4. **Updated civic.ts** with `getIssueGeography()` + `IssuePoint` type
+> This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
-## Uncommitted / Unpushed
+## Context
 
-- **civicos**: rest_api.py, pilot.json, claude-progress.txt modified. Needs commit + push.
-- **civicos-openwebui**: CityPulse.svelte modified, 3 new components (MeetingCalendar.svelte, DecisionFlow.svelte, IssueMap.svelte), civic.ts modified. Also has unrelated static file deletions. Needs commit + push.
+The dashboard MVP core is functional: IssueMap with recency filtering (30d/90d/All), status filtering (Open/Closed), trend TLDR, full-screen expand modal, type legend, comment threads, and voice toggle. We broke out 6 new P1/P2 items from user feedback. The highest-impact next work is the P1 batch.
 
-## Critical Feedback from User
+## Uncommitted Work
 
-The user reviewed the live dashboard and raised these concerns:
+- **civicos-openwebui**: IssueMap Closed filter change is committed+pushed (`85118a6`), but the Docker container at `:8080` is 2 commits behind. Rebuild when ready for production testing.
+- **civicos**: `pilot.json` updates (6 new items) and CLAUDE.md/launch docs are **uncommitted**. Commit these first.
 
-### 1. DecisionFlow ("Pipeline") — LOW UTILITY, RETHINK
-The bar showing "10 upcoming, 10 decided" is **unclear and not useful**. The user doesn't understand what it's counting or why it matters. Options:
-- **Remove it** — simplest, frees space
-- **Replace with something more meaningful** — e.g., a timeline of decisions with outcomes, or a "what's stuck" view showing items continued multiple times
-- The current data (all 44 decisions are "approved") makes this especially uninformative
+## Recommended: Pick from P1 Batch (in suggested order)
 
-### 2. MeetingCalendar ("Meeting Activity") — LOW UTILITY, RETHINK
-The calendar heatmap is **unclear about what it represents**. A green square on a day doesn't tell the user much. Options:
-- **Remove it** — if it doesn't earn its space
-- **Make it clickable** — click a day to see that day's meetings
-- **Add context** — show meeting titles inline instead of requiring hover
-- The fundamental question: does a heatmap of meeting frequency matter to a civic participant?
+### 1. `add_to_cal` — Meeting calendar links (quickest win, ~30min)
+Generate .ics and Google Calendar links for meetings in Upcoming section. Data is ready (`meeting_datetime`, title in meetings table). Self-contained, no backend changes needed beyond possibly adding location to the API response.
 
-### 3. IssueMap — HIGH POTENTIAL, ENHANCE
-The map is the **most promising** visualization. The user specifically asked: "Is it possible to overlay issues onto the map based off of geolocation?" — which is exactly what IssueMap already does (1,749 geocoded dots). But:
-- Needs deployment to Modal first (issue-geography endpoint)
-- May not have been visible in the screenshot if the endpoint wasn't live
-- Consider: cluster markers for dense areas, filter by issue type, larger map height
+- **Frontend**: `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` — add calendar icon per meeting row
+- **API**: `apps/civicos-mcp/rest_api.py:170-200` — city-pulse endpoint (check if location is returned)
 
-## Deployment Needed
+### 2. `comment_synthesis` — AI-summarized public sentiment (highest pilot value)
+For agenda items with comments, show synthesized summary: count, sentiment breakdown, key themes. This is the "why CivicOS matters" feature for council member demos.
 
-Both repos need deployment before visualizations work in production:
+- **Backend**: New `/comment-synthesis` endpoint in `rest_api.py`
+- **Relay**: Comment data via `packages/civicos-relay/src/civicos_relay/coordination/` endpoints
+- **Frontend**: Expandable synthesis panel in CityPulse
+- **Needs**: LLM call (OpenAI via existing config) + response caching
 
+### 3. `budget_treemap_viz` — Budget visualization (data ready, visually compelling)
+58 budget_items ($180M) already in PostgreSQL. Horizontal bar chart in CityPulse sidebar.
+
+- **Backend**: New `/budget-summary` endpoint grouping budget_items by category
+- **Data**: `packages/civicos/src/civicos/storage/postgres_backend.py` — budget methods around line 3900+
+- **Frontend**: New `BudgetChart.svelte` component
+
+### 4. `agenda_actionability` — LLM classification (important for credibility)
+Classify agenda items as actionable vs informational at ingestion time. Hides voice/comment UI on informational items (e.g. "Open Time for Public Expression"). No heuristics — uses LLM structured output.
+
+- **Schema**: Add `actionability` field to agenda items
+- **Ingestion**: Post-processing step after `store_meetings()`
+- **Frontend**: Conditional rendering of voice/comment controls in CityPulse
+
+## Dev Workflow Reminder
+
+**Use Vite dev server for frontend iteration (NOT Docker rebuilds):**
 ```bash
-# 1. CivicOS MCP (issue-geography endpoint)
-modal deploy apps/civicos-mcp/modal_mcp.py
-
-# 2. OpenWebUI fork (new viz components)
-cd ~/projects/civicos-openwebui
-# Push to civicos-main branch, then deploy
+cd ~/projects/civicos-openwebui && npm run dev   # localhost:5173, hot reload
 ```
-
-## Recommended Approach for Next Session
-
-1. **Commit + push** both repos (civicos + civicos-openwebui)
-2. **Deploy** MCP server to Modal
-3. **Evaluate DecisionFlow and MeetingCalendar** — likely remove or significantly redesign
-4. **Focus on IssueMap** — this has the most user value. Make sure it renders properly with the live endpoint. Consider expanding map height, adding type filters, clustering.
-5. **Layout CSS** — dashboard still needs polish (overlaps noted in pilot.json)
-
-## P0 Status
-`civic_dashboard_mvp` remains P0 in pilot.json. 3 viz primitives are implemented but 2 may need replacement.
+Only rebuild Docker for final production testing. See CLAUDE.md "Open WebUI Development" section.
 
 ## Key Files
-| File | Repo | What |
-|------|------|------|
-| `src/lib/components/civic/CityPulse.svelte` | civicos-openwebui | Main dashboard, imports all 3 viz |
-| `src/lib/components/civic/MeetingCalendar.svelte` | civicos-openwebui | Calendar heatmap (may remove) |
-| `src/lib/components/civic/DecisionFlow.svelte` | civicos-openwebui | Pipeline bar (may remove) |
-| `src/lib/components/civic/IssueMap.svelte` | civicos-openwebui | Leaflet dot map (keep, enhance) |
-| `src/lib/apis/civic.ts` | civicos-openwebui | API client (getIssueGeography) |
-| `apps/civicos-mcp/rest_api.py` | civicos | issue-geography endpoint |
-| `pilot.json` | civicos | Progress tracking |
+- `pilot.json` — all new items under `frontend_refinement.city_status_dashboard.*`
+- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` — main dashboard
+- `~/projects/civicos-openwebui/src/lib/components/civic/IssueMap.svelte` — enhanced map
+- `~/projects/civicos-openwebui/src/lib/apis/civic.ts:726` — IssuePoint type with created_at
+- `apps/civicos-mcp/rest_api.py:236` — issue-geography endpoint (deployed to Modal)
+- `packages/civicos/src/civicos/storage/postgres_backend.py:3782` — get_issues with created_after
+
+## Success Criteria
+- [ ] pilot.json and doc changes committed
+- [ ] At least one P1 item implemented and deployed
+- [ ] Tested via Vite dev server (not Docker rebuild loop)
+- [ ] P0 updated in pilot.json for next session
