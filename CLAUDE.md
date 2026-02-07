@@ -247,7 +247,7 @@ Historical docs from completed phases. Recoverable if needed.
 |---------|---------|-----------|
 | `/start` | Begin session, find next item | No |
 | `/start-parallel` | Begin secondary session (different track than P0) | No |
-| `/launch` | Start dev servers (API, WebSocket, Frontend) | No |
+| `/launch` | Start dev servers (API, WebSocket, Frontend, Open WebUI) | No |
 | `/load_context` | Load context for work area | Yes (Explore) |
 | `/analyze-item [name]` | Deep analysis of item | Yes (3 parallel) |
 | `/test [mode]` | Run tests (smoke/targeted/full/profile) | No |
@@ -383,7 +383,7 @@ The script automatically:
 - Sets `CIVICOS_DEV_MODE=true` and `CIVICOS_WEB_KEY=dev_key_local`
 - Activates `civicos-env` virtual environment
 
-Or use the `/launch` command which documents the full process.
+Or use the `/launch` command which documents the full process, including the Open WebUI frontend dev server.
 
 ## Testing Strategy
 
@@ -528,7 +528,27 @@ Always deploy to **Modal**, never Fly.io or other platforms. The project uses Mo
 
 ## UX Surface
 
-The primary UX surface is the **Open WebUI fork** running in Docker at `localhost:8080` (`apps/civicos-openwebui-fork/`). When discussing UI/UX changes, always target this fork unless explicitly told otherwise. Do not propose changes to Vue dashboards, Claude.ai MCP panels, or other surfaces without asking first.
+The primary UX surface is the **Open WebUI fork** (`apps/civicos-openwebui-fork/` symlink → `~/projects/civicos-openwebui`). When discussing UI/UX changes, always target this fork unless explicitly told otherwise. Do not propose changes to Vue dashboards, Claude.ai MCP panels, or other surfaces without asking first.
+
+### Open WebUI Development
+
+**For iterating on frontend changes, use the Vite dev server (hot reload):**
+
+```bash
+cd ~/projects/civicos-openwebui && npm run dev   # localhost:5173, hot reload
+```
+
+**Only rebuild Docker for production testing or deployment:**
+
+```bash
+cd ~/projects/civicos-openwebui
+docker build -t civicos-openwebui:latest .
+docker stop civicos-openwebui && docker rm civicos-openwebui
+docker run -d --name civicos-openwebui -p 8080:8080 \
+  --env-file .env --restart unless-stopped civicos-openwebui:latest
+```
+
+The Docker container serves the production build at `localhost:8080`. Use it to verify the final build before deploying, not for development iteration.
 
 ## Protocol (Nostr)
 
