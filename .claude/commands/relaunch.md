@@ -1,1 +1,1 @@
-Re-launch the Civic development servers using `./scripts/dev.sh`. See `/launch` for details.
+Re-launch the Civic development servers using `./scripts/dev.sh`. For Open WebUI frontend, run `cd ~/projects/civicos-openwebui && npm run dev`. See `/launch` for details.
