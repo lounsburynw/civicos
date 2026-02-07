@@ -1,3 +1,27 @@
+## Session 541 (2026-02-07) - add_to_cal: Meeting Calendar Links
+
+**Item:** add_to_cal (P1, frontend_refinement > city_status_dashboard)
+**Status:** Complete
+
+#### Changes
+1. **Backend** (handlers.py): Added `location` and `meeting_datetime` (ISO) fields to city-pulse `decisions_this_week` response
+2. **Frontend** (CityPulse.svelte): Calendar icon button on each upcoming meeting with dropdown:
+   - "Google Calendar" — opens Google Calendar event creation with pre-filled title, datetime, location
+   - "Download .ics" — generates RFC 5545 VCALENDAR file with 2-hour default duration
+3. **UX**: Click-outside closes dropdown, `slide` transition for smooth open/close
+4. **Location display**: Shows location in meeting meta line when available (middot separator)
+
+#### Key Files
+- `apps/civicos-mcp/tools/handlers.py:417-423` — location + meeting_datetime in response
+- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` — calendar UI + helpers
+
+#### Notes
+- Meeting locations are currently NULL in database — calendar events work without location, just omit it
+- Deploy to Modal needed to see backend changes live
+- pilot.json updated: add_to_cal → ready
+
+---
+
 ## Session 540 (2026-02-07) - Dashboard MVP: IssueMap Filtering, Trends, Expand + Pilot Planning
 
 **Item:** civic_dashboard_mvp (P0, frontend_refinement)
