@@ -1,4 +1,4 @@
-# Recommended: Dashboard MVP — P1 Feature Batch
+# Recommended: Dashboard MVP — Next P1 Feature
 
 **Priority:** P0 (civic_dashboard_mvp umbrella) with P1 sub-items ready to implement
 **Area:** frontend_refinement > city_status_dashboard
@@ -8,42 +8,56 @@
 
 ## Context
 
-The dashboard MVP core is functional: IssueMap with recency filtering (30d/90d/All), status filtering (Open/Closed), trend TLDR, full-screen expand modal, type legend, comment threads, and voice toggle. We broke out 6 new P1/P2 items from user feedback. The highest-impact next work is the P1 batch.
+Session 541 completed `add_to_cal` (calendar links for upcoming meetings). The dashboard MVP now has: IssueMap with filtering, voice toggle, comment threads, and calendar links. Backend deployed to Modal with `location` + `meeting_datetime` in city-pulse response.
 
-## Uncommitted Work
+Remaining P1 items from the dashboard batch:
 
-- **civicos-openwebui**: IssueMap Closed filter change is committed+pushed (`85118a6`), but the Docker container at `:8080` is 2 commits behind. Rebuild when ready for production testing.
-- **civicos**: `pilot.json` updates (6 new items) and CLAUDE.md/launch docs are **uncommitted**. Commit these first.
+## Recommended: `comment_synthesis` (highest pilot value)
 
-## Recommended: Pick from P1 Batch (in suggested order)
+For agenda items with comments, show an AI-synthesized summary: total count, sentiment breakdown (support/oppose/neutral), key themes, notable quotes. This is the "why CivicOS matters" feature for council member demos.
 
-### 1. `add_to_cal` — Meeting calendar links (quickest win, ~30min)
-Generate .ics and Google Calendar links for meetings in Upcoming section. Data is ready (`meeting_datetime`, title in meetings table). Self-contained, no backend changes needed beyond possibly adding location to the API response.
+**Implementation plan:**
+- **Backend**: New `/comment-synthesis` endpoint in `rest_api.py` or `tools/handlers.py`
+  - Fetch comments for an entity from relay (`getComments`)
+  - Call LLM (OpenAI via existing config) for synthesis
+  - Cache result (simple in-memory or database-backed)
+- **Relay**: Comment data already accessible via `packages/civicos-relay/src/civicos_relay/coordination/` endpoints
+- **Frontend**: Expandable synthesis panel per agenda item in CityPulse.svelte, below the comment count button
+- **Key challenge**: LLM latency — consider async loading with a spinner, or pre-compute on comment submission
 
-- **Frontend**: `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` — add calendar icon per meeting row
-- **API**: `apps/civicos-mcp/rest_api.py:170-200` — city-pulse endpoint (check if location is returned)
+**Key files:**
+- `apps/civicos-mcp/tools/handlers.py` — add synthesis handler
+- `apps/civicos-mcp/rest_api.py` — add REST endpoint
+- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` — synthesis UI
+- `~/projects/civicos-openwebui/src/lib/apis/civic.ts` — API client
+- `packages/civicos-relay/src/civicos_relay/coordination/comment_storage.py` — comment data access
 
-### 2. `comment_synthesis` — AI-summarized public sentiment (highest pilot value)
-For agenda items with comments, show synthesized summary: count, sentiment breakdown, key themes. This is the "why CivicOS matters" feature for council member demos.
+## Other P1/P2 Items (if comment_synthesis is too complex for one session)
 
-- **Backend**: New `/comment-synthesis` endpoint in `rest_api.py`
-- **Relay**: Comment data via `packages/civicos-relay/src/civicos_relay/coordination/` endpoints
-- **Frontend**: Expandable synthesis panel in CityPulse
-- **Needs**: LLM call (OpenAI via existing config) + response caching
-
-### 3. `budget_treemap_viz` — Budget visualization (data ready, visually compelling)
+### `budget_treemap_viz` (P1, data ready, visually compelling)
 58 budget_items ($180M) already in PostgreSQL. Horizontal bar chart in CityPulse sidebar.
 
 - **Backend**: New `/budget-summary` endpoint grouping budget_items by category
-- **Data**: `packages/civicos/src/civicos/storage/postgres_backend.py` — budget methods around line 3900+
+- **Data**: `packages/civicos/src/civicos/storage/postgres_backend.py` — budget methods
 - **Frontend**: New `BudgetChart.svelte` component
 
-### 4. `agenda_actionability` — LLM classification (important for credibility)
-Classify agenda items as actionable vs informational at ingestion time. Hides voice/comment UI on informational items (e.g. "Open Time for Public Expression"). No heuristics — uses LLM structured output.
+### `agenda_actionability` (P1, important for credibility)
+Classify agenda items as actionable vs informational. Hides voice/comment UI on informational items (e.g. "Open Time for Public Expression"). Uses LLM structured output.
 
 - **Schema**: Add `actionability` field to agenda items
 - **Ingestion**: Post-processing step after `store_meetings()`
 - **Frontend**: Conditional rendering of voice/comment controls in CityPulse
+
+### `expandable_decisions` (P2)
+Expand decision rows to show vote breakdown, related testimony, linked docs.
+
+### `provenance_footer` (P2)
+Data provenance info panel showing MCP endpoint, relay ID, data freshness.
+
+## Completed This Session
+- [x] `add_to_cal` — Calendar icon + dropdown (Google Calendar + .ics download) on each upcoming meeting
+- [x] Backend deployed to Modal with location + meeting_datetime fields
+- [x] pilot.json updated, all changes committed
 
 ## Dev Workflow Reminder
 
@@ -51,18 +65,14 @@ Classify agenda items as actionable vs informational at ingestion time. Hides vo
 ```bash
 cd ~/projects/civicos-openwebui && npm run dev   # localhost:5173, hot reload
 ```
-Only rebuild Docker for final production testing. See CLAUDE.md "Open WebUI Development" section.
 
 ## Key Files
-- `pilot.json` — all new items under `frontend_refinement.city_status_dashboard.*`
+- `pilot.json` — all items under `frontend_refinement.city_status_dashboard.*`
 - `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` — main dashboard
-- `~/projects/civicos-openwebui/src/lib/components/civic/IssueMap.svelte` — enhanced map
-- `~/projects/civicos-openwebui/src/lib/apis/civic.ts:726` — IssuePoint type with created_at
-- `apps/civicos-mcp/rest_api.py:236` — issue-geography endpoint (deployed to Modal)
-- `packages/civicos/src/civicos/storage/postgres_backend.py:3782` — get_issues with created_after
+- `apps/civicos-mcp/tools/handlers.py` — backend tool handlers (city-pulse, etc.)
+- `apps/civicos-mcp/rest_api.py` — REST endpoint definitions
 
 ## Success Criteria
-- [ ] pilot.json and doc changes committed
 - [ ] At least one P1 item implemented and deployed
-- [ ] Tested via Vite dev server (not Docker rebuild loop)
+- [ ] Tested via Vite dev server
 - [ ] P0 updated in pilot.json for next session
