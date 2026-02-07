@@ -1,119 +1,71 @@
-# Next Session: Build Chat Action Card for Comment Posting (Option 1)
+# Next Session: Dashboard MVP — Refine Visualizations
 
-## What Was Done (2026-02-06)
+## What Was Done (2026-02-07)
 
-### 1. Finalized Comment Board Handoff
-- Ran SQL migration `scripts/sql/add_comments.sql` on relay DB (coordination_comments table)
-- Committed all Kind 30803 comment code (models, crypto, storage, endpoints, migration)
-- Commit: `206fb13`
+1. **Removed "I'll Speak"** from CityPulse.svelte — button, state, API, CSS all cleaned out
+2. **Added 3 viz primitives** to CityPulse: MeetingCalendar, DecisionFlow, IssueMap
+3. **Added `GET /api/tools/issue-geography`** endpoint to rest_api.py (returns lat/lng for all 1,749 issues)
+4. **Updated civic.ts** with `getIssueGeography()` + `IssuePoint` type
 
-### 2. Fixed Comment Modal Z-Index Bug
-- Modal was trapped in sidebar stacking context, chat elements bled through
-- Replaced custom overlay with Open WebUI's `Modal` component (portals to `document.body`, z-9999)
+## Uncommitted / Unpushed
 
-### 3. Added Comment Viewing
-- Added `getComments()` API function in `civic.ts` (GET /comments/{entity})
-- Added `Comment` interface to civic.ts
-- Modal showed existing comments above textarea
+- **civicos**: rest_api.py, pilot.json, claude-progress.txt modified. Needs commit + push.
+- **civicos-openwebui**: CityPulse.svelte modified, 3 new components (MeetingCalendar.svelte, DecisionFlow.svelte, IssueMap.svelte), civic.ts modified. Also has unrelated static file deletions. Needs commit + push.
 
-### 4. Replaced Modal with Inline Collapsible Thread
-- Per user feedback, replaced modal with forum-style inline thread under each agenda item
-- Uses `svelte/transition:slide` for collapse/expand animation
-- "Comment" button toggles thread open/closed, shows count when comments exist
-- Thread loads comments on expand, has inline compose textarea + "Post" button
-- Per-entity state tracked in Maps/Sets (openThreads, threadComments, threadDrafts, etc.)
+## Critical Feedback from User
 
-### 5. Added Comment Endpoints to Coordination Router (for Modal deployment)
-- **Root cause of "count flashes then disappears"**: Modal relay uses `coordination.py` router from civicos-services, NOT relay's `app.py`
-- Added to `packages/civicos-services/src/civicos_services/servers/routers/coordination.py`:
-  - `_get_comment_storage()` helper
-  - `POST /coordination/comment` (submit signed comment)
-  - `GET /coordination/comments/{entity}` (list comments)
-  - `GET /coordination/comment/counts/{entity}` (get count)
-  - Request/response models: SubmitCommentRequest, CommentResponse, CommentCountResponse
-- Redeployed relay: `modal deploy apps/civicos-relay/modal_relay.py` - verified working
+The user reviewed the live dashboard and raised these concerns:
 
-### 6. Renamed "Write Comment" to "Draft Public Comment"
-- Renamed handler to `handleDraftComment()`
-- Opening thread + sending AI prompt simultaneously
+### 1. DecisionFlow ("Pipeline") — LOW UTILITY, RETHINK
+The bar showing "10 upcoming, 10 decided" is **unclear and not useful**. The user doesn't understand what it's counting or why it matters. Options:
+- **Remove it** — simplest, frees space
+- **Replace with something more meaningful** — e.g., a timeline of decisions with outcomes, or a "what's stuck" view showing items continued multiple times
+- The current data (all 44 decisions are "approved") makes this especially uninformative
 
-### 7. Designed Chat Action Card (Option 1) - NOT YET BUILT
-- Ran simulated user panel - unanimous preference for chat-driven comment posting
-- Explored Open WebUI rendering pipeline thoroughly (see below)
-- Was in plan mode designing implementation when context ran out
+### 2. MeetingCalendar ("Meeting Activity") — LOW UTILITY, RETHINK
+The calendar heatmap is **unclear about what it represents**. A green square on a day doesn't tell the user much. Options:
+- **Remove it** — if it doesn't earn its space
+- **Make it clickable** — click a day to see that day's meetings
+- **Add context** — show meeting titles inline instead of requiring hover
+- The fundamental question: does a heatmap of meeting frequency matter to a civic participant?
 
-## REMAINING WORK: Build Option 1 (Chat Action Card)
+### 3. IssueMap — HIGH POTENTIAL, ENHANCE
+The map is the **most promising** visualization. The user specifically asked: "Is it possible to overlay issues onto the map based off of geolocation?" — which is exactly what IssueMap already does (1,749 geocoded dots). But:
+- Needs deployment to Modal first (issue-geography endpoint)
+- May not have been visible in the screenshot if the endpoint wasn't live
+- Consider: cluster markers for dense areas, filter by issue type, larger map height
 
-### Concept
-When AI drafts a public comment, it outputs a ` ```civic-comment ` code block with JSON. The frontend intercepts this and renders a PostCommentCard with a "Post to Comment Board" button. User reviews and clicks Post - card handles client-side signing and submission.
+## Deployment Needed
 
-### Rendering Pipeline (verified)
-```
-ResponseMessage.svelte → ContentRenderer.svelte → Markdown.svelte
-  → MarkdownTokens.svelte (line 104-129) → CodeBlock.svelte
+Both repos need deployment before visualizations work in production:
+
+```bash
+# 1. CivicOS MCP (issue-geography endpoint)
+modal deploy apps/civicos-mcp/modal_mcp.py
+
+# 2. OpenWebUI fork (new viz components)
+cd ~/projects/civicos-openwebui
+# Push to civicos-main branch, then deploy
 ```
 
-### Hook Point
-`MarkdownTokens.svelte` line 104: intercept `token.lang === 'civic-comment'` before CodeBlock dispatch.
+## Recommended Approach for Next Session
 
-### Implementation Steps
-
-1. **Create `PostCommentCard.svelte`** in `~/projects/civicos-openwebui/src/lib/components/civic/`
-   - Parse JSON from code block: `{ entity, text, item_title, item_number, meeting, stance? }`
-   - Render: item title/number, comment text preview, stance badge, "Post to Comment Board" button
-   - On click: call `submitComment()` from `civic.ts` (handles signing)
-   - States: idle → posting → posted/error
-   - Dark mode support
-
-2. **Modify `MarkdownTokens.svelte`** (minimal change)
-   - Import PostCommentCard
-   - Add branch before CodeBlock: `{:else if token.type === 'code' && token?.lang === 'civic-comment'}`
-   - Render `<PostCommentCard data={token.text} />`
-
-3. **Update `handleDraftComment()` in `CityPulse.svelte`**
-   - Modify the AI prompt to instruct output in civic-comment code block format:
-     ```
-     Output your draft as a civic-comment block:
-     ```civic-comment
-     {"entity": "agenda-item:ID", "text": "...", "item_title": "...", "item_number": "...", "meeting": "..."}
-     ```
-     ```
-
-4. **Cross-component count update** (optional, can defer)
-   - After posting from chat card, CityPulse comment counts should update
-   - Could use a Svelte writable store that both components subscribe to
-
-### Key Files
-| File | Repo | Action |
-|------|------|--------|
-| `src/lib/components/civic/PostCommentCard.svelte` | civicos-openwebui | CREATE |
-| `src/lib/components/chat/Messages/Markdown/MarkdownTokens.svelte` | civicos-openwebui | EDIT (add if-branch at line 104) |
-| `src/lib/components/civic/CityPulse.svelte` | civicos-openwebui | EDIT (update prompt in handleDraftComment) |
-| `src/lib/apis/civic.ts` | civicos-openwebui | Already has submitComment() - reuse as-is |
-
-### Signing Flow (reuse from civic.ts)
-`submitComment(entityId, commentText, jurisdiction, stance)` handles:
-1. Gets/creates keypair from localStorage (`@noble/secp256k1`)
-2. Builds Nostr Kind 30803 event with tags [d, j, stance?]
-3. SHA-256 hash → BIP-340 Schnorr sign
-4. POST to relay
-
-### Reference: Existing Patterns
-- Citation rendering in `MarkdownInlineTokens.svelte` (line 111-116) - custom token → custom component
-- `DecisionCard.svelte` - existing civic card component pattern
-- `Modal.svelte` - shows how Open WebUI components portal/interact
-
-## Uncommitted Changes
-
-### civicos repo (this repo)
-- `packages/civicos-services/src/civicos_services/servers/routers/coordination.py` - comment endpoints added (UNCOMMITTED)
-
-### civicos-openwebui repo (~/projects/civicos-openwebui)
-- `src/lib/apis/civic.ts` - Comment interface, getComments()
-- `src/lib/components/civic/CityPulse.svelte` - inline thread, Draft Public Comment, Modal removed
-- ALL UNCOMMITTED - commit both repos before starting new work
+1. **Commit + push** both repos (civicos + civicos-openwebui)
+2. **Deploy** MCP server to Modal
+3. **Evaluate DecisionFlow and MeetingCalendar** — likely remove or significantly redesign
+4. **Focus on IssueMap** — this has the most user value. Make sure it renders properly with the live endpoint. Consider expanding map height, adding type filters, clustering.
+5. **Layout CSS** — dashboard still needs polish (overlaps noted in pilot.json)
 
 ## P0 Status
-- `civic_dashboard_mvp` remains P0 in pilot.json
-- The chat action card is part of dashboard MVP (engagement ladder: awareness → participation)
-- After building the card, the remaining dashboard work is visualization primitives (calendar heatmap, decision flow, issue geography)
+`civic_dashboard_mvp` remains P0 in pilot.json. 3 viz primitives are implemented but 2 may need replacement.
+
+## Key Files
+| File | Repo | What |
+|------|------|------|
+| `src/lib/components/civic/CityPulse.svelte` | civicos-openwebui | Main dashboard, imports all 3 viz |
+| `src/lib/components/civic/MeetingCalendar.svelte` | civicos-openwebui | Calendar heatmap (may remove) |
+| `src/lib/components/civic/DecisionFlow.svelte` | civicos-openwebui | Pipeline bar (may remove) |
+| `src/lib/components/civic/IssueMap.svelte` | civicos-openwebui | Leaflet dot map (keep, enhance) |
+| `src/lib/apis/civic.ts` | civicos-openwebui | API client (getIssueGeography) |
+| `apps/civicos-mcp/rest_api.py` | civicos | issue-geography endpoint |
+| `pilot.json` | civicos | Progress tracking |

@@ -1,3 +1,76 @@
+## Session 539 (2026-02-07) - Dashboard MVP: Refine Visualizations
+
+**Item:** civic_dashboard_mvp (P0, frontend_refinement)
+**Status:** IN PROGRESS (IssueMap enhanced, low-utility viz removed)
+
+#### What Changed
+1. **Removed DecisionFlow** — pipeline bar showing "10 upcoming, 10 decided" was unclear and uninformative per user feedback
+2. **Removed MeetingCalendar** — heatmap didn't tell users anything actionable per user feedback
+3. **Enhanced IssueMap** as hero visualization:
+   - Increased height from 200px to 300px
+   - Added clickable type-filter legend (sorted by count descending)
+   - Filter toggles: click a type to isolate, click again to show all
+   - Dimmed/active states for legend items
+   - Dynamic footer showing filtered vs total count
+4. **Updated pilot.json** — removed completed viz items, added new progress tracking
+
+#### Commits
+- civicos-openwebui: `81ce314` feat(dashboard): Replace low-utility viz with enhanced IssueMap
+- civicos: (this session) feat(dashboard): Update pilot.json + issue-geography endpoint
+
+#### What's Next
+- Deploy MCP server to Modal (issue-geography endpoint)
+- Test IssueMap with live production data
+- Layout CSS polish (dashboard overlaps chat)
+- Push openwebui commits to remote
+
+## Session 538 (2026-02-06) - Dashboard MVP: Viz Primitives + Remove I'll Speak
+
+**Item:** civic_dashboard_mvp (P0, frontend_refinement)
+**Status:** IN PROGRESS (3/3 viz primitives complete, deployment pending)
+
+### Changes
+
+#### OpenWebUI Fork (civicos-openwebui)
+1. **Removed "I'll Speak" feature** from CityPulse.svelte
+   - Removed action state vars, localStorage persistence, API calls
+   - Removed button, count display, CSS
+   - Kept voice (support/oppose), comments, Draft Comment, Email Clerk
+
+2. **MeetingCalendar.svelte** — calendar heatmap
+   - SVG grid showing meeting density per day
+   - Green intensity scale (1/2/3+ meetings per day)
+   - Hover shows meeting titles, derives date range from data
+   - Props: `meetings[]` from city_pulse
+
+3. **DecisionFlow.svelte** — pipeline bar
+   - Horizontal stacked bar: upcoming items vs decided items
+   - Color-coded segments (blue=upcoming, green=decided)
+   - Outcome breakdown chips (approved/denied/continued)
+   - Props: `upcomingItems[]`, `recentOutcomes[]`
+
+4. **IssueMap.svelte** — Leaflet dot map
+   - 1,749 geocoded issues on Leaflet map
+   - Circle markers color-coded by issue type
+   - Click popup: type, address, status
+   - Fetches from new `/api/tools/issue-geography` endpoint
+
+5. **civic.ts** — added `getIssueGeography()` API call + `IssuePoint` type
+
+#### CivicOS Main (civicos)
+6. **rest_api.py** — added `GET /api/tools/issue-geography` endpoint
+   - Returns lat/lng/type/status/address for all geocoded issues
+   - Uses existing storage backend, no new DB queries
+
+7. **pilot.json** — updated progress for 3 viz items + civic_dashboard_mvp
+
+#### What's Next
+- Deploy MCP server to Modal (issue-geography endpoint)
+- Deploy OpenWebUI fork (new viz components)
+- Test live data rendering
+- Layout CSS polish (dashboard overlaps chat)
+- Engagement ladder navigation
+
 ## Session 537 (2026-02-06) - Action Event Preparation Tools
 
 **Item:** action_event_preparation (P0, edge_intelligence)
@@ -18528,3 +18601,49 @@ End-to-end test of Personal MCP → Relay voice signing and verification:
 7. **Tamper detection** — flipped signature byte → relay correctly rejected (400)
 
 **Issue found:** The relay server that was already running had stale code from before the Schnorr commit. After restarting, verification passed immediately. The root cause was the prior relay process loaded the old crypto module. No code bug — just a stale process.
+
+### Session — 2026-02-06 (Comment Board UX + Voice Toggle)
+
+**P0: civic_dashboard_mvp**
+
+#### What Was Done
+
+1. **Comment threads (from previous session, committed this session)**
+   - Inline comment threads per agenda item in CityPulse sidebar
+   - Comment API: submitComment, getComments, getCommentCounts in civic.ts
+   - submitPrompt threaded from Chat → CityPulsePane → CityPulse
+
+2. **Scrapped PostCommentCard approach** — tried rendering AI drafts as action cards in chat, was overengineered. Simplified to: AI drafts in chat, user copy-pastes to compose box.
+
+3. **Scrapped store bridge** — pendingCommentDraft store to auto-populate compose box was unnecessary complexity. Removed.
+
+4. **Voice toggle off** (re-click same stance = revoke)
+   - POST /coordination/voice/revoke endpoint on relay (signed revocation)
+   - revokeVoice() in civic.ts
+   - Fire-and-forget: local state is authoritative, relay sync is best-effort
+
+5. **One comment per entity per pubkey**
+   - Relay already enforced via ON CONFLICT upsert
+   - Frontend: detects existing comment, pre-fills compose box, shows "Update" instead of "Post"
+   - getPublicKey() exported from civic.ts
+
+6. **Decoupled voice from comments** — comments no longer carry stance tag
+
+7. **500-char comment limit** + live char counter (red at 400+)
+
+8. **High-signal draft prompt** — 500 char max, lead with specific ask, reference data/precedent, one point per comment, plain language
+
+9. **Neutral stance handling** — no stance = neutral draft (clarifying question or consideration)
+
+#### Commits
+- civicos: `adcafad` feat(relay): voice revoke endpoint + comment endpoints
+- openwebui: `b038083` feat(dashboard): Comment threads, voice toggle, one-comment-per-person
+- openwebui: `1881289` feat(dashboard): 500-char comment limit + high-signal draft prompt
+- openwebui: `118dbcf` fix(voice): Don't roll back stance revocation on relay failure
+- openwebui: `460c382` fix(draft): Handle neutral stance in comment drafting prompt
+
+#### What's Next
+- Deploy relay to Modal (voice/revoke endpoint is committed but not deployed)
+- Visualization primitives for dashboard MVP (calendar heatmap, decision flow, issue geography)
+- MCP context integration for richer comment drafts (longer term)
+- Push openwebui commits to remote
