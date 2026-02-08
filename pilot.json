@@ -2646,7 +2646,7 @@
         }
       },
       "agenda_actionability": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "artifact": "LLM-based agenda item actionability classification",
         "description": "Classify each agenda item as 'actionable' (has a decision point, public input meaningful — e.g. zoning variance, ordinance adoption) vs 'informational' (update, presentation, procedural — e.g. 'Open Time for Public Expression', rail transit update). Classification runs at ingestion time via LLM and is stored permanently. Frontend hides or de-emphasizes voice/comment UI on informational items. No heuristics — use LLM with structured output for reliable classification.",

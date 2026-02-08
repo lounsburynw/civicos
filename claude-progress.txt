@@ -1,3 +1,40 @@
+## Session 543 (2026-02-08) - agenda_actionability: LLM Classification
+
+**Item:** agenda_actionability (P0, frontend_refinement > city_status_dashboard)
+**Status:** Complete
+
+#### What was done
+1. **Created `actionability.py`** — LLM classification module using OpenAI gpt-4o-mini
+   - `classify_actionability()` classifies items as actionable/informational/mixed
+   - `classify_actionability_batch()` handles large sets in batches
+   - Robust: handles LLM length mismatches, markdown fencing, invalid values
+
+2. **Updated `postgres_backend.py`** — `store_agenda_items()` now accepts pre-classified `actionability` field
+   - Added `update_agenda_item_actionability()` method for backfill
+
+3. **Backfilled all 209 existing agenda items** — 124 reclassified
+   - Before: 169 actionable, 40 informational
+   - After: 74 actionable, 116 informational, 19 mixed
+   - "Open Time for Public Expression" correctly classified as informational
+
+4. **API updated** — city-pulse handler returns `actionability` field, deployed to Modal
+
+5. **Frontend updated** — CityPulse.svelte:
+   - Informational items show badge, voice/comment controls hidden
+   - Mixed items show "Mixed" badge with full controls
+   - Voice/comment API calls skip informational items (efficiency)
+
+#### Key files
+- `packages/civicos/src/civicos/storage/actionability.py` (new)
+- `packages/civicos/src/civicos/storage/postgres_backend.py:2540` (updated)
+- `apps/civicos-mcp/tools/handlers.py:390` (actionability field added)
+- `~/projects/civicos-openwebui/src/lib/apis/civic.ts` (AgendaItem type)
+- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` (conditional rendering)
+
+#### Commits
+- civicos: pending commit
+- openwebui: pending commit
+
 ## Session 542 (2026-02-07) - comment_synthesis: Sentiment Aggregation
 
 **Item:** comment_synthesis (P1, frontend_refinement > city_status_dashboard)

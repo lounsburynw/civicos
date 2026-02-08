@@ -2537,7 +2537,7 @@ class PostgresBackend:
                     item.get('title'),
                     item.get('description'),
                     project_type,
-                    'actionable' if item.get('actionable') else 'informational',
+                    item.get('actionability') or ('actionable' if item.get('actionable') else 'informational'),
                     item.get('impact_level'),
                     item.get('financial_impact_cents'),
                     item.get('summary'),
@@ -2667,6 +2667,37 @@ class PostgresBackend:
         conn.close()
 
         return count
+
+    def update_agenda_item_actionability(
+        self,
+        item_id: str,
+        valid_from: str,
+        actionability: str,
+    ) -> bool:
+        """
+        Update the actionability classification for an existing agenda item.
+
+        Uses (id, valid_from) composite key to target the specific version.
+
+        Returns:
+            True if a row was updated, False otherwise
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                UPDATE agenda_items
+                SET actionability = %s
+                WHERE id = %s AND valid_from = %s
+                  AND valid_to IS NULL AND deleted_at IS NULL
+            """, (actionability, item_id, valid_from))
+            conn.commit()
+            return cursor.rowcount > 0
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
     # ========== Chunk Methods (SESSION 367) ==========
 
