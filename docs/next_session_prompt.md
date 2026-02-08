@@ -1,6 +1,6 @@
-# Recommended: Dashboard MVP — Next P1 Feature
+# Recommended: Agenda Item Actionability Classification
 
-**Priority:** P0 (civic_dashboard_mvp umbrella) with P1 sub-items ready to implement
+**Priority:** P0
 **Area:** frontend_refinement > city_status_dashboard
 **Date:** 2026-02-07
 
@@ -8,71 +8,66 @@
 
 ## Context
 
-Session 541 completed `add_to_cal` (calendar links for upcoming meetings). The dashboard MVP now has: IssueMap with filtering, voice toggle, comment threads, and calendar links. Backend deployed to Modal with `location` + `meeting_datetime` in city-pulse response.
+This session completed `budget_treemap_viz` (BudgetChart.svelte + /budget-summary endpoint deployed to Modal) and wired up the comment synthesis frontend (getCommentSynthesis was defined but never called, now integrated with sentiment bar). The dashboard MVP now has: IssueMap with filtering, voice toggle, comment threads, calendar links, comment synthesis sentiment bar, and budget allocation chart.
 
-Remaining P1 items from the dashboard batch:
+The last P1 sub-item under the dashboard MVP is `agenda_actionability`. Items like "Open Time for Public Expression" currently show voice/comment UI, which is confusing — there's no decision point. Classification at ingestion time was chosen over edge intelligence because actionability is an objective property of the item, not a user preference.
 
-## Recommended: `comment_synthesis` (highest pilot value)
+## Recommended Task
 
-For agenda items with comments, show an AI-synthesized summary: total count, sentiment breakdown (support/oppose/neutral), key themes, notable quotes. This is the "why CivicOS matters" feature for council member demos.
+Classify agenda items as `actionable` / `informational` / `mixed` at ingestion time using LLM structured output. Store the field permanently. Frontend hides voice/comment UI on informational items.
 
-**Implementation plan:**
-- **Backend**: New `/comment-synthesis` endpoint in `rest_api.py` or `tools/handlers.py`
-  - Fetch comments for an entity from relay (`getComments`)
-  - Call LLM (OpenAI via existing config) for synthesis
-  - Cache result (simple in-memory or database-backed)
-- **Relay**: Comment data already accessible via `packages/civicos-relay/src/civicos_relay/coordination/` endpoints
-- **Frontend**: Expandable synthesis panel per agenda item in CityPulse.svelte, below the comment count button
-- **Key challenge**: LLM latency — consider async loading with a spinner, or pre-compute on comment submission
+## Architecture Decision: Ingestion Time
 
-**Key files:**
-- `apps/civicos-mcp/tools/handlers.py` — add synthesis handler
-- `apps/civicos-mcp/rest_api.py` — add REST endpoint
-- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` — synthesis UI
-- `~/projects/civicos-openwebui/src/lib/apis/civic.ts` — API client
-- `packages/civicos-relay/src/civicos_relay/coordination/comment_storage.py` — comment data access
+Classify at **ingestion time** (not request time or edge). Rationale:
+- Actionability is a data property, not a user judgment
+- Classify once, store forever — no LLM latency at render time
+- Consistent across all users
+- Personal relevance is a separate edge intelligence concern
 
-## Other P1/P2 Items (if comment_synthesis is too complex for one session)
+## Implementation Plan
 
-### `budget_treemap_viz` (P1, data ready, visually compelling)
-58 budget_items ($180M) already in PostgreSQL. Horizontal bar chart in CityPulse sidebar.
+1. **Schema**: Add `actionability` column to meetings/agenda items in PostgreSQL
+   - Enum: `actionable`, `informational`, `mixed`
+   - Nullable (for backward compat with existing data)
 
-- **Backend**: New `/budget-summary` endpoint grouping budget_items by category
-- **Data**: `packages/civicos/src/civicos/storage/postgres_backend.py` — budget methods
-- **Frontend**: New `BudgetChart.svelte` component
+2. **LLM Classification**: Post-processing step after `store_meetings()`
+   - Structured output: `{actionability: str, confidence: float, reasoning: str}`
+   - Prompt: classify based on title + summary/description
+   - Use OpenAI (existing config in .env)
 
-### `agenda_actionability` (P1, important for credibility)
-Classify agenda items as actionable vs informational. Hides voice/comment UI on informational items (e.g. "Open Time for Public Expression"). Uses LLM structured output.
+3. **Retroactive Backfill**: Run classification on existing 98 meetings' agenda items
 
-- **Schema**: Add `actionability` field to agenda items
-- **Ingestion**: Post-processing step after `store_meetings()`
-- **Frontend**: Conditional rendering of voice/comment controls in CityPulse
+4. **City-pulse handler**: Include `actionability` field in `upcoming_items` response
 
-### `expandable_decisions` (P2)
-Expand decision rows to show vote breakdown, related testimony, linked docs.
-
-### `provenance_footer` (P2)
-Data provenance info panel showing MCP endpoint, relay ID, data freshness.
-
-## Completed This Session
-- [x] `add_to_cal` — Calendar icon + dropdown (Google Calendar + .ics download) on each upcoming meeting
-- [x] Backend deployed to Modal with location + meeting_datetime fields
-- [x] pilot.json updated, all changes committed
-
-## Dev Workflow Reminder
-
-**Use Vite dev server for frontend iteration (NOT Docker rebuilds):**
-```bash
-cd ~/projects/civicos-openwebui && npm run dev   # localhost:5173, hot reload
-```
+5. **Frontend**: In CityPulse.svelte, conditionally render voice/comment/draft controls
+   - `actionable`/`mixed`: show all controls (current behavior)
+   - `informational`: hide controls, show subtle "Informational" badge
 
 ## Key Files
-- `pilot.json` — all items under `frontend_refinement.city_status_dashboard.*`
-- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` — main dashboard
-- `apps/civicos-mcp/tools/handlers.py` — backend tool handlers (city-pulse, etc.)
-- `apps/civicos-mcp/rest_api.py` — REST endpoint definitions
+
+- `packages/civicos/src/civicos/storage/postgres_backend.py:5758` — `store_meetings()` method
+- `apps/civicos-mcp/tools/handlers.py:342` — `city_pulse()` handler builds `upcoming_items`
+- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte:500-600` — agenda item rendering with voice/comment controls
+- `~/projects/civicos-openwebui/src/lib/apis/civic.ts` — `AgendaItem` type (add `actionability` field)
+- `pilot.json:2648` — `agenda_actionability` item definition
+
+## Dev Workflow
+
+```bash
+cd ~/projects/civicos-openwebui && npm run dev   # Frontend: localhost:5173
+modal deploy apps/civicos-mcp/modal_mcp.py       # Deploy MCP server (from project root)
+```
 
 ## Success Criteria
-- [ ] At least one P1 item implemented and deployed
-- [ ] Tested via Vite dev server
-- [ ] P0 updated in pilot.json for next session
+
+- [ ] Agenda items classified with actionability field at ingestion time
+- [ ] Existing items retroactively classified
+- [ ] Frontend hides voice/comment on informational items
+- [ ] "Informational" badge visible on non-actionable items
+- [ ] Deployed to Modal
+
+## Completed This Session
+
+- [x] `budget_treemap_viz` — BudgetChart.svelte (CSS horizontal bars), /budget-summary endpoint with auto fiscal year detection, deployed to Modal
+- [x] Comment synthesis frontend wired up — getCommentSynthesis() called on thread open, sentiment bar shows comment-based data, refreshes after posting
+- [x] Commits: civicos `8e08ce6`, `36d4bca`; openwebui `6c2ad0d`
