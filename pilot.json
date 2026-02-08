@@ -2548,8 +2548,9 @@
         "depends_on": "city_pulse_mcp_tool"
       },
       "budget_treemap_viz": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
+        "note": "2026-02-07: BudgetChart.svelte with CSS horizontal bars, /budget-summary endpoint with auto fiscal year detection, deployed to Modal.",
         "artifact": "Budget visualization in CityPulse dashboard",
         "description": "Horizontal bar chart or treemap showing budget allocation by department/category. Uses existing 58 budget_items ($180M FY25-26) from PostgreSQL. Render in CityPulse sidebar as a collapsible section. Show department name, amount, and percentage of total. Clickable bars could filter to related decisions/issues in future.",
         "depends_on": "civic_dashboard_mvp",
@@ -2585,7 +2586,7 @@
       },
       "civic_dashboard_mvp": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "MVP civic dashboard with 3+ visualization primitives",
         "description": "Implement minimum viable dashboard UX before MCP registry listing. Must include: (1) issue geography map as hero visualization with type filtering, (2) visible engagement ladder progression (awareness → participation path), (3) data-forward presentation (patterns emerge, no editorializing), (4) multi-surface capability (same query works in chat + visual rendering).",
         "note": "2026-02-07: IssueMap enhanced with recency filtering (30d/90d/All), status filtering (Open/Closed), trend TLDR line, full-screen expand modal (portaled to body), and type legend. Comment threads + voice toggle functional. Issues summary removed (redundant with map legend). Remaining MVP items broken out as sibling items: add_to_cal, comment_synthesis, budget_viz, agenda_actionability, expandable_decisions, provenance_footer.",
@@ -2646,7 +2647,7 @@
       },
       "agenda_actionability": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "LLM-based agenda item actionability classification",
         "description": "Classify each agenda item as 'actionable' (has a decision point, public input meaningful — e.g. zoning variance, ordinance adoption) vs 'informational' (update, presentation, procedural — e.g. 'Open Time for Public Expression', rail transit update). Classification runs at ingestion time via LLM and is stored permanently. Frontend hides or de-emphasizes voice/comment UI on informational items. No heuristics — use LLM with structured output for reliable classification.",
         "depends_on": "civic_dashboard_mvp",
