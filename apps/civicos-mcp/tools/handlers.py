@@ -393,6 +393,7 @@ def city_pulse(
                         "item_number": item.get('item_number'),
                         "title": item.get('title', 'Agenda Item'),
                         "project_type": item.get('project_type'),
+                        "actionability": item.get('actionability', 'actionable'),
                         "summary": item.get('summary', ''),
                         "why_it_matters": item.get('why_it_matters', ''),
                         "meeting_title": m.get('title') or m.get('body') or 'Meeting',
