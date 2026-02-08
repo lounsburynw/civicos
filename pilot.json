@@ -2661,7 +2661,7 @@
       },
       "expandable_decisions": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Expandable decision detail cards in CityPulse",
         "description": "Expand Recent Decisions rows to show full detail: vote breakdown, related public testimony (via vector search), linked agenda packet chunks, and timeline context. Click a decision row to expand inline. Fetch additional detail on demand to keep initial load fast.",
         "depends_on": "civic_dashboard_mvp",
