@@ -447,8 +447,10 @@ def city_pulse(
                 date_str = "Recent"
 
             result["recent_outcomes"].append({
+                "id": d.get('id'),
                 "title": d.get('title') or 'Decision',
                 "outcome": d.get('outcome') or d.get('status') or 'decided',
+                "vote_tally": d.get('vote_tally') or d.get('votes'),
                 "date": date_str,
             })
 
@@ -1342,6 +1344,74 @@ def get_decision_context(
 
     except Exception as e:
         return f"Error getting decision context: {str(e)}"
+
+
+def decision_detail(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> dict:
+    """Get structured detail for a specific decision (for dashboard expansion)."""
+    title = args.get("title", "")
+
+    if not title:
+        return {"found": False}
+
+    try:
+        results = civic.what_happened_full_context(title, top_k=1, transcript_excerpts_per_decision=5)
+
+        if not results:
+            return {"found": False}
+
+        r = results[0]
+        d = r.decision
+
+        # Split transcript links by type
+        public_comments = [link for link in r.transcript_links if link.is_public_comment]
+        council_discussion = [link for link in r.transcript_links if not link.is_public_comment]
+
+        # Get related decisions via vector search
+        related = civic.what_happened(title, top_k=4)
+        related_decisions = [
+            {"title": rd.title, "outcome": rd.outcome, "date": str(rd.date) if rd.date else None}
+            for rd in related if rd.title != d.title
+        ][:3]
+
+        return {
+            "found": True,
+            "decision": {
+                "id": d.id,
+                "title": d.title,
+                "outcome": d.outcome,
+                "date": str(d.date) if d.date else None,
+                "body": d.body,
+                "votes": d.votes,
+            },
+            "testimony": {
+                "public_comments": [
+                    {
+                        "speaker": l.speaker_name or l.speaker or "Resident",
+                        "text": l.text[:300],
+                        "video_url": l.video_url,
+                    }
+                    for l in public_comments[:3]
+                ],
+                "council_discussion": [
+                    {
+                        "speaker": l.speaker_name or l.speaker or "Council Member",
+                        "text": l.text[:300],
+                    }
+                    for l in council_discussion[:2]
+                ],
+            },
+            "related_decisions": related_decisions,
+        }
+
+    except Exception as e:
+        logger.error(f"Error in decision_detail: {e}")
+        return {"found": False, "error": str(e)}
 
 
 # ─────────── Financial Handlers ───────────
