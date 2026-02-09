@@ -198,8 +198,23 @@ def fetch_municipal_code(
     stored_count = 0
     if not dry_run:
         backend = PostgresBackend(database_url)
-        stored_count = backend.store_municipal_code(jurisdiction_id=jurisdiction, sections=sections)
-        logger.info(f"Stored {stored_count} sections")
+        try:
+            stored_count = backend.store_municipal_code(jurisdiction_id=jurisdiction, sections=sections)
+            logger.info(f"Stored {stored_count} sections")
+
+            backend.update_refresh_metadata(
+                jurisdiction, "municipal_code", "municode",
+                items_fetched=len(sections),
+                items_stored=stored_count,
+                status="completed",
+            )
+        except Exception as e:
+            logger.error(f"Error storing municipal code: {e}")
+            backend.update_refresh_metadata(
+                jurisdiction, "municipal_code", "municode",
+                status="failed", error_message=str(e),
+            )
+            raise
 
     # Auto-index vectors if requested and data was stored
     vector_result = None
@@ -523,6 +538,10 @@ def sync_legislation(
         data = response.json()
     except Exception as e:
         logger.error(f"LegiScan API error: {e}")
+        backend.update_refresh_metadata(
+            jurisdiction, "legislation", "legiscan",
+            status="failed", error_message=str(e),
+        )
         return {
             "task": "sync_legislation",
             "jurisdiction": jurisdiction,
@@ -532,6 +551,10 @@ def sync_legislation(
 
     if data.get("status") != "OK":
         logger.error(f"LegiScan API returned status: {data.get('status')}")
+        backend.update_refresh_metadata(
+            jurisdiction, "legislation", "legiscan",
+            status="failed", error_message=f"LegiScan status: {data.get('status')}",
+        )
         return {
             "task": "sync_legislation",
             "jurisdiction": jurisdiction,
@@ -600,6 +623,14 @@ def sync_legislation(
     count_after = backend.get_legislation_count(state_code)
     new_bills = count_after - count_before
     logger.info(f"Sync complete: {total_stored} bills processed, {new_bills} new bills added")
+
+    # Update refresh metadata
+    backend.update_refresh_metadata(
+        jurisdiction, "legislation", "legiscan",
+        items_fetched=len(bills_for_storage),
+        items_stored=total_stored,
+        status="completed",
+    )
 
     # Step 3: Populate text for bills missing it (unless skip_text)
     text_result = None
@@ -754,8 +785,23 @@ def fetch_executive_orders(
     # Store to database
     stored_count = 0
     if orders and not dry_run:
-        stored_count = backend.store_executive_orders(orders)
-        logger.info(f"[EO] Stored {stored_count} new Executive Orders (deduped)")
+        try:
+            stored_count = backend.store_executive_orders(orders)
+            logger.info(f"[EO] Stored {stored_count} new Executive Orders (deduped)")
+
+            backend.update_refresh_metadata(
+                "federal-US", "executive_orders", "federal_register",
+                items_fetched=len(orders),
+                items_stored=stored_count,
+                status="completed",
+            )
+        except Exception as e:
+            logger.error(f"Error storing executive orders: {e}")
+            backend.update_refresh_metadata(
+                "federal-US", "executive_orders", "federal_register",
+                status="failed", error_message=str(e),
+            )
+            raise
     elif dry_run:
         logger.info("[EO] Dry run - skipping storage")
 
@@ -1017,8 +1063,23 @@ def fetch_federal_programs(
     if not dry_run:
         logger.info("Storing to PostgreSQL...")
         backend = PostgresBackend(database_url)
-        stored = backend.store_federal_programs(storage_programs)
-        logger.info(f"  Stored {stored} programs")
+        try:
+            stored = backend.store_federal_programs(storage_programs)
+            logger.info(f"  Stored {stored} programs")
+
+            backend.update_refresh_metadata(
+                "federal-US", "programs", "sam_gov",
+                items_fetched=programs_fetched,
+                items_stored=stored,
+                status="completed",
+            )
+        except Exception as e:
+            logger.error(f"Error storing federal programs: {e}")
+            backend.update_refresh_metadata(
+                "federal-US", "programs", "sam_gov",
+                status="failed", error_message=str(e),
+            )
+            raise
     else:
         logger.info("  [DRY RUN] Skipping storage")
 
@@ -2598,11 +2659,13 @@ def extract_decisions(
     start_time = time.time()
 
     from civicos_extraction.cli.decisions import run_decision_extraction
+    from civicos.storage.postgres_backend import PostgresBackend
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
         raise ValueError("DATABASE_URL not set")
 
+    backend = PostgresBackend(database_url)
     logger.info(f"[DECISIONS] Starting extraction: jurisdiction={jurisdiction}, limit={limit}")
 
     # run_decision_extraction handles:
@@ -2639,6 +2702,15 @@ def extract_decisions(
     skipped = sum(1 for r in results if r.status == "skipped")
     failed = sum(1 for r in results if r.status == "error")
     total_decisions = sum(r.decisions_count for r in results if r.status == "success")
+
+    # Update refresh metadata
+    if not dry_run:
+        backend.update_refresh_metadata(
+            jurisdiction, "decisions", "llm_extraction",
+            items_fetched=len(results),
+            items_stored=total_decisions,
+            status="completed",
+        )
 
     # Auto-index vectors if requested and decisions were extracted
     vector_result = None
@@ -3512,6 +3584,7 @@ def main(
     municipal: bool = False,
     legislation: bool = False,
     executive_orders: bool = False,
+    federal_programs: bool = False,
     meetings: bool = False,
     issues: bool = False,
     elections: bool = False,
@@ -3628,6 +3701,7 @@ def main(
     run_municipal = all or municipal
     run_legislation = all or legislation
     run_executive_orders = all or executive_orders
+    run_federal_programs = federal_programs  # Not in --all (weekly refresh)
     run_meetings = all or meetings
     run_issues = all or issues
     run_elections = all or elections
@@ -3639,8 +3713,8 @@ def main(
     run_videos = videos  # Not in --all (YouTube jurisdictions need explicit flag)
     run_vectors = all or vectors
 
-    if not (run_municipal or run_legislation or run_executive_orders or run_meetings or run_issues or run_elections or run_elected_officials or run_videos or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors):
-        print("No tasks specified. Use --all, --municipal, --legislation, --executive-orders, --meetings, --issues, --elections, --elected-officials, --videos, --transcripts, --chunks, --agenda, --decisions, or --vectors")
+    if not (run_municipal or run_legislation or run_executive_orders or run_federal_programs or run_meetings or run_issues or run_elections or run_elected_officials or run_videos or run_transcripts or run_chunks or run_agenda or run_decisions or run_vectors):
+        print("No tasks specified. Use --all, --municipal, --legislation, --executive-orders, --federal-programs, --meetings, --issues, --elections, --elected-officials, --videos, --transcripts, --chunks, --agenda, --decisions, or --vectors")
         print("Use --stats-only to check current state")
         return
 
@@ -3654,6 +3728,8 @@ def main(
         task_list.append("legislation")
     if run_executive_orders:
         task_list.append("executive_orders")
+    if run_federal_programs:
+        task_list.append("federal_programs")
     if run_meetings:
         task_list.append("meetings")
     if run_issues:
@@ -3681,6 +3757,8 @@ def main(
         print(f"  Legislation: {legislation_jurisdiction}" + (f" (limit: {legislation_limit})" if legislation_limit else ""))
     if run_executive_orders:
         print(f"  Executive Orders: federal-US (incremental)")
+    if run_federal_programs:
+        print(f"  Federal Programs: SAM.gov (full catalog)")
     if run_meetings:
         print(f"  Meetings: {jurisdiction}" + (" (incremental)" if incremental else ""))
     if run_issues:
@@ -3734,6 +3812,14 @@ def main(
             auto_index=auto_index,
         )
         handles.append(("executive_orders", handle))
+
+    if run_federal_programs:
+        print("Spawning federal programs fetch...")
+        handle = fetch_federal_programs.spawn(
+            dry_run=dry_run,
+            auto_index=auto_index,
+        )
+        handles.append(("federal_programs", handle))
 
     if run_meetings:
         print("Spawning meetings fetch...")
@@ -3866,6 +3952,8 @@ def main(
             print(f"+ Municipal Code: {result.get('sections_fetched', 0)} sections fetched, {result.get('sections_stored', 0)} stored")
         elif name == "legislation":
             print(f"+ Legislation: {result.get('bills_with_text', 0)}/{result.get('bills_processed', 0)} bills processed, {result.get('api_calls', 0)} API calls")
+        elif name == "federal_programs":
+            print(f"+ Federal Programs: {result.get('programs_fetched', 0)} fetched, {result.get('programs_stored', 0)} stored")
         elif name == "meetings":
             incr = " (incremental)" if result.get("incremental") else ""
             print(f"+ Meetings{incr}: {result.get('meetings_fetched', 0)} fetched, {result.get('meetings_stored', 0)} stored")
