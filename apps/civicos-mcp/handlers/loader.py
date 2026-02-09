@@ -46,6 +46,7 @@ CITY_TOOLS = frozenset([
     "search_meeting_history",
     "get_upcoming_meetings",
     "get_decision_context",
+    "decision_detail",
     "get_voting_record",
 
     # Community issues (311)

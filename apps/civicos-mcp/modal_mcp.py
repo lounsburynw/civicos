@@ -258,6 +258,7 @@ class MCPServer:
             # Council/Voting Tools (city level)
             "get_voting_record": handlers.get_voting_record,
             "get_decision_context": handlers.get_decision_context,
+            "decision_detail": handlers.decision_detail,
             # Financial Tools (federal/state/city)
             "get_funding_flow": handlers.get_funding_flow,
             "get_federal_expenditures": handlers.get_federal_expenditures,

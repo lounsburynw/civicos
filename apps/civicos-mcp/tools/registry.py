@@ -292,6 +292,16 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
             "required": ["query"],
         },
     },
+    "decision_detail": {
+        "description": "Get structured detail for a specific decision including testimony excerpts and related decisions. Returns JSON for dashboard expansion.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Decision title to look up"},
+            },
+            "required": ["title"],
+        },
+    },
 
     # ─────────── Financial Tools ───────────
     "get_funding_flow": {

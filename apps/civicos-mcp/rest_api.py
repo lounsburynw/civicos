@@ -91,6 +91,11 @@ class GetDecisionContextRequest(BaseModel):
     limit: int = Field(default=5, description="Maximum results")
 
 
+class DecisionDetailRequest(BaseModel):
+    """Request for decision_detail tool."""
+    title: str = Field(..., description="Decision title to look up")
+
+
 class CommentSynthesisRequest(BaseModel):
     """Request for comment-synthesis endpoint."""
     entity_id: str = Field(..., description="Entity ID to get comment synthesis for (e.g., 'agenda-item:123')")
@@ -222,6 +227,13 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
                  description="Get decisions with linked transcript excerpts showing what was discussed.")
     async def get_decision_context(request: GetDecisionContextRequest):
         data = call_tool_safe("get_decision_context", request.model_dump())
+        return ToolResponse(data=data)
+
+    @router.post("/decision-detail", response_model=ToolResponse,
+                 summary="Get decision detail",
+                 description="Get structured detail for a specific decision including testimony and related decisions. For dashboard expansion.")
+    async def decision_detail(request: DecisionDetailRequest):
+        data = call_tool_safe("decision_detail", request.model_dump())
         return ToolResponse(data=data)
 
     @router.get("/get-started", response_model=ToolResponse,

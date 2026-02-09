@@ -43,6 +43,7 @@ from .handlers import (
     # Council handlers
     get_voting_record,
     get_decision_context,
+    decision_detail,
     # Financial handlers
     get_funding_flow,
     get_federal_expenditures,
@@ -94,6 +95,7 @@ __all__ = [
     "neighborhood_report",
     "get_voting_record",
     "get_decision_context",
+    "decision_detail",
     "get_funding_flow",
     "get_federal_expenditures",
     "get_intergovernmental_revenue",
