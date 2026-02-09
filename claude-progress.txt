@@ -3,6 +3,17 @@
 **Item:** agenda_actionability (P0, frontend_refinement > city_status_dashboard)
 **Status:** Complete
 
+#### Refinement: Two-Flag Model (stance_eligible + comment_eligible)
+
+Initial implementation used a single `actionability` field (actionable/informational/mixed).
+Refined to two independent boolean flags after recognizing items can be:
+- **Stance + Comment** (63): Use permits, ordinances, resolutions
+- **Comment only** (50): Study sessions, presentations, policy discussions
+- **Neither** (85): Open Time for Public Expression, verbal updates, procedural
+
+Key insight: "amenable to support/oppose" and "amenable to comment" are independent axes.
+Naming: "stance" (not "voice") for the support/oppose action — "voice" is the transport mechanism.
+
 #### What was done
 1. **Created `actionability.py`** — LLM classification module using OpenAI gpt-4o-mini
    - `classify_actionability()` classifies items as actionable/informational/mixed
