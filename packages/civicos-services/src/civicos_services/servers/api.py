@@ -54,6 +54,7 @@ from .routers import (
     coordination_router,
     nostr_router,
     registry_router,
+    context_router,
 )
 
 
@@ -123,6 +124,7 @@ def create_app() -> FastAPI:
     app.include_router(drafts_router, prefix="/api", tags=["Drafts"])
     app.include_router(coordination_router, prefix="/api", tags=["Coordination"])
     app.include_router(registry_router, prefix="/api", tags=["Registry"])
+    app.include_router(context_router, prefix="/api", tags=["Context"])
 
     return app
 
