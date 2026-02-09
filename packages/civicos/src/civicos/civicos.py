@@ -407,6 +407,7 @@ class CivicOS:
             query=query,
             since=since,
             vector_backend=self._vectors,  # Explicit backend, no auto-detection
+            storage_backend=self._storage,
         )
 
         # Convert to this module's Decision type for consistency
@@ -466,6 +467,8 @@ class CivicOS:
             since=since,
             top_k=top_k,
             transcript_excerpts_per_decision=transcript_excerpts_per_decision,
+            vector_backend=self._vectors,
+            storage_backend=self._storage,
         )
 
         # Convert to this module's types for consistency

@@ -812,6 +812,34 @@ class PgVectorBackend:
             video_to_meeting = storage_backend.get_video_meeting_mapping(jurisdiction_id)
             if video_to_meeting:
                 logger.info(f"  Built video→meeting lookup: {len(video_to_meeting)} mappings")
+
+            # Build meeting_id → (datetime, title) lookup for enrichment
+            # Also build video_id → (date, title) fallback for videos without meeting links
+            meeting_metadata = {}
+            try:
+                all_meetings = storage_backend.get_meetings(jurisdiction_id)
+                for m in all_meetings:
+                    mid = m.get("id") or m.get("meeting_id")
+                    mdt = m.get("meeting_datetime")
+                    mtitle = m.get("title")
+                    if mid and mdt:
+                        meeting_metadata[mid] = (mdt, mtitle)
+                logger.info(f"  Built meeting metadata lookup: {len(meeting_metadata)} meetings")
+            except Exception as e:
+                logger.debug(f"  Could not load meeting metadata: {e}")
+
+            video_metadata = {}
+            try:
+                all_videos = storage_backend.get_videos(jurisdiction_id)
+                for v in all_videos:
+                    vid = v.get("id")
+                    vdate = v.get("date")
+                    vtitle = v.get("title")
+                    if vid and vdate:
+                        video_metadata[vid] = (vdate, vtitle)
+                logger.info(f"  Built video metadata fallback: {len(video_metadata)} videos")
+            except Exception as e:
+                logger.debug(f"  Could not load video metadata: {e}")
         elif corpus_type == "municipal_code":
             # Expand municipal code sections to chunks for semantic search
             if legal_chunker is None:
@@ -936,8 +964,14 @@ class PgVectorBackend:
                     # Resolve actual meeting_id via video→meeting lookup
                     # Falls back to video_id if no meeting link exists
                     meeting_id = video_to_meeting.get(video_id, video_id) if video_to_meeting else video_id
-                    meeting_title = None  # Will be in metadata
-                    meeting_datetime = None  # Not available at chunk level
+                    # Resolve meeting_datetime and title via meeting or video metadata
+                    if meeting_id in meeting_metadata:
+                        meeting_datetime, meeting_title = meeting_metadata[meeting_id]
+                    elif video_id in video_metadata:
+                        meeting_datetime, meeting_title = video_metadata[video_id]
+                    else:
+                        meeting_datetime = None
+                        meeting_title = None
                 elif corpus_type == "municipal_code":
                     # doc is already a chunk from expand_municipal_code_to_chunks
                     text = doc.get("text", "")
@@ -1007,16 +1041,23 @@ class PgVectorBackend:
                     continue
 
                 texts.append(text)
+                metadata = {k: v for k, v in doc.items()
+                            if k not in ["id", "decision_id", "text", "content",
+                                        "meeting_id", "meeting_title", "meeting_date",
+                                        "meeting_datetime"]}
+                # Inject meeting_date into metadata for transcript search filtering
+                if meeting_datetime is not None and "meeting_date" not in metadata:
+                    if hasattr(meeting_datetime, 'strftime'):
+                        metadata["meeting_date"] = meeting_datetime.strftime("%Y-%m-%d")
+                    else:
+                        metadata["meeting_date"] = str(meeting_datetime)[:10]
                 doc_data.append({
                     "id": doc_id,
                     "content": text,
                     "meeting_id": meeting_id,
                     "meeting_title": meeting_title,
                     "meeting_datetime": meeting_datetime,
-                    "metadata": {k: v for k, v in doc.items()
-                                 if k not in ["id", "decision_id", "text", "content",
-                                             "meeting_id", "meeting_title", "meeting_date",
-                                             "meeting_datetime"]}
+                    "metadata": metadata,
                 })
 
             if not texts:
@@ -1150,6 +1191,7 @@ class PgVectorBackend:
         corpus_type: str = "decisions",
         top_k: int = 5,
         min_score: Optional[float] = None,
+        meeting_id: Optional[str] = None,
     ) -> List[SearchResult]:
         """
         Search for similar documents using pgvector similarity search.
@@ -1163,6 +1205,7 @@ class PgVectorBackend:
             corpus_type: Type of documents to search
             top_k: Maximum number of results
             min_score: Minimum similarity score threshold (0-1)
+            meeting_id: Optional meeting ID to filter results to a specific meeting
 
         Returns:
             List of SearchResult ordered by similarity score (highest first)
@@ -1226,6 +1269,10 @@ class PgVectorBackend:
         """
 
         params: List[Any] = [query_embedding.tolist(), jurisdiction_id, corpus_type, current_model, normalized_current]
+
+        if meeting_id is not None:
+            sql += " AND meeting_id = %s"
+            params.append(meeting_id)
 
         if min_score is not None:
             # cosine distance < 1 - min_score means similarity > min_score

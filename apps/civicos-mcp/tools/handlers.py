@@ -428,10 +428,16 @@ def city_pulse(
         # Many decisions don't have dates set, so we fetch all and limit
         decisions = storage.get_decisions(jurisdiction, limit=50)
 
-        # Sort by decision_date if available, then limit
+        # Sort by date if available, then limit
         decisions_with_dates = []
         for d in decisions:
             decision_date = d.get('decision_date') or d.get('meeting_datetime')
+            # meeting_date is stored as "YYYY-MM-DD" string — parse it
+            if decision_date is None and d.get('meeting_date'):
+                try:
+                    decision_date = datetime.strptime(d['meeting_date'], "%Y-%m-%d")
+                except (ValueError, TypeError):
+                    pass
             decisions_with_dates.append((d, decision_date))
 
         # Sort: those with dates first (newest), then those without
@@ -443,6 +449,12 @@ def city_pulse(
         for d, decision_date in decisions_with_dates[:10]:
             if decision_date and hasattr(decision_date, 'strftime'):
                 date_str = decision_date.strftime("%b %d")
+            elif d.get('meeting_date'):
+                # meeting_date is stored as "YYYY-MM-DD" string
+                try:
+                    date_str = datetime.strptime(d['meeting_date'], "%Y-%m-%d").strftime("%b %d")
+                except (ValueError, TypeError):
+                    date_str = d['meeting_date']
             else:
                 date_str = "Recent"
 
@@ -1360,6 +1372,97 @@ def decision_detail(
         return {"found": False}
 
     try:
+        # First: exact title match via SQL (fast, correct for dashboard expansion)
+        storage = civic.storage
+        all_decisions = storage.get_decisions(jurisdiction, limit=100)
+        exact_match = None
+        for dec in all_decisions:
+            if dec.get("title") == title:
+                exact_match = dec
+                break
+
+        if exact_match:
+            # Build decision detail from SQL record
+            decision_id = exact_match.get("id")
+            decision_title = exact_match.get("title", "")
+            outcome = exact_match.get("outcome") or "decided"
+            meeting_date_str = exact_match.get("meeting_date", "")
+            body = exact_match.get("body") or "City Council"
+            votes = exact_match.get("vote_json")
+
+            # Parse date for transcript filtering
+            decision_date = None
+            if meeting_date_str:
+                try:
+                    decision_date = datetime.strptime(meeting_date_str, "%Y-%m-%d")
+                except (ValueError, TypeError):
+                    pass
+
+            # Search transcripts directly for this specific decision
+            # (bypasses vector-based decision search which may match wrong decision)
+            from civicos.history import Decision as HistDecision, _search_decision_transcripts
+            known_decision = HistDecision(
+                id=decision_id,
+                title=decision_title,
+                date=decision_date,
+                outcome=outcome,
+                body=body,
+                votes=votes,
+                agenda_item=exact_match.get("agenda_item"),
+            )
+            transcript_links, _conf, _link_type = _search_decision_transcripts(
+                jurisdiction=jurisdiction,
+                decision=known_decision,
+                top_k=5,
+                vector_backend=civic._vectors,
+                storage_backend=storage,
+            )
+
+            public_comments = [l for l in transcript_links if l.is_public_comment]
+            council_discussion = [l for l in transcript_links if not l.is_public_comment]
+
+            # Related decisions via vector search (exclude self)
+            related = civic.what_happened(decision_title)[:4]
+            related_decisions = [
+                {
+                    "title": rd.title,
+                    "outcome": rd.outcome,
+                    "date": str(rd.date) if rd.date else None,
+                }
+                for rd in related if rd.title != decision_title
+            ][:3]
+
+            return {
+                "found": True,
+                "decision": {
+                    "id": decision_id,
+                    "title": decision_title,
+                    "outcome": outcome,
+                    "date": str(decision_date) if decision_date else meeting_date_str,
+                    "body": body,
+                    "votes": votes,
+                },
+                "testimony": {
+                    "public_comments": [
+                        {
+                            "speaker": l.speaker_name or l.speaker or "Resident",
+                            "text": l.text[:300],
+                            "video_url": l.video_url,
+                        }
+                        for l in public_comments[:3]
+                    ],
+                    "council_discussion": [
+                        {
+                            "speaker": l.speaker_name or l.speaker or "Council Member",
+                            "text": l.text[:300],
+                        }
+                        for l in council_discussion[:2]
+                    ],
+                },
+                "related_decisions": related_decisions,
+            }
+
+        # Fallback: vector search (for queries that aren't exact titles)
         results = civic.what_happened_full_context(title, top_k=1, transcript_excerpts_per_decision=5)
 
         if not results:
@@ -1373,7 +1476,7 @@ def decision_detail(
         council_discussion = [link for link in r.transcript_links if not link.is_public_comment]
 
         # Get related decisions via vector search
-        related = civic.what_happened(title, top_k=4)
+        related = civic.what_happened(title)[:4]
         related_decisions = [
             {"title": rd.title, "outcome": rd.outcome, "date": str(rd.date) if rd.date else None}
             for rd in related if rd.title != d.title

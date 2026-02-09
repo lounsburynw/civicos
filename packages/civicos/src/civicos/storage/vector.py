@@ -252,6 +252,7 @@ class VectorBackend(Protocol):
         corpus_type: str = "meetings",
         top_k: int = 5,
         min_score: Optional[float] = None,
+        meeting_id: Optional[str] = None,
     ) -> List[SearchResult]:
         """
         Search for similar documents.
@@ -262,6 +263,7 @@ class VectorBackend(Protocol):
             corpus_type: Type of documents to search
             top_k: Maximum number of results
             min_score: Minimum similarity score threshold
+            meeting_id: Optional meeting ID to filter results to a specific meeting
 
         Returns:
             List of SearchResult ordered by similarity score
