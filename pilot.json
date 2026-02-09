@@ -4195,7 +4195,7 @@
       "notes": "Backend infrastructure complete (2026-02-02). Client-side preparation complete (2026-02-06). Both stdio and HTTP servers updated. Relay can store/retrieve all event types."
     },
     "context_assembly_api": {
-      "status": "in_progress",
+      "status": "not_ready",
       "priority": 0,
       "description": "Surface-agnostic context assembly layer. Given a civic item (agenda item, decision, issue, etc.), assembles a rich context bundle from the CivicOS API — description, history, related municipal code, testimony, cross-references, suggested questions. Any consumer (Open WebUI, browser extension, MCP, Claude.ai) calls the same endpoint and gets the same context, which it then passes to an LLM conversation however that surface does chat.",
       "_doc": "Strategy session 2026-02-08: The intelligence is in the context assembly, not the UI. This enables portable 'chat with this item' across all surfaces without coupling to any one frontend. Also enables a browser extension distribution strategy — inject CivicOS context into any page showing civic content.",
