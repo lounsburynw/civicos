@@ -1,3 +1,76 @@
+## Session 546 (2026-02-08) - context_assembly_api: Design Document
+
+**Item:** context_assembly_api (P0, edge_intelligence > context_assembly_api)
+**Status:** Design complete, ready for implementation
+
+#### What Was Done
+
+Designed the surface-agnostic Context Assembly API — the layer that given any civic item (agenda item, decision, issue, legislation, meeting, initiative), assembles a rich context bundle from existing CivicOS API methods and returns it for any consumer surface to use.
+
+**Design doc:** `docs/critical/CONTEXT_ASSEMBLY_API.md`
+
+#### Key Design Decisions
+
+1. **Endpoint:** `GET /api/context/{item_type}/{item_id}?jurisdiction=...&depth=...&sections=...`
+   - 6 item types: agenda_item, decision, issue, legislation, meeting, initiative
+   - 3 depth levels: minimal, standard, deep
+   - Sections selectable via query param
+
+2. **Bundle schema:** 6 context sections + suggested questions + metadata
+   - `history` — related decisions via what_happened()
+   - `regulatory` — municipal code + legislation via what_applies()
+   - `community` — similar issues + initiatives + voice counts via whos_with_me()
+   - `testimony` — public comment + staff/council discussion via what_was_said()
+   - `financial` — budget context via budget() (when relevant)
+   - `participation` — engagement status + available actions (derived from item flags)
+
+3. **Orchestration:** Parallel assembly via asyncio.gather() — sections are independent
+4. **Federation:** V1 single-jurisdiction; V2 reserves `cross_jurisdiction` section for fan-out to peer MCPs
+5. **Caching:** 5-min response cache, 15-min section cache, time-based invalidation
+
+#### Surface Consumption Patterns
+- **Open WebUI:** Click item → fetch bundle → inject as chat system prompt
+- **Browser extension:** Detect civic page → extract item ID → show context sidebar
+- **MCP:** New `get_item_context` tool wraps the API
+- **Embeddable widget:** `<civic-context>` web component (post-pilot)
+
+#### Relationship to Existing Features
+- `city_pulse()` = jurisdiction-level (list of items) → context API = item-level (deep context)
+- `prepare()` = agenda-item prep → context API = all item types, structured JSON
+- `expandable_decisions` (P1) = direct consumer of context API for decision detail
+
+#### Updated pilot.json
+- Subtasks expanded from 6 design items to 16 implementation items
+- First 3 subtasks marked COMPLETE (schema, endpoint, design doc)
+- Next step: implement FastAPI router + ContextAssembler class
+
+#### Review Pass (4 parallel agents)
+Design doc reviewed by 4 specialized agents: code-reviewer, type-design-analyzer, silent-failure-hunter, and architectural feasibility reviewer. All findings incorporated into the design doc:
+
+**Critical fixes:**
+- `asyncio.gather()` exception handling — explicit inspection, no silent swallowing
+- `load_item()` uses `next(..., None)` + `ItemNotFoundError` → 404 (not `StopIteration`)
+- Legislation uses `get_legislation_by_bill_id()` (not loading 17K+ records)
+
+**High fixes:**
+- `budget()` signature corrected (takes `department`/`fund`, not topic string)
+- Cache poisoning prevention (30s TTL for degraded bundles)
+- Thread safety constraints documented (semaphore, connection limits)
+- Partial failure schema (`section_status` with 6 status values)
+- Per-section timeouts (10s per section, 15s overall)
+
+**Type design improvements:**
+- Pydantic discriminated unions for `item_details`
+- `ContextSections` with explicit `Optional` fields
+- Testimony fields aligned with `TranscriptExcerpt` (`start_timestamp`/`end_timestamp`)
+- `RegulatoryStack` → API schema mapping documented
+- Community data gap documented (V1 reality vs aspirational schema)
+
+#### What's Next
+- Implement `routers/context.py` with Pydantic response models
+- Implement `context/assembler.py` with per-section assembly functions
+- Start with participation + history sections (lowest complexity, immediate value for expandable_decisions)
+
 ## Session 543 (2026-02-08) - agenda_actionability: LLM Classification
 
 **Item:** agenda_actionability (P0, frontend_refinement > city_status_dashboard)
