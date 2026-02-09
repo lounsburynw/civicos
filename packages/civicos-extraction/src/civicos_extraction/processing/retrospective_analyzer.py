@@ -533,6 +533,10 @@ Return JSON with items array:"""
             return decisions
 
         except Exception as e:
+            # Don't swallow authentication errors — these are non-transient
+            # and the meeting should NOT be marked as "extracted"
+            if "Auth" in type(e).__name__:
+                raise
             print(f"   ⚠️ LLM extraction failed: {type(e).__name__}")
             return []
 
@@ -724,6 +728,8 @@ Return JSON with items array. If an item cannot be found or isn't a decision, om
             return decisions
 
         except Exception as e:
+            if "Auth" in type(e).__name__:
+                raise
             print(f"   ⚠️ Targeted extraction failed: {type(e).__name__}")
             return []
 
