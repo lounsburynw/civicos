@@ -285,6 +285,13 @@ class PostgresBackend:
             )
         """)
 
+        # Add stance_eligible / comment_eligible columns (migration)
+        for col in ['stance_eligible', 'comment_eligible']:
+            try:
+                cursor.execute(f"ALTER TABLE agenda_items ADD COLUMN {col} BOOLEAN")
+            except Exception:
+                conn.rollback()  # Column already exists
+
         # Create indexes
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_meetings_jurisdiction
@@ -2528,8 +2535,9 @@ class PostgresBackend:
                         id, meeting_id, item_number, title, description,
                         project_type, actionability, impact_level,
                         financial_impact_cents, summary, why_it_matters,
-                        participation_guide, extracted_at, valid_from, valid_to, full_data
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s)
+                        participation_guide, stance_eligible, comment_eligible,
+                        extracted_at, valid_from, valid_to, full_data
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s)
                 """, (
                     item_id,
                     meeting_id,
@@ -2543,6 +2551,8 @@ class PostgresBackend:
                     item.get('summary'),
                     item.get('why_it_matters') or item.get('actionable_reason'),
                     item.get('participation_guide') or item.get('public_comment_info'),
+                    item.get('stance_eligible'),
+                    item.get('comment_eligible'),
                     as_of.isoformat(),
                     as_of.isoformat(),
                     json.dumps(item, cls=DateTimeEncoder),
@@ -2668,14 +2678,15 @@ class PostgresBackend:
 
         return count
 
-    def update_agenda_item_actionability(
+    def update_agenda_item_eligibility(
         self,
         item_id: str,
         valid_from: str,
-        actionability: str,
+        stance_eligible: bool,
+        comment_eligible: bool,
     ) -> bool:
         """
-        Update the actionability classification for an existing agenda item.
+        Update stance/comment eligibility for an existing agenda item.
 
         Uses (id, valid_from) composite key to target the specific version.
 
@@ -2687,10 +2698,10 @@ class PostgresBackend:
         try:
             cursor.execute("""
                 UPDATE agenda_items
-                SET actionability = %s
+                SET stance_eligible = %s, comment_eligible = %s
                 WHERE id = %s AND valid_from = %s
                   AND valid_to IS NULL AND deleted_at IS NULL
-            """, (actionability, item_id, valid_from))
+            """, (stance_eligible, comment_eligible, item_id, valid_from))
             conn.commit()
             return cursor.rowcount > 0
         except Exception:

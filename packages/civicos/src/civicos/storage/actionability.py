@@ -1,15 +1,13 @@
 """
-Agenda item actionability classification via LLM.
+Agenda item eligibility classification via LLM.
 
-Classifies agenda items as 'actionable', 'informational', or 'mixed' using
-structured LLM output. Runs at ingestion time and stores permanently.
+Classifies agenda items along two independent axes:
+  stance_eligible:  Has a decision point where support/oppose is meaningful
+                    (vote, approval, adoption, permit, resolution)
+  comment_eligible: Public input is valuable regardless of whether there's a vote
+                    (policy discussions, study sessions, options presentations)
 
-Actionable: Has a decision point where public input is meaningful
-  (zoning variance, ordinance adoption, permit approval, budget appropriation)
-Informational: Updates, presentations, procedural items
-  (roll call, public expression, staff reports, minutes approval)
-Mixed: Contains both decision and informational components
-  (receive report AND approve budget, study session with optional direction)
+Both false = purely procedural (roll call, adjournment, Open Time for Public Expression)
 """
 
 import json
@@ -19,13 +17,13 @@ from typing import Dict, List, Optional, Any
 import openai
 
 
-def classify_actionability(
+def classify_agenda_items(
     items: List[Dict[str, Any]],
     api_key: Optional[str] = None,
     model: str = "gpt-4o-mini",
-) -> List[Dict[str, str]]:
+) -> List[Dict[str, Any]]:
     """
-    Classify agenda items as actionable/informational/mixed.
+    Classify agenda items for stance and comment eligibility.
 
     Args:
         items: List of dicts with at least 'title' key, optionally 'description'
@@ -33,7 +31,7 @@ def classify_actionability(
         model: Model to use (gpt-4o-mini is cheap and sufficient)
 
     Returns:
-        List of dicts: [{"actionability": str, "confidence": float, "reasoning": str}, ...]
+        List of dicts: [{"stance_eligible": bool, "comment_eligible": bool, "reasoning": str}, ...]
         Same order and length as input items.
     """
     if not items:
@@ -41,7 +39,7 @@ def classify_actionability(
 
     api_key = api_key or os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        raise ValueError("OPENAI_API_KEY required for actionability classification")
+        raise ValueError("OPENAI_API_KEY required for agenda item classification")
 
     client = openai.OpenAI(api_key=api_key)
 
@@ -57,31 +55,39 @@ def classify_actionability(
 
     items_text = "\n".join(item_lines)
 
-    prompt = f"""Classify each municipal agenda item as 'actionable', 'informational', or 'mixed'.
+    prompt = f"""For each municipal agenda item, determine two independent flags:
 
-DEFINITIONS:
-- actionable: Has a decision point (vote, approval, adoption, permit). Public input can influence outcome.
-  Examples: zoning variance, ordinance adoption, use permit, budget appropriation, appeal hearing, contract award
-- informational: No decision point. Updates, presentations, procedural items, general discussion.
-  Examples: "Open Time for Public Expression", staff report, minutes approval, roll call, adjournment, presentation, update, study session (without direction)
-- mixed: Contains both a decision component and an informational component.
-  Examples: "Receive report and approve budget", study session with optional council direction
+1. stance_eligible (boolean): Is there a decision point where taking a position (support/oppose) is meaningful?
+   TRUE when: vote, approval, adoption, permit, resolution, ordinance, appeal, contract award, consent calendar items
+   FALSE when: no vote or decision — presentations, updates, discussions, study sessions, reports
+
+2. comment_eligible (boolean): Is public input valuable on this item?
+   TRUE when: public can meaningfully contribute perspective — policy discussions, study sessions with options, presentations seeking feedback, proposals under review, any item with a decision point
+   FALSE when: purely procedural — roll call, adjournment, "Open Time for Public Expression", minutes approval, verbal updates with no discussion, scheduling items
+
+These are INDEPENDENT axes. An item can be:
+- stance=true,  comment=true:  Use permit hearing, ordinance adoption, budget appropriation
+- stance=false, comment=true:  Housing study session, bikeway options presentation, fiscal sustainability discussion
+- stance=false, comment=false: Open Time for Public Expression, roll call, verbal update, adjournment
+- stance=true,  comment=true:  (stance=true almost always implies comment=true)
 
 KEY RULES:
-- "Open Time for Public Expression" is ALWAYS informational (no specific decision point)
-- Consent calendar items are actionable (they are voted on as a batch)
-- Study sessions are informational UNLESS they include a specific action item
-- "Receive and file" items are informational
-- Co-sponsorship applications with review/approval are actionable
-- Presentations and updates are informational
-- Public hearings are actionable
+- "Open Time for Public Expression" → stance=false, comment=false (no specific topic)
+- Consent calendar items → stance=true, comment=true (voted on as a batch)
+- Study sessions → stance=false, comment=true (shaping direction, no vote)
+- Presentations with options/discussion → stance=false, comment=true
+- "Receive and file" → stance=false, comment=false
+- Public hearings → stance=true, comment=true
+- Goals discussions → stance=false, comment=true
+- Verbal updates → stance=false, comment=false
+- Co-sponsorship applications → stance=true, comment=true
 
 AGENDA ITEMS:
 {items_text}
 
 Return a JSON array with exactly {len(items)} objects, one per item, in the same order:
 [
-  {{"actionability": "actionable"|"informational"|"mixed", "confidence": 0.0-1.0, "reasoning": "brief reason"}}
+  {{"stance_eligible": true|false, "comment_eligible": true|false, "reasoning": "brief reason"}}
 ]
 
 Return ONLY the JSON array, no other text."""
@@ -117,25 +123,23 @@ Return ONLY the JSON array, no other text."""
         results = results[: len(items)]
     while len(results) < len(items):
         results.append(
-            {"actionability": "informational", "confidence": 0.0, "reasoning": "default (LLM returned too few)"}
+            {"stance_eligible": False, "comment_eligible": False, "reasoning": "default (LLM returned too few)"}
         )
 
-    # Validate values
-    valid_values = {"actionable", "informational", "mixed"}
+    # Normalize booleans
     for r in results:
-        if r.get("actionability") not in valid_values:
-            r["actionability"] = "informational"  # Safe default
-        r["confidence"] = min(1.0, max(0.0, float(r.get("confidence", 0.5))))
+        r["stance_eligible"] = bool(r.get("stance_eligible", False))
+        r["comment_eligible"] = bool(r.get("comment_eligible", False))
 
     return results
 
 
-def classify_actionability_batch(
+def classify_agenda_items_batch(
     items: List[Dict[str, Any]],
     batch_size: int = 20,
     api_key: Optional[str] = None,
     model: str = "gpt-4o-mini",
-) -> List[Dict[str, str]]:
+) -> List[Dict[str, Any]]:
     """
     Classify agenda items in batches (for large backfills).
 
@@ -144,6 +148,6 @@ def classify_actionability_batch(
     all_results = []
     for i in range(0, len(items), batch_size):
         batch = items[i : i + batch_size]
-        results = classify_actionability(batch, api_key=api_key, model=model)
+        results = classify_agenda_items(batch, api_key=api_key, model=model)
         all_results.extend(results)
     return all_results
