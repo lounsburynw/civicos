@@ -64,7 +64,7 @@ def extract_state_code(jurisdiction: str) -> str:
     image=civic_image,
     secrets=[modal.Secret.from_name("civic-db")],
     gpu="T4",  # T4 sufficient for embeddings, bulk DB inserts are the win
-    memory=65536,  # 64GB for large embedding batches
+    memory=8192,  # 8GB — sufficient for single-corpus indexing (6K-25K chunks)
     timeout=3600,
     retries=modal.Retries(
         max_retries=2,
@@ -79,6 +79,7 @@ def index_corpus(
     offset: int = 0,
     limit: int | None = None,
     reindex: bool = False,
+    cost_limit_usd: float = 5.0,  # Abort if estimated cost exceeds this
 ) -> dict:
     """
     Index a corpus type into pgvector.
@@ -119,8 +120,13 @@ def index_corpus(
     if not database_url:
         raise ValueError("DATABASE_URL environment variable not set")
 
+    # Cost guard: compute max allowed runtime from cost limit
+    memory_gb = 8
+    cost_per_sec = 0.000222 + (memory_gb * 0.000016)  # GPU + memory
+    max_runtime_sec = cost_limit_usd / cost_per_sec
     logger.info(f"Starting vector indexing: corpus={corpus}, jurisdiction={jurisdiction}")
     logger.info(f"Parameters: batch_size={batch_size}, offset={offset}, limit={limit}, reindex={reindex}")
+    logger.info(f"Cost guard: ${cost_limit_usd:.2f} limit → max {max_runtime_sec:.0f}s ({max_runtime_sec/60:.0f}min)")
 
     # Initialize backends (use postgres for storage - legislation is only there)
     backend = get_storage_backend(database_url)
@@ -162,7 +168,15 @@ def index_corpus(
     results = {}
 
     for ct in corpus_types:
-        logger.info(f"Processing corpus: {ct}")
+        # Cost guard: abort if we've exceeded the budget
+        elapsed = time.time() - start_time
+        running_cost = elapsed * cost_per_sec
+        if running_cost > cost_limit_usd:
+            logger.error(f"COST GUARD: ${running_cost:.2f} exceeds ${cost_limit_usd:.2f} limit after {elapsed:.0f}s. Aborting.")
+            results[ct] = {"status": "error", "indexed": 0, "error": f"Cost guard: ${running_cost:.2f} > ${cost_limit_usd:.2f}"}
+            break
+
+        logger.info(f"Processing corpus: {ct} (${running_cost:.2f} spent so far)")
 
         # Delete existing vectors if reindexing
         if reindex:
@@ -234,9 +248,10 @@ def index_corpus(
 
     # Cost tracking
     elapsed_seconds = time.time() - start_time
-    memory_gb = 64  # Configured memory
-    gb_seconds = memory_gb * elapsed_seconds
-    estimated_cost = gb_seconds * 0.000463  # Modal CPU pricing
+    memory_gb = 8  # Configured memory (8GB)
+    gpu_cost_per_sec = 0.000222  # Modal T4 GPU pricing per second
+    mem_cost_per_gb_sec = 0.000016  # Modal memory pricing per GB-second
+    estimated_cost = (elapsed_seconds * gpu_cost_per_sec) + (memory_gb * elapsed_seconds * mem_cost_per_gb_sec)
 
     logger.info(f"Indexing complete: {total_indexed} documents indexed")
     logger.info(f"Results: {success_count} success, {error_count} errors")
@@ -254,7 +269,7 @@ def index_corpus(
     log_modal_cost(
         function_name="index_corpus",
         elapsed_seconds=elapsed_seconds,
-        memory_gb=memory_gb,
+        memory_gb=8,
         gpu="T4",
         jurisdiction_id=jurisdiction,
         metadata={
@@ -370,7 +385,7 @@ def get_stats(jurisdiction: str = "city-san-rafael") -> dict:
     image=civic_image,
     secrets=[modal.Secret.from_name("civic-db")],
     gpu="T4",
-    memory=65536,  # 64GB for large embedding batches
+    memory=8192,  # 8GB — sufficient for incremental refresh
     timeout=3600,
     schedule=modal.Cron("0 6 * * 0"),  # Weekly on Sunday at 6 AM UTC
 )

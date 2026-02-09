@@ -17,6 +17,7 @@ from civicos._internal.jurisdiction import normalize_jurisdiction
 
 if TYPE_CHECKING:
     from civicos.storage.vector import VectorBackend
+    from civicos.storage.backend import StorageBackend
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class Decision:
     outcome: str
     body: str
     votes: Optional[dict] = None
+    agenda_item: Optional[str] = None
 
 
 @dataclass
@@ -775,7 +777,7 @@ def _search_transcripts_pgvector(
             end_timestamp=metadata.get("end_timestamp", ""),
             start_ms=metadata.get("start_ms", 0),
             end_ms=metadata.get("end_ms", 0),
-            is_public_comment=metadata.get("is_public_comment", False),
+            is_public_comment=metadata.get("is_public_comment", False) or metadata.get("speaker_role") == "public",
             score=r.score,
         ))
 
@@ -907,7 +909,7 @@ def _search_hybrid_pgvector(
                 end_timestamp=metadata.get("end_timestamp", ""),
                 start_ms=metadata.get("start_ms", 0),
                 end_ms=metadata.get("end_ms", 0),
-                is_public_comment=metadata.get("is_public_comment", False),
+                is_public_comment=metadata.get("is_public_comment", False) or metadata.get("speaker_role") == "public",
             ))
     except Exception as e:
         logger.warning(f"_search_hybrid_pgvector: transcript search failed: {e}")
@@ -1060,6 +1062,7 @@ def _search_with_vector_backend(
     jurisdiction: str,
     query: str,
     top_k: int = 10,
+    storage_backend: Optional["StorageBackend"] = None,
 ) -> List[Decision]:
     """
     Search decisions using an explicit vector backend.
@@ -1069,6 +1072,7 @@ def _search_with_vector_backend(
         jurisdiction: Jurisdiction ID
         query: Search query
         top_k: Maximum results
+        storage_backend: Optional storage backend for enriching results with full SQL data
 
     Returns:
         List of Decision objects
@@ -1079,12 +1083,27 @@ def _search_with_vector_backend(
         logger.warning(f"Vector search failed: {e}")
         return []
 
+    # Build lookup table from SQL data for enrichment
+    sql_decisions = {}
+    if storage_backend is not None:
+        try:
+            all_decisions = storage_backend.get_decisions(jurisdiction)
+            sql_decisions = {d["id"]: d for d in all_decisions}
+        except Exception as e:
+            logger.debug(f"Could not load SQL decisions for enrichment: {e}")
+
     decisions = []
     for r in results:
         metadata = r.metadata or {}
+        sql_record = sql_decisions.get(r.id, {})
 
         # Parse meeting date from metadata, structured field, or ID
         meeting_date = r.meeting_datetime
+        if meeting_date is None and sql_record.get("meeting_date"):
+            try:
+                meeting_date = datetime.strptime(sql_record["meeting_date"], "%Y-%m-%d")
+            except (ValueError, TypeError):
+                pass
         if meeting_date is None and metadata.get("meeting_date"):
             try:
                 meeting_date = datetime.strptime(metadata["meeting_date"], "%Y-%m-%d")
@@ -1100,21 +1119,28 @@ def _search_with_vector_backend(
         if meeting_date is None:
             meeting_date = datetime.now()
 
-        # Extract title: prefer metadata, fall back to content (which IS the title for decisions)
-        title = metadata.get("title", "")
+        # Extract title: prefer SQL, then metadata, then content
+        title = sql_record.get("title", "") or metadata.get("title", "")
         if not title:
             title = r.meeting_title or ""
         if not title and r.content:
             # Decision embeddings store the title as content text
             title = r.content.strip()
 
+        # Enrich outcome, body, votes, agenda_item from SQL if available
+        outcome = sql_record.get("outcome") or metadata.get("outcome", "unknown")
+        body = sql_record.get("body") or "City Council"
+        votes = sql_record.get("vote_json") if sql_record else None
+        agenda_item = sql_record.get("agenda_item") or metadata.get("agenda_item")
+
         decisions.append(Decision(
             id=r.id,
             title=title,
             date=meeting_date,
-            outcome=metadata.get("outcome", "unknown"),
-            body="City Council",
-            votes=None,
+            outcome=outcome,
+            body=body,
+            votes=votes,
+            agenda_item=agenda_item,
         ))
 
     decisions.sort(key=lambda d: d.date, reverse=True)
@@ -1127,6 +1153,7 @@ def search_decisions(
     query: str,
     since: str = None,
     vector_backend: Optional["VectorBackend"] = None,
+    storage_backend: Optional["StorageBackend"] = None,
 ) -> List[Decision]:
     """
     Search past decisions.
@@ -1140,6 +1167,7 @@ def search_decisions(
         query: Search query
         since: Optional date filter (ISO format)
         vector_backend: Explicit vector backend to use (pgvector or None for ChromaDB)
+        storage_backend: Storage backend for enriching vector results with full SQL data
 
     Returns:
         List of matching decisions
@@ -1150,7 +1178,7 @@ def search_decisions(
     # Use explicit vector backend if provided
     if vector_backend is not None:
         logger.debug(f"search_decisions: using {vector_backend.backend_type} for '{query}'")
-        results = _search_with_vector_backend(vector_backend, jurisdiction, query)
+        results = _search_with_vector_backend(vector_backend, jurisdiction, query, storage_backend=storage_backend)
         if results:
             return results
         logger.debug(f"search_decisions: {vector_backend.backend_type} returned empty, trying fallbacks")
@@ -1317,6 +1345,8 @@ def _search_decision_transcripts(
     jurisdiction: str,
     decision: Decision,
     top_k: int = 3,
+    vector_backend: Optional["VectorBackend"] = None,
+    storage_backend: Optional["StorageBackend"] = None,
 ) -> Tuple[List[TranscriptLink], float, str]:
     """
     Find transcript excerpts related to a specific decision.
@@ -1328,10 +1358,23 @@ def _search_decision_transcripts(
         jurisdiction: Jurisdiction ID
         decision: The decision to find transcripts for
         top_k: Maximum number of transcript excerpts to return
+        vector_backend: Explicit vector backend (pgvector) — falls back to ChromaDB if None
+        storage_backend: Storage backend for structural meeting resolution
 
     Returns:
         Tuple of (transcript_links, confidence, link_type)
     """
+    # Use pgvector if available
+    if vector_backend is not None:
+        return _search_decision_transcripts_pgvector(
+            vector_backend=vector_backend,
+            jurisdiction=jurisdiction,
+            decision=decision,
+            top_k=top_k,
+            storage_backend=storage_backend,
+        )
+
+    # ChromaDB fallback path (local dev)
     try:
         from civicos._internal.meetings.embeddings import CivicEmbeddings
     except ImportError:
@@ -1416,6 +1459,189 @@ def _search_decision_transcripts(
         return [], 0.0, "none"
 
 
+def _resolve_decision_meeting_id(
+    storage_backend: "StorageBackend",
+    jurisdiction: str,
+    decision: Decision,
+) -> Optional[str]:
+    """
+    Resolve a decision's meeting_id via structural join:
+    decision.agenda_item + decision.date → agenda_items → meeting_id.
+
+    Uses public StorageBackend methods (get_meetings, get_agenda_items).
+
+    Returns meeting_id string or None if resolution fails.
+    """
+    agenda_item = getattr(decision, 'agenda_item', None)
+    if not agenda_item or not decision.date:
+        return None
+
+    try:
+        date_str = decision.date.strftime("%Y-%m-%d") if hasattr(decision.date, 'strftime') else str(decision.date)[:10]
+
+        # Find meetings on the decision date
+        meetings = storage_backend.get_meetings(jurisdiction)
+        date_meetings = []
+        for m in meetings:
+            mdt = m.get("meeting_datetime")
+            if mdt and hasattr(mdt, 'strftime') and mdt.strftime("%Y-%m-%d") == date_str:
+                date_meetings.append(m)
+
+        if not date_meetings:
+            return None
+
+        # Build candidate item numbers: exact + parents
+        # e.g., "6.a.ii" → try "6.a.ii", then "6.a", then "6"
+        candidates = [agenda_item]
+        parts = agenda_item.split(".")
+        while len(parts) > 1:
+            parts.pop()
+            candidates.append(".".join(parts))
+
+        # Check each meeting's agenda items for a match
+        for meeting in date_meetings:
+            meeting_id = meeting.get("id") or meeting.get("meeting_id")
+            if not meeting_id:
+                continue
+            items = storage_backend.get_agenda_items(meeting_id=meeting_id)
+            item_numbers = {item.get("item_number") for item in items}
+            for candidate in candidates:
+                if candidate in item_numbers:
+                    logger.debug(f"Resolved decision {decision.id} → meeting {meeting_id} via agenda_item={candidate}")
+                    return meeting_id
+
+    except Exception as e:
+        logger.debug(f"Could not resolve meeting_id for decision {decision.id}: {e}")
+
+    return None
+
+
+def _search_decision_transcripts_pgvector(
+    vector_backend: "VectorBackend",
+    jurisdiction: str,
+    decision: Decision,
+    top_k: int = 3,
+    min_score: float = 0.62,
+    storage_backend: Optional["StorageBackend"] = None,
+) -> Tuple[List[TranscriptLink], float, str]:
+    """
+    Find transcript excerpts using pgvector backend.
+
+    Uses structural matching when possible:
+    decision → agenda_item → meeting_id → filter transcripts to that meeting.
+    Falls back to date-filtered vector search.
+
+    Precision over recall: only returns excerpts above min_score threshold.
+    Showing nothing is better than showing wrong meeting discussion.
+
+    Args:
+        vector_backend: The pgvector backend
+        jurisdiction: Jurisdiction ID
+        decision: The decision to find transcripts for
+        top_k: Maximum number of transcript excerpts to return
+        min_score: Minimum similarity threshold (default 0.62, tuned for precision)
+        storage_backend: Storage backend for structural meeting resolution
+
+    Returns:
+        Tuple of (transcript_links, confidence, link_type)
+    """
+    # Try structural matching: decision → agenda_item → meeting → video → transcripts
+    resolved_meeting_id = None
+    if storage_backend is not None:
+        resolved_meeting_id = _resolve_decision_meeting_id(storage_backend, jurisdiction, decision)
+
+    try:
+        if resolved_meeting_id:
+            # Structural match: search only transcripts from this meeting
+            results = vector_backend.search(
+                query=decision.title,
+                jurisdiction_id=jurisdiction,
+                corpus_type="transcripts",
+                top_k=top_k * 2,
+                meeting_id=resolved_meeting_id,
+            )
+            if results:
+                logger.debug(f"Structural match: {len(results)} transcript chunks from meeting {resolved_meeting_id}")
+            else:
+                # Meeting found but no transcript chunks — fall back to broad search
+                logger.debug(f"No transcript chunks for meeting {resolved_meeting_id}, falling back")
+                results = vector_backend.search(
+                    query=decision.title,
+                    jurisdiction_id=jurisdiction,
+                    corpus_type="transcripts",
+                    top_k=top_k * 2,
+                )
+        else:
+            # No structural match — broad search with date filtering
+            results = vector_backend.search(
+                query=decision.title,
+                jurisdiction_id=jurisdiction,
+                corpus_type="transcripts",
+                top_k=top_k * 2,
+            )
+    except Exception as e:
+        logger.debug(f"pgvector transcript search failed: {e}")
+        return [], 0.0, "none"
+
+    if not results:
+        return [], 0.0, "none"
+
+    # Date filtering (only needed when structural match wasn't used)
+    if not resolved_meeting_id:
+        meeting_date_str = decision.date.strftime("%Y-%m-%d") if decision.date else None
+        if meeting_date_str:
+            date_filtered = [
+                r for r in results
+                if (r.metadata or {}).get("meeting_date") == meeting_date_str
+                   or (r.meeting_datetime and r.meeting_datetime.strftime("%Y-%m-%d") == meeting_date_str)
+            ]
+            if date_filtered:
+                results = date_filtered
+
+    # Precision filter: only keep results above threshold
+    results = [r for r in results if r.score >= min_score]
+    if not results:
+        return [], 0.0, "none"
+
+    links = []
+    total_score = 0.0
+
+    for r in results[:top_k]:
+        metadata = r.metadata or {}
+        confidence = r.score
+
+        links.append(TranscriptLink(
+            chunk_id=r.id,
+            text=r.content,
+            speaker=metadata.get("speaker", "?"),
+            speaker_role=metadata.get("speaker_role"),
+            speaker_name=metadata.get("speaker_name"),
+            video_id=metadata.get("video_id"),
+            start_timestamp=metadata.get("start_timestamp"),
+            end_timestamp=metadata.get("end_timestamp"),
+            start_ms=metadata.get("start_ms"),
+            end_ms=metadata.get("end_ms"),
+            is_public_comment=metadata.get("is_public_comment", False) or metadata.get("speaker_role") == "public",
+            agenda_item=metadata.get("agenda_item"),
+            confidence=confidence,
+        ))
+        total_score += confidence
+
+    if not links:
+        return [], 0.0, "none"
+
+    avg_confidence = total_score / len(links)
+
+    if avg_confidence >= 0.7:
+        link_type = "high_confidence"
+    elif avg_confidence >= 0.5:
+        link_type = "medium_confidence"
+    else:
+        link_type = "low_confidence"
+
+    return links, avg_confidence, link_type
+
+
 def search_decisions_with_context(
     state_manager: "StateManager",
     jurisdiction: str,
@@ -1423,6 +1649,8 @@ def search_decisions_with_context(
     since: str = None,
     top_k: int = 5,
     transcript_excerpts_per_decision: int = 3,
+    vector_backend: Optional["VectorBackend"] = None,
+    storage_backend: Optional["StorageBackend"] = None,
 ) -> List[DecisionWithContext]:
     """
     Search past decisions with linked transcript excerpts.
@@ -1464,6 +1692,8 @@ def search_decisions_with_context(
         jurisdiction=jurisdiction,
         query=query,
         since=since,
+        vector_backend=vector_backend,
+        storage_backend=storage_backend,
     )
 
     # Limit to top_k
@@ -1476,6 +1706,8 @@ def search_decisions_with_context(
             jurisdiction=jurisdiction,
             decision=decision,
             top_k=transcript_excerpts_per_decision,
+            vector_backend=vector_backend,
+            storage_backend=storage_backend,
         )
 
         results.append(DecisionWithContext(
