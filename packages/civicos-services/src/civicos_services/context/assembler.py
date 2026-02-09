@@ -101,7 +101,7 @@ class RelayUnavailableError(Exception):
 
 def load_item(civic: CivicOS, item_type: ItemType, item_id: str) -> Dict[str, Any]:
     """Load a civic item by type and ID. Returns raw dict from storage."""
-    storage = civic._storage
+    storage = civic.storage
     jurisdiction = civic.jurisdiction
 
     if item_type == ItemType.agenda_item:
@@ -139,7 +139,7 @@ def load_item(civic: CivicOS, item_type: ItemType, item_id: str) -> Dict[str, An
 
 def _get_meeting_for_agenda_item(civic: CivicOS, meeting_id: str) -> Optional[Dict[str, Any]]:
     """Look up the parent meeting for an agenda item."""
-    meetings = civic._storage.get_meetings(civic.jurisdiction)
+    meetings = civic.storage.get_meetings(civic.jurisdiction)
     return next((m for m in meetings if m["id"] == meeting_id), None)
 
 
@@ -206,7 +206,7 @@ def build_context_item(
         )
 
     elif item_type == ItemType.meeting:
-        agenda_items = civic._storage.get_agenda_items(meeting_id=raw["id"])
+        agenda_items = civic.storage.get_agenda_items(meeting_id=raw["id"])
         details = MeetingDetails(
             body=raw.get("meeting_type"),
             date=raw.get("meeting_datetime"),

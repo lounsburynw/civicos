@@ -20,7 +20,7 @@ source civicos-env/bin/activate && python3 -c "
 from dotenv import load_dotenv; load_dotenv()
 from civicos import CivicOS
 c = CivicOS('city-san-rafael')
-print(f'Backend: {type(c._storage).__name__}')
+print(f'Backend: {type(c.storage).__name__}')
 # Quick API test
 print(f'Decisions: {len(c.what_happened(\"test\"))}')
 "
@@ -136,12 +136,12 @@ decisions = c.what_happened("housing")
 
 # RIGHT: Use DataStatus for diagnostics
 from civicos import DataStatus
-status = DataStatus(c._storage, c._vectors, 'city-san-rafael')
+status = DataStatus(c.storage, c._vectors, 'city-san-rafael')
 print(status.gaps())
 
 # RIGHT: Use StorageBackend for bulk access
-meetings = c._storage.get_meetings('city-san-rafael')
-count = c._storage.get_decision_count('city-san-rafael')
+meetings = c.storage.get_meetings('city-san-rafael')
+count = c.storage.get_decision_count('city-san-rafael')
 
 # WRONG: Never do this
 cursor.execute("SELECT * FROM meetings WHERE meeting_date > ...")  # Wrong column name!
@@ -450,7 +450,7 @@ load_dotenv()  # REQUIRED to load DATABASE_URL
 
 from civicos import CivicOS
 c = CivicOS('city-san-rafael')
-print(type(c._storage).__name__)  # Should print: PostgresBackend
+print(type(c.storage).__name__)  # Should print: PostgresBackend
 ```
 
 If you see `SQLiteBackend`, you forgot to load `.env` or `DATABASE_URL` is not set.
@@ -504,7 +504,7 @@ Use the `civic.diagnostics` module for schema-aware data queries. This prevents 
 from civicos import CivicOS, DataStatus, VectorCoverage, format_data_status
 
 c = CivicOS('city-san-rafael')
-status = DataStatus(c._storage, c._vectors, 'city-san-rafael')
+status = DataStatus(c.storage, c._vectors, 'city-san-rafael')
 print(format_data_status(status.summary()))  # Corpus counts, gaps, coverage
 print(status.gaps())  # Only corpora with indexing gaps
 ```

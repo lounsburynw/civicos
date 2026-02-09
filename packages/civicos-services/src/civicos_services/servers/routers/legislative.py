@@ -92,7 +92,7 @@ async def get_state_legislation(
             from dotenv import load_dotenv
             load_dotenv()
             c = CivicOS(jurisdiction or "city-san-rafael")
-            storage = c._storage
+            storage = c.storage
         except ImportError:
             raise HTTPException(status_code=503, detail="Civic library not available")
 
@@ -137,7 +137,7 @@ async def get_federal_legislation(
             from dotenv import load_dotenv
             load_dotenv()
             c = CivicOS("city-san-rafael")
-            storage = c._storage
+            storage = c.storage
         except ImportError:
             raise HTTPException(status_code=503, detail="Civic library not available")
 
@@ -181,7 +181,7 @@ async def get_elections(
             from dotenv import load_dotenv
             load_dotenv()
             c = CivicOS(jurisdiction_id)
-            storage = c._storage
+            storage = c.storage
         except ImportError:
             raise HTTPException(status_code=503, detail="Civic library not available")
 
@@ -221,7 +221,7 @@ async def get_election_detail(
             from dotenv import load_dotenv
             load_dotenv()
             c = CivicOS("city-san-rafael")
-            storage = c._storage
+            storage = c.storage
         except ImportError:
             raise HTTPException(status_code=503, detail="Civic library not available")
 
@@ -256,7 +256,7 @@ async def get_election_contests(
             from dotenv import load_dotenv
             load_dotenv()
             c = CivicOS("city-san-rafael")
-            storage = c._storage
+            storage = c.storage
         except ImportError:
             raise HTTPException(status_code=503, detail="Civic library not available")
 
@@ -295,7 +295,7 @@ async def get_voting_record(
             from dotenv import load_dotenv
             load_dotenv()
             c = CivicOS(jurisdiction)
-            storage = c._storage
+            storage = c.storage
         except ImportError:
             raise HTTPException(status_code=503, detail="Civic library not available")
 

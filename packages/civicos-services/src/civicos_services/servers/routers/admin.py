@@ -443,7 +443,7 @@ async def browse_data(
         except ImportError:
             raise HTTPException(status_code=503, detail="Civic library not available")
 
-        storage = c._storage
+        storage = c.storage
 
         # Map data types to storage methods
         data_fetchers = {
@@ -1032,7 +1032,7 @@ async def get_admin_status(token: str = Depends(verify_auth)):
             from dotenv import load_dotenv
             load_dotenv()
             c = CivicOS("city-san-rafael")
-            storage = c._storage
+            storage = c.storage
             status["components"]["storage"] = {
                 "status": "healthy",
                 "backend": type(storage).__name__

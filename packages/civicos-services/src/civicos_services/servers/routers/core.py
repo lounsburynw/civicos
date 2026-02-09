@@ -84,7 +84,7 @@ def _check_database_health() -> Dict[str, Any]:
         from civicos import CivicOS
         c = CivicOS("city-san-rafael")
         # Quick query to test connection
-        _ = c._storage
+        _ = c.storage
         return {"status": "healthy", "message": "Database connected"}
     except Exception as e:
         return {"status": "unhealthy", "message": str(e)}
