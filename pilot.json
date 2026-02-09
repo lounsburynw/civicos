@@ -4195,10 +4195,12 @@
       "notes": "Backend infrastructure complete (2026-02-02). Client-side preparation complete (2026-02-06). Both stdio and HTTP servers updated. Relay can store/retrieve all event types."
     },
     "context_assembly_api": {
-      "status": "not_ready",
+      "status": "in_progress",
       "priority": 0,
       "description": "Surface-agnostic context assembly layer. Given a civic item (agenda item, decision, issue, etc.), assembles a rich context bundle from the CivicOS API — description, history, related municipal code, testimony, cross-references, suggested questions. Any consumer (Open WebUI, browser extension, MCP, Claude.ai) calls the same endpoint and gets the same context, which it then passes to an LLM conversation however that surface does chat.",
       "_doc": "Strategy session 2026-02-08: The intelligence is in the context assembly, not the UI. This enables portable 'chat with this item' across all surfaces without coupling to any one frontend. Also enables a browser extension distribution strategy — inject CivicOS context into any page showing civic content.",
+      "artifact": "packages/civicos-services/src/civicos_services/context/assembler.py",
+      "test_file": "packages/civicos-services/tests/test_context_assembly.py",
       "design_principles": [
         "Surface-agnostic: same API for Open WebUI, browser extension, MCP, future surfaces",
         "Item-centric: context is assembled per civic item (agenda item, decision, issue, legislation)",
@@ -4216,22 +4218,22 @@
         "Design context bundle schema (JSON shape, what fields, how much context) - COMPLETE",
         "Design API endpoint: GET /context/{item_type}/{item_id} - COMPLETE",
         "Design doc: docs/critical/CONTEXT_ASSEMBLY_API.md - COMPLETE",
-        "Implement FastAPI router (routers/context.py) with Pydantic models",
-        "Implement ContextAssembler class (context/assembler.py) with per-section assembly",
-        "Wire context router into API server",
-        "Implement section: participation (low complexity, item flags only)",
-        "Implement section: history (what_happened, what_happened_full_context)",
-        "Implement section: regulatory (what_applies → RegulatoryStack)",
-        "Implement section: community (whos_with_me, relay voice counts)",
-        "Implement section: testimony (what_was_said, get_public_testimony)",
-        "Implement section: financial (budget, funding_flow — only for relevant items)",
-        "Implement suggested question templates per item type",
+        "Implement FastAPI router (routers/context.py) with Pydantic models - COMPLETE",
+        "Implement ContextAssembler class (context/assembler.py) with per-section assembly - COMPLETE",
+        "Wire context router into API server - COMPLETE",
+        "Implement section: participation (low complexity, item flags only) - COMPLETE",
+        "Implement section: history (what_happened, what_happened_full_context) - COMPLETE",
+        "Implement section: regulatory (what_applies → RegulatoryStack) - COMPLETE",
+        "Implement section: community (whos_with_me, relay voice counts) - COMPLETE (V1 stub, relay pending)",
+        "Implement section: testimony (what_was_said, get_public_testimony) - COMPLETE",
+        "Implement section: financial (budget, funding_flow — only for relevant items) - COMPLETE",
+        "Implement suggested question templates per item type - COMPLETE",
         "Add get_item_context MCP tool",
         "Open WebUI: 'Chat with this item' integration",
         "Browser extension feasibility sketch (V2)"
       ],
-      "next_step": "Implement FastAPI router + ContextAssembler class — start with participation and history sections",
-      "note": "2026-02-08: Design doc complete (docs/critical/CONTEXT_ASSEMBLY_API.md). Bundle schema, endpoint contract, orchestration logic, federation strategy, surface consumption patterns all specified. Ready for implementation."
+      "next_step": "Add get_item_context MCP tool OR integrate context API into Open WebUI 'Chat with this item' button",
+      "note": "2026-02-08: Phase 1 implementation complete. GET /api/context/{item_type}/{item_id} endpoint live with all 6 sections (history, regulatory, community, financial, testimony, participation), parallel assembly with Semaphore(3), per-section 10s timeout, error isolation. Smoke tested with real San Rafael data. Regulatory section can timeout on large corpora — expected V1 behavior."
     }
   },
   "federation_infrastructure": {
