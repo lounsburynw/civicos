@@ -183,6 +183,11 @@ class CivicOS:
                 self._search = None
 
     @property
+    def storage(self) -> StorageBackend:
+        """Public access to the storage backend."""
+        return self._storage
+
+    @property
     def config(self) -> Optional["CivicOSConfig"]:
         """Get the CivicOSConfig if one was provided, or create one from current state."""
         if self._config is not None:

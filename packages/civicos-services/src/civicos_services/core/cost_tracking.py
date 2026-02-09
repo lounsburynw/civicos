@@ -55,7 +55,7 @@ def _get_storage():
         from civicos import CivicOS
         # Use a default jurisdiction for storage access
         c = CivicOS("city-san-rafael")
-        _cost_storage = c._storage
+        _cost_storage = c.storage
         logger.info("Cost tracking enabled - connected to PostgreSQL")
         return _cost_storage
     except Exception as e:
