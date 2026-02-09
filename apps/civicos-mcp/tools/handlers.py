@@ -395,7 +395,7 @@ def city_pulse(
                         "project_type": item.get('project_type'),
                         "stance_eligible": bool(item.get('stance_eligible')),
                         "comment_eligible": bool(item.get('comment_eligible')),
-                        "summary": item.get('summary', ''),
+                        "description": item.get('description', ''),
                         "why_it_matters": item.get('why_it_matters', ''),
                         "meeting_title": m.get('title') or m.get('body') or 'Meeting',
                         "meeting_date": meeting_dt.strftime("%b %d"),
