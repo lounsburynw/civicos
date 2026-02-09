@@ -1,61 +1,74 @@
-# Recommended: Expandable Decision Detail Cards
+# Recommended: Context Assembly API Design
 
 **Priority:** P0
-**Area:** frontend_refinement > city_status_dashboard
+**Area:** edge_intelligence > context_assembly_api
 **Date:** 2026-02-08
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-This session completed `agenda_actionability` — LLM-based classification of agenda items as actionable/informational/mixed. The dashboard now hides voice/comment UI on informational items (like "Open Time for Public Expression") and shows badges. Backfilled all 209 existing items: 74 actionable, 116 informational, 19 mixed. Deployed to Modal.
+Strategy session identified the need for a **surface-agnostic context assembly layer**. The insight: the intelligence is in assembling rich context about a civic item, not in any specific UI. Whether the consumer is Open WebUI, a browser extension, Claude.ai via MCP, or an embeddable widget, they all should get the same pre-assembled context bundle and pass it to an LLM however that surface does chat.
 
-The dashboard MVP (`civic_dashboard_mvp`) has most sub-items complete:
-- IssueMap with filtering, full-screen expand
-- Voice toggle + comment threads
-- Calendar links (Google Calendar, .ics download)
-- Comment synthesis sentiment bar
-- Budget allocation chart
-- Agenda item actionability badges
+This also enables a **browser extension distribution strategy** — inject CivicOS context into any page showing civic content (agenda PDFs, local news articles). Parallel to Open WebUI, potentially equally significant.
 
-**Remaining for MVP:** `expandable_decisions` (P0) and `provenance_footer` (P2). Completing expandable_decisions would make the Recent Decisions section interactive and data-rich, which is the biggest UX gap in the current dashboard.
+Key constraint raised at end of session: **context may come from federated relays and MCPs**, not just the local jurisdiction. The API design must account for federated context assembly (querying peer MCPs, aggregating cross-jurisdiction results).
 
 ## Recommended Task
 
-Add expandable detail cards to the Recent Decisions section of CityPulse. Click a decision row to expand inline, showing:
-- Vote breakdown (if available)
-- Related public testimony (via transcript vector search)
-- Linked agenda packet chunks
-- Timeline context
+Design the context assembly API — the endpoint contract, bundle schema, and orchestration logic. This is a **design session** (architecture doc + API sketch), not heavy implementation.
 
-## Implementation Plan
+### Design Questions to Answer
 
-1. **Backend endpoint:** `/decision-detail?id=X`
-   - Fetch decision details from storage
-   - Vector search for related transcript chunks (existing embeddings)
-   - Vector search for related agenda packet chunks
-   - Return structured response
+1. **Bundle schema**: What fields? Structured JSON, pre-rendered markdown, or both? How much context per item type (agenda item vs decision vs issue vs legislation)?
+2. **Endpoint contract**: `GET /context/{item_type}/{item_id}` — what item types, what query params (jurisdiction, depth, include/exclude sections)?
+3. **Orchestration**: Which existing CivicOS API methods get called per item type? (`what_happened`, `what_applies`, `what_was_said`, vector search)
+4. **Federation**: How does context assembly work across federated MCPs/relays? Fan-out to peers for cross-jurisdiction context (e.g., state bill affecting multiple cities)?
+5. **Suggested questions**: Auto-generated per item type to seed the conversation
+6. **Surface consumption patterns**: How does each surface (Open WebUI, browser extension, MCP, widget) consume the bundle?
 
-2. **Frontend:** Expandable card in CityPulse
-   - Click decision row to expand inline (slide transition)
-   - Fetch detail on demand (lazy load)
-   - Show vote breakdown, testimony excerpts, linked documents
-   - Collapse on click or on new expansion
+### Use Cases to Inform the Design
+
+- **Open WebUI**: User clicks agenda item → chat opens with full context as system prompt
+- **Browser extension**: User visits city council agenda PDF → extension sidebar shows CivicOS context
+- **MCP**: Claude.ai user asks about an item → MCP tool returns context bundle
+- **Expandable decisions** (P1): Click decision row → fetch context bundle → render inline detail
+- **User-created initiatives/voices**: Same bundle shape for platform-sourced and user-created items
+- **State/federal items**: Context bundle works for municipal, state, and federal items (not just city)
 
 ## Key Files
 
-- `apps/civicos-mcp/tools/handlers.py:425-451` — `city_pulse()` Recent Decisions section
-- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` — decision rendering
+- `pilot.json` — `edge_intelligence.context_assembly_api` item definition
+- `packages/civicos/src/civicos/civic.py` — CivicOS API methods (what_happened, what_applies, what_was_said, etc.)
+- `apps/civicos-mcp/tools/handlers.py:425-451` — `city_pulse()` already assembles some per-item context
 - `packages/civicos/src/civicos/storage/pgvector_backend.py` — vector search methods
-- `packages/civicos/src/civicos/storage/postgres_backend.py` — decision storage methods
+- `docs/critical/FINAL_PACKAGE_ARCHITECTURE.md` — master architecture
+- `docs/critical/EDGE_INTELLIGENCE_ARCHITECTURE.md` — multi-surface distribution design
+- `docs/critical/COORDINATION_PROTOCOL.md` — federation/relay protocol
+- `apps/civicos-mcp/tools/handlers.py` — existing MCP tools (federation query routing pattern)
 
-## Completed This Session
+## Suggested Approach
 
-- [x] `agenda_actionability` — LLM classification module, backfill, API + frontend, deployed to Modal
-- [x] Commits: civicos `6fec91c`; openwebui `a483275`
+1. Read existing API methods in `civic.py` to catalog what context is already queryable per item type
+2. Read `city_pulse()` in handlers.py — it already does lightweight context assembly, good starting point
+3. Read federation query routing in MCP tools — pattern for fan-out to peer MCPs
+4. Draft the context bundle JSON schema (consider: item metadata, related items, legal context, testimony, suggested questions, provenance)
+5. Draft the endpoint contract (routes, params, response shape)
+6. Write the design doc (new file in `docs/critical/`)
+7. Update pilot.json subtasks with implementation plan
 
-## What's Next After expandable_decisions
+## Success Criteria
 
-- `provenance_footer` (P2) — Data source info footer
-- `civic_dashboard_mvp` meta-item can be marked ready once expandable_decisions + provenance_footer are done
-- Then: `mcp_registry_listing` (blocked by MVP)
+- [ ] Context bundle JSON schema defined (covers agenda items, decisions, issues, legislation, initiatives)
+- [ ] Endpoint contract specified (routes, params, federation behavior)
+- [ ] Surface consumption patterns documented (how Open WebUI / browser extension / MCP each use it)
+- [ ] Federation strategy for cross-jurisdiction context assembly
+- [ ] Design doc written to `docs/critical/CONTEXT_ASSEMBLY_API.md`
+- [ ] Implementation subtasks added to pilot.json item
+
+## P1 Items (for awareness, not this session)
+
+- `expandable_decisions` — will be first consumer of context assembly API
+- `civic_dashboard_mvp` — dashboard completeness (mostly done, needs expandable_decisions + provenance_footer)
+- `action_tools` — MCP read tools for action state
+- User-created initiatives/voices — write-side features that produce items the context API will serve
