@@ -18,6 +18,7 @@ from .drafts import router as drafts_router
 from .coordination import router as coordination_router
 from .nostr import router as nostr_router
 from .registry import router as registry_router
+from .context import router as context_router
 
 __all__ = [
     "core_router",
@@ -33,4 +34,5 @@ __all__ = [
     "coordination_router",
     "nostr_router",
     "registry_router",
+    "context_router",
 ]
