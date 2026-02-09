@@ -4213,15 +4213,25 @@
         "Embeddable widget: city websites, community forums"
       ],
       "subtasks": [
-        "Design context bundle schema (JSON shape, what fields, how much context)",
-        "Design API endpoint: GET /context/{item_type}/{item_id}",
-        "Implement context assembly orchestrator (calls existing CivicOS methods)",
-        "Cross-reference assembly: related decisions, municipal code sections, testimony",
-        "Suggested questions generation per item type",
-        "Browser extension feasibility sketch"
+        "Design context bundle schema (JSON shape, what fields, how much context) - COMPLETE",
+        "Design API endpoint: GET /context/{item_type}/{item_id} - COMPLETE",
+        "Design doc: docs/critical/CONTEXT_ASSEMBLY_API.md - COMPLETE",
+        "Implement FastAPI router (routers/context.py) with Pydantic models",
+        "Implement ContextAssembler class (context/assembler.py) with per-section assembly",
+        "Wire context router into API server",
+        "Implement section: participation (low complexity, item flags only)",
+        "Implement section: history (what_happened, what_happened_full_context)",
+        "Implement section: regulatory (what_applies → RegulatoryStack)",
+        "Implement section: community (whos_with_me, relay voice counts)",
+        "Implement section: testimony (what_was_said, get_public_testimony)",
+        "Implement section: financial (budget, funding_flow — only for relevant items)",
+        "Implement suggested question templates per item type",
+        "Add get_item_context MCP tool",
+        "Open WebUI: 'Chat with this item' integration",
+        "Browser extension feasibility sketch (V2)"
       ],
-      "next_step": "Sketch API design in dedicated session — define the context bundle schema and endpoint contract",
-      "note": "2026-02-08: Strategy session. Key insight: decouple context intelligence from UI surface. Enables browser extension as parallel distribution channel alongside Open WebUI."
+      "next_step": "Implement FastAPI router + ContextAssembler class — start with participation and history sections",
+      "note": "2026-02-08: Design doc complete (docs/critical/CONTEXT_ASSEMBLY_API.md). Bundle schema, endpoint contract, orchestration logic, federation strategy, surface consumption patterns all specified. Ready for implementation."
     }
   },
   "federation_infrastructure": {
