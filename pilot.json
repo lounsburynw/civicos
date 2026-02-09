@@ -2646,8 +2646,8 @@
         }
       },
       "agenda_actionability": {
-        "status": "ready",
-        "priority": 0,
+        "status": "complete",
+        "priority": 99,
         "artifact": "LLM-based agenda item actionability classification",
         "description": "Classify each agenda item as 'actionable' (has a decision point, public input meaningful — e.g. zoning variance, ordinance adoption) vs 'informational' (update, presentation, procedural — e.g. 'Open Time for Public Expression', rail transit update). Classification runs at ingestion time via LLM and is stored permanently. Frontend hides or de-emphasizes voice/comment UI on informational items. No heuristics — use LLM with structured output for reliable classification.",
         "depends_on": "civic_dashboard_mvp",
@@ -2661,7 +2661,7 @@
       },
       "expandable_decisions": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Expandable decision detail cards in CityPulse",
         "description": "Expand Recent Decisions rows to show full detail: vote breakdown, related public testimony (via vector search), linked agenda packet chunks, and timeline context. Click a decision row to expand inline. Fetch additional detail on demand to keep initial load fast.",
         "depends_on": "civic_dashboard_mvp",
@@ -4193,6 +4193,35 @@
       ],
       "note": "2026-02-06: Implemented in Personal MCP (stdio + HTTP). 3 prepare tools + helpers in types.ts + crypto.ts. CivicEventKinds extended with ACTION_EVENT(30810), ACTION_COMMITMENT(30811), ACTION_COMPLETION(30812). Canonical messages match Python relay verification. 29 tests passing.",
       "notes": "Backend infrastructure complete (2026-02-02). Client-side preparation complete (2026-02-06). Both stdio and HTTP servers updated. Relay can store/retrieve all event types."
+    },
+    "context_assembly_api": {
+      "status": "not_ready",
+      "priority": 0,
+      "description": "Surface-agnostic context assembly layer. Given a civic item (agenda item, decision, issue, etc.), assembles a rich context bundle from the CivicOS API — description, history, related municipal code, testimony, cross-references, suggested questions. Any consumer (Open WebUI, browser extension, MCP, Claude.ai) calls the same endpoint and gets the same context, which it then passes to an LLM conversation however that surface does chat.",
+      "_doc": "Strategy session 2026-02-08: The intelligence is in the context assembly, not the UI. This enables portable 'chat with this item' across all surfaces without coupling to any one frontend. Also enables a browser extension distribution strategy — inject CivicOS context into any page showing civic content.",
+      "design_principles": [
+        "Surface-agnostic: same API for Open WebUI, browser extension, MCP, future surfaces",
+        "Item-centric: context is assembled per civic item (agenda item, decision, issue, legislation)",
+        "Orchestrates existing API methods: what_happened(), what_applies(), what_was_said(), vector search",
+        "Returns structured bundle (JSON) + optional pre-rendered summary (markdown)",
+        "Stateless: no session required, context is self-contained"
+      ],
+      "distribution_surfaces": [
+        "Open WebUI: inject as system prompt / RAG context",
+        "Browser extension: portable dashboard, inject context on civic pages (agenda PDFs, local news)",
+        "MCP: expose as tool result for Claude.ai / ChatGPT",
+        "Embeddable widget: city websites, community forums"
+      ],
+      "subtasks": [
+        "Design context bundle schema (JSON shape, what fields, how much context)",
+        "Design API endpoint: GET /context/{item_type}/{item_id}",
+        "Implement context assembly orchestrator (calls existing CivicOS methods)",
+        "Cross-reference assembly: related decisions, municipal code sections, testimony",
+        "Suggested questions generation per item type",
+        "Browser extension feasibility sketch"
+      ],
+      "next_step": "Sketch API design in dedicated session — define the context bundle schema and endpoint contract",
+      "note": "2026-02-08: Strategy session. Key insight: decouple context intelligence from UI surface. Enables browser extension as parallel distribution channel alongside Open WebUI."
     }
   },
   "federation_infrastructure": {
