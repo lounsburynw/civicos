@@ -64,7 +64,7 @@ def extract_state_code(jurisdiction: str) -> str:
     image=civic_image,
     secrets=[modal.Secret.from_name("civic-db")],
     gpu="T4",  # T4 sufficient for embeddings, bulk DB inserts are the win
-    memory=8192,  # 8GB — sufficient for single-corpus indexing (6K-25K chunks)
+    memory=16384,  # 16GB — fastembed-gpu + ONNX runtime needs headroom for large corpora
     timeout=3600,
     retries=modal.Retries(
         max_retries=2,
@@ -121,7 +121,7 @@ def index_corpus(
         raise ValueError("DATABASE_URL environment variable not set")
 
     # Cost guard: compute max allowed runtime from cost limit
-    memory_gb = 8
+    memory_gb = 16
     cost_per_sec = 0.000222 + (memory_gb * 0.000016)  # GPU + memory
     max_runtime_sec = cost_limit_usd / cost_per_sec
     logger.info(f"Starting vector indexing: corpus={corpus}, jurisdiction={jurisdiction}")
@@ -248,7 +248,7 @@ def index_corpus(
 
     # Cost tracking
     elapsed_seconds = time.time() - start_time
-    memory_gb = 8  # Configured memory (8GB)
+    memory_gb = 16  # Configured memory (16GB)
     gpu_cost_per_sec = 0.000222  # Modal T4 GPU pricing per second
     mem_cost_per_gb_sec = 0.000016  # Modal memory pricing per GB-second
     estimated_cost = (elapsed_seconds * gpu_cost_per_sec) + (memory_gb * elapsed_seconds * mem_cost_per_gb_sec)
@@ -260,7 +260,7 @@ def index_corpus(
     results["_cost"] = {
         "elapsed_seconds": elapsed_seconds,
         "memory_gb": memory_gb,
-        "gb_seconds": gb_seconds,
+        "gb_seconds": memory_gb * elapsed_seconds,
         "estimated_cost_usd": estimated_cost,
     }
 
@@ -269,7 +269,7 @@ def index_corpus(
     log_modal_cost(
         function_name="index_corpus",
         elapsed_seconds=elapsed_seconds,
-        memory_gb=8,
+        memory_gb=16,
         gpu="T4",
         jurisdiction_id=jurisdiction,
         metadata={
