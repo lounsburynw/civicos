@@ -38,12 +38,11 @@ LSP enables faster code navigation (50ms vs 45s) and better context awareness.
 pip install pyright
 
 # TypeScript - install in frontend
-cd apps/civicos-workspace && npm install
+cd ~/projects/civicos-openwebui && npm install
 ```
 
 **Configuration files:**
 - `pyrightconfig.json` - Python LSP config (includes all packages)
-- `apps/civicos-workspace/tsconfig.app.json` - TypeScript config
 
 **Enable in Claude Code:**
 ```bash
@@ -158,9 +157,9 @@ packages/civicos/             # Core API package
 packages/civicos-relay/       # Federation-ready relay (voice, actions, sync, subscriptions)
 packages/civicos-extraction/  # Platform parsers
 packages/civicos-services/    # Application layer (API server, chat, websocket)
-apps/civicos-workspace/       # Vue frontend
+apps/civicos-workspace/       # Vue frontend (DEPRECATED — use Open WebUI)
 apps/civicos-mcp/             # MCP server
-apps/civicos-openwebui-fork/  # Open WebUI fork (symlink → ~/projects/civicos-openwebui, separate private repo)
+apps/civicos-openwebui-fork/  # Open WebUI fork — PRIMARY frontend (symlink → ~/projects/civicos-openwebui)
 data/                       # Extracted events, issues, legislative context
 docs/critical/              # Essential architecture docs
 docs/archive/               # Historical docs (recoverable)
@@ -369,21 +368,21 @@ The `pr-review-toolkit` Claude Code plugin provides general code quality agents 
 
 ## Launching the App
 
-Use the dev launch script to start all services with proper environment configuration:
+Start the API backend and Open WebUI frontend separately:
 
 ```bash
-./scripts/dev.sh          # Start all services (API, WebSocket, Frontend)
-./scripts/dev.sh api      # REST API only (port 8001)
-./scripts/dev.sh ws       # WebSocket only (port 8002)
-./scripts/dev.sh frontend # Vue frontend only (port 5173)
+./scripts/dev.sh api                              # REST API (port 8001)
+cd ~/projects/civicos-openwebui && npm run dev     # Open WebUI frontend (port 5173, hot reload)
 ```
 
-The script automatically:
+Or use `/launch` which starts both.
+
+The `dev.sh` script automatically:
 - Loads `.env` (requires `GOOGLE_MAPS_API_KEY` with Geocoding API enabled)
 - Sets `CIVICOS_DEV_MODE=true` and `CIVICOS_WEB_KEY=dev_key_local`
-- Activates `civicos-env` virtual environment
+- Uses `civicos-env` venv Python directly
 
-Or use the `/launch` command which documents the full process, including the Open WebUI frontend dev server.
+**Note:** `apps/civicos-workspace/` (Vue frontend) is deprecated. The primary UX surface is the Open WebUI fork.
 
 ## Testing Strategy
 
