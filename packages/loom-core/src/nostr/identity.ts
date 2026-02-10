@@ -1,5 +1,5 @@
 import { schnorr, etc } from '@noble/secp256k1';
-import type { KeyPair, KeyStore } from './types.js';
+import type { KeyPair, KeyStore } from '../types.js';
 
 export function getPublicKeyHex(privateKey: Uint8Array): string {
   return etc.bytesToHex(schnorr.getPublicKey(privateKey));
