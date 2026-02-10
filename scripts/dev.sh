@@ -8,7 +8,6 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-CIVICOS_SERVICES="$PROJECT_ROOT/packages/civicos-services/src/civic_services"
 
 # Load .env if it exists
 if [ -f "$PROJECT_ROOT/.env" ]; then
@@ -21,22 +20,19 @@ fi
 export CIVICOS_DEV_MODE=true
 export CIVICOS_WEB_KEY="${CIVICOS_WEB_KEY:-dev_key_local}"
 
-# PYTHONPATH for bare imports (TODO: fix imports to use full module paths)
-export PYTHONPATH="$CIVICOS_SERVICES/monitoring:$CIVICOS_SERVICES/clients:$CIVICOS_SERVICES/storage:$CIVICOS_SERVICES/processing:$CIVICOS_SERVICES/chat:$CIVICOS_SERVICES/core:${PYTHONPATH:-}"
-
-# Activate virtual environment
-source "$PROJECT_ROOT/civicos-env/bin/activate"
+# Use venv Python/uvicorn directly (source activate doesn't persist in all shells)
+VENV="$PROJECT_ROOT/civicos-env/bin"
 
 start_api() {
     echo "Starting FastAPI server on http://localhost:8001..."
     echo "  - OpenAPI docs at http://localhost:8001/docs"
     echo "  - ReDoc at http://localhost:8001/redoc"
-    uvicorn civic_services.servers.api:app --host 0.0.0.0 --port 8001 --reload
+    "$VENV/uvicorn" civicos_services.servers.api:app --host 0.0.0.0 --port 8001 --reload
 }
 
 start_websocket() {
     echo "Starting WebSocket server on http://localhost:8002..."
-    python -m civic_services.servers.civic_socketio_server
+    "$VENV/python" -m civicos_services.servers.civic_socketio_server
 }
 
 start_frontend() {
@@ -49,13 +45,13 @@ start_all() {
     echo "Starting all CivicOS services..."
     echo ""
 
-    # Start FastAPI server in background (Session 511: Migration complete)
-    uvicorn civic_services.servers.api:app --host 0.0.0.0 --port 8001 &
+    # Start FastAPI server in background
+    "$VENV/uvicorn" civicos_services.servers.api:app --host 0.0.0.0 --port 8001 &
     API_PID=$!
     echo "API server started (PID: $API_PID)"
 
     # Start WebSocket in background
-    python -m civic_services.servers.civic_socketio_server &
+    "$VENV/python" -m civicos_services.servers.civic_socketio_server &
     WS_PID=$!
     echo "WebSocket server started (PID: $WS_PID)"
 
