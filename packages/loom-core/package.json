@@ -10,12 +10,16 @@
   },
   "files": ["dist"],
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "vitest run",
+    "generate-vectors": "tsx scripts/generate-vectors.ts"
   },
   "dependencies": {
     "@noble/secp256k1": "^3.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.5.4"
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4",
+    "vitest": "^3.0.0"
   }
 }
