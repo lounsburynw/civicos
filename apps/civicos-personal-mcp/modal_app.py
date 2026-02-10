@@ -72,7 +72,7 @@ def personal_mcp_server():
     # Get jurisdiction MCP URL from environment (set in civicos-env secret)
     jurisdiction_url = os.environ.get(
         "JURISDICTION_MCP_URL",
-        "https://lounsburynw--civicos-san-rafael-mcpserver-mcp-endpoint.modal.run"
+        "https://san-rafael.civicosproject.org/mcp"
     )
 
     # Set environment variables for the Node.js server
