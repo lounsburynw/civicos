@@ -36,8 +36,9 @@ start_websocket() {
 }
 
 start_frontend() {
-    echo "Starting frontend on http://localhost:5173..."
-    cd "$PROJECT_ROOT/apps/civicos-workspace"
+    echo "Starting Open WebUI frontend on http://localhost:5173..."
+    echo "(Primary UX surface — apps/civicos-workspace is deprecated)"
+    cd "$HOME/projects/civicos-openwebui"
     npm run dev
 }
 
@@ -58,8 +59,8 @@ start_all() {
     # Give servers time to start
     sleep 2
 
-    # Start frontend (foreground)
-    cd "$PROJECT_ROOT/apps/civicos-workspace"
+    # Start Open WebUI frontend (foreground)
+    cd "$HOME/projects/civicos-openwebui"
     npm run dev
 
     # Cleanup on exit
@@ -74,7 +75,7 @@ show_help() {
     echo "Commands:"
     echo "  api          Start FastAPI server only (port 8001, with /docs)"
     echo "  ws           Start WebSocket server only (port 8002)"
-    echo "  frontend     Start Vue frontend only (port 5173)"
+    echo "  frontend     Start Open WebUI frontend (port 5173)"
     echo "  all          Start all servers (default)"
     echo "  help         Show this help message"
     echo ""

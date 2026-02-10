@@ -1,50 +1,45 @@
-Launch the Civic development servers.
+Launch the CivicOS development environment.
 
-## Quick Start
+## What Gets Started
 
-Run the dev launch script:
+1. **REST API** on http://localhost:8001 (backend — serves civic data)
+2. **Open WebUI** on http://localhost:5173 (primary frontend — hot reload)
 
-```bash
-./scripts/dev.sh
-```
+## Steps
 
-This starts all three services:
-- **REST API** on http://localhost:8001
-- **WebSocket** on http://localhost:8002
-- **Frontend** on http://localhost:5173
-
-## Individual Services
-
-Start services individually if needed:
+Start the API backend:
 
 ```bash
-./scripts/dev.sh api       # REST API only
-./scripts/dev.sh ws        # WebSocket only
-./scripts/dev.sh frontend  # Vue frontend only
+./scripts/dev.sh api
 ```
 
-## Environment Requirements
+Then, in parallel, start the Open WebUI frontend dev server:
 
-The script automatically:
+```bash
+cd ~/projects/civicos-openwebui && npm run dev
+```
+
+## Verify
+
+- API health: http://localhost:8001/health
+- API docs: http://localhost:8001/docs
+- Frontend: http://localhost:5173
+
+## Environment
+
+The `./scripts/dev.sh` script automatically:
 1. Loads `.env` file
-2. Sets `CIVIC_DEV_MODE=true`
-3. Sets `CIVIC_WEB_KEY=dev_key_local` (matches frontend)
-4. Activates the `civicos-env` virtual environment
+2. Sets `CIVICOS_DEV_MODE=true`
+3. Sets `CIVICOS_WEB_KEY=dev_key_local`
+4. Uses `civicos-env` venv Python directly
 
 ## Required API Keys in `.env`
 
 - `GOOGLE_MAPS_API_KEY` - For address geocoding (must have Geocoding API enabled)
-- `OPENAI_API_KEY` - For AI conversation features (optional for basic testing)
 
-## Open WebUI Frontend (Primary UX Surface)
+## Docker (Production Testing Only)
 
-The Open WebUI fork is a **separate repo** (`~/projects/civicos-openwebui`). For frontend iteration, run its Vite dev server directly — do NOT rebuild Docker for every change:
-
-```bash
-cd ~/projects/civicos-openwebui && npm run dev   # localhost:5173, hot reload
-```
-
-Only rebuild Docker for production testing:
+Only rebuild Docker when testing the production build, not for development:
 
 ```bash
 cd ~/projects/civicos-openwebui
@@ -54,9 +49,8 @@ docker run -d --name civicos-openwebui -p 8080:8080 \
   --env-file .env --restart unless-stopped civicos-openwebui:latest
 ```
 
-## Troubleshooting
+## Notes
 
-If you see module import errors, ensure you're using `./scripts/dev.sh` which sets up the PYTHONPATH correctly.
-
-If geocoding fails, verify your Google Maps API key has the Geocoding API enabled at:
-https://console.cloud.google.com/apis/library/geocoding-backend.googleapis.com
+- The Open WebUI fork is a **separate repo** (`~/projects/civicos-openwebui`, symlinked at `apps/civicos-openwebui-fork/`)
+- `apps/civicos-workspace/` is a **deprecated** Vue frontend — do not use
+- WebSocket server (`./scripts/dev.sh ws`) is optional for most development
