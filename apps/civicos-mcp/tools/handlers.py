@@ -18,6 +18,7 @@ from typing import Any, Callable, Optional
 import math
 import os
 import random
+import re
 
 
 # Type alias for CivicOS client (to avoid import dependency)
@@ -1358,6 +1359,87 @@ def get_decision_context(
         return f"Error getting decision context: {str(e)}"
 
 
+def _extract_excerpt(text: str, title: str = "", max_chars: int = 300) -> str:
+    """Extract the most relevant sentences from a transcript chunk.
+
+    Instead of naive text[:300] truncation, finds complete sentences
+    most relevant to the decision title via keyword overlap. When space
+    remains, adds adjacent sentences for reading context rather than
+    padding from the beginning.
+    """
+    # Clean speaker labels like [Kate Colin (Mayor)] [B] [C]
+    cleaned = re.sub(r"\[(?:[A-Z]|[^]]{2,60})\]\s*", "", text)
+    # Collapse whitespace
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
+    # Split into sentences (handle abbreviations like Mr./Mrs./Dr./St.)
+    parts = re.split(r"(?<=[.!?])\s+(?=[A-Z])", cleaned)
+    sentences = [s.strip() for s in parts if s.strip() and len(s.strip()) > 15]
+
+    if not sentences:
+        return cleaned[:max_chars].rstrip()
+
+    if not title:
+        # No title to score against — return first complete sentences
+        result: list[str] = []
+        total = 0
+        for s in sentences:
+            if total + len(s) + 1 > max_chars and result:
+                break
+            result.append(s)
+            total += len(s) + 1
+        return " ".join(result)
+
+    # Score each sentence by keyword overlap with title
+    title_words = set(re.findall(r"\w{3,}", title.lower()))
+    title_words -= {"the", "and", "for", "with", "from", "that", "this", "city"}
+
+    scores: list[int] = []
+    for s in sentences:
+        s_words = set(re.findall(r"\w{3,}", s.lower()))
+        scores.append(len(title_words & s_words))
+
+    # Start with sentences that have keyword overlap
+    selected: set[int] = set()
+    selected_chars = 0
+    # Sort by score desc, position asc for ties
+    ranked = sorted(range(len(sentences)), key=lambda i: (-scores[i], i))
+    for idx in ranked:
+        if scores[idx] == 0:
+            break  # Stop at irrelevant sentences
+        if selected_chars + len(sentences[idx]) + 1 > max_chars and selected:
+            break
+        selected.add(idx)
+        selected_chars += len(sentences[idx]) + 1
+
+    # If space remains, expand with adjacent sentences for context
+    if selected:
+        for idx in sorted(selected):
+            # Try sentence before
+            if idx - 1 >= 0 and idx - 1 not in selected:
+                s = sentences[idx - 1]
+                if selected_chars + len(s) + 1 <= max_chars:
+                    selected.add(idx - 1)
+                    selected_chars += len(s) + 1
+            # Try sentence after
+            if idx + 1 < len(sentences) and idx + 1 not in selected:
+                s = sentences[idx + 1]
+                if selected_chars + len(s) + 1 <= max_chars:
+                    selected.add(idx + 1)
+                    selected_chars += len(s) + 1
+
+    # Fallback: no keyword matches at all — return first sentences
+    if not selected:
+        total = 0
+        for i, s in enumerate(sentences):
+            if total + len(s) + 1 > max_chars and selected:
+                break
+            selected.add(i)
+            total += len(s) + 1
+
+    return " ".join(sentences[i] for i in sorted(selected))
+
+
 def decision_detail(
     civic: CivicClient,
     jurisdiction: str,
@@ -1446,15 +1528,18 @@ def decision_detail(
                     "public_comments": [
                         {
                             "speaker": l.speaker_name or l.speaker or "Resident",
-                            "text": l.text[:300],
+                            "text": _extract_excerpt(l.text, decision_title),
                             "video_url": l.video_url,
+                            "start_timestamp": l.start_timestamp,
                         }
                         for l in public_comments[:3]
                     ],
                     "council_discussion": [
                         {
                             "speaker": l.speaker_name or l.speaker or "Council Member",
-                            "text": l.text[:300],
+                            "text": _extract_excerpt(l.text, decision_title),
+                            "video_url": l.video_url,
+                            "start_timestamp": l.start_timestamp,
                         }
                         for l in council_discussion[:2]
                     ],
@@ -1496,15 +1581,18 @@ def decision_detail(
                 "public_comments": [
                     {
                         "speaker": l.speaker_name or l.speaker or "Resident",
-                        "text": l.text[:300],
+                        "text": _extract_excerpt(l.text, d.title),
                         "video_url": l.video_url,
+                        "start_timestamp": l.start_timestamp,
                     }
                     for l in public_comments[:3]
                 ],
                 "council_discussion": [
                     {
                         "speaker": l.speaker_name or l.speaker or "Council Member",
-                        "text": l.text[:300],
+                        "text": _extract_excerpt(l.text, d.title),
+                        "video_url": l.video_url,
+                        "start_timestamp": l.start_timestamp,
                     }
                     for l in council_discussion[:2]
                 ],
