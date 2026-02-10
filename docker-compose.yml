@@ -34,7 +34,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: civic-websocket
-    command: ["python", "-m", "civic_services.civic_socketio_server", "8002"]
+    command: ["python", "-m", "civicos_services.servers.civic_socketio_server", "8002"]
     ports:
       - "8002:8002"
     environment:

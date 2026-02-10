@@ -9,7 +9,7 @@ Provides the same endpoints with:
 - Native async/await support
 - Cleaner route definitions with decorators
 
-Run with: uvicorn civic_services.servers.api:app --port 8001
+Run with: uvicorn civicos_services.servers.api:app --port 8001
 """
 
 import time
@@ -368,7 +368,7 @@ if __name__ == "__main__":
     port = config.get_api_port()
 
     uvicorn.run(
-        "civic_services.servers.api:app",
+        "civicos_services.servers.api:app",
         host="0.0.0.0",
         port=port,
         reload=config.env == "development",
