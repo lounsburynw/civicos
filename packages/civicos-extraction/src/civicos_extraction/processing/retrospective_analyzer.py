@@ -37,6 +37,8 @@ class HighStakesDecision:
     is_high_stakes: bool
     stakes_score: int  # 1-10 scale
     decision_type: str  # budget, development, environmental, policy
+    item_type: str = "action"  # action, consent, presentation, hearing, discussion
+    extracted_outcome: Optional[str] = None  # LLM-classified outcome
 
     # Impact metadata
     budget_amount: Optional[float]  # Extracted dollar amount
@@ -67,7 +69,7 @@ class HighStakesDecision:
 
     # Vote & outcome data (from minutes - NEW)
     vote_results: Optional[Dict[str, int]] = None  # {"yes": N, "no": N, "abstain": N}
-    passed: bool = True  # Whether decision passed (default True for approved items)
+    passed: Optional[bool] = None  # None = not a vote item; True/False = vote result
 
     def __post_init__(self):
         """Initialize mutable defaults"""
@@ -451,6 +453,8 @@ For EACH high-stakes item found, extract:
             "is_high_stakes": true,
             "stakes_score": 1-10,
             "decision_type": "budget|development|environmental|policy|tax",
+            "item_type": "action|consent|presentation|hearing|discussion",
+            "outcome": "approved|denied|continued|withdrawn|received|adopted",
             "budget_amount": dollar amount as number or null,
             "budget_description": "what the budget is for" or null,
             "affected_population_estimate": number or null,
@@ -470,6 +474,18 @@ DECISION TYPE CLASSIFICATION:
 - policy: Service changes, regulations, programs affecting many residents
 - tax: New taxes, fee changes, assessment districts
 
+ITEM TYPE CLASSIFICATION:
+- action: Council deliberated and took a formal vote (approval, denial, adoption)
+- consent: Routine item approved in batch without individual discussion
+- hearing: Public hearing with formal testimony period (land use, zoning, taxes)
+- presentation: Staff or external informational report, no vote taken
+- discussion: Policy discussion, study session — council may give direction but no formal action
+
+OUTCOME RULES:
+- action/consent/hearing: "approved", "denied", "continued", "withdrawn", "adopted"
+- presentation: "received"
+- discussion: "received" (or "continued" if returning to a future meeting)
+
 PROJECT TYPE TAXONOMY:
 housing, transportation, environment, budget, education, development, public_safety, community, elections, governance
 
@@ -482,7 +498,7 @@ STAKES SCORE RUBRIC:
 
 IMPORTANT:
 - Return ALL high-stakes items found (can be 0, 1, 5, or more)
-- Focus on DECISIONS (votes, approvals), not reports/updates
+- Include ALL high-stakes items but classify each item's type accurately
 - Extract actual NUMBERS from text (budget amounts, unit counts)
 - Skip purely procedural items (minutes approval, roll call)
 - If NO high-stakes items found, return: {{"items": []}}
@@ -507,6 +523,13 @@ Return JSON with items array:"""
                 if not item_data.get('is_high_stakes', False):
                     continue
 
+                item_type = item_data.get('item_type', 'action')
+                extracted_outcome = item_data.get('outcome')
+                if item_type in ('presentation', 'discussion'):
+                    passed_value = None
+                else:
+                    passed_value = extracted_outcome in ('approved', 'adopted') if extracted_outcome else None
+
                 decision = HighStakesDecision(
                     item_ref=item_data.get('item_ref', 'unknown'),
                     title=item_data.get('title', ''),
@@ -516,6 +539,8 @@ Return JSON with items array:"""
                     is_high_stakes=True,
                     stakes_score=item_data.get('stakes_score', 6),
                     decision_type=item_data.get('decision_type', 'policy'),
+                    item_type=item_type,
+                    extracted_outcome=extracted_outcome,
                     budget_amount=item_data.get('budget_amount'),
                     budget_description=item_data.get('budget_description', ''),
                     affected_population_estimate=item_data.get('affected_population_estimate'),
@@ -526,7 +551,8 @@ Return JSON with items array:"""
                     keywords_for_matching=item_data.get('keywords_for_matching', []),
                     participation_mechanisms=event.get('participation_mechanisms', []),
                     agenda_url=agenda_url,
-                    staff_report_url=None
+                    staff_report_url=None,
+                    passed=passed_value,
                 )
                 decisions.append(decision)
 
@@ -678,6 +704,8 @@ For EACH item above, find the corresponding agenda item and extract:
             "is_high_stakes": true,
             "stakes_score": 6-10,
             "decision_type": "budget",
+            "item_type": "action|consent|presentation|hearing|discussion",
+            "outcome": "approved|denied|continued|withdrawn|received|adopted",
             "budget_amount": dollar amount as number,
             "budget_description": "purpose of budget",
             "project_types": ["relevant", "types"],
@@ -685,6 +713,9 @@ For EACH item above, find the corresponding agenda item and extract:
         }}
     ]
 }}
+
+ITEM TYPE: action=formal vote, consent=batch approval, hearing=public hearing, presentation=informational report, discussion=study session
+OUTCOME: action/consent/hearing use approved/denied/continued/withdrawn/adopted. presentation/discussion use "received".
 
 Return JSON with items array. If an item cannot be found or isn't a decision, omit it."""
 
@@ -702,6 +733,13 @@ Return JSON with items array. If an item cannot be found or isn't a decision, om
                 if not item_data.get('is_high_stakes', False):
                     continue
 
+                item_type = item_data.get('item_type', 'action')
+                extracted_outcome = item_data.get('outcome')
+                if item_type in ('presentation', 'discussion'):
+                    passed_value = None
+                else:
+                    passed_value = extracted_outcome in ('approved', 'adopted') if extracted_outcome else None
+
                 decision = HighStakesDecision(
                     item_ref=item_data.get('item_ref', 'unknown'),
                     title=item_data.get('title', ''),
@@ -711,6 +749,8 @@ Return JSON with items array. If an item cannot be found or isn't a decision, om
                     is_high_stakes=True,
                     stakes_score=item_data.get('stakes_score', 6),
                     decision_type=item_data.get('decision_type', 'budget'),
+                    item_type=item_type,
+                    extracted_outcome=extracted_outcome,
                     budget_amount=item_data.get('budget_amount'),
                     budget_description=item_data.get('budget_description', ''),
                     affected_population_estimate=item_data.get('affected_population_estimate'),
@@ -721,7 +761,8 @@ Return JSON with items array. If an item cannot be found or isn't a decision, om
                     keywords_for_matching=item_data.get('keywords_for_matching', []),
                     participation_mechanisms=event.get('participation_mechanisms', []),
                     agenda_url=agenda_url,
-                    staff_report_url=None
+                    staff_report_url=None,
+                    passed=passed_value,
                 )
                 decisions.append(decision)
 
@@ -797,6 +838,8 @@ For each high-stakes item, extract:
             "is_high_stakes": true,
             "stakes_score": 1-10 (1=low impact, 10=citywide major impact),
             "decision_type": "budget|development|environmental|policy|tax",
+            "item_type": "action|consent|presentation|hearing|discussion",
+            "outcome": "approved|denied|continued|withdrawn|received|adopted",
 
             "budget_amount": dollar amount as number (e.g., 1108319 for $1.1M) or null,
             "budget_description": "what the budget is for" or null,
@@ -848,9 +891,21 @@ STAKES SCORE RUBRIC:
 - 4-5: Moderate impact, <$100K budget, affects 100-1,000 residents
 - 1-3: Low impact, minimal budget, affects <100 residents
 
+ITEM TYPE CLASSIFICATION:
+- action: Council deliberated and took a formal vote (approval, denial, adoption)
+- consent: Routine item approved in batch without individual discussion
+- hearing: Public hearing with formal testimony period (land use, zoning, taxes)
+- presentation: Staff or external informational report, no vote taken
+- discussion: Policy discussion, study session — council may give direction but no formal action
+
+OUTCOME RULES:
+- action/consent/hearing: "approved", "denied", "continued", "withdrawn", "adopted"
+- presentation: "received"
+- discussion: "received" (or "continued" if returning to a future meeting)
+
 IMPORTANT:
 - Return SINGLE decision for THIS item only
-- Focus on DECISIONS (votes, approvals), not just reports/updates
+- Include ALL high-stakes items but classify each item's type accurately
 - Extract NUMBERS from text (budget amounts, unit counts, population)
 - Skip purely procedural items (minutes approval, appointments)
 - If NOT high-stakes, return empty items array: {{"items": []}}
@@ -896,6 +951,13 @@ PROJECT TYPES: housing, transportation, environment, budget, education, developm
                 if not item_data.get('is_high_stakes', False):
                     continue
 
+                item_type = item_data.get('item_type', 'action')
+                extracted_outcome = item_data.get('outcome')
+                if item_type in ('presentation', 'discussion'):
+                    passed_value = None
+                else:
+                    passed_value = extracted_outcome in ('approved', 'adopted') if extracted_outcome else None
+
                 # Build HighStakesDecision object
                 decision = HighStakesDecision(
                     item_ref=item_data.get('item_ref', item_ref),  # Use extracted ref
@@ -906,6 +968,8 @@ PROJECT TYPES: housing, transportation, environment, budget, education, developm
                     is_high_stakes=True,
                     stakes_score=item_data.get('stakes_score', 6),
                     decision_type=item_data.get('decision_type', 'policy'),
+                    item_type=item_type,
+                    extracted_outcome=extracted_outcome,
                     budget_amount=item_data.get('budget_amount'),
                     budget_description=item_data.get('budget_description', ''),
                     affected_population_estimate=item_data.get('affected_population_estimate'),
@@ -916,7 +980,8 @@ PROJECT TYPES: housing, transportation, environment, budget, education, developm
                     keywords_for_matching=item_data.get('keywords_for_matching', []),
                     participation_mechanisms=event.get('participation_mechanisms', []),
                     agenda_url=agenda_url,
-                    staff_report_url=None  # Could be enhanced later
+                    staff_report_url=None,
+                    passed=passed_value,
                 )
 
                 decisions.append(decision)

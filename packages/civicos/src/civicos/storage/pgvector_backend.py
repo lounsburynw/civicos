@@ -438,11 +438,13 @@ class PgVectorBackend:
         Convert a decision dict to text for embedding.
 
         Matches the format used by CivicEmbeddings for consistency.
+        Prepends item_type so semantic search can distinguish actions from presentations.
         """
         parts = []
 
+        item_type = decision.get("item_type", "action")
         if decision.get("title"):
-            parts.append(f"Title: {decision['title']}")
+            parts.append(f"[{item_type}] {decision['title']}")
 
         if decision.get("description"):
             parts.append(f"Description: {decision['description']}")

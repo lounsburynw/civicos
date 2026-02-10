@@ -1532,6 +1532,23 @@ class PostgresBackend:
             ON decisions(agenda_item_id)
         """)
 
+        # Migration: Add item_type to decisions for classifying agenda items
+        cursor.execute("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'decisions' AND column_name = 'item_type'
+                ) THEN
+                    ALTER TABLE decisions ADD COLUMN item_type TEXT DEFAULT 'action';
+                END IF;
+            END $$;
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_decisions_item_type
+            ON decisions(item_type)
+        """)
+
         conn.commit()
         self._schema_ensured = True
         PostgresBackend._schemas_verified.add(self._conn_string)
@@ -2348,8 +2365,8 @@ class PostgresBackend:
                         legal_instruments_json, topics, source_documents,
                         extraction_method, financial_impact_cents,
                         extracted_at, valid_from, valid_to, content_hash,
-                        extraction_version
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s, %s)
+                        extraction_version, item_type
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s, %s, %s)
                 """, (
                     decision_id,
                     jurisdiction_id,
@@ -2372,6 +2389,7 @@ class PostgresBackend:
                     as_of.isoformat(),
                     content_hash,
                     decision.get('extraction_version'),
+                    decision.get('item_type', 'action'),
                 ))
 
             conn.commit()
@@ -2390,6 +2408,7 @@ class PostgresBackend:
         since: Optional[str] = None,
         until: Optional[str] = None,
         limit: Optional[int] = None,
+        item_type: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve decisions with optional filtering.
@@ -2400,6 +2419,7 @@ class PostgresBackend:
             since: Filter decisions on/after this date (YYYY-MM-DD)
             until: Filter decisions on/before this date (YYYY-MM-DD)
             limit: Maximum number of decisions to return
+            item_type: Filter by item type (action, consent, presentation, hearing, discussion)
 
         Returns:
             List of decision dictionaries
@@ -2426,6 +2446,10 @@ class PostgresBackend:
         if until:
             query += " AND meeting_date <= %s"
             params.append(until)
+
+        if item_type:
+            query += " AND item_type = %s"
+            params.append(item_type)
 
         query += " ORDER BY meeting_date DESC"
 

@@ -456,7 +456,19 @@ def extract_decisions_from_meeting(
             decision_dict["meeting_id"] = meeting_id
             decision_dict["agenda_item"] = decision.item_ref
             decision_dict["summary"] = decision.description
-            decision_dict["outcome"] = "approved" if decision.passed else "pending"
+            # Outcome mapping: prefer LLM-extracted outcome, fall back to item_type heuristics
+            valid_outcomes = {"approved", "denied", "continued", "withdrawn", "received", "adopted", "other"}
+            if decision.extracted_outcome and decision.extracted_outcome in valid_outcomes:
+                decision_dict["outcome"] = decision.extracted_outcome
+            elif decision.item_type in ("presentation", "discussion"):
+                decision_dict["outcome"] = "received"
+            elif decision.passed is True:
+                decision_dict["outcome"] = "approved"
+            elif decision.passed is False:
+                decision_dict["outcome"] = "denied"
+            else:
+                decision_dict["outcome"] = "other"
+            decision_dict["item_type"] = getattr(decision, 'item_type', 'action')
             decision_dict["vote"] = decision.vote_results
             decision_dict["topics"] = decision.project_types + decision.keywords_for_matching
             decision_dict["source_documents"] = [
