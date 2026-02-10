@@ -114,7 +114,7 @@ curl -s http://localhost:8080/mcp \
 |-------------|-----|
 | **Production** | `https://san-rafael.civicosproject.org/mcp` |
 | Health check | `https://san-rafael.civicosproject.org/health` |
-| Modal (direct) | `https://lounsburynw--civicos-mcp-mcpserver-mcp-endpoint.modal.run` |
+| Modal (direct) | `https://civicos--civicos-san-rafael-mcpserver-mcp-endpoint.modal.run` |
 
 See `docs/decisions/federation_domain_architecture.md` for the domain strategy.
 

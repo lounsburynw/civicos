@@ -37,16 +37,8 @@ import modal
 # Get jurisdiction from environment (set before `modal deploy`)
 JURISDICTION = os.getenv("CIVICOS_JURISDICTION", "city-san-rafael")
 
-def get_app_name(jurisdiction: str) -> str:
-    """Derive Modal app name from jurisdiction ID."""
-    # Special case for federal
-    if jurisdiction == "country-united-states":
-        return "civicos-federal"
-    # Remove prefix for app name (city-san-rafael -> civicos-san-rafael)
-    for prefix in ["city-", "county-", "state-", "country-"]:
-        if jurisdiction.startswith(prefix):
-            return f"civicos-{jurisdiction[len(prefix):]}"
-    return f"civicos-{jurisdiction}"
+# URL and app name resolution uses civicos.registry (loaded from config/registry.json)
+from civicos.registry import get_modal_app_name as get_app_name
 
 def get_secrets(jurisdiction: str) -> list[str]:
     """Get list of Modal secret names for this jurisdiction."""
@@ -123,6 +115,8 @@ mcp_image = (
     # Add MCP server code
     .add_local_dir("apps/civicos-mcp", remote_path="/app/civicos-mcp")
     .add_local_file("apps/civicos_input_validator.py", remote_path="/app/civicos_input_validator.py")
+    # Service registry (URL config)
+    .add_local_file("config/registry.json", remote_path="/app/registry.json")
 )
 
 
@@ -318,10 +312,9 @@ class MCPServer:
         from fastapi import FastAPI
         from fastapi.middleware.cors import CORSMiddleware
 
-        # Build the server URL for OpenAPI spec
-        # Modal generates URLs like: lounsburynw--civicos-san-rafael-mcpserver-mcp-endpoint.modal.run
-        app_name = get_app_name(self.jurisdiction)
-        server_url = f"https://lounsburynw--{app_name}-mcpserver-mcp-endpoint.modal.run"
+        # Build the server URL for OpenAPI spec (stable Cloudflare domain)
+        from civicos.registry import get_jurisdiction_url
+        server_url = get_jurisdiction_url(self.jurisdiction)
 
         app = FastAPI(
             title=f"CivicOS MCP Server ({self.jurisdiction_config.display_name})",

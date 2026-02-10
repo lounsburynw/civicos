@@ -4049,7 +4049,7 @@
           "[BLOCKED] Voice broadcast needs relay deployment (see federation_infrastructure)"
         ],
         "note": "2026-02-04: All 4 widgets complete. Voice, Pulse, Meeting Prep, Issue Card deployed. Voice broadcast blocked on relay.",
-        "modal_url": "https://lounsburynw--civicos-mcp-apps-mcp-apps-server.modal.run"
+        "modal_url": "https://civicos--civicos-mcp-apps-mcp-apps-server.modal.run"
       }
     },
     "openwebui_pilot": {

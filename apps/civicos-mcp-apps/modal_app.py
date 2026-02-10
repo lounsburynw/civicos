@@ -9,7 +9,7 @@ Widgets:
     - pulse: City dashboard (upcoming meetings, trending topics, local issues)
 
 Endpoint:
-    lounsburynw--civicos-mcp-apps-mcp-apps-server.modal.run
+    civicos--civicos-mcp-apps-mcp-apps-server.modal.run
 
 Deploy:
     modal deploy apps/civicos-mcp-apps/modal_app.py
@@ -47,6 +47,8 @@ node_image = (
     .add_local_file(str(APP_DIR / "tsconfig.json"), "/app/tsconfig.json", copy=True)
     .add_local_file(str(APP_DIR / "vite.config.ts"), "/app/vite.config.ts", copy=True)
     .add_local_file(str(APP_DIR / "server.ts"), "/app/server.ts", copy=True)
+    # Service registry (URL config)
+    .add_local_file(str(APP_DIR.parent.parent / "config" / "registry.json"), "/app/registry.json", copy=True)
     # Build widgets (generates dist/widgets/{voice,pulse}/...)
     .run_commands("npm run build")
 )
@@ -72,15 +74,13 @@ def mcp_apps_server():
     """
     import subprocess
 
-    # Get URLs from environment (set in civicos-env secret)
-    jurisdiction_url = os.environ.get(
-        "JURISDICTION_MCP_URL",
-        "https://lounsburynw--civicos-san-rafael-mcpserver-mcp-endpoint.modal.run"
-    )
-    relay_url = os.environ.get(
-        "RELAY_URL",
-        "https://api.civicosproject.org"
-    )
+    # Get URLs from environment, falling back to registry defaults
+    import json
+    registry = json.load(open("/app/registry.json")) if os.path.exists("/app/registry.json") else {}
+    default_jur = registry.get("default_jurisdiction", "")
+    jur_domain = registry.get("jurisdictions", {}).get(default_jur, {}).get("domain", "")
+    jurisdiction_url = os.environ.get("JURISDICTION_MCP_URL") or (f"https://{jur_domain}" if jur_domain else "")
+    relay_url = os.environ.get("RELAY_URL") or registry.get("relay", {}).get("url", "")
     personal_mcp_url = os.environ.get("PERSONAL_MCP_URL", "")
 
     # Set environment variables for the Node.js server
@@ -113,7 +113,7 @@ def main():
     print("Interactive UI widgets for AI hosts (Claude.ai, ChatGPT)")
     print()
     print("Deploy: modal deploy apps/civicos-mcp-apps/modal_app.py")
-    print("Endpoint: lounsburynw--civicos-mcp-apps-mcp-apps-server.modal.run")
+    print("Endpoint: civicos--civicos-mcp-apps-mcp-apps-server.modal.run")
     print()
     print("Widgets:")
     print("  voice - Support/Oppose/Watch civic items with real-time counts")

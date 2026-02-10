@@ -1856,29 +1856,21 @@ KNOWN_RELAYS = [
         "description": "Official CivicOS relay. Operated by the CivicOS project.",
         "default": True,
     },
-    # Future: community relays can be added here
-    # {
-    #     "name": "Community Relay",
-    #     "url": "https://relay.example.org",
-    #     "description": "Community-operated relay.",
-    #     "default": False,
-    # },
 ]
 
 
 def _get_default_relay_url() -> str:
-    """Get the default relay URL."""
+    """Get the default relay URL from registry, with env var overrides."""
     import os
-    # Allow override via environment for development
-    env_url = os.environ.get("CIVICOS_RELAY_URL")
+    env_url = os.environ.get("CIVICOS_RELAY_URL") or os.environ.get("CIVICOS_API_URL")
     if env_url:
         return env_url
-    # Fall back to API URL for backwards compatibility
-    api_url = os.environ.get("CIVICOS_API_URL")
-    if api_url:
-        return api_url
-    # Default to localhost relay port for local dev
-    return "http://localhost:8003"
+    # Use registry for production default, fall back to localhost for local dev
+    try:
+        from civicos.registry import get_relay_url
+        return get_relay_url()
+    except Exception:
+        return "http://localhost:8003"
 
 
 def _save_voice_receipt(payload: dict, relay_urls: list, logger) -> None:

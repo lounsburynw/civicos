@@ -45,6 +45,8 @@ node_image = (
     .add_local_dir("src", "/app/src", copy=True)
     .add_local_dir("lib", "/app/lib", copy=True)
     .add_local_file("tsconfig.json", "/app/tsconfig.json", copy=True)
+    # Service registry (URL config)
+    .add_local_file("config/registry.json", "/app/registry.json", copy=True)
     .run_commands("npm run build")
 )
 
@@ -69,11 +71,12 @@ def personal_mcp_server():
     """
     import subprocess
 
-    # Get jurisdiction MCP URL from environment (set in civicos-env secret)
-    jurisdiction_url = os.environ.get(
-        "JURISDICTION_MCP_URL",
-        "https://san-rafael.civicosproject.org/mcp"
-    )
+    # Get jurisdiction MCP URL from environment, falling back to registry
+    import json
+    registry = json.load(open("/app/registry.json")) if os.path.exists("/app/registry.json") else {}
+    default_jur = registry.get("default_jurisdiction", "")
+    jur_domain = registry.get("jurisdictions", {}).get(default_jur, {}).get("domain", "")
+    jurisdiction_url = os.environ.get("JURISDICTION_MCP_URL") or (f"https://{jur_domain}/mcp" if jur_domain else "")
 
     # Set environment variables for the Node.js server
     env = os.environ.copy()

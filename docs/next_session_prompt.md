@@ -1,74 +1,95 @@
-# Recommended: Context Assembly API — Surface Integration
+# Recommended: Expandable Decisions — Transcript Display Quality
 
 **Priority:** P0
-**Area:** edge_intelligence > context_assembly_api
+**Area:** expandable_decisions
 **Date:** 2026-02-08
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-Phase 1 of the Context Assembly API is **complete and live**. `GET /api/context/{item_type}/{item_id}` returns a rich context bundle with 6 sections (history, regulatory, community, financial, testimony, participation) assembled in parallel. Smoke tested with real San Rafael data — all item types and error cases verified.
+Expandable decisions backend is **complete and committed** (`7958dcb`). The `decision_detail` MCP endpoint now:
+- Exact SQL title match (fast path for dashboard)
+- Structural transcript matching: decision → agenda_item → meeting_id → scoped vector search (73% of decisions resolve)
+- Parent item fallback ("6.a.ii" → "6.a" → "6")
+- Precision threshold (min_score=0.62) — suppresses off-topic matches
+- SQL enrichment of vector results (outcome, body, votes, agenda_item)
+- Backfilled meeting_datetime for all 6,223 transcript vectors
 
-This session also added a public `CivicOS.storage` property, replacing all `_storage` private access across civicos-services (architecture critic fix).
+Also committed: meeting_id filter on VectorBackend.search() protocol, speaker_role fallback for is_public_comment, Modal cost optimization (64GB→8GB).
+
+## Problem: Transcript Display Quality
+
+The transcript text displayed in the UX is **the full chunk content**, which includes speaker labels, cross-talk, and meeting procedural text. Example for "Real Property Negotiation: 519 Fourth Street":
+
+```
+Kate Colin
+[Kate Colin (Mayor)] [B] Mine still says five o'. Clock. [C] Okay. Welcome everyone.
+It's the last meeting of the year. Monday, December 15th. We're going to head into
+closed session on conference with real property negotiators. Property at 519 4th St.
+```
+
+This is the meeting **opening**, not the substantive discussion. The chunk is technically relevant (mentions 519 4th St) but the **displayed portion** (first 300 chars) misses the meaningful content deeper in the chunk. The `text[:300]` truncation in `decision_detail` may be cutting off the useful part.
+
+### Root causes to investigate:
+1. **Truncation**: Chunks are ~500-1000 chars. `text[:300]` may show preamble instead of substance. Consider showing the most relevant **sentence** within the chunk rather than the first 300 chars.
+2. **Chunk granularity**: Transcript chunks group multiple utterances. A chunk containing "Welcome everyone... 519 4th St... Before we go into closed session" scores well on vector similarity but the actual content is just a mention, not discussion.
+3. **Meeting opening bias**: Opening remarks that list all agenda items score high for every decision title. These should be deprioritized.
 
 ## Recommended Task
 
-**Phase 2: Connect the context API to consumer surfaces.** Two options (pick one or both):
+**Improve transcript excerpt display quality.** Two complementary approaches:
 
-1. **MCP tool** — Add `get_item_context` tool so Claude.ai/ChatGPT users can get full context for any civic item in one call (replaces 3-5 separate tool calls)
-2. **Open WebUI integration** — Add "Chat with this item" button to the civic dashboard that calls the context API and injects the bundle into a new chat as system prompt context
+### Approach 1: Smarter text extraction (quick win)
+Instead of `text[:300]`, extract the most relevant sentence(s) from the chunk:
+- Split chunk text into sentences
+- Score each sentence against the decision title (simple keyword overlap or embedding similarity)
+- Return the top 1-2 sentences instead of first-300-chars
 
-The MCP tool is simpler (~30 lines in handlers.py). The Open WebUI integration is higher-impact but touches the separate openwebui repo.
+### Approach 2: UX-side presentation changes (Open WebUI)
+- Show transcript excerpts with **video link + timestamp** (data already available: `video_url`, `start_timestamp`)
+- Add a "Watch this moment" link using `https://youtube.com/watch?v={video_id}&t={start_ms/1000}s`
+- Consider a **confidence/relevance slider** in the UI to let users adjust the precision threshold (currently hardcoded at 0.62)
+- Display speaker role badge (public / council / staff) prominently
 
 ## Key Files
 
-- `packages/civicos-services/src/civicos_services/context/assembler.py` — Core orchestrator (635 lines)
-- `packages/civicos-services/src/civicos_services/context/models.py` — Pydantic models (235 lines)
-- `packages/civicos-services/src/civicos_services/servers/routers/context.py` — FastAPI endpoint
-- `docs/critical/CONTEXT_ASSEMBLY_API.md` — Full design doc (sections 5-6 cover surface consumption patterns)
-- `apps/civicos-mcp/tools/handlers.py` — Existing MCP tools (add `get_item_context` here)
-- `apps/civicos-openwebui-fork/` — Open WebUI frontend (symlink → ~/projects/civicos-openwebui)
+- `apps/civicos-mcp/tools/handlers.py:1374-1460` — decision_detail exact match path (where `text[:300]` truncation happens)
+- `packages/civicos/src/civicos/history.py:1456-1620` — `_search_decision_transcripts_pgvector()` and `_resolve_decision_meeting_id()`
+- `apps/civicos-openwebui-fork/src/lib/components/civic/` — Dashboard components that render decision detail
+- `packages/civicos/src/civicos/_internal/meetings/transcript.py` — Transcript chunking logic
 
-## Suggested Approach (MCP tool)
+## Data Quality Gaps (from QC audit)
 
-1. Read `apps/civicos-mcp/tools/handlers.py` — understand existing tool patterns
-2. Add `get_item_context(item_type, item_id, jurisdiction)` tool that calls the context API
-3. Return the bundle as structured tool result (consider token limits — use `depth=standard`)
-4. Test via Claude.ai or `mcp dev`
-
-## Suggested Approach (Open WebUI)
-
-1. Read the civic dashboard in `apps/civicos-openwebui-fork/src/lib/components/civic/`
-2. Add a "Chat with this item" button to agenda item cards
-3. On click: fetch `/api/context/agenda_item/{id}?jurisdiction=city-san-rafael`
-4. Open a new chat with the context bundle injected as system prompt
-5. Test via `cd ~/projects/civicos-openwebui && npm run dev`
-
-## Known Issues
-
-- **Regulatory section timeout**: `what_applies()` can exceed 10s timeout on large municipal code corpus (16K+ sections). V1 behavior — section returns `timeout` status, bundle is marked `degraded: true`. Consider bumping timeout to 15s or adding index optimization.
-- **Community section sparse**: `whos_with_me()` returns empty `recent_voices` and `active_initiatives`. V1 stub — full implementation needs relay voice count integration.
+| Issue | Detail |
+|-------|--------|
+| All 44 outcomes are "approved" | Extraction may only capture approvals; no denied/tabled/continued |
+| body is NULL for all 44 | No City Council vs Planning Commission distinction |
+| vote_json is NULL for all 44 | No vote tallies |
+| 10 of 44 are financial audits | Routine items crowd the decision list |
+| speaker names degraded | Many "Public Speaker N" instead of real names |
 
 ## Tests to Run
 
 ```bash
-# Smoke test the context endpoint (start server first)
-./scripts/dev.sh api  # or use Python dotenv approach from this session
-curl -s -H "Authorization: Bearer dev_key_local" \
-  "http://localhost:8001/api/context/agenda_item/{item_id}?jurisdiction=city-san-rafael" | python3 -m json.tool
-
-# Core smoke tests
+# Smoke tests
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
+
+# Test decision_detail handler
+python3 -c "
+from dotenv import load_dotenv; load_dotenv()
+from civicos import CivicOS
+import sys; sys.path.insert(0, 'apps/civicos-mcp')
+from tools.handlers import decision_detail
+import logging
+civic = CivicOS('city-san-rafael')
+r = decision_detail(civic, 'city-san-rafael', lambda d: (True, d, None), logging.getLogger(), {'title': '25 Loch Lomond Drive - Approval of 14-Unit Residential Development'})
+import json; print(json.dumps(r, indent=2, default=str))
+"
 ```
 
-## Success Criteria
+## UX Ideas to Consider
 
-- [ ] At least one consumer surface can use the context API (MCP tool or Open WebUI button)
-- [ ] End-to-end test: user action → context bundle fetched → LLM conversation with context
-
-## P1 Items (for awareness)
-
-- `expandable_decisions` — first dashboard consumer of context API (click decision → expand with context)
-- `civic_dashboard_mvp` — needs expandable_decisions + provenance_footer
-- `action_tools` — MCP read tools for voice/action state
+- **Semantic threshold slider**: Let users adjust precision (0.5=more results, 0.7=fewer but precise). Currently hardcoded at 0.62 in `_search_decision_transcripts_pgvector()`.
+- **Video links**: Data exists (`video_id`, `start_ms`). Format: `https://youtube.com/watch?v={video_id}&t={start_ms//1000}s`. Already constructed as `video_url` on TranscriptLink objects.
+- **"No transcript available" state**: Clean empty state when precision threshold filters everything out — better than showing noise.

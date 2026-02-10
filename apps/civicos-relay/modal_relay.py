@@ -7,7 +7,7 @@ voice casting and counts.
 
 Usage:
     modal deploy apps/civicos-relay/modal_relay.py
-    curl https://lounsburynw--civicos-relay-relayserver-relay-endpoint.modal.run/health
+    curl https://civicos--civicos-relay-relayserver-relay-endpoint.modal.run/health
 """
 
 import modal
