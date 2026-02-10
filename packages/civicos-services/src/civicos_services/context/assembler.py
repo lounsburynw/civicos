@@ -388,9 +388,27 @@ async def assemble_testimony(civic: CivicOS, item: ContextItem, depth: ContextDe
     public_future = _run_sync(civic.get_public_testimony, title, top_k)
     all_excerpts, public_excerpts = await asyncio.gather(excerpts_future, public_future)
 
+    def _resolve_speaker(excerpt) -> str:
+        """Build display name from best available speaker metadata."""
+        if excerpt.speaker_name:
+            return excerpt.speaker_name
+        # Fallback: use role-based label instead of raw speaker ID
+        role = excerpt.speaker_role
+        if role == "council":
+            return "Council Member"
+        if role == "staff":
+            return "Staff"
+        if role == "public":
+            return "Public Comment"
+        # Last resort: skip "?" and single-letter diarization labels
+        raw = excerpt.speaker or ""
+        if raw and raw != "?" and len(raw) > 1:
+            return raw
+        return ""
+
     def to_testimony(excerpt) -> TestimonyExcerpt:
         return TestimonyExcerpt(
-            speaker=excerpt.speaker_name or excerpt.speaker,
+            speaker=_resolve_speaker(excerpt),
             speaker_role=excerpt.speaker_role,
             text=excerpt.text,
             video_url=excerpt.video_url,
