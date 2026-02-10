@@ -29,6 +29,7 @@ import {
 import express from "express";
 import cors from "cors";
 import fs from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -41,14 +42,32 @@ import { registerActionWidget } from "./src/widgets/action/register.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// ─────────── Configuration ───────────
+// ─────────── Registry & Configuration ───────────
+
+// Load service registry (URL config) — single source of truth
+function loadRegistry(): Record<string, any> {
+  const searchPaths = ["/app/registry.json", "config/registry.json"];
+  for (const p of searchPaths) {
+    try {
+      return JSON.parse(readFileSync(p, "utf-8"));
+    } catch {
+      continue;
+    }
+  }
+  return {};
+}
+const registry = loadRegistry();
+const defaultJur = registry.default_jurisdiction || "";
+const defaultDomain =
+  registry.jurisdictions?.[defaultJur]?.domain || "";
 
 const config = {
   port: parseInt(process.env.PORT || "3002", 10),
   jurisdictionMcpUrl:
     process.env.JURISDICTION_MCP_URL ||
-    "https://lounsburynw--civicos-san-rafael-mcpserver-mcp-endpoint.modal.run",
-  relayUrl: process.env.RELAY_URL || "https://api.civicosproject.org",
+    (defaultDomain ? `https://${defaultDomain}` : ""),
+  relayUrl:
+    process.env.RELAY_URL || registry.relay?.url || "",
   personalMcpUrl: process.env.PERSONAL_MCP_URL, // Optional
 };
 

@@ -99,7 +99,7 @@ The Jurisdiction MCP provides read-only access to San Rafael civic data: meeting
 2. Click **+ Add Connection**
 3. Configure:
    - **Type:** OpenAPI
-   - **URL:** `https://lounsburynw--civicos-san-rafael-mcpserver-fastapi-app.modal.run/openapi.json`
+   - **URL:** `https://san-rafael.civicosproject.org/openapi.json`
    - **Authentication:** None
 4. Click **Import**
 
@@ -109,7 +109,7 @@ The Jurisdiction MCP provides read-only access to San Rafael civic data: meeting
 2. Click **+ Add Server**
 3. Configure:
    - **Type:** MCP (Streamable HTTP)
-   - **URL:** `https://lounsburynw--civicos-san-rafael-mcpserver-fastapi-app.modal.run`
+   - **URL:** `https://san-rafael.civicosproject.org`
    - **Authentication:** None
 4. Click **Save**
 

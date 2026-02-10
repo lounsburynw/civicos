@@ -52,7 +52,7 @@ This consolidation simplifies operations:
 - MCP server: Modal + Cloudflare proxy - **production**
   - Production: `https://san-rafael.civicosproject.org/mcp`
   - Health: `https://san-rafael.civicosproject.org/health`
-  - Modal direct: `https://lounsburynw--civicos-mcp-mcpserver-mcp-endpoint.modal.run`
+  - Modal direct: `https://civicos--civicos-san-rafael-mcpserver-mcp-endpoint.modal.run`
 - Relay worker: Modal (to be deployed)
 - Vector indexing: Modal (existing)
 - Fly.io MCP: **deprecated** (was `civicos-mcp.fly.dev`)

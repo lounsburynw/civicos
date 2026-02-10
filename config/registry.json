@@ -1,0 +1,41 @@
+{
+  "version": "1.0",
+  "description": "Single source of truth for CivicOS service URLs and deployment config. All apps read from here instead of hardcoding URLs.",
+
+  "modal_workspace": "civicos",
+  "default_jurisdiction": "city-san-rafael",
+
+  "jurisdictions": {
+    "city-san-rafael": {
+      "domain": "san-rafael.civicosproject.org",
+      "display_name": "San Rafael",
+      "modal_app_name": "civicos-san-rafael"
+    },
+    "state-california": {
+      "domain": "california.civicosproject.org",
+      "display_name": "California",
+      "modal_app_name": "civicos-california"
+    },
+    "country-united-states": {
+      "domain": "federal.civicosproject.org",
+      "display_name": "Federal",
+      "modal_app_name": "civicos-federal"
+    },
+    "city-berkeley": {
+      "domain": "berkeley.civicosproject.org",
+      "display_name": "Berkeley",
+      "modal_app_name": "civicos-berkeley"
+    }
+  },
+
+  "relay": {
+    "url": "https://api.civicosproject.org",
+    "modal_app_name": "civicos-relay"
+  },
+
+  "local_dev": {
+    "relay_url": "http://localhost:8003",
+    "mcp_url": "http://localhost:8001",
+    "ws_url": "ws://localhost:8002"
+  }
+}

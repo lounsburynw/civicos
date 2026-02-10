@@ -83,6 +83,17 @@ from civicos.jurisdiction import JurisdictionRegistry, JurisdictionConfig, CITY_
 # Runtime configuration (turnkey deployment)
 from civicos.config import CivicOSConfig, PeerConfig, ExtractorConfig, load_config
 
+# Service registry (URL resolution)
+from civicos.registry import (
+    get_jurisdiction_url,
+    get_default_jurisdiction_url,
+    get_default_jurisdiction,
+    get_relay_url,
+    get_jurisdiction_domain,
+    get_modal_app_name,
+    get_modal_workspace,
+)
+
 # Path resolution (centralized data paths)
 from civicos.paths import (
     DataPathResolver,
@@ -182,6 +193,14 @@ __all__ = [
     "get_state_db_path",
     "get_vectors_dir",
     "get_checkpoints_dir",
+    # Service registry
+    "get_jurisdiction_url",
+    "get_default_jurisdiction_url",
+    "get_default_jurisdiction",
+    "get_relay_url",
+    "get_jurisdiction_domain",
+    "get_modal_app_name",
+    "get_modal_workspace",
     # MCP
     "MCP_AVAILABLE",
     "mcp_server",

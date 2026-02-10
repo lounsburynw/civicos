@@ -322,7 +322,8 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
         import httpx
         import os
 
-        relay_url = os.environ.get("CIVICOS_RELAY_URL") or os.environ.get("CIVICOS_API_URL") or "https://lounsburynw--civicos-relay-relayserver-relay-endpoint.modal.run"
+        from civicos.registry import get_relay_url
+        relay_url = os.environ.get("CIVICOS_RELAY_URL") or os.environ.get("CIVICOS_API_URL") or get_relay_url()
         relay_url = relay_url.rstrip("/")
         entity_id = request.entity_id
 
