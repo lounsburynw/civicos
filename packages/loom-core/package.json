@@ -1,0 +1,21 @@
+{
+  "name": "loom-core",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./nostr": "./dist/nostr/index.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@noble/secp256k1": "^3.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}
