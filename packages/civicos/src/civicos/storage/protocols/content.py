@@ -43,6 +43,7 @@ class ContentStorage(Protocol):
         since: Optional[datetime] = None,
         until: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve meetings with optional temporal query."""
         ...
@@ -82,6 +83,7 @@ class ContentStorage(Protocol):
         since: Optional[str] = None,
         until: Optional[str] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve decisions with optional filtering."""
         ...
@@ -110,6 +112,7 @@ class ContentStorage(Protocol):
         agenda_item: Optional[str] = None,
         source_type: Optional[str] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve chunks with optional filtering."""
         ...
@@ -135,6 +138,7 @@ class ContentStorage(Protocol):
         jurisdiction_id: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve agenda items with optional filtering."""
         ...
@@ -159,6 +163,7 @@ class ContentStorage(Protocol):
         jurisdiction_id: str,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve transcripts with temporal filtering."""
         ...

@@ -45,6 +45,7 @@ class LegislationStorage(Protocol):
         status: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve legislation with optional filtering."""
         ...
@@ -113,6 +114,7 @@ class LegislationStorage(Protocol):
         chapter: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve municipal code sections with temporal filtering."""
         ...
@@ -149,6 +151,7 @@ class LegislationStorage(Protocol):
         status: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve codified law sections with optional filtering."""
         ...
@@ -190,6 +193,7 @@ class LegislationStorage(Protocol):
         signing_date_after: Optional[date] = None,
         signing_date_before: Optional[date] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve Executive Orders with optional filtering."""
         ...

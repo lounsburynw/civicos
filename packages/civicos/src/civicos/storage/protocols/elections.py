@@ -42,6 +42,7 @@ class ElectionStorage(Protocol):
         include_past: bool = False,
         election_type: Optional[str] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve elections with optional filtering."""
         ...

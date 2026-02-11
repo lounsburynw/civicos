@@ -49,6 +49,7 @@ class CommunityStorage(Protocol):
         issue_type: Optional[str] = None,
         limit: Optional[int] = None,
         created_after: Optional[datetime] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve 311 issues with optional filtering."""
         ...

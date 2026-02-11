@@ -102,6 +102,7 @@ class CreateInitiativeRequest(BaseModel):
     location: Optional[str] = Field(default=None, description="Optional physical location")
     public_key: str = Field(description="Creator's public key (hex-encoded)")
     signature: str = Field(description="Signature of initiative data (hex-encoded)")
+    created_at: Optional[int] = Field(default=None, description="Unix timestamp from signed message")
 
 
 class InitiativeResponse(BaseModel):
@@ -862,7 +863,11 @@ async def create_initiative(request: CreateInitiativeRequest):
 
         # Generate initiative ID
         initiative_id = _generate_initiative_id(request.jurisdiction, request.title)
-        timestamp = datetime.utcnow()
+        timestamp = (
+            datetime.utcfromtimestamp(request.created_at)
+            if request.created_at is not None
+            else datetime.utcnow()
+        )
 
         # Create the message that should have been signed
         message = _create_initiative_message(
