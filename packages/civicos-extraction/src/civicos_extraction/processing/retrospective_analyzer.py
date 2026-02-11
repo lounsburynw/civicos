@@ -45,8 +45,6 @@ class HighStakesDecision:
     is_high_stakes: bool
     stakes_score: int  # 1-10 scale
     decision_type: str  # budget, development, environmental, policy
-    item_type: str = "action"  # action, consent, presentation, hearing, discussion
-    extracted_outcome: Optional[str] = None  # LLM-classified outcome
 
     # Impact metadata
     budget_amount: Optional[float]  # Extracted dollar amount
@@ -67,15 +65,13 @@ class HighStakesDecision:
     agenda_url: Optional[str]
     staff_report_url: Optional[str]
 
-    # Source metadata (multi-document tracking - NEW)
+    # Fields with defaults must follow fields without defaults
+    item_type: str = "action"  # action, consent, presentation, hearing, discussion
+    extracted_outcome: Optional[str] = None  # LLM-classified outcome
     full_agenda_packet_url: Optional[str] = None  # Full agenda packet PDF
     minutes_url: Optional[str] = None  # Meeting minutes PDF
-
-    # Testimony & participation data (from minutes - NEW)
     testimony_count: Optional[int] = None  # Number of public speakers
     speaker_names: List[str] = None  # Speaker names from minutes
-
-    # Vote & outcome data (from minutes - NEW)
     vote_results: Optional[Dict[str, int]] = None  # {"yes": N, "no": N, "abstain": N}
     passed: Optional[bool] = None  # None = not a vote item; True/False = vote result
 
