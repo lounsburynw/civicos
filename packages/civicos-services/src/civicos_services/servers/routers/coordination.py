@@ -169,6 +169,7 @@ class CreateCivicActionEventRequest(BaseModel):
     deadline: Optional[str] = Field(default=None, description="Deadline ISO 8601")
     template: Optional[str] = Field(default=None, description="Template text for action")
     target_count: Optional[int] = Field(default=None, description="Target number of completions")
+    deadline_context: Optional[str] = Field(default=None, description="Why this deadline matters")
 
 
 class CivicActionEventResponse(BaseModel):
@@ -181,6 +182,7 @@ class CivicActionEventResponse(BaseModel):
     deadline: Optional[str] = None
     template: Optional[str] = None
     target_count: Optional[int] = None
+    deadline_context: Optional[str] = None
     public_key: str
     timestamp: str
     revoked: bool = False
@@ -201,6 +203,12 @@ class CivicCommitmentResponse(BaseModel):
     public_key: str
     timestamp: str
     revoked: bool = False
+
+
+class CivicWithdrawRequest(BaseModel):
+    """Request to withdraw a commitment to a civic action."""
+    public_key: str = Field(description="Committer's public key (hex-encoded)")
+    signature: str = Field(description="Signature of withdrawal (hex-encoded)")
 
 
 class CivicCompletionRequest(BaseModel):
@@ -1649,6 +1657,7 @@ async def create_civic_action_event(request: CreateCivicActionEventRequest):
             deadline=deadline,
             template=request.template,
             target_count=request.target_count,
+            deadline_context=request.deadline_context,
         )
 
         logger.info(f"Civic action created: {action.id} for initiative {request.initiative_id}")
@@ -1662,6 +1671,7 @@ async def create_civic_action_event(request: CreateCivicActionEventRequest):
             deadline=action.deadline.isoformat() if action.deadline else None,
             template=action.template,
             target_count=action.target_count,
+            deadline_context=action.deadline_context,
             public_key=action.public_key,
             timestamp=action.timestamp.isoformat(),
             revoked=action.revoked,
@@ -1701,6 +1711,7 @@ async def list_civic_actions_for_initiative(initiative_id: str):
                 deadline=a.deadline.isoformat() if a.deadline else None,
                 template=a.template,
                 target_count=a.target_count,
+                deadline_context=a.deadline_context,
                 public_key=a.public_key,
                 timestamp=a.timestamp.isoformat(),
                 revoked=a.revoked,
@@ -1745,6 +1756,7 @@ async def get_civic_action_event(action_id: str):
             deadline=action.deadline.isoformat() if action.deadline else None,
             template=action.template,
             target_count=action.target_count,
+            deadline_context=action.deadline_context,
             public_key=action.public_key,
             timestamp=action.timestamp.isoformat(),
             revoked=action.revoked,
@@ -1844,6 +1856,63 @@ async def commit_to_civic_action(action_id: str, request: CivicCommitmentRequest
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Error committing to civic action: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.post(
+    "/coordination/civic-action/{action_id:path}/withdraw",
+)
+async def withdraw_civic_action_commitment(action_id: str, request: CivicWithdrawRequest):
+    """
+    Withdraw a commitment to a civic action.
+
+    Only the original committer can withdraw their commitment.
+    """
+    service = _get_civic_action_service()
+    if not service:
+        raise HTTPException(
+            status_code=503,
+            detail="Civic action service not configured"
+        )
+
+    try:
+        from civicos_relay.voice.crypto import verify_signature
+
+        # Verify signature (same message format as commitment)
+        message = f"civicos:withdraw:v1:{action_id}"
+        if not verify_signature(request.public_key, request.signature, message):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid withdrawal signature"
+            )
+
+        success = service.withdraw_commitment(
+            action_id=action_id,
+            public_key=request.public_key,
+        )
+
+        if not success:
+            raise HTTPException(
+                status_code=404,
+                detail="No commitment found to withdraw"
+            )
+
+        logger.info(f"Commitment withdrawn for action {action_id} by {request.public_key[:16]}...")
+
+        # Refresh progress
+        progress = service.get_action_progress(action_id)
+        return {
+            "status": "withdrawn",
+            "action_id": action_id,
+            "commitment_count": progress.commitment_count,
+        }
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error withdrawing civic action commitment: {e}")
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
 

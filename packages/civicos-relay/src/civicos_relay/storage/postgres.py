@@ -1093,11 +1093,11 @@ class PostgresCivicActionEventStorage:
                     """
                     INSERT INTO coordination_action_events
                     (id, initiative_id, action_type, description, target, deadline,
-                     template, target_count, public_key, signature, timestamp, revoked)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     template, target_count, deadline_context, public_key, signature, timestamp, revoked)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (id) DO UPDATE SET
                     description = %s, target = %s, deadline = %s, template = %s,
-                    target_count = %s, revoked = %s
+                    target_count = %s, deadline_context = %s, revoked = %s
                     """,
                     (
                         action.id,
@@ -1108,6 +1108,7 @@ class PostgresCivicActionEventStorage:
                         action.deadline,
                         action.template,
                         action.target_count,
+                        action.deadline_context,
                         action.public_key,
                         action.signature,
                         action.timestamp,
@@ -1117,6 +1118,7 @@ class PostgresCivicActionEventStorage:
                         action.deadline,
                         action.template,
                         action.target_count,
+                        action.deadline_context,
                         action.revoked,
                     ),
                 )
@@ -1133,7 +1135,7 @@ class PostgresCivicActionEventStorage:
                 cur.execute(
                     """
                     SELECT id, initiative_id, action_type, description, target, deadline,
-                           template, target_count, public_key, signature, timestamp, revoked
+                           template, target_count, deadline_context, public_key, signature, timestamp, revoked
                     FROM coordination_action_events
                     WHERE id = %s
                     """,
@@ -1150,10 +1152,11 @@ class PostgresCivicActionEventStorage:
                         deadline=row[5],
                         template=row[6],
                         target_count=row[7],
-                        public_key=row[8],
-                        signature=row[9],
-                        timestamp=row[10],
-                        revoked=row[11],
+                        deadline_context=row[8],
+                        public_key=row[9],
+                        signature=row[10],
+                        timestamp=row[11],
+                        revoked=row[12],
                     )
                 return None
         finally:
@@ -1168,7 +1171,7 @@ class PostgresCivicActionEventStorage:
                 cur.execute(
                     """
                     SELECT id, initiative_id, action_type, description, target, deadline,
-                           template, target_count, public_key, signature, timestamp, revoked
+                           template, target_count, deadline_context, public_key, signature, timestamp, revoked
                     FROM coordination_action_events
                     WHERE initiative_id = %s AND revoked = FALSE
                     ORDER BY timestamp DESC
@@ -1185,10 +1188,11 @@ class PostgresCivicActionEventStorage:
                         deadline=row[5],
                         template=row[6],
                         target_count=row[7],
-                        public_key=row[8],
-                        signature=row[9],
-                        timestamp=row[10],
-                        revoked=row[11],
+                        deadline_context=row[8],
+                        public_key=row[9],
+                        signature=row[10],
+                        timestamp=row[11],
+                        revoked=row[12],
                     )
                     for row in cur.fetchall()
                 ]
@@ -1303,7 +1307,7 @@ class PostgresCivicCommitmentStorage:
                     """
                     SELECT id, action_ref, status, public_key, signature, timestamp, revoked
                     FROM coordination_commitments
-                    WHERE action_ref = %s AND revoked = FALSE
+                    WHERE action_ref = %s AND revoked = FALSE AND status != 'withdrawn'
                     ORDER BY timestamp DESC
                     """,
                     (action_ref,),

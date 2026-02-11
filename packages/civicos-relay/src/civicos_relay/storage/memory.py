@@ -415,6 +415,7 @@ class InMemoryCivicActionEventStorage:
                 deadline=old.deadline,
                 template=old.template,
                 target_count=old.target_count,
+                deadline_context=old.deadline_context,
                 public_key=old.public_key,
                 signature=old.signature,
                 timestamp=old.timestamp,
@@ -444,6 +445,7 @@ class InMemoryCivicCommitmentStorage:
         return [
             c for c in self._commitments.values()
             if c.action_ref == action_ref and not c.revoked
+            and c.status != CommitmentStatus.WITHDRAWN
         ]
 
     def update_commitment_status(

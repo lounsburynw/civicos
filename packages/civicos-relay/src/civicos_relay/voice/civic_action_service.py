@@ -129,6 +129,7 @@ class CivicActionService:
         deadline: Optional[datetime] = None,
         template: Optional[str] = None,
         target_count: Optional[int] = None,
+        deadline_context: Optional[str] = None,
     ) -> CivicActionEvent:
         """
         Create a new civic action event.
@@ -148,6 +149,7 @@ class CivicActionService:
             deadline=deadline,
             template=template,
             target_count=target_count,
+            deadline_context=deadline_context,
             public_key=public_key,
             signature=signature,
         )
