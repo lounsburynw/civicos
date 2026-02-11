@@ -338,18 +338,16 @@ def decisions_exist(meeting_id: str, output_dir: str) -> bool:
     return output_path.exists()
 
 
-def decisions_exist_in_cloud(jurisdiction_id: str, meeting_date: str) -> bool:
-    """Check if decisions exist in cloud storage for a meeting date."""
+def decisions_exist_in_cloud(jurisdiction_id: str, meeting_id: str) -> bool:
+    """Check if decisions exist in cloud storage for a specific meeting."""
     try:
         from civicos.storage import get_storage_backend
 
         backend = get_storage_backend()
         if backend.backend_type == "postgres":
-            # Check for decisions on this specific date
             decisions = backend.get_decisions(
                 jurisdiction_id,
-                since=meeting_date,
-                until=meeting_date,
+                meeting_id=meeting_id,
                 limit=1,
             )
             return len(decisions) > 0
@@ -399,7 +397,7 @@ def extract_decisions_from_meeting(
             status="skipped",
         )
 
-    if cloud_mode and decisions_exist_in_cloud(jurisdiction_id, meeting_date):
+    if cloud_mode and decisions_exist_in_cloud(jurisdiction_id, meeting_id):
         logger.info(f"  Skipping (already extracted in cloud): {meeting_id}")
         return DecisionResult(
             meeting_id=meeting_id,
@@ -625,7 +623,7 @@ def run_decision_extraction(
             # Check both local and cloud
             exists = decisions_exist(meeting_id, output_dir)
             if cloud_mode and not exists:
-                exists = decisions_exist_in_cloud(jurisdiction_id, meeting_date)
+                exists = decisions_exist_in_cloud(jurisdiction_id, meeting_id)
             status = "(already extracted)" if exists else ""
 
             if exists:

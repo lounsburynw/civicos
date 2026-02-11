@@ -1481,11 +1481,101 @@ def _embed_and_store_batch(
     return result
 
 
+def _embed_and_store_inline(
+    chunks: list[dict],
+    jurisdiction_id: str,
+    corpus_type: str,
+    reindex: bool,
+    pgvector,
+) -> dict:
+    """Embed and store a small corpus inline (no worker containers).
+
+    Same logic as _embed_and_store_batch but runs inside the orchestrator,
+    avoiding the overhead of spawning 64GB worker containers for small corpora.
+    """
+    import hashlib
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    texts = []
+    for chunk in chunks:
+        if corpus_type == "budget_items":
+            parts = []
+            if chunk.get("department"):
+                parts.append(f"Department: {chunk['department']}")
+            if chunk.get("fund"):
+                parts.append(f"Fund: {chunk['fund']}")
+            if chunk.get("program"):
+                parts.append(f"Program: {chunk['program']}")
+            if chunk.get("line_item"):
+                parts.append(f"Line Item: {chunk['line_item']}")
+            if chunk.get("notes"):
+                parts.append(f"Notes: {chunk['notes']}")
+            if chunk.get("fiscal_year"):
+                parts.append(f"Fiscal Year: {chunk['fiscal_year']}")
+            content = "\n".join(parts) if parts else ""
+        else:
+            content = chunk.get("content") or chunk.get("text") or chunk.get("title", "")
+        texts.append(content)
+
+    embeddings = pgvector.encode_texts(texts, batch_size=len(texts))
+
+    records = []
+    for idx, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
+        if corpus_type == "budget_items":
+            chunk_id = chunk.get("item_id") or f"budget-{chunk.get('id', idx)}"
+            content = texts[idx]
+        else:
+            content = chunk.get("content") or chunk.get("text") or chunk.get("title", "")
+            chunk_id = chunk.get("id") or hashlib.sha256(
+                f"{jurisdiction_id}:{corpus_type}:{content[:200]}".encode()
+            ).hexdigest()[:32]
+
+        meeting_id = chunk.get("meeting_id")
+        if corpus_type == "budget_items":
+            meeting_title = f"{chunk.get('department', '')} - {chunk.get('line_item', '')}"
+            metadata = {
+                "budgeted_cents": chunk.get("budgeted_cents"),
+                "revised_cents": chunk.get("revised_cents"),
+                "actual_cents": chunk.get("actual_cents"),
+                "fiscal_year": chunk.get("fiscal_year"),
+                "fund": chunk.get("fund"),
+                "department": chunk.get("department"),
+                "program": chunk.get("program"),
+                "source_url": chunk.get("source_url"),
+                "source_page": chunk.get("source_page"),
+            }
+        else:
+            meeting_title = chunk.get("meeting_title")
+            metadata = chunk.get("metadata", {})
+
+        records.append({
+            "id": chunk_id,
+            "content": content,
+            "embedding": embedding.tolist() if hasattr(embedding, 'tolist') else embedding,
+            "meeting_id": meeting_id,
+            "meeting_title": meeting_title,
+            "meeting_datetime": chunk.get("meeting_datetime"),
+            "metadata": metadata,
+        })
+
+    result = pgvector.bulk_insert_embeddings(
+        records=records,
+        jurisdiction_id=jurisdiction_id,
+        corpus_type=corpus_type,
+        use_copy=reindex,
+    )
+    logger.info(f"  Inline indexed {result['success']} embeddings ({result['failed']} failed)")
+    return result
+
+
 @app.function(
     image=civic_image,
     secrets=[modal.Secret.from_name("civic-db")],
     memory=65536,  # 64GB for orchestrator (loads all chunks)
     timeout=1800,  # 30 min total
+    volumes={"/cache": model_cache},  # For inline embedding (small corpora)
 )
 def index_vectors(
     jurisdiction: str = "city-san-rafael",
@@ -1493,7 +1583,11 @@ def index_vectors(
     reindex: bool = False,
     num_workers: int = 40,  # CPU-only workers (no GPU concurrency limit applies)
 ) -> dict:
-    """Generate embeddings and store to pgvector using parallel workers."""
+    """Generate embeddings and store to pgvector using parallel workers.
+
+    For small corpora (< 500 items), embeds inline to avoid spawning
+    dozens of 64GB worker containers for trivial workloads.
+    """
     import logging
     import os
     import time
@@ -1501,6 +1595,9 @@ def index_vectors(
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logger = logging.getLogger(__name__)
     start_time = time.time()
+
+    # Set fastembed cache path (shared volume, same as workers)
+    os.environ["FASTEMBED_CACHE_PATH"] = "/cache/fastembed"
 
     from civicos.storage import get_storage_backend
     from civicos.storage.pgvector_backend import PgVectorBackend
@@ -1515,7 +1612,7 @@ def index_vectors(
     if not database_url:
         raise ValueError("DATABASE_URL not set")
 
-    logger.info(f"[VECTORS] Starting parallel indexing: jurisdiction={jurisdiction}, corpus={corpus}, workers={num_workers}")
+    logger.info(f"[VECTORS] Starting indexing: jurisdiction={jurisdiction}, corpus={corpus}")
 
     backend = get_storage_backend(database_url)
     pgvector = PgVectorBackend(connection_string=database_url, provider_type="fastembed")
@@ -1591,27 +1688,39 @@ def index_vectors(
             results[ct] = {"status": "skipped", "indexed": 0}
             continue
 
-        logger.info(f"  Expanded to {len(chunks)} chunks, dispatching to {num_workers} workers")
+        # Fast path: embed inline for small corpora (avoids spawning dozens of
+        # 64GB worker containers for trivial workloads like 60 decisions).
+        # Threshold of 500 covers decisions, meetings, budget_items, agenda_items.
+        INLINE_THRESHOLD = 500
+        if len(chunks) <= INLINE_THRESHOLD:
+            logger.info(f"  {len(chunks)} chunks — embedding inline (below {INLINE_THRESHOLD} threshold)")
+            worker_result = _embed_and_store_inline(chunks, jurisdiction, ct, reindex, pgvector)
+            total_success = worker_result["success"]
+            total_failed = worker_result["failed"]
+            num_batches = 0
+        else:
+            logger.info(f"  {len(chunks)} chunks — dispatching to {num_workers} parallel workers")
 
-        # Split into batches for parallel processing
-        batch_size = max(1, len(chunks) // num_workers)
-        batches = [
-            (chunks[i:i + batch_size], jurisdiction, ct, reindex)
-            for i in range(0, len(chunks), batch_size)
-        ]
+            # Split into batches for parallel processing
+            batch_size = max(1, len(chunks) // num_workers)
+            batches = [
+                (chunks[i:i + batch_size], jurisdiction, ct, reindex)
+                for i in range(0, len(chunks), batch_size)
+            ]
 
-        # Run parallel workers
-        worker_results = list(_embed_and_store_batch.starmap(batches))
+            # Run parallel workers
+            worker_results = list(_embed_and_store_batch.starmap(batches))
 
-        # Aggregate results
-        total_success = sum(r["success"] for r in worker_results)
-        total_failed = sum(r["failed"] for r in worker_results)
+            # Aggregate results
+            total_success = sum(r["success"] for r in worker_results)
+            total_failed = sum(r["failed"] for r in worker_results)
+            num_batches = len(batches)
 
         results[ct] = {
             "status": "success" if total_failed == 0 else "partial",
             "indexed": total_success,
             "failed": total_failed,
-            "workers": len(batches),
+            "workers": num_batches,
         }
         logger.info(f"  Indexed {total_success} chunks ({total_failed} failed)")
 
@@ -2621,6 +2730,8 @@ def extract_decisions(
     limit: int = 0,
     dry_run: bool = False,
     auto_index: bool = False,
+    since: str = "",
+    until: str = "",
 ) -> dict:
     """Extract high-stakes decisions from meeting minutes using LLM.
 
@@ -2649,6 +2760,8 @@ def extract_decisions(
         limit: Maximum meetings to process (0 = no limit)
         dry_run: If True, show what would be processed without extracting
         auto_index: If True, trigger vector indexing after successful extraction
+        since: Filter meetings since this date (YYYY-MM-DD)
+        until: Filter meetings until this date (YYYY-MM-DD)
     """
     import logging
     import os
@@ -2666,22 +2779,18 @@ def extract_decisions(
         raise ValueError("DATABASE_URL not set")
 
     backend = PostgresBackend(database_url)
-    logger.info(f"[DECISIONS] Starting extraction: jurisdiction={jurisdiction}, limit={limit}")
+    logger.info(f"[DECISIONS] Starting extraction: jurisdiction={jurisdiction}, limit={limit}, since={since or 'all'}, until={until or 'all'}")
 
-    # run_decision_extraction handles:
-    # - Reading meetings from Postgres (cloud mode via DATABASE_URL)
-    # - Incremental extraction (skips already-extracted meetings)
-    # - LLM-powered decision extraction via RetrospectiveAnalyzer
-    # - Storing decisions to Postgres
     results = run_decision_extraction(
         jurisdiction_id=jurisdiction,
-        # Local dirs not used in cloud mode, but required params
         input_dir="data/meetings",
         output_dir="data/decisions",
         checkpoint_dir="data/checkpoints",
         dry_run=dry_run,
         limit=limit,
-        cloud=True,  # Force cloud storage mode
+        cloud=True,
+        since=since or None,
+        until=until or None,
     )
 
     # Summarize results
@@ -3617,6 +3726,8 @@ def main(
     chunks_limit: int = 0,
     agenda_limit: int = 0,
     decisions_limit: int = 0,
+    decisions_since: str = "",
+    decisions_until: str = "",
     meetings_days_past: int = 30,
     incremental: bool = False,
     reindex: bool = False,
@@ -3939,6 +4050,8 @@ def main(
             limit=decisions_limit,
             dry_run=dry_run,
             auto_index=auto_index,
+            since=decisions_since,
+            until=decisions_until,
         )
         print(f"  decisions: {decisions_result.get('elapsed_seconds', 0):.1f}s, cost: ${decisions_result.get('cost_usd', 0):.4f}")
 
