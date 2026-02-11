@@ -428,7 +428,8 @@ def extract_decisions_from_meeting(
 
         logger.info(f"  Extracting decisions from agenda...")
 
-        # Extract decisions
+        # Extract decisions — AgendaDownloadError is raised when the agenda
+        # PDF cannot be fetched, distinguishing it from "no decisions found"
         high_stakes_decisions = analyzer.extract_high_stakes_decisions(
             event=meeting,
             min_budget=min_budget,
@@ -500,7 +501,12 @@ def extract_decisions_from_meeting(
         )
 
     except Exception as e:
-        logger.error(f"  Error extracting decisions: {e}")
+        # AgendaDownloadError distinguishes download failures from extraction errors
+        from civicos_extraction.processing.retrospective_analyzer import AgendaDownloadError
+        if isinstance(e, AgendaDownloadError):
+            logger.warning(f"  Agenda download failed: {e}")
+        else:
+            logger.error(f"  Error extracting decisions: {e}")
         return DecisionResult(
             meeting_id=meeting_id,
             meeting_date=meeting_date,
@@ -752,6 +758,15 @@ def run_decision_extraction(
     else:
         logger.info(f"Decisions stored in: {output_dir}")
     logger.info("=" * 50)
+
+    # Sanity check: flag degraded runs where LLM was never invoked
+    non_skipped = items_extracted + items_failed
+    if non_skipped > 0 and total_tokens == 0:
+        logger.error(
+            f"DEGRADED RUN: {non_skipped} meetings processed but 0 LLM tokens used. "
+            f"Agenda downloads may be failing silently. "
+            f"Failed: {items_failed}, Extracted (0 decisions): {items_extracted}"
+        )
 
     return results
 
