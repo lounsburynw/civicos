@@ -809,12 +809,11 @@ async def get_provenance(public_key: str):
 
 
 def _generate_initiative_id(jurisdiction: str, title: str) -> str:
-    """Generate deterministic initiative ID from jurisdiction + title + timestamp."""
+    """Generate deterministic initiative ID from jurisdiction + title + date (UTC)."""
     import hashlib
-    from datetime import date
 
-    # Use date + title hash for uniqueness
-    today = date.today().isoformat()
+    # Use UTC date to match frontend's new Date().toISOString().slice(0, 10)
+    today = datetime.utcnow().date().isoformat()
     title_hash = hashlib.sha256(title.encode()).hexdigest()[:8]
     return f"initiative:{jurisdiction}:{today}:{title_hash}"
 
