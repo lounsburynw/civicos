@@ -2415,6 +2415,7 @@ class PostgresBackend:
         limit: Optional[int] = None,
         item_type: Optional[str] = None,
         offset: int = 0,
+        meeting_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve decisions with optional filtering.
@@ -2426,6 +2427,7 @@ class PostgresBackend:
             until: Filter decisions on/before this date (YYYY-MM-DD)
             limit: Maximum number of decisions to return
             item_type: Filter by item type (action, consent, presentation, hearing, discussion)
+            meeting_id: Filter by specific meeting ID
 
         Returns:
             List of decision dictionaries
@@ -2444,6 +2446,10 @@ class PostgresBackend:
               AND deleted_at IS NULL
         """
         params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
+
+        if meeting_id:
+            query += " AND meeting_id = %s"
+            params.append(meeting_id)
 
         if since:
             query += " AND meeting_date >= %s"
