@@ -221,6 +221,10 @@ class CivicActionEvent(BaseModel):
         default=None,
         description="Target number of completions needed"
     )
+    deadline_context: Optional[str] = Field(
+        default=None,
+        description="Why this deadline matters (e.g., 'Comment period closes March 1')"
+    )
     public_key: str = Field(description="Creator's public key (hex-encoded)")
     signature: str = Field(description="Signature of action data (hex-encoded)")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
