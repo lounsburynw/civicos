@@ -15,12 +15,20 @@ Extends agenda_integration.py with retrospective-specific capabilities:
 
 import json
 import html
+import logging
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
 import re
 
 from .agenda_integration import AgendaIntegrator, AgendaItem
+
+logger = logging.getLogger(__name__)
+
+
+class AgendaDownloadError(Exception):
+    """Raised when agenda PDF download or text extraction fails."""
+    pass
 
 
 @dataclass
@@ -151,16 +159,20 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
         # Get agenda URL (try multiple metadata sources)
         agenda_url = self._get_agenda_url(event)
         if not agenda_url:
-            print(f"⚠️  No agenda URL found for {event.get('title', 'Unknown')}")
+            logger.info(f"No agenda URL found for {event.get('title', 'Unknown')}")
             return []
 
         # Extract meeting type from event title or metadata
         meeting_type = self._infer_meeting_type(event)
 
-        # Download and extract text
+        # Download and extract text — raise on failure so callers can
+        # distinguish "download broken" from "no high-stakes decisions"
         text_content = self._download_and_extract_agenda(agenda_url, event)
         if not text_content:
-            return []
+            raise AgendaDownloadError(
+                f"Failed to download/extract agenda from {agenda_url} "
+                f"for {event.get('title', 'Unknown')}"
+            )
 
         # === PASS 1: Primary LLM extraction ===
         high_stakes_items = self._extract_with_high_stakes_prompt(
@@ -251,7 +263,7 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
             # Check size
             content_length = response.headers.get('content-length')
             if content_length and int(content_length) > 50_000_000:
-                print(f"⚠️ Agenda too large: {content_length} bytes")
+                logger.warning(f"Agenda too large: {content_length} bytes for {agenda_url}")
                 return None
 
             # Read content
@@ -260,7 +272,7 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
             for chunk in response.iter_content(chunk_size=8192):
                 size += len(chunk)
                 if size > 50_000_000:
-                    print(f"⚠️ Agenda exceeded size limit")
+                    logger.warning(f"Agenda exceeded size limit for {agenda_url}")
                     return None
                 content_bytes += chunk
 
@@ -277,7 +289,7 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
             return text_content
 
         except Exception as e:
-            print(f"⚠️ Failed to download agenda: {type(e).__name__}")
+            logger.warning(f"Failed to download agenda from {agenda_url}: {type(e).__name__}: {e}")
             return None
 
     def _extract_pdf_from_html_page(
@@ -330,13 +342,13 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
                             return self._download_pdf_content(pdf_url)
 
             # Strategy 4: Fallback to HTML text extraction
-            print(f"   ⚠️ No PDF found, using HTML text")
+            logger.info(f"No PDF found on {base_url}, using HTML text")
             for element in soup(['script', 'style', 'nav', 'header', 'footer']):
                 element.decompose()
             return soup.get_text(separator='\n', strip=True)
 
         except Exception as e:
-            print(f"   ⚠️ PDF extraction failed: {type(e).__name__}")
+            logger.warning(f"PDF extraction failed for {base_url}: {type(e).__name__}: {e}")
             return None
 
     def _download_pdf_content(self, pdf_url: str) -> Optional[str]:
@@ -346,7 +358,7 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
             response.raise_for_status()
             return self._extract_pdf_text(response.content)
         except Exception as e:
-            print(f"   ⚠️ PDF download failed: {type(e).__name__}")
+            logger.warning(f"PDF download failed for {pdf_url}: {type(e).__name__}: {e}")
             return None
 
     def _split_agenda_into_items(self, text_content: str) -> List[Tuple[str, str]]:
@@ -563,7 +575,7 @@ Return JSON with items array:"""
             # and the meeting should NOT be marked as "extracted"
             if "Auth" in type(e).__name__:
                 raise
-            print(f"   ⚠️ LLM extraction failed: {type(e).__name__}")
+            logger.warning(f"LLM extraction failed: {type(e).__name__}: {e}")
             return []
 
     def _scan_for_budget_amounts(
@@ -771,7 +783,7 @@ Return JSON with items array. If an item cannot be found or isn't a decision, om
         except Exception as e:
             if "Auth" in type(e).__name__:
                 raise
-            print(f"   ⚠️ Targeted extraction failed: {type(e).__name__}")
+            logger.warning(f"Targeted extraction failed: {type(e).__name__}: {e}")
             return []
 
     def _extract_from_item(

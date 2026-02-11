@@ -2703,13 +2703,28 @@ def extract_decisions(
     failed = sum(1 for r in results if r.status == "error")
     total_decisions = sum(r.decisions_count for r in results if r.status == "success")
 
+    # Detect degraded runs: many failures or zero decisions from many meetings
+    non_skipped = extracted + failed
+    is_degraded = failed > 0 and failed >= non_skipped * 0.5  # >50% failure rate
+    if is_degraded:
+        logger.error(
+            f"[DECISIONS] DEGRADED: {failed}/{non_skipped} meetings failed "
+            f"(likely agenda download failures from cloud IPs)"
+        )
+
     # Update refresh metadata
     if not dry_run:
+        status = "degraded" if is_degraded else "completed"
+        error_msg = (
+            f"{failed}/{non_skipped} meetings failed agenda download"
+            if is_degraded else None
+        )
         backend.update_refresh_metadata(
             jurisdiction, "decisions", "llm_extraction",
             items_fetched=len(results),
             items_stored=total_decisions,
-            status="completed",
+            status=status,
+            error_message=error_msg,
         )
 
     # Auto-index vectors if requested and decisions were extracted
