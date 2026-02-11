@@ -44,6 +44,7 @@ class FinancialStorage(Protocol):
         department: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve budget items with optional filtering."""
         ...
@@ -113,6 +114,7 @@ class FinancialStorage(Protocol):
         federal_fiscal_year: Optional[int] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """Retrieve state pass-through funding records with optional filtering."""
         ...

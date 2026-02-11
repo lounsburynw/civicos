@@ -64,7 +64,7 @@ def extract_state_code(jurisdiction: str) -> str:
     image=civic_image,
     secrets=[modal.Secret.from_name("civic-db")],
     gpu="T4",  # T4 sufficient for embeddings, bulk DB inserts are the win
-    memory=16384,  # 16GB — fastembed-gpu + ONNX runtime needs headroom for large corpora
+    memory=16384,  # 16GB — windowed processing bounds memory regardless of corpus size
     timeout=3600,
     retries=modal.Retries(
         max_retries=2,
@@ -75,11 +75,12 @@ def extract_state_code(jurisdiction: str) -> str:
 def index_corpus(
     corpus: str,
     jurisdiction: str = "city-san-rafael",
-    batch_size: int = 500,  # Larger batches for bulk inserts
+    batch_size: int = 200,  # Balance GPU memory vs DB round-trips
     offset: int = 0,
     limit: int | None = None,
     reindex: bool = False,
     cost_limit_usd: float = 5.0,  # Abort if estimated cost exceeds this
+    window_size: int = 0,  # 0 = auto-select based on corpus type
 ) -> dict:
     """
     Index a corpus type into pgvector.
@@ -224,6 +225,7 @@ def index_corpus(
                 transcript_chunker=transcript_chunker,
                 legal_chunker=legal_chunker_fn,
                 use_copy=reindex,  # COPY is 10x faster when vectors deleted first
+                window_size=window_size,
             )
 
             results[ct] = {
@@ -443,7 +445,7 @@ def delete_vectors(jurisdiction: str, corpus: str) -> int:
     image=civic_image,
     secrets=[modal.Secret.from_name("civic-db")],
     cpu=16,  # 16 CPUs for fast parallel embedding inference
-    memory=131072,  # 128GB RAM - very liberal to avoid OOM with large legislation chunk expansion
+    memory=16384,  # 16GB — windowed processing bounds memory regardless of corpus size
     timeout=7200,  # 2 hours to handle large batches
 )
 def index_batch(
@@ -533,12 +535,13 @@ def index_batch(
 def main(
     corpus: str = "all",
     jurisdiction: str = "city-san-rafael",
-    batch_size: int = 1000,  # Large batches reduce DB round-trips
+    batch_size: int = 200,  # Balance GPU memory vs DB round-trips (1000 OOMs at 16GB)
     offset: int = 0,
     limit: int | None = None,
     reindex: bool = False,
     stats_only: bool = False,
     parallel: int = 1,
+    window_size: int = 0,  # 0 = auto-select based on corpus type
 ):
     """
     CLI entrypoint for modal run.
@@ -633,10 +636,12 @@ def main(
         return
 
     # Sequential processing (original behavior)
-    print(f"\nStarting vector indexing on Modal (16GB RAM)...")
+    print(f"\nStarting vector indexing on Modal (16GB RAM, windowed)...")
     print(f"Corpus: {corpus}, Jurisdiction: {jurisdiction}")
     if offset or limit:
         print(f"Range: offset={offset}, limit={limit}")
+    if window_size:
+        print(f"Window size: {window_size}")
 
     result = index_corpus.remote(
         corpus=corpus,
@@ -645,6 +650,7 @@ def main(
         offset=offset,
         limit=limit,
         reindex=reindex,
+        window_size=window_size,
     )
 
     print("\n" + "=" * 60)

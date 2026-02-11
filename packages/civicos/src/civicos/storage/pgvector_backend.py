@@ -45,6 +45,18 @@ def _serialize_metadata(metadata: Dict[str, Any]) -> str:
     return json.dumps(metadata, default=default_serializer)
 
 
+# Default window sizes for windowed indexing (raw documents per window).
+# Chunked types use smaller windows because each raw doc expands to many chunks.
+_DEFAULT_WINDOW_SIZES = {
+    "transcripts": 5,        # ~880 chunks per window (5 raw × ~176 chunks each)
+    "legislation": 50,       # Bills expand to many chunks
+    "codified_law": 100,     # Variable expansion
+    "executive_orders": 100, # Variable expansion
+    "municipal_code": 500,   # 1-3 chunks each
+}
+_DEFAULT_WINDOW_SIZE = 1000  # Non-chunked types: direct storage rows
+
+
 # Optional imports - only required if PgVectorBackend is used
 try:
     import psycopg2
@@ -742,195 +754,110 @@ class PgVectorBackend:
 
         return "\n".join(parts) if parts else str(election)
 
-    def index_from_storage(
+    def _fetch_window(
         self,
         storage_backend: StorageBackend,
         jurisdiction_id: str,
-        corpus_type: str = "decisions",
-        batch_size: int = 100,
-        allow_dimension_change: bool = False,
-        offset: int = 0,
-        limit: Optional[int] = None,
-        transcript_chunker: Optional[callable] = None,
-        legal_chunker: Optional[callable] = None,
-        use_copy: bool = False,
-    ) -> int:
+        corpus_type: str,
+        window_offset: int,
+        window_limit: int,
+        transcript_chunker: Optional[callable],
+        legal_chunker: Optional[callable],
+    ) -> tuple:
         """
-        Build vector index from StorageBackend.
-
-        Reads documents from storage, generates embeddings via configured provider,
-        and stores in pgvector-enabled PostgreSQL table.
-
-        Args:
-            storage_backend: Source of documents to index
-            jurisdiction_id: Target jurisdiction (for legislation, use "state-CA" format)
-            corpus_type: Type of documents ("decisions", "chunks", "meetings",
-                        "transcripts", "municipal_code", "issues", "legislation",
-                        "agenda_items", "elections")
-            batch_size: Number of documents to process at once
-            allow_dimension_change: If True, recreate table if embedding dimension differs
-            offset: Skip first N documents (for splitting across jobs)
-            limit: Process at most N documents (for splitting across jobs)
-            use_copy: If True, use PostgreSQL COPY for bulk inserts (10x faster).
-                     Only safe when existing vectors have been deleted first (no duplicates).
-            transcript_chunker: Callable that accepts list of transcripts and returns
-                              list of chunk dicts. Required when corpus_type="transcripts".
-                              Use civic._internal.meetings.transcript.expand_transcripts_to_chunks.
-            legal_chunker: Callable that accepts list of documents and returns
-                          list of chunk dicts. Required when corpus_type="municipal_code"
-                          or corpus_type="legislation".
-                          For municipal_code: use expand_municipal_code_to_chunks.
-                          For legislation: use expand_legislation_to_chunks.
+        Fetch one window of documents from storage, expanding chunked types.
 
         Returns:
-            Number of documents successfully indexed
+            (documents, raw_count) where raw_count is the number of storage rows
+            fetched (before expansion). For non-chunked types, raw_count == len(documents).
         """
-        conn = self._get_connection()
-
-        # Ensure schema exists (may recreate if dimension changed and allowed)
-        self._ensure_schema(conn, allow_dimension_change=allow_dimension_change)
-
-        cursor = conn.cursor()
-
-        # Get documents from storage based on corpus type
         if corpus_type == "decisions":
-            documents = storage_backend.get_decisions(jurisdiction_id)
+            docs = storage_backend.get_decisions(jurisdiction_id, limit=window_limit, offset=window_offset)
+            return docs, len(docs)
         elif corpus_type == "chunks":
-            documents = storage_backend.get_chunks(jurisdiction_id)
+            docs = storage_backend.get_chunks(jurisdiction_id, limit=window_limit, offset=window_offset)
+            return docs, len(docs)
         elif corpus_type == "meetings":
-            documents = storage_backend.get_meetings(jurisdiction_id)
+            docs = storage_backend.get_meetings(jurisdiction_id, limit=window_limit, offset=window_offset)
+            return docs, len(docs)
         elif corpus_type == "transcripts":
-            # Expand transcripts to chunks for semantic search
-            if transcript_chunker is None:
-                raise ValueError(
-                    "transcript_chunker is required when corpus_type='transcripts'. "
-                    "Use civic._internal.meetings.transcript.expand_transcripts_to_chunks"
-                )
-            raw_transcripts = storage_backend.get_transcripts(jurisdiction_id)
-            documents = transcript_chunker(raw_transcripts)
-
-            # Build video_id → meeting_id lookup for proper meeting linkage
-            # Transcript chunks have video_id but we need the actual meeting_id
-            video_to_meeting = storage_backend.get_video_meeting_mapping(jurisdiction_id)
-            if video_to_meeting:
-                logger.info(f"  Built video→meeting lookup: {len(video_to_meeting)} mappings")
-
-            # Build meeting_id → (datetime, title) lookup for enrichment
-            # Also build video_id → (date, title) fallback for videos without meeting links
-            meeting_metadata = {}
-            try:
-                all_meetings = storage_backend.get_meetings(jurisdiction_id)
-                for m in all_meetings:
-                    mid = m.get("id") or m.get("meeting_id")
-                    mdt = m.get("meeting_datetime")
-                    mtitle = m.get("title")
-                    if mid and mdt:
-                        meeting_metadata[mid] = (mdt, mtitle)
-                logger.info(f"  Built meeting metadata lookup: {len(meeting_metadata)} meetings")
-            except Exception as e:
-                logger.debug(f"  Could not load meeting metadata: {e}")
-
-            video_metadata = {}
-            try:
-                all_videos = storage_backend.get_videos(jurisdiction_id)
-                for v in all_videos:
-                    vid = v.get("id")
-                    vdate = v.get("date")
-                    vtitle = v.get("title")
-                    if vid and vdate:
-                        video_metadata[vid] = (vdate, vtitle)
-                logger.info(f"  Built video metadata fallback: {len(video_metadata)} videos")
-            except Exception as e:
-                logger.debug(f"  Could not load video metadata: {e}")
+            raw = storage_backend.get_transcripts(jurisdiction_id, limit=window_limit, offset=window_offset)
+            if not raw:
+                return [], 0
+            docs = transcript_chunker(raw)
+            return docs, len(raw)
         elif corpus_type == "municipal_code":
-            # Expand municipal code sections to chunks for semantic search
-            if legal_chunker is None:
-                raise ValueError(
-                    "legal_chunker is required when corpus_type='municipal_code'. "
-                    "Use civic._internal.legal.embeddings.chunker.expand_municipal_code_to_chunks"
-                )
-            raw_sections = storage_backend.get_municipal_code(jurisdiction_id)
-            documents = legal_chunker(raw_sections)
+            raw = storage_backend.get_municipal_code(jurisdiction_id, limit=window_limit, offset=window_offset)
+            if not raw:
+                return [], 0
+            docs = legal_chunker(raw)
+            return docs, len(raw)
         elif corpus_type == "issues":
-            documents = storage_backend.get_issues(jurisdiction_id)
+            docs = storage_backend.get_issues(jurisdiction_id, limit=window_limit, offset=window_offset)
+            return docs, len(docs)
         elif corpus_type == "legislation":
-            # Expand legislation bills to chunks for semantic search
-            if legal_chunker is None:
-                raise ValueError(
-                    "legal_chunker is required when corpus_type='legislation'. "
-                    "Use civic._internal.legal.embeddings.chunker.expand_legislation_to_chunks"
-                )
-            # Legislation uses state code, not jurisdiction_id
-            # Convention: pass "legislation-CA" or "state-CA" -> extracts "CA"
             state_code = jurisdiction_id.split("-")[-1].upper() if "-" in jurisdiction_id else jurisdiction_id.upper()
-            raw_bills = storage_backend.get_legislation(state=state_code)
-            documents = legal_chunker(raw_bills)
+            raw = storage_backend.get_legislation(state=state_code, limit=window_limit, offset=window_offset)
+            if not raw:
+                return [], 0
+            docs = legal_chunker(raw)
+            return docs, len(raw)
         elif corpus_type == "codified_law":
-            # Expand codified law sections to chunks for semantic search
-            if legal_chunker is None:
-                raise ValueError(
-                    "legal_chunker is required when corpus_type='codified_law'. "
-                    "Use civic._internal.legal.embeddings.chunker.expand_codified_law_to_chunks"
-                )
-            # Codified law uses jurisdiction_id directly (e.g., "federal-US", "state-CA", "federal-CFR")
-            raw_sections = storage_backend.get_codified_law(jurisdiction_id)
-            documents = legal_chunker(raw_sections)
+            raw = storage_backend.get_codified_law(jurisdiction_id, limit=window_limit, offset=window_offset)
+            if not raw:
+                return [], 0
+            docs = legal_chunker(raw)
+            return docs, len(raw)
         elif corpus_type == "executive_orders":
-            # Expand executive orders to chunks for semantic search
-            if legal_chunker is None:
-                raise ValueError(
-                    "legal_chunker is required when corpus_type='executive_orders'. "
-                    "Use civic._internal.legal.embeddings.chunker.expand_executive_orders_to_chunks"
-                )
-            # EOs don't take jurisdiction - they're all federal
-            raw_orders = storage_backend.get_executive_orders()
-            documents = legal_chunker(raw_orders)
+            raw = storage_backend.get_executive_orders(limit=window_limit, offset=window_offset)
+            if not raw:
+                return [], 0
+            docs = legal_chunker(raw)
+            return docs, len(raw)
         elif corpus_type == "elections":
-            # Elections don't need chunking - they're atomic documents
-            # Include past elections for historical context
-            documents = storage_backend.get_elections(
-                jurisdiction_id, include_past=True
-            )
+            docs = storage_backend.get_elections(jurisdiction_id, include_past=True, limit=window_limit, offset=window_offset)
+            return docs, len(docs)
         elif corpus_type == "agenda_items":
-            # Agenda items don't need chunking - they're individual items
-            documents = storage_backend.get_agenda_items(jurisdiction_id=jurisdiction_id)
+            docs = storage_backend.get_agenda_items(jurisdiction_id=jurisdiction_id, limit=window_limit, offset=window_offset)
+            return docs, len(docs)
         elif corpus_type == "programs":
-            # Federal programs don't need chunking - they're atomic definitions
-            # Programs are global (not jurisdiction-specific), so ignore jurisdiction_id
-            documents = storage_backend.get_programs()
+            # Programs are global and small — fetch all on first window only
+            if window_offset > 0:
+                return [], 0
+            docs = storage_backend.get_programs()
+            return docs, len(docs)
         elif corpus_type == "state_programs":
-            # State programs are per-jurisdiction (different grants per city)
-            # They're atomic grant definitions, no chunking needed
-            documents = storage_backend.get_state_passthrough_funds(jurisdiction_id)
+            docs = storage_backend.get_state_passthrough_funds(jurisdiction_id, limit=window_limit, offset=window_offset)
+            return docs, len(docs)
         elif corpus_type == "budget_items":
-            # Budget items are atomic (no chunking needed)
-            # Each line item is one embedding
-            documents = storage_backend.get_budget_items(jurisdiction_id)
+            docs = storage_backend.get_budget_items(jurisdiction_id, limit=window_limit, offset=window_offset)
+            return docs, len(docs)
         else:
             raise ValueError(f"Unknown corpus_type: {corpus_type}")
 
-        if not documents:
-            logger.warning(
-                f"No {corpus_type} found in storage for {jurisdiction_id}"
-            )
-            conn.close()
-            return 0
+    def _process_window(
+        self,
+        documents: List[Dict[str, Any]],
+        corpus_type: str,
+        jurisdiction_id: str,
+        batch_size: int,
+        use_copy: bool,
+        video_to_meeting: Dict[str, str],
+        meeting_metadata: Dict[str, tuple],
+        video_metadata: Dict[str, tuple],
+    ) -> int:
+        """
+        Embed and insert one window of documents into pgvector.
 
-        # Apply offset/limit for splitting across jobs
-        total_docs = len(documents)
-        if offset > 0 or limit is not None:
-            end_idx = (offset + limit) if limit else total_docs
-            documents = documents[offset:end_idx]
-            logger.info(f"  Processing docs {offset}-{min(end_idx, total_docs)} of {total_docs}")
+        Processes documents in batch_size chunks, generating embeddings and
+        inserting via COPY or upsert. Manages its own DB connections (reconnects
+        before each insert to handle cloud DB timeouts during embedding).
 
-        if not documents:
-            logger.info(f"  No documents in range (offset={offset}, limit={limit})")
-            conn.close()
-            return 0
-
+        Returns:
+            Number of documents successfully indexed in this window.
+        """
         indexed_count = 0
 
-        # Process in batches
         for i in range(0, len(documents), batch_size):
             batch = documents[i:i + batch_size]
 
@@ -959,14 +886,11 @@ class PgVectorBackend:
                     meeting_title = doc.get("title")
                     meeting_datetime = doc.get("meeting_datetime")
                 elif corpus_type == "transcripts":
-                    # doc is already a chunk from _expand_transcripts_to_chunks
+                    # doc is already a chunk from transcript_chunker
                     text = doc.get("text", "")
                     doc_id = doc.get("id", f"transcript-{i}-{idx}")
                     video_id = doc.get("video_id")
-                    # Resolve actual meeting_id via video→meeting lookup
-                    # Falls back to video_id if no meeting link exists
                     meeting_id = video_to_meeting.get(video_id, video_id) if video_to_meeting else video_id
-                    # Resolve meeting_datetime and title via meeting or video metadata
                     if meeting_id in meeting_metadata:
                         meeting_datetime, meeting_title = meeting_metadata[meeting_id]
                     elif video_id in video_metadata:
@@ -975,67 +899,63 @@ class PgVectorBackend:
                         meeting_datetime = None
                         meeting_title = None
                 elif corpus_type == "municipal_code":
-                    # doc is already a chunk from expand_municipal_code_to_chunks
                     text = doc.get("text", "")
                     doc_id = doc.get("id", f"mc-{i}-{idx}")
-                    meeting_id = None  # Not meeting-related
+                    meeting_id = None
                     meeting_title = doc.get("section_name")
                     meeting_datetime = None
                 elif corpus_type == "issues":
                     text = self._issue_to_text(doc)
                     doc_id = doc.get("issue_id") or doc.get("id", f"issue-{i}-{idx}")
-                    meeting_id = None  # Not meeting-related
+                    meeting_id = None
                     meeting_title = doc.get("summary") or doc.get("issue_type")
                     meeting_datetime = doc.get("created_at")
                 elif corpus_type == "legislation":
-                    # doc is already a chunk from expand_legislation_to_chunks
                     text = doc.get("text", "")
                     doc_id = doc.get("id", f"leg-{i}-{idx}")
-                    meeting_id = None  # Not meeting-related
+                    meeting_id = None
                     meeting_title = doc.get("bill_name") or doc.get("bill_number")
                     meeting_datetime = None
                 elif corpus_type == "codified_law":
-                    # doc is already a chunk from expand_codified_law_to_chunks
                     text = doc.get("text", "")
                     doc_id = doc.get("id", f"cl-{i}-{idx}")
-                    meeting_id = None  # Not meeting-related
+                    meeting_id = None
                     meeting_title = doc.get("citation") or doc.get("heading")
                     meeting_datetime = None
                 elif corpus_type == "executive_orders":
-                    # doc is already a chunk from expand_executive_orders_to_chunks
                     text = doc.get("text", "")
                     doc_id = doc.get("id", f"eo-{i}-{idx}")
-                    meeting_id = None  # Not meeting-related
+                    meeting_id = None
                     meeting_title = doc.get("title") or f"EO {doc.get('eo_number')}"
                     meeting_datetime = doc.get("signing_date")
                 elif corpus_type == "elections":
                     text = self._election_to_text(doc)
                     doc_id = doc.get("id", f"election-{i}-{idx}")
-                    meeting_id = None  # Not meeting-related
-                    meeting_title = doc.get("name")  # Election name
-                    meeting_datetime = None  # election_date is just a date
+                    meeting_id = None
+                    meeting_title = doc.get("name")
+                    meeting_datetime = None
                 elif corpus_type == "agenda_items":
                     text = self._agenda_item_to_text(doc)
                     doc_id = doc.get("id", f"agenda-{i}-{idx}")
                     meeting_id = doc.get("meeting_id")
                     meeting_title = doc.get("title")
-                    meeting_datetime = None  # meeting_datetime not directly on item
+                    meeting_datetime = None
                 elif corpus_type == "programs":
                     text = self._program_to_text(doc)
                     doc_id = doc.get("program_id") or doc.get("id", f"program-{i}-{idx}")
-                    meeting_id = None  # Not meeting-related
+                    meeting_id = None
                     meeting_title = doc.get("program_name")
                     meeting_datetime = None
                 elif corpus_type == "state_programs":
                     text = self._state_program_to_text(doc)
                     doc_id = doc.get("passthrough_id") or doc.get("id", f"state-program-{i}-{idx}")
-                    meeting_id = None  # Not meeting-related
+                    meeting_id = None
                     meeting_title = doc.get("state_program_name")
                     meeting_datetime = None
                 elif corpus_type == "budget_items":
                     text = self._budget_item_to_text(doc)
                     doc_id = doc.get("item_id") or doc.get("id", f"budget-{i}-{idx}")
-                    meeting_id = None  # Not meeting-related
+                    meeting_id = None
                     meeting_title = f"{doc.get('department', '')} - {doc.get('line_item', '')}"
                     meeting_datetime = None
 
@@ -1068,11 +988,7 @@ class PgVectorBackend:
             # Generate embeddings in batch using configured provider
             embeddings = self._embedding_provider.encode(texts, batch_size=batch_size)
 
-            # Reconnect before insert (cloud DBs may timeout during embedding)
-            try:
-                conn.close()
-            except Exception:
-                pass  # Connection may already be closed
+            # Open connection for insert (cloud DBs may timeout during embedding)
             conn = self._get_connection()
             cursor = conn.cursor()
 
@@ -1112,24 +1028,17 @@ class PgVectorBackend:
             # Bulk insert using COPY (10x faster) or execute_values (supports upsert)
             try:
                 if use_copy:
-                    # COPY is much faster but requires no duplicate IDs exist
-                    # Caller must delete existing vectors first (e.g., --reindex mode)
                     buffer = StringIO()
                     for row in insert_values:
-                        # Format: id, jurisdiction_id, corpus_type, content, embedding,
-                        #         embedding_model, meeting_id, meeting_title, meeting_datetime,
-                        #         metadata, created_at, updated_at
                         line_parts = []
                         for val in row:
                             if val is None:
                                 line_parts.append("\\N")
                             elif isinstance(val, list):
-                                # Format vector as pgvector string: [1.0,2.0,...]
                                 line_parts.append("[" + ",".join(str(x) for x in val) + "]")
                             elif isinstance(val, datetime):
                                 line_parts.append(val.isoformat())
                             else:
-                                # Escape tabs, newlines, backslashes for COPY format
                                 s = str(val)
                                 s = s.replace("\\", "\\\\")
                                 s = s.replace("\t", "\\t")
@@ -1148,9 +1057,7 @@ class PgVectorBackend:
                         ),
                     )
                 else:
-                    # execute_values with ON CONFLICT for upsert (safer for incremental)
                     from psycopg2.extras import execute_values
-                    # Strip created_at/updated_at - use SQL expressions instead
                     upsert_values = [row[:-2] for row in insert_values]
                     execute_values(
                         cursor,
@@ -1179,8 +1086,157 @@ class PgVectorBackend:
             except Exception as e:
                 logger.error(f"Bulk insert failed: {e}")
                 conn.rollback()
+            finally:
+                conn.close()
 
+        return indexed_count
+
+    def index_from_storage(
+        self,
+        storage_backend: StorageBackend,
+        jurisdiction_id: str,
+        corpus_type: str = "decisions",
+        batch_size: int = 100,
+        allow_dimension_change: bool = False,
+        offset: int = 0,
+        limit: Optional[int] = None,
+        transcript_chunker: Optional[callable] = None,
+        legal_chunker: Optional[callable] = None,
+        use_copy: bool = False,
+        window_size: int = 0,
+    ) -> int:
+        """
+        Build vector index from StorageBackend using windowed processing.
+
+        Processes documents in windows to bound memory usage regardless of corpus
+        size. Each window fetches a batch of documents from storage (via SQL
+        OFFSET/LIMIT), generates embeddings, and inserts into pgvector.
+
+        Args:
+            storage_backend: Source of documents to index
+            jurisdiction_id: Target jurisdiction (for legislation, use "state-CA" format)
+            corpus_type: Type of documents ("decisions", "chunks", "meetings",
+                        "transcripts", "municipal_code", "issues", "legislation",
+                        "agenda_items", "elections")
+            batch_size: Number of documents to embed at once within each window
+            allow_dimension_change: If True, recreate table if embedding dimension differs
+            offset: Skip first N documents (for splitting across jobs)
+            limit: Process at most N documents (for splitting across jobs)
+            use_copy: If True, use PostgreSQL COPY for bulk inserts (10x faster).
+                     Only safe when existing vectors have been deleted first (no duplicates).
+            transcript_chunker: Callable that accepts list of transcripts and returns
+                              list of chunk dicts. Required when corpus_type="transcripts".
+            legal_chunker: Callable that accepts list of documents and returns
+                          list of chunk dicts. Required for chunked legal corpus types.
+            window_size: Number of raw documents to fetch per window. 0 = auto-select
+                        based on corpus type. Chunked types use smaller windows since
+                        each raw doc expands to many chunks in memory.
+
+        Returns:
+            Number of documents successfully indexed
+        """
+        # Validate chunker requirements upfront
+        if corpus_type == "transcripts" and transcript_chunker is None:
+            raise ValueError(
+                "transcript_chunker is required when corpus_type='transcripts'. "
+                "Use civic._internal.meetings.transcript.expand_transcripts_to_chunks"
+            )
+        if corpus_type in ("municipal_code", "legislation", "codified_law", "executive_orders") and legal_chunker is None:
+            raise ValueError(
+                f"legal_chunker is required when corpus_type='{corpus_type}'"
+            )
+
+        # Auto-select window size based on corpus type
+        if window_size <= 0:
+            window_size = _DEFAULT_WINDOW_SIZES.get(corpus_type, _DEFAULT_WINDOW_SIZE)
+
+        # Ensure schema exists (may recreate if dimension changed and allowed)
+        conn = self._get_connection()
+        self._ensure_schema(conn, allow_dimension_change=allow_dimension_change)
         conn.close()
+
+        # Build metadata lookups once for transcripts (small data, reused across windows)
+        video_to_meeting: Dict[str, str] = {}
+        meeting_metadata: Dict[str, tuple] = {}
+        video_metadata: Dict[str, tuple] = {}
+        if corpus_type == "transcripts":
+            video_to_meeting = storage_backend.get_video_meeting_mapping(jurisdiction_id) or {}
+            if video_to_meeting:
+                logger.info(f"  Built video->meeting lookup: {len(video_to_meeting)} mappings")
+
+            try:
+                all_meetings = storage_backend.get_meetings(jurisdiction_id)
+                for m in all_meetings:
+                    mid = m.get("id") or m.get("meeting_id")
+                    mdt = m.get("meeting_datetime")
+                    mtitle = m.get("title")
+                    if mid and mdt:
+                        meeting_metadata[mid] = (mdt, mtitle)
+                logger.info(f"  Built meeting metadata lookup: {len(meeting_metadata)} meetings")
+            except Exception as e:
+                logger.debug(f"  Could not load meeting metadata: {e}")
+
+            try:
+                all_videos = storage_backend.get_videos(jurisdiction_id)
+                for v in all_videos:
+                    vid = v.get("id")
+                    vdate = v.get("date")
+                    vtitle = v.get("title")
+                    if vid and vdate:
+                        video_metadata[vid] = (vdate, vtitle)
+                logger.info(f"  Built video metadata fallback: {len(video_metadata)} videos")
+            except Exception as e:
+                logger.debug(f"  Could not load video metadata: {e}")
+
+        # Window loop: fetch, embed, insert in bounded-memory windows
+        indexed_count = 0
+        window_offset = offset
+        raw_docs_fetched = 0
+
+        logger.info(f"  Windowed indexing: window_size={window_size}, offset={offset}, limit={limit}")
+
+        while True:
+            # Calculate how many raw docs to fetch this window
+            fetch_limit = window_size
+            if limit is not None:
+                remaining = limit - raw_docs_fetched
+                if remaining <= 0:
+                    break
+                fetch_limit = min(window_size, remaining)
+
+            # Fetch one window of documents (expanded for chunked types)
+            documents, raw_count = self._fetch_window(
+                storage_backend, jurisdiction_id, corpus_type,
+                window_offset, fetch_limit,
+                transcript_chunker, legal_chunker,
+            )
+
+            if not documents:
+                if raw_docs_fetched == 0:
+                    logger.warning(f"No {corpus_type} found in storage for {jurisdiction_id}")
+                break
+
+            logger.info(
+                f"  Window at offset={window_offset}: {raw_count} raw docs -> "
+                f"{len(documents)} documents to embed"
+            )
+
+            # Process this window (embed + insert in batch_size chunks)
+            window_indexed = self._process_window(
+                documents, corpus_type, jurisdiction_id,
+                batch_size, use_copy,
+                video_to_meeting, meeting_metadata, video_metadata,
+            )
+            indexed_count += window_indexed
+
+            # Advance offset
+            window_offset += raw_count
+            raw_docs_fetched += raw_count
+
+            # If we got fewer raw docs than requested, we've exhausted the source
+            if raw_count < fetch_limit:
+                break
+
         logger.info(
             f"Indexed {indexed_count} {corpus_type} for {jurisdiction_id}"
         )

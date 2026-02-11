@@ -1729,6 +1729,7 @@ class PostgresBackend:
         since: Optional[datetime] = None,
         until: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve meetings with optional temporal query.
@@ -1767,11 +1768,15 @@ class PostgresBackend:
             query += " AND meeting_datetime <= %s"
             params.append(until.isoformat())
 
-        query += " ORDER BY meeting_datetime"
+        query += " ORDER BY meeting_datetime, id ASC"
 
         if limit:
             query += " LIMIT %s"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -2409,6 +2414,7 @@ class PostgresBackend:
         until: Optional[str] = None,
         limit: Optional[int] = None,
         item_type: Optional[str] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve decisions with optional filtering.
@@ -2451,11 +2457,15 @@ class PostgresBackend:
             query += " AND item_type = %s"
             params.append(item_type)
 
-        query += " ORDER BY meeting_date DESC"
+        query += " ORDER BY meeting_date DESC, id ASC"
 
         if limit:
             query += " LIMIT %s"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -2597,6 +2607,7 @@ class PostgresBackend:
         jurisdiction_id: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve agenda items with optional filtering.
@@ -2623,7 +2634,7 @@ class PostgresBackend:
                   AND valid_from <= %s
                   AND (valid_to IS NULL OR valid_to > %s)
               AND deleted_at IS NULL
-                ORDER BY item_number
+                ORDER BY item_number, id ASC
             """
             params = [meeting_id, as_of.isoformat(), as_of.isoformat()]
         elif jurisdiction_id:
@@ -2635,7 +2646,7 @@ class PostgresBackend:
                   AND a.valid_from <= %s
                   AND (a.valid_to IS NULL OR a.valid_to > %s)
                   AND m.valid_to IS NULL
-                ORDER BY m.meeting_datetime DESC, a.item_number
+                ORDER BY m.meeting_datetime DESC, a.item_number, a.id ASC
             """
             params = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
         else:
@@ -2644,12 +2655,15 @@ class PostgresBackend:
                 WHERE valid_from <= %s
                   AND (valid_to IS NULL OR valid_to > %s)
               AND deleted_at IS NULL
-                ORDER BY meeting_id, item_number
+                ORDER BY meeting_id, item_number, id ASC
             """
             params = [as_of.isoformat(), as_of.isoformat()]
 
         if limit:
             query += f" LIMIT {int(limit)}"
+
+        if offset > 0:
+            query += f" OFFSET {int(offset)}"
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -2848,6 +2862,7 @@ class PostgresBackend:
         agenda_item: Optional[str] = None,
         source_type: Optional[str] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve chunks with optional filtering.
@@ -2890,11 +2905,15 @@ class PostgresBackend:
             query += " AND source_type = %s"
             params.append(source_type)
 
-        query += " ORDER BY chunk_index ASC"
+        query += " ORDER BY chunk_index ASC, id ASC"
 
         if limit:
             query += " LIMIT %s"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -3303,6 +3322,7 @@ class PostgresBackend:
         jurisdiction_id: str,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve transcripts with temporal filtering.
@@ -3327,13 +3347,17 @@ class PostgresBackend:
               AND valid_from <= %s
               AND (valid_to IS NULL OR valid_to > %s)
               AND deleted_at IS NULL
-            ORDER BY created_at DESC
+            ORDER BY created_at DESC, id ASC
         """
         params: List[Any] = [jurisdiction_id, as_of.isoformat(), as_of.isoformat()]
 
         if limit:
             query += " LIMIT %s"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -3585,6 +3609,7 @@ class PostgresBackend:
         chapter: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve municipal code sections with temporal filtering.
@@ -3617,11 +3642,15 @@ class PostgresBackend:
             query += " AND chapter = %s"
             params.append(chapter)
 
-        query += " ORDER BY section_number"
+        query += " ORDER BY section_number, id ASC"
 
         if limit:
             query += " LIMIT %s"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -3854,6 +3883,7 @@ class PostgresBackend:
         issue_type: Optional[str] = None,
         limit: Optional[int] = None,
         created_after: Optional[datetime] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve 311 issues with optional filtering.
@@ -3900,11 +3930,15 @@ class PostgresBackend:
             query += " AND created_at >= %s"
             params.append(created_after.isoformat())
 
-        query += " ORDER BY created_at DESC"
+        query += " ORDER BY created_at DESC, id ASC"
 
         if limit:
             query += " LIMIT %s"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -4697,6 +4731,7 @@ class PostgresBackend:
         status: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve legislation with optional filtering.
@@ -4739,6 +4774,10 @@ class PostgresBackend:
         if limit:
             query += " LIMIT %s"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -5190,6 +5229,7 @@ class PostgresBackend:
         status: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve codified law sections with optional filtering.
@@ -5235,6 +5275,10 @@ class PostgresBackend:
         if limit:
             query += " LIMIT %s"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -5551,6 +5595,7 @@ class PostgresBackend:
         signing_date_after: Optional[date] = None,
         signing_date_before: Optional[date] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve Executive Orders with optional filtering.
@@ -5601,6 +5646,10 @@ class PostgresBackend:
         if limit:
             query += " LIMIT %s"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -6013,6 +6062,7 @@ class PostgresBackend:
         department: Optional[str] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve budget items with optional filtering.
@@ -6058,11 +6108,15 @@ class PostgresBackend:
             query += " AND department = %s"
             params.append(department)
 
-        query += " ORDER BY department, fund, line_item"
+        query += " ORDER BY department, fund, line_item, id ASC"
 
         if limit:
             query += " LIMIT %s"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -6779,6 +6833,7 @@ class PostgresBackend:
         federal_fiscal_year: Optional[int] = None,
         as_of: Optional[datetime] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve state pass-through funding records with optional filtering.
@@ -6829,11 +6884,15 @@ class PostgresBackend:
             query += " AND federal_fiscal_year = %s"
             params.append(federal_fiscal_year)
 
-        query += " ORDER BY local_amount_cents DESC"
+        query += " ORDER BY local_amount_cents DESC, id ASC"
 
         if limit is not None:
             query += " LIMIT %s"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
@@ -7250,6 +7309,7 @@ class PostgresBackend:
         include_past: bool = False,
         election_type: Optional[str] = None,
         limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve elections with optional filtering.
@@ -7283,11 +7343,15 @@ class PostgresBackend:
             query += " AND election_type = %s"
             params.append(election_type)
 
-        query += " ORDER BY election_date ASC"
+        query += " ORDER BY election_date ASC, id ASC"
 
         if limit is not None:
             query += " LIMIT %s"
             params.append(limit)
+
+        if offset > 0:
+            query += " OFFSET %s"
+            params.append(offset)
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
