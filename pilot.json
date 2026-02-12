@@ -2586,7 +2586,7 @@
       },
       "civic_dashboard_mvp": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "MVP civic dashboard with 3+ visualization primitives",
         "description": "Implement minimum viable dashboard UX before MCP registry listing. Must include: (1) issue geography map as hero visualization with type filtering, (2) visible engagement ladder progression (awareness \u2192 participation path), (3) data-forward presentation (patterns emerge, no editorializing), (4) multi-surface capability (same query works in chat + visual rendering).",
         "note": "2026-02-07: IssueMap enhanced with recency filtering (30d/90d/All), status filtering (Open/Closed), trend TLDR line, full-screen expand modal (portaled to body), and type legend. Comment threads + voice toggle functional. Issues summary removed (redundant with map legend). Remaining MVP items broken out as sibling items: add_to_cal, comment_synthesis, budget_viz, agenda_actionability, expandable_decisions, provenance_footer.",
