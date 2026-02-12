@@ -112,6 +112,9 @@ class Initiative(BaseModel):
     location: Optional[str] = Field(
         default=None, description="Optional physical location"
     )
+    coordination_url: Optional[str] = Field(
+        default=None, description="Optional link to external coordination channel (Signal, SimpleX, Matrix)"
+    )
     public_key: str = Field(description="Creator's public key (identity)")
     signature: str = Field(description="Creator's signature over initiative data")
     timestamp: datetime = Field(default_factory=datetime.utcnow)

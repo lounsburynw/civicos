@@ -177,6 +177,7 @@ class InMemoryInitiativeStorage:
                 title=old.title,
                 description=old.description,
                 location=old.location,
+                coordination_url=old.coordination_url,
                 public_key=old.public_key,
                 signature=old.signature,
                 timestamp=old.timestamp,

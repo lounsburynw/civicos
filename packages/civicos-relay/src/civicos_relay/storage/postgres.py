@@ -429,10 +429,10 @@ class PostgresInitiativeStorage:
                     """
                     INSERT INTO coordination_initiatives
                     (id, jurisdiction, topic, title, description, location,
-                     public_key, signature, timestamp, status, voice_count)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     coordination_url, public_key, signature, timestamp, status, voice_count)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (id) DO UPDATE SET
-                    status = %s, voice_count = %s
+                    status = %s, voice_count = %s, coordination_url = %s
                     """,
                     (
                         initiative.id,
@@ -441,6 +441,7 @@ class PostgresInitiativeStorage:
                         initiative.title,
                         initiative.description,
                         initiative.location,
+                        initiative.coordination_url,
                         initiative.public_key,
                         initiative.signature,
                         initiative.timestamp,
@@ -448,6 +449,7 @@ class PostgresInitiativeStorage:
                         initiative.voice_count,
                         initiative.status.value,
                         initiative.voice_count,
+                        initiative.coordination_url,
                     ),
                 )
                 conn.commit()
@@ -462,7 +464,7 @@ class PostgresInitiativeStorage:
                 cur.execute(
                     """
                     SELECT id, jurisdiction, topic, title, description, location,
-                           public_key, signature, timestamp, status, voice_count
+                           coordination_url, public_key, signature, timestamp, status, voice_count
                     FROM coordination_initiatives
                     WHERE id = %s
                     """,
@@ -477,11 +479,12 @@ class PostgresInitiativeStorage:
                         title=row[3],
                         description=row[4],
                         location=row[5],
-                        public_key=row[6],
-                        signature=row[7],
-                        timestamp=row[8],
-                        status=InitiativeStatus(row[9]),
-                        voice_count=row[10],
+                        coordination_url=row[6],
+                        public_key=row[7],
+                        signature=row[8],
+                        timestamp=row[9],
+                        status=InitiativeStatus(row[10]),
+                        voice_count=row[11],
                     )
                 return None
         finally:
@@ -500,7 +503,7 @@ class PostgresInitiativeStorage:
             with conn.cursor() as cur:
                 query = """
                     SELECT id, jurisdiction, topic, title, description, location,
-                           public_key, signature, timestamp, status, voice_count
+                           coordination_url, public_key, signature, timestamp, status, voice_count
                     FROM coordination_initiatives
                     WHERE jurisdiction = %s
                 """
@@ -526,11 +529,12 @@ class PostgresInitiativeStorage:
                         title=row[3],
                         description=row[4],
                         location=row[5],
-                        public_key=row[6],
-                        signature=row[7],
-                        timestamp=row[8],
-                        status=InitiativeStatus(row[9]),
-                        voice_count=row[10],
+                        coordination_url=row[6],
+                        public_key=row[7],
+                        signature=row[8],
+                        timestamp=row[9],
+                        status=InitiativeStatus(row[10]),
+                        voice_count=row[11],
                     )
                     for row in cur.fetchall()
                 ]
