@@ -61,6 +61,8 @@ from .handlers import (
     prepare_initiative,
     broadcast_initiative,
     list_initiatives,
+    # Context assembly handler
+    get_item_context,
 )
 
 __all__ = [
@@ -109,4 +111,5 @@ __all__ = [
     "prepare_initiative",
     "broadcast_initiative",
     "list_initiatives",
+    "get_item_context",
 ]

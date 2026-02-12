@@ -2646,3 +2646,81 @@ def list_initiatives(
     except Exception as e:
         logger.error(f"Error listing initiatives: {e}")
         return f"Error listing initiatives: {str(e)}"
+
+
+# ─────────── Context Assembly Tool ───────────
+
+
+def get_item_context(
+    civic: CivicClient,
+    jurisdiction: str,
+    validate_input: ValidateInput,
+    logger: Logger,
+    args: dict,
+) -> dict:
+    """
+    Get comprehensive context for a civic item.
+
+    Assembles history, regulatory, community, financial, testimony,
+    and participation context from existing CivicOS data. Returns a
+    structured bundle suitable for passing to an LLM conversation.
+    """
+    import asyncio
+    import concurrent.futures
+
+    from civicos_services.context import (
+        assemble_context,
+        ItemNotFoundError,
+        ItemType,
+        ContextDepth,
+    )
+
+    item_type_str = args.get("item_type", "")
+    item_id = args.get("item_id", "")
+    depth_str = args.get("depth", "standard")
+    sections_str = args.get("sections")
+
+    # Validate item_type
+    try:
+        item_type = ItemType(item_type_str)
+    except ValueError:
+        valid = ", ".join(t.value for t in ItemType)
+        return {"error": f"Invalid item_type '{item_type_str}'. Valid: {valid}"}
+
+    if not item_id:
+        return {"error": "item_id is required"}
+
+    # Parse depth
+    try:
+        depth = ContextDepth(depth_str)
+    except ValueError:
+        depth = ContextDepth.standard
+
+    # Parse sections
+    sections = None
+    if sections_str:
+        sections = set(s.strip() for s in sections_str.split(",") if s.strip())
+
+    # Run async assembler in a new thread with its own event loop
+    # (handlers are called from sync context within a running event loop)
+    def _run_assembly():
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(
+                assemble_context(item_type, item_id, jurisdiction, sections, depth)
+            )
+        finally:
+            loop.close()
+
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_run_assembly)
+            bundle = future.result(timeout=60)
+        return bundle.model_dump(mode="json")
+    except ItemNotFoundError as e:
+        return {"error": f"Item not found: {e.item_type}/{e.item_id} in {e.jurisdiction}"}
+    except concurrent.futures.TimeoutError:
+        return {"error": "Context assembly timed out (>60s)"}
+    except Exception as e:
+        logger.error(f"Context assembly error: {e}")
+        return {"error": f"Assembly failed: {str(e)}"}

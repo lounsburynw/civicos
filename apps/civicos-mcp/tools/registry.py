@@ -359,6 +359,33 @@ TOOL_DEFINITIONS: dict[str, ToolDefinition] = {
         },
     },
 
+    # ─────────── Context Assembly Tool ───────────
+    "get_item_context": {
+        "description": "Get comprehensive context for a civic item (agenda item, decision, issue, legislation, meeting, or initiative). Returns a structured bundle with history, regulatory, community, financial, testimony, and participation context. Pass the result to an LLM as conversation context.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "item_type": {
+                    "type": "string",
+                    "enum": ["agenda_item", "decision", "issue", "legislation", "meeting", "initiative"],
+                    "description": "Type of civic item",
+                },
+                "item_id": {"type": "string", "description": "Item ID (UUID or bill number)"},
+                "depth": {
+                    "type": "string",
+                    "enum": ["minimal", "standard", "deep"],
+                    "default": "standard",
+                    "description": "Context depth: minimal (item only), standard (all sections), deep (extra cross-references)",
+                },
+                "sections": {
+                    "type": "string",
+                    "description": "Comma-separated sections to include (omit for all). Valid: history, regulatory, community, financial, testimony, participation",
+                },
+            },
+            "required": ["item_type", "item_id"],
+        },
+    },
+
     # ─────────── Coordination Tools ───────────
     # These tools implement a permissionless coordination protocol.
     # Users can specify their own relay, or use the default CivicOS relay.

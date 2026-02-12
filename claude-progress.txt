@@ -1,3 +1,42 @@
+## Session 578 (2026-02-12) - Context Assembly API Complete
+
+**Item:** edge_intelligence/context_assembly_api
+**Status:** Complete (marked ready)
+
+#### What Was Done
+1. Added `get_item_context` MCP tool handler to `apps/civicos-mcp/tools/handlers.py`
+   - Sync handler that bridges to async `assemble_context()` via ThreadPoolExecutor
+   - Validates item_type (enum), item_id, depth, sections params
+   - Returns full ContextBundle as JSON dict
+2. Added tool definition to `apps/civicos-mcp/tools/registry.py` (TOOL_DEFINITIONS)
+3. Added REST endpoint `POST /api/tools/get-item-context` to `apps/civicos-mcp/rest_api.py`
+   - Direct async endpoint (bypasses call_tool_safe for proper async support)
+   - Calls `assemble_context()` directly
+4. Registered handler in all server configurations:
+   - `tools/__init__.py` (exports), `handlers/loader.py` (CITY_TOOLS)
+   - `modal_mcp.py` (handler_map), `server.py` (handler_map)
+5. Added `getItemContext()` + `formatContextForChat()` to Open WebUI API client (`civic.ts`)
+   - ContextBundle TypeScript interface matching Pydantic models
+   - formatContextForChat() renders bundle as structured prompt text
+6. Added "Chat with this decision" button in CityPulse decision detail expansion
+7. Added "Chat" button on upcoming agenda items action row
+   - Both use context assembly → formatContextForChat → submitPrompt flow
+   - Fallback to basic prompt if context fetch fails
+   - Loading state with disabled button during fetch
+
+#### Commits
+- civicos: (pending commit) feat: Context assembly MCP tool + Open WebUI chat integration
+
+#### What's Next
+- Next P0 to be set — browser_extension (P2) is unblocked
+- Relay deployment still pending (action attribution + voice/revoke)
+- Deploy context assembly endpoint to Modal (needs `modal deploy`)
+
+## Session 577 (2026-02-12) - Data Provenance Panel
+
+**Item:** frontend_refinement/city_status_dashboard/provenance_footer
+**Status:** Complete (marked ready)
+
 ## Session 576 (2026-02-12) - Civic Dashboard MVP Complete
 
 **Item:** frontend_refinement/city_status_dashboard/civic_dashboard_mvp
