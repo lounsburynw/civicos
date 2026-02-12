@@ -199,20 +199,27 @@ CREATE INDEX IF NOT EXISTS idx_outcomes_recorded_at
 
 CREATE TABLE IF NOT EXISTS coordination_attributions (
     id TEXT PRIMARY KEY,
-    outcome_id TEXT NOT NULL REFERENCES coordination_outcomes(id),
+    outcome_id TEXT REFERENCES coordination_outcomes(id),  -- NULL for activity-based
     action_id TEXT NOT NULL REFERENCES coordination_action_events(id),
     public_key TEXT NOT NULL,                       -- User's public key (hex)
     contribution_type TEXT NOT NULL,                -- commitment or completion
     message TEXT,                                   -- Personalized attribution message
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 
-    -- One attribution per user per action per outcome
-    UNIQUE(outcome_id, action_id, public_key),
-
     CONSTRAINT valid_contribution_type CHECK (
         contribution_type IN ('commitment', 'completion')
     )
 );
+
+-- Outcome-based: one attribution per user per action per outcome
+CREATE UNIQUE INDEX IF NOT EXISTS idx_attributions_outcome_unique
+    ON coordination_attributions(outcome_id, action_id, public_key)
+    WHERE outcome_id IS NOT NULL;
+
+-- Activity-based: one attribution per user per action (no outcome)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_attributions_activity_unique
+    ON coordination_attributions(action_id, public_key)
+    WHERE outcome_id IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_attributions_outcome
     ON coordination_attributions(outcome_id);

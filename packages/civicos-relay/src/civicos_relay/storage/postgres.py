@@ -1740,31 +1740,57 @@ class PostgresAttributionStorage:
         self._pool.putconn(conn)
 
     def save_attribution(self, attribution) -> None:
-        """Store an attribution."""
+        """Store an attribution. Handles both outcome-based and activity-based."""
         conn = self._get_connection()
         try:
             with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    INSERT INTO coordination_attributions
-                    (id, outcome_id, action_id, public_key, contribution_type,
-                     message, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (outcome_id, action_id, public_key) DO UPDATE SET
-                    contribution_type = %s, message = %s
-                    """,
-                    (
-                        attribution.id,
-                        attribution.outcome_id,
-                        attribution.action_id,
-                        attribution.public_key,
-                        attribution.contribution_type.value,
-                        attribution.message,
-                        attribution.created_at,
-                        attribution.contribution_type.value,
-                        attribution.message,
-                    ),
-                )
+                if attribution.outcome_id is not None:
+                    # Outcome-based: upsert on (outcome_id, action_id, public_key)
+                    cur.execute(
+                        """
+                        INSERT INTO coordination_attributions
+                        (id, outcome_id, action_id, public_key, contribution_type,
+                         message, created_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (outcome_id, action_id, public_key)
+                        WHERE outcome_id IS NOT NULL
+                        DO UPDATE SET contribution_type = %s, message = %s
+                        """,
+                        (
+                            attribution.id,
+                            attribution.outcome_id,
+                            attribution.action_id,
+                            attribution.public_key,
+                            attribution.contribution_type.value,
+                            attribution.message,
+                            attribution.created_at,
+                            attribution.contribution_type.value,
+                            attribution.message,
+                        ),
+                    )
+                else:
+                    # Activity-based: upsert on (action_id, public_key) where outcome_id IS NULL
+                    cur.execute(
+                        """
+                        INSERT INTO coordination_attributions
+                        (id, outcome_id, action_id, public_key, contribution_type,
+                         message, created_at)
+                        VALUES (%s, NULL, %s, %s, %s, %s, %s)
+                        ON CONFLICT (action_id, public_key)
+                        WHERE outcome_id IS NULL
+                        DO UPDATE SET contribution_type = %s, message = %s
+                        """,
+                        (
+                            attribution.id,
+                            attribution.action_id,
+                            attribution.public_key,
+                            attribution.contribution_type.value,
+                            attribution.message,
+                            attribution.created_at,
+                            attribution.contribution_type.value,
+                            attribution.message,
+                        ),
+                    )
                 conn.commit()
         finally:
             self._return_connection(conn)
@@ -1801,7 +1827,7 @@ class PostgresAttributionStorage:
             self._return_connection(conn)
 
     def get_attributions_for_user(self, public_key: str) -> list:
-        """Get all attributions for a user, joined with outcome details."""
+        """Get all attributions for a user (both outcome-based and activity-based)."""
         from civicos_relay.voice.models import Attribution, ContributionType
         conn = self._get_connection()
         try:
@@ -1811,9 +1837,9 @@ class PostgresAttributionStorage:
                     SELECT a.id, a.outcome_id, a.action_id, a.public_key,
                            a.contribution_type, a.message, a.created_at
                     FROM coordination_attributions a
-                    JOIN coordination_outcomes o ON o.id = a.outcome_id
+                    LEFT JOIN coordination_outcomes o ON o.id = a.outcome_id
                     WHERE a.public_key = %s
-                    ORDER BY o.recorded_at DESC
+                    ORDER BY a.created_at DESC
                     """,
                     (public_key,),
                 )

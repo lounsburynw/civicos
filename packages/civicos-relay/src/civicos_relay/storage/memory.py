@@ -518,6 +518,14 @@ class InMemoryAttributionStorage:
         self._attributions: dict[str, "Attribution"] = {}  # attribution_id -> Attribution
 
     def save_attribution(self, attribution) -> None:
+        if attribution.outcome_id is None:
+            # Activity-based: upsert by (action_id, public_key)
+            for existing_id, existing in list(self._attributions.items()):
+                if (existing.outcome_id is None
+                        and existing.action_id == attribution.action_id
+                        and existing.public_key == attribution.public_key):
+                    del self._attributions[existing_id]
+                    break
         self._attributions[attribution.id] = attribution
 
     def get_attributions_for_outcome(self, outcome_id: str) -> list:
