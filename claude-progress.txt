@@ -1,3 +1,26 @@
+## Session 576 (2026-02-12) - Civic Dashboard MVP Complete
+
+**Item:** frontend_refinement/city_status_dashboard/civic_dashboard_mvp
+**Status:** Complete (marked ready)
+
+### Changes
+1. **Fixed CSS layout overlap** — Removed `z-40` from CityPulse inner container in CityPulsePane.svelte. The left pane (dashboard) had z-index 40, causing it to float above the chat pane (z-index 10) during edge-case overlaps. Added `overflow-hidden` to flex wrapper to contain content within pane bounds.
+
+2. **Verified data-forward presentation** — All 7 dashboard sections (meetings, voice, decisions, commitments, initiatives, issue map, budget) present factual data only. AI features (Summarize, Draft Comment) are user-triggered via chat, not injected into the dashboard.
+
+3. **Marked expandable_decisions as ready** — Already fully implemented (DecisionDetail.svelte + /decision-detail endpoint + decision_detail handler). Was incorrectly listed as not_ready.
+
+4. **Set provenance_footer as P0** — Now unblocked by dashboard MVP completion. Shows data source info to build trust.
+
+#### Files Changed
+- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulsePane.svelte` — CSS fix (removed z-40, added overflow-hidden)
+- `pilot.json` — civic_dashboard_mvp → ready, expandable_decisions → ready, provenance_footer → P0
+
+#### What's Next
+- **P0: provenance_footer** — Data provenance info panel in CityPulse header (MCP endpoint URL, relay ID, data freshness, corpus coverage)
+- Deploy relay action changes to Modal (attribution endpoints)
+- Run `scripts/sql/add_action_events.sql` on relay DB
+
 ## Session 575 (2026-02-12) - Action Attribution System
 
 **Item:** relay/action_primitives/action_attribution

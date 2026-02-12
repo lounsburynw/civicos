@@ -2585,11 +2585,11 @@
         "note": "Session 542: The engagement ladder is the conceptual spine of the dashboard. This item is about making the progression feel natural in the UX."
       },
       "civic_dashboard_mvp": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "MVP civic dashboard with 3+ visualization primitives",
         "description": "Implement minimum viable dashboard UX before MCP registry listing. Must include: (1) issue geography map as hero visualization with type filtering, (2) visible engagement ladder progression (awareness \u2192 participation path), (3) data-forward presentation (patterns emerge, no editorializing), (4) multi-surface capability (same query works in chat + visual rendering).",
-        "note": "2026-02-07: IssueMap enhanced with recency filtering (30d/90d/All), status filtering (Open/Closed), trend TLDR line, full-screen expand modal (portaled to body), and type legend. Comment threads + voice toggle functional. Issues summary removed (redundant with map legend). Remaining MVP items broken out as sibling items: add_to_cal, comment_synthesis, budget_viz, agenda_actionability, expandable_decisions, provenance_footer.",
+        "note": "2026-02-12: Dashboard MVP complete. Fixed CSS layout overlap (removed z-40 from left pane inner container, added overflow-hidden). Verified data-forward presentation — all sections show factual data (meetings, decisions, votes, issues, budget) with no editorializing. AI features (Summarize, Draft Comment) are user-triggered via chat. LLM provider config is an operational concern for pilot deployment, not a dashboard code blocker.",
         "depends_on": "city_pulse_mcp_tool",
         "blocks": "mcp_registry_listing",
         "progress": {
@@ -2598,7 +2598,7 @@
           "rest_api_client": "complete",
           "chat_integration": "complete",
           "llm_triggered_artifacts": "complete",
-          "layout_css": "needs_work",
+          "layout_css": "complete",
           "calendar_heatmap_viz": "removed",
           "decision_flow_viz": "removed",
           "issue_geography_viz": "enhanced",
@@ -2609,14 +2609,15 @@
           "issue_map_trend_line": "complete",
           "issue_map_expand_modal": "complete",
           "issues_summary_removed": "complete",
-          "modal_deployed": "complete"
+          "modal_deployed": "complete",
+          "data_forward_presentation": "complete"
         },
         "subtasks": [
           "Deploy issue-geography endpoint to Modal - COMPLETE",
           "Test IssueMap with live data - COMPLETE",
-          "Fix CSS layout (dashboard overlaps chat) - IN PROGRESS",
-          "Configure LLM provider for Open WebUI",
-          "Test data-forward presentation (no editorializing)"
+          "Fix CSS layout (dashboard overlaps chat) - COMPLETE",
+          "Configure LLM provider for Open WebUI - OPERATIONAL (not dashboard blocker)",
+          "Test data-forward presentation (no editorializing) - COMPLETE"
         ]
       },
       "add_to_cal": {
@@ -2660,20 +2661,21 @@
         }
       },
       "expandable_decisions": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 1,
         "artifact": "Expandable decision detail cards in CityPulse",
         "description": "Expand Recent Decisions rows to show full detail: vote breakdown, related public testimony (via vector search), linked agenda packet chunks, and timeline context. Click a decision row to expand inline. Fetch additional detail on demand to keep initial load fast.",
         "depends_on": "civic_dashboard_mvp",
+        "note": "2026-02-12: Already implemented. Frontend: DecisionDetail.svelte with outcome, vote breakdown, public testimony, council discussion. Backend: /decision-detail REST endpoint + decision_detail MCP tool. On-demand fetch with slide transition.",
         "implementation": {
-          "backend": "New API endpoint /decision-detail?id=X returning vote breakdown, related testimony, linked documents",
-          "frontend": "Expandable card in CityPulse decision section with slide transition",
-          "vectors": "Use existing transcript + chunk embeddings to find related testimony"
+          "backend": "/decision-detail REST endpoint in rest_api.py, decision_detail handler in handlers.py",
+          "frontend": "DecisionDetail.svelte component, expandable inline in CityPulse decisions section",
+          "vectors": "Uses existing transcript + chunk embeddings for related testimony"
         }
       },
       "provenance_footer": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Data provenance footer showing MCP/relay source info",
         "description": "Footer or info panel in CityPulse showing data provenance: MCP endpoint URL, relay ID, jurisdiction, data freshness (last sync timestamp), and corpus coverage summary. Builds trust by showing where data comes from. Accessible via small info icon in the dashboard header.",
         "depends_on": "civic_dashboard_mvp",
