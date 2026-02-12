@@ -224,6 +224,61 @@ async def get_help():
     }
 
 
+@router.get("/api/tools/data-provenance")
+async def data_provenance():
+    """
+    Data provenance: jurisdiction, corpus coverage, freshness, endpoints.
+    Public endpoint for dashboard transparency.
+    """
+    try:
+        from civicos import CivicOS
+        from civicos.diagnostics import DataStatus
+        from civicos.registry import get_relay_url, get_jurisdiction_url
+
+        jurisdiction = "city-san-rafael"
+        c = CivicOS(jurisdiction)
+        status = DataStatus(c._storage, c._vectors, jurisdiction)
+        report = status.summary()
+
+        corpora = []
+        for key, cc in report.corpus_counts.items():
+            corpora.append({
+                "corpus_type": cc.corpus_type,
+                "display_name": cc.display_name,
+                "storage_count": cc.storage_count,
+                "vector_count": cc.vector_count,
+                "coverage_percent": round(cc.coverage_percent, 1) if cc.coverage_percent is not None else None,
+                "last_indexed": cc.last_indexed.isoformat() if cc.last_indexed else None,
+            })
+
+        freshness = {}
+        if report.storage_stats:
+            s = report.storage_stats
+            freshness = {
+                "earliest_meeting": s.earliest_meeting.isoformat() if s.earliest_meeting else None,
+                "latest_meeting": s.latest_meeting.isoformat() if s.latest_meeting else None,
+                "last_updated": s.last_updated.isoformat() if s.last_updated else None,
+            }
+
+        return {
+            "success": True,
+            "data": {
+                "jurisdiction": jurisdiction,
+                "mcp_endpoint": get_jurisdiction_url(jurisdiction),
+                "relay_url": get_relay_url(),
+                "storage_backend": type(c._storage).__name__,
+                "total_storage_docs": report.total_storage_docs,
+                "total_vector_docs": report.total_vector_docs,
+                "overall_coverage_percent": round(report.overall_coverage_percent, 1) if report.overall_coverage_percent is not None else None,
+                "corpora": corpora,
+                "freshness": freshness,
+                "generated_at": report.timestamp.isoformat(),
+            },
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/api/onboarding/cards")
 async def get_onboarding_cards():
     """
