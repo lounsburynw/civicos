@@ -14,13 +14,17 @@ from datetime import datetime
 from typing import Optional, Protocol
 
 from civicos_relay.voice.models import (
+    Attribution,
     CivicActionEvent,
     CivicActionType,
     CivicCommitment,
     CivicCompletion,
     CivicActionProgress,
     CommitmentStatus,
+    ContributionType,
     EvidenceType,
+    InitiativeOutcome,
+    OutcomeType,
 )
 
 
@@ -91,6 +95,22 @@ class CivicCompletionStorage(Protocol):
         ...
 
 
+class OutcomeStorage(Protocol):
+    """Protocol for outcome persistence."""
+
+    def save_outcome(self, outcome: InitiativeOutcome) -> None: ...
+    def get_outcome(self, outcome_id: str) -> Optional[InitiativeOutcome]: ...
+    def get_outcomes_for_initiative(self, initiative_id: str) -> list[InitiativeOutcome]: ...
+
+
+class AttributionStorage(Protocol):
+    """Protocol for attribution persistence."""
+
+    def save_attribution(self, attribution: Attribution) -> None: ...
+    def get_attributions_for_outcome(self, outcome_id: str) -> list[Attribution]: ...
+    def get_attributions_for_user(self, public_key: str) -> list[Attribution]: ...
+
+
 # ============================================================================
 # Civic Action Service
 # ============================================================================
@@ -109,10 +129,14 @@ class CivicActionService:
         action_storage: CivicActionEventStorage,
         commitment_storage: CivicCommitmentStorage,
         completion_storage: CivicCompletionStorage,
+        outcome_storage: Optional[OutcomeStorage] = None,
+        attribution_storage: Optional[AttributionStorage] = None,
     ):
         self._action_storage = action_storage
         self._commitment_storage = commitment_storage
         self._completion_storage = completion_storage
+        self._outcome_storage = outcome_storage
+        self._attribution_storage = attribution_storage
 
     # ========================================================================
     # Action Event Methods (Kind 30810)
@@ -130,6 +154,7 @@ class CivicActionService:
         template: Optional[str] = None,
         target_count: Optional[int] = None,
         deadline_context: Optional[str] = None,
+        coordination_url: Optional[str] = None,
     ) -> CivicActionEvent:
         """
         Create a new civic action event.
@@ -150,6 +175,7 @@ class CivicActionService:
             template=template,
             target_count=target_count,
             deadline_context=deadline_context,
+            coordination_url=coordination_url,
             public_key=public_key,
             signature=signature,
         )
@@ -319,6 +345,142 @@ class CivicActionService:
             completion_count=len(completions),
             target_count=action.target_count if action else None,
         )
+
+    # ========================================================================
+    # Outcome & Attribution Methods
+    # ========================================================================
+
+    def record_outcome(
+        self,
+        initiative_id: str,
+        outcome: OutcomeType,
+        notes: Optional[str] = None,
+        vote_breakdown: Optional[dict] = None,
+        decision_reference: Optional[str] = None,
+    ) -> InitiativeOutcome:
+        """
+        Record the outcome of an initiative and auto-generate attributions.
+
+        When an initiative reaches a conclusion, this records the result and
+        creates personalized attributions for every user who completed actions.
+        """
+        if not self._outcome_storage:
+            raise RuntimeError("Outcome storage not configured")
+        if not self._attribution_storage:
+            raise RuntimeError("Attribution storage not configured")
+
+        # Generate outcome ID
+        outcome_hash = hashlib.sha256(
+            f"{initiative_id}:{outcome.value}:{datetime.utcnow().isoformat()}".encode()
+        ).hexdigest()[:12]
+        outcome_id = f"outcome:{initiative_id}:{outcome_hash}"
+
+        outcome_record = InitiativeOutcome(
+            id=outcome_id,
+            initiative_id=initiative_id,
+            outcome=outcome,
+            notes=notes,
+            vote_breakdown=vote_breakdown,
+            decision_reference=decision_reference,
+        )
+        self._outcome_storage.save_outcome(outcome_record)
+
+        # Auto-generate attributions for all users who completed actions
+        actions = self._action_storage.get_actions_for_initiative(initiative_id)
+        for action in actions:
+            if action.revoked:
+                continue
+            action_ref = f"30810:{action.public_key}:{action.id}"
+
+            # Attribute completions (strongest signal)
+            completions = self._completion_storage.get_completions_for_action(action_ref)
+            for completion in completions:
+                if completion.revoked:
+                    continue
+                message = self._generate_attribution_message(
+                    outcome_record, action, ContributionType.COMPLETION,
+                )
+                attr_id = f"attr:{outcome_id}:{action.id}:{completion.public_key[:8]}"
+                attribution = Attribution(
+                    id=attr_id,
+                    outcome_id=outcome_id,
+                    action_id=action.id,
+                    public_key=completion.public_key,
+                    contribution_type=ContributionType.COMPLETION,
+                    message=message,
+                )
+                self._attribution_storage.save_attribution(attribution)
+
+            # Attribute commitments (for users who committed but didn't complete)
+            completers = {c.public_key for c in completions if not c.revoked}
+            commitments = self._commitment_storage.get_commitments_for_action(action_ref)
+            for commitment in commitments:
+                if commitment.revoked or commitment.public_key in completers:
+                    continue
+                if commitment.status == CommitmentStatus.WITHDRAWN:
+                    continue
+                message = self._generate_attribution_message(
+                    outcome_record, action, ContributionType.COMMITMENT,
+                )
+                attr_id = f"attr:{outcome_id}:{action.id}:{commitment.public_key[:8]}"
+                attribution = Attribution(
+                    id=attr_id,
+                    outcome_id=outcome_id,
+                    action_id=action.id,
+                    public_key=commitment.public_key,
+                    contribution_type=ContributionType.COMMITMENT,
+                    message=message,
+                )
+                self._attribution_storage.save_attribution(attribution)
+
+        return outcome_record
+
+    def get_outcome(self, outcome_id: str) -> Optional[InitiativeOutcome]:
+        """Get an outcome by ID."""
+        if not self._outcome_storage:
+            return None
+        return self._outcome_storage.get_outcome(outcome_id)
+
+    def get_outcomes_for_initiative(self, initiative_id: str) -> list[InitiativeOutcome]:
+        """Get all outcomes for an initiative."""
+        if not self._outcome_storage:
+            return []
+        return self._outcome_storage.get_outcomes_for_initiative(initiative_id)
+
+    def get_attributions_for_outcome(self, outcome_id: str) -> list[Attribution]:
+        """Get all attributions for an outcome."""
+        if not self._attribution_storage:
+            return []
+        return self._attribution_storage.get_attributions_for_outcome(outcome_id)
+
+    def get_attributions_for_user(self, public_key: str) -> list[Attribution]:
+        """Get a user's impact history — all outcomes they contributed to."""
+        if not self._attribution_storage:
+            return []
+        return self._attribution_storage.get_attributions_for_user(public_key)
+
+    def _generate_attribution_message(
+        self,
+        outcome: InitiativeOutcome,
+        action: CivicActionEvent,
+        contribution_type: ContributionType,
+    ) -> str:
+        """Generate a personalized attribution message."""
+        outcome_label = outcome.outcome.value.replace("_", " ")
+
+        if outcome.vote_breakdown:
+            vote_str = ", ".join(
+                f"{k}: {v}" for k, v in outcome.vote_breakdown.items()
+            )
+            outcome_desc = f"{outcome_label} ({vote_str})"
+        else:
+            outcome_desc = outcome_label
+
+        action_desc = action.description
+        if contribution_type == ContributionType.COMPLETION:
+            return f"Your {action_desc} contributed to outcome: {outcome_desc}"
+        else:
+            return f"Your commitment to {action_desc} supported outcome: {outcome_desc}"
 
     # ========================================================================
     # Signature Verification

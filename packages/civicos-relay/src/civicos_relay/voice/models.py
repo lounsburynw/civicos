@@ -225,6 +225,10 @@ class CivicActionEvent(BaseModel):
         default=None,
         description="Why this deadline matters (e.g., 'Comment period closes March 1')"
     )
+    coordination_url: Optional[str] = Field(
+        default=None,
+        description="Link to coordination channel (Signal, SimpleX, Matrix)"
+    )
     public_key: str = Field(description="Creator's public key (hex-encoded)")
     signature: str = Field(description="Signature of action data (hex-encoded)")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
@@ -309,3 +313,75 @@ class CivicActionProgress(BaseModel):
         if self.target_count and self.target_count > 0:
             return min(100.0, (self.completion_count / self.target_count) * 100)
         return None
+
+
+# ============================================================================
+# Outcome & Attribution Models
+# ============================================================================
+
+
+class OutcomeType(str, Enum):
+    """Result of a civic initiative."""
+
+    PASSED = "passed"
+    FAILED = "failed"
+    CONTINUED = "continued"
+    MODIFIED = "modified"
+    PARTIAL = "partial"
+
+
+class ContributionType(str, Enum):
+    """How a user contributed to an outcome."""
+
+    COMMITMENT = "commitment"
+    COMPLETION = "completion"
+
+
+class InitiativeOutcome(BaseModel):
+    """
+    Recorded outcome of a civic initiative.
+
+    Links an initiative to its decision result, enabling attribution
+    for users who took action.
+    """
+
+    id: str = Field(description="Unique outcome ID")
+    initiative_id: str = Field(description="ID of the initiative")
+    outcome: OutcomeType = Field(description="Result of the initiative")
+    notes: Optional[str] = Field(default=None, description="Additional context about the outcome")
+    vote_breakdown: Optional[dict] = Field(
+        default=None,
+        description="Vote details (e.g., {'yes': 4, 'no': 1})"
+    )
+    decision_reference: Optional[str] = Field(
+        default=None,
+        description="Reference to civic data decision (e.g., decision ID)"
+    )
+    recorded_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"frozen": True}
+
+
+class Attribution(BaseModel):
+    """
+    Links a user's action to an initiative outcome.
+
+    When an initiative reaches an outcome, attributions are generated
+    for each user who committed to or completed actions. This closes
+    the feedback loop: 'Your comment helped influence this 4-1 vote.'
+    """
+
+    id: str = Field(description="Unique attribution ID")
+    outcome_id: str = Field(description="Reference to the outcome")
+    action_id: str = Field(description="Reference to the action event")
+    public_key: str = Field(description="User's public key (hex-encoded)")
+    contribution_type: ContributionType = Field(
+        description="How the user contributed (commitment or completion)"
+    )
+    message: Optional[str] = Field(
+        default=None,
+        description="Personalized attribution message"
+    )
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = {"frozen": True}
