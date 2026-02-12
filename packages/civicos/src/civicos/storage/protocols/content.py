@@ -32,8 +32,12 @@ class ContentStorage(Protocol):
         jurisdiction_id: str,
         meetings: List[Any],
         as_of: Optional[datetime] = None,
-    ) -> int:
-        """Store meetings with temporal versioning (upsert pattern)."""
+    ) -> "MeetingStoreResult":
+        """Store meetings with temporal versioning (upsert pattern).
+
+        Returns MeetingStoreResult with change details for reactive pipelines.
+        MeetingStoreResult is int-compatible via __int__, __eq__, comparison operators.
+        """
         ...
 
     def get_meetings(

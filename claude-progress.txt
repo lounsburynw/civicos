@@ -1,3 +1,41 @@
+## Session 574 (2026-02-12) - Reactive Ingestion Pipeline
+
+**Item:** pipeline_automation — Reactive ingestion (event-driven instead of batch)
+**Status:** Complete
+
+### Changes
+
+1. **MeetingStoreResult dataclass** — Rich return type from `store_meetings()` with change signals: `new_meeting_ids`, `updated_meeting_ids`, `minutes_appeared`, `video_appeared`, `agenda_appeared`. Int-compatible via `__int__`, `__eq__`, comparison operators for full backward compat. Defined in `backend.py`, protocol-compliant across both backends.
+
+2. **fetch_meetings manifest** — Returns change signals in result dict (`has_new_material`, `has_minutes_updates`, `has_video_updates`, `has_agenda_updates`) for downstream orchestration.
+
+3. **Reactive daily cron** — `scheduled_high_velocity_refresh()` now conditionally spawns downstream:
+   - New material or agenda appeared → chunks + agenda_items
+   - Video appeared → discover_videos + transcripts
+   - Minutes appeared → targeted decision extraction
+   - Nothing new → skip all downstream stages
+
+4. **4x/day meetings poll** — New `scheduled_meetings_poll()` cron (0 14,22,2,6 * * *). Lightweight poll that triggers reactive extraction when material appears.
+
+5. **Decision extraction fix** — `_get_agenda_url()` now prefers `minutes_url` over `agenda_url`. Added `meeting_ids` param for targeted extraction. Meetings without minutes get `no_minutes` status (not marked as extracted).
+
+6. **HTTP trigger endpoint** — `trigger_ingest` web endpoint for manual/webhook ingestion with reactive mode.
+
+#### Files Changed
+- `packages/civicos/src/civicos/storage/backend.py` — MeetingStoreResult dataclass, protocol return type
+- `packages/civicos/src/civicos/storage/postgres_backend.py` — store_meetings() returns MeetingStoreResult with change detection
+- `packages/civicos/src/civicos/storage/sqlite_backend.py` — store_meetings() returns MeetingStoreResult
+- `packages/civicos/src/civicos/storage/__init__.py` — Export MeetingStoreResult
+- `packages/civicos/src/civicos/storage/protocols/content.py` — Protocol return type updated
+- `scripts/modal_ingest.py` — Manifest, reactive orchestration, meetings poll cron, HTTP endpoint
+- `packages/civicos-extraction/src/civicos_extraction/processing/retrospective_analyzer.py` — Prefer minutes_url
+- `packages/civicos-extraction/src/civicos_extraction/cli/decisions.py` — Targeted extraction, no_minutes status
+
+#### Tests
+- 42 smoke tests pass
+
+---
+
 ## Session 573 (2026-02-11) - Action System Phase 2: Make Follow-Through Likely
 
 **Item:** action_templates (P0) — Phase 2: My Commitments, Calendar, Coordination

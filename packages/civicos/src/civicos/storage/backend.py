@@ -97,8 +97,72 @@ class StorageValidationResult:
             "schema_valid": self.schema_valid,
             "errors": self.errors,
             "warnings": self.warnings,
+
             "check_duration_ms": self.check_duration_ms,
         }
+
+
+@dataclass
+class MeetingStoreResult:
+    """Result of store_meetings() with change details for reactive pipelines."""
+    stored_count: int = 0
+    new_meeting_ids: list = field(default_factory=list)
+    updated_meeting_ids: list = field(default_factory=list)
+    verified_count: int = 0
+    minutes_appeared: list = field(default_factory=list)
+    video_appeared: list = field(default_factory=list)
+    agenda_appeared: list = field(default_factory=list)
+
+    def __int__(self):
+        """Backward compat: int(result) returns stored_count."""
+        return self.stored_count
+
+    def __str__(self):
+        return str(self.stored_count)
+
+    def __eq__(self, other):
+        if isinstance(other, int):
+            return self.stored_count == other
+        return NotImplemented
+
+    def __gt__(self, other):
+        if isinstance(other, int):
+            return self.stored_count > other
+        return NotImplemented
+
+    def __lt__(self, other):
+        if isinstance(other, int):
+            return self.stored_count < other
+        return NotImplemented
+
+    def __ge__(self, other):
+        if isinstance(other, int):
+            return self.stored_count >= other
+        return NotImplemented
+
+    def __le__(self, other):
+        if isinstance(other, int):
+            return self.stored_count <= other
+        return NotImplemented
+
+    def __bool__(self):
+        return self.stored_count > 0
+
+    @property
+    def has_new_material(self) -> bool:
+        return len(self.new_meeting_ids) > 0 or len(self.updated_meeting_ids) > 0
+
+    @property
+    def has_minutes_updates(self) -> bool:
+        return len(self.minutes_appeared) > 0
+
+    @property
+    def has_video_updates(self) -> bool:
+        return len(self.video_appeared) > 0
+
+    @property
+    def has_agenda_updates(self) -> bool:
+        return len(self.agenda_appeared) > 0
 
 
 @runtime_checkable
@@ -173,7 +237,7 @@ class StorageBackend(
         jurisdiction_id: str,
         meetings: List[Any],
         as_of: Optional[datetime] = None,
-    ) -> int:
+    ) -> MeetingStoreResult:
         """
         Store meetings with temporal versioning (upsert pattern).
 
@@ -191,7 +255,8 @@ class StorageBackend(
             as_of: Timestamp for temporal versioning (default: now)
 
         Returns:
-            Number of meetings successfully stored or updated (excludes skipped)
+            MeetingStoreResult with stored_count and change signals for reactive pipelines.
+            Int-compatible via __int__, __eq__, comparison operators.
 
         Raises:
             StorageError: If atomic store operation fails

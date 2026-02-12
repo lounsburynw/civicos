@@ -197,8 +197,16 @@ class RetrospectiveAnalyzer(AgendaIntegrator):
         ]
 
     def _get_agenda_url(self, event: Dict[str, Any]) -> Optional[str]:
-        """Extract agenda URL from event metadata"""
-        # Try multiple sources
+        """Extract the best document URL for decision extraction.
+
+        Prefers minutes_url over agenda_url because minutes contain actual
+        decisions, vote results, and outcomes — agendas only list proposed items.
+        """
+        # Prefer minutes (contains actual decisions and outcomes)
+        if event.get('minutes_url'):
+            return event['minutes_url']
+
+        # Fall back to agenda
         if event.get('agenda_url'):
             return event['agenda_url']
 
