@@ -3569,7 +3569,7 @@
       },
       "action_attribution": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Link completed actions to outcomes - close the feedback loop so people see their impact. THIS IS THE ENGAGEMENT FLYWHEEL. Without it, the action system is just another CRUD feature. Must ship pre-pilot.",
         "test_file": "packages/civicos-relay/tests/test_action_attribution.py",
         "design": [
@@ -3685,7 +3685,7 @@
       },
       "action_templates": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Phase 2: Make follow-through likely. Phase 1 (adaptive forms, deadline_context, withdraw, expandable UI) is committed. Phase 2 adds commitment tracking and calendar integration.",
         "test_file": "apps/civicos-workspace/tests/e2e/action-templates.spec.ts",
         "subtasks": [
@@ -4245,10 +4245,53 @@
         "Implement suggested question templates per item type - COMPLETE",
         "Add get_item_context MCP tool",
         "Open WebUI: 'Chat with this item' integration",
-        "Browser extension feasibility sketch (V2)"
+        "Browser extension feasibility sketch (V2) - COMPLETE (see docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md)"
       ],
       "next_step": "Add get_item_context MCP tool OR integrate context API into Open WebUI 'Chat with this item' button",
       "note": "2026-02-08: Phase 1 implementation complete. GET /api/context/{item_type}/{item_id} endpoint live with all 6 sections (history, regulatory, community, financial, testimony, participation), parallel assembly with Semaphore(3), per-section 10s timeout, error isolation. Smoke tested with real San Rafael data. Regulatory section can timeout on large corpora — expected V1 behavior."
+    },
+    "browser_extension": {
+      "status": "not_ready",
+      "priority": 2,
+      "description": "Chrome browser extension as primary distribution surface. The extension IS the Personal MCP — manages identity, connects to Jurisdiction MCPs, injects civic context into AI surfaces (Claude.ai, ChatGPT), renders City Pulse in side panel. Acts as NIP-07 provider for Nostr ecosystem compatibility.",
+      "_doc": "Architecture session 2026-02-12. Full design in docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md. Depends on context_assembly_api (P0) for surface-agnostic context bundles.",
+      "architecture_doc": "docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md",
+      "phases": [
+        "Phase 0: Extension scaffold + tiered identity (Easy/Private/Sovereign) + NIP-07 provider",
+        "Phase 1: MCP connections + City Pulse side panel + IndexedDB caching",
+        "Phase 2: Voice/signing + relay WebSocket + commitment tracking",
+        "Phase 3: AI surface integration — context injection into Claude.ai/ChatGPT (opt-in per site)",
+        "Phase 4: Payments — NWC wallet connection, L402 pay-per-query, Cashu for relay",
+        "Phase 5: Site content interaction — civic lens on news/social media (post-launch)"
+      ],
+      "depends_on": ["context_assembly_api", "client_side_signing"],
+      "ports_from": [
+        "civicos-personal-mcp/lib/providers/ → extension lib/providers/ (signing providers)",
+        "civicos-openwebui CityPulse.svelte → extension side-panel/ (dashboard UI)",
+        "civicos-personal-mcp/lib/jurisdiction-mcp-client.ts → extension lib/mcp-client.ts"
+      ]
+    },
+    "micropayments": {
+      "status": "not_ready",
+      "priority": 2,
+      "description": "Self-sustaining economic model via Nostr/Lightning micropayments. L402 gates compute-intensive MCP tools (prepare, suggestions, coordinate). NWC (NIP-47) connects user wallets. Cashu (NIP-60/61) for privacy-preserving relay payments. Civic participation (voice, view, commit) is always free.",
+      "_doc": "Architecture session 2026-02-12. Payments section in docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md. Also see docs/funding/SUSTAINABILITY_MODEL.md for broader business model.",
+      "architecture_doc": "docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md",
+      "components": [
+        "L402 middleware on Jurisdiction MCP HTTP server (server-side)",
+        "NWC client in browser extension (client-side wallet bridge)",
+        "Cashu wallet (NIP-60) in extension for privacy-preserving payments",
+        "Spending controls: per-request threshold, daily limit, transaction history",
+        "Graceful degradation: free tier works without any wallet"
+      ],
+      "depends_on": ["browser_extension", "client_side_signing"],
+      "references": [
+        "https://docs.lightning.engineering/the-lightning-network/l402",
+        "https://nips.nostr.com/47",
+        "https://nips.nostr.com/60",
+        "https://nips.nostr.com/61",
+        "https://github.com/getAlby/mcp"
+      ]
     }
   },
   "federation_infrastructure": {

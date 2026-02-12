@@ -184,6 +184,7 @@ Read only when needed. Organized by purpose:
 | `FINANCIAL_DATA_INTEGRATION.md` | Budget, ACFR, intergovernmental data |
 | `FEDERAL_FUNDING_DATA_SOURCES.md` | FAC, USAspending, federal data |
 | `ELECTION_INTEGRATION.md` | Election data integration |
+| `BROWSER_EXTENSION_ARCHITECTURE.md` | Browser extension as primary distribution surface |
 
 ### Operations & Deployment (docs/critical/)
 | Doc | Purpose |
