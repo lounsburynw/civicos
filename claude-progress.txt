@@ -19067,3 +19067,25 @@ End-to-end test of Personal MCP → Relay voice signing and verification:
 - Visualization primitives for dashboard MVP (calendar heatmap, decision flow, issue geography)
 - MCP context integration for richer comment drafts (longer term)
 - Push openwebui commits to remote
+
+## Session 577 (2026-02-12) - Provenance Footer
+
+**Item:** frontend_refinement/city_status_dashboard/provenance_footer
+**Status:** Complete (marked ready)
+
+#### What Was Done
+1. Added `/data-provenance` GET endpoint to Modal REST API (`apps/civicos-mcp/rest_api.py`)
+2. Added same endpoint to dev server (`packages/civicos-services/servers/routers/core.py`)
+3. Added `DataProvenance` types + `getDataProvenance()` to frontend API client (`civic.ts`)
+4. Added info icon button in CityPulse header with expandable provenance panel
+5. Panel shows: jurisdiction, MCP endpoint, data range, source counts (9 types, 12,979 docs), update timestamp
+6. Removed confusing 302.8% coverage metric — replaced with "9 data types · 12,979 documents"
+
+#### Commits
+- civicos: `f17f332` feat: Data provenance panel — source transparency for CityPulse dashboard
+- openwebui: `9a297ff` feat(dashboard): Data provenance panel — source transparency via info icon
+
+#### What's Next
+- P0: context_assembly_api — add get_item_context MCP tool + Open WebUI "Chat with this item" button
+- Browser extension (P2) unblocked once context assembly is done
+- Relay deployment still pending (action attribution + voice/revoke)

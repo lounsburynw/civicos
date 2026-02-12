@@ -1,71 +1,66 @@
-# Recommended: Provenance Footer — Data Source Transparency
+# Recommended: Context Assembly API — Finish Integration
 
 **Priority:** P0
-**Area:** frontend_refinement > city_status_dashboard
+**Area:** edge_intelligence > context_assembly_api
 **Date:** 2026-02-12
-**Previous session:** Dashboard MVP completion (CSS fix, data-forward validation)
+**Previous session:** Provenance footer (data source transparency panel)
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-This session completed the **civic dashboard MVP** — fixed the CSS layout overlap (z-index inversion in CityPulsePane.svelte), verified all 7 sections present data without editorializing, and marked `civic_dashboard_mvp` as ready. Also discovered `expandable_decisions` was already fully implemented and marked it ready too.
+This session completed **provenance_footer** — a collapsible data provenance panel in the CityPulse dashboard header showing jurisdiction, MCP endpoint, data range, corpus counts (9 types, 12,979 docs), and update timestamp. Backend endpoint added to both Modal deployment (`rest_api.py`) and dev server (`routers/core.py`).
 
-The **provenance footer** is the natural next step: a small info panel showing where the dashboard data comes from. This builds trust — critical for a civic tool — by showing MCP endpoint, jurisdiction, data freshness, and corpus coverage. Now unblocked by the MVP being done.
+The **context_assembly_api** is the existing P0. The backend is fully implemented (all 6 sections: history, regulatory, community, financial, testimony, participation). Two integration tasks remain to close it out, which also unblock the browser extension (P2).
 
-## Recommended Task: Provenance Footer
+## Recommended Task: Context Assembly Integration
 
-Build a collapsible provenance panel accessible via info icon in the CityPulse header. Shows:
-- Jurisdiction name and MCP endpoint URL
-- Data freshness (last sync timestamp per corpus type)
-- Corpus coverage summary (e.g., "98 meetings, 44 decisions, 16K municipal codes")
-- Relay ID / pubkey (if relay is configured)
-
-### Implementation Plan
-1. **Backend**: New `/data-provenance` endpoint returning structured provenance data
-2. **Frontend**: Small info icon (ℹ) in the CityPulse header that expands a provenance panel
+Two remaining subtasks:
+1. **Add `get_item_context` MCP tool** — expose the context assembly endpoint as an MCP tool so Claude.ai/ChatGPT can use it
+2. **Open WebUI "Chat with this item" button** — integrate context API into the dashboard so users can click a decision/agenda item and start a conversation with full context pre-loaded
 
 ## Key Files
 
-- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte:868-873` — header where info icon goes
-- `~/projects/civicos-openwebui/src/lib/apis/civic.ts` — API client (add `getDataProvenance()`)
-- `apps/civicos-mcp/rest_api.py` — REST API (add `/data-provenance` endpoint)
-- `apps/civicos-mcp/tools/handlers.py` — MCP tool handlers (add `data_provenance` handler)
-- `packages/civicos/src/civicos/diagnostics.py` — `DataStatus` class has corpus counts already
-- `docs/critical/CIVIC_DASHBOARD_VISION.md` — UX vision reference
+- `packages/civicos-services/src/civicos_services/context/assembler.py` — ContextAssembler class (complete)
+- `packages/civicos-services/src/civicos_services/servers/routers/context.py` — GET /api/context/{item_type}/{item_id} endpoint (complete)
+- `packages/civicos-services/tests/test_context_assembly.py` — test file
+- `apps/civicos-mcp/tools/handlers.py` — MCP tool handlers (add get_item_context here)
+- `apps/civicos-mcp/rest_api.py` — REST API (may need context endpoint mirrored for Modal)
+- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` — dashboard component
+- `~/projects/civicos-openwebui/src/lib/components/civic/DecisionDetail.svelte` — decision expansion (good place for "Chat" button)
+- `docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md` — browser extension architecture (unblocked by this work)
 
 ## Suggested Approach
 
-1. Start with the backend: add a `data_provenance` handler that returns jurisdiction, endpoint URL, corpus counts (reuse `DataStatus`), and last-updated timestamps
-2. Wire it as a REST endpoint at `/data-provenance`
-3. Add `getDataProvenance()` to the frontend API client
-4. Add a small info icon button in the CityPulse header (`.pulse-header` at line 868)
-5. On click, expand a provenance panel showing the data (use `slide` transition like other expandables)
-6. Style to match the existing dashboard aesthetic (compact, data-forward)
+1. Read the existing assembler.py and context router to understand the API shape
+2. Add `get_item_context` as an MCP tool in handlers.py — takes item_type + item_id, returns context bundle
+3. Wire the MCP tool as a REST endpoint in rest_api.py for Modal deployment
+4. In the Open WebUI frontend, add a "Chat with this" button on decision/agenda items
+5. On click, call the context API, then inject the context bundle as a system prompt for a new conversation
 
 ## Tests to Run
 ```bash
 # Smoke tests
 pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 
-# MCP city pulse tests (covers dashboard endpoints)
-pytest packages/civicos/tests/test_mcp_city_pulse.py -q --override-ini="addopts="
+# Context assembly tests
+pytest packages/civicos-services/tests/test_context_assembly.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
-- [ ] `/data-provenance` endpoint returns jurisdiction, corpus counts, freshness timestamps
-- [ ] Info icon in CityPulse header expands provenance panel
-- [ ] Panel shows corpus coverage (meetings, decisions, transcripts, issues, etc.)
-- [ ] Panel shows data freshness (last updated per corpus)
-- [ ] `provenance_footer` marked ready in pilot.json
+- [ ] `get_item_context` MCP tool works (returns context bundle for any civic item)
+- [ ] REST endpoint mirrors the tool for Modal deployment
+- [ ] "Chat with this item" button visible on decisions or agenda items in CityPulse
+- [ ] Clicking launches a conversation with pre-loaded civic context
+- [ ] `context_assembly_api` marked ready in pilot.json
 
 ## Also Notable
-- **Relay deployment pending** — action attribution + voice/revoke endpoints committed locally but not deployed to Modal
-- **SQL migration pending** — `scripts/sql/add_action_events.sql` needs to run on relay DB for outcomes/attributions tables
-- **LLM provider config** — operational concern for pilot (not a code blocker), needed for chat + draft features in Open WebUI
-- **openwebui commits not pushed** — 5 commits ahead of origin on civicos-main branch
+- **Browser extension** (P2) is unblocked once context assembly is done — see `docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md`
+- **Relay deployment still pending** — action attribution + voice/revoke endpoints committed but not deployed to Modal
+- **SQL migration pending** — `scripts/sql/add_action_events.sql` needs to run on relay DB
+- **Pilot at 94%** (452/478 items ready) — 26 remaining, mostly P3
 
 ## Dev Environment
-- Frontend: `cd ~/projects/civicos-openwebui && npm run dev` (localhost:5173, hot reload)
+- Frontend: `cd ~/projects/civicos-openwebui && VITE_CIVICOS_API_URL=http://localhost:8001 npm run dev` (localhost:5173)
 - Backend: `./scripts/dev.sh api` (localhost:8001)
-- Use venv Python directly: `/Users/nicolaslounsbury/projects/civicos/civicos-env/bin/python3`
+- Note: Frontend defaults to production API URL. Use VITE_CIVICOS_API_URL for local dev.
