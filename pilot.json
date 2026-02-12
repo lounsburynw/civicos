@@ -2674,7 +2674,7 @@
         }
       },
       "provenance_footer": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "artifact": "Data provenance footer showing MCP/relay source info",
         "description": "Footer or info panel in CityPulse showing data provenance: MCP endpoint URL, relay ID, jurisdiction, data freshness (last sync timestamp), and corpus coverage summary. Builds trust by showing where data comes from. Accessible via small info icon in the dashboard header.",

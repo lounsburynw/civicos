@@ -315,6 +315,55 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
             logger.error(f"Error in budget_summary: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
+    @router.get("/data-provenance", response_model=ToolResponse,
+                summary="Data provenance info",
+                description="Data source transparency: jurisdiction, corpus coverage, data freshness, and endpoint URLs.")
+    async def data_provenance():
+        try:
+            from civicos.diagnostics import DataStatus
+            from civicos.registry import get_relay_url, get_jurisdiction_url
+
+            status = DataStatus(civic._storage, civic._vectors, jurisdiction)
+            report = status.summary()
+
+            # Build corpus summary
+            corpora = []
+            for key, c in report.corpus_counts.items():
+                corpora.append({
+                    "corpus_type": c.corpus_type,
+                    "display_name": c.display_name,
+                    "storage_count": c.storage_count,
+                    "vector_count": c.vector_count,
+                    "coverage_percent": round(c.coverage_percent, 1) if c.coverage_percent is not None else None,
+                    "last_indexed": c.last_indexed.isoformat() if c.last_indexed else None,
+                })
+
+            # Storage stats for freshness
+            freshness = {}
+            if report.storage_stats:
+                s = report.storage_stats
+                freshness = {
+                    "earliest_meeting": s.earliest_meeting.isoformat() if s.earliest_meeting else None,
+                    "latest_meeting": s.latest_meeting.isoformat() if s.latest_meeting else None,
+                    "last_updated": s.last_updated.isoformat() if s.last_updated else None,
+                }
+
+            return ToolResponse(data={
+                "jurisdiction": jurisdiction,
+                "mcp_endpoint": get_jurisdiction_url(jurisdiction),
+                "relay_url": get_relay_url(),
+                "storage_backend": type(civic._storage).__name__,
+                "total_storage_docs": report.total_storage_docs,
+                "total_vector_docs": report.total_vector_docs,
+                "overall_coverage_percent": round(report.overall_coverage_percent, 1) if report.overall_coverage_percent is not None else None,
+                "corpora": corpora,
+                "freshness": freshness,
+                "generated_at": report.timestamp.isoformat(),
+            })
+        except Exception as e:
+            logger.error(f"Error in data_provenance: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
     @router.post("/comment-synthesis", response_model=ToolResponse,
                   summary="Comment synthesis for an entity",
                   description="Aggregate public comments for an entity: total count, stance breakdown, and comment texts. No LLM — pure data aggregation for edge AI synthesis.")
