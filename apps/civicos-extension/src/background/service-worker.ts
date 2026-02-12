@@ -1,0 +1,153 @@
+/**
+ * CivicOS Extension Service Worker.
+ *
+ * Manages identity state and handles messages from popup, side panel,
+ * options page, and NIP-07 content scripts.
+ */
+
+import { IdentityManager } from '../lib/identity.js';
+import type { ExtensionRequest, ExtensionResponse } from '../lib/messaging.js';
+
+// Auto-lock alarm name
+const AUTO_LOCK_ALARM = 'civicos-auto-lock';
+const AUTO_LOCK_MINUTES = 5;
+
+// Identity manager (re-created on service worker wake)
+let identityManager = new IdentityManager();
+
+// Handle messages from extension pages and content scripts
+chrome.runtime.onMessage.addListener(
+  (message: ExtensionRequest, _sender, sendResponse: (response: ExtensionResponse) => void) => {
+    handleMessage(message).then(sendResponse);
+    return true; // Keep message channel open for async response
+  }
+);
+
+async function handleMessage(message: ExtensionRequest): Promise<ExtensionResponse> {
+  try {
+    switch (message.type) {
+      case 'GET_IDENTITY': {
+        const identity = await identityManager.getIdentity();
+        return {
+          success: true,
+          data: identity
+            ? { ...identity, isUnlocked: identityManager.isUnlocked() }
+            : null,
+        };
+      }
+
+      case 'GET_PUBLIC_KEY': {
+        const pubkey = await identityManager.getPublicKey();
+        return { success: true, data: pubkey };
+      }
+
+      case 'CREATE_IDENTITY': {
+        const result = await identityManager.createIdentity(
+          message.tier,
+          message.passwordOrEmail
+        );
+        resetAutoLock();
+        return { success: true, data: result };
+      }
+
+      case 'IMPORT_IDENTITY': {
+        const identity = await identityManager.importIdentity(
+          message.tier,
+          message.passwordOrEmail,
+          message.mnemonic
+        );
+        resetAutoLock();
+        return { success: true, data: identity };
+      }
+
+      case 'UNLOCK': {
+        const unlocked = await identityManager.unlock(message.password);
+        if (unlocked) {
+          resetAutoLock();
+        }
+        return { success: true, data: unlocked };
+      }
+
+      case 'LOCK': {
+        identityManager.lock();
+        clearAutoLock();
+        return { success: true, data: undefined };
+      }
+
+      case 'DELETE_IDENTITY': {
+        await identityManager.deleteIdentity();
+        clearAutoLock();
+        return { success: true, data: undefined };
+      }
+
+      case 'SIGN_EVENT': {
+        const result = await identityManager.signEvent(message.event);
+        if (result.success && result.event) {
+          resetAutoLock();
+          return { success: true, data: result.event };
+        }
+        return { success: false, error: result.error ?? 'Signing failed' };
+      }
+
+      // NIP-07 delegated operations (from content script)
+      case 'NIP07_GET_PUBLIC_KEY': {
+        const pubkey = await identityManager.getPublicKey();
+        if (!pubkey) {
+          return { success: false, error: 'No identity configured' };
+        }
+        return { success: true, data: pubkey };
+      }
+
+      case 'NIP07_SIGN_EVENT': {
+        if (!identityManager.isUnlocked()) {
+          return { success: false, error: 'Identity is locked' };
+        }
+        const signResult = await identityManager.signEvent(message.event);
+        if (signResult.success && signResult.event) {
+          resetAutoLock();
+          return { success: true, data: signResult.event };
+        }
+        return { success: false, error: signResult.error ?? 'Signing failed' };
+      }
+
+      case 'NIP07_GET_RELAYS': {
+        return {
+          success: true,
+          data: {
+            'wss://relay.civicos.dev': { read: true, write: true },
+          },
+        };
+      }
+
+      default:
+        return { success: false, error: `Unknown message type: ${(message as { type: string }).type}` };
+    }
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
+}
+
+// Open side panel when extension icon is clicked
+chrome.action.onClicked.addListener(async (tab) => {
+  if (tab.id) {
+    await chrome.sidePanel.open({ tabId: tab.id });
+  }
+});
+
+// Auto-lock via alarms (survives service worker restarts)
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === AUTO_LOCK_ALARM) {
+    identityManager.lock();
+  }
+});
+
+function resetAutoLock(): void {
+  chrome.alarms.create(AUTO_LOCK_ALARM, { delayInMinutes: AUTO_LOCK_MINUTES });
+}
+
+function clearAutoLock(): void {
+  chrome.alarms.clear(AUTO_LOCK_ALARM);
+}
