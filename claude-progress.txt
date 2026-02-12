@@ -1,3 +1,38 @@
+## Session 579 (2026-02-12) - Browser Extension Phase 0 Scaffold + Identity
+
+**Item:** edge_intelligence/browser_extension
+**Status:** In progress (Phase 0 complete, Phase 1 pending)
+
+#### What Was Done
+1. Created `apps/civicos-extension/` — Chrome Manifest V3 extension scaffold
+   - Vite + Svelte 5 build pipeline, multi-entry (side-panel, popup, options, service-worker, content-script)
+   - manifest.json with sidePanel, storage, alarms permissions
+2. Ported identity library from `apps/civicos-personal-mcp/lib/providers/`
+   - types.ts, crypto.ts — exact copies (secp256k1 Schnorr, bech32, Nostr event signing)
+   - passkey.ts, local-wallet.ts — kept existing storage classes, added Chrome adapters
+   - identity.ts — IdentityManager with Chrome storage defaults
+3. Created Chrome extension integration layer
+   - storage.ts — ChromeStoragePasskeyStorage + ChromeStorageWalletStorage
+   - messaging.ts — 10 typed message types with request/response unions
+   - service-worker.ts — identity state management, message routing, auto-lock via alarms
+   - nip07-provider.ts — window.nostr injection for NIP-07 compatibility
+4. Created Svelte 5 UI pages
+   - Side Panel — identity chip + "City Pulse coming in Phase 1" placeholder
+   - Popup — identity status + "Open City Pulse" + settings
+   - Options — tier selector, Easy/Private create/import flows, lock/unlock/delete
+
+#### Verification
+- `npm run build` — clean build (524ms, 88KB bundled service worker)
+- `tsc --noEmit` — zero type errors
+- personal-mcp tests — all 161 tests still pass
+
+#### Next Steps (Phase 1)
+- Connect to CivicOS API via context_assembly_api
+- City Pulse real-time feed in side panel
+- Relay integration for voice/actions
+
+---
+
 ## Session 578 (2026-02-12) - Context Assembly API Complete
 
 **Item:** edge_intelligence/context_assembly_api

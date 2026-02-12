@@ -2589,7 +2589,7 @@
         "priority": 1,
         "artifact": "MVP civic dashboard with 3+ visualization primitives",
         "description": "Implement minimum viable dashboard UX before MCP registry listing. Must include: (1) issue geography map as hero visualization with type filtering, (2) visible engagement ladder progression (awareness \u2192 participation path), (3) data-forward presentation (patterns emerge, no editorializing), (4) multi-surface capability (same query works in chat + visual rendering).",
-        "note": "2026-02-12: Dashboard MVP complete. Fixed CSS layout overlap (removed z-40 from left pane inner container, added overflow-hidden). Verified data-forward presentation — all sections show factual data (meetings, decisions, votes, issues, budget) with no editorializing. AI features (Summarize, Draft Comment) are user-triggered via chat. LLM provider config is an operational concern for pilot deployment, not a dashboard code blocker.",
+        "note": "2026-02-12: Dashboard MVP complete. Fixed CSS layout overlap (removed z-40 from left pane inner container, added overflow-hidden). Verified data-forward presentation \u2014 all sections show factual data (meetings, decisions, votes, issues, budget) with no editorializing. AI features (Summarize, Draft Comment) are user-triggered via chat. LLM provider config is an operational concern for pilot deployment, not a dashboard code blocker.",
         "depends_on": "city_pulse_mcp_tool",
         "blocks": "mcp_registry_listing",
         "progress": {
@@ -2675,7 +2675,7 @@
       },
       "provenance_footer": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Data provenance footer showing MCP/relay source info",
         "description": "Footer or info panel in CityPulse showing data provenance: MCP endpoint URL, relay ID, jurisdiction, data freshness (last sync timestamp), and corpus coverage summary. Builds trust by showing where data comes from. Accessible via small info icon in the dashboard header.",
         "depends_on": "civic_dashboard_mvp",
@@ -3571,7 +3571,7 @@
       },
       "action_attribution": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "description": "Link completed actions to outcomes - close the feedback loop so people see their impact. THIS IS THE ENGAGEMENT FLYWHEEL. Without it, the action system is just another CRUD feature. Must ship pre-pilot.",
         "test_file": "packages/civicos-relay/tests/test_action_attribution.py",
         "design": [
@@ -4213,7 +4213,7 @@
     },
     "context_assembly_api": {
       "status": "ready",
-      "priority": 0,
+      "priority": 1,
       "description": "Surface-agnostic context assembly layer. Given a civic item (agenda item, decision, issue, etc.), assembles a rich context bundle from the CivicOS API \u2014 description, history, related municipal code, testimony, cross-references, suggested questions. Any consumer (Open WebUI, browser extension, MCP, Claude.ai) calls the same endpoint and gets the same context, which it then passes to an LLM conversation however that surface does chat.",
       "_doc": "Strategy session 2026-02-08: The intelligence is in the context assembly, not the UI. This enables portable 'chat with this item' across all surfaces without coupling to any one frontend. Also enables a browser extension distribution strategy \u2014 inject CivicOS context into any page showing civic content.",
       "artifact": "packages/civicos-services/src/civicos_services/context/assembler.py",
