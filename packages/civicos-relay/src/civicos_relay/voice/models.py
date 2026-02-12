@@ -364,15 +364,21 @@ class InitiativeOutcome(BaseModel):
 
 class Attribution(BaseModel):
     """
-    Links a user's action to an initiative outcome.
+    Links a user's action to an initiative outcome or activity milestone.
 
-    When an initiative reaches an outcome, attributions are generated
-    for each user who committed to or completed actions. This closes
-    the feedback loop: 'Your comment helped influence this 4-1 vote.'
+    Two types:
+    - **Outcome-based**: Generated when an initiative reaches a decision.
+      "Your comment helped influence this 4-1 vote."
+    - **Activity-based**: Generated immediately on action completion.
+      "You submitted a written comment (3 of 10 target)."
+      outcome_id is None for activity-based attributions.
     """
 
     id: str = Field(description="Unique attribution ID")
-    outcome_id: str = Field(description="Reference to the outcome")
+    outcome_id: Optional[str] = Field(
+        default=None,
+        description="Reference to the outcome (None for activity-based attributions)"
+    )
     action_id: str = Field(description="Reference to the action event")
     public_key: str = Field(description="User's public key (hex-encoded)")
     contribution_type: ContributionType = Field(
@@ -385,3 +391,7 @@ class Attribution(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     model_config = {"frozen": True}
+
+    @property
+    def is_activity_based(self) -> bool:
+        return self.outcome_id is None

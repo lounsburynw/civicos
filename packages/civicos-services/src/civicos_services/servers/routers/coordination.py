@@ -262,7 +262,7 @@ class OutcomeResponse(BaseModel):
 class AttributionResponse(BaseModel):
     """Attribution record response."""
     id: str
-    outcome_id: str
+    outcome_id: Optional[str] = None
     action_id: str
     public_key: str
     contribution_type: str
@@ -271,9 +271,9 @@ class AttributionResponse(BaseModel):
 
 
 class UserImpactResponse(BaseModel):
-    """User impact summary — attributions with outcome context."""
+    """User impact summary — attributions with optional outcome context."""
     attribution: AttributionResponse
-    outcome: OutcomeResponse
+    outcome: Optional[OutcomeResponse] = None
 
 
 # === Comment Request/Response Models ===
@@ -2263,10 +2263,11 @@ async def get_outcome_attributions(initiative_id: str, outcome_id: str):
 )
 async def get_user_impact(public_key: str):
     """
-    Get a user's impact history — all outcomes they contributed to.
+    Get a user's impact history — both activity completions and outcome attributions.
 
-    Returns attributions joined with outcome details, showing the user
-    how their actions influenced civic decisions.
+    Returns two types of attributions:
+    - Activity-based (outcome=None): "You completed: Submit written comment (3 of 10)"
+    - Outcome-based (outcome set): "Your comment contributed to outcome: passed (4-1)"
     """
     service = _get_civic_action_service()
     if not service:
@@ -2279,22 +2280,26 @@ async def get_user_impact(public_key: str):
         outcome_cache: dict[str, OutcomeResponse] = {}
 
         for a in attributions:
-            # Cache outcome lookups
-            if a.outcome_id not in outcome_cache:
-                outcome = service.get_outcome(a.outcome_id)
-                if not outcome:
-                    continue
-                attr_count = len(service.get_attributions_for_outcome(a.outcome_id))
-                outcome_cache[a.outcome_id] = OutcomeResponse(
-                    id=outcome.id,
-                    initiative_id=outcome.initiative_id,
-                    outcome=outcome.outcome.value,
-                    notes=outcome.notes,
-                    vote_breakdown=outcome.vote_breakdown,
-                    decision_reference=outcome.decision_reference,
-                    recorded_at=outcome.recorded_at.isoformat(),
-                    attribution_count=attr_count,
-                )
+            outcome_response = None
+
+            if a.outcome_id is not None:
+                # Outcome-based attribution — look up outcome details
+                if a.outcome_id not in outcome_cache:
+                    outcome = service.get_outcome(a.outcome_id)
+                    if not outcome:
+                        continue
+                    attr_count = len(service.get_attributions_for_outcome(a.outcome_id))
+                    outcome_cache[a.outcome_id] = OutcomeResponse(
+                        id=outcome.id,
+                        initiative_id=outcome.initiative_id,
+                        outcome=outcome.outcome.value,
+                        notes=outcome.notes,
+                        vote_breakdown=outcome.vote_breakdown,
+                        decision_reference=outcome.decision_reference,
+                        recorded_at=outcome.recorded_at.isoformat(),
+                        attribution_count=attr_count,
+                    )
+                outcome_response = outcome_cache[a.outcome_id]
 
             result.append(UserImpactResponse(
                 attribution=AttributionResponse(
@@ -2306,7 +2311,7 @@ async def get_user_impact(public_key: str):
                     message=a.message,
                     created_at=a.created_at.isoformat(),
                 ),
-                outcome=outcome_cache[a.outcome_id],
+                outcome=outcome_response,
             ))
 
         return result

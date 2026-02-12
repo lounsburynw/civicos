@@ -307,6 +307,10 @@ class CivicActionService:
             public_key, action_ref, CommitmentStatus.COMPLETED
         )
 
+        # Generate activity-based attribution immediately
+        if self._attribution_storage:
+            self._generate_activity_attribution(action, action_ref, public_key)
+
         return completion
 
     def get_completion(
@@ -481,6 +485,39 @@ class CivicActionService:
             return f"Your {action_desc} contributed to outcome: {outcome_desc}"
         else:
             return f"Your commitment to {action_desc} supported outcome: {outcome_desc}"
+
+    def _generate_activity_attribution(
+        self,
+        action: CivicActionEvent,
+        action_ref: str,
+        public_key: str,
+    ) -> None:
+        """Generate an activity-based attribution when a user completes an action.
+
+        Activity attributions are immediate — no outcome needed. They tell the
+        user what they did and how it fits into the bigger picture.
+        """
+        # Get current completion count for progress context
+        completions = self._completion_storage.get_completions_for_action(action_ref)
+        completion_count = len([c for c in completions if not c.revoked])
+
+        if action.target_count:
+            progress = f"{completion_count} of {action.target_count}"
+        else:
+            progress = f"{completion_count} completed"
+
+        message = f"You completed: {action.description} ({progress})"
+
+        attr_id = f"activity:{action.id}:{public_key[:8]}"
+        attribution = Attribution(
+            id=attr_id,
+            outcome_id=None,  # Activity-based — no outcome yet
+            action_id=action.id,
+            public_key=public_key,
+            contribution_type=ContributionType.COMPLETION,
+            message=message,
+        )
+        self._attribution_storage.save_attribution(attribution)
 
     # ========================================================================
     # Signature Verification
