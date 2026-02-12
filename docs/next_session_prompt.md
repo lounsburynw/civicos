@@ -1,88 +1,78 @@
-# Recommended: Action Attribution — Close the Feedback Loop
+# Recommended: Context Assembly API — Finish the Surface-Agnostic Foundation
 
 **Priority:** P0
-**Area:** relay > action_primitives > action_attribution
-**Date:** 2026-02-11
-**Previous session:** 573
+**Area:** edge_intelligence > context_assembly_api
+**Date:** 2026-02-12
+**Previous session:** Architecture — browser extension design + micropayments
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-The action system is now complete through Phase 2. Users can: create initiatives, add action items with deadlines/templates, commit ("I'll do this"), track commitments in a persistent "My Commitments" panel, download .ics calendar events, mark done, and withdraw. What's missing is the **feedback loop** — when a decision outcome is recorded, committed users should see "your comment was 1 of 27 that influenced this vote." Without attribution, the action system is just another CRUD feature.
+This session designed the **browser extension architecture** — the extension becomes CivicOS's primary distribution surface, acting as the Personal MCP directly in the browser. Full design is in `docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md` (new). The extension depends on `context_assembly_api` to assemble rich civic context bundles that get injected into AI surfaces (Claude.ai, ChatGPT, etc.). Context assembly Phase 1 is already complete — the remaining work is integration: add an MCP tool and wire it into Open WebUI.
 
-### Prior Commits (done)
-- civicos `5022ea6`: Phase 1 — deadline_context, withdraw, review fixes
-- civicos `3631a9e`: Phase 2 — coordination_url, backend for My Commitments
-- openwebui `339dfd4`: Phase 2 — My Commitments panel, .ics calendar, coordination_url display
+Also added: **micropayments architecture** (L402 + NWC + Cashu) as a section in the extension doc, and two new P2 items in `pilot.json` (`browser_extension`, `micropayments`).
 
-### Also Note: Relay Needs Deployment
-Phase 1+2 action system changes are committed locally but **not deployed to Modal**. Consider deploying first (quick) so real users can test.
+### P0 change from previous session
+Previous session set `action_attribution` as P0. This session demoted it to P1 and kept `context_assembly_api` as P0 because it's nearly complete and directly enables the extension strategy. Action attribution is still important (P1) — see previous `next_session_prompt.md` in git history for full context on that item.
 
-## Recommended Task: Action Attribution
+## Recommended Task: Finish Context Assembly API
 
-### What to Build
+### What Remains (2 subtasks)
 
-1. **Outcome recording endpoint** (backend)
-   - `POST /coordination/initiative/{id}/outcome`
-   - Outcome types: `passed`, `failed`, `continued`, `modified`, `partial`
-   - Links a decision outcome to an initiative
-   - Store: new `coordination_outcomes` table or field on `coordination_initiatives`
+1. **Add `get_item_context` MCP tool** — expose the context assembly endpoint as a Jurisdiction MCP tool so Claude.ai/ChatGPT users can query rich civic context directly
+2. **Open WebUI "Chat with this item" integration** — wire context bundles into the Open WebUI fork's CityPulse component
 
-2. **Attribution generation** (backend)
-   - When outcome is recorded, query all commitments/completions for that initiative's actions
-   - Generate personalized attribution per participant pubkey
-   - "Your comment was 1 of 27 submitted. The council voted 4-1 to approve."
-   - Non-participants see aggregate: "27 comments submitted, initiative passed 4-1"
-
-3. **Attribution display** (frontend)
-   - Outcome banner on initiative card in CityPulse
-   - Personalized impact message for committed users
-   - Aggregate stats for everyone else
-
-### Existing Code to Build On
-
-- `report_outcome()` in `packages/civicos/src/civic/orchestrator/outcomes.py` — SQLite-only, needs relay/Postgres upgrade
-- CivicCompletion (Kind 30812) already tracks who completed what action
-- `CivicActionProgress` already has commitment_count/completion_count
-- Design reference: `docs/critical/COORDINATION_PROTOCOL.md:570-656`
+### What's Already Done
+- `GET /api/context/{item_type}/{item_id}` endpoint is live
+- All 6 context sections implemented: history, regulatory, community, financial, testimony, participation
+- Parallel assembly with Semaphore(3), per-section 10s timeout, error isolation
+- Smoke tested with real San Rafael data
 
 ## Key Files
 
-- `packages/civicos-services/src/civicos_services/servers/routers/coordination.py` — add outcome endpoint here
-- `packages/civicos-relay/src/civicos_relay/voice/models.py:185-260` — CivicActionEvent, CivicCommitment, CivicCompletion models
-- `packages/civicos-relay/src/civicos_relay/voice/civic_action_service.py` — action service layer
-- `packages/civicos-relay/src/civicos_relay/storage/postgres.py:423-540` — initiative/action storage
-- `packages/civicos/src/civic/orchestrator/outcomes.py` — existing report_outcome (SQLite-only)
-- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` — initiative display, My Commitments panel
-- `~/projects/civicos-openwebui/src/lib/apis/civic.ts` — API client types and functions
-- `docs/critical/COORDINATION_PROTOCOL.md:570-656` — Attribution design spec
+- `packages/civicos-services/src/civicos_services/context/assembler.py` — ContextAssembler (implemented)
+- `packages/civicos-services/tests/test_context_assembly.py` — existing tests
+- `apps/civicos-mcp/tools/registry.py` — add `get_item_context` tool definition here
+- `apps/civicos-mcp/tools/handlers.py` — add handler that calls the context API
+- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` — "Chat with this item" UI
+- `~/projects/civicos-openwebui/src/lib/apis/civic.ts` — API client for context endpoint
+
+### New docs from this session
+- `docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md` — full extension design (identity, MCP connections, context injection, payments, implementation phases)
+- `pilot.json` — new items: `edge_intelligence/browser_extension` (P2), `edge_intelligence/micropayments` (P2); updated: `action_attribution` P0→P1, `action_templates` P0→P1
 
 ## Suggested Approach
 
-1. Design the outcome model (add to relay models.py or new model)
-2. Add `coordination_outcomes` table or `outcome` fields to `coordination_initiatives`
-3. Create `POST /coordination/initiative/{id}/outcome` endpoint with signature verification
-4. Create `GET /coordination/initiative/{id}/attribution/{pubkey}` endpoint
-5. Add attribution display to CityPulse initiative cards
-6. Test with existing initiative data
+1. Read `docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md` to understand the strategic context
+2. Read the context assembly endpoint implementation (`assembler.py`)
+3. Add `get_item_context` to MCP tool registry + handler — it should call the existing `/api/context/{item_type}/{item_id}` endpoint
+4. Test the MCP tool locally via Claude Desktop or stdio
+5. Wire "Chat with this item" button in CityPulse — on click, fetch context bundle, inject as system prompt into Open WebUI chat
 
 ## Tests to Run
 ```bash
-# Relay tests (action models, storage)
-/Users/nicolaslounsbury/projects/civicos/civicos-env/bin/python3 -m pytest packages/civicos-relay/tests/ -q --override-ini="addopts="
+# Context assembly tests
+/Users/nicolaslounsbury/projects/civicos/civicos-env/bin/python3 -m pytest packages/civicos-services/tests/test_context_assembly.py -q --override-ini="addopts="
+
+# MCP tool tests
+/Users/nicolaslounsbury/projects/civicos/civicos-env/bin/python3 -m pytest apps/civicos-mcp/tests/ -q --override-ini="addopts="
 
 # Smoke tests
 /Users/nicolaslounsbury/projects/civicos/civicos-env/bin/python3 -m pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
 ```
 
 ## Success Criteria
-- [ ] Outcome recording endpoint works (POST with signed outcome)
-- [ ] Attribution query returns personalized message per pubkey
-- [ ] CityPulse shows outcome banner on initiatives with recorded outcomes
-- [ ] Committed users see personal impact message
-- [ ] Non-participants see aggregate stats
-- [ ] Existing tests still pass (233 relay + 42 smoke)
+- [ ] `get_item_context` MCP tool returns rich context bundle for any item type
+- [ ] Tool works in Claude Desktop (stdio) and HTTP mode
+- [ ] Open WebUI CityPulse has "Chat with this item" on agenda items/decisions
+- [ ] Clicking "Chat with this item" opens a chat pre-loaded with context
+- [ ] Existing tests still pass
+
+## Also Notable (P1)
+- **Action attribution** (`relay/action_primitives/action_attribution`) — close the engagement feedback loop. See git history of this file for full context.
+- **Action templates** (`relay/frontend_integration/action_templates`) — Phase 2 commitment tracking, marked ready.
+- **Relay deployment** — action system changes committed locally but not deployed to Modal.
 
 ## Dev Environment
 - Frontend: `cd ~/projects/civicos-openwebui && npm run dev` (localhost:5173, hot reload)
