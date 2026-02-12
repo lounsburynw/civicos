@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS coordination_initiatives (
     title TEXT NOT NULL,
     description TEXT,
     location TEXT,
+    coordination_url TEXT,
     public_key TEXT NOT NULL,
     signature TEXT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
@@ -90,6 +91,9 @@ CREATE TABLE IF NOT EXISTS coordination_initiatives (
         status IN ('proposed', 'active', 'completed', 'archived')
     )
 );
+
+-- Migration: add coordination_url column if it doesn't exist
+ALTER TABLE coordination_initiatives ADD COLUMN IF NOT EXISTS coordination_url TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_initiatives_jurisdiction
     ON coordination_initiatives(jurisdiction);

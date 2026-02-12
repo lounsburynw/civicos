@@ -100,6 +100,7 @@ class CreateInitiativeRequest(BaseModel):
     title: str = Field(description="Short title for the initiative")
     description: str = Field(description="Full description")
     location: Optional[str] = Field(default=None, description="Optional physical location")
+    coordination_url: Optional[str] = Field(default=None, description="Optional link to coordination channel (Signal, SimpleX, Matrix)")
     public_key: str = Field(description="Creator's public key (hex-encoded)")
     signature: str = Field(description="Signature of initiative data (hex-encoded)")
     created_at: Optional[int] = Field(default=None, description="Unix timestamp from signed message")
@@ -113,6 +114,7 @@ class InitiativeResponse(BaseModel):
     title: str
     description: str
     location: Optional[str] = None
+    coordination_url: Optional[str] = None
     public_key: str
     timestamp: str
     status: str
@@ -901,6 +903,14 @@ async def create_initiative(request: CreateInitiativeRequest):
                 detail=f"Initiative already exists: {initiative_id}"
             )
 
+        # Validate coordination_url if provided
+        coordination_url = request.coordination_url
+        if coordination_url:
+            from urllib.parse import urlparse
+            parsed = urlparse(coordination_url)
+            if parsed.scheme not in ('https', 'http', 'mailto'):
+                raise HTTPException(status_code=400, detail="coordination_url must use https, http, or mailto scheme")
+
         # Create initiative
         initiative = Initiative(
             id=initiative_id,
@@ -909,6 +919,7 @@ async def create_initiative(request: CreateInitiativeRequest):
             title=request.title,
             description=request.description,
             location=request.location,
+            coordination_url=coordination_url,
             public_key=request.public_key,
             signature=request.signature,
             timestamp=timestamp,
@@ -927,6 +938,7 @@ async def create_initiative(request: CreateInitiativeRequest):
             title=initiative.title,
             description=initiative.description,
             location=initiative.location,
+            coordination_url=initiative.coordination_url,
             public_key=initiative.public_key,
             timestamp=initiative.timestamp.isoformat(),
             status=initiative.status.value,
@@ -996,6 +1008,7 @@ async def list_initiatives(
                 title=i.title,
                 description=i.description,
                 location=i.location,
+                coordination_url=i.coordination_url,
                 public_key=i.public_key,
                 timestamp=i.timestamp.isoformat(),
                 status=i.status.value,
@@ -1041,6 +1054,7 @@ async def get_initiative(initiative_id: str):
             title=initiative.title,
             description=initiative.description,
             location=initiative.location,
+            coordination_url=initiative.coordination_url,
             public_key=initiative.public_key,
             timestamp=initiative.timestamp.isoformat(),
             status=initiative.status.value,

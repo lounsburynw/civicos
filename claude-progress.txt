@@ -1,3 +1,109 @@
+## Session 573 (2026-02-11) - Action System Phase 2: Make Follow-Through Likely
+
+**Item:** action_templates (P0) — Phase 2: My Commitments, Calendar, Coordination
+**Status:** Complete
+
+### Changes
+
+1. **My Commitments panel** — Collapsible section above Community Initiatives showing all user's committed actions sorted by deadline urgency. Countdown display (days), overdue/urgent styling, links to targets. Data persisted in localStorage across sessions.
+
+2. **localStorage persistence** — committedActions and completedActions Sets are now backed by localStorage (`civicos_my_commitments` key). Commitment metadata (action_type, deadline, description, initiative_title) stored alongside IDs for offline rendering.
+
+3. **.ics calendar export** — "Add to Calendar" button for attend_meeting and public_comment actions (both in My Commitments panel and inline action detail). Generates standard iCalendar file with deadline as event, target as location, deadline_context in description.
+
+4. **coordination_url on Initiative** — Optional field for external coordination channels (Signal, SimpleX, Matrix, Discord). Full stack: model, storage (Postgres + InMemory), API endpoints (create/get/list), frontend creation form + display. URL scheme validation (https/http/mailto only). DB migration applied.
+
+#### Backend Files Changed
+- `packages/civicos-relay/src/civicos_relay/relay/models.py` — Added coordination_url to Initiative
+- `packages/civicos-relay/src/civicos_relay/storage/postgres.py` — Updated INSERT/SELECT for coordination_url
+- `packages/civicos-relay/src/civicos_relay/storage/memory.py` — Preserved coordination_url in update_voice_count
+- `packages/civicos-services/.../routers/coordination.py` — Added to Request/Response models, 3 endpoints, URL validation
+- `scripts/sql/add_coordination_tables.sql` — Schema + migration
+
+#### Frontend Files Changed (civicos-openwebui)
+- `src/lib/apis/civic.ts` — Initiative interface + createInitiative API
+- `src/lib/components/civic/CityPulse.svelte` — My Commitments panel, localStorage, .ics, coordination link display
+- `src/lib/components/civic/CreateInitiativeModal.svelte` — coordination_url input field
+
+#### Tests
+- 233 relay tests pass, 42 smoke tests pass
+- Frontend: only 4 pre-existing type errors (none from this session)
+
+---
+
+## Session 571 (2026-02-11) - Action System Phase 1: Make Commitments Meaningful
+
+**Item:** action_templates (P0) — Phase 1 of Action System overhaul
+**Status:** Complete
+
+### Changes Made
+
+**Bug fixes (CityPulse.svelte):**
+- Fixed deadline date format: "Due 3/10/6" → "Due 3/10/2026" (explicit year in toLocaleDateString)
+- Fixed zero-state progress: always shows "0 committed — be the first!" instead of hiding when no activity
+
+**New form fields (CreateActionModal.svelte):**
+- Added target URL field (link to comment form, email, etc.)
+- Added template/instructions textarea (e.g., comment template)
+- Added "Why this date?" context field for deadline
+- Made deadline required (was optional)
+- All fields passed through to backend API
+
+**Action display (CityPulse.svelte):**
+- Target rendered as clickable link (auto-detects mailto: for emails)
+- Deadline context shown as italic hint below deadline
+- Template shown as copyable text block — only visible after user commits (the "equip to act" moment)
+- Added CSS for action-meta-row, action-target-link, action-deadline-context, action-template
+
+**Backend (deadline_context field across stack):**
+- models.py: CivicActionEvent + deadline_context field
+- civic_action_service.py: create_action() accepts deadline_context
+- coordination.py: Request/response models + endpoint handler
+- postgres.py: INSERT/SELECT updated for deadline_context column
+- memory.py: InMemory revoke includes deadline_context
+- Migration: ALTER TABLE coordination_action_events ADD COLUMN deadline_context TEXT (applied)
+
+**Frontend API (civic.ts):**
+- CivicAction interface + deadline_context field
+- createCivicAction() accepts and sends deadline_context
+
+#### Commits
+- civicos: (pending commit)
+- openwebui: (pending commit)
+
+#### What's Next (Phase 2)
+- "My Commitments" panel — localStorage view of committed actions sorted by deadline
+- Calendar integration (.ics download) for attend_meeting/public_comment types
+- Optional coordination_url field on Initiative
+
+---
+
+## Session 547 (2026-02-10) - loom-core: Federated Protocol Signing Framework
+
+**Item:** Extract `packages/loom-core/` from inline crypto in civic.ts
+**Status:** Complete, committed, pushed
+
+#### What was done
+1. Created `packages/loom-core/` with two-layer architecture:
+   - **Protocol-agnostic**: `KeyPair`, `KeyStore`, `ProtocolAdapter<T,S>` interfaces + `sha256Hex`
+   - **Nostr adapter**: `signEvent`, `verifyEvent`, `signMessage`, `verifyMessage` (secp256k1 Schnorr / NIP-01)
+2. Migrated civic.ts — all 5 signing functions use loom-core, zero `@noble/secp256k1` imports remain
+3. Architectural refinement: moved `identity.ts` into `nostr/` (secp256k1-specific code belongs in adapter, not top level)
+4. Added `ProtocolAdapter` generic interface as explicit adapter contract
+5. Added README with architecture docs and "how to build a new adapter" guide
+
+#### Design principle applied
+"Could an AI agent understand this interface well enough to build a new bridge module from the docs alone?" — fixed three abstraction leaks (identity coupling, missing adapter contract, no docs)
+
+#### Commits
+- civicos: `55eb46e` feat: Extract loom-core federated protocol signing framework
+- civicos: `a652515` refactor: Move secp256k1 identity into nostr adapter, add ProtocolAdapter contract
+- openwebui: `8f8e7a2` feat: Migrate civic.ts to use loom-core for protocol signing
+- openwebui: `0617768` refactor: Import loadKeyPair from loom-core/nostr (adapter layer)
+
+#### Next P0
+civic_dashboard_mvp — commit 345 lines of unstaged prior work, fix transcript metadata, finish CSS layout
+
 ## Session 546 (2026-02-08) - context_assembly_api: Design Document
 
 **Item:** context_assembly_api (P0, edge_intelligence > context_assembly_api)
