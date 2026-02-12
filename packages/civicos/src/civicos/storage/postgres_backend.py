@@ -12,7 +12,7 @@ from datetime import datetime, date, timedelta, timezone
 from io import StringIO
 from typing import Any, Dict, List, Optional
 
-from .backend import StorageBackend, StorageStats, StorageValidationResult
+from .backend import MeetingStoreResult, StorageBackend, StorageStats, StorageValidationResult
 from .integrity import compute_transcript_hash, compute_chunk_hash, compute_decision_hash
 from civicos._internal.jurisdiction import normalize_jurisdiction
 
@@ -1558,7 +1558,7 @@ class PostgresBackend:
         jurisdiction_id: str,
         meetings: List[Any],
         as_of: Optional[datetime] = None,
-    ) -> int:
+    ) -> "MeetingStoreResult":
         """
         Store meetings with temporal versioning (upsert pattern).
 
@@ -1576,7 +1576,8 @@ class PostgresBackend:
             as_of: Timestamp for temporal versioning (default: now)
 
         Returns:
-            Number of meetings successfully stored or updated (excludes skipped)
+            MeetingStoreResult with stored_count and change details.
+            Supports int() for backward compatibility.
 
         Raises:
             psycopg2.Error: If atomic store operation fails
@@ -1601,7 +1602,7 @@ class PostgresBackend:
 
             # Use upsert pattern: only close/update meetings that changed
             # This preserves historical meetings not in the current scrape window
-            stored_count = 0
+            result = MeetingStoreResult()
             for meeting in meetings:
                 # Handle both dict and object access
                 if hasattr(meeting, "__dict__"):
@@ -1663,8 +1664,21 @@ class PostgresBackend:
                             SET last_verified = %s
                             WHERE id = %s AND jurisdiction_id = %s AND valid_to IS NULL
                         """, (as_of.isoformat(), meeting_id, jurisdiction_id))
-                        stored_count += 1
+                        result.stored_count += 1
+                        result.verified_count += 1
                         continue
+
+                    # Detect agenda appearing (NULL → set)
+                    if not ex_agenda and meeting_dict.get('agenda_url'):
+                        result.agenda_appeared.append(meeting_id)
+
+                    # Detect minutes appearing (NULL → set)
+                    if not ex_minutes and meeting_dict.get('minutes_url'):
+                        result.minutes_appeared.append(meeting_id)
+
+                    # Detect video appearing (NULL → set)
+                    if not ex_video and meeting_dict.get('video_url'):
+                        result.video_appeared.append(meeting_id)
 
                     # Close the old version (data changed)
                     cursor.execute("""
@@ -1672,6 +1686,10 @@ class PostgresBackend:
                         SET valid_to = %s
                         WHERE id = %s AND jurisdiction_id = %s AND valid_to IS NULL
                     """, (as_of.isoformat(), meeting_id, jurisdiction_id))
+                    result.updated_meeting_ids.append(meeting_id)
+                else:
+                    # New meeting (no existing record)
+                    result.new_meeting_ids.append(meeting_id)
 
                 # Insert new version (either new meeting or updated version)
                 cursor.execute("""
@@ -1704,7 +1722,7 @@ class PostgresBackend:
                     json.dumps(meeting_dict, cls=DateTimeEncoder),
                     meeting_dict.get('extraction_version'),
                 ))
-                stored_count += 1
+                result.stored_count += 1
 
             # Update city_state timestamp
             cursor.execute("""
@@ -1714,7 +1732,7 @@ class PostgresBackend:
             """, (as_of.isoformat(), datetime.now().isoformat(), jurisdiction_id))
 
             conn.commit()
-            return stored_count
+            return result
 
         except Exception:
             conn.rollback()

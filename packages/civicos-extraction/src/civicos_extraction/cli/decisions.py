@@ -424,9 +424,20 @@ def extract_decisions_from_meeting(
                 )
             analyzer = RetrospectiveAnalyzer(provider=provider)
 
-        logger.info(f"  Extracting decisions from agenda...")
+        # Skip meetings without minutes — decisions can't be reliably extracted
+        # from agendas alone (no outcomes, votes, or actual actions taken).
+        # These meetings will be retried when minutes become available.
+        if not meeting.get('minutes_url'):
+            logger.info(f"  Skipping (no minutes available yet): {meeting_id}")
+            return DecisionResult(
+                meeting_id=meeting_id,
+                meeting_date=meeting_date,
+                status="no_minutes",
+            )
 
-        # Extract decisions — AgendaDownloadError is raised when the agenda
+        logger.info(f"  Extracting decisions from minutes...")
+
+        # Extract decisions — AgendaDownloadError is raised when the
         # PDF cannot be fetched, distinguishing it from "no decisions found"
         high_stakes_decisions = analyzer.extract_high_stakes_decisions(
             event=meeting,
@@ -554,6 +565,7 @@ def run_decision_extraction(
     cloud: bool = False,
     since: Optional[str] = None,
     until: Optional[str] = None,
+    meeting_ids: Optional[List[str]] = None,
 ) -> Optional[List[DecisionResult]]:
     """
     Run decision extraction for meetings from a jurisdiction.
@@ -570,6 +582,8 @@ def run_decision_extraction(
         cloud: If True, use cloud storage
         since: Process meetings since this date (YYYY-MM-DD)
         until: Process meetings until this date (YYYY-MM-DD)
+        meeting_ids: If set, only process these specific meetings (targeted mode).
+            Used by reactive pipeline when minutes appear on specific meetings.
 
     Returns:
         List of DecisionResult if successful, None if failed
@@ -582,6 +596,12 @@ def run_decision_extraction(
 
     # Find meetings with agendas
     meetings = find_meetings(jurisdiction_id, input_dir, cloud=cloud_mode, since=since, until=until)
+
+    # Filter to specific meeting IDs if targeted mode
+    if meetings and meeting_ids:
+        meeting_id_set = set(meeting_ids)
+        meetings = [m for m in meetings if (m.get("id") or m.get("meeting_id")) in meeting_id_set]
+        logger.info(f"Targeted mode: filtered to {len(meetings)} of {len(meeting_ids)} requested meetings")
     if not meetings:
         return None
 
@@ -680,7 +700,7 @@ def run_decision_extraction(
         if result.status == "success":
             items_extracted += 1
             total_decisions += result.decisions_count
-        elif result.status == "skipped":
+        elif result.status in ("skipped", "no_minutes"):
             items_skipped += 1
         else:
             items_failed += 1

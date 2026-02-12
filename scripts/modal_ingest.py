@@ -1822,11 +1822,21 @@ def fetch_meetings(
 
     # Store meetings
     stored_count = 0
+    store_result = None
     if not dry_run and meetings:
         # Convert Meeting objects to dicts for storage
         meeting_dicts = [m.to_dict() if hasattr(m, 'to_dict') else m.__dict__ for m in meetings]
-        stored_count = backend.store_meetings(jurisdiction, meeting_dicts)
+        store_result = backend.store_meetings(jurisdiction, meeting_dicts)
+        stored_count = int(store_result)
         logger.info(f"Stored {stored_count} meetings")
+        if store_result.new_meeting_ids:
+            logger.info(f"  New meetings: {store_result.new_meeting_ids}")
+        if store_result.minutes_appeared:
+            logger.info(f"  Minutes appeared: {store_result.minutes_appeared}")
+        if store_result.video_appeared:
+            logger.info(f"  Video appeared: {store_result.video_appeared}")
+        if store_result.agenda_appeared:
+            logger.info(f"  Agenda appeared: {store_result.agenda_appeared}")
 
         # Update refresh metadata
         backend.update_refresh_metadata(
@@ -1861,6 +1871,16 @@ def fetch_meetings(
         "auto_index": auto_index,
         "elapsed_seconds": elapsed,
         "cost_usd": 4 * elapsed * 0.000463,
+        # Change manifest for reactive pipelines
+        "new_meeting_ids": store_result.new_meeting_ids if store_result else [],
+        "updated_meeting_ids": store_result.updated_meeting_ids if store_result else [],
+        "minutes_appeared_ids": store_result.minutes_appeared if store_result else [],
+        "video_appeared_ids": store_result.video_appeared if store_result else [],
+        "agenda_appeared_ids": store_result.agenda_appeared if store_result else [],
+        "has_new_material": store_result.has_new_material if store_result else False,
+        "has_minutes_updates": store_result.has_minutes_updates if store_result else False,
+        "has_video_updates": store_result.has_video_updates if store_result else False,
+        "has_agenda_updates": store_result.has_agenda_updates if store_result else False,
     }
     if vector_result:
         result["vector_result"] = vector_result
@@ -2732,6 +2752,7 @@ def extract_decisions(
     auto_index: bool = False,
     since: str = "",
     until: str = "",
+    meeting_ids: list = None,
 ) -> dict:
     """Extract high-stakes decisions from meeting minutes using LLM.
 
@@ -2740,15 +2761,16 @@ def extract_decisions(
     2. Downloads PDFs and extracts high-stakes decisions using LLM
     3. Stores decisions to Postgres
 
-    NOTE: Should run weekly (not daily) because meeting minutes PDFs
-    are typically published 1-2 weeks after the meeting.
+    Can be called in two modes:
+    - Batch mode (default): processes all unextracted meetings, used by weekly cron
+    - Targeted mode (meeting_ids set): processes specific meetings, used by reactive pipeline
+      when minutes appear on previously-processed meetings
 
     Pipeline Integration:
         This is a Modal orchestration task, not a Pipeline class instance.
         It bypasses the standard 4-stage pattern (discover→ingest→store→index)
         because decision extraction is:
         - LLM-intensive (not suited for streaming callbacks)
-        - Weekly (not part of daily high-velocity refresh)
         - Already incremental (skips previously extracted meetings)
 
         Vector indexing happens separately via index_vectors() which includes
@@ -2762,6 +2784,7 @@ def extract_decisions(
         auto_index: If True, trigger vector indexing after successful extraction
         since: Filter meetings since this date (YYYY-MM-DD)
         until: Filter meetings until this date (YYYY-MM-DD)
+        meeting_ids: If set, only process these specific meetings (targeted mode)
     """
     import logging
     import os
@@ -2779,7 +2802,11 @@ def extract_decisions(
         raise ValueError("DATABASE_URL not set")
 
     backend = PostgresBackend(database_url)
-    logger.info(f"[DECISIONS] Starting extraction: jurisdiction={jurisdiction}, limit={limit}, since={since or 'all'}, until={until or 'all'}")
+
+    if meeting_ids:
+        logger.info(f"[DECISIONS] Targeted extraction: jurisdiction={jurisdiction}, meeting_ids={meeting_ids}")
+    else:
+        logger.info(f"[DECISIONS] Starting extraction: jurisdiction={jurisdiction}, limit={limit}, since={since or 'all'}, until={until or 'all'}")
 
     results = run_decision_extraction(
         jurisdiction_id=jurisdiction,
@@ -2791,6 +2818,7 @@ def extract_decisions(
         cloud=True,
         since=since or None,
         until=until or None,
+        meeting_ids=meeting_ids,
     )
 
     # Summarize results
@@ -2808,7 +2836,8 @@ def extract_decisions(
 
     # Count actual extractions
     extracted = sum(1 for r in results if r.status == "success")
-    skipped = sum(1 for r in results if r.status == "skipped")
+    skipped = sum(1 for r in results if r.status in ("skipped", "no_minutes"))
+    no_minutes = sum(1 for r in results if r.status == "no_minutes")
     failed = sum(1 for r in results if r.status == "error")
     total_decisions = sum(r.decisions_count for r in results if r.status == "success")
 
@@ -2849,7 +2878,7 @@ def extract_decisions(
 
     elapsed = time.time() - start_time
     logger.info(f"[DECISIONS] Extracted {total_decisions} decisions from {extracted} meetings")
-    logger.info(f"[DECISIONS] Skipped {skipped} (already extracted), {failed} failed")
+    logger.info(f"[DECISIONS] Skipped {skipped} (already extracted or no minutes), {no_minutes} awaiting minutes, {failed} failed")
 
     result = {
         "task": "decisions",
@@ -2857,8 +2886,10 @@ def extract_decisions(
         "meetings_processed": len(results),
         "meetings_extracted": extracted,
         "meetings_skipped": skipped,
+        "meetings_no_minutes": no_minutes,
         "meetings_failed": failed,
         "decisions_extracted": total_decisions,
+        "targeted": bool(meeting_ids),
         "dry_run": dry_run,
         "auto_index": auto_index,
         "elapsed_seconds": elapsed,
@@ -3385,9 +3416,9 @@ def scheduled_high_velocity_refresh():
         logger.info(f"Processing jurisdiction: {jid}")
         results[jid] = {}
 
-        # Meetings (incremental, auto-index vectors after store)
+        # === STAGE 1: Always run cheap polls (meetings + issues) ===
         logger.info(f"  [{jid}] Fetching meetings (incremental)...")
-        result = run_with_retry(
+        meetings_result = run_with_retry(
             fetch_meetings,
             f"[{jid}] Meetings fetch",
             jurisdiction=jid,
@@ -3395,13 +3426,12 @@ def scheduled_high_velocity_refresh():
             dry_run=False,
             auto_index=True,
         )
-        results[jid]["meetings"] = result
-        if result.get("status") != "failed":
-            stored = result.get('meetings_stored', 0)
-            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+        results[jid]["meetings"] = meetings_result
+        if meetings_result.get("status") != "failed":
+            stored = meetings_result.get('meetings_stored', 0)
+            indexed = meetings_result.get('vector_result', {}).get('total_indexed', 0) if meetings_result.get('auto_index') else 0
             logger.info(f"    Meetings: {stored} stored, {indexed} vectors indexed")
 
-        # Issues (incremental, auto-index vectors after store)
         logger.info(f"  [{jid}] Fetching issues (incremental)...")
         result = run_with_retry(
             fetch_issues,
@@ -3417,88 +3447,118 @@ def scheduled_high_velocity_refresh():
             indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
             logger.info(f"    Issues: {stored} stored, {indexed} vectors indexed")
 
-        # Video discovery (scrape meeting pages for YouTube IDs)
-        # Runs AFTER fetch_meetings so new meeting pages exist,
-        # and BEFORE extract_transcripts so video records are available for audio download.
-        logger.info(f"  [{jid}] Discovering videos from meeting pages...")
-        result = run_with_retry(
-            discover_videos,
-            f"[{jid}] Video discovery",
-            jurisdiction=jid,
-            days_past=7,
-            days_ahead=30,
-            dry_run=False,
-        )
-        results[jid]["videos"] = result
-        if result.get("status") != "failed":
-            discovered = result.get('videos_discovered', 0)
-            logger.info(f"    Videos: {discovered} discovered")
+        # === STAGE 2: Reactive — only run expensive stages if meetings changed ===
+        has_new_material = meetings_result.get("has_new_material", False)
+        has_agenda = meetings_result.get("has_agenda_updates", False)
+        has_minutes = meetings_result.get("has_minutes_updates", False)
+        has_video = meetings_result.get("has_video_updates", False)
+        new_ids = meetings_result.get("new_meeting_ids", [])
+        agenda_ids = meetings_result.get("agenda_appeared_ids", [])
+        minutes_ids = meetings_result.get("minutes_appeared_ids", [])
+        video_ids = meetings_result.get("video_appeared_ids", [])
 
-        # Transcript extraction (audio download + transcription, auto-index vectors)
-        # Runs BEFORE chunk extraction since transcript text needs to be indexed
-        logger.info(f"  [{jid}] Extracting transcripts (audio + transcription)...")
-        result = run_with_retry(
-            extract_transcripts,
-            f"[{jid}] Transcript extraction",
-            max_retries=1,  # Transcription is expensive, limit retries
-            jurisdiction=jid,
-            since_days=7,  # Only videos discovered in last 7 days
-            dry_run=False,
-            batch=True,  # Use batch mode for parallel transcription
-            auto_index=True,
-        )
-        results[jid]["transcripts"] = result
-        if result.get("status") != "failed":
-            cost = result.get("transcription_cost_usd", 0)
-            total_transcription_cost += cost
-            extracted = result.get('transcripts_extracted', 0)
-            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+        has_any_change = has_new_material or has_agenda or has_minutes or has_video
+        if not has_any_change:
+            logger.info(f"  [{jid}] No new material — skipping downstream stages")
+            results[jid]["skipped_downstream"] = True
+        else:
             logger.info(
-                f"    Transcripts: {extracted} transcribed, "
-                f"{result.get('transcripts_skipped', 0)} skipped, "
-                f"{indexed} vectors indexed, cost: ${cost:.2f}"
+                f"  [{jid}] Changes detected: {len(new_ids)} new, "
+                f"{len(agenda_ids)} agendas, {len(minutes_ids)} minutes, "
+                f"{len(video_ids)} videos appeared"
             )
-            if result.get("duration_validation_issues", 0) > 0:
-                logger.warning(f"    Duration validation issues: {result.get('duration_validation_issues')}")
 
-        # Chunk extraction (incremental - skips already-chunked meetings, auto-index vectors)
-        logger.info(f"  [{jid}] Extracting chunks from new meetings...")
-        result = run_with_retry(
-            extract_chunks,
-            f"[{jid}] Chunk extraction",
-            jurisdiction=jid,
-            dry_run=False,
-            auto_index=True,
-        )
-        results[jid]["chunks"] = result
-        if result.get("status") != "failed":
-            extracted = result.get('chunks_extracted', 0)
-            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
-            logger.info(f"    Chunks: {extracted} extracted from {result.get('meetings_extracted', 0)} meetings, {indexed} vectors indexed")
+            # Chunk + agenda extraction — triggered by new meetings or agenda URLs appearing
+            if has_new_material or has_agenda:
+                # Chunk extraction (incremental - skips already-chunked meetings, auto-index vectors)
+                logger.info(f"  [{jid}] Extracting chunks from new meetings...")
+                result = run_with_retry(
+                    extract_chunks,
+                    f"[{jid}] Chunk extraction",
+                    jurisdiction=jid,
+                    dry_run=False,
+                    auto_index=True,
+                )
+                results[jid]["chunks"] = result
+                if result.get("status") != "failed":
+                    extracted = result.get('chunks_extracted', 0)
+                    indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+                    logger.info(f"    Chunks: {extracted} extracted from {result.get('meetings_extracted', 0)} meetings, {indexed} vectors indexed")
 
-        # Agenda items extraction (LLM-powered, runs daily for timely prospective engagement)
-        # Moved from weekly to daily refresh because:
-        # - New meetings are discovered daily
-        # - Agenda items are the key feature for prospective civic engagement
-        # - Users want upcoming meeting details promptly, not 7 days later
-        logger.info(f"  [{jid}] Extracting agenda items...")
-        result = run_with_retry(
-            extract_agenda_items,
-            f"[{jid}] Agenda items extraction",
-            max_retries=1,  # LLM calls are expensive, limit retries
-            jurisdiction=jid,
-            dry_run=False,
-            auto_index=True,
-        )
-        results[jid]["agenda_items"] = result
-        if result.get("status") != "failed":
-            extracted = result.get('items_extracted', 0)
-            indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
-            logger.info(f"    Agenda items: {extracted} items ({result.get('actionable_items', 0)} actionable), {indexed} vectors indexed")
+                # Agenda items extraction (LLM-powered)
+                logger.info(f"  [{jid}] Extracting agenda items...")
+                result = run_with_retry(
+                    extract_agenda_items,
+                    f"[{jid}] Agenda items extraction",
+                    max_retries=1,  # LLM calls are expensive, limit retries
+                    jurisdiction=jid,
+                    dry_run=False,
+                    auto_index=True,
+                )
+                results[jid]["agenda_items"] = result
+                if result.get("status") != "failed":
+                    extracted = result.get('items_extracted', 0)
+                    indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+                    logger.info(f"    Agenda items: {extracted} items ({result.get('actionable_items', 0)} actionable), {indexed} vectors indexed")
 
-        # NOTE: Vector indexing now handled by auto_index=True on each fetch/extract call above.
-        # This ensures vectors are indexed immediately after data is stored, closing the
-        # staleness gap where data could exist in storage but not be searchable.
+            # Video discovery + transcription — triggered when video_url appears
+            if has_video:
+                logger.info(f"  [{jid}] Video appeared on {len(video_ids)} meetings — discovering and transcribing...")
+                result = run_with_retry(
+                    discover_videos,
+                    f"[{jid}] Video discovery",
+                    jurisdiction=jid,
+                    days_past=7,
+                    days_ahead=30,
+                    dry_run=False,
+                )
+                results[jid]["videos"] = result
+                if result.get("status") != "failed":
+                    discovered = result.get('videos_discovered', 0)
+                    logger.info(f"    Videos: {discovered} discovered")
+
+                # Transcript extraction (audio download + transcription, auto-index vectors)
+                logger.info(f"  [{jid}] Extracting transcripts (audio + transcription)...")
+                result = run_with_retry(
+                    extract_transcripts,
+                    f"[{jid}] Transcript extraction",
+                    max_retries=1,  # Transcription is expensive, limit retries
+                    jurisdiction=jid,
+                    since_days=7,  # Only videos discovered in last 7 days
+                    dry_run=False,
+                    batch=True,  # Use batch mode for parallel transcription
+                    auto_index=True,
+                )
+                results[jid]["transcripts"] = result
+                if result.get("status") != "failed":
+                    cost = result.get("transcription_cost_usd", 0)
+                    total_transcription_cost += cost
+                    extracted = result.get('transcripts_extracted', 0)
+                    indexed = result.get('vector_result', {}).get('total_indexed', 0) if result.get('auto_index') else 0
+                    logger.info(
+                        f"    Transcripts: {extracted} transcribed, "
+                        f"{result.get('transcripts_skipped', 0)} skipped, "
+                        f"{indexed} vectors indexed, cost: ${cost:.2f}"
+                    )
+                    if result.get("duration_validation_issues", 0) > 0:
+                        logger.warning(f"    Duration validation issues: {result.get('duration_validation_issues')}")
+
+            # Decision extraction — triggered when minutes appear on previously-processed meetings
+            if has_minutes:
+                logger.info(f"  [{jid}] Minutes appeared on {len(minutes_ids)} meetings — extracting decisions...")
+                result = run_with_retry(
+                    extract_decisions,
+                    f"[{jid}] Reactive decision extraction",
+                    max_retries=1,
+                    jurisdiction=jid,
+                    meeting_ids=minutes_ids,
+                    dry_run=False,
+                    auto_index=True,
+                )
+                results[jid]["decisions"] = result
+                if result.get("status") != "failed":
+                    extracted = result.get('decisions_extracted', 0)
+                    logger.info(f"    Decisions: {extracted} extracted from {len(minutes_ids)} meetings")
 
     elapsed = time.time() - start_time
     logger.info(f"High-velocity refresh complete in {elapsed:.1f}s for {len(jurisdictions)} jurisdictions")
@@ -3523,6 +3583,162 @@ def scheduled_high_velocity_refresh():
         "results": results,
         "elapsed_seconds": elapsed,
         "total_transcription_cost_usd": total_transcription_cost,
+    }
+
+
+# =============================================================================
+# Frequent Meetings Poll (Reactive Pipeline)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+        modal.Secret.from_name("civic-openai"),  # For agenda/decision extraction if triggered
+        modal.Secret.from_name("civic-assemblyai"),  # For transcript extraction if video appears
+        modal.Secret.from_name("civic-google"),  # For YouTube duration validation
+        modal.Secret.from_name("civic-r2"),  # R2 blob storage for audio files
+        modal.Secret.from_name("civic-youtube-cookies"),  # For YouTube audio download
+        modal.Secret.from_name("civic-youtube-proxy"),  # Residential proxy for YouTube downloads
+        modal.Secret.from_name("civic-notify"),
+    ],
+    memory=4096,  # Higher memory for transcript extraction
+    timeout=3600,  # 1 hour (transcription can take time if triggered)
+    schedule=modal.Cron("0 14,22,2,6 * * *"),  # Every ~4h: 6AM, 2PM, 6PM, 10PM Pacific
+)
+def scheduled_meetings_poll():
+    """Lightweight meetings-only poll that triggers downstream extraction reactively.
+
+    Runs 4x/day covering business hours. Only fetches meetings (cheap HTTP scrape).
+    If new meetings or minutes appear, spawns chunk/agenda/decision extraction.
+
+    Cost: ~$0.02/run when idle (no new material), ~$2/month total.
+    """
+    import logging
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+
+    logger.info("Starting scheduled meetings poll (reactive)")
+    start_time = time.time()
+
+    from civicos_extraction.config import get_active_jurisdictions
+
+    jurisdictions = get_active_jurisdictions()
+    results = {}
+
+    for jid, config in jurisdictions.items():
+        source_type = config.get("source_type", "")
+        if source_type in ("county", "financial"):
+            continue
+
+        logger.info(f"[{jid}] Polling meetings...")
+        try:
+            meetings_result = fetch_meetings.local(
+                jurisdiction=jid,
+                incremental=True,
+                dry_run=False,
+                auto_index=True,
+            )
+        except Exception as e:
+            logger.warning(f"[{jid}] Meetings poll failed: {e}")
+            results[jid] = {"status": "failed", "error": str(e)}
+            continue
+
+        results[jid] = {"meetings": meetings_result}
+        has_new_material = meetings_result.get("has_new_material", False)
+        has_agenda = meetings_result.get("has_agenda_updates", False)
+        has_minutes = meetings_result.get("has_minutes_updates", False)
+        has_video = meetings_result.get("has_video_updates", False)
+        new_ids = meetings_result.get("new_meeting_ids", [])
+        agenda_ids = meetings_result.get("agenda_appeared_ids", [])
+        minutes_ids = meetings_result.get("minutes_appeared_ids", [])
+        video_ids = meetings_result.get("video_appeared_ids", [])
+
+        has_any_change = has_new_material or has_agenda or has_minutes or has_video
+        if not has_any_change:
+            logger.info(f"  [{jid}] No new material — done")
+            continue
+
+        logger.info(
+            f"  [{jid}] Changes: {len(new_ids)} new, {len(agenda_ids)} agendas, "
+            f"{len(minutes_ids)} minutes, {len(video_ids)} videos appeared"
+        )
+
+        # Spawn chunk + agenda extraction for new meetings or newly-available agendas
+        if has_new_material or has_agenda:
+            try:
+                logger.info(f"  [{jid}] Extracting chunks from new meetings...")
+                chunk_result = extract_chunks.local(
+                    jurisdiction=jid, dry_run=False, auto_index=True,
+                )
+                results[jid]["chunks"] = chunk_result
+                chunks_extracted = chunk_result.get('chunks_extracted', 0)
+                logger.info(f"    Chunks: {chunks_extracted} extracted")
+            except Exception as e:
+                logger.warning(f"  [{jid}] Chunk extraction failed: {e}")
+
+            try:
+                logger.info(f"  [{jid}] Extracting agenda items...")
+                agenda_result = extract_agenda_items.local(
+                    jurisdiction=jid, dry_run=False, auto_index=True,
+                )
+                results[jid]["agenda_items"] = agenda_result
+                items_extracted = agenda_result.get('items_extracted', 0)
+                logger.info(f"    Agenda items: {items_extracted} extracted")
+            except Exception as e:
+                logger.warning(f"  [{jid}] Agenda extraction failed: {e}")
+
+        # Spawn video discovery + transcription when video_url appears
+        if has_video:
+            try:
+                logger.info(f"  [{jid}] Discovering videos for {len(video_ids)} meetings...")
+                video_result = discover_videos.local(
+                    jurisdiction=jid, days_past=7, days_ahead=30, dry_run=False,
+                )
+                results[jid]["videos"] = video_result
+                discovered = video_result.get('videos_discovered', 0)
+                logger.info(f"    Videos: {discovered} discovered")
+            except Exception as e:
+                logger.warning(f"  [{jid}] Video discovery failed: {e}")
+
+            try:
+                logger.info(f"  [{jid}] Extracting transcripts...")
+                transcript_result = extract_transcripts.local(
+                    jurisdiction=jid, since_days=7, batch=True, auto_index=True,
+                )
+                results[jid]["transcripts"] = transcript_result
+                extracted = transcript_result.get('transcripts_extracted', 0)
+                cost = transcript_result.get('transcription_cost_usd', 0)
+                logger.info(f"    Transcripts: {extracted} transcribed, cost: ${cost:.2f}")
+            except Exception as e:
+                logger.warning(f"  [{jid}] Transcript extraction failed: {e}")
+
+        # Spawn targeted decision extraction for meetings where minutes appeared
+        if has_minutes:
+            try:
+                logger.info(f"  [{jid}] Extracting decisions for {len(minutes_ids)} meetings with new minutes...")
+                decision_result = extract_decisions.local(
+                    jurisdiction=jid,
+                    meeting_ids=minutes_ids,
+                    dry_run=False,
+                    auto_index=True,
+                )
+                results[jid]["decisions"] = decision_result
+                decisions_extracted = decision_result.get('decisions_extracted', 0)
+                logger.info(f"    Decisions: {decisions_extracted} extracted")
+            except Exception as e:
+                logger.warning(f"  [{jid}] Decision extraction failed: {e}")
+
+    elapsed = time.time() - start_time
+    logger.info(f"Meetings poll complete in {elapsed:.1f}s")
+
+    return {
+        "schedule": "meetings_poll",
+        "jurisdictions_processed": len(results),
+        "results": results,
+        "elapsed_seconds": elapsed,
     }
 
 
@@ -3696,6 +3912,121 @@ def get_stats(jurisdiction: str = "city-san-rafael") -> dict:
     stats["vectors"] = vector_stats
 
     return stats
+
+
+# =============================================================================
+# HTTP Trigger Endpoint (manual / webhook)
+# =============================================================================
+
+@app.function(
+    image=civic_image,
+    secrets=[
+        modal.Secret.from_name("civic-db"),
+        modal.Secret.from_name("civic-openai"),
+        modal.Secret.from_name("civic-notify"),
+    ],
+    memory=2048,
+    timeout=1800,
+)
+@modal.web_endpoint(method="POST")
+def trigger_ingest(body: dict):
+    """HTTP endpoint for on-demand ingestion with reactive logic.
+
+    POST body:
+        {
+            "jurisdiction": "city-san-rafael",
+            "stages": ["meetings", "chunks", "decisions"],  // optional, defaults to reactive
+        }
+
+    Secured via Modal's built-in auth (requires Modal token).
+
+    If no stages specified, runs reactive logic:
+    - Always polls meetings
+    - Only runs downstream stages if new material detected
+    """
+    import logging
+    import time
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    logger = logging.getLogger(__name__)
+
+    jurisdiction = body.get("jurisdiction", "city-san-rafael")
+    stages = body.get("stages")
+    start_time = time.time()
+    results = {}
+
+    STAGE_MAP = {
+        "meetings": lambda: fetch_meetings.local(jurisdiction=jurisdiction, incremental=True, auto_index=True),
+        "issues": lambda: fetch_issues.local(jurisdiction=jurisdiction, incremental=True, auto_index=True),
+        "videos": lambda: discover_videos.local(jurisdiction=jurisdiction, days_past=7, days_ahead=30),
+        "chunks": lambda: extract_chunks.local(jurisdiction=jurisdiction, auto_index=True),
+        "agenda_items": lambda: extract_agenda_items.local(jurisdiction=jurisdiction, auto_index=True),
+        "decisions": lambda: extract_decisions.local(jurisdiction=jurisdiction, auto_index=True),
+        "transcripts": lambda: extract_transcripts.local(jurisdiction=jurisdiction, since_days=7, batch=True, auto_index=True),
+    }
+
+    if stages:
+        # Explicit stage list — run requested stages
+        for stage in stages:
+            if stage not in STAGE_MAP:
+                results[stage] = {"status": "error", "error": f"Unknown stage: {stage}"}
+                continue
+            try:
+                results[stage] = STAGE_MAP[stage]()
+            except Exception as e:
+                logger.warning(f"Stage {stage} failed: {e}")
+                results[stage] = {"status": "failed", "error": str(e)}
+    else:
+        # Reactive mode — poll meetings, conditionally run downstream
+        try:
+            meetings_result = fetch_meetings.local(
+                jurisdiction=jurisdiction, incremental=True, auto_index=True,
+            )
+            results["meetings"] = meetings_result
+
+            if meetings_result.get("has_new_material") or meetings_result.get("has_agenda_updates"):
+                for stage in ("chunks", "agenda_items"):
+                    try:
+                        results[stage] = STAGE_MAP[stage]()
+                    except Exception as e:
+                        results[stage] = {"status": "failed", "error": str(e)}
+
+            if meetings_result.get("has_video_updates"):
+                for stage in ("videos", "transcripts"):
+                    try:
+                        results[stage] = STAGE_MAP[stage]()
+                    except Exception as e:
+                        results[stage] = {"status": "failed", "error": str(e)}
+
+            if meetings_result.get("has_minutes_updates"):
+                minutes_ids = meetings_result.get("minutes_appeared_ids", [])
+                try:
+                    results["decisions"] = extract_decisions.local(
+                        jurisdiction=jurisdiction, meeting_ids=minutes_ids, auto_index=True,
+                    )
+                except Exception as e:
+                    results["decisions"] = {"status": "failed", "error": str(e)}
+
+            has_any = (
+                meetings_result.get("has_new_material")
+                or meetings_result.get("has_agenda_updates")
+                or meetings_result.get("has_minutes_updates")
+                or meetings_result.get("has_video_updates")
+            )
+            if not has_any:
+                results["downstream"] = "skipped (no new material)"
+
+        except Exception as e:
+            results["meetings"] = {"status": "failed", "error": str(e)}
+
+    elapsed = time.time() - start_time
+    return {
+        "status": "ok",
+        "jurisdiction": jurisdiction,
+        "mode": "explicit" if stages else "reactive",
+        "results": results,
+        "elapsed_seconds": round(elapsed, 1),
+    }
 
 
 # =============================================================================

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from civicos.paths import get_state_db_path
-from .backend import StorageBackend, StorageStats, StorageValidationResult
+from .backend import MeetingStoreResult, StorageBackend, StorageStats, StorageValidationResult
 
 
 class DateTimeEncoder(json.JSONEncoder):
@@ -632,7 +632,7 @@ class SQLiteBackend:
         jurisdiction_id: str,
         meetings: List[Any],
         as_of: Optional[datetime] = None,
-    ) -> int:
+    ) -> MeetingStoreResult:
         """
         Store meetings with temporal versioning (upsert pattern).
 
@@ -650,12 +650,13 @@ class SQLiteBackend:
             as_of: Timestamp for temporal versioning (default: now)
 
         Returns:
-            Number of meetings successfully stored or updated (excludes skipped)
+            MeetingStoreResult with stored_count and change signals.
 
         Raises:
             sqlite3.Error: If atomic store operation fails
         """
         as_of = as_of or datetime.now()
+        result = MeetingStoreResult()
 
         conn = sqlite3.connect(self._db_path)
         self._ensure_schema(conn)
@@ -674,7 +675,6 @@ class SQLiteBackend:
 
             # Use upsert pattern: only close/update meetings that changed
             # This preserves historical meetings not in the current scrape window
-            stored_count = 0
             for meeting in meetings:
                 # Handle both dict and object access
                 if hasattr(meeting, "__dict__"):
@@ -736,8 +736,21 @@ class SQLiteBackend:
                             SET last_verified = ?
                             WHERE id = ? AND jurisdiction_id = ? AND valid_to IS NULL
                         """, (as_of.isoformat(), meeting_id, jurisdiction_id))
-                        stored_count += 1
+                        result.stored_count += 1
+                        result.verified_count += 1
                         continue
+
+                    # Detect agenda appearing (NULL → set)
+                    if not ex_agenda and meeting_dict.get('agenda_url'):
+                        result.agenda_appeared.append(meeting_id)
+                    # Detect minutes appearing (NULL → set)
+                    if not ex_minutes and meeting_dict.get('minutes_url'):
+                        result.minutes_appeared.append(meeting_id)
+                    # Detect video appearing (NULL → set)
+                    if not ex_video and meeting_dict.get('video_url'):
+                        result.video_appeared.append(meeting_id)
+
+                    result.updated_meeting_ids.append(meeting_id)
 
                     # Close the old version (data changed)
                     cursor.execute("""
@@ -745,6 +758,9 @@ class SQLiteBackend:
                         SET valid_to = ?
                         WHERE id = ? AND jurisdiction_id = ? AND valid_to IS NULL
                     """, (as_of.isoformat(), meeting_id, jurisdiction_id))
+
+                if not existing:
+                    result.new_meeting_ids.append(meeting_id)
 
                 # Insert new version (either new meeting or updated version)
                 cursor.execute("""
@@ -775,7 +791,7 @@ class SQLiteBackend:
                     as_of.isoformat(),
                     json.dumps(meeting_dict, cls=DateTimeEncoder)
                 ))
-                stored_count += 1
+                result.stored_count += 1
 
             # Update city_state timestamp
             cursor.execute("""
@@ -785,7 +801,7 @@ class SQLiteBackend:
             """, (as_of.isoformat(), datetime.now().isoformat(), jurisdiction_id))
 
             conn.commit()
-            return stored_count
+            return result
 
         except Exception:
             conn.rollback()

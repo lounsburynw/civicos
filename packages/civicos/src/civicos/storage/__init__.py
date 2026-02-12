@@ -47,6 +47,7 @@ import os
 from typing import Optional
 
 from .backend import (
+    MeetingStoreResult,
     StorageBackend,
     StorageStats,
     StorageValidationResult,
@@ -162,6 +163,7 @@ def get_vector_backend(url: Optional[str] = None) -> Optional["VectorBackend"]:
 
 __all__ = [
     # Storage backend
+    "MeetingStoreResult",
     "StorageBackend",
     "StorageStats",
     "StorageValidationResult",
