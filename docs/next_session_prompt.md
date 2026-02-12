@@ -1,66 +1,76 @@
-# Recommended: Context Assembly API — Finish Integration
+# Recommended: Browser Extension — Phase 0 Scaffold
 
 **Priority:** P0
-**Area:** edge_intelligence > context_assembly_api
+**Area:** edge_intelligence > browser_extension
 **Date:** 2026-02-12
-**Previous session:** Provenance footer (data source transparency panel)
+**Previous session:** Context Assembly API (MCP tool + Open WebUI "Chat with this" integration)
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
 
-This session completed **provenance_footer** — a collapsible data provenance panel in the CityPulse dashboard header showing jurisdiction, MCP endpoint, data range, corpus counts (9 types, 12,979 docs), and update timestamp. Backend endpoint added to both Modal deployment (`rest_api.py`) and dev server (`routers/core.py`).
+This session completed **context_assembly_api** — the surface-agnostic context assembly layer. Added `get_item_context` MCP tool + REST endpoint (`POST /api/tools/get-item-context`) and integrated "Chat with this decision" / "Chat" buttons into CityPulse in Open WebUI. All 6 context sections (history, regulatory, community, financial, testimony, participation) are live.
 
-The **context_assembly_api** is the existing P0. The backend is fully implemented (all 6 sections: history, regulatory, community, financial, testimony, participation). Two integration tasks remain to close it out, which also unblock the browser extension (P2).
+The **browser_extension** is now unblocked. It's the primary distribution surface for launch — a Chrome extension that IS the Personal MCP, managing identity, connecting to Jurisdiction MCPs, and injecting civic context into any AI surface (Claude.ai, ChatGPT). Full architecture doc exists.
 
-## Recommended Task: Context Assembly Integration
+## Recommended Task: Phase 0 — Extension Scaffold
 
-Two remaining subtasks:
-1. **Add `get_item_context` MCP tool** — expose the context assembly endpoint as an MCP tool so Claude.ai/ChatGPT can use it
-2. **Open WebUI "Chat with this item" button** — integrate context API into the dashboard so users can click a decision/agenda item and start a conversation with full context pre-loaded
+Phase 0 from `pilot.json` and the architecture doc: **Extension scaffold + tiered identity + NIP-07 provider.** This is the foundation — a Chrome Manifest V3 extension with:
+- Side panel placeholder (City Pulse shell)
+- Tiered identity: Easy (passphrase → key), Private (Web Crypto), Sovereign (NIP-07 relay)
+- Extension popup with identity tier selector
+- Service worker background script for future alerting
 
 ## Key Files
 
-- `packages/civicos-services/src/civicos_services/context/assembler.py` — ContextAssembler class (complete)
-- `packages/civicos-services/src/civicos_services/servers/routers/context.py` — GET /api/context/{item_type}/{item_id} endpoint (complete)
-- `packages/civicos-services/tests/test_context_assembly.py` — test file
-- `apps/civicos-mcp/tools/handlers.py` — MCP tool handlers (add get_item_context here)
-- `apps/civicos-mcp/rest_api.py` — REST API (may need context endpoint mirrored for Modal)
-- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` — dashboard component
-- `~/projects/civicos-openwebui/src/lib/components/civic/DecisionDetail.svelte` — decision expansion (good place for "Chat" button)
-- `docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md` — browser extension architecture (unblocked by this work)
+- `docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md` — **Full architecture doc** (read this first, ~300 lines)
+- `docs/critical/EDGE_INTELLIGENCE_ARCHITECTURE.md` — Edge intelligence theory
+- `apps/civicos-personal-mcp/` — Existing Personal MCP (TypeScript, has signing providers to port)
+- `apps/civicos-personal-mcp/src/lib/providers/` — Signing providers (Easy/Private/Sovereign patterns)
+- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` — Dashboard to port to side panel
+- `~/projects/civicos-openwebui/src/lib/apis/civic.ts` — API client (reusable for extension)
+- `packages/civicos/src/civicos/registry.py` — Jurisdiction MCP URLs
 
 ## Suggested Approach
 
-1. Read the existing assembler.py and context router to understand the API shape
-2. Add `get_item_context` as an MCP tool in handlers.py — takes item_type + item_id, returns context bundle
-3. Wire the MCP tool as a REST endpoint in rest_api.py for Modal deployment
-4. In the Open WebUI frontend, add a "Chat with this" button on decision/agenda items
-5. On click, call the context API, then inject the context bundle as a system prompt for a new conversation
+1. Read `docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md` thoroughly — it has detailed Phase 0 spec
+2. Create extension scaffold at `apps/civicos-extension/` (Chrome Manifest V3)
+   - `manifest.json` with side_panel, background service worker, content scripts
+   - `src/side-panel/` — Svelte side panel (port CityPulse skeleton)
+   - `src/popup/` — Identity tier selector
+   - `src/background/` — Service worker
+   - `src/lib/` — Shared types, identity, MCP client
+3. Implement tiered identity (port from `apps/civicos-personal-mcp/src/lib/providers/`)
+   - Easy mode: deterministic key from passphrase (SHA-256 → secp256k1)
+   - Private mode: Web Crypto P-256 (existing implementation)
+   - Sovereign mode: NIP-07 `window.nostr` provider
+4. Wire up basic side panel that fetches City Pulse data from the jurisdiction MCP
+5. Build with Vite + Svelte, load as unpacked extension in Chrome
 
 ## Tests to Run
 ```bash
-# Smoke tests
-pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
+# Context assembly tests (verify nothing broke)
+pytest packages/civicos-services/tests/test_context_agent.py -q --override-ini="addopts="
 
-# Context assembly tests
-pytest packages/civicos-services/tests/test_context_assembly.py -q --override-ini="addopts="
+# Personal MCP tests (signing patterns to port)
+cd apps/civicos-personal-mcp && npx vitest run
 ```
 
 ## Success Criteria
-- [ ] `get_item_context` MCP tool works (returns context bundle for any civic item)
-- [ ] REST endpoint mirrors the tool for Modal deployment
-- [ ] "Chat with this item" button visible on decisions or agenda items in CityPulse
-- [ ] Clicking launches a conversation with pre-loaded civic context
-- [ ] `context_assembly_api` marked ready in pilot.json
+- [ ] Extension loads in Chrome as unpacked extension
+- [ ] Side panel opens and shows basic City Pulse placeholder
+- [ ] Identity tier selection works (at least Easy mode generates valid keypair)
+- [ ] Can fetch data from jurisdiction MCP endpoint (`https://san-rafael.civicosproject.org`)
+- [ ] Extension scaffold committed to `apps/civicos-extension/`
 
 ## Also Notable
-- **Browser extension** (P2) is unblocked once context assembly is done — see `docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md`
+- **Pilot at 95%** (453/478 items ready) — 23 remaining after context_assembly_api
 - **Relay deployment still pending** — action attribution + voice/revoke endpoints committed but not deployed to Modal
 - **SQL migration pending** — `scripts/sql/add_action_events.sql` needs to run on relay DB
-- **Pilot at 94%** (452/478 items ready) — 26 remaining, mostly P3
+- **Context assembly needs Modal deploy** — `get_item_context` REST endpoint committed but not yet deployed; run `modal deploy` for `apps/civicos-mcp/modal_mcp.py`
+- **Open WebUI changes committed but not pushed** — `aa7ac4c` in civicos-openwebui needs `git push`
 
 ## Dev Environment
 - Frontend: `cd ~/projects/civicos-openwebui && VITE_CIVICOS_API_URL=http://localhost:8001 npm run dev` (localhost:5173)
 - Backend: `./scripts/dev.sh api` (localhost:8001)
-- Note: Frontend defaults to production API URL. Use VITE_CIVICOS_API_URL for local dev.
+- Extension dev: Load unpacked from `apps/civicos-extension/dist/` in `chrome://extensions`
