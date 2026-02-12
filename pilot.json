@@ -2586,7 +2586,7 @@
       },
       "civic_dashboard_mvp": {
         "status": "not_ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "MVP civic dashboard with 3+ visualization primitives",
         "description": "Implement minimum viable dashboard UX before MCP registry listing. Must include: (1) issue geography map as hero visualization with type filtering, (2) visible engagement ladder progression (awareness → participation path), (3) data-forward presentation (patterns emerge, no editorializing), (4) multi-surface capability (same query works in chat + visual rendering).",
         "note": "2026-02-07: IssueMap enhanced with recency filtering (30d/90d/All), status filtering (Open/Closed), trend TLDR line, full-screen expand modal (portaled to body), and type legend. Comment threads + voice toggle functional. Issues summary removed (redundant with map legend). Remaining MVP items broken out as sibling items: add_to_cal, comment_synthesis, budget_viz, agenda_actionability, expandable_decisions, provenance_footer.",
@@ -3568,23 +3568,30 @@
         "notes": "ActionService.get_counts() provides commitments/completions/target counts. API endpoint at /api/coordination/action/counts"
       },
       "action_attribution": {
-        "status": "ready",
-        "priority": 1,
-        "description": "Link completed actions to outcomes - close the feedback loop so people see their impact",
+        "status": "not_ready",
+        "priority": 0,
+        "description": "Link completed actions to outcomes - close the feedback loop so people see their impact. THIS IS THE ENGAGEMENT FLYWHEEL. Without it, the action system is just another CRUD feature. Must ship pre-pilot.",
         "test_file": "packages/civicos-relay/tests/test_action_attribution.py",
         "design": [
+          "Upgrade report_outcome() to work with relay/PostgreSQL (currently SQLite-only via StateManager)",
+          "New endpoint: POST /coordination/initiative/{id}/outcome",
           "When decision outcome is recorded, link to initiative",
-          "Query completions for that initiative",
-          "Generate attribution: 'Your comment was 1 of 27 that influenced this vote'",
-          "Include in outcome notification"
+          "Query completions for that initiative's actions",
+          "Generate personalized attribution per participant pubkey",
+          "Surface in CityPulse: outcome banner + attribution for committed users",
+          "Non-participants see aggregate: '27 comments submitted, initiative passed 4-1'"
         ],
         "subtasks": [
-          "Link decision outcomes to initiatives",
-          "Query user's completions for attributed initiatives",
+          "Outcome recording endpoint on relay (POST /coordination/initiative/{id}/outcome)",
+          "Outcome types: passed, failed, continued, modified, partial",
+          "Link decision outcomes to initiatives via initiative_id",
+          "Query user's completions for attributed initiatives by pubkey",
           "Generate personalized attribution messages",
-          "Include attribution in outcome notifications"
+          "Attribution display in CityPulse.svelte (outcome banner, personal impact)",
+          "Aggregate attribution for non-participants"
         ],
-        "notes": "Actions attributed to public keys. Full outcome attribution deferred to later iteration."
+        "notes": "Session 570: Promoted to P0. The feedback loop transforms 'I clicked a button' into 'My comment influenced the vote.' See COORDINATION_PROTOCOL.md lines 570-656 for design. Existing report_outcome() in orchestrator/outcomes.py needs relay integration.",
+        "depends_on": "action_templates"
       }
     },
     "frontend_integration": {
@@ -3637,7 +3644,7 @@
         ]
       },
       "action_list": {
-        "status": "ready",
+        "status": "done",
         "priority": 2,
         "description": "Display actions for an initiative with progress stats. Show type, deadline, target, and completion progress (X/Y completed, Z committed).",
         "test_file": "apps/civicos-workspace/tests/e2e/action-list.spec.ts",
@@ -3648,10 +3655,10 @@
           "Deadline urgency indicators (due soon, overdue)",
           "Filter by action type"
         ],
-        "notes": "Session 540: ActionList.vue component fetches actions via getCivicActionsForInitiative(), renders each with ActionFlow.vue. 14 tests passing. Filter by action type deferred to P2."
+        "notes": "2026-02-10: Reimplemented in Open WebUI CityPulse.svelte. Actions display inline in expanded initiative cards with type badges, progress bars, deadline. getCivicActions() + getCivicActionProgress() API functions in civic.ts."
       },
       "action_commit": {
-        "status": "ready",
+        "status": "done",
         "priority": 2,
         "description": "UI for committing to actions. User clicks 'I'll do this', signs commitment. Shows template/instructions when available.",
         "test_file": "apps/civicos-workspace/tests/e2e/action-flow.spec.ts",
@@ -3661,10 +3668,10 @@
           "Display user's committed actions in profile",
           "Reminder opt-in for deadline"
         ],
-        "notes": "ActionFlow.vue commit button + /api/coordination/action/commit endpoint. E2E tests pass. MIGRATION NEEDED: Update to use new /coordination/civic-action/{id}/commit endpoint (Kind 30811)."
+        "notes": "2026-02-10: Reimplemented in Open WebUI CityPulse.svelte. 'I'll do this' button signs commitment via commitToCivicAction() using Kind 30811 endpoint. Optimistic UI update."
       },
       "action_complete": {
-        "status": "ready",
+        "status": "done",
         "priority": 2,
         "description": "UI for marking actions complete. User clicks 'I did it', selects evidence type, signs completion. Triggers celebration/attribution.",
         "test_file": "apps/civicos-workspace/tests/e2e/action-flow.spec.ts",
@@ -3674,20 +3681,28 @@
           "Completion confirmation with updated stats",
           "Show attribution: 'You're 1 of X who completed this'"
         ],
-        "notes": "ActionFlow.vue completion support + /api/coordination/action/complete endpoint. MIGRATION NEEDED: Update to use new /coordination/civic-action/{id}/complete endpoint (Kind 30812)."
+        "notes": "2026-02-10: Reimplemented in Open WebUI CityPulse.svelte. 'Done' button signs completion via completeCivicAction() using Kind 30812 endpoint (self_report). Refreshes progress after completion."
       },
       "action_templates": {
         "status": "ready",
-        "priority": 1,
-        "description": "Display and customize action templates (letters, talking points, scripts). Pre-fill with user context where possible.",
+        "priority": 0,
+        "description": "Phase 2: Make follow-through likely. Phase 1 (adaptive forms, deadline_context, withdraw, expandable UI) is committed. Phase 2 adds commitment tracking and calendar integration.",
         "test_file": "apps/civicos-workspace/tests/e2e/action-templates.spec.ts",
         "subtasks": [
-          "TemplateView component with copy/download",
-          "Editable fields for personalization",
-          "Pre-fill user name/address if available",
-          "Direct submit for email-based actions (optional)"
+          "[DONE] Fix deadline date format bug ('Due 3/10/6' → 'Due 3/10/2026')",
+          "[DONE] Always show progress text even at zero ('0 committed — be the first!')",
+          "[DONE] Surface target field as clickable link (email, form URL, meeting info)",
+          "[DONE] Surface template as expandable/copyable text after user commits",
+          "[DONE] Add target URL and template textarea to CreateActionModal.svelte",
+          "[DONE] Make deadline required on action creation (not optional)",
+          "[DONE] Add deadline_context field ('Why this date?') to CivicActionEvent model and UI",
+          "[DONE] Expandable action items — two-level collapse (section + individual)",
+          "[DONE] Withdraw commitment endpoint + toggle UI",
+          "'My Commitments' panel — localStorage view of committed actions sorted by deadline",
+          "Calendar integration (.ics download) for attend_meeting/public_comment types",
+          "Optional coordination_url field on Initiative for external chat links (Signal/SimpleX/Matrix)"
         ],
-        "note": "Session 541: TemplateView.vue created with placeholder parsing, copy/download, collapsible. Integrated into ActionFlow.vue."
+        "note": "Session 572: Phase 1 committed (5022ea6, 4b02fe5, 971283d). Review caught and fixed: withdrawn commitments still counted in progress, deadline_context missing from list endpoint. Phase 2 remaining: My Commitments panel, calendar .ics download, coordination_url."
       }
     },
     "federation": {
