@@ -80,6 +80,9 @@ CITY_TOOLS = frozenset([
     # Overview
     "city_pulse",
     "get_started",
+
+    # Context assembly
+    "get_item_context",
 ])
 
 COORDINATION_TOOLS = frozenset([

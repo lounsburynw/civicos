@@ -4212,12 +4212,12 @@
       "notes": "Backend infrastructure complete (2026-02-02). Client-side preparation complete (2026-02-06). Both stdio and HTTP servers updated. Relay can store/retrieve all event types."
     },
     "context_assembly_api": {
-      "status": "not_ready",
+      "status": "ready",
       "priority": 0,
       "description": "Surface-agnostic context assembly layer. Given a civic item (agenda item, decision, issue, etc.), assembles a rich context bundle from the CivicOS API \u2014 description, history, related municipal code, testimony, cross-references, suggested questions. Any consumer (Open WebUI, browser extension, MCP, Claude.ai) calls the same endpoint and gets the same context, which it then passes to an LLM conversation however that surface does chat.",
       "_doc": "Strategy session 2026-02-08: The intelligence is in the context assembly, not the UI. This enables portable 'chat with this item' across all surfaces without coupling to any one frontend. Also enables a browser extension distribution strategy \u2014 inject CivicOS context into any page showing civic content.",
       "artifact": "packages/civicos-services/src/civicos_services/context/assembler.py",
-      "test_file": "packages/civicos-services/tests/test_context_assembly.py",
+      "test_file": "packages/civicos-services/tests/test_context_agent.py",
       "design_principles": [
         "Surface-agnostic: same API for Open WebUI, browser extension, MCP, future surfaces",
         "Item-centric: context is assembled per civic item (agenda item, decision, issue, legislation)",
@@ -4245,16 +4245,15 @@
         "Implement section: testimony (what_was_said, get_public_testimony) - COMPLETE",
         "Implement section: financial (budget, funding_flow \u2014 only for relevant items) - COMPLETE",
         "Implement suggested question templates per item type - COMPLETE",
-        "Add get_item_context MCP tool",
-        "Open WebUI: 'Chat with this item' integration",
+        "Add get_item_context MCP tool - COMPLETE",
+        "Open WebUI: 'Chat with this item' integration - COMPLETE",
         "Browser extension feasibility sketch (V2) - COMPLETE (see docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md)"
       ],
-      "next_step": "Add get_item_context MCP tool OR integrate context API into Open WebUI 'Chat with this item' button",
-      "note": "2026-02-08: Phase 1 implementation complete. GET /api/context/{item_type}/{item_id} endpoint live with all 6 sections (history, regulatory, community, financial, testimony, participation), parallel assembly with Semaphore(3), per-section 10s timeout, error isolation. Smoke tested with real San Rafael data. Regulatory section can timeout on large corpora \u2014 expected V1 behavior."
+      "note": "2026-02-12: All subtasks complete. MCP tool (get_item_context) added to handlers.py, registry.py, rest_api.py. REST endpoint POST /api/tools/get-item-context with async context assembly. Open WebUI integration: getItemContext() in civic.ts, 'Chat with this decision' button on expanded decisions, 'Chat' button on agenda items. Context formatted via formatContextForChat() with history, regulatory, financial, testimony, suggested questions."
     },
     "browser_extension": {
       "status": "not_ready",
-      "priority": 2,
+      "priority": 0,
       "description": "Chrome browser extension as primary distribution surface. The extension IS the Personal MCP \u2014 manages identity, connects to Jurisdiction MCPs, injects civic context into AI surfaces (Claude.ai, ChatGPT), renders City Pulse in side panel. Acts as NIP-07 provider for Nostr ecosystem compatibility.",
       "_doc": "Architecture session 2026-02-12. Full design in docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md. Depends on context_assembly_api (P0) for surface-agnostic context bundles.",
       "architecture_doc": "docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md",

@@ -157,6 +157,8 @@ async def startup():
         "broadcast_initiative": handlers.broadcast_initiative,
         "list_initiatives": handlers.list_initiatives,
         "list_relays": handlers.list_relays,
+        # Context Assembly
+        "get_item_context": handlers.get_item_context,
     }
 
     def wrap_handler(handler_fn):

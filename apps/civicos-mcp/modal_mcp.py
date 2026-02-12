@@ -270,6 +270,8 @@ class MCPServer:
             "prepare_initiative": handlers.prepare_initiative,
             "broadcast_initiative": handlers.broadcast_initiative,
             "list_initiatives": handlers.list_initiatives,
+            # Context Assembly (city level)
+            "get_item_context": handlers.get_item_context,
         }
 
         # Only bind handlers for tools enabled at this jurisdiction level

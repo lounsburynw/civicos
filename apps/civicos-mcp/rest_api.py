@@ -96,6 +96,14 @@ class DecisionDetailRequest(BaseModel):
     title: str = Field(..., description="Decision title to look up")
 
 
+class GetItemContextRequest(BaseModel):
+    """Request for get_item_context tool."""
+    item_type: str = Field(..., description="Item type: agenda_item, decision, issue, legislation, meeting, or initiative")
+    item_id: str = Field(..., description="Item ID (UUID or bill number)")
+    depth: str = Field(default="standard", description="Context depth: minimal, standard, or deep")
+    sections: Optional[str] = Field(default=None, description="Comma-separated sections (omit for all). Valid: history, regulatory, community, financial, testimony, participation")
+
+
 class CommentSynthesisRequest(BaseModel):
     """Request for comment-synthesis endpoint."""
     entity_id: str = Field(..., description="Entity ID to get comment synthesis for (e.g., 'agenda-item:123')")
@@ -362,6 +370,51 @@ def create_rest_router(registry, civic, jurisdiction, validate_input, logger):
             })
         except Exception as e:
             logger.error(f"Error in data_provenance: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @router.post("/get-item-context", response_model=ToolResponse,
+                 summary="Get comprehensive context for a civic item",
+                 description="Assemble history, regulatory, community, financial, testimony, and participation context for any civic item. Returns a structured bundle suitable for LLM conversations.")
+    async def get_item_context(request: GetItemContextRequest):
+        from civicos_services.context import (
+            assemble_context,
+            ItemNotFoundError,
+            RelayUnavailableError,
+            ItemType,
+            ContextDepth,
+        )
+
+        # Validate item_type
+        try:
+            item_type = ItemType(request.item_type)
+        except ValueError:
+            valid = ", ".join(t.value for t in ItemType)
+            raise HTTPException(status_code=422, detail=f"Invalid item_type '{request.item_type}'. Valid: {valid}")
+
+        # Parse depth
+        try:
+            depth = ContextDepth(request.depth)
+        except ValueError:
+            depth = ContextDepth.standard
+
+        # Parse sections
+        sections = None
+        if request.sections:
+            sections = set(s.strip() for s in request.sections.split(",") if s.strip())
+
+        try:
+            bundle = await assemble_context(
+                item_type=item_type,
+                item_id=request.item_id,
+                jurisdiction=jurisdiction,
+                sections=sections,
+                depth=depth,
+            )
+            return ToolResponse(data=bundle.model_dump(mode="json"))
+        except ItemNotFoundError as e:
+            raise HTTPException(status_code=404, detail=f"Item not found: {e.item_type}/{e.item_id}")
+        except Exception as e:
+            logger.error(f"Context assembly error: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     @router.post("/comment-synthesis", response_model=ToolResponse,
