@@ -1097,11 +1097,12 @@ class PostgresCivicActionEventStorage:
                     """
                     INSERT INTO coordination_action_events
                     (id, initiative_id, action_type, description, target, deadline,
-                     template, target_count, deadline_context, public_key, signature, timestamp, revoked)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     template, target_count, deadline_context, coordination_url,
+                     public_key, signature, timestamp, revoked)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (id) DO UPDATE SET
                     description = %s, target = %s, deadline = %s, template = %s,
-                    target_count = %s, deadline_context = %s, revoked = %s
+                    target_count = %s, deadline_context = %s, coordination_url = %s, revoked = %s
                     """,
                     (
                         action.id,
@@ -1113,6 +1114,7 @@ class PostgresCivicActionEventStorage:
                         action.template,
                         action.target_count,
                         action.deadline_context,
+                        action.coordination_url,
                         action.public_key,
                         action.signature,
                         action.timestamp,
@@ -1123,6 +1125,7 @@ class PostgresCivicActionEventStorage:
                         action.template,
                         action.target_count,
                         action.deadline_context,
+                        action.coordination_url,
                         action.revoked,
                     ),
                 )
@@ -1139,7 +1142,8 @@ class PostgresCivicActionEventStorage:
                 cur.execute(
                     """
                     SELECT id, initiative_id, action_type, description, target, deadline,
-                           template, target_count, deadline_context, public_key, signature, timestamp, revoked
+                           template, target_count, deadline_context, coordination_url,
+                           public_key, signature, timestamp, revoked
                     FROM coordination_action_events
                     WHERE id = %s
                     """,
@@ -1157,10 +1161,11 @@ class PostgresCivicActionEventStorage:
                         template=row[6],
                         target_count=row[7],
                         deadline_context=row[8],
-                        public_key=row[9],
-                        signature=row[10],
-                        timestamp=row[11],
-                        revoked=row[12],
+                        coordination_url=row[9],
+                        public_key=row[10],
+                        signature=row[11],
+                        timestamp=row[12],
+                        revoked=row[13],
                     )
                 return None
         finally:
@@ -1175,7 +1180,8 @@ class PostgresCivicActionEventStorage:
                 cur.execute(
                     """
                     SELECT id, initiative_id, action_type, description, target, deadline,
-                           template, target_count, deadline_context, public_key, signature, timestamp, revoked
+                           template, target_count, deadline_context, coordination_url,
+                           public_key, signature, timestamp, revoked
                     FROM coordination_action_events
                     WHERE initiative_id = %s AND revoked = FALSE
                     ORDER BY timestamp DESC
@@ -1193,10 +1199,11 @@ class PostgresCivicActionEventStorage:
                         template=row[6],
                         target_count=row[7],
                         deadline_context=row[8],
-                        public_key=row[9],
-                        signature=row[10],
-                        timestamp=row[11],
-                        revoked=row[12],
+                        coordination_url=row[9],
+                        public_key=row[10],
+                        signature=row[11],
+                        timestamp=row[12],
+                        revoked=row[13],
                     )
                     for row in cur.fetchall()
                 ]
@@ -1596,6 +1603,236 @@ class PostgresCommentStorage:
             self._return_connection(conn)
 
 
+class PostgresOutcomeStorage:
+    """PostgreSQL storage for initiative outcomes."""
+
+    def __init__(self, connection_url: str):
+        self._connection_url = connection_url
+        self._pool = None
+
+    def _get_connection(self):
+        if self._pool is None:
+            import psycopg2.pool
+            self._pool = psycopg2.pool.SimpleConnectionPool(
+                1, 10, self._connection_url
+            )
+        return self._pool.getconn()
+
+    def _return_connection(self, conn):
+        self._pool.putconn(conn)
+
+    def save_outcome(self, outcome) -> None:
+        """Store an initiative outcome."""
+        import json as _json
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                vote_json = (
+                    _json.dumps(outcome.vote_breakdown)
+                    if outcome.vote_breakdown else None
+                )
+                cur.execute(
+                    """
+                    INSERT INTO coordination_outcomes
+                    (id, initiative_id, outcome, notes, vote_breakdown,
+                     decision_reference, recorded_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (id) DO UPDATE SET
+                    outcome = %s, notes = %s, vote_breakdown = %s,
+                    decision_reference = %s
+                    """,
+                    (
+                        outcome.id,
+                        outcome.initiative_id,
+                        outcome.outcome.value,
+                        outcome.notes,
+                        vote_json,
+                        outcome.decision_reference,
+                        outcome.recorded_at,
+                        outcome.outcome.value,
+                        outcome.notes,
+                        vote_json,
+                        outcome.decision_reference,
+                    ),
+                )
+                conn.commit()
+        finally:
+            self._return_connection(conn)
+
+    def get_outcome(self, outcome_id: str):
+        """Get an outcome by ID."""
+        from civicos_relay.voice.models import InitiativeOutcome, OutcomeType
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, initiative_id, outcome, notes, vote_breakdown,
+                           decision_reference, recorded_at
+                    FROM coordination_outcomes
+                    WHERE id = %s
+                    """,
+                    (outcome_id,),
+                )
+                row = cur.fetchone()
+                if row:
+                    return InitiativeOutcome(
+                        id=row[0],
+                        initiative_id=row[1],
+                        outcome=OutcomeType(row[2]),
+                        notes=row[3],
+                        vote_breakdown=_parse_jsonb(row[4]),
+                        decision_reference=row[5],
+                        recorded_at=row[6],
+                    )
+                return None
+        finally:
+            self._return_connection(conn)
+
+    def get_outcomes_for_initiative(self, initiative_id: str) -> list:
+        """Get all outcomes for an initiative."""
+        from civicos_relay.voice.models import InitiativeOutcome, OutcomeType
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, initiative_id, outcome, notes, vote_breakdown,
+                           decision_reference, recorded_at
+                    FROM coordination_outcomes
+                    WHERE initiative_id = %s
+                    ORDER BY recorded_at DESC
+                    """,
+                    (initiative_id,),
+                )
+                return [
+                    InitiativeOutcome(
+                        id=row[0],
+                        initiative_id=row[1],
+                        outcome=OutcomeType(row[2]),
+                        notes=row[3],
+                        vote_breakdown=_parse_jsonb(row[4]),
+                        decision_reference=row[5],
+                        recorded_at=row[6],
+                    )
+                    for row in cur.fetchall()
+                ]
+        finally:
+            self._return_connection(conn)
+
+
+class PostgresAttributionStorage:
+    """PostgreSQL storage for action attributions."""
+
+    def __init__(self, connection_url: str):
+        self._connection_url = connection_url
+        self._pool = None
+
+    def _get_connection(self):
+        if self._pool is None:
+            import psycopg2.pool
+            self._pool = psycopg2.pool.SimpleConnectionPool(
+                1, 10, self._connection_url
+            )
+        return self._pool.getconn()
+
+    def _return_connection(self, conn):
+        self._pool.putconn(conn)
+
+    def save_attribution(self, attribution) -> None:
+        """Store an attribution."""
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO coordination_attributions
+                    (id, outcome_id, action_id, public_key, contribution_type,
+                     message, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (outcome_id, action_id, public_key) DO UPDATE SET
+                    contribution_type = %s, message = %s
+                    """,
+                    (
+                        attribution.id,
+                        attribution.outcome_id,
+                        attribution.action_id,
+                        attribution.public_key,
+                        attribution.contribution_type.value,
+                        attribution.message,
+                        attribution.created_at,
+                        attribution.contribution_type.value,
+                        attribution.message,
+                    ),
+                )
+                conn.commit()
+        finally:
+            self._return_connection(conn)
+
+    def get_attributions_for_outcome(self, outcome_id: str) -> list:
+        """Get all attributions for an outcome."""
+        from civicos_relay.voice.models import Attribution, ContributionType
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, outcome_id, action_id, public_key, contribution_type,
+                           message, created_at
+                    FROM coordination_attributions
+                    WHERE outcome_id = %s
+                    ORDER BY created_at DESC
+                    """,
+                    (outcome_id,),
+                )
+                return [
+                    Attribution(
+                        id=row[0],
+                        outcome_id=row[1],
+                        action_id=row[2],
+                        public_key=row[3],
+                        contribution_type=ContributionType(row[4]),
+                        message=row[5],
+                        created_at=row[6],
+                    )
+                    for row in cur.fetchall()
+                ]
+        finally:
+            self._return_connection(conn)
+
+    def get_attributions_for_user(self, public_key: str) -> list:
+        """Get all attributions for a user, joined with outcome details."""
+        from civicos_relay.voice.models import Attribution, ContributionType
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT a.id, a.outcome_id, a.action_id, a.public_key,
+                           a.contribution_type, a.message, a.created_at
+                    FROM coordination_attributions a
+                    JOIN coordination_outcomes o ON o.id = a.outcome_id
+                    WHERE a.public_key = %s
+                    ORDER BY o.recorded_at DESC
+                    """,
+                    (public_key,),
+                )
+                return [
+                    Attribution(
+                        id=row[0],
+                        outcome_id=row[1],
+                        action_id=row[2],
+                        public_key=row[3],
+                        contribution_type=ContributionType(row[4]),
+                        message=row[5],
+                        created_at=row[6],
+                    )
+                    for row in cur.fetchall()
+                ]
+        finally:
+            self._return_connection(conn)
+
+
 class PostgresSyncStorageAdapter:
     """Adapter that combines PostgresSyncStorage + PostgresEventStorage to satisfy SyncStorage protocol."""
 
@@ -1637,3 +1874,5 @@ class PostgresStorage:
         self.civic_action_events = PostgresCivicActionEventStorage(connection_url)
         self.civic_commitments = PostgresCivicCommitmentStorage(connection_url)
         self.civic_completions = PostgresCivicCompletionStorage(connection_url)
+        self.outcomes = PostgresOutcomeStorage(connection_url)
+        self.attributions = PostgresAttributionStorage(connection_url)

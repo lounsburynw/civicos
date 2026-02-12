@@ -1,3 +1,35 @@
+## Session 575 (2026-02-12) - Action Attribution System
+
+**Item:** relay/action_primitives/action_attribution
+**Status:** Complete
+
+### What Was Built
+The engagement feedback loop — when a civic initiative reaches an outcome (passed, failed, etc.), the system auto-generates personalized attributions for every user who took action. "Your written comment contributed to outcome: passed (yes: 4, no: 1)."
+
+### Implementation
+1. **Models** (`models.py`): `OutcomeType` enum (passed/failed/continued/modified/partial), `ContributionType` enum (commitment/completion), `InitiativeOutcome` model, `Attribution` model
+2. **SQL migration** (`add_action_events.sql`): `coordination_outcomes` and `coordination_attributions` tables with RLS
+3. **Storage** (`postgres.py`, `memory.py`): `PostgresOutcomeStorage`, `PostgresAttributionStorage`, plus in-memory equivalents
+4. **Service** (`civic_action_service.py`): `record_outcome()` auto-generates attributions for completers (strongest signal) and committed-only users. Skips revoked actions, withdrawn commitments. `get_attributions_for_user()` returns impact history.
+5. **API endpoints** (`coordination.py`):
+   - `POST /coordination/initiative/{id}/outcome` — record outcome + auto-generate attributions
+   - `GET /coordination/initiative/{id}/outcome` — list outcomes
+   - `GET /coordination/initiative/{id}/outcome/{outcome_id}/attributions` — outcome attributions
+   - `GET /coordination/attribution/{public_key}` — user's impact history
+6. **Tests** (`test_action_attribution.py`): 19 tests covering outcome recording, attribution generation, edge cases (withdrawn, revoked, no actions), message generation, multi-initiative impact
+
+### Also Committed
+- `coordination_url` field added to action events (leftover from previous session)
+- `deadline_context` column migration added to SQL
+
+### Test Results
+- Attribution tests: 19 passed
+- Relay tests: 252 passed, 16 skipped
+- Smoke tests: 42 passed
+
+### Migration Required
+Run `scripts/sql/add_action_events.sql` on the relay database to create the new `coordination_outcomes` and `coordination_attributions` tables (idempotent, safe to re-run).
+
 ## Session 574 (2026-02-12) - Reactive Ingestion Pipeline
 
 **Item:** pipeline_automation — Reactive ingestion (event-driven instead of batch)

@@ -172,6 +172,7 @@ class CreateCivicActionEventRequest(BaseModel):
     template: Optional[str] = Field(default=None, description="Template text for action")
     target_count: Optional[int] = Field(default=None, description="Target number of completions")
     deadline_context: Optional[str] = Field(default=None, description="Why this deadline matters")
+    coordination_url: Optional[str] = Field(default=None, description="Link to coordination channel (Signal, SimpleX, Matrix)")
 
 
 class CivicActionEventResponse(BaseModel):
@@ -185,6 +186,7 @@ class CivicActionEventResponse(BaseModel):
     template: Optional[str] = None
     target_count: Optional[int] = None
     deadline_context: Optional[str] = None
+    coordination_url: Optional[str] = None
     public_key: str
     timestamp: str
     revoked: bool = False
@@ -232,6 +234,46 @@ class CivicCompletionResponse(BaseModel):
     public_key: str
     timestamp: str
     revoked: bool = False
+
+
+# === Outcome & Attribution Request/Response Models ===
+
+
+class ReportOutcomeRequest(BaseModel):
+    """Request to report an initiative outcome."""
+    outcome: str = Field(description="Result: passed, failed, continued, modified, partial")
+    notes: Optional[str] = Field(default=None, description="Additional context")
+    vote_breakdown: Optional[dict] = Field(default=None, description="Vote details (e.g., {'yes': 4, 'no': 1})")
+    decision_reference: Optional[str] = Field(default=None, description="Reference to civic data decision")
+
+
+class OutcomeResponse(BaseModel):
+    """Initiative outcome response."""
+    id: str
+    initiative_id: str
+    outcome: str
+    notes: Optional[str] = None
+    vote_breakdown: Optional[dict] = None
+    decision_reference: Optional[str] = None
+    recorded_at: str
+    attribution_count: int = 0
+
+
+class AttributionResponse(BaseModel):
+    """Attribution record response."""
+    id: str
+    outcome_id: str
+    action_id: str
+    public_key: str
+    contribution_type: str
+    message: Optional[str] = None
+    created_at: str
+
+
+class UserImpactResponse(BaseModel):
+    """User impact summary — attributions with outcome context."""
+    attribution: AttributionResponse
+    outcome: OutcomeResponse
 
 
 # === Comment Request/Response Models ===
@@ -452,25 +494,35 @@ def _get_civic_action_service():
                     PostgresCivicActionEventStorage,
                     PostgresCivicCommitmentStorage,
                     PostgresCivicCompletionStorage,
+                    PostgresOutcomeStorage,
+                    PostgresAttributionStorage,
                 )
                 _storage_instances["civic_action_events"] = PostgresCivicActionEventStorage(url)
                 _storage_instances["civic_commitments"] = PostgresCivicCommitmentStorage(url)
                 _storage_instances["civic_completions"] = PostgresCivicCompletionStorage(url)
+                _storage_instances["outcomes"] = PostgresOutcomeStorage(url)
+                _storage_instances["attributions"] = PostgresAttributionStorage(url)
                 logger.info("Using PostgreSQL storage for civic actions")
             else:
                 from civicos_relay.storage.memory import (
                     InMemoryCivicActionEventStorage,
                     InMemoryCivicCommitmentStorage,
                     InMemoryCivicCompletionStorage,
+                    InMemoryOutcomeStorage,
+                    InMemoryAttributionStorage,
                 )
                 _storage_instances["civic_action_events"] = InMemoryCivicActionEventStorage()
                 _storage_instances["civic_commitments"] = InMemoryCivicCommitmentStorage()
                 _storage_instances["civic_completions"] = InMemoryCivicCompletionStorage()
+                _storage_instances["outcomes"] = InMemoryOutcomeStorage()
+                _storage_instances["attributions"] = InMemoryAttributionStorage()
 
             _storage_instances["civic_action_service"] = CivicActionService(
                 _storage_instances["civic_action_events"],
                 _storage_instances["civic_commitments"],
                 _storage_instances["civic_completions"],
+                outcome_storage=_storage_instances["outcomes"],
+                attribution_storage=_storage_instances["attributions"],
             )
         except ImportError as e:
             logger.warning(f"civicos-relay not available: {e}")
@@ -1661,6 +1713,14 @@ async def create_civic_action_event(request: CreateCivicActionEventRequest):
         if request.deadline:
             deadline = datetime.fromisoformat(request.deadline)
 
+        # Validate coordination_url if provided
+        coordination_url = request.coordination_url
+        if coordination_url:
+            from urllib.parse import urlparse
+            parsed = urlparse(coordination_url)
+            if parsed.scheme not in ('https', 'http', 'mailto'):
+                raise HTTPException(status_code=400, detail="coordination_url must use https, http, or mailto scheme")
+
         action = service.create_action(
             initiative_id=request.initiative_id,
             action_type=action_type,
@@ -1672,6 +1732,7 @@ async def create_civic_action_event(request: CreateCivicActionEventRequest):
             template=request.template,
             target_count=request.target_count,
             deadline_context=request.deadline_context,
+            coordination_url=coordination_url,
         )
 
         logger.info(f"Civic action created: {action.id} for initiative {request.initiative_id}")
@@ -1686,6 +1747,7 @@ async def create_civic_action_event(request: CreateCivicActionEventRequest):
             template=action.template,
             target_count=action.target_count,
             deadline_context=action.deadline_context,
+            coordination_url=action.coordination_url,
             public_key=action.public_key,
             timestamp=action.timestamp.isoformat(),
             revoked=action.revoked,
@@ -1726,6 +1788,7 @@ async def list_civic_actions_for_initiative(initiative_id: str):
                 template=a.template,
                 target_count=a.target_count,
                 deadline_context=a.deadline_context,
+                coordination_url=a.coordination_url,
                 public_key=a.public_key,
                 timestamp=a.timestamp.isoformat(),
                 revoked=a.revoked,
@@ -1771,6 +1834,7 @@ async def get_civic_action_event(action_id: str):
             template=action.template,
             target_count=action.target_count,
             deadline_context=action.deadline_context,
+            coordination_url=action.coordination_url,
             public_key=action.public_key,
             timestamp=action.timestamp.isoformat(),
             revoked=action.revoked,
@@ -2070,6 +2134,185 @@ async def list_civic_action_completions(action_id: str):
 
     except Exception as e:
         logger.error(f"Error listing civic action completions: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+# === Outcome & Attribution Endpoints ===
+
+
+@router.post(
+    "/coordination/initiative/{initiative_id}/outcome",
+    response_model=OutcomeResponse,
+)
+async def report_initiative_outcome(initiative_id: str, request: ReportOutcomeRequest):
+    """
+    Record the outcome of a civic initiative.
+
+    Auto-generates attributions for all users who committed to or completed
+    actions for this initiative. This closes the feedback loop.
+    """
+    service = _get_civic_action_service()
+    if not service:
+        raise HTTPException(status_code=503, detail="Action service not available")
+
+    try:
+        from civicos_relay.voice.models import OutcomeType
+
+        try:
+            outcome_type = OutcomeType(request.outcome)
+        except ValueError:
+            valid = [t.value for t in OutcomeType]
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid outcome '{request.outcome}'. Must be one of: {valid}"
+            )
+
+        outcome = service.record_outcome(
+            initiative_id=initiative_id,
+            outcome=outcome_type,
+            notes=request.notes,
+            vote_breakdown=request.vote_breakdown,
+            decision_reference=request.decision_reference,
+        )
+
+        attributions = service.get_attributions_for_outcome(outcome.id)
+
+        return OutcomeResponse(
+            id=outcome.id,
+            initiative_id=outcome.initiative_id,
+            outcome=outcome.outcome.value,
+            notes=outcome.notes,
+            vote_breakdown=outcome.vote_breakdown,
+            decision_reference=outcome.decision_reference,
+            recorded_at=outcome.recorded_at.isoformat(),
+            attribution_count=len(attributions),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error recording initiative outcome: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get(
+    "/coordination/initiative/{initiative_id}/outcome",
+    response_model=list[OutcomeResponse],
+)
+async def get_initiative_outcomes(initiative_id: str):
+    """Get all outcomes for an initiative."""
+    service = _get_civic_action_service()
+    if not service:
+        return []
+
+    try:
+        outcomes = service.get_outcomes_for_initiative(initiative_id)
+        result = []
+        for o in outcomes:
+            attributions = service.get_attributions_for_outcome(o.id)
+            result.append(OutcomeResponse(
+                id=o.id,
+                initiative_id=o.initiative_id,
+                outcome=o.outcome.value,
+                notes=o.notes,
+                vote_breakdown=o.vote_breakdown,
+                decision_reference=o.decision_reference,
+                recorded_at=o.recorded_at.isoformat(),
+                attribution_count=len(attributions),
+            ))
+        return result
+
+    except Exception as e:
+        logger.error(f"Error getting initiative outcomes: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get(
+    "/coordination/initiative/{initiative_id}/outcome/{outcome_id}/attributions",
+    response_model=list[AttributionResponse],
+)
+async def get_outcome_attributions(initiative_id: str, outcome_id: str):
+    """Get all attributions for a specific outcome."""
+    service = _get_civic_action_service()
+    if not service:
+        return []
+
+    try:
+        attributions = service.get_attributions_for_outcome(outcome_id)
+        return [
+            AttributionResponse(
+                id=a.id,
+                outcome_id=a.outcome_id,
+                action_id=a.action_id,
+                public_key=a.public_key,
+                contribution_type=a.contribution_type.value,
+                message=a.message,
+                created_at=a.created_at.isoformat(),
+            )
+            for a in attributions
+        ]
+
+    except Exception as e:
+        logger.error(f"Error getting outcome attributions: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+
+
+@router.get(
+    "/coordination/attribution/{public_key}",
+    response_model=list[UserImpactResponse],
+)
+async def get_user_impact(public_key: str):
+    """
+    Get a user's impact history — all outcomes they contributed to.
+
+    Returns attributions joined with outcome details, showing the user
+    how their actions influenced civic decisions.
+    """
+    service = _get_civic_action_service()
+    if not service:
+        return []
+
+    try:
+        attributions = service.get_attributions_for_user(public_key)
+
+        result = []
+        outcome_cache: dict[str, OutcomeResponse] = {}
+
+        for a in attributions:
+            # Cache outcome lookups
+            if a.outcome_id not in outcome_cache:
+                outcome = service.get_outcome(a.outcome_id)
+                if not outcome:
+                    continue
+                attr_count = len(service.get_attributions_for_outcome(a.outcome_id))
+                outcome_cache[a.outcome_id] = OutcomeResponse(
+                    id=outcome.id,
+                    initiative_id=outcome.initiative_id,
+                    outcome=outcome.outcome.value,
+                    notes=outcome.notes,
+                    vote_breakdown=outcome.vote_breakdown,
+                    decision_reference=outcome.decision_reference,
+                    recorded_at=outcome.recorded_at.isoformat(),
+                    attribution_count=attr_count,
+                )
+
+            result.append(UserImpactResponse(
+                attribution=AttributionResponse(
+                    id=a.id,
+                    outcome_id=a.outcome_id,
+                    action_id=a.action_id,
+                    public_key=a.public_key,
+                    contribution_type=a.contribution_type.value,
+                    message=a.message,
+                    created_at=a.created_at.isoformat(),
+                ),
+                outcome=outcome_cache[a.outcome_id],
+            ))
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Error getting user impact: {e}")
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
 

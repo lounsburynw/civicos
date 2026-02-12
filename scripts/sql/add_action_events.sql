@@ -157,3 +157,78 @@ CREATE POLICY "Service role has full access to commitments"
 CREATE POLICY "Service role has full access to completions"
     ON coordination_completions FOR ALL
     USING (auth.role() = 'service_role');
+
+-- ============================================================================
+-- Migration: Add coordination_url to action events
+-- ============================================================================
+
+ALTER TABLE coordination_action_events ADD COLUMN IF NOT EXISTS coordination_url TEXT;
+
+-- ============================================================================
+-- Migration: Add deadline_context to action events
+-- ============================================================================
+
+ALTER TABLE coordination_action_events ADD COLUMN IF NOT EXISTS deadline_context TEXT;
+
+-- ============================================================================
+-- Initiative Outcomes
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS coordination_outcomes (
+    id TEXT PRIMARY KEY,
+    initiative_id TEXT NOT NULL,                    -- Reference to initiative
+    outcome TEXT NOT NULL,                          -- passed, failed, continued, modified, partial
+    notes TEXT,                                     -- Additional context
+    vote_breakdown JSONB,                           -- Vote details (e.g., {"yes": 4, "no": 1})
+    decision_reference TEXT,                        -- Link to civic data decision
+    recorded_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT valid_outcome CHECK (
+        outcome IN ('passed', 'failed', 'continued', 'modified', 'partial')
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_outcomes_initiative
+    ON coordination_outcomes(initiative_id);
+CREATE INDEX IF NOT EXISTS idx_outcomes_recorded_at
+    ON coordination_outcomes(recorded_at);
+
+-- ============================================================================
+-- Action Attributions
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS coordination_attributions (
+    id TEXT PRIMARY KEY,
+    outcome_id TEXT NOT NULL REFERENCES coordination_outcomes(id),
+    action_id TEXT NOT NULL REFERENCES coordination_action_events(id),
+    public_key TEXT NOT NULL,                       -- User's public key (hex)
+    contribution_type TEXT NOT NULL,                -- commitment or completion
+    message TEXT,                                   -- Personalized attribution message
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+
+    -- One attribution per user per action per outcome
+    UNIQUE(outcome_id, action_id, public_key),
+
+    CONSTRAINT valid_contribution_type CHECK (
+        contribution_type IN ('commitment', 'completion')
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_attributions_outcome
+    ON coordination_attributions(outcome_id);
+CREATE INDEX IF NOT EXISTS idx_attributions_public_key
+    ON coordination_attributions(public_key);
+CREATE INDEX IF NOT EXISTS idx_attributions_action
+    ON coordination_attributions(action_id);
+
+-- RLS for new tables
+ALTER TABLE coordination_outcomes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE coordination_attributions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Service role has full access to outcomes"
+    ON coordination_outcomes FOR ALL
+    USING (auth.role() = 'service_role');
+
+CREATE POLICY "Service role has full access to attributions"
+    ON coordination_attributions FOR ALL
+    USING (auth.role() = 'service_role');

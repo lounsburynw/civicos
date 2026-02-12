@@ -417,6 +417,7 @@ class InMemoryCivicActionEventStorage:
                 template=old.template,
                 target_count=old.target_count,
                 deadline_context=old.deadline_context,
+                coordination_url=old.coordination_url,
                 public_key=old.public_key,
                 signature=old.signature,
                 timestamp=old.timestamp,
@@ -491,6 +492,47 @@ class InMemoryCivicCompletionStorage:
         ]
 
 
+class InMemoryOutcomeStorage:
+    """In-memory storage for initiative outcomes."""
+
+    def __init__(self):
+        self._outcomes: dict[str, "InitiativeOutcome"] = {}  # outcome_id -> InitiativeOutcome
+
+    def save_outcome(self, outcome) -> None:
+        self._outcomes[outcome.id] = outcome
+
+    def get_outcome(self, outcome_id: str):
+        return self._outcomes.get(outcome_id)
+
+    def get_outcomes_for_initiative(self, initiative_id: str) -> list:
+        return [
+            o for o in self._outcomes.values()
+            if o.initiative_id == initiative_id
+        ]
+
+
+class InMemoryAttributionStorage:
+    """In-memory storage for action attributions."""
+
+    def __init__(self):
+        self._attributions: dict[str, "Attribution"] = {}  # attribution_id -> Attribution
+
+    def save_attribution(self, attribution) -> None:
+        self._attributions[attribution.id] = attribution
+
+    def get_attributions_for_outcome(self, outcome_id: str) -> list:
+        return [
+            a for a in self._attributions.values()
+            if a.outcome_id == outcome_id
+        ]
+
+    def get_attributions_for_user(self, public_key: str) -> list:
+        return [
+            a for a in self._attributions.values()
+            if a.public_key == public_key
+        ]
+
+
 class InMemoryStorage:
     """Combined in-memory storage for all relay data."""
 
@@ -507,3 +549,5 @@ class InMemoryStorage:
         self.civic_action_events = InMemoryCivicActionEventStorage()
         self.civic_commitments = InMemoryCivicCommitmentStorage()
         self.civic_completions = InMemoryCivicCompletionStorage()
+        self.outcomes = InMemoryOutcomeStorage()
+        self.attributions = InMemoryAttributionStorage()
