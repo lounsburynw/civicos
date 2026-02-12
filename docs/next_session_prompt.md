@@ -1,47 +1,90 @@
-# Handoff: Fix Transcript Embedding Metadata + Commit Decision Classification
+# Recommended: Action Attribution — Close the Feedback Loop
 
 **Priority:** P0
-**Date:** 2026-02-10
+**Area:** relay > action_primitives > action_attribution
+**Date:** 2026-02-11
+**Previous session:** 573
 
-## What Was Done
+> This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
-### 1. Decision Classification — `item_type` + Correct Outcomes (COMPLETE, UNSTAGED)
-Added `item_type` discriminator (action/consent/presentation/hearing/discussion) and fixed outcomes. Backfilled 44 existing decisions via LLM (gpt-4o-mini, $0.0016).
+## Context
 
-**Files modified:**
-- `packages/civicos-extraction/.../retrospective_analyzer.py` — `item_type`, `extracted_outcome` on dataclass; `passed` default→`None`; 3 LLM prompts updated; 3 construction sites wired
-- `packages/civicos-extraction/.../cli/decisions.py` — 7-outcome mapping replacing binary `approved/pending`; `item_type` in storage format
-- `packages/civicos/.../storage/postgres_backend.py` — `item_type` column migration + index; in `store_decisions()` INSERT; `item_type` filter on `get_decisions()`
-- `packages/civicos/.../storage/pgvector_backend.py` — `[item_type]` prefix in `_decision_to_text()`
-- `scripts/backfill_decision_item_types.py` — NEW: LLM-based backfill (already applied: 23 actions, 15 presentations, 5 discussions, 1 hearing)
+The action system is now complete through Phase 2. Users can: create initiatives, add action items with deadlines/templates, commit ("I'll do this"), track commitments in a persistent "My Commitments" panel, download .ics calendar events, mark done, and withdraw. What's missing is the **feedback loop** — when a decision outcome is recorded, committed users should see "your comment was 1 of 27 that influenced this vote." Without attribution, the action system is just another CRUD feature.
 
-**Smoke tests: 42/42 pass.**
+### Prior Commits (done)
+- civicos `5022ea6`: Phase 1 — deadline_context, withdraw, review fixes
+- civicos `3631a9e`: Phase 2 — coordination_url, backend for My Commitments
+- openwebui `339dfd4`: Phase 2 — My Commitments panel, .ics calendar, coordination_url display
 
-### 2. Fix "?" Speaker Labels (CODE DONE, ROOT CAUSE UNRESOLVED)
-- `packages/civicos-services/.../context/assembler.py` — Added `_resolve_speaker()` fallback: speaker_name → role label ("Council Member"/"Staff") → empty string
-- `apps/civicos-openwebui-fork/.../DecisionDetail.svelte` — `{#if}` guards hide empty speaker spans
+### Also Note: Relay Needs Deployment
+Phase 1+2 action system changes are committed locally but **not deployed to Modal**. Consider deploying first (quick) so real users can test.
 
-## Unresolved: Empty Transcript Embedding Metadata
+## Recommended Task: Action Attribution
 
-**ALL 6,521 transcript embeddings have `metadata: '{}'`** — no video_id, speaker, start_ms, speaker_role. This causes:
-- No video "Watch clip" links
-- "?" speaker labels (now hidden by our fix, but data is still missing)
+### What to Build
 
-**The code is correct.** `expand_transcripts_to_chunks()` produces full metadata (verified locally). `pgvector_backend.py` metadata construction preserves it. **The Modal deployment likely ran stale code** when indexing Feb 9-10.
+1. **Outcome recording endpoint** (backend)
+   - `POST /coordination/initiative/{id}/outcome`
+   - Outcome types: `passed`, `failed`, `continued`, `modified`, `partial`
+   - Links a decision outcome to an initiative
+   - Store: new `coordination_outcomes` table or field on `coordination_initiatives`
 
-Other corpus types with metadata: budget_items, elections, municipal_code, state_programs (all populated). Corpus types without: transcripts, chunks, decisions, meetings, issues, agenda_items (all empty).
+2. **Attribution generation** (backend)
+   - When outcome is recorded, query all commitments/completions for that initiative's actions
+   - Generate personalized attribution per participant pubkey
+   - "Your comment was 1 of 27 submitted. The council voted 4-1 to approve."
+   - Non-participants see aggregate: "27 comments submitted, initiative passed 4-1"
 
-### What to do:
-1. **Check the ~$50 reindex cost** user mentioned — query `etl_costs` (cols: pipeline, run_date, items_processed, cost_usd, notes) and `operating_costs` (cols: timestamp, service, category, amount_usd, metadata)
-2. **Redeploy Modal**: `modal deploy scripts/modal_vectors.py`
-3. **Reindex transcripts only** — 6,521 embeddings, should be cheap (most cost is GPU time for embedding generation). This will populate metadata and restore video links + speaker labels
-4. **Verify** after reindex: `SELECT metadata->>'video_id', metadata->>'speaker_role' FROM vector_embeddings WHERE corpus_type='transcripts' LIMIT 5`
+3. **Attribution display** (frontend)
+   - Outcome banner on initiative card in CityPulse
+   - Personalized impact message for committed users
+   - Aggregate stats for everyone else
 
-### Commit the changes
-All work is unstaged. Run `/commit`.
+### Existing Code to Build On
+
+- `report_outcome()` in `packages/civicos/src/civic/orchestrator/outcomes.py` — SQLite-only, needs relay/Postgres upgrade
+- CivicCompletion (Kind 30812) already tracks who completed what action
+- `CivicActionProgress` already has commitment_count/completion_count
+- Design reference: `docs/critical/COORDINATION_PROTOCOL.md:570-656`
 
 ## Key Files
-- `packages/civicos/src/civicos/_internal/meetings/transcript.py:1736` — `expand_transcripts_to_chunks()`
-- `packages/civicos/src/civicos/storage/pgvector_backend.py:1046` — metadata construction
-- `scripts/modal_vectors.py` — Modal vector indexing app
-- `packages/civicos-services/.../context/assembler.py:391` — `_resolve_speaker()`
+
+- `packages/civicos-services/src/civicos_services/servers/routers/coordination.py` — add outcome endpoint here
+- `packages/civicos-relay/src/civicos_relay/voice/models.py:185-260` — CivicActionEvent, CivicCommitment, CivicCompletion models
+- `packages/civicos-relay/src/civicos_relay/voice/civic_action_service.py` — action service layer
+- `packages/civicos-relay/src/civicos_relay/storage/postgres.py:423-540` — initiative/action storage
+- `packages/civicos/src/civic/orchestrator/outcomes.py` — existing report_outcome (SQLite-only)
+- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` — initiative display, My Commitments panel
+- `~/projects/civicos-openwebui/src/lib/apis/civic.ts` — API client types and functions
+- `docs/critical/COORDINATION_PROTOCOL.md:570-656` — Attribution design spec
+
+## Suggested Approach
+
+1. Design the outcome model (add to relay models.py or new model)
+2. Add `coordination_outcomes` table or `outcome` fields to `coordination_initiatives`
+3. Create `POST /coordination/initiative/{id}/outcome` endpoint with signature verification
+4. Create `GET /coordination/initiative/{id}/attribution/{pubkey}` endpoint
+5. Add attribution display to CityPulse initiative cards
+6. Test with existing initiative data
+
+## Tests to Run
+```bash
+# Relay tests (action models, storage)
+/Users/nicolaslounsbury/projects/civicos/civicos-env/bin/python3 -m pytest packages/civicos-relay/tests/ -q --override-ini="addopts="
+
+# Smoke tests
+/Users/nicolaslounsbury/projects/civicos/civicos-env/bin/python3 -m pytest packages/civicos/tests/test_civicos.py -q --override-ini="addopts="
+```
+
+## Success Criteria
+- [ ] Outcome recording endpoint works (POST with signed outcome)
+- [ ] Attribution query returns personalized message per pubkey
+- [ ] CityPulse shows outcome banner on initiatives with recorded outcomes
+- [ ] Committed users see personal impact message
+- [ ] Non-participants see aggregate stats
+- [ ] Existing tests still pass (233 relay + 42 smoke)
+
+## Dev Environment
+- Frontend: `cd ~/projects/civicos-openwebui && npm run dev` (localhost:5173, hot reload)
+- Backend: `./scripts/dev.sh api` (localhost:8001)
+- Use venv Python directly: `/Users/nicolaslounsbury/projects/civicos/civicos-env/bin/python3`
