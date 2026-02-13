@@ -4331,7 +4331,7 @@
         "depends_on": ["extension_phase2_voice_signing"]
       },
       "extension_phase3_ai_viz": {
-        "status": "not_ready",
+        "status": "ready",
         "priority": 0,
         "artifact": "Browser extension Phase 3 — AI integration + visualizations",
         "note": "Add 'Chat with this item' context injection into Claude.ai/ChatGPT via content scripts. Issue map (geographic visualization of 311 issues). Budget chart (department breakdown). Requires chart/map library integration.",

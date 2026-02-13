@@ -163,6 +163,38 @@ export interface CivicActionProgress {
   progress_percent?: number;
 }
 
+// === Issue Geography (from /issue-geography) ===
+
+export interface IssuePoint {
+  lat: number;
+  lng: number;
+  type: string;
+  status: string;
+  address: string;
+  created_at: string;
+}
+
+export interface IssueGeography {
+  points: IssuePoint[];
+  total: number;
+}
+
+// === Budget Summary (from /budget-summary) ===
+
+export interface BudgetCategory {
+  category: string;
+  budgeted_dollars: number;
+  percentage: number;
+  item_count: number;
+}
+
+export interface BudgetSummary {
+  categories: BudgetCategory[];
+  total_budgeted_dollars: number;
+  fiscal_year: string;
+  group_by: string;
+}
+
 // === API wrapper response ===
 
 export interface ToolResponse<T = unknown> {

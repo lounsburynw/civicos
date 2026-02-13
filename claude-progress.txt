@@ -1,3 +1,47 @@
+## Session 585 (2026-02-12) - Browser Extension Phase 3: AI Integration + Visualizations
+
+**Item:** edge_intelligence/browser_extension/extension_phase3_ai_viz
+**Status:** Complete (marked ready)
+
+### What was done:
+
+1. **Fixed Phase 2b CORS + committed** — changed relay CORS from localhost-only to wildcard for chrome-extension origins. Committed all Phase 2b changes.
+
+2. **"Ask AI about this" context injection** (SidePanel.svelte):
+   - Added to agenda item cards and expanded decision cards
+   - Composes rich context (title, description, testimony, votes, community sentiment)
+   - Copies to clipboard, opens Claude.ai/new in a new tab
+   - Toast notification confirms context is ready to paste
+
+3. **"Summarize" testimony** (SidePanel.svelte):
+   - Summarize button on Public Testimony section header
+   - Composes all speaker testimony with decision context
+   - Uses same Ask AI flow (clipboard + Claude.ai)
+
+4. **Issue Map with Leaflet** (SidePanel.svelte):
+   - Collapsible "Issue Map" section, lazy-loads on expand
+   - Calls existing `/api/tools/issue-geography` endpoint
+   - Dark CARTO tile layer, color-coded circle markers by issue type
+   - Color legend and popup on click (type, address, status)
+   - Auto-fits bounds to issue points
+
+5. **Budget Chart with Chart.js** (SidePanel.svelte):
+   - Collapsible "Budget" section, lazy-loads on expand
+   - Calls existing `/api/tools/budget-summary` endpoint
+   - Doughnut chart with department colors, hover tooltips
+   - Legend showing top 8 departments with dollar amounts and percentages
+   - Total budget display with fiscal year
+
+### Libraries added:
+- leaflet + @types/leaflet (~40KB gzipped)
+- chart.js (~60KB gzipped)
+- Extension total: 356KB JS + 34KB CSS (112KB + 10KB gzipped)
+
+### Key files modified:
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — all 4 features
+- `apps/civicos-extension/src/lib/api.ts` — getIssueGeography, getBudgetSummary
+- `apps/civicos-extension/src/lib/types.ts` — IssuePoint, IssueGeography, BudgetCategory, BudgetSummary
+
 ## Session 581 (2026-02-12) - Browser Extension Phase 1: City Pulse Feed
 
 **Item:** edge_intelligence/browser_extension/extension_phase1_city_pulse
