@@ -124,6 +124,45 @@ export interface VoiceCounts {
   total: number;
 }
 
+// === Initiatives & Civic Actions ===
+
+export interface Initiative {
+  id: string;
+  topic: string;
+  title: string;
+  description: string;
+  location?: string;
+  coordination_url?: string;
+  public_key: string;
+  timestamp: string;
+  status: string;
+  voice_count: number;
+}
+
+export interface CivicAction {
+  id: string;
+  initiative_id: string;
+  action_type: string;
+  description: string;
+  target?: string;
+  deadline?: string;
+  template?: string;
+  deadline_context?: string;
+  coordination_url?: string;
+  target_count?: number;
+  public_key: string;
+  timestamp: string;
+  revoked: boolean;
+}
+
+export interface CivicActionProgress {
+  action_id: string;
+  commitment_count: number;
+  completion_count: number;
+  target_count?: number;
+  progress_percent?: number;
+}
+
 // === API wrapper response ===
 
 export interface ToolResponse<T = unknown> {

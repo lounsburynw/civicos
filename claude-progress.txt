@@ -19264,3 +19264,66 @@ End-to-end test of Personal MCP → Relay voice signing and verification:
 - P0: TBD — set before session end
 - Phase 2b: commitment tracking (initiatives, civic actions, deadlines)
 - Phase 3: AI viz + chat context injection
+
+## Session 584 (2026-02-12) - Browser Extension Phase 2b: Commitments + Initiative Tracking
+
+**Item:** edge_intelligence/browser_extension/extension_phase2b_commitments
+**Status:** Complete (marked ready)
+
+#### What Was Done
+1. **Quick UI fix**: Renamed "Upcoming Meetings" → "Meetings" (context-aware). Disabled calendar buttons for past meetings with `isPastMeeting()` gate.
+2. **Added types** (`types.ts`): `Initiative`, `CivicAction`, `CivicActionProgress` interfaces.
+3. **Added 6 relay API methods** (`api.ts`): `getInitiatives()`, `getCivicActions()`, `getCivicActionProgress()`, `commitToCivicAction()`, `completeCivicAction()`, `withdrawCivicAction()`.
+4. **Built Community Initiatives section** (`SidePanel.svelte`):
+   - Expandable initiative cards with topic badge, voice count, coordination channel link
+   - Nested civic actions with type badges, descriptions, targets
+   - Progress bars (completions/target with commitment count)
+   - Deadline countdown with urgency indicators (normal/urgent/overdue)
+   - Commit/Complete/Withdraw buttons with Nostr signing (Kind 30811/30812)
+   - Optimistic UI updates matching voice pattern
+5. **Built My Commitments tracker**: Personal section showing committed/completed actions with deadline tracking
+6. **Persistence**: committedActions + completedActions persisted to `chrome.storage.local`
+7. Build passes cleanly (768ms)
+
+#### Files Changed
+- `apps/civicos-extension/src/lib/types.ts` — Added Initiative, CivicAction, CivicActionProgress interfaces
+- `apps/civicos-extension/src/lib/api.ts` — Added 6 relay API methods for initiatives/actions
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — Meetings fix + full initiatives/commitments UI
+
+#### What's Next
+- P0: `extension_phase3_ai_viz` — AI integration + visualizations (chat context injection, issue map, budget chart)
+
+### Session 584 continued — Initiative creation + relay routes + My Commitments fix
+
+**Fixes applied:**
+
+1. **Added relay HTTP routes** (`app.py`):
+   - `POST /coordination/initiative` — create initiative (signed)
+   - `GET /coordination/initiatives/{jurisdiction}` — list initiatives
+   - `GET /coordination/initiative/{id}` — get initiative detail
+   - `POST /coordination/civic-action` — create civic action (Kind 30810)
+   - `GET /coordination/civic-actions/{initiative_id}` — list actions
+   - `GET /coordination/civic-action/{id}/progress` — progress
+   - `POST /coordination/civic-action/{id}/commit` — commit (Kind 30811)
+   - `POST /coordination/civic-action/{id}/complete` — complete (Kind 30812)
+   - `POST /coordination/civic-action/{id}/withdraw` — withdraw
+   - Wired up CivicActionService + initiative storage in lifespan
+
+2. **Added create initiative flow** (extension):
+   - "+" button on Community Initiatives section header
+   - Form: topic, title, description, coordination URL
+   - Signs with Nostr via service worker, POSTs to relay
+   - Refreshes list after creation
+
+3. **Added create action flow** (extension):
+   - "+ Add Action" dashed button inside expanded initiative
+   - Form: action type dropdown, description, target, deadline
+   - Signs and POSTs to relay
+
+4. **Fixed My Commitments** (extension):
+   - Now stores action metadata (type, description, deadline) in `chrome.storage.local`
+   - Renders from stored metadata, not from expanded initiative data
+   - Shows immediately even without expanding parent initiative
+
+5. **Added API methods** (`api.ts`):
+   - `createInitiative()` and `createCivicAction()`

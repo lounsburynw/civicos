@@ -4316,8 +4316,8 @@
         "depends_on": ["extension_phase1b_read_enhancements"]
       },
       "extension_phase2b_commitments": {
-        "status": "not_ready",
-        "priority": 0,
+        "status": "ready",
+        "priority": 1,
         "artifact": "Browser extension Phase 2b — My Commitments + initiative tracking",
         "note": "Add My Commitments personal tracker (localStorage-backed). Show community initiatives with nested civic actions and progress bars. Commit/complete/withdraw actions via relay. Deadline countdown with urgency indicators. Calendar integration for commitment deadlines. ALSO: quick fix meetings section label ('Upcoming Meetings' -> context-aware label) and disable calendar buttons for past meetings.",
         "features": [
@@ -4332,7 +4332,7 @@
       },
       "extension_phase3_ai_viz": {
         "status": "not_ready",
-        "priority": 2,
+        "priority": 0,
         "artifact": "Browser extension Phase 3 — AI integration + visualizations",
         "note": "Add 'Chat with this item' context injection into Claude.ai/ChatGPT via content scripts. Issue map (geographic visualization of 311 issues). Budget chart (department breakdown). Requires chart/map library integration.",
         "features": [

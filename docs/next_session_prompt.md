@@ -1,69 +1,100 @@
-# Recommended: Browser Extension Phase 2b — Commitments + Initiative Tracking
+# Handoff: Browser Extension Phase 2b — Debug & Complete
 
 **Priority:** P0
 **Area:** edge_intelligence > browser_extension
 **Date:** 2026-02-12
 
-> This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
+> Session 584 implemented Phase 2b (initiatives + commitments) but the user reports they don't see changes in the extension. Debug and complete.
 
-## Context
-Session 583 completed Phase 2 (voice signing): the extension now has Support/Oppose/Watch buttons on agenda items and decisions, with Kind 30800 Nostr signing via the service worker, relay submission with optimistic updates + rollback, and stance persistence via `chrome.storage.local`.
+## What Was Built (This Session)
 
-| Phase | Item | Priority | Status |
-|---|---|---|---|
-| Phase 1 | `extension_phase1_city_pulse` | P1 | **ready** |
-| Phase 1b | `extension_phase1b_read_enhancements` | P1 | **ready** |
-| Phase 2 | `extension_phase2_voice_signing` | P1 | **ready** |
-| **Phase 2b** | **`extension_phase2b_commitments`** | **P0** | **not_ready** (NEXT) |
-| Phase 3 | `extension_phase3_ai_viz` | P2 | not_ready |
+### Relay Routes (NEW — `packages/civicos-relay/src/civicos_relay/server/app.py`)
+- `POST /coordination/initiative` — create initiative
+- `GET /coordination/initiatives/{jurisdiction}` — list initiatives
+- `GET /coordination/initiative/{id}` — get detail
+- `POST /coordination/civic-action` — create civic action (Kind 30810)
+- `GET /coordination/civic-actions/{initiative_id}` — list actions
+- `GET /coordination/civic-action/{id}/progress` — progress counts
+- `POST /coordination/civic-action/{id}/commit` — Kind 30811
+- `POST /coordination/civic-action/{id}/complete` — Kind 30812
+- `POST /coordination/civic-action/{id}/withdraw` — withdraw
+- Wired `CivicActionService` + `initiative_storage` in `lifespan()`
+- Added request models: `CreateInitiativeRequest`, `CreateCivicActionRequest`, `CivicCommitRequest`, `CivicCompleteRequest`
 
-## Quick Fix First: Meetings Section UI Polish
-User feedback from Session 583 — address before starting Phase 2b:
-1. **Rename "Upcoming Meetings"** to "Meetings" or "Recent & Upcoming" — currently shows past meetings under an "Upcoming" label
-2. **Disable calendar buttons for past meetings** — `isPastMeeting()` already exists, just gate the calendar button
-3. These are ~10-line changes in `SidePanel.svelte`
+### Extension Changes
+1. **`apps/civicos-extension/src/lib/types.ts`** — Added `Initiative`, `CivicAction`, `CivicActionProgress` interfaces
+2. **`apps/civicos-extension/src/lib/api.ts`** — Added 8 relay API methods: `getInitiatives`, `getCivicActions`, `getCivicActionProgress`, `commitToCivicAction`, `completeCivicAction`, `withdrawCivicAction`, `createInitiative`, `createCivicAction`
+3. **`apps/civicos-extension/src/side-panel/SidePanel.svelte`** (~2100 lines now):
+   - Meetings label "Upcoming Meetings" → "Meetings", calendar buttons disabled for past
+   - Community Initiatives section with expandable cards, voice counts, coordination links
+   - "+" button to create initiatives (form: topic, title, description, coordination URL)
+   - Nested civic actions with progress bars, deadline badges (normal/urgent/overdue)
+   - "+ Add Action" form inside expanded initiatives (type dropdown, description, target, deadline)
+   - Commit/Complete/Withdraw buttons with Kind 30811/30812 Nostr signing
+   - My Commitments section using stored metadata (renders without expanding parent initiative)
+   - `committedActionMeta` Map persisted to `chrome.storage.local`
 
-## Recommended Task: Phase 2b
-Add user-spawned initiatives with push/pull coordination. Show community initiatives with nested civic actions, progress bars, and commit/complete/withdraw buttons via the relay.
+### What Builds Successfully
+- Extension: `cd apps/civicos-extension && npm run build` — 789ms, clean
+- Relay: `from civicos_relay.server.app import create_app` — imports clean
 
-### Features
-- My Commitments section with deadline tracking
-- Community initiatives listing with voice counts
-- Civic actions per initiative with progress bars
-- Commit/complete/withdraw action buttons (Kind 30810/30811/30812)
-- Deadline countdown (urgent if <=3d, overdue coloring)
-- Coordination channel links (Signal/Matrix/Telegram)
+## Problem: User Can't See Changes
 
-## Key Files
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — main UI (~1290 lines), add initiatives section
-- `apps/civicos-extension/src/lib/api.ts` — add initiative/action API methods
-- `apps/civicos-extension/src/lib/providers/types.ts` — already has `CivicEventKinds` (30810/30811/30812), `createActionEventContent()`, `createActionCommitmentContent()`, `createActionCompletionContent()`, and all related tag helpers
+Likely causes to investigate:
+1. **Extension not reloaded in Chrome** — user needs to go to `chrome://extensions`, click reload on CivicOS extension, then reopen the side panel
+2. **Relay not redeployed** — the new routes exist in code but the production relay at `api.civicosproject.org` hasn't been redeployed. The extension calls that URL. Without redeploying, `getInitiatives()` returns `[]` and the section shows "No active initiatives"
+3. **CORS issue** — `app.py` line ~228 has `allow_origins` limited to `localhost:5173` and `localhost:8080`. Chrome extension origins (`chrome-extension://...`) are not listed. Need to add `"*"` or the extension's origin
+4. **Modal deployment needed** — relay deploys via Modal, not local. Code changes aren't live until `modal deploy` runs
 
-### Reference implementation (Open WebUI)
-- Check `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` for initiative rendering patterns
-- Check `~/projects/civicos-openwebui/src/lib/apis/civic.ts` for initiative/action API calls
+## Debugging Steps
 
-### Relay API Endpoints
-Base URL: `https://api.civicosproject.org`
-- Check relay routes for initiative CRUD and action commit/complete endpoints
-- Voice endpoints (already integrated): `POST /coordination/voice`, `POST /coordination/voice/revoke`
-
-## User Priority Notes
-The user also wants the **interactive issues map** (Phase 3, `extension_phase3_ai_viz`) to replace the current plain issues section. This requires a map library (Leaflet or similar). Keep this in mind when structuring Phase 2b — the issues section will be replaced in Phase 3.
-
-## Build & Test
 ```bash
+# 1. Rebuild extension
 cd apps/civicos-extension && npm run build
-# Reload in chrome://extensions
-# Open side panel, verify initiatives section appears
-# Test commit/complete/withdraw flows
+
+# 2. Check CORS in relay
+grep -n "allow_origins" packages/civicos-relay/src/civicos_relay/server/app.py
+
+# 3. Fix CORS if needed (add chrome-extension origins)
+# allow_origins=["*"] for dev, or add chrome-extension://<id>
+
+# 4. Test relay locally
+cd packages/civicos-relay && python3 -m civicos_relay.server.app
+# Then curl http://localhost:8000/coordination/initiatives/city-san-rafael
+
+# 5. Deploy relay to Modal
+modal deploy packages/civicos-relay/src/civicos_relay/modal_app.py
+
+# 6. Reload extension in chrome://extensions
+# 7. Open side panel, check console for errors (right-click side panel → Inspect)
 ```
 
+## CORS Fix (Almost Certainly Needed)
+
+In `packages/civicos-relay/src/civicos_relay/server/app.py`, around line 228:
+```python
+# Current (too restrictive):
+allow_origins=["http://localhost:5173", "http://localhost:8080"],
+
+# Fix:
+allow_origins=["*"],  # Extensions use chrome-extension:// origins
+```
+
+## Key Files
+- `packages/civicos-relay/src/civicos_relay/server/app.py` — relay routes (all new routes here)
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — main UI
+- `apps/civicos-extension/src/lib/api.ts` — API client
+- `apps/civicos-extension/src/lib/types.ts` — TypeScript interfaces
+- `apps/civicos-extension/src/lib/providers/types.ts` — Nostr event helpers (unchanged)
+
+## pilot.json Status
+- `extension_phase2b_commitments`: marked `ready` (may need to revert to `not_ready` if debugging reveals issues)
+- `extension_phase3_ai_viz`: set as P0
+
 ## Success Criteria
-- [ ] Meetings section label fixed (not "Upcoming" when showing past meetings)
-- [ ] Calendar buttons disabled for past meetings
-- [ ] Community initiatives section with voice counts
-- [ ] Civic actions per initiative with progress indicators
-- [ ] Commit/complete/withdraw buttons with relay submission
-- [ ] My Commitments personal tracker with deadline display
-- [ ] pilot.json item `extension_phase2b_commitments` marked ready
+- [ ] User can see Community Initiatives section in side panel
+- [ ] User can create an initiative via the "+" button
+- [ ] User can add civic actions to an initiative
+- [ ] Commit/Complete/Withdraw buttons work with relay
+- [ ] My Commitments section shows after committing
+- [ ] Relay deployed to Modal with CORS fix
