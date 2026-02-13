@@ -1,3 +1,34 @@
+## Session 581 (2026-02-12) - Browser Extension Phase 1: City Pulse Feed
+
+**Item:** edge_intelligence/browser_extension/extension_phase1_city_pulse
+**Status:** Complete (marked ready)
+
+#### What Was Done
+1. Created `src/lib/types.ts` — TypeScript interfaces matching city_pulse API response (CityPulseData, PulseMeeting, PulseAgendaItem, PulseOutcome, CommunityPulse)
+2. Created `src/lib/api.ts` — HTTP client for CivicOS REST API with configurable base URL (chrome.storage.local, defaults to san-rafael.civicosproject.org)
+3. Updated `manifest.json` — Added `host_permissions` for `*.civicosproject.org` so side panel can fetch API data
+4. Rewrote `src/side-panel/SidePanel.svelte` — Full City Pulse feed replacing the Phase 0 placeholder:
+   - Identity chip (existing, preserved)
+   - Upcoming Meetings section (collapsible, from `decisions_this_week` API field)
+   - Agenda Items section (with item numbers, stance/comment eligibility tags)
+   - Recent Decisions section (with outcome icons: approved/denied/continued, vote tallies)
+   - Community Issues section (top issue types by count)
+   - Loading spinner, error state with retry, refresh button
+   - Footer with clerk email link and last-updated timestamp
+   - Dark theme matching extension aesthetic (Slate color palette)
+5. Build verified — Vite build + TypeScript typecheck both pass
+
+#### Architecture Decisions
+- Direct fetch from side panel (not routed through service worker) — simpler for MVP, SW routing can be added for caching later
+- API URL stored in chrome.storage.local — configurable per jurisdiction from options page
+- Used `host_permissions` (not optional) for civicosproject.org — required for cross-origin fetch from extension pages
+
+#### What's Next
+- P0: extension_phase2_voice_signing — Voice buttons, relay WebSocket, My Commitments
+- All non-extension items bumped to P3 per user direction
+
+---
+
 ## Session 580 (2026-02-12) - Browser Extension Bug Fixes (Persistence + Unlock Form)
 
 **Item:** edge_intelligence/browser_extension
