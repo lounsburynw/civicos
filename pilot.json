@@ -4343,6 +4343,20 @@
           "Create Initiative modal"
         ],
         "depends_on": ["extension_phase2b_commitments"]
+      },
+      "extension_phase4_micropayments": {
+        "status": "not_ready",
+        "priority": 0,
+        "artifact": "Browser extension Phase 4 — Lightning/Cashu micropayments",
+        "note": "L402 gates compute-intensive MCP tools. NWC (NIP-47) wallet bridge in extension. Cashu (NIP-60) for privacy. Free tier always works without wallet. See micropayments section and docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md.",
+        "features": [
+          "L402 middleware on Jurisdiction MCP HTTP server",
+          "NWC client in browser extension (wallet bridge)",
+          "Cashu wallet (NIP-60) for privacy-preserving payments",
+          "Spending controls: per-request threshold, daily limit",
+          "Graceful degradation: free tier without wallet"
+        ],
+        "depends_on": ["extension_phase3_ai_viz"]
       }
     },
     "micropayments": {
