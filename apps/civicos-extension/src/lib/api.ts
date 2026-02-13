@@ -6,7 +6,7 @@
  * to the San Rafael production endpoint.
  */
 
-import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, ToolResponse, Initiative, CivicAction, CivicActionProgress, IssueGeography, BudgetSummary } from './types.js';
+import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, ToolResponse, Initiative, CivicAction, CivicActionProgress, IssueGeography, BudgetSummary, Comment, CommentCounts, CommentSynthesis } from './types.js';
 
 const DEFAULT_API_URL = 'https://san-rafael.civicosproject.org';
 const STORAGE_KEY = 'civicos_api_url';
@@ -98,7 +98,7 @@ export async function getVoiceCountsBatch(entityIds: string[]): Promise<Map<stri
 
 // === Relay API (coordination/voice endpoints) ===
 
-const DEFAULT_RELAY_URL = 'https://api.civicosproject.org';
+const DEFAULT_RELAY_URL = 'http://localhost:8003';
 const RELAY_STORAGE_KEY = 'civicos_relay_url';
 
 async function getRelayUrl(): Promise<string> {
@@ -329,7 +329,9 @@ export async function createCivicAction(
   signature: string,
   target?: string,
   deadline?: string,
-  targetCount?: number
+  targetCount?: number,
+  template?: string,
+  deadlineContext?: string
 ): Promise<CivicAction | null> {
   try {
     const relayUrl = await getRelayUrl();
@@ -345,10 +347,100 @@ export async function createCivicAction(
         target: target || null,
         deadline: deadline || null,
         target_count: targetCount ?? null,
+        template: template || null,
+        deadline_context: deadlineContext || null,
       }),
     });
     if (!response.ok) return null;
     return response.json();
+  } catch {
+    return null;
+  }
+}
+
+// === Relay API (coordination/comment endpoints) ===
+
+export async function getComments(entityId: string): Promise<Comment[]> {
+  try {
+    const relayUrl = await getRelayUrl();
+    const response = await fetch(
+      `${relayUrl}/coordination/comments/${encodeURIComponent(entityId)}`,
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+    if (!response.ok) return [];
+    return response.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function getCommentCounts(entityId: string): Promise<CommentCounts | null> {
+  try {
+    const relayUrl = await getRelayUrl();
+    const response = await fetch(
+      `${relayUrl}/coordination/comment/counts/${encodeURIComponent(entityId)}`,
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+    if (!response.ok) return null;
+    return response.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function getCommentCountsBatch(entityIds: string[]): Promise<Map<string, number>> {
+  const result = new Map<string, number>();
+  if (entityIds.length === 0) return result;
+  try {
+    const promises = entityIds.map(async (id) => {
+      const counts = await getCommentCounts(id);
+      if (counts && counts.count > 0) {
+        result.set(id, counts.count);
+      }
+    });
+    await Promise.all(promises);
+  } catch {
+    // Comment counts are optional
+  }
+  return result;
+}
+
+export async function submitComment(
+  entityId: string,
+  commentText: string,
+  publicKey: string,
+  signature: string,
+  createdAt: number,
+  jurisdiction: string,
+  stance?: string
+): Promise<boolean> {
+  try {
+    const relayUrl = await getRelayUrl();
+    const response = await fetch(`${relayUrl}/coordination/comment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entity: entityId,
+        comment_text: commentText,
+        public_key: publicKey,
+        signature,
+        created_at: createdAt,
+        jurisdiction,
+        stance: stance || null,
+      }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function getCommentSynthesis(entityId: string): Promise<CommentSynthesis | null> {
+  try {
+    return apiRequest<CommentSynthesis>('/api/tools/comment-synthesis', {
+      method: 'POST',
+      body: JSON.stringify({ entity_id: entityId }),
+    });
   } catch {
     return null;
   }

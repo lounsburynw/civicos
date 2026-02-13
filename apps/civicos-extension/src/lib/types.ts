@@ -195,6 +195,32 @@ export interface BudgetSummary {
   group_by: string;
 }
 
+// === Comments ===
+
+export interface Comment {
+  entity: string;
+  comment_text: string;
+  public_key: string;
+  signature: string;
+  timestamp: string;
+  jurisdiction?: string;
+  stance?: string;
+  deleted: boolean;
+}
+
+export interface CommentCounts {
+  entity: string;
+  count: number;
+}
+
+export interface CommentSynthesis {
+  entity_id: string;
+  total: number;
+  support: number;
+  oppose: number;
+  neutral: number;
+}
+
 // === API wrapper response ===
 
 export interface ToolResponse<T = unknown> {

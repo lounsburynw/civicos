@@ -1,3 +1,47 @@
+## Session 586 (2026-02-12) - Extension UX Parity: Action Forms, Comments, Calendar
+
+**Item:** edge_intelligence/browser_extension/extension_ux_parity
+**Status:** In progress (3 of 6 success criteria complete)
+
+### Changes Made
+
+1. **Enriched Create Action form with dynamic TYPE_CONFIG:**
+   - Added per-action-type dynamic placeholders/hints (7 action types: written_comment, attend_meeting, public_comment, contact_official, signature, share, custom)
+   - Added character counters for description (500), template (2000), deadline context (200)
+   - Added conditional template field (shown for types that support it)
+   - Added deadline context field (shown when deadline is set)
+   - Added target_count field for signature type
+   - Updated API to pass template and deadline_context to relay
+   - Changed description from single-line input to textarea
+
+2. **Built inline comment system (biggest gap):**
+   - Added Comment, CommentCounts, CommentSynthesis types
+   - Added API functions: getComments, getCommentCounts, getCommentCountsBatch, submitComment, getCommentSynthesis
+   - Added comment count badges on comment-eligible agenda items
+   - Added collapsible comment threads with synthesis sentiment bar (support/oppose/neutral)
+   - Added comment compose area with 500-char limit, character counter
+   - Added optimistic comment insertion after successful submission
+   - Comments are signed via Nostr Kind 30803 events
+   - Styled with stance-colored left borders, author display, timestamps
+
+3. **Added calendar export for committed actions:**
+   - Google Calendar URL generation for action deadlines
+   - ICS file download for action deadlines
+   - Calendar buttons shown on active commitment cards with deadlines
+
+### Files Modified
+- `apps/civicos-extension/src/lib/types.ts` — Added Comment, CommentCounts, CommentSynthesis types
+- `apps/civicos-extension/src/lib/api.ts` — Added comment API functions, updated createCivicAction signature
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — Dynamic action form, comment thread UI, calendar export
+
+### Remaining for extension_ux_parity
+- [ ] Email Clerk button (mailto: with pre-filled subject/body)
+- [ ] AI "Draft Comment" button
+- [ ] Eligibility-based conditional rendering refinement
+
+### Build: PASS (npm run build succeeds)
+### P0: extension_ux_parity (continuing)
+
 ## Session 585 (2026-02-12) - Browser Extension Phase 3: AI Integration + Visualizations
 
 **Item:** edge_intelligence/browser_extension/extension_phase3_ai_viz
@@ -19371,3 +19415,32 @@ End-to-end test of Personal MCP → Relay voice signing and verification:
 
 5. **Added API methods** (`api.ts`):
    - `createInitiative()` and `createCivicAction()`
+
+---
+## Session — 2026-02-12 (Extension Design System Unification)
+
+### What was done:
+1. **Unified extension CSS to Open WebUI design system** (`SidePanel.svelte` CSS ~lines 1724-2873)
+   - Migrated entire color palette from Slate/Indigo to neutral grays + blue accent
+   - Backgrounds: `#0f172a` → `#171717`, `#1e293b` → `#262626`
+   - Borders: `#334155` → `#374151`
+   - Accents: `#6366f1` → `#3b82f6`, `#818cf8` → `#60a5fa`
+   - Text: various slate tones → `#eee`, `#d1d5db`, `#9ca3af`, `#6b7280`, `#4b5563`
+   - Summarize/AI buttons: old indigo → blue rgba tints
+   - Added `font-family: 'Inter', -apple-system, system-ui, sans-serif` to panel
+   - Added `background: #171717` to panel base
+
+2. **Structural CSS improvements:**
+   - Cards: `border-radius: 6px` → `10px`, added `border: 1px solid #374151` + blue hover glow
+   - Card titles: `13px` → `14px`
+   - Card padding: `10px 12px` → `12px 14px`
+   - Count badges: gray → blue tint (matching `.ini-count` style)
+   - Action buttons: larger (`12px` font, `5px 12px` padding, `8px` radius)
+   - Create form: `border-radius: 6px` → `10px`, bg → `#262626`
+   - Form inputs: bg → `transparent`, font-size `11px` → `13px`
+
+3. **Set P0 for next session:** `extension_ux_parity` — reach feature parity with Open WebUI CityPulse
+   - Key gaps: comment system, form richness (char counters, topic chips, dynamic hints), optimistic voice updates, commitment urgency indicators
+
+### Build: PASS (npm run build succeeds)
+### P0 set: extension_ux_parity
