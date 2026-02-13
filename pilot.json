@@ -4277,16 +4277,72 @@
       "extension_phase1_city_pulse": {
         "status": "ready",
         "priority": 0,
-        "artifact": "Browser extension Phase 1 — City Pulse feed with live civic data via WebMCP",
+        "artifact": "Browser extension Phase 1 — City Pulse feed with live civic data",
         "note": "Side panel fetches from CivicOS REST API /api/tools/city-pulse. Shows upcoming meetings, agenda items, recent decisions, community issues. Collapsible sections, dark theme.",
         "pattern": "Use existing REST API endpoints, same data patterns as Open WebUI CityPulse dashboard"
       },
-      "extension_phase2_voice_signing": {
+      "extension_phase1b_read_enhancements": {
         "status": "not_ready",
         "priority": 0,
-        "artifact": "Browser extension Phase 2 — Voice/signing + relay WebSocket + commitment tracking",
-        "note": "Add support/oppose voice buttons to agenda items and decisions. Sign voice events via identity manager in service worker. Connect to relay WebSocket for real-time voice counts. Add My Commitments section with localStorage-backed deadline tracking.",
-        "pattern": "Port voice UI from Open WebUI CityPulse. Use existing SIGN_EVENT service worker message. Connect to wss://relay.civicos.dev for live updates."
+        "artifact": "Browser extension Phase 1b — Read-only enhancements toward Open WebUI parity",
+        "note": "Enrich the existing City Pulse sections without relay integration. Voice counts display (read-only via getVoiceCountsBatch), decision detail expansion (click to expand with testimony excerpts via decision-detail API), calendar buttons (Google Calendar URL + .ics download per meeting), data provenance info panel, past meeting visual indicator. All use existing REST API endpoints — no relay or signing needed.",
+        "features": [
+          "Voice counts display (read-only) on agenda items and decisions",
+          "Expandable decision detail with testimony excerpts",
+          "Add to Google Calendar / .ics download per meeting",
+          "Data provenance info panel (corpus counts, freshness)",
+          "Past meeting badge (clock icon for already-passed meetings)"
+        ],
+        "api_endpoints": [
+          "GET /data-provenance",
+          "POST /decision-detail",
+          "POST /get-item-context"
+        ]
+      },
+      "extension_phase2_voice_signing": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Browser extension Phase 2 — Voice submission + relay WebSocket",
+        "note": "Add support/oppose/watching buttons to agenda items and decisions. Sign voice events via identity manager in service worker (SIGN_EVENT already implemented). Connect to relay WebSocket (wss://relay.civicos.dev) for real-time voice count updates. Display inline comment threads with synthesis.",
+        "features": [
+          "Support/oppose/watching buttons on agenda items and decisions",
+          "Voice signing via service worker SIGN_EVENT message",
+          "Relay WebSocket connection for live voice count updates",
+          "Comment thread display per entity",
+          "Comment submission with optional stance",
+          "Comment synthesis (aggregate stance breakdown)"
+        ],
+        "pattern": "Port voice UI from Open WebUI CityPulse. Use existing SIGN_EVENT service worker message. Connect to wss://relay.civicos.dev for live updates.",
+        "depends_on": ["extension_phase1b_read_enhancements"]
+      },
+      "extension_phase2b_commitments": {
+        "status": "not_ready",
+        "priority": 1,
+        "artifact": "Browser extension Phase 2b — My Commitments + initiative tracking",
+        "note": "Add My Commitments personal tracker (localStorage-backed). Show community initiatives with nested civic actions and progress bars. Commit/complete/withdraw actions via relay. Deadline countdown with urgency indicators. Calendar integration for commitment deadlines.",
+        "features": [
+          "My Commitments section with deadline tracking",
+          "Community initiatives listing with voice counts",
+          "Civic actions per initiative with progress bars",
+          "Commit/complete/withdraw action buttons",
+          "Deadline countdown (urgent if <=3d, overdue coloring)",
+          "Coordination channel links (Signal/Matrix/Telegram)"
+        ],
+        "depends_on": ["extension_phase2_voice_signing"]
+      },
+      "extension_phase3_ai_viz": {
+        "status": "not_ready",
+        "priority": 2,
+        "artifact": "Browser extension Phase 3 — AI integration + visualizations",
+        "note": "Add 'Chat with this item' context injection into Claude.ai/ChatGPT via content scripts. Issue map (geographic visualization of 311 issues). Budget chart (department breakdown). Requires chart/map library integration.",
+        "features": [
+          "Chat with decision/agenda item (context injection into AI surfaces)",
+          "Summarize comment thread (AI-powered synthesis)",
+          "Issue map (geographic visualization, needs Leaflet or similar)",
+          "Budget chart (categorical breakdown, needs Chart.js or similar)",
+          "Create Initiative modal"
+        ],
+        "depends_on": ["extension_phase2b_commitments"]
       }
     },
     "micropayments": {
