@@ -19212,3 +19212,27 @@ End-to-end test of Personal MCP → Relay voice signing and verification:
 - P0: context_assembly_api — add get_item_context MCP tool + Open WebUI "Chat with this item" button
 - Browser extension (P2) unblocked once context assembly is done
 - Relay deployment still pending (action attribution + voice/revoke)
+
+## Session 582 (2026-02-12) - Browser Extension Phase 1b: Read-Only Enhancements
+
+**Item:** edge_intelligence/browser_extension/extension_phase1b_read_enhancements
+**Status:** Complete (marked ready)
+
+#### What Was Done
+1. Added `DecisionDetailData`, `DataProvenance`, `VoiceCounts` interfaces to `types.ts` (67→133 lines)
+2. Added `getDecisionDetail()`, `getDataProvenance()`, `getVoiceCountsBatch()` to `api.ts` (57→97 lines)
+3. Enhanced `SidePanel.svelte` with 5 read-only features (673→1131 lines):
+   - Expandable decision detail: click decision card to see testimony, votes, related decisions
+   - Calendar buttons: Google Calendar + .ics download on meeting cards
+   - Data provenance panel: info button in header shows corpus counts, coverage, freshness
+   - Past meeting badge: clock icon + muted styling for past meetings
+   - Voice count badges: support/oppose/watching on agenda items and decisions
+4. Full gap analysis vs Open WebUI CityPulse (~45% parity, key gaps: voice submission, issue map, chat context injection)
+
+#### Commits
+- Not yet committed (session ended before commit)
+
+#### What's Next
+- P0: extension_phase2_voice_signing — Support/Oppose/Watch buttons with Nostr signing + relay submission
+- Phase 2b: commitment tracking (initiatives, civic actions, deadlines)
+- Phase 3: AI viz + chat context injection (extension's killer feature)

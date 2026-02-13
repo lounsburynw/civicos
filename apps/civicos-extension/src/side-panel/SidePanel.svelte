@@ -1,8 +1,8 @@
 <script lang="ts">
   import { sendMessage } from '../lib/messaging.js';
-  import { getCityPulse } from '../lib/api.js';
+  import { getCityPulse, getDecisionDetail, getDataProvenance, getVoiceCountsBatch } from '../lib/api.js';
   import type { IdentityInfo } from '../lib/providers/types.js';
-  import type { CityPulseData } from '../lib/types.js';
+  import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts } from '../lib/types.js';
 
   let identity: (IdentityInfo & { isUnlocked?: boolean }) | null = $state(null);
   let loading = $state(true);
@@ -17,6 +17,22 @@
     outcomes: true,
     community: false,
   });
+
+  // Decision detail expansion
+  let expandedDecisions = $state(new Set<string>());
+  let decisionDetails = $state(new Map<string, DecisionDetailData>());
+  let decisionLoading = $state(new Set<string>());
+
+  // Data provenance
+  let showProvenance = $state(false);
+  let provenanceData: DataProvenance | null = $state(null);
+  let provenanceLoading = $state(false);
+
+  // Voice counts
+  let voiceCounts = $state(new Map<string, VoiceCounts>());
+
+  // Calendar dropdown
+  let calendarOpen: string | null = $state(null);
 
   function toggle(section: string) {
     expanded[section] = !expanded[section];
@@ -38,10 +54,95 @@
     pulseError = null;
     try {
       pulseData = await getCityPulse();
+      // Load voice counts in background after pulse data arrives
+      loadVoiceCounts();
     } catch (err) {
       pulseError = err instanceof Error ? err.message : 'Failed to load civic data';
     }
     pulseLoading = false;
+  }
+
+  async function loadVoiceCounts() {
+    if (!pulseData) return;
+    const ids: string[] = [];
+    if (pulseData.recent_outcomes) {
+      ids.push(...pulseData.recent_outcomes.map(d => d.id).filter(Boolean));
+    }
+    if (pulseData.upcoming_items) {
+      ids.push(...pulseData.upcoming_items.filter(i => i.stance_eligible).map(i => `agenda-item:${i.id}`));
+    }
+    if (ids.length > 0) {
+      voiceCounts = await getVoiceCountsBatch(ids);
+    }
+  }
+
+  async function toggleDecisionDetail(title: string) {
+    if (expandedDecisions.has(title)) {
+      expandedDecisions.delete(title);
+      expandedDecisions = new Set(expandedDecisions);
+      return;
+    }
+
+    expandedDecisions.add(title);
+    expandedDecisions = new Set(expandedDecisions);
+
+    if (!decisionDetails.has(title)) {
+      decisionLoading.add(title);
+      decisionLoading = new Set(decisionLoading);
+      try {
+        const detail = await getDecisionDetail(title);
+        decisionDetails.set(title, detail);
+        decisionDetails = new Map(decisionDetails);
+      } catch (e) {
+        console.error('Failed to load decision detail:', e);
+      } finally {
+        decisionLoading.delete(title);
+        decisionLoading = new Set(decisionLoading);
+      }
+    }
+  }
+
+  async function toggleProvenance() {
+    showProvenance = !showProvenance;
+    if (showProvenance && !provenanceData && !provenanceLoading) {
+      provenanceLoading = true;
+      try {
+        provenanceData = await getDataProvenance();
+      } catch (e) {
+        console.error('Failed to load provenance:', e);
+      } finally {
+        provenanceLoading = false;
+      }
+    }
+  }
+
+  function isPastMeeting(meeting: { meeting_datetime: string }): boolean {
+    return new Date(meeting.meeting_datetime) < new Date();
+  }
+
+  function googleCalendarUrl(meeting: { title: string; date: string; time: string; location: string; meeting_datetime: string }): string {
+    const start = new Date(meeting.meeting_datetime);
+    const end = new Date(start.getTime() + 2 * 60 * 60 * 1000); // assume 2hr
+    const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    return `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(meeting.title)}&dates=${fmt(start)}/${fmt(end)}&location=${encodeURIComponent(meeting.location || '')}`;
+  }
+
+  function downloadIcs(meeting: { title: string; location: string; meeting_datetime: string }) {
+    const start = new Date(meeting.meeting_datetime);
+    const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+    const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${fmt(start)}\nDTEND:${fmt(end)}\nSUMMARY:${meeting.title}\nLOCATION:${meeting.location || ''}\nEND:VEVENT\nEND:VCALENDAR`;
+    const blob = new Blob([ics], { type: 'text/calendar' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${meeting.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function toggleCalendar(meetingTitle: string) {
+    calendarOpen = calendarOpen === meetingTitle ? null : meetingTitle;
   }
 
   function openOptions() {
@@ -72,6 +173,18 @@
     return 'other';
   }
 
+  function formatRelativeDate(dateStr: string | null): string {
+    if (!dateStr) return 'unknown';
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'today';
+    if (diffDays === 1) return 'yesterday';
+    if (diffDays < 30) return `${diffDays}d ago`;
+    return d.toLocaleDateString();
+  }
+
   // Load on mount
   loadIdentity();
   loadCityPulse();
@@ -86,6 +199,12 @@
       {/if}
     </div>
     <div class="header-actions">
+      <button class="icon-btn" onclick={toggleProvenance} title="Data Sources" class:active={showProvenance}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 16v-4M12 8h.01" />
+        </svg>
+      </button>
       <button class="icon-btn" onclick={loadCityPulse} title="Refresh" disabled={pulseLoading}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              class:spinning={pulseLoading}>
@@ -100,6 +219,44 @@
       </button>
     </div>
   </header>
+
+  <!-- Data Provenance Panel -->
+  {#if showProvenance}
+    <div class="provenance-panel">
+      {#if provenanceLoading}
+        <div class="prov-loading">Loading data sources...</div>
+      {:else if provenanceData}
+        <div class="prov-header">
+          <span class="prov-title">Data Sources</span>
+          <span class="prov-jurisdiction">{provenanceData.jurisdiction}</span>
+        </div>
+        <div class="prov-stats">
+          <span>{provenanceData.corpora.length} data types</span>
+          <span class="meta-sep">&middot;</span>
+          <span>{provenanceData.total_vector_docs.toLocaleString()} indexed docs</span>
+          {#if provenanceData.overall_coverage_percent != null}
+            <span class="meta-sep">&middot;</span>
+            <span>{provenanceData.overall_coverage_percent}% coverage</span>
+          {/if}
+        </div>
+        <div class="prov-corpora">
+          {#each provenanceData.corpora as corpus}
+            <div class="corpus-row">
+              <span class="corpus-name">{corpus.display_name}</span>
+              <span class="corpus-count">{corpus.storage_count.toLocaleString()}</span>
+            </div>
+          {/each}
+        </div>
+        {#if provenanceData.freshness.last_updated}
+          <div class="prov-freshness">
+            Updated {formatRelativeDate(provenanceData.freshness.last_updated)}
+          </div>
+        {/if}
+      {:else}
+        <div class="prov-loading">Unable to load data sources</div>
+      {/if}
+    </div>
+  {/if}
 
   <!-- Identity chip -->
   {#if loading}
@@ -153,8 +310,18 @@
             <div class="empty-section">No upcoming meetings</div>
           {:else}
             {#each pulseData.decisions_this_week as meeting}
-              <div class="card meeting-card">
-                <div class="card-title">{meeting.title}</div>
+              <div class="card meeting-card" class:past-meeting={isPastMeeting(meeting)}>
+                <div class="meeting-top-row">
+                  <div class="card-title">
+                    {#if isPastMeeting(meeting)}<span class="past-icon" title="Past meeting">&#128337;</span>{/if}
+                    {meeting.title}
+                  </div>
+                  <button class="cal-btn" onclick={() => toggleCalendar(meeting.title)} title="Add to calendar">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                  </button>
+                </div>
                 <div class="card-meta">
                   <span class="meta-date">{formatMeetingTime(meeting)}</span>
                   {#if meeting.location}
@@ -162,6 +329,12 @@
                     <span class="meta-location">{meeting.location}</span>
                   {/if}
                 </div>
+                {#if calendarOpen === meeting.title}
+                  <div class="cal-dropdown">
+                    <a href={googleCalendarUrl(meeting)} target="_blank" rel="noopener" class="cal-option">Google Calendar</a>
+                    <button class="cal-option" onclick={() => downloadIcs(meeting)}>Download .ics</button>
+                  </div>
+                {/if}
               </div>
             {/each}
           {/if}
@@ -204,6 +377,14 @@
                     <span class="tag">{item.project_type}</span>
                   {/if}
                 </div>
+                {#if voiceCounts.has(`agenda-item:${item.id}`)}
+                  {@const counts = voiceCounts.get(`agenda-item:${item.id}`)!}
+                  <div class="voice-counts">
+                    {#if counts.support > 0}<span class="vc vc-support">{counts.support} support</span>{/if}
+                    {#if counts.oppose > 0}<span class="vc vc-oppose">{counts.oppose} oppose</span>{/if}
+                    {#if counts.watching > 0}<span class="vc vc-watch">{counts.watching} watching</span>{/if}
+                  </div>
+                {/if}
               </div>
             {/each}
           </div>
@@ -228,8 +409,8 @@
             <div class="empty-section">No recent decisions</div>
           {:else}
             {#each pulseData.recent_outcomes as decision}
-              <div class="card decision-card">
-                <div class="decision-row">
+              <div class="card decision-card" class:expanded-card={expandedDecisions.has(decision.title)}>
+                <button class="decision-row decision-toggle" onclick={() => toggleDecisionDetail(decision.title)}>
                   <span class="outcome-icon {outcomeClass(decision.outcome)}">
                     {outcomeIcon(decision.outcome)}
                   </span>
@@ -243,9 +424,60 @@
                       {/if}
                       <span class="meta-sep">&middot;</span>
                       <span>{decision.date}</span>
+                      {#if voiceCounts.has(decision.id)}
+                        {@const counts = voiceCounts.get(decision.id)!}
+                        {#if counts.total > 0}
+                          <span class="meta-sep">&middot;</span>
+                          <span class="voice-inline">{counts.total} voices</span>
+                        {/if}
+                      {/if}
                     </div>
                   </div>
-                </div>
+                  <span class="expand-chevron" class:open={expandedDecisions.has(decision.title)}></span>
+                </button>
+
+                {#if expandedDecisions.has(decision.title)}
+                  <div class="decision-detail">
+                    {#if decisionLoading.has(decision.title)}
+                      <div class="detail-loading">Loading details...</div>
+                    {:else if decisionDetails.has(decision.title)}
+                      {@const detail = decisionDetails.get(decision.title)!}
+                      {#if detail.found && detail.decision}
+                        {#if detail.decision.body}
+                          <div class="detail-body">{detail.decision.body}</div>
+                        {/if}
+                        {#if detail.testimony?.public_comments && detail.testimony.public_comments.length > 0}
+                          <div class="detail-section">
+                            <div class="detail-label">Public Testimony ({detail.testimony.public_comments.length})</div>
+                            {#each detail.testimony.public_comments.slice(0, 3) as comment}
+                              <div class="testimony-item">
+                                <span class="testimony-speaker">{comment.speaker}</span>
+                                <span class="testimony-text">{comment.text}</span>
+                              </div>
+                            {/each}
+                            {#if detail.testimony.public_comments.length > 3}
+                              <div class="detail-more">+{detail.testimony.public_comments.length - 3} more</div>
+                            {/if}
+                          </div>
+                        {/if}
+                        {#if detail.related_decisions && detail.related_decisions.length > 0}
+                          <div class="detail-section">
+                            <div class="detail-label">Related Decisions</div>
+                            {#each detail.related_decisions.slice(0, 3) as related}
+                              <div class="related-item">
+                                <span class="outcome-dot {outcomeClass(related.outcome)}"></span>
+                                <span class="related-title">{related.title}</span>
+                                <span class="related-date">{related.date}</span>
+                              </div>
+                            {/each}
+                          </div>
+                        {/if}
+                      {:else}
+                        <div class="detail-empty">No details available</div>
+                      {/if}
+                    {/if}
+                  </div>
+                {/if}
               </div>
             {/each}
           {/if}
@@ -670,4 +902,230 @@
     text-decoration: none;
   }
   .footer-link:hover { text-decoration: underline; }
+
+  /* === Provenance Panel === */
+  .provenance-panel {
+    background: #1e293b;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    border: 1px solid #334155;
+  }
+  .prov-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .prov-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #e2e8f0;
+  }
+  .prov-jurisdiction {
+    font-size: 10px;
+    color: #64748b;
+  }
+  .prov-stats {
+    display: flex;
+    gap: 4px;
+    font-size: 11px;
+    color: #94a3b8;
+    margin-bottom: 8px;
+  }
+  .prov-corpora {
+    border-top: 1px solid #334155;
+    padding-top: 6px;
+  }
+  .corpus-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    font-size: 11px;
+  }
+  .corpus-name { color: #cbd5e1; }
+  .corpus-count { color: #64748b; font-variant-numeric: tabular-nums; }
+  .prov-freshness {
+    border-top: 1px solid #334155;
+    padding-top: 6px;
+    margin-top: 6px;
+    font-size: 10px;
+    color: #475569;
+  }
+  .prov-loading {
+    font-size: 11px;
+    color: #64748b;
+    padding: 8px 0;
+  }
+
+  .icon-btn.active { color: #818cf8; background: #1e293b; }
+
+  /* === Past Meeting === */
+  .past-meeting {
+    opacity: 0.65;
+  }
+  .past-icon {
+    font-size: 12px;
+    margin-right: 4px;
+  }
+  .meeting-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  /* === Calendar === */
+  .cal-btn {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 3px;
+  }
+  .cal-btn:hover { color: #818cf8; background: #334155; }
+
+  .cal-dropdown {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #334155;
+  }
+  .cal-option {
+    font-size: 11px;
+    color: #6366f1;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: none;
+  }
+  .cal-option:hover { color: #818cf8; text-decoration: underline; }
+
+  /* === Voice Counts === */
+  .voice-counts {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+    font-size: 10px;
+  }
+  .vc {
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .vc-support { background: #14532d; color: #4ade80; }
+  .vc-oppose { background: #7f1d1d; color: #f87171; }
+  .vc-watch { background: #334155; color: #94a3b8; }
+
+  .voice-inline {
+    color: #818cf8;
+    font-size: 10px;
+  }
+
+  /* === Decision Expansion === */
+  .decision-toggle {
+    width: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    text-align: left;
+    color: inherit;
+  }
+  .decision-toggle:hover .card-title { color: #818cf8; }
+
+  .expand-chevron {
+    display: inline-block;
+    flex-shrink: 0;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid #475569;
+    transition: transform 0.15s ease;
+    margin-left: 6px;
+    margin-top: 6px;
+  }
+  .expand-chevron.open { transform: rotate(180deg); }
+
+  .expanded-card {
+    border: 1px solid #334155;
+  }
+
+  .decision-detail {
+    border-top: 1px solid #334155;
+    padding-top: 8px;
+    margin-top: 8px;
+  }
+  .detail-loading {
+    font-size: 11px;
+    color: #64748b;
+    padding: 4px 0;
+  }
+  .detail-body {
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.4;
+    margin-bottom: 8px;
+  }
+  .detail-section {
+    margin-bottom: 8px;
+  }
+  .detail-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+  .testimony-item {
+    font-size: 11px;
+    padding: 4px 0;
+    border-bottom: 1px solid #1e293b;
+  }
+  .testimony-speaker {
+    color: #cbd5e1;
+    font-weight: 500;
+    margin-right: 4px;
+  }
+  .testimony-speaker::after { content: ':'; }
+  .testimony-text {
+    color: #94a3b8;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .detail-more {
+    font-size: 10px;
+    color: #6366f1;
+    margin-top: 4px;
+  }
+  .related-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    padding: 3px 0;
+  }
+  .outcome-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .outcome-dot.passed { background: #4ade80; }
+  .outcome-dot.failed { background: #f87171; }
+  .outcome-dot.other { background: #94a3b8; }
+  .related-title { color: #cbd5e1; flex: 1; }
+  .related-date { color: #475569; }
+  .detail-empty {
+    font-size: 11px;
+    color: #475569;
+    font-style: italic;
+  }
 </style>
