@@ -88,6 +88,72 @@ export async function getVoiceCountsBatch(entityIds: string[]): Promise<Map<stri
   return result;
 }
 
+// === Relay API (coordination/voice endpoints) ===
+
+const DEFAULT_RELAY_URL = 'https://api.civicosproject.org';
+const RELAY_STORAGE_KEY = 'civicos_relay_url';
+
+async function getRelayUrl(): Promise<string> {
+  try {
+    const result = await chrome.storage.local.get(RELAY_STORAGE_KEY);
+    return result[RELAY_STORAGE_KEY] || DEFAULT_RELAY_URL;
+  } catch {
+    return DEFAULT_RELAY_URL;
+  }
+}
+
+export async function submitVoice(
+  entityId: string,
+  stance: 'support' | 'oppose' | 'watching',
+  jurisdiction: string,
+  publicKey: string,
+  signature: string,
+  createdAt: number
+): Promise<boolean> {
+  try {
+    const relayUrl = await getRelayUrl();
+    const response = await fetch(`${relayUrl}/coordination/voice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entity: entityId,
+        stance,
+        public_key: publicKey,
+        signature,
+        created_at: createdAt,
+        jurisdiction,
+      }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function revokeVoice(
+  entityId: string,
+  publicKey: string,
+  signature: string,
+  createdAt: number
+): Promise<boolean> {
+  try {
+    const relayUrl = await getRelayUrl();
+    const response = await fetch(`${relayUrl}/coordination/voice/revoke`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entity: entityId,
+        public_key: publicKey,
+        signature,
+        created_at: createdAt,
+      }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function setApiUrl(url: string): Promise<void> {
   await chrome.storage.local.set({ [STORAGE_KEY]: url });
 }

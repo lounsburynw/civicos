@@ -4276,7 +4276,7 @@
       ],
       "extension_phase1_city_pulse": {
         "status": "ready",
-        "priority": 0,
+        "priority": 1,
         "artifact": "Browser extension Phase 1 — City Pulse feed with live civic data",
         "note": "Side panel fetches from CivicOS REST API /api/tools/city-pulse. Shows upcoming meetings, agenda items, recent decisions, community issues. Collapsible sections, dark theme.",
         "pattern": "Use existing REST API endpoints, same data patterns as Open WebUI CityPulse dashboard"
@@ -4300,26 +4300,26 @@
         ]
       },
       "extension_phase2_voice_signing": {
-        "status": "not_ready",
-        "priority": 0,
-        "artifact": "Browser extension Phase 2 — Voice submission + relay WebSocket",
-        "note": "Add support/oppose/watching buttons to agenda items and decisions. Sign voice events via identity manager in service worker (SIGN_EVENT already implemented). Connect to relay WebSocket (wss://relay.civicos.dev) for real-time voice count updates. Display inline comment threads with synthesis.",
+        "status": "ready",
+        "priority": 1,
+        "artifact": "Browser extension Phase 2 — Voice submission with Nostr signing",
+        "note": "Support/Oppose/Watch buttons on agenda items and decisions. Kind 30800 events signed via service worker SIGN_EVENT handler. Relay submission with optimistic updates and rollback. User stances persisted to chrome.storage.local. WebSocket live updates and comment threads deferred to Phase 2b/3.",
         "features": [
           "Support/oppose/watching buttons on agenda items and decisions",
-          "Voice signing via service worker SIGN_EVENT message",
-          "Relay WebSocket connection for live voice count updates",
-          "Comment thread display per entity",
-          "Comment submission with optional stance",
-          "Comment synthesis (aggregate stance breakdown)"
+          "Voice signing via service worker SIGN_EVENT message (Kind 30800)",
+          "Relay submission (POST /coordination/voice) with optimistic updates",
+          "Voice revocation via toggle (POST /coordination/voice/revoke)",
+          "User stance persistence across panel reopens (chrome.storage.local)",
+          "Locked identity handling (shows 'Unlock to vote')"
         ],
-        "pattern": "Port voice UI from Open WebUI CityPulse. Use existing SIGN_EVENT service worker message. Connect to wss://relay.civicos.dev for live updates.",
+        "pattern": "Port voice UI from Open WebUI CityPulse. Use existing SIGN_EVENT service worker message. Submit to relay coordination API.",
         "depends_on": ["extension_phase1b_read_enhancements"]
       },
       "extension_phase2b_commitments": {
         "status": "not_ready",
-        "priority": 1,
+        "priority": 0,
         "artifact": "Browser extension Phase 2b — My Commitments + initiative tracking",
-        "note": "Add My Commitments personal tracker (localStorage-backed). Show community initiatives with nested civic actions and progress bars. Commit/complete/withdraw actions via relay. Deadline countdown with urgency indicators. Calendar integration for commitment deadlines.",
+        "note": "Add My Commitments personal tracker (localStorage-backed). Show community initiatives with nested civic actions and progress bars. Commit/complete/withdraw actions via relay. Deadline countdown with urgency indicators. Calendar integration for commitment deadlines. ALSO: quick fix meetings section label ('Upcoming Meetings' -> context-aware label) and disable calendar buttons for past meetings.",
         "features": [
           "My Commitments section with deadline tracking",
           "Community initiatives listing with voice counts",
