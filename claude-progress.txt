@@ -19236,3 +19236,31 @@ End-to-end test of Personal MCP → Relay voice signing and verification:
 - P0: extension_phase2_voice_signing — Support/Oppose/Watch buttons with Nostr signing + relay submission
 - Phase 2b: commitment tracking (initiatives, civic actions, deadlines)
 - Phase 3: AI viz + chat context injection (extension's killer feature)
+
+## Session 583 (2026-02-12) - Browser Extension Phase 2: Voice Submission
+
+**Item:** edge_intelligence/browser_extension/extension_phase2_voice_signing
+**Status:** Complete (marked ready)
+
+#### What Was Done
+1. Added `submitVoice()` and `revokeVoice()` to `api.ts` — POST to relay `/coordination/voice` and `/coordination/voice/revoke` endpoints
+2. Added `handleVoice()` to `SidePanel.svelte` with full optimistic update pattern:
+   - Construct unsigned Kind 30800 Nostr event with correct tags/content
+   - Sign via service worker `SIGN_EVENT` message handler
+   - Optimistic count update immediately, rollback on relay failure
+   - Toggle behavior: re-click same stance = revoke
+3. Added Support/Oppose/Watch pill buttons on stance-eligible agenda items
+4. Added voice buttons in expanded decision detail view
+5. Persisted `userStances` to `chrome.storage.local` (loads on mount, saves on change)
+6. Locked identity handling: shows "Unlock to vote" message
+7. Styled buttons with active state highlighting (green/red/blue borders)
+8. Build passes cleanly (678ms)
+
+#### Files Changed
+- `apps/civicos-extension/src/lib/api.ts` — Added relay URL config, `submitVoice()`, `revokeVoice()` (97→163 lines)
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — Added voice state, `handleVoice()`, buttons, CSS (~1131→1290 lines)
+
+#### What's Next
+- P0: TBD — set before session end
+- Phase 2b: commitment tracking (initiatives, civic actions, deadlines)
+- Phase 3: AI viz + chat context injection

@@ -1,7 +1,8 @@
 <script lang="ts">
   import { sendMessage } from '../lib/messaging.js';
-  import { getCityPulse, getDecisionDetail, getDataProvenance, getVoiceCountsBatch } from '../lib/api.js';
-  import type { IdentityInfo } from '../lib/providers/types.js';
+  import { getCityPulse, getDecisionDetail, getDataProvenance, getVoiceCountsBatch, submitVoice, revokeVoice } from '../lib/api.js';
+  import type { IdentityInfo, NostrEvent, SignedNostrEvent } from '../lib/providers/types.js';
+  import { CivicEventKinds, createVoiceContent, createVoiceTags } from '../lib/providers/types.js';
   import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts } from '../lib/types.js';
 
   let identity: (IdentityInfo & { isUnlocked?: boolean }) | null = $state(null);
@@ -30,6 +31,12 @@
 
   // Voice counts
   let voiceCounts = $state(new Map<string, VoiceCounts>());
+
+  // Voice submission state
+  type Stance = 'support' | 'oppose' | 'watching';
+  let userStances = $state(new Map<string, Stance>());
+  let votingInProgress = $state(new Set<string>());
+  const STANCES_STORAGE_KEY = 'civicos_user_stances';
 
   // Calendar dropdown
   let calendarOpen: string | null = $state(null);
@@ -145,6 +152,122 @@
     calendarOpen = calendarOpen === meetingTitle ? null : meetingTitle;
   }
 
+  async function loadStances() {
+    try {
+      const result = await chrome.storage.local.get(STANCES_STORAGE_KEY);
+      if (result[STANCES_STORAGE_KEY]) {
+        userStances = new Map(Object.entries(result[STANCES_STORAGE_KEY]) as [string, Stance][]);
+      }
+    } catch {
+      // Ignore load errors
+    }
+  }
+
+  async function persistStances() {
+    try {
+      const obj: Record<string, string> = {};
+      userStances.forEach((v, k) => { obj[k] = v; });
+      await chrome.storage.local.set({ [STANCES_STORAGE_KEY]: obj });
+    } catch {
+      // Ignore persist errors
+    }
+  }
+
+  async function handleVoice(entityId: string, stance: Stance) {
+    if (votingInProgress.has(entityId)) return;
+    if (!identity?.isUnlocked) return;
+
+    votingInProgress.add(entityId);
+    votingInProgress = new Set(votingInProgress);
+
+    const prevStance = userStances.get(entityId);
+    const prevCounts = voiceCounts.get(entityId) || { support: 0, oppose: 0, watching: 0, total: 0 };
+
+    // Re-click same stance = revoke (toggle off)
+    if (prevStance === stance) {
+      const newCounts = { ...prevCounts };
+      newCounts[stance] = Math.max(0, newCounts[stance] - 1);
+      newCounts.total = newCounts.support + newCounts.oppose + newCounts.watching;
+
+      voiceCounts.set(entityId, newCounts);
+      voiceCounts = new Map(voiceCounts);
+      userStances.delete(entityId);
+      userStances = new Map(userStances);
+      persistStances();
+
+      // Sign and submit revoke (fire-and-forget)
+      try {
+        const createdAt = Math.floor(Date.now() / 1000);
+        const unsigned: NostrEvent = {
+          created_at: createdAt,
+          kind: CivicEventKinds.VOICE,
+          tags: [['d', entityId]],
+          content: `civicos:voice:v1:${entityId}:revoke:${createdAt}`,
+        };
+        const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
+        if (signResult.success) {
+          revokeVoice(entityId, signResult.data.pubkey, signResult.data.sig, createdAt);
+        }
+      } catch {
+        // Fire-and-forget
+      }
+
+      votingInProgress.delete(entityId);
+      votingInProgress = new Set(votingInProgress);
+      return;
+    }
+
+    // Different stance — optimistic update
+    const newCounts = { ...prevCounts };
+    if (prevStance) {
+      newCounts[prevStance] = Math.max(0, newCounts[prevStance] - 1);
+    }
+    newCounts[stance] += 1;
+    newCounts.total = newCounts.support + newCounts.oppose + newCounts.watching;
+
+    voiceCounts.set(entityId, newCounts);
+    voiceCounts = new Map(voiceCounts);
+    userStances.set(entityId, stance);
+    userStances = new Map(userStances);
+    persistStances();
+
+    // Sign and submit
+    try {
+      const jurisdiction = pulseData?.jurisdiction || 'city-san-rafael';
+      const createdAt = Math.floor(Date.now() / 1000);
+      const unsigned: NostrEvent = {
+        created_at: createdAt,
+        kind: CivicEventKinds.VOICE,
+        tags: createVoiceTags(entityId, jurisdiction, stance),
+        content: createVoiceContent(entityId, stance, createdAt),
+      };
+
+      const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
+      if (!signResult.success) {
+        throw new Error('Signing failed');
+      }
+
+      const ok = await submitVoice(entityId, stance, jurisdiction, signResult.data.pubkey, signResult.data.sig, createdAt);
+      if (!ok) {
+        throw new Error('Relay submission failed');
+      }
+    } catch {
+      // Revert on failure
+      voiceCounts.set(entityId, prevCounts);
+      voiceCounts = new Map(voiceCounts);
+      if (prevStance) {
+        userStances.set(entityId, prevStance);
+      } else {
+        userStances.delete(entityId);
+      }
+      userStances = new Map(userStances);
+      persistStances();
+    }
+
+    votingInProgress.delete(entityId);
+    votingInProgress = new Set(votingInProgress);
+  }
+
   function openOptions() {
     chrome.runtime.openOptionsPage();
   }
@@ -188,6 +311,7 @@
   // Load on mount
   loadIdentity();
   loadCityPulse();
+  loadStances();
 </script>
 
 <div class="panel">
@@ -385,6 +509,33 @@
                     {#if counts.watching > 0}<span class="vc vc-watch">{counts.watching} watching</span>{/if}
                   </div>
                 {/if}
+                {#if item.stance_eligible}
+                  <div class="voice-actions">
+                    {#if identity?.isUnlocked}
+                      {@const eid = `agenda-item:${item.id}`}
+                      <button
+                        class="voice-btn vb-support"
+                        class:active={userStances.get(eid) === 'support'}
+                        disabled={votingInProgress.has(eid)}
+                        onclick={() => handleVoice(eid, 'support')}
+                      >Support</button>
+                      <button
+                        class="voice-btn vb-oppose"
+                        class:active={userStances.get(eid) === 'oppose'}
+                        disabled={votingInProgress.has(eid)}
+                        onclick={() => handleVoice(eid, 'oppose')}
+                      >Oppose</button>
+                      <button
+                        class="voice-btn vb-watch"
+                        class:active={userStances.get(eid) === 'watching'}
+                        disabled={votingInProgress.has(eid)}
+                        onclick={() => handleVoice(eid, 'watching')}
+                      >Watch</button>
+                    {:else if identity}
+                      <span class="voice-locked">Unlock to vote</span>
+                    {/if}
+                  </div>
+                {/if}
               </div>
             {/each}
           </div>
@@ -472,6 +623,31 @@
                             {/each}
                           </div>
                         {/if}
+                        <!-- Voice buttons for decisions -->
+                        <div class="voice-actions detail-voice">
+                          {#if identity?.isUnlocked}
+                            <button
+                              class="voice-btn vb-support"
+                              class:active={userStances.get(decision.id) === 'support'}
+                              disabled={votingInProgress.has(decision.id)}
+                              onclick={() => handleVoice(decision.id, 'support')}
+                            >Support</button>
+                            <button
+                              class="voice-btn vb-oppose"
+                              class:active={userStances.get(decision.id) === 'oppose'}
+                              disabled={votingInProgress.has(decision.id)}
+                              onclick={() => handleVoice(decision.id, 'oppose')}
+                            >Oppose</button>
+                            <button
+                              class="voice-btn vb-watch"
+                              class:active={userStances.get(decision.id) === 'watching'}
+                              disabled={votingInProgress.has(decision.id)}
+                              onclick={() => handleVoice(decision.id, 'watching')}
+                            >Watch</button>
+                          {:else if identity}
+                            <span class="voice-locked">Unlock to vote</span>
+                          {/if}
+                        </div>
                       {:else}
                         <div class="detail-empty">No details available</div>
                       {/if}
@@ -1126,6 +1302,57 @@
   .detail-empty {
     font-size: 11px;
     color: #475569;
+    font-style: italic;
+  }
+
+  /* === Voice Action Buttons === */
+  .voice-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    align-items: center;
+  }
+  .detail-voice {
+    border-top: 1px solid #334155;
+    padding-top: 8px;
+    margin-top: 8px;
+  }
+  .voice-btn {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    border: 1px solid #334155;
+    background: transparent;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .voice-btn:hover:not(:disabled) {
+    border-color: #475569;
+    color: #e2e8f0;
+  }
+  .voice-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .vb-support.active {
+    background: #14532d;
+    border-color: #22c55e;
+    color: #4ade80;
+  }
+  .vb-oppose.active {
+    background: #7f1d1d;
+    border-color: #ef4444;
+    color: #f87171;
+  }
+  .vb-watch.active {
+    background: #1e3a5f;
+    border-color: #3b82f6;
+    color: #60a5fa;
+  }
+  .voice-locked {
+    font-size: 10px;
+    color: #64748b;
     font-style: italic;
   }
 </style>

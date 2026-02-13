@@ -1,4 +1,4 @@
-# Recommended: Browser Extension Phase 2 — Voice Submission + Relay Integration
+# Recommended: Browser Extension Phase 2b — Commitments + Initiative Tracking
 
 **Priority:** P0
 **Area:** edge_intelligence > browser_extension
@@ -7,78 +7,63 @@
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
-Session 582 completed Phase 1b: the extension side panel now has expandable decision detail (with testimony), calendar buttons (Google Cal + .ics), data provenance panel, past meeting badges, and voice count display. All 5 read-only enhancements build cleanly. The user wants to continue with Phase 2: voice submission.
+Session 583 completed Phase 2 (voice signing): the extension now has Support/Oppose/Watch buttons on agenda items and decisions, with Kind 30800 Nostr signing via the service worker, relay submission with optimistic updates + rollback, and stance persistence via `chrome.storage.local`.
 
 | Phase | Item | Priority | Status |
 |---|---|---|---|
 | Phase 1 | `extension_phase1_city_pulse` | P1 | **ready** |
 | Phase 1b | `extension_phase1b_read_enhancements` | P1 | **ready** |
-| **Phase 2** | **`extension_phase2_voice_signing`** | **P0** | **not_ready** (NEXT) |
-| Phase 2b | `extension_phase2b_commitments` | P1 | not_ready |
+| Phase 2 | `extension_phase2_voice_signing` | P1 | **ready** |
+| **Phase 2b** | **`extension_phase2b_commitments`** | **P0** | **not_ready** (NEXT) |
 | Phase 3 | `extension_phase3_ai_viz` | P2 | not_ready |
 
-## Recommended Task
-Add Support/Oppose/Watch buttons to agenda items and decisions. Sign voice events via the service worker's existing `SIGN_EVENT` handler. Submit to the relay coordination API. Include optimistic updates with rollback on failure.
+## Quick Fix First: Meetings Section UI Polish
+User feedback from Session 583 — address before starting Phase 2b:
+1. **Rename "Upcoming Meetings"** to "Meetings" or "Recent & Upcoming" — currently shows past meetings under an "Upcoming" label
+2. **Disable calendar buttons for past meetings** — `isPastMeeting()` already exists, just gate the calendar button
+3. These are ~10-line changes in `SidePanel.svelte`
+
+## Recommended Task: Phase 2b
+Add user-spawned initiatives with push/pull coordination. Show community initiatives with nested civic actions, progress bars, and commit/complete/withdraw buttons via the relay.
+
+### Features
+- My Commitments section with deadline tracking
+- Community initiatives listing with voice counts
+- Civic actions per initiative with progress bars
+- Commit/complete/withdraw action buttons (Kind 30810/30811/30812)
+- Deadline countdown (urgent if <=3d, overdue coloring)
+- Coordination channel links (Signal/Matrix/Telegram)
 
 ## Key Files
-- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — main UI (1131 lines), add voice buttons to agenda item and decision cards
-- `apps/civicos-extension/src/lib/api.ts` — add `submitVoice()`, `revokeVoice()` calling relay API
-- `apps/civicos-extension/src/lib/types.ts` — already has `VoiceCounts` interface
-- `apps/civicos-extension/src/lib/messaging.ts:67` — `SIGN_EVENT` message type already defined
-- `apps/civicos-extension/src/background/service-worker.ts:87` — `SIGN_EVENT` handler already works (calls `identityManager.signEvent()`)
-- `apps/civicos-extension/src/lib/providers/types.ts:13` — `NostrEvent`, `SignedNostrEvent`, `SigningResult` types
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — main UI (~1290 lines), add initiatives section
+- `apps/civicos-extension/src/lib/api.ts` — add initiative/action API methods
+- `apps/civicos-extension/src/lib/providers/types.ts` — already has `CivicEventKinds` (30810/30811/30812), `createActionEventContent()`, `createActionCommitmentContent()`, `createActionCompletionContent()`, and all related tag helpers
 
 ### Reference implementation (Open WebUI)
-- `~/projects/civicos-openwebui/src/lib/apis/civic.ts:573` — `submitVoice()` function (Kind 30800 event, relay POST)
-- `~/projects/civicos-openwebui/src/lib/apis/civic.ts:615` — `revokeVoice()` function
-- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte:600` — `handleVoice()` with optimistic updates + rollback
+- Check `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` for initiative rendering patterns
+- Check `~/projects/civicos-openwebui/src/lib/apis/civic.ts` for initiative/action API calls
 
-## Relay API Endpoints
-Base URL: `https://api.civicosproject.org` (env: `CIVICOS_RELAY_URL`)
+### Relay API Endpoints
+Base URL: `https://api.civicosproject.org`
+- Check relay routes for initiative CRUD and action commit/complete endpoints
+- Voice endpoints (already integrated): `POST /coordination/voice`, `POST /coordination/voice/revoke`
 
-- `POST /coordination/voice` — Submit voice: `{ entity, stance, public_key, signature, created_at, jurisdiction }`
-- `POST /coordination/voice/revoke` — Revoke voice: `{ entity, public_key, signature, created_at }`
-- `GET /coordination/voice/counts/{entityId}` — Read counts (already used by Phase 1b)
-
-## Voice Event Structure (Kind 30800)
-```typescript
-const unsigned: NostrEvent = {
-  created_at: Math.floor(Date.now() / 1000),
-  kind: 30800,
-  tags: [['d', entityId], ['j', jurisdiction], ['stance', stance]],
-  content: `civicos:voice:v1:${entityId}:${stance}:${createdAt}`
-};
-// Sign via: sendMessage({ type: 'SIGN_EVENT', event: unsigned })
-// Returns: { success: true, data: SignedNostrEvent }
-```
-
-## Suggested Approach
-1. Add relay API methods to `api.ts`: `submitVoice(entityId, stance, signedEvent)`, `revokeVoice(entityId, signedEvent)`
-2. Add `handleVoice()` to `SidePanel.svelte` following Open WebUI's optimistic update pattern:
-   - Construct unsigned Kind 30800 event
-   - Send `SIGN_EVENT` message to service worker for signing
-   - Optimistically update local voice counts + user stance
-   - POST to relay, rollback on failure
-   - Re-click same stance = revoke (toggle off)
-3. Add Support/Oppose/Watch button row to agenda items (where `stance_eligible`) and decision cards
-4. Persist `userStances` Map to `chrome.storage.local` (not localStorage — extension context)
-5. Show active stance highlighting (e.g., green border on support, red on oppose)
-6. Handle locked identity gracefully (prompt unlock or show "unlock to vote")
+## User Priority Notes
+The user also wants the **interactive issues map** (Phase 3, `extension_phase3_ai_viz`) to replace the current plain issues section. This requires a map library (Leaflet or similar). Keep this in mind when structuring Phase 2b — the issues section will be replaced in Phase 3.
 
 ## Build & Test
 ```bash
 cd apps/civicos-extension && npm run build
 # Reload in chrome://extensions
-# Open side panel, unlock identity, click Support on an agenda item
-# Verify count increments, click again to revoke, verify count decrements
+# Open side panel, verify initiatives section appears
+# Test commit/complete/withdraw flows
 ```
 
 ## Success Criteria
-- [ ] Support/Oppose/Watch buttons on stance-eligible agenda items
-- [ ] Voice counts on decision cards (already showing from Phase 1b)
-- [ ] Clicking a button signs event + submits to relay
-- [ ] Re-clicking same stance revokes
-- [ ] Optimistic count update with rollback on failure
-- [ ] User stance persisted across panel reopens
-- [ ] Locked identity shows appropriate message
-- [ ] pilot.json item `extension_phase2_voice_signing` marked ready
+- [ ] Meetings section label fixed (not "Upcoming" when showing past meetings)
+- [ ] Calendar buttons disabled for past meetings
+- [ ] Community initiatives section with voice counts
+- [ ] Civic actions per initiative with progress indicators
+- [ ] Commit/complete/withdraw buttons with relay submission
+- [ ] My Commitments personal tracker with deadline display
+- [ ] pilot.json item `extension_phase2b_commitments` marked ready
