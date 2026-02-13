@@ -907,6 +907,71 @@ The extension and Jurisdiction Open WebUI are complementary: the city hosts Open
 - Optional Ollama integration for private topic extraction
 - **Ship:** Civic lens on the web
 
+## WebMCP Integration (Post-Launch)
+
+[WebMCP](https://techhub.iodigital.com/articles/web-mcp-making-the-web-ai-agent-ready) is a W3C Draft Community Group Report (published Feb 10, 2026) that adds a `navigator.modelContext` browser API, letting any website — or browser extension — expose structured, callable tools to AI agents. Developed by Google and Microsoft, incubated through the W3C Web Machine Learning community group.
+
+**Status:** Chrome 146 Canary behind a flag. [MCP-B](https://docs.mcp-b.ai/) serves as a polyfill. Chrome stable expected mid-to-late 2026. API surface may change before stabilization.
+
+### How It Works
+
+Instead of AI agents scraping DOM or relying on pasted text, websites and extensions register tools that agents discover and invoke directly:
+
+```javascript
+navigator.modelContext.registerTool({
+  name: 'get_upcoming_meetings',
+  description: 'Get upcoming city council meetings for this jurisdiction',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      jurisdiction: { type: 'string' },
+      days_ahead: { type: 'number', default: 14 }
+    }
+  },
+  async execute({ jurisdiction, days_ahead }) {
+    return await mcpClient.call('get_upcoming_meetings', { jurisdiction, days_ahead });
+  }
+});
+```
+
+Tools execute client-side within the browser's existing session. WebMCP is complementary to Anthropic's MCP — MCP operates server-side (Jurisdiction MCPs), WebMCP operates client-side (browser).
+
+### Impact on Context Injection
+
+WebMCP provides a cleaner mechanism for all three context injection modes:
+
+| Current Mode | WebMCP Alternative | Benefit |
+|---|---|---|
+| **Mode A: Paste injection** | Extension registers civic tools via `navigator.modelContext` — AI agents discover them natively | Structured tool calls replace pasted text blocks |
+| **Mode B: MCP auto-configuration** | Browser natively bridges tools to AI agents — no per-surface DOM hacking | Eliminates the most fragile part of our strategy |
+| **Mode C: Contextual side panel** | AI agent calls `get_relevant_civic_context(topic)` directly | Replaces DOM observation with structured queries |
+
+### Extension as WebMCP Tool Provider
+
+When `navigator.modelContext` is available, the extension registers civic tools on every page where the user has granted permission. Any AI agent on any surface discovers:
+
+- `get_upcoming_meetings()` — upcoming meetings filtered by user interests
+- `get_voice_counts()` — voice tallies on active agenda items
+- `get_user_civic_context()` — user's commitments, voiced items, neighborhood
+- `search_decisions()` — historical decision search
+- `get_active_initiatives()` — community initiatives the user follows
+
+This is a progressive enhancement — the extension checks for `navigator.modelContext` availability and falls back to paste injection (Mode A) on browsers without it.
+
+### City Websites as WebMCP Tool Providers
+
+Cities could add WebMCP tools directly to their websites (`sanrafael.gov`), exposing civic data to any AI agent browsing the site — without requiring a separate MCP server for basic queries. This is a potential selling point for city adoption post-launch.
+
+### Strategy
+
+- **Phases 0-2:** No dependency on WebMCP. Ship identity, MCP connections, voice/signing as designed.
+- **Phase 3 (AI Surface Integration):** Check Chrome stable support. If available, build WebMCP tool registration as primary mode, paste injection as fallback. If not available, ship paste injection, add WebMCP as progressive enhancement when it lands.
+- **Phase 5 (Site Content Interaction):** Websites adopting WebMCP expose structured tools, reducing reliance on DOM scraping for topic extraction.
+
+### Not a Dependency
+
+WebMCP validates our architectural bet (browser extension as distribution surface) but is not required for any phase. Every feature works without it. WebMCP just makes the AI surface bridge dramatically cleaner when it arrives.
+
 ## Port from Existing Code
 
 The following existing code ports to the extension with minimal changes:
