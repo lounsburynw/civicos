@@ -29,6 +29,9 @@
   let unlockPassword = $state('');
   let unlocking = $state(false);
 
+  // Status timer handle — clear old timer before setting new one
+  let statusTimer: ReturnType<typeof setTimeout> | null = null;
+
   async function loadIdentity() {
     loading = true;
     const response = await sendMessage<(IdentityInfo & { isUnlocked?: boolean }) | null>({
@@ -41,9 +44,10 @@
   }
 
   function setStatus(msg: string, type: 'success' | 'error') {
+    if (statusTimer) clearTimeout(statusTimer);
     statusMessage = msg;
     statusType = type;
-    setTimeout(() => { statusMessage = ''; statusType = ''; }, 5000);
+    statusTimer = setTimeout(() => { statusMessage = ''; statusType = ''; statusTimer = null; }, 5000);
   }
 
   async function createIdentity() {
@@ -81,6 +85,7 @@
       email = '';
       password = '';
       confirmPassword = '';
+
     } else {
       setStatus(response.error, 'error');
     }
@@ -121,7 +126,11 @@
   }
 
   async function unlock() {
-    if (!unlockPassword) return;
+    // Easy mode uses biometric (no password needed), Private mode requires password
+    if (identity?.tier === 'private' && !unlockPassword) {
+      setStatus('Enter your password to unlock', 'error');
+      return;
+    }
     unlocking = true;
 
     const response = await sendMessage<boolean>({
@@ -133,7 +142,10 @@
       if (identity) identity = { ...identity, isUnlocked: true };
       setStatus('Identity unlocked', 'success');
     } else {
-      setStatus('Failed to unlock. Wrong password?', 'error');
+      const msg = identity?.tier === 'easy'
+        ? 'Failed to unlock. Passkey authentication failed.'
+        : 'Failed to unlock. Wrong password?';
+      setStatus(msg, 'error');
     }
     unlockPassword = '';
     unlocking = false;
@@ -142,7 +154,6 @@
   async function lock() {
     await sendMessage({ type: 'LOCK' });
     if (identity) identity = { ...identity, isUnlocked: false };
-    setStatus('Identity locked', 'success');
   }
 
   async function deleteIdentity() {
@@ -173,11 +184,9 @@
 <div class="options">
   <h1>CivicOS Identity</h1>
 
-  {#if statusMessage}
-    <div class="status-bar" class:success={statusType === 'success'} class:error={statusType === 'error'}>
-      {statusMessage}
-    </div>
-  {/if}
+  <div class="toast" class:visible={!!statusMessage} class:success={statusType === 'success'} class:error={statusType === 'error'}>
+    {statusMessage}
+  </div>
 
   {#if loading}
     <div class="loading">Loading...</div>
@@ -220,21 +229,29 @@
       {/if}
 
       <div class="action-buttons">
-        {#if identity.isUnlocked}
-          <button class="btn-secondary" onclick={lock}>Lock</button>
-        {:else}
-          <div class="unlock-form">
-            <input
-              type="password"
-              placeholder={identity.tier === 'easy' ? 'Touch ID to unlock' : 'Enter password'}
-              bind:value={unlockPassword}
-              onkeydown={(e: KeyboardEvent) => e.key === 'Enter' && unlock()}
-            />
-            <button class="btn-primary" onclick={unlock} disabled={unlocking}>
-              {unlocking ? 'Unlocking...' : 'Unlock'}
-            </button>
-          </div>
+        <!-- Always render both, toggle with CSS to avoid DOM flicker -->
+        <button class="btn-secondary" style:display={identity.isUnlocked ? '' : 'none'} onclick={lock}>Lock</button>
+
+        {#if !identity.isUnlocked && identity.tier === 'easy'}
+          <button class="btn-primary" onclick={unlock} disabled={unlocking}>
+            {unlocking ? 'Authenticating...' : 'Unlock with Passkey'}
+          </button>
         {/if}
+
+        <form class="unlock-form" style:display={!identity.isUnlocked && identity.tier === 'private' ? 'flex' : 'none'} autocomplete="off" onsubmit={(e: Event) => { e.preventDefault(); unlock(); }}>
+          <input
+            id="unlock-password"
+            name="unlock-password"
+            type="password"
+            autocomplete="off"
+            placeholder="Enter password"
+            bind:value={unlockPassword}
+          />
+          <button type="submit" class="btn-primary" disabled={unlocking}>
+            {unlocking ? 'Unlocking...' : 'Unlock'}
+          </button>
+        </form>
+
         <button class="btn-danger" onclick={deleteIdentity}>Delete Identity</button>
       </div>
     </section>
@@ -357,14 +374,22 @@
     color: #94a3b8;
   }
 
-  .status-bar {
-    padding: 10px 14px;
+  .toast {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 20px;
     border-radius: 6px;
-    margin-bottom: 16px;
     font-size: 13px;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
   }
-  .status-bar.success { background: #064e3b; color: #6ee7b7; }
-  .status-bar.error { background: #450a0a; color: #fca5a5; }
+  .toast.visible { opacity: 1; pointer-events: auto; }
+  .toast.success { background: #064e3b; color: #6ee7b7; }
+  .toast.error { background: #450a0a; color: #fca5a5; }
 
   .card {
     background: #1e293b;
@@ -458,6 +483,11 @@
   }
   .unlock-form input {
     flex: 1;
+    min-width: 0;
+  }
+  .unlock-form button {
+    width: auto;
+    flex-shrink: 0;
   }
 
   .tier-selector {
