@@ -6,14 +6,18 @@
  */
 
 import { IdentityManager } from '../lib/identity.js';
+import { ChromeStorageWalletStorage, ChromeStoragePasskeyStorage } from '../lib/storage.js';
 import type { ExtensionRequest, ExtensionResponse } from '../lib/messaging.js';
 
 // Auto-lock alarm name
 const AUTO_LOCK_ALARM = 'civicos-auto-lock';
 const AUTO_LOCK_MINUTES = 5;
 
-// Identity manager (re-created on service worker wake)
-let identityManager = new IdentityManager();
+// Explicitly use Chrome storage — don't rely on auto-detection in bundled context
+let identityManager = new IdentityManager({
+  storage: new ChromeStorageWalletStorage(),
+  passkeyStorage: new ChromeStoragePasskeyStorage(),
+});
 
 // Handle messages from extension pages and content scripts
 chrome.runtime.onMessage.addListener(
