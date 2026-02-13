@@ -1,76 +1,55 @@
-# Recommended: Browser Extension — Phase 0 Scaffold
+# Recommended: Browser Extension Phase 1 — City Pulse Feed
 
 **Priority:** P0
 **Area:** edge_intelligence > browser_extension
 **Date:** 2026-02-12
-**Previous session:** Context Assembly API (MCP tool + Open WebUI "Chat with this" integration)
 
 > This is recommended context from the previous session. Review and decide whether to accept, modify, or run `/start` for fresh prioritization.
 
 ## Context
+Session 580 completed the browser extension Phase 0: identity scaffold with Chrome storage persistence and working unlock flow (commit `9628362`). The side panel currently shows a placeholder "City Pulse — coming in Phase 1". The user wants to build out the extension with live civic data.
 
-This session completed **context_assembly_api** — the surface-agnostic context assembly layer. Added `get_item_context` MCP tool + REST endpoint (`POST /api/tools/get-item-context`) and integrated "Chat with this decision" / "Chat" buttons into CityPulse in Open WebUI. All 6 context sections (history, regulatory, community, financial, testimony, participation) are live.
-
-The **browser_extension** is now unblocked. It's the primary distribution surface for launch — a Chrome extension that IS the Personal MCP, managing identity, connecting to Jurisdiction MCPs, and injecting civic context into any AI surface (Claude.ai, ChatGPT). Full architecture doc exists.
-
-## Recommended Task: Phase 0 — Extension Scaffold
-
-Phase 0 from `pilot.json` and the architecture doc: **Extension scaffold + tiered identity + NIP-07 provider.** This is the foundation — a Chrome Manifest V3 extension with:
-- Side panel placeholder (City Pulse shell)
-- Tiered identity: Easy (passphrase → key), Private (Web Crypto), Sovereign (NIP-07 relay)
-- Extension popup with identity tier selector
-- Service worker background script for future alerting
+## Recommended Task
+Implement the City Pulse feed in the extension's side panel. Connect to the CivicOS REST API to show upcoming meetings, recent decisions, and community issues — the same data the Open WebUI CityPulse dashboard displays.
 
 ## Key Files
+- `apps/civicos-extension/src/side-panel/SidePanel.svelte` — current placeholder, needs City Pulse sections
+- `apps/civicos-extension/src/side-panel/main.ts` — side panel entry point
+- `apps/civicos-extension/src/background/service-worker.ts` — message handler (may need new message types for API calls)
+- `apps/civicos-mcp/rest_api.py` — REST API with all available endpoints
+- `docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md:72-125` — City Pulse UX spec with wireframe
 
-- `docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md` — **Full architecture doc** (read this first, ~300 lines)
-- `docs/critical/EDGE_INTELLIGENCE_ARCHITECTURE.md` — Edge intelligence theory
-- `apps/civicos-personal-mcp/` — Existing Personal MCP (TypeScript, has signing providers to port)
-- `apps/civicos-personal-mcp/src/lib/providers/` — Signing providers (Easy/Private/Sovereign patterns)
-- `~/projects/civicos-openwebui/src/lib/components/civic/CityPulse.svelte` — Dashboard to port to side panel
-- `~/projects/civicos-openwebui/src/lib/apis/civic.ts` — API client (reusable for extension)
-- `packages/civicos/src/civicos/registry.py` — Jurisdiction MCP URLs
+## Existing REST API Endpoints (on Modal at civicos MCP endpoint)
+The extension can call these directly:
+- `POST /city-pulse` — main dashboard data
+- `POST /get-upcoming-meetings` — upcoming meetings
+- `POST /search-meeting-history` — past meeting search
+- `POST /find-similar-issues` — SeeClickFix issues
+- `GET /data-provenance` — data source info
+- `POST /get-item-context` — context assembly for specific items
+- `GET /budget-summary` — budget overview
 
 ## Suggested Approach
+1. Read `BROWSER_EXTENSION_ARCHITECTURE.md:72-125` for the City Pulse wireframe and section spec
+2. Read the Open WebUI CityPulse component for reference patterns: `~/projects/civicos-openwebui/src/lib/components/civic/`
+3. Add an API client module (`src/lib/api.ts`) that calls the REST API endpoints
+4. Route API calls through the service worker (extension pages can't make cross-origin requests directly; the SW can via `fetch`)
+5. Build City Pulse sections in `SidePanel.svelte`: identity chip (done), upcoming meetings, recent decisions, community issues
+6. Start with Layer 1 (deterministic) — just data display, no AI integration yet
 
-1. Read `docs/critical/BROWSER_EXTENSION_ARCHITECTURE.md` thoroughly — it has detailed Phase 0 spec
-2. Create extension scaffold at `apps/civicos-extension/` (Chrome Manifest V3)
-   - `manifest.json` with side_panel, background service worker, content scripts
-   - `src/side-panel/` — Svelte side panel (port CityPulse skeleton)
-   - `src/popup/` — Identity tier selector
-   - `src/background/` — Service worker
-   - `src/lib/` — Shared types, identity, MCP client
-3. Implement tiered identity (port from `apps/civicos-personal-mcp/src/lib/providers/`)
-   - Easy mode: deterministic key from passphrase (SHA-256 → secp256k1)
-   - Private mode: Web Crypto P-256 (existing implementation)
-   - Sovereign mode: NIP-07 `window.nostr` provider
-4. Wire up basic side panel that fetches City Pulse data from the jurisdiction MCP
-5. Build with Vite + Svelte, load as unpacked extension in Chrome
+## Architecture Note
+Per the architecture doc, the side panel fetches civic data from the Jurisdiction MCP via HTTP. API calls should go through the service worker (add `FETCH_CITY_PULSE`, `FETCH_MEETINGS` etc. message types) since the SW has network access and can cache responses. The extension needs to know the MCP endpoint URL — store in `chrome.storage.local` alongside identity data.
 
-## Tests to Run
+## Build & Test
 ```bash
-# Context assembly tests (verify nothing broke)
-pytest packages/civicos-services/tests/test_context_agent.py -q --override-ini="addopts="
-
-# Personal MCP tests (signing patterns to port)
-cd apps/civicos-personal-mcp && npx vitest run
+cd apps/civicos-extension && npm run build
+# Reload extension in chrome://extensions
+# Open side panel — should show live civic data instead of placeholder
 ```
 
 ## Success Criteria
-- [ ] Extension loads in Chrome as unpacked extension
-- [ ] Side panel opens and shows basic City Pulse placeholder
-- [ ] Identity tier selection works (at least Easy mode generates valid keypair)
-- [ ] Can fetch data from jurisdiction MCP endpoint (`https://san-rafael.civicosproject.org`)
-- [ ] Extension scaffold committed to `apps/civicos-extension/`
-
-## Also Notable
-- **Pilot at 95%** (453/478 items ready) — 23 remaining after context_assembly_api
-- **Relay deployment still pending** — action attribution + voice/revoke endpoints committed but not deployed to Modal
-- **SQL migration pending** — `scripts/sql/add_action_events.sql` needs to run on relay DB
-- **Context assembly needs Modal deploy** — `get_item_context` REST endpoint committed but not yet deployed; run `modal deploy` for `apps/civicos-mcp/modal_mcp.py`
-- **Open WebUI changes committed but not pushed** — `aa7ac4c` in civicos-openwebui needs `git push`
-
-## Dev Environment
-- Frontend: `cd ~/projects/civicos-openwebui && VITE_CIVICOS_API_URL=http://localhost:8001 npm run dev` (localhost:5173)
-- Backend: `./scripts/dev.sh api` (localhost:8001)
-- Extension dev: Load unpacked from `apps/civicos-extension/dist/` in `chrome://extensions`
+- [ ] Side panel shows upcoming meetings from the CivicOS API
+- [ ] Side panel shows recent decisions
+- [ ] Side panel shows community issues
+- [ ] Data refreshes on panel open
+- [ ] pilot.json item `extension_phase1_city_pulse` marked ready

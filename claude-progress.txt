@@ -1,3 +1,21 @@
+## Session 580 (2026-02-12) - Browser Extension Bug Fixes (Persistence + Unlock Form)
+
+**Item:** edge_intelligence/browser_extension
+**Status:** Phase 0 complete (both bugs fixed)
+
+#### What Was Done
+1. Diagnosed identity persistence bug: added comprehensive diagnostics to service-worker.ts, storage.ts, Options.svelte
+2. Confirmed chrome.storage.local works — save, verify, and cross-restart persistence all pass
+3. Root cause of persistence: IdentityManager auto-detection fell back to MemoryStorage in bundled context; fix was explicit ChromeStorageWalletStorage passing (previous session's fix was correct)
+4. Fixed unlock form CSS: `.btn-primary` width:100% starved the flex input of space; added `.unlock-form button { width: auto; flex-shrink: 0 }`
+5. Cleaned up all diagnostic logging
+6. Committed as `9628362`
+
+#### What's Next
+- P0: extension_phase1_city_pulse — connect side panel to CivicOS REST API, show meetings/decisions/issues
+- Architecture doc has full City Pulse wireframe at BROWSER_EXTENSION_ARCHITECTURE.md:72-125
+- REST API endpoints ready: /city-pulse, /get-upcoming-meetings, /find-similar-issues, etc.
+
 ## Session 579 (2026-02-12) - Browser Extension Phase 0 Scaffold + Identity
 
 **Item:** edge_intelligence/browser_extension
