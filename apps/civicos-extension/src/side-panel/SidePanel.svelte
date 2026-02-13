@@ -1,9 +1,9 @@
 <script lang="ts">
   import { sendMessage } from '../lib/messaging.js';
-  import { getCityPulse, getDecisionDetail, getDataProvenance, getVoiceCountsBatch, submitVoice, revokeVoice } from '../lib/api.js';
+  import { getCityPulse, getDecisionDetail, getDataProvenance, getVoiceCountsBatch, submitVoice, revokeVoice, getInitiatives, getCivicActions, getCivicActionProgress, commitToCivicAction, completeCivicAction, withdrawCivicAction, createInitiative, createCivicAction } from '../lib/api.js';
   import type { IdentityInfo, NostrEvent, SignedNostrEvent } from '../lib/providers/types.js';
-  import { CivicEventKinds, createVoiceContent, createVoiceTags } from '../lib/providers/types.js';
-  import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts } from '../lib/types.js';
+  import { CivicEventKinds, createVoiceContent, createVoiceTags, createCommitmentContent, createCommitmentTags, createCompletionContent, createCompletionTags, generateCommitmentId, generateCompletionId, generateActionRef } from '../lib/providers/types.js';
+  import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, Initiative, CivicAction, CivicActionProgress } from '../lib/types.js';
 
   let identity: (IdentityInfo & { isUnlocked?: boolean }) | null = $state(null);
   let loading = $state(true);
@@ -16,6 +16,7 @@
     meetings: true,
     items: true,
     outcomes: true,
+    initiatives: true,
     community: false,
   });
 
@@ -41,6 +42,34 @@
   // Calendar dropdown
   let calendarOpen: string | null = $state(null);
 
+  // Initiatives state
+  let initiatives: Initiative[] = $state([]);
+  let initiativesLoading = $state(false);
+  let expandedInitiatives = $state(new Set<string>());
+  let initiativeActions = $state(new Map<string, CivicAction[]>());
+  let actionProgress = $state(new Map<string, CivicActionProgress>());
+  let actionsLoading = $state(new Set<string>());
+
+  // Commitment tracking (persisted)
+  let committedActions = $state(new Set<string>());
+  let completedActions = $state(new Set<string>());
+  let actionInProgress = $state(new Set<string>());
+  // Store action metadata for My Commitments (renders without expanding initiative)
+  let committedActionMeta = $state(new Map<string, { action_type: string; description: string; deadline?: string }>());
+  const COMMITMENTS_STORAGE_KEY = 'civicos_user_commitments';
+  const COMPLETIONS_STORAGE_KEY = 'civicos_user_completions';
+  const COMMITMENT_META_STORAGE_KEY = 'civicos_commitment_meta';
+
+  // Create initiative form
+  let showCreateInitiative = $state(false);
+  let newInitiative = $state({ topic: '', title: '', description: '', coordination_url: '' });
+  let creatingInitiative = $state(false);
+
+  // Create action form (per initiative)
+  let showCreateAction: string | null = $state(null); // initiative ID
+  let newAction = $state({ action_type: 'written_comment', description: '', target: '', deadline: '' });
+  let creatingAction = $state(false);
+
   function toggle(section: string) {
     expanded[section] = !expanded[section];
   }
@@ -61,8 +90,9 @@
     pulseError = null;
     try {
       pulseData = await getCityPulse();
-      // Load voice counts in background after pulse data arrives
+      // Load voice counts and initiatives in background after pulse data arrives
       loadVoiceCounts();
+      loadInitiatives();
     } catch (err) {
       pulseError = err instanceof Error ? err.message : 'Failed to load civic data';
     }
@@ -171,6 +201,331 @@
     } catch {
       // Ignore persist errors
     }
+  }
+
+  // === Initiative loading ===
+
+  async function loadInitiatives() {
+    initiativesLoading = true;
+    try {
+      const jurisdiction = pulseData?.jurisdiction || 'city-san-rafael';
+      initiatives = await getInitiatives(jurisdiction);
+    } catch {
+      initiatives = [];
+    }
+    initiativesLoading = false;
+  }
+
+  async function toggleInitiativeDetail(initiativeId: string) {
+    if (expandedInitiatives.has(initiativeId)) {
+      expandedInitiatives.delete(initiativeId);
+      expandedInitiatives = new Set(expandedInitiatives);
+      return;
+    }
+
+    expandedInitiatives.add(initiativeId);
+    expandedInitiatives = new Set(expandedInitiatives);
+
+    if (!initiativeActions.has(initiativeId)) {
+      actionsLoading.add(initiativeId);
+      actionsLoading = new Set(actionsLoading);
+      try {
+        const actions = await getCivicActions(initiativeId);
+        initiativeActions.set(initiativeId, actions);
+        initiativeActions = new Map(initiativeActions);
+
+        // Load progress for each action
+        const progressPromises = actions.map(async (action) => {
+          const progress = await getCivicActionProgress(action.id);
+          if (progress) {
+            actionProgress.set(action.id, progress);
+          }
+        });
+        await Promise.all(progressPromises);
+        actionProgress = new Map(actionProgress);
+      } catch {
+        initiativeActions.set(initiativeId, []);
+        initiativeActions = new Map(initiativeActions);
+      } finally {
+        actionsLoading.delete(initiativeId);
+        actionsLoading = new Set(actionsLoading);
+      }
+    }
+  }
+
+  // === Commitment persistence ===
+
+  async function loadCommitments() {
+    try {
+      const result = await chrome.storage.local.get([COMMITMENTS_STORAGE_KEY, COMPLETIONS_STORAGE_KEY, COMMITMENT_META_STORAGE_KEY]);
+      if (result[COMMITMENTS_STORAGE_KEY]) {
+        committedActions = new Set(result[COMMITMENTS_STORAGE_KEY] as string[]);
+      }
+      if (result[COMPLETIONS_STORAGE_KEY]) {
+        completedActions = new Set(result[COMPLETIONS_STORAGE_KEY] as string[]);
+      }
+      if (result[COMMITMENT_META_STORAGE_KEY]) {
+        committedActionMeta = new Map(Object.entries(result[COMMITMENT_META_STORAGE_KEY]) as [string, { action_type: string; description: string; deadline?: string }][]);
+      }
+    } catch {
+      // Ignore load errors
+    }
+  }
+
+  async function persistCommitments() {
+    try {
+      const metaObj: Record<string, { action_type: string; description: string; deadline?: string }> = {};
+      committedActionMeta.forEach((v, k) => { metaObj[k] = v; });
+      await chrome.storage.local.set({
+        [COMMITMENTS_STORAGE_KEY]: [...committedActions],
+        [COMPLETIONS_STORAGE_KEY]: [...completedActions],
+        [COMMITMENT_META_STORAGE_KEY]: metaObj,
+      });
+    } catch {
+      // Ignore persist errors
+    }
+  }
+
+  // === Action handlers ===
+
+  async function handleCommit(action: CivicAction) {
+    if (actionInProgress.has(action.id)) return;
+    if (!identity?.isUnlocked) return;
+
+    actionInProgress.add(action.id);
+    actionInProgress = new Set(actionInProgress);
+
+    try {
+      const jurisdiction = pulseData?.jurisdiction || 'city-san-rafael';
+      const createdAt = Math.floor(Date.now() / 1000);
+      const unsigned: NostrEvent = {
+        created_at: createdAt,
+        kind: CivicEventKinds.ACTION_COMMITMENT,
+        tags: createCommitmentTags(action.id, jurisdiction),
+        content: createCommitmentContent(action.id, createdAt),
+      };
+
+      const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
+      if (!signResult.success) throw new Error('Signing failed');
+
+      const ok = await commitToCivicAction(action.id, signResult.data.pubkey, signResult.data.sig, createdAt, jurisdiction);
+      if (!ok) throw new Error('Relay submission failed');
+
+      // Optimistic update
+      committedActions.add(action.id);
+      committedActions = new Set(committedActions);
+      committedActionMeta.set(action.id, { action_type: action.action_type, description: action.description, deadline: action.deadline });
+      committedActionMeta = new Map(committedActionMeta);
+      persistCommitments();
+
+      // Update progress
+      const prev = actionProgress.get(action.id);
+      if (prev) {
+        actionProgress.set(action.id, { ...prev, commitment_count: prev.commitment_count + 1 });
+        actionProgress = new Map(actionProgress);
+      }
+    } catch {
+      // No rollback needed — commitment wasn't added on failure
+    }
+
+    actionInProgress.delete(action.id);
+    actionInProgress = new Set(actionInProgress);
+  }
+
+  async function handleComplete(action: CivicAction) {
+    if (actionInProgress.has(action.id)) return;
+    if (!identity?.isUnlocked) return;
+
+    actionInProgress.add(action.id);
+    actionInProgress = new Set(actionInProgress);
+
+    try {
+      const jurisdiction = pulseData?.jurisdiction || 'city-san-rafael';
+      const createdAt = Math.floor(Date.now() / 1000);
+      const unsigned: NostrEvent = {
+        created_at: createdAt,
+        kind: CivicEventKinds.ACTION_COMPLETION,
+        tags: createCompletionTags(action.id, jurisdiction),
+        content: createCompletionContent(action.id, createdAt),
+      };
+
+      const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
+      if (!signResult.success) throw new Error('Signing failed');
+
+      const ok = await completeCivicAction(action.id, signResult.data.pubkey, signResult.data.sig, createdAt, jurisdiction);
+      if (!ok) throw new Error('Relay submission failed');
+
+      completedActions.add(action.id);
+      completedActions = new Set(completedActions);
+      persistCommitments();
+
+      const prev = actionProgress.get(action.id);
+      if (prev) {
+        actionProgress.set(action.id, { ...prev, completion_count: prev.completion_count + 1 });
+        actionProgress = new Map(actionProgress);
+      }
+    } catch {
+      // No rollback needed
+    }
+
+    actionInProgress.delete(action.id);
+    actionInProgress = new Set(actionInProgress);
+  }
+
+  async function handleWithdraw(action: CivicAction) {
+    if (actionInProgress.has(action.id)) return;
+    if (!identity?.isUnlocked) return;
+
+    actionInProgress.add(action.id);
+    actionInProgress = new Set(actionInProgress);
+
+    try {
+      const createdAt = Math.floor(Date.now() / 1000);
+      const unsigned: NostrEvent = {
+        created_at: createdAt,
+        kind: CivicEventKinds.ACTION_COMMITMENT,
+        tags: [['d', action.id], ['action', 'withdraw']],
+        content: `civicos:withdraw:v1:${action.id}:${createdAt}`,
+      };
+
+      const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
+      if (!signResult.success) throw new Error('Signing failed');
+
+      const ok = await withdrawCivicAction(action.id, signResult.data.pubkey, signResult.data.sig, createdAt);
+      if (!ok) throw new Error('Relay submission failed');
+
+      committedActions.delete(action.id);
+      committedActions = new Set(committedActions);
+      persistCommitments();
+
+      const prev = actionProgress.get(action.id);
+      if (prev) {
+        actionProgress.set(action.id, { ...prev, commitment_count: Math.max(0, prev.commitment_count - 1) });
+        actionProgress = new Map(actionProgress);
+      }
+    } catch {
+      // No rollback needed
+    }
+
+    actionInProgress.delete(action.id);
+    actionInProgress = new Set(actionInProgress);
+  }
+
+  // === Deadline helpers ===
+
+  function deadlineDaysLeft(deadline: string): number {
+    const d = new Date(deadline);
+    const now = new Date();
+    return Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  function deadlineLabel(deadline: string): string {
+    const days = deadlineDaysLeft(deadline);
+    if (days < 0) return 'overdue';
+    if (days === 0) return 'due today';
+    if (days === 1) return 'due tomorrow';
+    return `${days}d left`;
+  }
+
+  function deadlineClass(deadline: string): string {
+    const days = deadlineDaysLeft(deadline);
+    if (days < 0) return 'overdue';
+    if (days <= 3) return 'urgent';
+    return 'normal';
+  }
+
+  function actionTypeLabel(type: string): string {
+    const labels: Record<string, string> = {
+      written_comment: 'Write Comment',
+      attend_meeting: 'Attend Meeting',
+      public_comment: 'Public Comment',
+      contact_official: 'Contact Official',
+      signature: 'Sign Petition',
+      share: 'Share',
+      custom: 'Action',
+    };
+    return labels[type] || type;
+  }
+
+  async function handleCreateInitiative() {
+    if (creatingInitiative || !identity?.isUnlocked) return;
+    if (!newInitiative.topic.trim() || !newInitiative.title.trim() || !newInitiative.description.trim()) return;
+
+    creatingInitiative = true;
+    try {
+      const jurisdiction = pulseData?.jurisdiction || 'city-san-rafael';
+      const createdAt = Math.floor(Date.now() / 1000);
+      const content = `civicos:initiative:v1:${jurisdiction}:${newInitiative.topic}:${createdAt}`;
+      const unsigned: NostrEvent = {
+        created_at: createdAt,
+        kind: 30800, // Use voice kind for initiative signing
+        tags: [['d', `initiative:${jurisdiction}:${newInitiative.topic}`], ['j', jurisdiction]],
+        content,
+      };
+
+      const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
+      if (!signResult.success) throw new Error('Signing failed');
+
+      const created = await createInitiative(
+        jurisdiction,
+        newInitiative.topic.trim(),
+        newInitiative.title.trim(),
+        newInitiative.description.trim(),
+        signResult.data.pubkey,
+        signResult.data.sig,
+        undefined,
+        newInitiative.coordination_url.trim() || undefined
+      );
+      if (created) {
+        initiatives = [created, ...initiatives];
+        showCreateInitiative = false;
+        newInitiative = { topic: '', title: '', description: '', coordination_url: '' };
+      }
+    } catch {
+      // Show nothing — form stays open for retry
+    }
+    creatingInitiative = false;
+  }
+
+  async function handleCreateAction(initiativeId: string) {
+    if (creatingAction || !identity?.isUnlocked) return;
+    if (!newAction.description.trim()) return;
+
+    creatingAction = true;
+    try {
+      const createdAt = Math.floor(Date.now() / 1000);
+      const content = `civicos:action:v1:${initiativeId}:${newAction.action_type}:${createdAt}`;
+      const unsigned: NostrEvent = {
+        created_at: createdAt,
+        kind: CivicEventKinds.ACTION_EVENT,
+        tags: [['d', `action:${initiativeId}:${newAction.action_type}`], ['initiative', initiativeId]],
+        content,
+      };
+
+      const signResult = await sendMessage<SignedNostrEvent>({ type: 'SIGN_EVENT', event: unsigned });
+      if (!signResult.success) throw new Error('Signing failed');
+
+      const created = await createCivicAction(
+        initiativeId,
+        newAction.action_type,
+        newAction.description.trim(),
+        signResult.data.pubkey,
+        signResult.data.sig,
+        newAction.target.trim() || undefined,
+        newAction.deadline || undefined,
+        undefined
+      );
+      if (created) {
+        const existing = initiativeActions.get(initiativeId) || [];
+        initiativeActions.set(initiativeId, [...existing, created]);
+        initiativeActions = new Map(initiativeActions);
+        showCreateAction = null;
+        newAction = { action_type: 'written_comment', description: '', target: '', deadline: '' };
+      }
+    } catch {
+      // Form stays open for retry
+    }
+    creatingAction = false;
   }
 
   async function handleVoice(entityId: string, stance: Stance) {
@@ -312,6 +667,7 @@
   loadIdentity();
   loadCityPulse();
   loadStances();
+  loadCommitments();
 </script>
 
 <div class="panel">
@@ -421,7 +777,7 @@
     <section class="feed-section">
       <button class="section-header" onclick={() => toggle('meetings')}>
         <span class="section-title">
-          Upcoming Meetings
+          Meetings
           {#if pulseData.decisions_this_week.length > 0}
             <span class="count-badge">{pulseData.decisions_this_week.length}</span>
           {/if}
@@ -440,7 +796,7 @@
                     {#if isPastMeeting(meeting)}<span class="past-icon" title="Past meeting">&#128337;</span>{/if}
                     {meeting.title}
                   </div>
-                  <button class="cal-btn" onclick={() => toggleCalendar(meeting.title)} title="Add to calendar">
+                  <button class="cal-btn" onclick={() => toggleCalendar(meeting.title)} title="Add to calendar" disabled={isPastMeeting(meeting)}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
                     </svg>
@@ -660,6 +1016,223 @@
         </div>
       {/if}
     </section>
+
+    <!-- Community Initiatives -->
+    <section class="feed-section">
+      <div class="section-header-row">
+        <button class="section-header" onclick={() => toggle('initiatives')}>
+          <span class="section-title">
+            Community Initiatives
+            {#if initiatives.length > 0}
+              <span class="count-badge">{initiatives.length}</span>
+            {/if}
+          </span>
+          <span class="chevron" class:open={expanded.initiatives}></span>
+        </button>
+        {#if identity?.isUnlocked && expanded.initiatives}
+          <button
+            class="add-btn"
+            title="Start initiative"
+            onclick={() => { showCreateInitiative = !showCreateInitiative; }}
+          >+</button>
+        {/if}
+      </div>
+      {#if expanded.initiatives}
+        <!-- Create initiative form -->
+        {#if showCreateInitiative}
+          <div class="create-form">
+            <input class="form-input" type="text" placeholder="Topic (e.g. traffic safety)" bind:value={newInitiative.topic} />
+            <input class="form-input" type="text" placeholder="Title" bind:value={newInitiative.title} />
+            <textarea class="form-textarea" placeholder="Description" bind:value={newInitiative.description} rows="2"></textarea>
+            <input class="form-input" type="url" placeholder="Coordination URL (optional)" bind:value={newInitiative.coordination_url} />
+            <div class="form-actions">
+              <button class="action-btn btn-commit" disabled={creatingInitiative || !newInitiative.topic.trim() || !newInitiative.title.trim() || !newInitiative.description.trim()} onclick={handleCreateInitiative}>
+                {creatingInitiative ? 'Creating...' : 'Create Initiative'}
+              </button>
+              <button class="action-btn btn-withdraw" onclick={() => { showCreateInitiative = false; }}>Cancel</button>
+            </div>
+          </div>
+        {/if}
+
+        <div class="section-body">
+          {#if initiativesLoading && initiatives.length === 0}
+            <div class="empty-section">Loading initiatives...</div>
+          {:else if initiatives.length === 0 && !showCreateInitiative}
+            <div class="empty-section">
+              No active initiatives
+              {#if identity?.isUnlocked}
+                <button class="link-btn" onclick={() => { showCreateInitiative = true; }}>Start one</button>
+              {/if}
+            </div>
+          {:else}
+            {#each initiatives as initiative}
+              <div class="card initiative-card" class:expanded-card={expandedInitiatives.has(initiative.id)}>
+                <button class="initiative-toggle" onclick={() => toggleInitiativeDetail(initiative.id)}>
+                  <div class="initiative-header">
+                    <span class="initiative-topic">{initiative.topic}</span>
+                    {#if initiative.voice_count > 0}
+                      <span class="voice-inline">{initiative.voice_count} voices</span>
+                    {/if}
+                  </div>
+                  <div class="card-title">{initiative.title}</div>
+                  <div class="card-desc">{initiative.description}</div>
+                  <div class="card-meta">
+                    <span class="initiative-status">{initiative.status}</span>
+                    {#if initiative.coordination_url}
+                      <span class="meta-sep">&middot;</span>
+                      <span class="coord-link-label">coordination channel</span>
+                    {/if}
+                    <span class="expand-chevron" class:open={expandedInitiatives.has(initiative.id)}></span>
+                  </div>
+                </button>
+
+                {#if expandedInitiatives.has(initiative.id)}
+                  <div class="initiative-detail">
+                    {#if initiative.coordination_url}
+                      <a href={initiative.coordination_url} target="_blank" rel="noopener" class="coord-link">
+                        Join coordination channel
+                      </a>
+                    {/if}
+
+                    {#if actionsLoading.has(initiative.id)}
+                      <div class="detail-loading">Loading actions...</div>
+                    {:else if initiativeActions.has(initiative.id)}
+                      {@const actions = initiativeActions.get(initiative.id)!}
+                      {#if actions.length === 0 && showCreateAction !== initiative.id}
+                        <div class="detail-empty">No civic actions defined yet</div>
+                      {/if}
+                      {#if actions.length > 0}
+                        <div class="detail-label">Civic Actions</div>
+                        {#each actions as action}
+                          <div class="action-card">
+                            <div class="action-header">
+                              <span class="action-type-badge">{actionTypeLabel(action.action_type)}</span>
+                              {#if action.deadline}
+                                <span class="deadline-badge {deadlineClass(action.deadline)}">
+                                  {deadlineLabel(action.deadline)}
+                                </span>
+                              {/if}
+                            </div>
+                            <div class="action-desc">{action.description}</div>
+                            {#if action.target}
+                              <div class="action-target">Target: {action.target}</div>
+                            {/if}
+
+                            <!-- Progress bar -->
+                            {#if actionProgress.has(action.id)}
+                              {@const progress = actionProgress.get(action.id)!}
+                              <div class="progress-row">
+                                <div class="progress-bar">
+                                  <div
+                                    class="progress-fill"
+                                    style="width: {progress.progress_percent ?? 0}%"
+                                  ></div>
+                                </div>
+                                <span class="progress-text">
+                                  {progress.completion_count}/{progress.target_count ?? '?'}
+                                  {#if progress.commitment_count > 0}
+                                    ({progress.commitment_count} committed)
+                                  {/if}
+                                </span>
+                              </div>
+                            {/if}
+
+                            <!-- Action buttons -->
+                            <div class="action-buttons">
+                              {#if identity?.isUnlocked}
+                                {#if completedActions.has(action.id)}
+                                  <span class="action-done">Completed</span>
+                                {:else if committedActions.has(action.id)}
+                                  <button
+                                    class="action-btn btn-complete"
+                                    disabled={actionInProgress.has(action.id)}
+                                    onclick={() => handleComplete(action)}
+                                  >Mark Done</button>
+                                  <button
+                                    class="action-btn btn-withdraw"
+                                    disabled={actionInProgress.has(action.id)}
+                                    onclick={() => handleWithdraw(action)}
+                                  >Withdraw</button>
+                                {:else}
+                                  <button
+                                    class="action-btn btn-commit"
+                                    disabled={actionInProgress.has(action.id)}
+                                    onclick={() => handleCommit(action)}
+                                  >Commit</button>
+                                {/if}
+                              {:else if identity}
+                                <span class="voice-locked">Unlock to participate</span>
+                              {/if}
+                            </div>
+                          </div>
+                        {/each}
+                      {/if}
+                      <!-- Add Action button -->
+                      {#if identity?.isUnlocked}
+                        {#if showCreateAction === initiative.id}
+                          <div class="create-form action-create-form">
+                            <select class="form-input" bind:value={newAction.action_type}>
+                              <option value="written_comment">Write Comment</option>
+                              <option value="attend_meeting">Attend Meeting</option>
+                              <option value="public_comment">Public Comment</option>
+                              <option value="contact_official">Contact Official</option>
+                              <option value="signature">Sign Petition</option>
+                              <option value="share">Share</option>
+                              <option value="custom">Custom</option>
+                            </select>
+                            <input class="form-input" type="text" placeholder="What needs to be done?" bind:value={newAction.description} />
+                            <input class="form-input" type="text" placeholder="Target (optional, e.g. City Council)" bind:value={newAction.target} />
+                            <input class="form-input" type="date" placeholder="Deadline" bind:value={newAction.deadline} />
+                            <div class="form-actions">
+                              <button class="action-btn btn-commit" disabled={creatingAction || !newAction.description.trim()} onclick={() => handleCreateAction(initiative.id)}>
+                                {creatingAction ? 'Adding...' : 'Add Action'}
+                              </button>
+                              <button class="action-btn btn-withdraw" onclick={() => { showCreateAction = null; }}>Cancel</button>
+                            </div>
+                          </div>
+                        {:else}
+                          <button class="add-action-btn" onclick={() => { showCreateAction = initiative.id; }}>
+                            + Add Action
+                          </button>
+                        {/if}
+                      {/if}
+                    {/if}
+                  </div>
+                {/if}
+              </div>
+            {/each}
+          {/if}
+        </div>
+      {/if}
+    </section>
+
+    <!-- My Commitments (personal tracker) -->
+    {#if committedActionMeta.size > 0}
+      <section class="feed-section my-commitments-section">
+        <div class="section-header static-header">
+          <span class="section-title">My Commitments</span>
+        </div>
+        <div class="section-body">
+          {#each [...committedActionMeta.entries()] as [actionId, meta]}
+            <div class="card commitment-card" class:completed-commitment={completedActions.has(actionId)}>
+              <div class="action-header">
+                <span class="action-type-badge">{actionTypeLabel(meta.action_type)}</span>
+                {#if completedActions.has(actionId)}
+                  <span class="commitment-status done">Done</span>
+                {:else if meta.deadline}
+                  <span class="deadline-badge {deadlineClass(meta.deadline)}">
+                    {deadlineLabel(meta.deadline)}
+                  </span>
+                {:else}
+                  <span class="commitment-status active">Active</span>
+                {/if}
+              </div>
+              <div class="action-desc">{meta.description}</div>
+            </div>
+          {/each}
+        </div>
+      </section>
+    {/if}
 
     <!-- Community Pulse -->
     {#if pulseData.community_pulse && pulseData.community_pulse.total_issues}
@@ -1161,7 +1734,8 @@
     padding: 2px;
     border-radius: 3px;
   }
-  .cal-btn:hover { color: #818cf8; background: #334155; }
+  .cal-btn:hover:not(:disabled) { color: #818cf8; background: #334155; }
+  .cal-btn:disabled { opacity: 0.3; cursor: default; }
 
   .cal-dropdown {
     display: flex;
@@ -1354,5 +1928,303 @@
     font-size: 10px;
     color: #64748b;
     font-style: italic;
+  }
+
+  /* === Initiative Cards === */
+  .initiative-toggle {
+    width: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    text-align: left;
+    color: inherit;
+  }
+  .initiative-toggle:hover .card-title { color: #818cf8; }
+
+  .initiative-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+
+  .initiative-topic {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #818cf8;
+    letter-spacing: 0.03em;
+  }
+
+  .initiative-status {
+    font-size: 10px;
+    color: #64748b;
+    text-transform: capitalize;
+  }
+
+  .coord-link-label {
+    font-size: 10px;
+    color: #6366f1;
+  }
+
+  .coord-link {
+    display: block;
+    font-size: 11px;
+    color: #6366f1;
+    text-decoration: none;
+    margin-bottom: 8px;
+  }
+  .coord-link:hover { text-decoration: underline; }
+
+  .initiative-detail {
+    border-top: 1px solid #334155;
+    padding-top: 8px;
+    margin-top: 8px;
+  }
+
+  /* === Action Cards (inside initiatives) === */
+  .action-card {
+    background: #0f172a;
+    border-radius: 4px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    border: 1px solid #1e293b;
+  }
+
+  .action-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+
+  .action-type-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: #1e3a5f;
+    color: #60a5fa;
+  }
+
+  .action-desc {
+    font-size: 12px;
+    color: #cbd5e1;
+    line-height: 1.3;
+    margin-bottom: 4px;
+  }
+
+  .action-target {
+    font-size: 10px;
+    color: #64748b;
+    margin-bottom: 4px;
+  }
+
+  /* === Deadline Badges === */
+  .deadline-badge {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  .deadline-badge.normal { background: #334155; color: #94a3b8; }
+  .deadline-badge.urgent { background: #78350f; color: #fbbf24; }
+  .deadline-badge.overdue { background: #7f1d1d; color: #f87171; }
+
+  /* === Progress Bar === */
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0;
+  }
+
+  .progress-bar {
+    flex: 1;
+    height: 4px;
+    background: #334155;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: #22c55e;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+
+  .progress-text {
+    font-size: 10px;
+    color: #64748b;
+    white-space: nowrap;
+  }
+
+  /* === Action Buttons === */
+  .action-buttons {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    align-items: center;
+  }
+
+  .action-btn {
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 10px;
+    border: 1px solid #334155;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .action-btn:disabled { opacity: 0.5; cursor: default; }
+
+  .btn-commit {
+    color: #4ade80;
+    border-color: #22c55e40;
+  }
+  .btn-commit:hover:not(:disabled) {
+    background: #14532d;
+    border-color: #22c55e;
+  }
+
+  .btn-complete {
+    color: #60a5fa;
+    border-color: #3b82f640;
+  }
+  .btn-complete:hover:not(:disabled) {
+    background: #1e3a5f;
+    border-color: #3b82f6;
+  }
+
+  .btn-withdraw {
+    color: #94a3b8;
+    border-color: #47556940;
+  }
+  .btn-withdraw:hover:not(:disabled) {
+    color: #f87171;
+    border-color: #ef4444;
+    background: #7f1d1d40;
+  }
+
+  .action-done {
+    font-size: 10px;
+    color: #4ade80;
+    font-weight: 500;
+  }
+
+  /* === My Commitments Section === */
+  .my-commitments-section {
+    border-top: 2px solid #334155;
+    margin-top: 4px;
+    padding-top: 4px;
+  }
+
+  .static-header {
+    padding: 8px 4px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #e2e8f0;
+    border-bottom: 1px solid #1e293b;
+  }
+
+  .commitment-card {
+    border-left: 2px solid #3b82f6;
+  }
+  .completed-commitment {
+    border-left-color: #22c55e;
+    opacity: 0.7;
+  }
+
+  .commitment-status {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  .commitment-status.active { background: #1e3a5f; color: #60a5fa; }
+  .commitment-status.done { background: #14532d; color: #4ade80; }
+
+  /* === Section header with add button === */
+  .section-header-row {
+    display: flex;
+    align-items: center;
+  }
+  .section-header-row .section-header {
+    flex: 1;
+  }
+
+  .add-btn {
+    background: none;
+    border: 1px solid #334155;
+    color: #818cf8;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 4px;
+    flex-shrink: 0;
+  }
+  .add-btn:hover { background: #1e293b; border-color: #818cf8; }
+
+  .add-action-btn {
+    display: block;
+    width: 100%;
+    background: none;
+    border: 1px dashed #334155;
+    color: #64748b;
+    font-size: 11px;
+    padding: 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  .add-action-btn:hover { color: #818cf8; border-color: #818cf8; }
+
+  /* === Create forms === */
+  .create-form {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 8px;
+  }
+  .action-create-form {
+    margin-top: 8px;
+  }
+
+  .form-input, .form-textarea {
+    display: block;
+    width: 100%;
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #e2e8f0;
+    font-size: 11px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    font-family: inherit;
+    box-sizing: border-box;
+  }
+  .form-input:focus, .form-textarea:focus {
+    outline: none;
+    border-color: #6366f1;
+  }
+  .form-textarea {
+    resize: vertical;
+    min-height: 40px;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
   }
 </style>

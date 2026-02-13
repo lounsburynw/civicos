@@ -6,7 +6,7 @@
  * to the San Rafael production endpoint.
  */
 
-import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, ToolResponse } from './types.js';
+import type { CityPulseData, DecisionDetailData, DataProvenance, VoiceCounts, ToolResponse, Initiative, CivicAction, CivicActionProgress } from './types.js';
 
 const DEFAULT_API_URL = 'https://san-rafael.civicosproject.org';
 const STORAGE_KEY = 'civicos_api_url';
@@ -151,6 +151,198 @@ export async function revokeVoice(
     return response.ok;
   } catch {
     return false;
+  }
+}
+
+// === Relay API (coordination/initiative + action endpoints) ===
+
+export async function getInitiatives(
+  jurisdiction: string,
+  topic?: string,
+  status?: string,
+  limit = 10
+): Promise<Initiative[]> {
+  const relayUrl = await getRelayUrl();
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (topic) params.set('topic', topic);
+  if (status) params.set('status', status);
+  const response = await fetch(
+    `${relayUrl}/coordination/initiatives/${encodeURIComponent(jurisdiction)}?${params}`,
+    { headers: { 'Content-Type': 'application/json' } }
+  );
+  if (!response.ok) return [];
+  const data = await response.json();
+  return data.initiatives || [];
+}
+
+export async function getCivicActions(initiativeId: string): Promise<CivicAction[]> {
+  const relayUrl = await getRelayUrl();
+  const response = await fetch(
+    `${relayUrl}/coordination/civic-actions/${encodeURIComponent(initiativeId)}`,
+    { headers: { 'Content-Type': 'application/json' } }
+  );
+  if (!response.ok) return [];
+  const data = await response.json();
+  return data.actions || [];
+}
+
+export async function getCivicActionProgress(actionId: string): Promise<CivicActionProgress | null> {
+  const relayUrl = await getRelayUrl();
+  const response = await fetch(
+    `${relayUrl}/coordination/civic-action/${encodeURIComponent(actionId)}/progress`,
+    { headers: { 'Content-Type': 'application/json' } }
+  );
+  if (!response.ok) return null;
+  return response.json();
+}
+
+export async function commitToCivicAction(
+  actionId: string,
+  publicKey: string,
+  signature: string,
+  createdAt: number,
+  jurisdiction: string
+): Promise<boolean> {
+  try {
+    const relayUrl = await getRelayUrl();
+    const response = await fetch(
+      `${relayUrl}/coordination/civic-action/${encodeURIComponent(actionId)}/commit`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          public_key: publicKey,
+          signature,
+          created_at: createdAt,
+          jurisdiction,
+        }),
+      }
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function completeCivicAction(
+  actionId: string,
+  publicKey: string,
+  signature: string,
+  createdAt: number,
+  jurisdiction: string,
+  evidenceType = 'self_report'
+): Promise<boolean> {
+  try {
+    const relayUrl = await getRelayUrl();
+    const response = await fetch(
+      `${relayUrl}/coordination/civic-action/${encodeURIComponent(actionId)}/complete`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          public_key: publicKey,
+          signature,
+          created_at: createdAt,
+          jurisdiction,
+          evidence_type: evidenceType,
+        }),
+      }
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function withdrawCivicAction(
+  actionId: string,
+  publicKey: string,
+  signature: string,
+  createdAt: number
+): Promise<boolean> {
+  try {
+    const relayUrl = await getRelayUrl();
+    const response = await fetch(
+      `${relayUrl}/coordination/civic-action/${encodeURIComponent(actionId)}/withdraw`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          public_key: publicKey,
+          signature,
+          created_at: createdAt,
+        }),
+      }
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function createInitiative(
+  jurisdiction: string,
+  topic: string,
+  title: string,
+  description: string,
+  publicKey: string,
+  signature: string,
+  location?: string,
+  coordinationUrl?: string
+): Promise<Initiative | null> {
+  try {
+    const relayUrl = await getRelayUrl();
+    const response = await fetch(`${relayUrl}/coordination/initiative`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jurisdiction,
+        topic,
+        title,
+        description,
+        location: location || null,
+        coordination_url: coordinationUrl || null,
+        public_key: publicKey,
+        signature,
+      }),
+    });
+    if (!response.ok) return null;
+    return response.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function createCivicAction(
+  initiativeId: string,
+  actionType: string,
+  description: string,
+  publicKey: string,
+  signature: string,
+  target?: string,
+  deadline?: string,
+  targetCount?: number
+): Promise<CivicAction | null> {
+  try {
+    const relayUrl = await getRelayUrl();
+    const response = await fetch(`${relayUrl}/coordination/civic-action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        initiative_id: initiativeId,
+        action_type: actionType,
+        description,
+        public_key: publicKey,
+        signature,
+        target: target || null,
+        deadline: deadline || null,
+        target_count: targetCount ?? null,
+      }),
+    });
+    if (!response.ok) return null;
+    return response.json();
+  } catch {
+    return null;
   }
 }
 

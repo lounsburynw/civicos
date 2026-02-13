@@ -10,10 +10,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from civicos_relay.identity import RelayIdentity, RelayConfig
-from civicos_relay.voice.models import Voice, Stance, VoiceCount, Action, ActionType, ActionCount, Comment, CommentCount
+from civicos_relay.voice.models import Voice, Stance, VoiceCount, Action, ActionType, ActionCount, Comment, CommentCount, CivicActionEvent, CivicActionType, CivicCommitment, CivicCompletion, CivicActionProgress, EvidenceType
 from civicos_relay.voice.service import VoiceService
 from civicos_relay.voice.action_service import ActionService
+from civicos_relay.voice.civic_action_service import CivicActionService
 from civicos_relay.voice.crypto import KeyPair, sign_voice, verify_comment
+from civicos_relay.relay.models import Initiative, InitiativeStatus
 from civicos_relay.relay.models import Subscription, MatchCriteria, DeliveryConfig, DeliveryMethod
 from civicos_relay.relay.service import RelayService
 from civicos_relay.provenance.models import KeyProvenance
@@ -50,6 +52,45 @@ class CompleteActionRequest(BaseModel):
     public_key: str
     signature: str
     evidence_url: Optional[str] = None
+
+
+class CreateInitiativeRequest(BaseModel):
+    """Request to create an initiative."""
+    jurisdiction: str
+    topic: str
+    title: str
+    description: str
+    location: Optional[str] = None
+    coordination_url: Optional[str] = None
+    public_key: str
+    signature: str
+
+
+class CreateCivicActionRequest(BaseModel):
+    """Request to create a civic action (Kind 30810)."""
+    initiative_id: str
+    action_type: str
+    description: str
+    target: Optional[str] = None
+    deadline: Optional[str] = None
+    template: Optional[str] = None
+    target_count: Optional[int] = None
+    coordination_url: Optional[str] = None
+    public_key: str
+    signature: str
+
+
+class CivicCommitRequest(BaseModel):
+    """Request to commit to a civic action (Kind 30811)."""
+    public_key: str
+    signature: str
+
+
+class CivicCompleteRequest(BaseModel):
+    """Request to complete a civic action (Kind 30812)."""
+    public_key: str
+    signature: str
+    evidence_type: str = "self_report"
 
 
 class SubmitCommentRequest(BaseModel):
@@ -107,6 +148,14 @@ def get_comment_storage():
     return _relay_state["comment_storage"]
 
 
+def get_initiative_storage():
+    return _relay_state["initiative_storage"]
+
+
+def get_civic_action_service() -> CivicActionService:
+    return _relay_state["civic_action_service"]
+
+
 def get_identity() -> RelayIdentity:
     return _relay_state["identity"]
 
@@ -146,6 +195,14 @@ async def lifespan(app: FastAPI):
     _relay_state["provenance_service"] = ProvenanceService(storage.provenance)
     _relay_state["sync_service"] = SyncService(identity, storage.sync, config.peers)
     _relay_state["comment_storage"] = storage.comments
+    _relay_state["initiative_storage"] = storage.initiatives
+    _relay_state["civic_action_service"] = CivicActionService(
+        action_storage=storage.civic_action_events,
+        commitment_storage=storage.civic_commitments,
+        completion_storage=storage.civic_completions,
+        outcome_storage=getattr(storage, 'outcomes', None),
+        attribution_storage=getattr(storage, 'attributions', None),
+    )
 
     if config.sync_enabled:
         await _relay_state["sync_service"].start()
@@ -170,7 +227,7 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173", "http://localhost:8080"],
+        allow_origins=["*"],
         allow_methods=["GET", "POST"],
         allow_headers=["*"],
     )
@@ -420,6 +477,155 @@ def create_app() -> FastAPI:
     ):
         """Import voices from a peer relay."""
         return sync_service.import_voices(request)
+
+    # Initiative endpoints
+    @router.post("/initiative", response_model=Initiative)
+    async def create_initiative(
+        request: CreateInitiativeRequest,
+        initiative_storage=Depends(get_initiative_storage),
+    ):
+        """Create a community initiative (signed by creator)."""
+        import hashlib
+        from datetime import datetime
+
+        # Generate initiative ID
+        desc_hash = hashlib.sha256(request.description.encode()).hexdigest()[:8]
+        date_str = datetime.utcnow().strftime("%Y%m%d")
+        initiative_id = f"initiative:{request.jurisdiction}:{date_str}:{desc_hash}"
+
+        initiative = Initiative(
+            id=initiative_id,
+            jurisdiction=request.jurisdiction,
+            topic=request.topic,
+            title=request.title,
+            description=request.description,
+            location=request.location,
+            coordination_url=request.coordination_url,
+            public_key=request.public_key,
+            signature=request.signature,
+        )
+
+        initiative_storage.save_initiative(initiative)
+        return initiative
+
+    @router.get("/initiatives/{jurisdiction}")
+    async def list_initiatives(
+        jurisdiction: str,
+        topic: Optional[str] = None,
+        status: Optional[str] = None,
+        limit: int = 20,
+        initiative_storage=Depends(get_initiative_storage),
+    ):
+        """List initiatives for a jurisdiction."""
+        initiatives = initiative_storage.get_initiatives_for_jurisdiction(
+            jurisdiction, topic=topic, status=status, limit=limit
+        )
+        return {"initiatives": initiatives}
+
+    @router.get("/initiative/{initiative_id:path}")
+    async def get_initiative(
+        initiative_id: str,
+        initiative_storage=Depends(get_initiative_storage),
+    ):
+        """Get initiative details."""
+        initiative = initiative_storage.get_initiative(initiative_id)
+        if not initiative:
+            raise HTTPException(status_code=404, detail="Initiative not found")
+        return initiative
+
+    # Civic Action endpoints (Kind 30810/30811/30812)
+    @router.post("/civic-action", response_model=CivicActionEvent)
+    async def create_civic_action(
+        request: CreateCivicActionRequest,
+        civic_service: CivicActionService = Depends(get_civic_action_service),
+    ):
+        """Create a civic action (Kind 30810)."""
+        from datetime import datetime
+
+        deadline = None
+        if request.deadline:
+            try:
+                deadline = datetime.fromisoformat(request.deadline)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid deadline format")
+
+        action = civic_service.create_action(
+            initiative_id=request.initiative_id,
+            action_type=CivicActionType(request.action_type),
+            description=request.description,
+            public_key=request.public_key,
+            signature=request.signature,
+            target=request.target,
+            deadline=deadline,
+            template=request.template,
+            target_count=request.target_count,
+            coordination_url=request.coordination_url,
+        )
+        return action
+
+    @router.get("/civic-actions/{initiative_id:path}")
+    async def list_civic_actions(
+        initiative_id: str,
+        civic_service: CivicActionService = Depends(get_civic_action_service),
+    ):
+        """List civic actions for an initiative."""
+        actions = civic_service.get_actions_for_initiative(initiative_id)
+        return {"actions": actions}
+
+    @router.get("/civic-action/{action_id:path}/progress", response_model=CivicActionProgress)
+    async def get_civic_action_progress(
+        action_id: str,
+        civic_service: CivicActionService = Depends(get_civic_action_service),
+    ):
+        """Get progress for a civic action."""
+        return civic_service.get_action_progress(action_id)
+
+    @router.post("/civic-action/{action_id:path}/commit")
+    async def commit_civic_action(
+        action_id: str,
+        request: CivicCommitRequest,
+        civic_service: CivicActionService = Depends(get_civic_action_service),
+    ):
+        """Commit to a civic action (Kind 30811)."""
+        try:
+            commitment = civic_service.commit_to_action(
+                action_id=action_id,
+                public_key=request.public_key,
+                signature=request.signature,
+            )
+            return commitment
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+
+    @router.post("/civic-action/{action_id:path}/complete")
+    async def complete_civic_action(
+        action_id: str,
+        request: CivicCompleteRequest,
+        civic_service: CivicActionService = Depends(get_civic_action_service),
+    ):
+        """Complete a civic action (Kind 30812)."""
+        try:
+            completion = civic_service.complete_action(
+                action_id=action_id,
+                public_key=request.public_key,
+                signature=request.signature,
+                evidence_type=EvidenceType(request.evidence_type),
+            )
+            return completion
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+
+    @router.post("/civic-action/{action_id:path}/withdraw")
+    async def withdraw_civic_action(
+        action_id: str,
+        request: CivicCommitRequest,
+        civic_service: CivicActionService = Depends(get_civic_action_service),
+    ):
+        """Withdraw commitment to a civic action."""
+        success = civic_service.withdraw_commitment(action_id, request.public_key)
+        if not success:
+            raise HTTPException(status_code=404, detail="Commitment not found")
+        return {"status": "withdrawn"}
 
     app.include_router(router)
     return app
